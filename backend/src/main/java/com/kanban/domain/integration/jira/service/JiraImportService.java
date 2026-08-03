@@ -72,9 +72,12 @@ public class JiraImportService {
     private static final String DEFAULT_TAG_COLOR = "#94a3b8";
     /** 한 번의 import에서 "삭제 여부"를 JIRA에 확인할 최대 이슈 수 — 폴링(2분)이 API를 때리지 않도록 제한. */
     private static final int MAX_DELETION_PROBES = 20;
+    /** 한 번의 import에서 댓글을 대조할 최대 이슈 수 — 이슈당 코멘트 조회 1콜이 추가되므로 제한. */
+    private static final int MAX_COMMENT_RECONCILES = 15;
 
     private final JiraApiClient jiraApiClient;
     private final JiraOAuthService oauthService;
+    private final JiraCommentSyncService commentSyncService;
     private final JiraIssueMapper mapper;
     private final JiraIntegrationConfigRepository configRepository;
     private final JiraIssueLinkRepository issueLinkRepository;
@@ -170,6 +173,9 @@ public class JiraImportService {
         }
 
         Counters c = new Counters();
+        // 댓글 대조 대상 — JIRA 쪽이 갱신됐거나 새로 만든 이슈. 코멘트 추가/삭제도 issue.updated를 올리므로
+        // 이 조건이면 웹훅을 놓친 댓글 변경까지 함께 잡힌다.
+        List<String> commentReconcileKeys = new ArrayList<>();
 
         // ── 업서트: 이미 연동된 이슈는 갱신, 없으면(또는 삭제 후) 생성 ──
         for (ParsedJiraIssue issue : importable) {
@@ -178,6 +184,7 @@ public class JiraImportService {
                 // 대상 Task가 살아있음 → JIRA 최신값으로 갱신(제목/설명/상태→블록)
                 Task existingTask = taskRepository.findById(taskLink.getTargetId()).orElse(null);
                 if (existingTask != null) {
+                    if (taskLink.isStaleAgainst(issue.updated())) commentReconcileKeys.add(issue.key());
                     // 삭제 표시된 키가 다시 조회됨(복구/재생성) → 연동 복구
                     if (taskLink.isJiraDeleted()) {
                         taskLink.clearJiraDeleted();
@@ -194,6 +201,7 @@ public class JiraImportService {
             Feature feature = resolveProjectFeature(board, importer, issue, projectKeyToFeatureId, c);
             Task task = createTask(board, importer, feature, issue, blockMap, mirror, statusToBlock, taskBlock, currentMilestone);
             saveLink(board, issue, JiraLinkTargetType.TASK, task.getId());
+            commentReconcileKeys.add(issue.key());
             c.tasks++;
             c.created++;
 
@@ -224,6 +232,9 @@ public class JiraImportService {
 
         // JIRA 쪽 삭제 반영: 이번 조회에 없는 링크를 실제 삭제인지 확인해 soft-unlink.
         int deleted = reconcileDeletedInJira(boardId, ctx, taskLinkByKey, importable);
+
+        // 댓글 대조 (웹훅 유실 백업). 링크 원장이 에코를 막으므로 몇 번을 돌려도 중복 생성되지 않는다.
+        reconcileComments(boardId, config, commentReconcileKeys);
 
         config.markSynced();
         log.info("JIRA import to board {}: created={} updated={} orphans={} jiraDeleted={} (F{} T{} CL{} C{})",
@@ -298,6 +309,29 @@ public class JiraImportService {
         link.markJiraDeleted();
         log.info("JIRA issue deleted: board {} issue {} → task {} 연동 해제", boardId, issueKey, link.getTargetId());
         return link.getTargetId();
+    }
+
+    /**
+     * 댓글 대조(웹훅 백업) — JIRA가 갱신된 이슈만 코멘트 목록을 확인해 누락된 생성/삭제를 보충한다.
+     *
+     * <p>이슈당 코멘트 조회 1콜이 붙으므로 한 주기 처리량을 {@link #MAX_COMMENT_RECONCILES}로 묶는다.
+     * 남은 이슈는 다음 주기에 이어서 처리된다 — 웹훅이 정상이면 애초에 대부분 no-op이다.
+     */
+    private void reconcileComments(String boardId, JiraIntegrationConfig config, List<String> issueKeys) {
+        if (!config.isCommentSyncEnabled() || issueKeys.isEmpty()) return;
+
+        int limit = Math.min(issueKeys.size(), MAX_COMMENT_RECONCILES);
+        for (String key : issueKeys.subList(0, limit)) {
+            try {
+                commentSyncService.reconcileIssue(boardId, key);
+            } catch (Exception e) {
+                log.warn("JIRA comment reconcile failed for {}: {}", key, e.getMessage());
+            }
+        }
+        if (issueKeys.size() > limit) {
+            log.info("JIRA comment reconcile board {}: {}건 남음 — 다음 주기에 이어서 처리",
+                boardId, issueKeys.size() - limit);
+        }
     }
 
     /**

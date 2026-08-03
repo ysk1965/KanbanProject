@@ -1619,585 +1619,599 @@ export function TaskDetailModal({
               </div>
             </div>
 
-            <div className="space-y-3 px-8 md:px-10 pt-2">
-              {/* 인라인 메타바: 기간 · 담당자 · 태그 */}
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* 기간 칩 */}
-                {(() => {
-                  const hasDate = !!(
-                    editedTask.start_date || editedTask.due_date
-                  );
-                  const dateLabel = hasDate ? (
-                    <>
-                      {editedTask.start_date
-                        ? format(new Date(editedTask.start_date), "M.d", {
-                            locale: ko,
-                          })
-                        : t("task.startDateTbd")}
-                      {" ~ "}
-                      {editedTask.due_date
-                        ? format(new Date(editedTask.due_date), "M.d", {
-                            locale: ko,
-                          })
-                        : t("task.endDateTbd")}
-                    </>
-                  ) : (
-                    t("task.selectDate")
-                  );
-                  const chipClass = `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-colors ${
-                    hasDate
-                      ? "bg-bridge-accent/[0.12] border-bridge-accent/35 text-foreground hover:bg-bridge-accent/20"
-                      : "bg-foreground/[0.04] border-foreground/10 text-slate-400 hover:bg-foreground/10"
-                  }`;
-                  const chipInner = (
-                    <>
-                      <CalendarIcon
-                        className={`h-3.5 w-3.5 ${hasDate ? "text-bridge-accent" : "text-slate-400"}`}
-                      />
-                      <span>{dateLabel}</span>
-                    </>
-                  );
-                  if (!canEdit) {
-                    return (
-                      <div className={`${chipClass} cursor-default`}>
-                        {chipInner}
-                      </div>
+            {/* 본문 스크롤 영역 — 메타 · 설명 · 체크리스트를 단일 스크롤 컨테이너로 통합 */}
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+              <div className="space-y-3 px-8 md:px-10 pt-2">
+                {/* 인라인 메타바: 기간 · 담당자 · 태그 */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* 기간 칩 */}
+                  {(() => {
+                    const hasDate = !!(
+                      editedTask.start_date || editedTask.due_date
                     );
-                  }
-                  return (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button type="button" className={chipClass}>
-                          {chipInner}
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className="w-auto p-0 bg-bridge-obsidian border-foreground/10"
-                        align="start"
-                      >
-                        <Calendar
-                          mode="range"
-                          selected={{
-                            from: editedTask.start_date
-                              ? new Date(editedTask.start_date)
-                              : undefined,
-                            to: editedTask.due_date
-                              ? new Date(editedTask.due_date)
-                              : undefined,
-                          }}
-                          defaultMonth={
-                            editedTask.start_date
-                              ? new Date(editedTask.start_date)
-                              : editedTask.due_date
-                                ? new Date(editedTask.due_date)
-                                : undefined
-                          }
-                          onSelect={handleDateRangeChange}
-                          numberOfMonths={2}
-                          locale={ko}
-                          className="bg-bridge-obsidian text-foreground"
-                        />
-                        {hasDate && (
-                          <div className="p-2 border-t border-foreground/10">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                              onClick={handleDateRangeClear}
-                            >
-                              {t("task.deleteDate")}
-                            </Button>
-                          </div>
-                        )}
-                      </PopoverContent>
-                    </Popover>
-                  );
-                })()}
-
-                {/* 담당자 안내 칩 — 체크리스트 담당자가 없을 때만 노출 */}
-                {!isPersonal && checklistAssigneeStats.assignees.length === 0 && (
-                  <div
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-foreground/[0.04] border border-foreground/10 text-slate-400 cursor-default"
-                    title={t("task.addAssigneeToChecklist")}
-                  >
-                    <Users className="h-3.5 w-3.5 text-slate-400" />
-                    <span>{t("task.assignee")}</span>
-                  </div>
-                )}
-
-                {/* 태그 칩 */}
-                {taskTags.map((tag) => (
-                  <span
-                    key={tag.id}
-                    className="text-xs font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5"
-                    style={{
-                      backgroundColor: `${tag.color}15`,
-                      borderColor: `${tag.color}44`,
-                      color: tag.color,
-                    }}
-                  >
-                    {tag.name}
-                    {canEdit && (
-                      <button
-                        onClick={() => handleRemoveTag(tag.id)}
-                        className="hover:opacity-80"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    )}
-                  </span>
-                ))}
-                {canEdit && (
-                  <TagPickerPopover
-                    selectedTagIds={taskTags.map((t) => t.id)}
-                    availableTags={availableTags}
-                    onToggleTag={handleToggleTag}
-                    onCreateTag={onCreateTag}
-                    onUpdateTag={onUpdateTag}
-                    onDeleteTag={onDeleteTag}
-                  />
-                )}
-              </div>
-
-              {/* 담당자 칩 레일 (체크리스트 담당자 집계 + 필터) — Personal Board에서는 숨김 */}
-              {!isPersonal && checklistAssigneeStats.assignees.length > 0 && (
-                <div className="-mx-8 md:-mx-10 pt-1">
-                  <div className="flex items-baseline justify-between gap-3 px-8 md:px-10 pb-2">
-                    <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                      {t("task.assignee")}
-                    </span>
-                    <span className="text-xs text-slate-500 tabular-nums">
-                      {isChecklistFilterActive
-                        ? t("task.checklistFilter.railSelected", {
-                            count: filterAssigneeIds.length,
-                            visible: visibleChecklistItems.length,
-                            defaultValue:
-                              "{{count}}명 선택 · {{visible}}개 항목",
-                          })
-                        : t("task.checklistFilter.railAll", {
-                            total: checklistItems.length,
-                            defaultValue: "전체 {{total}}개 항목",
-                          })}
-                    </span>
-                  </div>
-                  <div
-                    role="group"
-                    aria-label={t("task.checklistFilter.groupLabel", {
-                      defaultValue: "담당자 필터",
-                    })}
-                    className="flex items-center gap-2 overflow-x-auto custom-scrollbar px-8 md:px-10 pb-2"
-                    style={{
-                      maskImage:
-                        "linear-gradient(90deg, transparent 0px, #000 24px, #000 calc(100% - 24px), transparent 100%)",
-                      WebkitMaskImage:
-                        "linear-gradient(90deg, transparent 0px, #000 24px, #000 calc(100% - 24px), transparent 100%)",
-                    }}
-                  >
-                    {/* 전체 칩 — 필터 초기화 겸 현재 상태 표시 */}
-                    <button
-                      type="button"
-                      onClick={() => setFilterAssigneeIds([])}
-                      aria-pressed={!isChecklistFilterActive}
-                      className={`flex-shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-full border text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
-                        !isChecklistFilterActive
-                          ? "bg-foreground/10 border-foreground/15 text-foreground font-bold"
-                          : "bg-foreground/[0.04] border-foreground/10 text-slate-400 hover:bg-foreground/10"
-                      }`}
-                    >
-                      <span>
-                        {t("task.checklistFilter.all", {
-                          defaultValue: "전체",
-                        })}
-                      </span>
-                      <span className="tabular-nums text-slate-500">
-                        {checklistItems.length}
-                      </span>
-                    </button>
-
-                    {checklistAssigneeStats.assignees.map((assignee) => {
-                      const memberData = boardMembers.find(
-                        (m) => m.userId === assignee.id,
-                      );
-                      const color = getAssigneeClasses(
-                        assignee.name,
-                        memberData?.assigneeColor,
-                      );
-                      const isActive = filterAssigneeIds.includes(assignee.id);
-                      return (
-                        <button
-                          key={assignee.id}
-                          type="button"
-                          onClick={() => toggleAssigneeFilter(assignee.id)}
-                          aria-pressed={isActive}
-                          className={`flex-shrink-0 flex items-center gap-1.5 h-8 pl-1 pr-3 rounded-full border text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
-                            isActive
-                              ? "bg-bridge-accent/15 border-bridge-accent/45"
-                              : "bg-foreground/[0.04] border-foreground/10 hover:bg-foreground/10"
-                          }`}
-                        >
-                          <span
-                            className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white leading-none overflow-hidden whitespace-nowrap`}
-                            style={
-                              !color.bg
-                                ? { backgroundColor: color.hex }
-                                : undefined
-                            }
-                          >
-                            {getInitials(assignee.name)}
-                          </span>
-                          <span
-                            className={`whitespace-nowrap ${
-                              isActive
-                                ? "text-bridge-accent font-bold"
-                                : "text-foreground"
-                            }`}
-                          >
-                            {assignee.name}
-                          </span>
-                          <span
-                            className={`tabular-nums ${
-                              isActive
-                                ? "text-bridge-accent/70"
-                                : "text-slate-500"
-                            }`}
-                          >
-                            {assignee.count}
-                          </span>
-                        </button>
-                      );
-                    })}
-
-                    {checklistAssigneeStats.unassignedCount > 0 && (
+                    const dateLabel = hasDate ? (
                       <>
-                        <span
-                          aria-hidden="true"
-                          className="flex-shrink-0 w-px h-5 bg-foreground/10"
-                        />
-                        {(() => {
-                          const isActive =
-                            filterAssigneeIds.includes("__no_assignee__");
-                          return (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                toggleAssigneeFilter("__no_assignee__")
-                              }
-                              aria-pressed={isActive}
-                              className={`flex-shrink-0 flex items-center gap-1.5 h-8 pl-1 pr-3 rounded-full border text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
-                                isActive
-                                  ? "bg-bridge-accent/15 border-bridge-accent/45"
-                                  : "bg-foreground/[0.04] border-foreground/10 hover:bg-foreground/10"
-                              }`}
-                            >
-                              <span className="w-6 h-6 rounded-full border border-dashed border-foreground/20 flex items-center justify-center text-xs text-slate-500 leading-none">
-                                ?
-                              </span>
-                              <span
-                                className={`whitespace-nowrap ${
-                                  isActive
-                                    ? "text-bridge-accent font-bold"
-                                    : "text-slate-400"
-                                }`}
-                              >
-                                {t(
-                                  "task.checklistFilter.unassigned",
-                                  "미할당",
-                                )}
-                              </span>
-                              <span
-                                className={`tabular-nums ${
-                                  isActive
-                                    ? "text-bridge-accent/70"
-                                    : "text-slate-500"
-                                }`}
-                              >
-                                {checklistAssigneeStats.unassignedCount}
-                              </span>
-                            </button>
-                          );
-                        })()}
+                        {editedTask.start_date
+                          ? format(new Date(editedTask.start_date), "M.d", {
+                              locale: ko,
+                            })
+                          : t("task.startDateTbd")}
+                        {" ~ "}
+                        {editedTask.due_date
+                          ? format(new Date(editedTask.due_date), "M.d", {
+                              locale: ko,
+                            })
+                          : t("task.endDateTbd")}
                       </>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* 설명 섹션 */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-slate-400" />
-                  <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                    {t("task.description")}
-                  </Label>
-                </div>
-                <Textarea
-                  value={editedTask.description || ""}
-                  onChange={(e) =>
-                    canEdit && handleDescriptionChange(e.target.value)
-                  }
-                  placeholder={t("task.noDescription")}
-                  rows={7}
-                  readOnly={!canEdit}
-                  className={`bg-bridge-dark/50 border-bridge-border/30 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEdit ? "cursor-default" : ""}`}
-                />
-              </div>
-            </div>
-
-            {/* 체크리스트 섹션 — 스크롤 영역 */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 px-4 md:px-6 pb-10">
-              <div className="mt-6 pt-6 border-t border-foreground/10">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <CheckSquare
-                      className="h-5 w-5"
-                      style={{ color: task.feature_color || "#6366F1" }}
-                    />
-                    <Label className="text-base font-bold text-foreground">
-                      CheckList
-                    </Label>
-                    {canEdit && boardId && !isRestricted && (
-                      <button
-                        onClick={() => setShowAIConfirm(true)}
-                        className="ml-1 flex items-center gap-1 px-2 py-0.5 text-xs font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-md hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"
-                      >
-                        <Sparkles className="h-3 w-3" />
-                        AI
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {visibleChecklistItems.length > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleCopyChecklistText}
-                        className="h-7 px-2 text-slate-400 hover:text-foreground hover:bg-foreground/10"
-                        title={t("task.copyChecklist", {
-                          defaultValue: "체크리스트 복사",
-                        })}
-                        aria-label={t("task.copyChecklist", {
-                          defaultValue: "체크리스트 복사",
-                        })}
-                      >
-                        {checklistCopied ? (
-                          <Check className="h-4 w-4 text-emerald-400" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </Button>
-                    )}
-                    {isChecklistFilterActive && (
-                      <span className="text-xs text-slate-500">
-                        {t("task.checklistFilter.showingCount", {
-                          visible: visibleChecklistItems.length,
-                          total: checklistItems.length,
-                          defaultValue: "{{visible}} / {{total}} 표시 중",
-                        })}
-                      </span>
-                    )}
-                    {/* 리스트 ↔ 상태 보드 모드 전환 */}
-                    {checklistItems.length > 0 && (
-                      <div className="flex items-center gap-0.5 bg-foreground/5 rounded-lg p-0.5">
-                        {(
-                          [
-                            {
-                              mode: "list" as const,
-                              icon: List,
-                              label: t("task.checklistView.list", {
-                                defaultValue: "리스트",
-                              }),
-                            },
-                            {
-                              mode: "board" as const,
-                              icon: LayoutGrid,
-                              label: t("task.checklistView.board", {
-                                defaultValue: "보드",
-                              }),
-                            },
-                          ] as const
-                        ).map(({ mode, icon: Icon, label }) => (
-                          <button
-                            key={mode}
-                            onClick={() => handleChecklistViewModeChange(mode)}
-                            aria-label={label}
-                            aria-pressed={checklistViewMode === mode}
-                            className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold transition-colors ${
-                              checklistViewMode === mode
-                                ? "bg-foreground/10 text-foreground"
-                                : "text-slate-400 hover:text-foreground"
-                            }`}
-                          >
-                            <Icon className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">{label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    <div className="w-24 h-2 bg-foreground/10 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-300"
-                        style={{
-                          width: `${checklistProgress}%`,
-                          backgroundColor: task.feature_color || "#6366F1",
-                        }}
-                      />
-                    </div>
-                    <span
-                      className="text-sm font-medium"
-                      style={{ color: task.feature_color || "#6366F1" }}
-                    >
-                      {checklistProgress}%
-                    </span>
-                  </div>
-                </div>
-
-                {/* 체크리스트 항목들 */}
-                <div className="space-y-2">
-                  {checklistItems.length === 0 && (
-                    <div className="flex items-start gap-3 px-1 py-3">
-                      <div
-                        className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-                        style={{
-                          backgroundColor: `${task.feature_color || "#6366F1"}15`,
-                        }}
-                      >
-                        <Lightbulb
-                          size={14}
-                          style={{ color: task.feature_color || "#6366F1" }}
+                    ) : (
+                      t("task.selectDate")
+                    );
+                    const chipClass = `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-colors ${
+                      hasDate
+                        ? "bg-bridge-accent/[0.12] border-bridge-accent/35 text-foreground hover:bg-bridge-accent/20"
+                        : "bg-foreground/[0.04] border-foreground/10 text-slate-400 hover:bg-foreground/10"
+                    }`;
+                    const chipInner = (
+                      <>
+                        <CalendarIcon
+                          className={`h-3.5 w-3.5 ${hasDate ? "text-bridge-accent" : "text-slate-400"}`}
                         />
+                        <span>{dateLabel}</span>
+                      </>
+                    );
+                    if (!canEdit) {
+                      return (
+                        <div className={`${chipClass} cursor-default`}>
+                          {chipInner}
+                        </div>
+                      );
+                    }
+                    return (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button type="button" className={chipClass}>
+                            {chipInner}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-auto p-0 bg-bridge-obsidian border-foreground/10"
+                          align="start"
+                        >
+                          <Calendar
+                            mode="range"
+                            selected={{
+                              from: editedTask.start_date
+                                ? new Date(editedTask.start_date)
+                                : undefined,
+                              to: editedTask.due_date
+                                ? new Date(editedTask.due_date)
+                                : undefined,
+                            }}
+                            defaultMonth={
+                              editedTask.start_date
+                                ? new Date(editedTask.start_date)
+                                : editedTask.due_date
+                                  ? new Date(editedTask.due_date)
+                                  : undefined
+                            }
+                            onSelect={handleDateRangeChange}
+                            numberOfMonths={2}
+                            locale={ko}
+                            className="bg-bridge-obsidian text-foreground"
+                          />
+                          {hasDate && (
+                            <div className="p-2 border-t border-foreground/10">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                onClick={handleDateRangeClear}
+                              >
+                                {t("task.deleteDate")}
+                              </Button>
+                            </div>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+                    );
+                  })()}
+
+                  {/* 담당자 안내 칩 — 체크리스트 담당자가 없을 때만 노출 */}
+                  {!isPersonal &&
+                    checklistAssigneeStats.assignees.length === 0 && (
+                      <div
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-foreground/[0.04] border border-foreground/10 text-slate-400 cursor-default"
+                        title={t("task.addAssigneeToChecklist")}
+                      >
+                        <Users className="h-3.5 w-3.5 text-slate-400" />
+                        <span>{t("task.assignee")}</span>
                       </div>
-                      <div>
-                        <p className="text-xs font-medium text-foreground/80 mb-1">
-                          {t("task.addChecklistHint")}
-                        </p>
-                        <p className="text-xs text-slate-500 leading-relaxed">
-                          {t("task.addChecklistDesc")}
-                        </p>
-                      </div>
-                    </div>
+                    )}
+
+                  {/* 태그 칩 */}
+                  {taskTags.map((tag) => (
+                    <span
+                      key={tag.id}
+                      className="text-xs font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5"
+                      style={{
+                        backgroundColor: `${tag.color}15`,
+                        borderColor: `${tag.color}44`,
+                        color: tag.color,
+                      }}
+                    >
+                      {tag.name}
+                      {canEdit && (
+                        <button
+                          onClick={() => handleRemoveTag(tag.id)}
+                          className="hover:opacity-80"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                  {canEdit && (
+                    <TagPickerPopover
+                      selectedTagIds={taskTags.map((t) => t.id)}
+                      availableTags={availableTags}
+                      onToggleTag={handleToggleTag}
+                      onCreateTag={onCreateTag}
+                      onUpdateTag={onUpdateTag}
+                      onDeleteTag={onDeleteTag}
+                    />
                   )}
-                  {isChecklistFilterActive &&
-                  visibleChecklistItems.length === 0 ? (
-                    <div className="py-10 text-center">
-                      <p className="text-xs text-slate-500">
-                        {t("task.checklistFilter.empty", {
-                          defaultValue:
-                            "선택한 담당자의 체크리스트 항목이 없습니다.",
-                        })}
-                      </p>
+                </div>
+
+                {/* 담당자 칩 레일 (체크리스트 담당자 집계 + 필터) — Personal Board에서는 숨김 */}
+                {!isPersonal && checklistAssigneeStats.assignees.length > 0 && (
+                  <div className="-mx-8 md:-mx-10 pt-1">
+                    <div className="flex items-baseline justify-between gap-3 px-8 md:px-10 pb-2">
+                      <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                        {t("task.assignee")}
+                      </span>
+                      <span className="text-xs text-slate-500 tabular-nums">
+                        {isChecklistFilterActive
+                          ? t("task.checklistFilter.railSelected", {
+                              count: filterAssigneeIds.length,
+                              visible: visibleChecklistItems.length,
+                              defaultValue:
+                                "{{count}}명 선택 · {{visible}}개 항목",
+                            })
+                          : t("task.checklistFilter.railAll", {
+                              total: checklistItems.length,
+                              defaultValue: "전체 {{total}}개 항목",
+                            })}
+                      </span>
+                    </div>
+                    <div
+                      role="group"
+                      aria-label={t("task.checklistFilter.groupLabel", {
+                        defaultValue: "담당자 필터",
+                      })}
+                      className="flex items-center gap-2 overflow-x-auto custom-scrollbar px-8 md:px-10 pb-2"
+                      style={{
+                        maskImage:
+                          "linear-gradient(90deg, transparent 0px, #000 24px, #000 calc(100% - 24px), transparent 100%)",
+                        WebkitMaskImage:
+                          "linear-gradient(90deg, transparent 0px, #000 24px, #000 calc(100% - 24px), transparent 100%)",
+                      }}
+                    >
+                      {/* 전체 칩 — 필터 초기화 겸 현재 상태 표시 */}
                       <button
                         type="button"
                         onClick={() => setFilterAssigneeIds([])}
-                        className="mt-2 text-xs font-bold text-bridge-accent hover:underline"
+                        aria-pressed={!isChecklistFilterActive}
+                        className={`flex-shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-full border text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                          !isChecklistFilterActive
+                            ? "bg-foreground/10 border-foreground/15 text-foreground font-bold"
+                            : "bg-foreground/[0.04] border-foreground/10 text-slate-400 hover:bg-foreground/10"
+                        }`}
                       >
-                        {t("task.clearFilter", "필터 해제")}
+                        <span>
+                          {t("task.checklistFilter.all", {
+                            defaultValue: "전체",
+                          })}
+                        </span>
+                        <span className="tabular-nums text-slate-500">
+                          {checklistItems.length}
+                        </span>
                       </button>
-                    </div>
-                  ) : checklistViewMode === "board" ? (
-                    <ChecklistStatusBoard
-                      items={visibleChecklistItems}
-                      canEdit={canEdit}
-                      boardMembers={boardMembers}
-                      contractors={contractors}
-                      timeBlocksMap={checklistTimeBlocksMap}
-                      featureColor={task.feature_color}
-                      isPersonal={isPersonal}
-                      onToggle={handleToggleChecklistItem}
-                      onMoveColumn={handleMoveChecklistColumn}
-                      onUpdateItem={handleUpdateChecklistItem}
-                      onDelete={setChecklistItemToDelete}
-                      onMoveToTask={
-                        onMoveChecklistToTask &&
-                        (allTasks.length > 1 || milestones.length > 1)
-                          ? (itemId) => {
-                              setMoveChecklistItemId(itemId);
-                              setShowMoveChecklistDialog(true);
-                            }
-                          : undefined
-                      }
-                      onQuickAdd={(title) => handleAddChecklistItem({ title })}
-                    />
-                  ) : (
-                    <DndContext
-                      sensors={checklistSensors}
-                      collisionDetection={closestCenter}
-                      modifiers={[
-                        restrictToVerticalAxis,
-                        restrictToParentElement,
-                      ]}
-                      onDragEnd={handleChecklistDragEnd}
-                    >
-                      <SortableContext
-                        items={visibleChecklistItems.map((item) => item.id)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        {visibleChecklistItems.map((item) => (
-                          <SortableChecklistItemRow
-                            key={item.id}
-                            item={item}
-                            onToggle={() => handleToggleChecklistItem(item.id)}
-                            onUpdate={(updates) =>
-                              handleUpdateChecklistItem(item.id, updates)
-                            }
-                            onDelete={() => setChecklistItemToDelete(item.id)}
-                            onMoveToTask={
-                              onMoveChecklistToTask &&
-                              (allTasks.length > 1 || milestones.length > 1)
-                                ? () => {
-                                    setMoveChecklistItemId(item.id);
-                                    setShowMoveChecklistDialog(true);
-                                  }
-                                : undefined
-                            }
-                            onMerge={
-                              checklistItems.length > 1
-                                ? () => openMergeChecklistDialog(item.id)
-                                : undefined
-                            }
-                            siblingItems={checklistItems
-                              .filter((ci) => ci.id !== item.id)
-                              .map((ci) => ({
-                                id: ci.id,
-                                title: ci.title,
-                                completed: ci.completed,
-                              }))}
-                            onReassignBlock={(blockId, targetItemId) =>
-                              handleReassignTimeBlock(
-                                blockId,
-                                item.id,
-                                targetItemId,
-                              )
-                            }
-                            boardMembers={boardMembers}
-                            contractors={contractors}
-                            boardId={boardId}
-                            canEdit={canEdit}
-                            dragDisabled={isChecklistFilterActive}
-                            isPersonal={isPersonal}
-                            preloadedTimeBlocks={
-                              checklistTimeBlocksMap[item.id]
-                            }
-                            isHighlighted={highlightChecklistItemId === item.id}
-                            highlightRef={
-                              highlightChecklistItemId === item.id
-                                ? highlightChecklistRef
-                                : undefined
-                            }
-                          />
-                        ))}
-                      </SortableContext>
-                    </DndContext>
-                  )}
 
-                  {/* 새 항목 추가 - Viewer는 추가 불가 */}
-                  {canEdit && (
-                    <AddChecklistItemInput
-                      onAdd={handleAddChecklistItem}
-                      boardMembers={boardMembers}
-                      currentUser={currentUser}
-                      isPersonal={isPersonal}
-                    />
-                  )}
+                      {checklistAssigneeStats.assignees.map((assignee) => {
+                        const memberData = boardMembers.find(
+                          (m) => m.userId === assignee.id,
+                        );
+                        const color = getAssigneeClasses(
+                          assignee.name,
+                          memberData?.assigneeColor,
+                        );
+                        const isActive = filterAssigneeIds.includes(
+                          assignee.id,
+                        );
+                        return (
+                          <button
+                            key={assignee.id}
+                            type="button"
+                            onClick={() => toggleAssigneeFilter(assignee.id)}
+                            aria-pressed={isActive}
+                            className={`flex-shrink-0 flex items-center gap-1.5 h-8 pl-1 pr-3 rounded-full border text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                              isActive
+                                ? "bg-bridge-accent/15 border-bridge-accent/45"
+                                : "bg-foreground/[0.04] border-foreground/10 hover:bg-foreground/10"
+                            }`}
+                          >
+                            <span
+                              className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white leading-none overflow-hidden whitespace-nowrap`}
+                              style={
+                                !color.bg
+                                  ? { backgroundColor: color.hex }
+                                  : undefined
+                              }
+                            >
+                              {getInitials(assignee.name)}
+                            </span>
+                            <span
+                              className={`whitespace-nowrap ${
+                                isActive
+                                  ? "text-bridge-accent font-bold"
+                                  : "text-foreground"
+                              }`}
+                            >
+                              {assignee.name}
+                            </span>
+                            <span
+                              className={`tabular-nums ${
+                                isActive
+                                  ? "text-bridge-accent/70"
+                                  : "text-slate-500"
+                              }`}
+                            >
+                              {assignee.count}
+                            </span>
+                          </button>
+                        );
+                      })}
+
+                      {checklistAssigneeStats.unassignedCount > 0 && (
+                        <>
+                          <span
+                            aria-hidden="true"
+                            className="flex-shrink-0 w-px h-5 bg-foreground/10"
+                          />
+                          {(() => {
+                            const isActive =
+                              filterAssigneeIds.includes("__no_assignee__");
+                            return (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  toggleAssigneeFilter("__no_assignee__")
+                                }
+                                aria-pressed={isActive}
+                                className={`flex-shrink-0 flex items-center gap-1.5 h-8 pl-1 pr-3 rounded-full border text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                                  isActive
+                                    ? "bg-bridge-accent/15 border-bridge-accent/45"
+                                    : "bg-foreground/[0.04] border-foreground/10 hover:bg-foreground/10"
+                                }`}
+                              >
+                                <span className="w-6 h-6 rounded-full border border-dashed border-foreground/20 flex items-center justify-center text-xs text-slate-500 leading-none">
+                                  ?
+                                </span>
+                                <span
+                                  className={`whitespace-nowrap ${
+                                    isActive
+                                      ? "text-bridge-accent font-bold"
+                                      : "text-slate-400"
+                                  }`}
+                                >
+                                  {t(
+                                    "task.checklistFilter.unassigned",
+                                    "미할당",
+                                  )}
+                                </span>
+                                <span
+                                  className={`tabular-nums ${
+                                    isActive
+                                      ? "text-bridge-accent/70"
+                                      : "text-slate-500"
+                                  }`}
+                                >
+                                  {checklistAssigneeStats.unassignedCount}
+                                </span>
+                              </button>
+                            );
+                          })()}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 설명 섹션 */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-slate-400" />
+                    <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                      {t("task.description")}
+                    </Label>
+                  </div>
+                  <Textarea
+                    value={editedTask.description || ""}
+                    onChange={(e) =>
+                      canEdit && handleDescriptionChange(e.target.value)
+                    }
+                    placeholder={t("task.noDescription")}
+                    rows={7}
+                    readOnly={!canEdit}
+                    className={`max-h-[240px] overflow-y-auto custom-scrollbar bg-bridge-dark/50 border-bridge-border/30 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEdit ? "cursor-default" : ""}`}
+                  />
+                </div>
+              </div>
+
+              {/* 체크리스트 섹션 */}
+              <div className="px-4 md:px-6 pb-10">
+                <div className="mt-6 pt-6 border-t border-foreground/10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <CheckSquare
+                        className="h-5 w-5"
+                        style={{ color: task.feature_color || "#6366F1" }}
+                      />
+                      <Label className="text-base font-bold text-foreground">
+                        CheckList
+                      </Label>
+                      {canEdit && boardId && !isRestricted && (
+                        <button
+                          onClick={() => setShowAIConfirm(true)}
+                          className="ml-1 flex items-center gap-1 px-2 py-0.5 text-xs font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-md hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"
+                        >
+                          <Sparkles className="h-3 w-3" />
+                          AI
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {visibleChecklistItems.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleCopyChecklistText}
+                          className="h-7 px-2 text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                          title={t("task.copyChecklist", {
+                            defaultValue: "체크리스트 복사",
+                          })}
+                          aria-label={t("task.copyChecklist", {
+                            defaultValue: "체크리스트 복사",
+                          })}
+                        >
+                          {checklistCopied ? (
+                            <Check className="h-4 w-4 text-emerald-400" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                      {isChecklistFilterActive && (
+                        <span className="text-xs text-slate-500">
+                          {t("task.checklistFilter.showingCount", {
+                            visible: visibleChecklistItems.length,
+                            total: checklistItems.length,
+                            defaultValue: "{{visible}} / {{total}} 표시 중",
+                          })}
+                        </span>
+                      )}
+                      {/* 리스트 ↔ 상태 보드 모드 전환 */}
+                      {checklistItems.length > 0 && (
+                        <div className="flex items-center gap-0.5 bg-foreground/5 rounded-lg p-0.5">
+                          {(
+                            [
+                              {
+                                mode: "list" as const,
+                                icon: List,
+                                label: t("task.checklistView.list", {
+                                  defaultValue: "리스트",
+                                }),
+                              },
+                              {
+                                mode: "board" as const,
+                                icon: LayoutGrid,
+                                label: t("task.checklistView.board", {
+                                  defaultValue: "보드",
+                                }),
+                              },
+                            ] as const
+                          ).map(({ mode, icon: Icon, label }) => (
+                            <button
+                              key={mode}
+                              onClick={() =>
+                                handleChecklistViewModeChange(mode)
+                              }
+                              aria-label={label}
+                              aria-pressed={checklistViewMode === mode}
+                              className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold transition-colors ${
+                                checklistViewMode === mode
+                                  ? "bg-foreground/10 text-foreground"
+                                  : "text-slate-400 hover:text-foreground"
+                              }`}
+                            >
+                              <Icon className="h-3.5 w-3.5" />
+                              <span className="hidden sm:inline">{label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <div className="w-24 h-2 bg-foreground/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-300"
+                          style={{
+                            width: `${checklistProgress}%`,
+                            backgroundColor: task.feature_color || "#6366F1",
+                          }}
+                        />
+                      </div>
+                      <span
+                        className="text-sm font-medium"
+                        style={{ color: task.feature_color || "#6366F1" }}
+                      >
+                        {checklistProgress}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 체크리스트 항목들 */}
+                  <div className="space-y-2">
+                    {checklistItems.length === 0 && (
+                      <div className="flex items-start gap-3 px-1 py-3">
+                        <div
+                          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                          style={{
+                            backgroundColor: `${task.feature_color || "#6366F1"}15`,
+                          }}
+                        >
+                          <Lightbulb
+                            size={14}
+                            style={{ color: task.feature_color || "#6366F1" }}
+                          />
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-foreground/80 mb-1">
+                            {t("task.addChecklistHint")}
+                          </p>
+                          <p className="text-xs text-slate-500 leading-relaxed">
+                            {t("task.addChecklistDesc")}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {isChecklistFilterActive &&
+                    visibleChecklistItems.length === 0 ? (
+                      <div className="py-10 text-center">
+                        <p className="text-xs text-slate-500">
+                          {t("task.checklistFilter.empty", {
+                            defaultValue:
+                              "선택한 담당자의 체크리스트 항목이 없습니다.",
+                          })}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setFilterAssigneeIds([])}
+                          className="mt-2 text-xs font-bold text-bridge-accent hover:underline"
+                        >
+                          {t("task.clearFilter", "필터 해제")}
+                        </button>
+                      </div>
+                    ) : checklistViewMode === "board" ? (
+                      <ChecklistStatusBoard
+                        items={visibleChecklistItems}
+                        canEdit={canEdit}
+                        boardMembers={boardMembers}
+                        contractors={contractors}
+                        timeBlocksMap={checklistTimeBlocksMap}
+                        featureColor={task.feature_color}
+                        isPersonal={isPersonal}
+                        onToggle={handleToggleChecklistItem}
+                        onMoveColumn={handleMoveChecklistColumn}
+                        onUpdateItem={handleUpdateChecklistItem}
+                        onDelete={setChecklistItemToDelete}
+                        onMoveToTask={
+                          onMoveChecklistToTask &&
+                          (allTasks.length > 1 || milestones.length > 1)
+                            ? (itemId) => {
+                                setMoveChecklistItemId(itemId);
+                                setShowMoveChecklistDialog(true);
+                              }
+                            : undefined
+                        }
+                        onQuickAdd={(title) =>
+                          handleAddChecklistItem({ title })
+                        }
+                      />
+                    ) : (
+                      <DndContext
+                        sensors={checklistSensors}
+                        collisionDetection={closestCenter}
+                        modifiers={[
+                          restrictToVerticalAxis,
+                          restrictToParentElement,
+                        ]}
+                        onDragEnd={handleChecklistDragEnd}
+                      >
+                        <SortableContext
+                          items={visibleChecklistItems.map((item) => item.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {visibleChecklistItems.map((item) => (
+                            <SortableChecklistItemRow
+                              key={item.id}
+                              item={item}
+                              onToggle={() =>
+                                handleToggleChecklistItem(item.id)
+                              }
+                              onUpdate={(updates) =>
+                                handleUpdateChecklistItem(item.id, updates)
+                              }
+                              onDelete={() => setChecklistItemToDelete(item.id)}
+                              onMoveToTask={
+                                onMoveChecklistToTask &&
+                                (allTasks.length > 1 || milestones.length > 1)
+                                  ? () => {
+                                      setMoveChecklistItemId(item.id);
+                                      setShowMoveChecklistDialog(true);
+                                    }
+                                  : undefined
+                              }
+                              onMerge={
+                                checklistItems.length > 1
+                                  ? () => openMergeChecklistDialog(item.id)
+                                  : undefined
+                              }
+                              siblingItems={checklistItems
+                                .filter((ci) => ci.id !== item.id)
+                                .map((ci) => ({
+                                  id: ci.id,
+                                  title: ci.title,
+                                  completed: ci.completed,
+                                }))}
+                              onReassignBlock={(blockId, targetItemId) =>
+                                handleReassignTimeBlock(
+                                  blockId,
+                                  item.id,
+                                  targetItemId,
+                                )
+                              }
+                              boardMembers={boardMembers}
+                              contractors={contractors}
+                              boardId={boardId}
+                              canEdit={canEdit}
+                              dragDisabled={isChecklistFilterActive}
+                              isPersonal={isPersonal}
+                              preloadedTimeBlocks={
+                                checklistTimeBlocksMap[item.id]
+                              }
+                              isHighlighted={
+                                highlightChecklistItemId === item.id
+                              }
+                              highlightRef={
+                                highlightChecklistItemId === item.id
+                                  ? highlightChecklistRef
+                                  : undefined
+                              }
+                            />
+                          ))}
+                        </SortableContext>
+                      </DndContext>
+                    )}
+
+                    {/* 새 항목 추가 - Viewer는 추가 불가 */}
+                    {canEdit && (
+                      <AddChecklistItemInput
+                        onAdd={handleAddChecklistItem}
+                        boardMembers={boardMembers}
+                        currentUser={currentUser}
+                        isPersonal={isPersonal}
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

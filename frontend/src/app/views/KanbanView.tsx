@@ -395,6 +395,7 @@ export const KanbanView = memo(function KanbanView({
                 featureTagsMap={featureTagsMap}
                 taskTagsMap={taskTagsMap}
                 memberOrder={boardMembersData.map((m) => m.userId)}
+                memberColorMap={memberColorMap}
               />
             </div>
           ) : (

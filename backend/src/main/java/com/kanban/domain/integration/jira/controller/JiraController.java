@@ -139,6 +139,15 @@ public class JiraController {
         return ResponseEntity.ok(connectionService.updateWriteBack(boardId, principal.getUserId(), request));
     }
 
+    /** 댓글 양방향 동기화 on/off. 실시간 수신은 JIRA 웹훅에 코멘트 이벤트 추가가 필요. */
+    @PutMapping("/api/v1/boards/{boardId}/jira/comment-sync")
+    public ResponseEntity<JiraResponse.Status> updateCommentSync(
+            @PathVariable String boardId,
+            @RequestBody JiraRequest.CommentSync request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(connectionService.updateCommentSync(boardId, principal.getUserId(), request));
+    }
+
     @GetMapping("/api/v1/boards/{boardId}/jira/status")
     public ResponseEntity<JiraResponse.Status> status(
             @PathVariable String boardId,

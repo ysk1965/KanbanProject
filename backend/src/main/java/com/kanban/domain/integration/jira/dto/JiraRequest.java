@@ -52,6 +52,14 @@ public class JiraRequest {
         private String targetStatusId;   // "10007" = "3. 작업 완료"
     }
 
+    /** 댓글 양방향 동기화 on/off. */
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CommentSync {
+        private boolean enabled;
+    }
+
     /** 가져오기 실행 (Step 3). */
     @Getter
     @NoArgsConstructor

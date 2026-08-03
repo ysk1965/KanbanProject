@@ -88,6 +88,11 @@ interface SprintBoardProps {
   taskTagsMap?: Record<string, string[]>;
   /** 구성원 컬럼 정렬 기준 — 보드 멤버 관리(직군 관리) 순서의 userId 배열. 미지정 시 카드 수 내림차순 */
   memberOrder?: string[];
+  /**
+   * userId → 멤버 지정 색(board_members.assignee_color). 미지정 멤버는 null.
+   * 없으면 이름 해시 폴백이라 같은 사람이 칸반/모달과 다른 색으로 보인다 — 반드시 주입할 것.
+   */
+  memberColorMap?: Record<string, string | null>;
 }
 
 /**
@@ -259,7 +264,14 @@ export function SprintBoard({
   featureTagsMap = {},
   taskTagsMap = {},
   memberOrder,
+  memberColorMap,
 }: SprintBoardProps) {
+  /** 담당자 아바타 색 — 지정 색(assignee_color) 우선, 없으면 이름 해시 폴백. */
+  const assigneeHex = (assignee: { id?: string; name: string }) =>
+    getAssigneeHex(
+      assignee.name,
+      assignee.id ? memberColorMap?.[assignee.id] : undefined,
+    );
   const controlled = !!controlledMilestoneId;
   const [internalMid, setInternalMid] = useState<string>(
     controlledMilestoneId ?? milestones[0]?.id ?? "",
@@ -2281,7 +2293,7 @@ export function SprintBoard({
               // 담당 모노그램 — 읽는 텍스트가 아니라 색으로 구분하는 그래픽이라 9px 유지.
               <span
                 className="w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold text-white"
-                style={{ background: getAssigneeHex(it.assignee.name) }}
+                style={{ background: assigneeHex(it.assignee) }}
                 title={it.assignee.name}
               >
                 {getInitials(it.assignee.name)}
@@ -2390,7 +2402,7 @@ export function SprintBoard({
                       style={
                         line.assignee
                           ? {
-                              background: getAssigneeHex(line.assignee.name),
+                              background: assigneeHex(line.assignee),
                               color: "#fff",
                             }
                           : { background: "#f59e0b", color: "#451a03" }
@@ -2532,7 +2544,7 @@ export function SprintBoard({
   // Task 소그룹 없이 담당자의 START 카드를 평면 나열한다. 드롭 = START로 이동(보드 내부 이동만).
   const renderMemberColumn = (mc: MemberColumn) => {
     const key = `mem-${mc.memberId}`;
-    const accent = getAssigneeHex(mc.memberName);
+    const accent = assigneeHex({ id: mc.memberId, name: mc.memberName });
     const pct = mc.total > 0 ? Math.round((mc.doneTotal / mc.total) * 100) : 0;
     // 레일에서 끌어온 카드는 컬럼 이동이 아니라 "이 사람 담당으로" 배정한다.
     // (카드는 이미 스프린트에 담겨 있으므로 소속 컬럼은 그대로 둔다.)
@@ -2742,7 +2754,7 @@ export function SprintBoard({
                 <span
                   key={a.id}
                   className="w-4 h-4 rounded-full grid place-items-center text-xs font-bold text-white ring-1 ring-sprint-card"
-                  style={{ background: getAssigneeHex(a.name) }}
+                  style={{ background: assigneeHex(a) }}
                   title={a.name}
                 >
                   {getInitials(a.name).slice(0, 1)}
@@ -2988,7 +3000,7 @@ export function SprintBoard({
                 <span
                   key={a.id}
                   className="w-4 h-4 rounded-full grid place-items-center text-[8px] font-bold ring-1 ring-sprint-card"
-                  style={{ background: getAssigneeHex(a.name), color: "#fff" }}
+                  style={{ background: assigneeHex(a), color: "#fff" }}
                   title={a.name}
                 >
                   {getInitials(a.name)}
@@ -4245,8 +4257,8 @@ export function SprintBoard({
                                           <span
                                             className="w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold text-white"
                                             style={{
-                                              background: getAssigneeHex(
-                                                it.assignee.name,
+                                              background: assigneeHex(
+                                                it.assignee,
                                               ),
                                             }}
                                             title={it.assignee.name}
@@ -4856,9 +4868,7 @@ export function SprintBoard({
                               <span
                                 className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold leading-none text-white flex-shrink-0 border border-foreground/[0.08] whitespace-nowrap overflow-hidden"
                                 style={{
-                                  backgroundColor: getAssigneeHex(
-                                    it.assignee.name,
-                                  ),
+                                  backgroundColor: assigneeHex(it.assignee),
                                 }}
                                 title={it.assignee.name}
                               >
@@ -4890,6 +4900,11 @@ export function SprintBoard({
         boardId={boardId}
         canEdit={canEdit}
         member={retainedGantt?.member ?? null}
+        memberColor={
+          retainedGantt?.member
+            ? memberColorMap?.[retainedGantt.member.id]
+            : null
+        }
         items={retainedGantt?.items ?? []}
         sprintName={activeSprint?.name ?? null}
         sprintStart={activeSprint?.start_date ?? null}

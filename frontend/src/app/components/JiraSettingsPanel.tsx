@@ -68,6 +68,7 @@ export function JiraSettingsPanel({
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isSavingWriteBack, setIsSavingWriteBack] = useState(false);
+  const [isSavingCommentSync, setIsSavingCommentSync] = useState(false);
 
   // results
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -336,6 +337,22 @@ export function JiraSettingsPanel({
       );
     } finally {
       setIsSavingWriteBack(false);
+    }
+  };
+
+  const handleCommentSyncToggle = async (enabled: boolean) => {
+    setIsSavingCommentSync(true);
+    setErrorMessage(null);
+    try {
+      setStatus(await jiraAPI.updateCommentSync(boardId, enabled));
+    } catch (e) {
+      setErrorMessage(
+        e instanceof Error
+          ? e.message
+          : t("jiraIntegration.saveFailed", "저장에 실패했습니다"),
+      );
+    } finally {
+      setIsSavingCommentSync(false);
     }
   };
 
@@ -1091,6 +1108,49 @@ export function JiraSettingsPanel({
               </option>
             ))}
           </select>
+        </div>
+
+        {/* 댓글 양방향 동기화 */}
+        <div className="border-t border-foreground/[0.08] pt-3">
+          <div className="flex items-center justify-between">
+            <div className="flex-1 pr-2">
+              <div className="text-xs text-foreground font-medium">
+                {t("jiraIntegration.commentSyncTitle", "댓글 동기화")}
+              </div>
+              <div className="text-xs text-slate-500">
+                {t(
+                  "jiraIntegration.commentSyncDesc",
+                  "BRIDGE 댓글 ↔ JIRA 코멘트를 생성·삭제까지 서로 반영",
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() =>
+                handleCommentSyncToggle(!status.comment_sync_enabled)
+              }
+              disabled={isSavingCommentSync}
+              className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${
+                status.comment_sync_enabled
+                  ? "bg-bridge-accent"
+                  : "bg-foreground/15"
+              } disabled:opacity-50`}
+              aria-label={t("jiraIntegration.commentSyncTitle", "댓글 동기화")}
+            >
+              <span
+                className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
+                  status.comment_sync_enabled ? "right-0.5" : "left-0.5"
+                }`}
+              />
+            </button>
+          </div>
+          {status.comment_sync_enabled && (
+            <div className="mt-2 text-xs text-slate-500 leading-relaxed">
+              {t(
+                "jiraIntegration.commentSyncHint",
+                "JIRA → BRIDGE를 즉시 받으려면 아래 웹훅에 코멘트 이벤트(comment_created, comment_deleted)를 추가하세요. 미설정 시 폴링으로만 반영됩니다.",
+              )}
+            </div>
+          )}
         </div>
 
         {/* 웹훅 (근실시간 pull) */}

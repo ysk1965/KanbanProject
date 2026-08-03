@@ -14,6 +14,8 @@ import com.kanban.domain.comment.CommentReactionRepository;
 import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.comment.dto.CommentRequest;
 import com.kanban.domain.comment.dto.CommentResponse;
+import com.kanban.domain.comment.event.CommentCreatedEvent;
+import com.kanban.domain.comment.event.CommentDeletedEvent;
 import com.kanban.domain.integration.discord.service.DiscordNotificationService;
 import com.kanban.domain.integration.slack.service.SlackNotificationService;
 import com.kanban.domain.notification.service.NotificationService;
@@ -55,6 +57,7 @@ public class CommentService {
     private final FileUploadService fileUploadService;
     private final ChecklistItemRepository checklistItemRepository;
     private final WebSocketEventService webSocketEventService;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     private static final int MAX_ATTACHMENTS = 5;
 
@@ -205,6 +208,9 @@ public class CommentService {
 
         CommentResponse.Detail response = CommentResponse.Detail.of(comment, Map.of(), fileUploadService::resolveUrl);
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_CREATED, userId, user.getName(), response);
+
+        // JIRA 연동 카드면 댓글을 JIRA 코멘트로 push (커밋 후 비동기). core→jira 역의존 회피용 이벤트.
+        eventPublisher.publishEvent(new CommentCreatedEvent(boardId, taskId, comment.getId()));
         return response;
     }
 
@@ -288,7 +294,53 @@ public class CommentService {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_DELETED, userId, user.getName(), Map.of("id", commentId, "task_id", comment.getTask().getId()));
+        String taskId = comment.getTask().getId();
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_DELETED, userId, user.getName(), Map.of("id", commentId, "task_id", taskId));
+
+        // JIRA로 연동된 댓글이면 JIRA 코멘트도 삭제 (커밋 후 비동기).
+        eventPublisher.publishEvent(new CommentDeletedEvent(boardId, taskId, commentId));
+    }
+
+    // ── 시스템 경로 (JIRA 인바운드 전용) ─────────────────────────────
+    //
+    // 권한 검사를 건너뛰고 도메인 이벤트도 발행하지 않는다.
+    //  · 권한: JIRA에서 들어온 댓글의 author는 연동 계정이라 일반 경로(본인/ADMIN)로는 손댈 수 없다.
+    //  · 이벤트: 발행하면 방금 JIRA에서 받은 내용을 JIRA로 되돌려보내 에코가 된다.
+    // WebSocket 브로드캐스트는 그대로 — 열려 있는 카드가 즉시 갱신되어야 하므로.
+
+    /** JIRA 코멘트 → BRIDGE 댓글 생성. 알림은 보내지 않는다(원본 알림은 JIRA가 이미 처리). */
+    @Transactional
+    public CommentResponse.Detail createSystemComment(Board board, Task task, User author, String content) {
+        Comment comment = Comment.builder()
+                .task(task)
+                .board(board)
+                .author(author)
+                .content(content)
+                .build();
+        commentRepository.save(comment);
+
+        CommentResponse.Detail response = CommentResponse.Detail.of(comment, Map.of(), fileUploadService::resolveUrl);
+        webSocketEventService.sendBoardEvent(board.getId(), BoardEventType.COMMENT_CREATED,
+                "jira-sync", "JIRA", response);
+        return response;
+    }
+
+    /** JIRA 코멘트 삭제 → BRIDGE 댓글 삭제. 대상이 이미 없으면 조용히 통과(멱등). */
+    @Transactional
+    public void deleteSystemComment(String commentId) {
+        Comment comment = commentRepository.findById(commentId).orElse(null);
+        if (comment == null) return;
+
+        String boardId = comment.getBoard().getId();
+        String taskId = comment.getTask().getId();
+        for (CommentAttachment attachment : comment.getAttachments()) {
+            fileUploadService.delete(attachment.getS3Key());
+        }
+        commentRepository.delete(comment);
+        log.info("Comment deleted by JIRA sync: {}", commentId);
+
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_DELETED,
+                "jira-sync", "JIRA", Map.of("id", commentId, "task_id", taskId));
     }
 
     /**

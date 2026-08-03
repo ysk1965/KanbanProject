@@ -137,6 +137,19 @@ public class JiraIntegrationConfig {
     @Column(name = "write_back_target_status_id", length = 30)
     private String writeBackTargetStatusId;
 
+    /**
+     * 댓글 양방향 동기화 사용 여부. BRIDGE 댓글 ↔ JIRA 코멘트 생성/삭제를 서로 전파한다. 기본 off.
+     *
+     * <p>JIRA→BRIDGE를 실시간으로 받으려면 JIRA 웹훅/Automation에 코멘트 이벤트
+     * ({@code comment_created}, {@code comment_deleted})를 추가해야 한다.
+     *
+     * <p>웹훅 유실 백업(폴링 대조)은 {@code findAllActivePollable()} 대상 보드에서만 돈다 —
+     * 즉 미러 컬럼이나 블록↔status 매핑이 설정된 보드. 둘 다 없는 보드는 웹훅이 유일한 경로다.
+     */
+    @Column(name = "comment_sync_enabled", nullable = false)
+    @Builder.Default
+    private Boolean commentSyncEnabled = false;
+
     /** 웹훅 수신 검증용 보드별 시크릿 토큰(Phase 4). JIRA→BRIDGE 근실시간 pull URL에 포함. */
     @Column(name = "webhook_token", length = 64)
     private String webhookToken;
@@ -271,6 +284,14 @@ public class JiraIntegrationConfig {
     public void updateWriteBack(boolean enabled, String targetStatusId) {
         this.writeBackEnabled = enabled;
         this.writeBackTargetStatusId = targetStatusId;
+    }
+
+    public void updateCommentSync(boolean enabled) {
+        this.commentSyncEnabled = enabled;
+    }
+
+    public boolean isCommentSyncEnabled() {
+        return Boolean.TRUE.equals(this.commentSyncEnabled);
     }
 
     public void markSynced() {

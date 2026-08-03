@@ -24,6 +24,8 @@ public class JiraResponse {
         private boolean milestoneAutoAssign;
         private boolean writeBackEnabled;
         private String writeBackTargetStatusId;
+        /** 댓글 양방향 동기화 사용 여부. 켜져 있으면 FE가 웹훅 코멘트 이벤트 설정을 안내. */
+        private boolean commentSyncEnabled;
         /** 블록↔status 양방향 매핑 (key=blockId/__rejected). 매핑 UI 초기값. */
         private Map<String, Map<String, String>> blockStatusMap;
         /** 웹훅 수신 토큰(Phase 4). FE가 웹훅 URL을 조립해 안내. */
