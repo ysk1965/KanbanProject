@@ -43,9 +43,12 @@ interface PlacementNotice {
 
 interface MyWorkloadWidgetProps {
   boardId: string;
-  /** 보드 전체 멤버 — 내 행만 남기고 걸러 쓴다 */
+  /** 보드 전체 멤버 — 보고 있는 대상의 행만 남기고 걸러 쓴다 */
   boardMembers: ShareBoardMember[];
+  /** 보고 있는 대상의 userId (기본은 나, 스코프 행에서 바뀐다) */
   userId: string | undefined;
+  /** 다른 멤버를 보는 중일 때 그 이름 — 제목이 「○○의 워크로드」로 바뀐다 */
+  scopeName?: string;
   milestones: Milestone[];
   taskMilestoneMap: Record<string, string | null>;
   memberColorMap: Record<string, string | null>;
@@ -79,6 +82,7 @@ export function MyWorkloadWidget({
   boardId,
   boardMembers,
   userId,
+  scopeName,
   milestones,
   taskMilestoneMap,
   memberColorMap,
@@ -95,12 +99,13 @@ export function MyWorkloadWidget({
 }: MyWorkloadWidgetProps) {
   const { t } = useTranslation();
 
-  // 내 행만 남긴다 — 참조가 매 렌더 바뀌면 하위 뷰가 재조회하므로 메모한다
+  // 보고 있는 대상의 행만 남긴다 — 참조가 매 렌더 바뀌면 하위 뷰가 재조회하므로 메모한다
   const myMembers = useMemo(
     () => boardMembers.filter((m) => m.userId === userId),
     [boardMembers, userId],
   );
 
+  // 남의 대시보드에서는 부모가 currentUserRole을 viewer로 낮춰 보낸다
   const canEdit = currentUserRole !== "viewer";
 
   // 배치 후 간트·레일을 함께 다시 그리기 위한 자체 신호.
@@ -268,8 +273,12 @@ export function MyWorkloadWidget({
       style={{ height: DASHBOARD_ROW_HEIGHT }}
     >
       <header className="flex items-center gap-2 px-4 py-3 border-b border-foreground/[0.08] flex-none">
-        <h2 className="text-xs md:text-sm font-bold text-foreground">
-          {t("boardDashboard.workloadTitle", "내 워크로드")}
+        <h2 className="text-xs md:text-sm font-bold text-foreground truncate">
+          {scopeName
+            ? t("boardDashboard.workloadTitleOf", "{{name}}의 워크로드", {
+                name: scopeName,
+              })
+            : t("boardDashboard.workloadTitle", "내 워크로드")}
         </h2>
         {pendingCount > 0 && (
           <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
@@ -357,6 +366,7 @@ export function MyWorkloadWidget({
                   onUpdateMilestoneDates={onUpdateMilestoneDates}
                   onOpenContractorManager={onOpenContractorManager}
                   embedded
+                  readOnly={!canEdit}
                 />
               </Suspense>
             </div>

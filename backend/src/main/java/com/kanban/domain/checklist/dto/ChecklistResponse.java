@@ -128,6 +128,8 @@ public class ChecklistResponse {
         private LocalDate dueDate;
         private LocalDate doneDate;
         private LocalDateTime completedAt;
+        /** 배치 레일에서 "오늘 생성됨" 판정에 쓴다 — UTC 저장, 로컬 변환은 클라이언트 몫 */
+        private LocalDateTime createdAt;
         private TaskInfo task;
         private FeatureInfo feature;
         private BlockInfo block;
@@ -149,6 +151,7 @@ public class ChecklistResponse {
                     .dueDate(item.getDueDate())
                     .doneDate(item.getDoneDate())
                     .completedAt(item.getCompletedAt())
+                    .createdAt(item.getCreatedAt())
                     .task(task != null ? TaskInfo.of(task) : null)
                     .feature(feature != null ? FeatureInfo.of(feature) : null)
                     .block(BlockInfo.of(block))

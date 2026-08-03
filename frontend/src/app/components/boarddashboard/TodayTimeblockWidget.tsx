@@ -11,9 +11,12 @@ import { DASHBOARD_ROW_HEIGHT } from "./dashboardUtils";
 interface TodayTimeblockWidgetProps {
   boardId: string;
   organizationId?: string;
-  /** 보드 전체 멤버 — 내 열만 남기고 걸러 쓴다 */
+  /** 보드 전체 멤버 — 보고 있는 대상의 열만 남기고 걸러 쓴다 */
   boardMembers: ShareBoardMember[];
+  /** 보고 있는 대상의 userId (기본은 나, 스코프 행에서 바뀐다) */
   userId: string | undefined;
+  /** 다른 멤버를 보는 중일 때 그 이름 — 제목에 붙는다 */
+  scopeName?: string;
   memberColorMap: Record<string, string | null>;
   milestoneColorMap: MilestoneColorMap;
   currentUserRole?: string;
@@ -37,6 +40,7 @@ export function TodayTimeblockWidget({
   organizationId,
   boardMembers,
   userId,
+  scopeName,
   memberColorMap,
   milestoneColorMap,
   currentUserRole,
@@ -49,7 +53,7 @@ export function TodayTimeblockWidget({
 }: TodayTimeblockWidgetProps) {
   const { t } = useTranslation();
 
-  // 내 열만 남긴다 — 참조가 매 렌더 바뀌면 하위 뷰가 재조회하므로 메모한다
+  // 보고 있는 대상의 열만 남긴다 — 참조가 매 렌더 바뀌면 하위 뷰가 재조회하므로 메모한다
   const myMembers = useMemo(
     () => boardMembers.filter((m) => m.userId === userId),
     [boardMembers, userId],
@@ -61,8 +65,13 @@ export function TodayTimeblockWidget({
       style={{ height: DASHBOARD_ROW_HEIGHT }}
     >
       <header className="flex items-center gap-2 px-4 py-3 border-b border-foreground/[0.08] flex-none">
-        <h2 className="text-xs md:text-sm font-bold text-foreground">
+        <h2 className="text-xs md:text-sm font-bold text-foreground truncate">
           {t("boardDashboard.timeblockTitle", "오늘의 타임블록")}
+          {scopeName && (
+            <span className="ml-1 font-normal text-slate-400">
+              · {scopeName}
+            </span>
+          )}
         </h2>
         <button
           type="button"

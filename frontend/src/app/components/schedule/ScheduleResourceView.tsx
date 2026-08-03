@@ -148,6 +148,12 @@ interface ScheduleResourceViewProps {
    * 바 이동·기간 조절·특별일 등록·줌은 그대로 쓴다.
    */
   embedded?: boolean;
+  /**
+   * 읽기 전용 — 바 이동·기간 조절, 빈 행 드래그 생성, 배치 드롭,
+   * 밴드 바(마일스톤·이벤트) 조작, 우클릭 메뉴를 모두 막는다.
+   * 대시보드에서 다른 멤버의 워크로드를 볼 때 켠다.
+   */
+  readOnly?: boolean;
 }
 
 /** 빈 행을 드래그해 업무 생성 바를 그리는 중의 상태 */
@@ -292,6 +298,7 @@ export function ScheduleResourceView({
   onToggleHighlight,
   onUpdateMilestoneDates,
   embedded = false,
+  readOnly = false,
 }: ScheduleResourceViewProps) {
   const { t, i18n } = useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -1294,6 +1301,7 @@ export function ScheduleResourceView({
       assigneeIndex: number,
       type: "resize-left" | "resize-right" | "move",
     ) => {
+      if (readOnly) return;
       e.stopPropagation();
       e.preventDefault();
 
@@ -1538,12 +1546,13 @@ export function ScheduleResourceView({
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
     },
-    [boardId, fetchData, rangeStart, rangeEnd, rows],
+    [boardId, fetchData, rangeStart, rangeEnd, rows, readOnly],
   );
 
   // ─── 업무 생성 바: 빈 행 영역을 드래그해 그리기 ───
   const handleDrawStart = useCallback(
     (e: React.MouseEvent, rowIndex: number, rowId: string) => {
+      if (readOnly) return;
       if (e.button !== 0) return; // 좌클릭만
       if (externalDragItem || dragStateRef.current) return; // 다른 드래그 진행 중
       const target = e.target as HTMLElement;
@@ -1616,12 +1625,13 @@ export function ScheduleResourceView({
       document.addEventListener("mousemove", handleMove);
       document.addEventListener("mouseup", handleUp);
     },
-    [externalDragItem, timelineDays],
+    [externalDragItem, timelineDays, readOnly],
   );
 
   // ─── 이벤트 밴드에서 기간 드래그 → 팀 이벤트 추가 모달 ───
   const handleEventDrawStart = useCallback(
     (e: React.MouseEvent) => {
+      if (readOnly) return;
       if (e.button !== 0) return;
       if (externalDragItem || dragStateRef.current) return;
       const target = e.target as HTMLElement;
@@ -1687,7 +1697,7 @@ export function ScheduleResourceView({
       document.addEventListener("mousemove", handleMove);
       document.addEventListener("mouseup", handleUp);
     },
-    [externalDragItem, timelineDays, dayWidth, openEventModal],
+    [externalDragItem, timelineDays, dayWidth, openEventModal, readOnly],
   );
 
   // ─── 바 일정 제거 (날짜만 클리어, 체크리스트 항목은 유지) ───
@@ -1730,6 +1740,7 @@ export function ScheduleResourceView({
     (e: React.DragEvent, rowId: string, dayIndex: number) => {
       e.preventDefault();
       setDropHighlight(null);
+      if (readOnly) return;
 
       try {
         const rawData = e.dataTransfer.getData("application/checklist-item");
@@ -1757,7 +1768,7 @@ export function ScheduleResourceView({
         // Ignore invalid data
       }
     },
-    [timelineDays, onDropChecklist],
+    [timelineDays, onDropChecklist, readOnly],
   );
 
   const handleDragOver = useCallback(
@@ -1867,6 +1878,7 @@ export function ScheduleResourceView({
       endDate: string,
       dragType: BandDragState["dragType"],
     ) => {
+      if (readOnly) return;
       if (e.button !== 0) return;
       // 마일스톤은 편집 콜백이 없으면(읽기전용) 드래그 비활성
       if (kind === "milestone" && !onUpdateMilestoneDates) return;
@@ -1981,6 +1993,7 @@ export function ScheduleResourceView({
       applyBandDelta,
       boardId,
       reloadCalendarEvents,
+      readOnly,
     ],
   );
 
@@ -2820,12 +2833,12 @@ export function ScheduleResourceView({
                       minHeight: dynamicRowHeight,
                     }}
                     title={
-                      row.kind === "member"
+                      row.kind === "member" && !readOnly
                         ? "우클릭: 부재(휴가/출장 등) 추가"
                         : undefined
                     }
                     onContextMenu={
-                      row.kind === "member"
+                      row.kind === "member" && !readOnly
                         ? (e) => {
                             e.preventDefault();
                             openEventModal({
@@ -3080,6 +3093,7 @@ export function ScheduleResourceView({
                             }}
                             onClick={() => handleBarClick(item)}
                             onContextMenu={(e) => {
+                              if (readOnly) return;
                               e.preventDefault();
                               e.stopPropagation();
                               setBarContextMenu({
