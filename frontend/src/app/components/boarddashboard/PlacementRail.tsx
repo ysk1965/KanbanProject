@@ -11,7 +11,11 @@ import {
   boardChecklistAPI,
   type BoardChecklistItemResponse,
 } from "../../utils/api";
-import { getTodayDateString, getDDay } from "../../utils/dateUtils";
+import {
+  getTodayDateString,
+  getDDay,
+  toDateInputValue,
+} from "../../utils/dateUtils";
 import { addDaysToDate } from "../../utils/workloadBar";
 
 /** 드래그 페이로드 MIME — ScheduleResourceView.handleDrop이 읽는 키와 같아야 한다 */
@@ -43,6 +47,18 @@ function isUnplaced(item: BoardChecklistItemResponse): boolean {
 }
 
 /**
+ * 오늘 만들어진 항목인지 — created_at은 UTC라 로컬 날짜로 바꿔 비교한다.
+ * (문자열을 그대로 잘라 쓰면 자정 전후로 하루가 어긋난다)
+ */
+function isCreatedToday(
+  item: BoardChecklistItemResponse,
+  today: string,
+): boolean {
+  if (!item.created_at) return false;
+  return toDateInputValue(item.created_at) === today;
+}
+
+/**
  * 배치 레일 — 워크로드 간트에 아직 자리가 없는 내 항목들을 간트 아래 가로줄로 깔아 둔다.
  *
  * 간트 바는 체크리스트 항목 단위라 레일도 항목 단위로 담는다.
@@ -70,6 +86,8 @@ export function PlacementRail({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<RailTab>("unplaced");
+  // 오늘 생성분만 보기 — 레일이 길어졌을 때 새로 들어온 것만 추려 낸다
+  const [onlyToday, setOnlyToday] = useState(false);
   // 빠른 배치 직후 서버 응답을 기다리는 동안 카드를 미리 감춘다
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<boolean>(() => {
@@ -167,7 +185,21 @@ export function PlacementRail({
     [onPlace],
   );
 
-  const list = tab === "unplaced" ? unplaced : overdue;
+  const baseList = tab === "unplaced" ? unplaced : overdue;
+
+  const todayCount = useMemo(
+    () => baseList.filter((i) => isCreatedToday(i, today)).length,
+    [baseList, today],
+  );
+
+  // 오늘 것이 하나도 없는 탭으로 옮겨 가면 필터를 풀어 준다 (빈 레일 방지)
+  useEffect(() => {
+    if (todayCount === 0 && onlyToday) setOnlyToday(false);
+  }, [todayCount, onlyToday]);
+
+  const list = onlyToday
+    ? baseList.filter((i) => isCreatedToday(i, today))
+    : baseList;
 
   const TABS: { key: RailTab; label: string; count: number; dot: string }[] = [
     {
@@ -219,6 +251,27 @@ export function PlacementRail({
             </button>
           );
         })}
+
+        {todayCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setOnlyToday((prev) => !prev)}
+            aria-pressed={onlyToday}
+            className={`flex-none flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs font-bold transition-colors ${
+              onlyToday
+                ? "border-bridge-secondary/40 bg-bridge-secondary/15 text-bridge-secondary"
+                : "border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/5"
+            }`}
+          >
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-bridge-secondary"
+              aria-hidden="true"
+            />
+            {t("boardDashboard.railTodayCount", "오늘 {{count}}", {
+              count: todayCount,
+            })}
+          </button>
+        )}
 
         <p className="ml-auto hidden md:block text-xs text-slate-600 truncate">
           {canEdit
@@ -284,6 +337,7 @@ export function PlacementRail({
               const taskId = item.task?.id;
               const draggable = canEdit && !!taskId;
               const dday = getDDay(item.due_date);
+              const isNew = isCreatedToday(item, today);
 
               return (
                 <div
@@ -320,16 +374,25 @@ export function PlacementRail({
                       onClick={() => taskId && onOpenTask(taskId, item.id)}
                       className="flex-1 min-w-0 text-left"
                     >
-                      {item.feature && (
-                        <span
-                          className="inline-block text-xs font-bold px-1.5 py-0.5 rounded-full mb-1 max-w-full truncate"
-                          style={{
-                            backgroundColor: `${item.feature.color || "#6366F1"}26`,
-                            color: item.feature.color || "#6366F1",
-                          }}
-                        >
-                          {item.feature.title}
-                        </span>
+                      {(item.feature || isNew) && (
+                        <div className="flex items-center gap-1 mb-1 min-w-0">
+                          {item.feature && (
+                            <span
+                              className="text-xs font-bold px-1.5 py-0.5 rounded-full truncate"
+                              style={{
+                                backgroundColor: `${item.feature.color || "#6366F1"}26`,
+                                color: item.feature.color || "#6366F1",
+                              }}
+                            >
+                              {item.feature.title}
+                            </span>
+                          )}
+                          {isNew && (
+                            <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
+                              {t("boardDashboard.railNew", "NEW")}
+                            </span>
+                          )}
+                        </div>
                       )}
                       <p className="text-xs font-medium text-foreground leading-snug line-clamp-2">
                         {item.title}

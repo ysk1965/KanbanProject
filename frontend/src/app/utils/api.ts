@@ -2976,6 +2976,8 @@ export interface BoardChecklistItemResponse {
   } | null;
   start_date: string | null;
   due_date: string | null;
+  /** UTC ISO — 배치 레일의 "오늘 생성됨" 판정용 */
+  created_at?: string | null;
   task: {
     id: string;
     title: string;
