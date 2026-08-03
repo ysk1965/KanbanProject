@@ -63,6 +63,8 @@ public class SprintResponse {
          * (last_imported_at은 재동기화마다 갱신, jira_updated_at은 코멘트에도 반응해 부적합)
          */
         private LocalDateTime linkedAt;
+        /** JIRA에서 원본 이슈가 삭제되어 연동이 끊긴 카드 — FE가 "JIRA 삭제됨" 뱃지로 표시. */
+        private boolean jiraDeleted;
     }
 
     /** 스프린트 보드 컬럼 (마일스톤 단위). kind: START | MIDDLE | END */

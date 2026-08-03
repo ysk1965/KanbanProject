@@ -87,12 +87,16 @@ public class InboxFeatureService {
         Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
 
+        User creator = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
         Task inboxTask = Task.builder()
                 .feature(inboxFeature)
                 .board(inboxFeature.getBoard())
                 .block(taskBlock)
                 .title(INBOX_TITLE)
                 .position(0)
+                .createdBy(creator)
                 .build();
         taskRepository.save(inboxTask);
 

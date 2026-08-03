@@ -64,6 +64,7 @@ public class JiraWriteBackService {
         JiraIssueLink link = issueLinkRepository
             .findByTargetTypeAndTargetId(JiraLinkTargetType.TASK, taskId).orElse(null);
         if (link == null) return;             // JIRA 연동 카드 아님
+        if (link.isJiraDeleted()) return;     // JIRA에서 삭제된 이슈 — 전환 대상 없음
 
         // 이미 이 컬럼의 상태 중 하나면 전환 불필요(제자리)
         if (link.getLastJiraStatusId() != null && targetStatuses.contains(link.getLastJiraStatusId())) return;

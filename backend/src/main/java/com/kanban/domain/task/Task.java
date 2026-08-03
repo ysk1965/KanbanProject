@@ -106,7 +106,7 @@ public class Task extends BaseTimeEntity {
     private String taskKey;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by")
+    @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
 
     @Column(name = "completed_at")

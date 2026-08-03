@@ -132,8 +132,10 @@ public class JwtProvider {
             log.warn("Unsupported JWT token");
         } catch (MalformedJwtException e) {
             log.warn("Malformed JWT token");
-        } catch (SecurityException e) {
-            log.warn("Invalid JWT signature");
+        } catch (JwtException e) {
+            // 서명 불일치, 시크릿 로테이션으로 인한 alg/키 길이 불일치(WeakKeyException) 등
+            // io.jsonwebtoken 계열 검증 실패는 모두 "유효하지 않은 토큰"으로 처리한다.
+            log.warn("Invalid JWT token: {}", e.getClass().getSimpleName());
         } catch (IllegalArgumentException e) {
             log.warn("JWT token compact of handler are invalid");
         }

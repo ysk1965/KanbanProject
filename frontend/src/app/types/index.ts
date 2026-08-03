@@ -718,6 +718,7 @@ export interface SprintJiraTask {
   done: number; // 완료 체크리스트 수
   total: number; // 전체 체크리스트 수
   linked_at: string | null; // 이 이슈가 BRIDGE 보드에 링크된 시각 — 신규 뱃지 판정 기준
+  jira_deleted?: boolean; // JIRA에서 원본 이슈가 삭제되어 연동이 끊긴 카드 (Task는 보존)
 }
 
 export interface SprintBoard {

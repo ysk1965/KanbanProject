@@ -44,6 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * JIRA 이슈 → BRIDGE 카드 가져오기.
@@ -59,6 +60,7 @@ import java.util.*;
  *   · 링크+Task 존재 → JIRA 최신값으로 갱신(제목/설명/상태→블록).
  *   · 링크 있으나 Task 삭제됨(고아) → 링크 제거 후 재생성.
  *   · 링크 없음 → 신규 생성.
+ *   · JIRA에서 이슈가 삭제됨 → 링크에 삭제 표시(soft-unlink), Task는 보존.
  */
 @Slf4j
 @Service
@@ -68,6 +70,8 @@ public class JiraImportService {
     private static final int PAGE_SIZE = 100;
     private static final int MAX_PAGES = 50;
     private static final String DEFAULT_TAG_COLOR = "#94a3b8";
+    /** 한 번의 import에서 "삭제 여부"를 JIRA에 확인할 최대 이슈 수 — 폴링(2분)이 API를 때리지 않도록 제한. */
+    private static final int MAX_DELETION_PROBES = 20;
 
     private final JiraApiClient jiraApiClient;
     private final JiraOAuthService oauthService;
@@ -174,6 +178,11 @@ public class JiraImportService {
                 // 대상 Task가 살아있음 → JIRA 최신값으로 갱신(제목/설명/상태→블록)
                 Task existingTask = taskRepository.findById(taskLink.getTargetId()).orElse(null);
                 if (existingTask != null) {
+                    // 삭제 표시된 키가 다시 조회됨(복구/재생성) → 연동 복구
+                    if (taskLink.isJiraDeleted()) {
+                        taskLink.clearJiraDeleted();
+                        log.info("JIRA reconcile board {}: {} 재등장 → 연동 복구", boardId, issue.key());
+                    }
                     updateTaskFromIssue(existingTask, board, importer, issue, blockMap, mirror, statusToBlock, taskBlock, ctx, taskLink);
                     taskLink.touchImport(JiraLinkTargetType.TASK, existingTask.getId(), issue.updated());
                     c.updated++;
@@ -213,9 +222,12 @@ public class JiraImportService {
             }
         }
 
+        // JIRA 쪽 삭제 반영: 이번 조회에 없는 링크를 실제 삭제인지 확인해 soft-unlink.
+        int deleted = reconcileDeletedInJira(boardId, ctx, taskLinkByKey, importable);
+
         config.markSynced();
-        log.info("JIRA import to board {}: created={} updated={} orphans={} (F{} T{} CL{} C{})",
-            boardId, c.created, c.updated, orphans.size(), c.features, c.tasks, c.checklists, c.comments);
+        log.info("JIRA import to board {}: created={} updated={} orphans={} jiraDeleted={} (F{} T{} CL{} C{})",
+            boardId, c.created, c.updated, orphans.size(), deleted, c.features, c.tasks, c.checklists, c.comments);
 
         return JiraResponse.ImportResult.builder()
             .total(importable.size()).created(c.created).updated(c.updated).skipped(0)
@@ -239,6 +251,7 @@ public class JiraImportService {
 
         JiraIssueLink link = issueLinkRepository.findByBoardIdAndJiraIssueKey(boardId, issueKey).orElse(null);
         if (link == null || link.getTargetType() != JiraLinkTargetType.TASK) return null;
+        if (link.isJiraDeleted()) return null;   // JIRA에서 삭제된 이슈 — 연동 해제 상태
         Task task = taskRepository.findById(link.getTargetId()).orElse(null);
         if (task == null) return null;
 
@@ -267,6 +280,73 @@ public class JiraImportService {
             task.getPosition(),
             Boolean.TRUE.equals(task.getIsCompleted()),
             task.getQaState() != null ? task.getQaState().name() : null);
+    }
+
+    /**
+     * JIRA 이슈 삭제 반영 (웹훅 {@code jira:issue_deleted} 즉시 경로).
+     * 링크에 삭제 표시만 남기고 Task는 보존한다 — BRIDGE 쪽 체크리스트/댓글/작업 이력을 잃지 않도록.
+     * 브로드캐스트용 taskId 반환(대상 없음/이미 처리됨이면 null).
+     */
+    @Transactional
+    public String markIssueDeleted(String boardId, String issueKey) {
+        if (configRepository.findActiveByBoardId(boardId).isEmpty()) return null;
+
+        JiraIssueLink link = issueLinkRepository.findByBoardIdAndJiraIssueKey(boardId, issueKey).orElse(null);
+        if (link == null || link.getTargetType() != JiraLinkTargetType.TASK) return null;
+        if (link.isJiraDeleted()) return null;   // 멱등 — 중복 웹훅 무시
+
+        link.markJiraDeleted();
+        log.info("JIRA issue deleted: board {} issue {} → task {} 연동 해제", boardId, issueKey, link.getTargetId());
+        return link.getTargetId();
+    }
+
+    /**
+     * JIRA 쪽 삭제 재조정 — 원장에는 있는데 이번 JQL 결과에 없는 이슈를 soft-unlink 한다.
+     *
+     * <p><b>결과에 없다 ≠ 삭제됨.</b> status 변경·프로젝트 이동·JQL 범위 축소로도 빠지므로,
+     * 후보마다 단건 조회해 <b>404(JIRA_ISSUE_NOT_FOUND)인 것만</b> 삭제로 판정한다.
+     * 그 외 오류(권한/네트워크)는 건드리지 않고 다음 주기로 미룬다.
+     *
+     * <p>2분 폴링이 JIRA API를 때리지 않도록 한 주기 확인 수를 {@link #MAX_DELETION_PROBES}로 제한한다.
+     * 남은 후보는 다음 주기에 이어서 처리된다(이슈키 정렬로 순서 고정).
+     *
+     * @return 이번에 삭제로 표시한 링크 수
+     */
+    private int reconcileDeletedInJira(String boardId, JiraAuthContext ctx,
+                                       Map<String, JiraIssueLink> taskLinkByKey,
+                                       List<ParsedJiraIssue> fetched) {
+        if (taskLinkByKey.isEmpty()) return 0;
+
+        Set<String> fetchedKeys = fetched.stream().map(ParsedJiraIssue::key).collect(Collectors.toSet());
+        List<String> candidates = taskLinkByKey.entrySet().stream()
+            .filter(e -> !fetchedKeys.contains(e.getKey()))
+            .filter(e -> !e.getValue().isJiraDeleted())
+            .map(Map.Entry::getKey)
+            .sorted()
+            .toList();
+        if (candidates.isEmpty()) return 0;
+
+        int probed = 0, deleted = 0;
+        for (String key : candidates) {
+            if (probed >= MAX_DELETION_PROBES) {
+                log.info("JIRA reconcile board {}: 삭제 확인 {}건 남음 — 다음 주기에 이어서 처리", boardId, candidates.size() - probed);
+                break;
+            }
+            probed++;
+            try {
+                jiraApiClient.getIssue(ctx, key);
+            } catch (BusinessException e) {
+                if (e.getErrorCode() == ErrorCode.JIRA_ISSUE_NOT_FOUND) {
+                    taskLinkByKey.get(key).markJiraDeleted();
+                    deleted++;
+                    log.info("JIRA reconcile board {}: {} JIRA에서 삭제됨 → 연동 해제", boardId, key);
+                }
+                // 그 외(권한/일시 오류)는 판정 보류
+            } catch (Exception e) {
+                log.warn("JIRA 삭제 확인 실패 ({}): {}", key, e.getMessage());
+            }
+        }
+        return deleted;
     }
 
     /**

@@ -13,6 +13,7 @@ import {
   Pencil,
   Trash2,
   Check,
+  CheckCircle2,
   Clock,
   Calendar,
   Ban,
@@ -129,12 +130,41 @@ function progressUnits(
   return { done, total };
 }
 
+/**
+ * 체크리스트 줄의 귀속 판정 — 구성원 컬럼 라우팅(keysOf)과 같은 규칙.
+ * 외주 줄은 관리 담당(manager)의 몫으로 센다. __none__은 담당이 아무도 없는 줄.
+ * 진척 집계·카드 스코프·보임 필터가 모두 이 함수 하나를 보게 해 규칙이 갈라지지 않게 한다.
+ */
+function lineOwnedBy(line: SprintChecklistLine, memberId: string): boolean {
+  return memberId === "__none__"
+    ? !line.assignee && !line.contractor?.manager_user_id
+    : line.assignee?.id === memberId ||
+      line.contractor?.manager_user_id === memberId;
+}
+
+/**
+ * 구성원 뷰 카드 완료 판정 — "그 사람 몫이 전부 끝났나".
+ * 같은 태스크가 여러 컬럼에 서므로 완료 여부도 컬럼 주인마다 다르다.
+ * 판정 근거를 컬럼 진척(progressUnits)과 같은 스코프로 맞춰, 헤더 숫자와 필터 결과가 어긋나지 않게 한다.
+ */
+function memberCardDone(
+  it: SprintItemCard,
+  isDone: boolean,
+  memberId: string,
+): boolean {
+  const my = (it.checklist_items ?? []).filter((l) => lineOwnedBy(l, memberId));
+  const u = progressUnits(it, isDone, my.length > 0 ? my : undefined);
+  return u.total > 0 && u.done >= u.total;
+}
+
 const DRAG_ITEM = "application/bridge-sprint-item";
 const DRAG_SOURCE = "application/bridge-sprint-source";
 /** 좌측 트리 "담긴 항목 보임 필터" 상태 저장 키(새로고침해도 유지) */
 const SPRINT_TREE_SHOW_TAKEN_KEY = "bridge:sprint-tree:show-taken";
 /** 보드 그룹 기준(Feature ↔ 구성원) 선택 저장 키(새로고침해도 유지) */
 const SPRINT_VIEW_KEY = "bridge:sprint-view";
+/** 구성원 뷰 "보임"(완료 항목 노출) 선택 저장 키(새로고침해도 유지) */
+const SPRINT_DONE_VIS_KEY = "bridge:sprint-done-visibility";
 /** 좌측 업무 리스트 패널 접힘 상태 저장 키(새로고침해도 유지) */
 const SPRINT_TREE_COLLAPSED_KEY = "bridge:sprint-tree:collapsed";
 /** 좌측 업무 리스트 패널 폭(px) 저장 키(새로고침해도 유지) */
@@ -153,6 +183,22 @@ interface UncatCard {
   it: SprintItemCard;
   causes: UncatCause[];
 }
+/**
+ * 구성원 뷰 "보임" 필터 — 완료는 카드(그 사람 몫이 전부 끝남)와 줄(체크된 항목) 두 층위에 있고,
+ * 하나의 선택이 양쪽에 함께 걸린다.
+ *  · all  = 전부 표시(이전 동작)
+ *  · open = 진행중만 — 컬럼을 여는 이유가 "지금 뭐 남았지"라 기본값이다
+ *  · done = 완료만 — 회고·보고 때 "이번 스프린트에 뭘 끝냈나"를 보는 모드
+ * 진척 숫자(카드 게이지·컬럼 헤더 분모)는 이 선택과 무관하게 언제나 전체 기준을 유지한다.
+ */
+type DoneVisibility = "all" | "open" | "done";
+const DONE_VIS_OPTIONS: { key: DoneVisibility; label: string; hint: string }[] =
+  [
+    { key: "all", label: "전체", hint: "완료·진행중 모두 표시" },
+    { key: "open", label: "진행중", hint: "완료된 카드와 체크된 줄을 숨깁니다" },
+    { key: "done", label: "완료", hint: "완료된 카드와 체크된 줄만 표시" },
+  ];
+
 /** 패널 폭 제한(px) */
 const PANEL_MIN_WIDTH = 240;
 const PANEL_MAX_WIDTH = 480;
@@ -341,6 +387,25 @@ export function SprintBoard({
     }
   }, [groupBy]);
 
+  // 구성원 뷰 보임 필터. 기본은 "진행중" — 이 뷰를 여는 이유가 "이 사람 지금 뭐 남았지"라서다.
+  // 숨긴 만큼은 컬럼 하단에 건수로 고지해, 카드가 조용히 사라진 것처럼 보이지 않게 한다.
+  const [doneVis, setDoneVis] = useState<DoneVisibility>(() => {
+    try {
+      const saved = localStorage.getItem(SPRINT_DONE_VIS_KEY);
+      if (saved === "all" || saved === "done") return saved;
+      return "open";
+    } catch {
+      return "open";
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(SPRINT_DONE_VIS_KEY, doneVis);
+    } catch {
+      /* 프라이빗 모드 등 localStorage 접근 불가 시 무시 */
+    }
+  }, [doneVis]);
+
   // ── JIRA 뷰: 연동 상태(탭 노출 판정) + 메타(상태명) ──
   // status는 block_status_map(블록→JIRA상태) 제공, meta는 상태 id→name 제공.
   const [jiraStatus, setJiraStatus] = useState<JiraStatus | null>(null);
@@ -387,7 +452,8 @@ export function SprintBoard({
 
   // 탭 뱃지 집계 — jiraColumns는 groupBy==='jira'일 때만 계산되므로 별도로 보드 전체를 센다.
   const jiraBadge = useMemo(() => {
-    const list = board?.jira_tasks ?? [];
+    // 연동이 끊긴(JIRA 삭제) 카드는 연동 건수에서 제외 — 카드 자체는 목록에 그대로 보인다.
+    const list = (board?.jira_tasks ?? []).filter((t) => !t.jira_deleted);
     let fresh = 0;
     for (const t of list) {
       if (isNewJiraLink(t.linked_at)) fresh++;
@@ -1100,7 +1166,8 @@ export function SprintBoard({
   interface MemberColumn {
     memberId: string; // assignee.id (미배정은 컬럼이 아니라 하단 미분류 레일로 간다)
     memberName: string;
-    items: SprintItemCard[]; // START 단계에 남은 카드(컬럼에 노출)
+    items: SprintItemCard[]; // START 단계에 남은 카드 중 보임 필터를 통과한 것
+    hiddenByVis: number; // 보임 필터가 감춘 카드 수(컬럼 하단 고지용)
     doneTotal: number; // 담당자 몫 체크리스트 중 완료 줄 수
     total: number; // 담당자 몫 체크리스트 전체 줄 수
   }
@@ -1153,10 +1220,7 @@ export function SprintBoard({
           }
           // 진척은 체크리스트 줄 기준. 카드가 여러 컬럼에 서므로 "그 사람 몫 줄"만 센다
           // (renderCard의 memberScope와 같은 귀속 규칙 — 외주는 관리 담당의 몫).
-          const myLines = lines.filter(
-            (l) =>
-              l.assignee?.id === k.id || l.contractor?.manager_user_id === k.id,
-          );
+          const myLines = lines.filter((l) => lineOwnedBy(l, k.id));
           // 담당 줄이 없으면(줄 담당 미지정·체크리스트 없음) 태스크 1건을 그 사람 몫으로 환산
           const u = progressUnits(
             it,
@@ -1202,13 +1266,33 @@ export function SprintBoard({
           (startByMember.get(a)?.length ?? 0)
         );
       });
-    return ids.map((id) => ({
-      memberId: id,
-      memberName: stat.get(id)?.name ?? id,
-      items: (startByMember.get(id) ?? []).slice().sort(sprintUrgencyCmp),
-      doneTotal: stat.get(id)?.done ?? 0,
-      total: stat.get(id)?.total ?? 0,
-    }));
+    return ids.map((id) => {
+      const all = (startByMember.get(id) ?? []).slice().sort(sprintUrgencyCmp);
+      // 보임 필터는 "노출할 카드"만 좁힌다 — 컬럼 존재 여부(ids)와 진척(stat)은
+      // 필터 이전 집합에서 이미 정해졌으므로, 전부 완료인 사람도 컬럼은 그대로 남는다.
+      const items =
+        doneVis === "all"
+          ? all
+          : all.filter((it) => {
+              const kind = it.sprint_column_id
+                ? columnById.get(it.sprint_column_id)?.kind
+                : undefined;
+              const done = memberCardDone(
+                it,
+                it.completed || kind === "END",
+                id,
+              );
+              return doneVis === "done" ? done : !done;
+            });
+      return {
+        memberId: id,
+        memberName: stat.get(id)?.name ?? id,
+        items,
+        hiddenByVis: all.length - items.length,
+        doneTotal: stat.get(id)?.done ?? 0,
+        total: stat.get(id)?.total ?? 0,
+      };
+    });
   }, [
     startColumn,
     columns,
@@ -1216,6 +1300,7 @@ export function SprintBoard({
     memberOrder,
     featureFilter,
     sprintUrgencyCmp,
+    doneVis,
   ]);
 
   // ── 미분류 레일 데이터 ──
@@ -1342,6 +1427,7 @@ export function SprintBoard({
     done: number; // 스프린트에 담긴 체크리스트 중 완료 수
     total: number; // 스프린트에 담긴 체크리스트 수
     isNew: boolean; // 마지막 확인 이후 링크된 이슈 — 카드 NEW 표시용
+    isDeleted: boolean; // JIRA에서 원본 이슈가 삭제됨 — 연동 해제 표시(드래그 불가)
   }
   interface JiraColumnDef {
     statusId: string; // 대표 JIRA 상태 id ("__unmapped__" = 상태 미상 leftover)
@@ -1409,6 +1495,7 @@ export function SprintBoard({
         done: jt.done,
         total: jt.total,
         isNew: isNewJiraLink(jt.linked_at),
+        isDeleted: !!jt.jira_deleted,
       });
     }
 
@@ -1510,7 +1597,8 @@ export function SprintBoard({
 
   // JIRA 게이지/헤더용 집계 — 검증완료 + 검토중 2색 세그먼트
   const jiraStats = useMemo(() => {
-    const all = jiraColumns.flatMap((c) => c.cards);
+    // 연동이 끊긴(JIRA 삭제) 카드는 진행률 분모에서 제외 — 영원히 안 끝나는 게이지 방지
+    const all = jiraColumns.flatMap((c) => c.cards).filter((c) => !c.isDeleted);
     return {
       linked: all.length,
       verified: all.filter((c) => c.qaState === "VERIFIED").length,
@@ -1985,17 +2073,11 @@ export function SprintBoard({
     // 구성원 뷰: 컬럼 주인 몫만 남긴다. 같은 태스크가 여러 컬럼에 서므로
     // 컬럼마다 보이는 줄이 달라야 "여기서 내가 할 일"이 바로 읽힌다.
     // 외주 줄은 관리 담당(manager)의 컬럼으로 귀속 — 컬럼 라우팅(keysOf) 규칙과 같다.
-    const ownedBy = (line: SprintChecklistLine, memberId: string) =>
-      memberId === "__none__"
-        ? !line.assignee && !line.contractor?.manager_user_id
-        : line.assignee?.id === memberId ||
-          line.contractor?.manager_user_id === memberId;
     const myLines = memberScope
-      ? lines.filter((l) => ownedBy(l, memberScope.id))
+      ? lines.filter((l) => lineOwnedBy(l, memberScope.id))
       : lines;
     // 스코프 결과가 비면(줄 담당 정보가 없는 옛 데이터 등) 전체로 폴백해 빈 카드가 되지 않게 한다.
     const scoped = !!memberScope && myLines.length > 0;
-    const otherCount = scoped ? lines.length - myLines.length : 0;
     // 펼침 키 — 구성원 뷰는 컬럼 주인별로, Feature 뷰는 카드별로 기억한다.
     const cardKey = `${memberScope?.id ?? "feat"}:${it.id}`;
     const expanded = expandedCards.has(cardKey);
@@ -2016,27 +2098,40 @@ export function SprintBoard({
     let segDone = cTotal > 0 ? Math.round((cDone / cTotal) * segTotal) : 0;
     if (cDone < cTotal) segDone = Math.min(segDone, segTotal - 1);
     if (cDone > 0) segDone = Math.max(segDone, 1);
+    // 보임 필터(구성원 뷰 전용) — 그리는 줄에만 건다.
+    // 위에서 계산한 cTotal·cDone·게이지는 필터 이전 배열 기준이라 그대로 둔다:
+    // 숨겼다고 분모가 줄면 진척률이 거짓말이 된다.
+    const visibleOf = (arr: SprintChecklistLine[]) =>
+      memberScope && doneVis !== "all"
+        ? arr.filter((l) => (doneVis === "done" ? l.completed : !l.completed))
+        : arr;
+    const visibleBase = visibleOf(baseLines);
+    const otherCount = scoped ? visibleOf(lines).length - visibleBase.length : 0;
     // 미리보기 2줄 — "남은 것 하나 + 끝낸 것 하나"가 진행 상태를 가장 정확히 요약한다.
     // 한쪽만 있으면 그 종류로 채우고, 노출 순서는 원본 순서를 유지한다.
+    // (보임 필터가 걸린 뒤 목록 위에서 골라야 진행중 모드에서 미리보기가 비지 않는다.)
     const previewLines = (() => {
-      const picked: typeof baseLines = [];
-      const firstOpen = baseLines.find((l) => !l.completed);
-      const firstDone = baseLines.find((l) => l.completed);
+      const picked: typeof visibleBase = [];
+      const firstOpen = visibleBase.find((l) => !l.completed);
+      const firstDone = visibleBase.find((l) => l.completed);
       if (firstOpen) picked.push(firstOpen);
       if (firstDone) picked.push(firstDone);
-      for (const l of baseLines) {
+      for (const l of visibleBase) {
         if (picked.length >= 2) break;
         if (!picked.includes(l)) picked.push(l);
       }
-      return picked.sort((a, b) => baseLines.indexOf(a) - baseLines.indexOf(b));
+      return picked.sort(
+        (a, b) => visibleBase.indexOf(a) - visibleBase.indexOf(b),
+      );
     })();
     // 실제로 그릴 줄 — 접힘이면 미리보기 2줄, 펼침이면 전체(구성원 뷰는 내 몫, 담당 외 보기면 전부).
     const shownLines = expanded
       ? showOthers
-        ? lines
-        : baseLines
+        ? visibleOf(lines)
+        : visibleBase
       : previewLines;
-    const hiddenCount = cTotal - previewLines.length;
+    // 펼치기·담당 외 건수는 "필터를 통과한 것" 기준 — 눌렀는데 그만큼 안 나오면 안 된다.
+    const hiddenCount = visibleBase.length - previewLines.length;
     // 줄 담당 아이콘은 "누구 것인지 섞여 있을 때"만 의미가 있다.
     const showLineOwner = expanded && (!scoped || showOthers);
     return (
@@ -2249,7 +2344,7 @@ export function SprintBoard({
                 <li
                   key={line.id}
                   className={`flex items-start gap-1.5 ${
-                    scoped && !ownedBy(line, memberScope!.id)
+                    scoped && !lineOwnedBy(line, memberScope!.id)
                       ? "opacity-60"
                       : ""
                   }`}
@@ -2529,9 +2624,31 @@ export function SprintBoard({
         {/* 카드 스택 (평면) */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2 min-h-[120px]">
           {mc.items.length === 0 ? (
-            <div className="h-full min-h-[80px] grid place-items-center text-[11px] text-slate-600">
-              비어 있음
-            </div>
+            // 보임 필터로 비었을 때는 "비어 있음"이 아니다 — 남은 게 없다는 것 자체가 읽을 값이라
+            // 컬럼을 지우지 않고 상태로 보여준다.
+            mc.hiddenByVis > 0 ? (
+              <div className="h-full min-h-[80px] grid place-content-center justify-items-center gap-1 text-center px-2">
+                {doneVis === "open" ? (
+                  <>
+                    <CheckCircle2 className="w-5 h-5 text-bridge-secondary" />
+                    <span className="text-xs font-bold text-bridge-secondary">
+                      전부 완료
+                    </span>
+                    <span className="text-xs text-slate-600 tabular-nums">
+                      진행 중인 항목 없음 · 완료 {mc.hiddenByVis}건
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-xs text-slate-600 tabular-nums">
+                    완료된 항목 없음 · 진행중 {mc.hiddenByVis}건
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="h-full min-h-[80px] grid place-items-center text-xs text-slate-600">
+                비어 있음
+              </div>
+            )
           ) : (
             mc.items.map((it) =>
               renderCard(it, false, {
@@ -2541,6 +2658,18 @@ export function SprintBoard({
             )
           )}
         </div>
+        {/* 숨김 고지 — 조용한 누락은 "카드가 없어졌다"는 문의가 된다.
+            눌러서 바로 전체 보기로 풀 수 있게 버튼으로 둔다. */}
+        {mc.items.length > 0 && mc.hiddenByVis > 0 && (
+          <button
+            type="button"
+            onClick={() => setDoneVis("all")}
+            title="보임 필터를 해제하고 전체를 봅니다"
+            className="shrink-0 px-3 py-1.5 border-t border-foreground/[0.06] text-xs text-slate-600 hover:text-bridge-secondary hover:bg-foreground/[0.03] focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-colors tabular-nums text-left"
+          >
+            {doneVis === "open" ? "완료" : "진행중"} {mc.hiddenByVis}건 숨김
+          </button>
+        )}
       </div>
     );
   };
@@ -2790,7 +2919,8 @@ export function SprintBoard({
 
   const renderJiraTaskCard = (card: JiraTaskCard, draggable: boolean) => {
     const pct = card.total > 0 ? Math.round((card.done / card.total) * 100) : 0;
-    const canDrag = canEdit && draggable;
+    // JIRA 원본이 사라진 카드는 전이시킬 이슈가 없으므로 드래그를 막는다.
+    const canDrag = canEdit && draggable && !card.isDeleted;
     return (
       <div
         key={card.taskId}
@@ -2807,12 +2937,27 @@ export function SprintBoard({
       >
         <div className="flex items-center gap-1.5 mb-1.5">
           <span
-            className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums"
-            style={{ background: "rgba(38,132,255,0.16)", color: "#7fb0ff" }}
+            className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ${
+              card.isDeleted ? "line-through opacity-60" : ""
+            }`}
+            style={
+              card.isDeleted
+                ? { background: "rgba(148,163,184,0.16)", color: "#94a3b8" }
+                : { background: "rgba(38,132,255,0.16)", color: "#7fb0ff" }
+            }
           >
             <Diamond className="w-2.5 h-2.5" />
             {card.jiraKey}
           </span>
+          {/* JIRA에서 원본 이슈가 삭제됨 — 연동만 끊고 카드는 보존한다 */}
+          {card.isDeleted && (
+            <span
+              className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-500 shrink-0"
+              title="JIRA에서 원본 이슈가 삭제되어 연동이 끊겼습니다. 이 카드는 BRIDGE에만 남아 있으며 직접 삭제할 수 있습니다."
+            >
+              JIRA 삭제됨
+            </span>
+          )}
           {/* 마지막 확인 이후 들어온 이슈 — 탭을 벗어날 때까지 유지된다 */}
           {card.isNew && (
             <span
@@ -3403,6 +3548,42 @@ export function SprintBoard({
                           </button>
                         )}
                       </div>
+
+                      {/* 보임 필터 — 구성원 뷰 전용. 뷰 전환 세그먼트와 붙이지 않고 라벨을 앞세워
+                          "네 번째 뷰 탭"으로 오독되지 않게 하고, 선택 상태는 틸(secondary)로 칠해
+                          바로 옆 인디고 세그먼트와 한 덩어리로 보이지 않게 한다. */}
+                      {groupBy === "member" && (
+                        <div
+                          className="flex items-center gap-1.5 shrink-0 ml-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="hidden lg:inline text-xs font-bold uppercase tracking-widest text-slate-500">
+                            보임
+                          </span>
+                          <div
+                            className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/[0.06] border border-foreground/10"
+                            role="group"
+                            aria-label="완료 항목 보임"
+                          >
+                            {DONE_VIS_OPTIONS.map((opt) => (
+                              <button
+                                key={opt.key}
+                                type="button"
+                                aria-pressed={doneVis === opt.key}
+                                onClick={() => setDoneVis(opt.key)}
+                                title={opt.hint}
+                                className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                                  doneVis === opt.key
+                                    ? "bg-bridge-secondary text-white"
+                                    : "text-slate-400 hover:text-foreground"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {/* JIRA 연결/관리 — 스프린트에서 직접 연결·미러보드 선택·해제 (관리 권한자만) */}
                       {isAdminOrOwner &&

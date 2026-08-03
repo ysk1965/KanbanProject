@@ -63,6 +63,15 @@ public class JiraIssueLink {
     @Column(name = "write_back_done_at")
     private LocalDateTime writeBackDoneAt;
 
+    /**
+     * JIRA 원본 이슈가 삭제된 시각(soft-unlink). non-null이면 연동이 끊긴 상태로,
+     * pull/push/write-back 대상에서 제외되고 카드에 "JIRA 삭제됨" 뱃지가 붙는다.
+     * 행을 지우지 않는 이유: 이슈키를 남겨 어떤 이슈였는지 보여주고, 폴링이 매번
+     * 같은 키를 신규로 재생성하는 것을 막기 위함.
+     */
+    @Column(name = "jira_deleted_at")
+    private LocalDateTime jiraDeletedAt;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -100,6 +109,22 @@ public class JiraIssueLink {
     /** 직전 JIRA status 기록(반려 전환 감지용). pull 반영 후 호출. */
     public void markJiraStatus(String statusId) {
         this.lastJiraStatusId = statusId;
+    }
+
+    /** JIRA 원본이 삭제됨 — 연동 해제 표시(멱등). */
+    public void markJiraDeleted() {
+        if (this.jiraDeletedAt == null) {
+            this.jiraDeletedAt = LocalDateTime.now(ZoneOffset.UTC);
+        }
+    }
+
+    /** 같은 키의 이슈가 JIRA에 다시 나타남(복구/재생성) — 삭제 표시 해제. */
+    public void clearJiraDeleted() {
+        this.jiraDeletedAt = null;
+    }
+
+    public boolean isJiraDeleted() {
+        return this.jiraDeletedAt != null;
     }
 
     /** JIRA가 BRIDGE 원장보다 최신인지 — 증분 갱신 판정. */
