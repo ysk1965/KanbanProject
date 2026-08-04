@@ -6150,15 +6150,18 @@ export type JiraAutofixJobStatus =
   | "TIMED_OUT"
   | "CANCELLED";
 
-/** 큐 준비 상태 — 셋업 4단계 중 무엇이 빠졌는지 화면이 스스로 설명하기 위한 값. */
+/** 큐 준비 상태 — 셋업 3단계 중 무엇이 빠졌는지 화면이 스스로 설명하기 위한 값. */
 export interface JiraAutofixQueueStatus {
   repo_full_name: string | null;
   repo_ambiguous: boolean;
-  /** null이면 확인 실패(= "없음"이 아니라 "모름"). */
-  workflow_ready: boolean | null;
+  /** 최근에 러너(맥)가 큐를 물어봤는지. false면 맥이 잠들었거나 데몬이 죽은 것이다. */
+  runner_online: boolean;
+  runner_name: string | null;
+  /** 마지막으로 러너를 본 시각. 오프라인일 때 "언제부터"를 말해주기 위해 항상 내려온다. */
+  runner_seen_at: string | null;
   callback_token_set: boolean;
-  /** false면 큐에 담아도 자동 실행되지 않는다. */
-  scheduler_enabled: boolean;
+  /** false면 큐에 담아도 러너가 가져가지 못한다. */
+  dispatch_enabled: boolean;
   in_flight: number;
   queued: number;
   dispatched_today: number;
@@ -6174,9 +6177,11 @@ export interface JiraAutofixJob {
   status: JiraAutofixJobStatus;
   confidence: number | null;
   repo_full_name: string | null;
+  runner_name: string | null;
   pr_url: string | null;
-  run_url: string | null;
   failure_reason: string | null;
+  /** 에이전트 로그 꼬리. 실패 원인을 화면에서 볼 수 있는 유일한 경로다. */
+  log_excerpt: string | null;
   queued_at: string | null;
   dispatched_at: string | null;
   completed_at: string | null;
@@ -6218,10 +6223,13 @@ export const jiraAutofixAPI = {
     );
   },
 
-  /** 대기 중인 작업만 취소 가능. 이미 러너로 넘어간 건 되돌릴 수 없다. */
-  cancelJob: async (boardId: string, jobId: string) => {
+  /**
+   * 대기 중인 작업 취소. force를 주면 러너가 물고 있는 작업도 회수한다 —
+   * 러너가 죽으면 그 한 건이 타임아웃까지 보드의 큐 전체를 막기 때문이다.
+   */
+  cancelJob: async (boardId: string, jobId: string, force = false) => {
     return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/jira/autofix/jobs/${jobId}`,
+      `/boards/${boardId}/jira/autofix/jobs/${jobId}${force ? "?force=true" : ""}`,
     );
   },
 

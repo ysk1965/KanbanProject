@@ -128,14 +128,16 @@ ai:
 # JIRA 자동수정 큐 — 전부 가드레일이라 기본값을 보수적으로 둔다.
 # 검증되지 않은 파이프라인이 밤새 수십 건을 쏟아내면 리뷰 부담이 자동화 이득을 넘는다.
 autofix:
-  workflow-file: ${AUTOFIX_WORKFLOW_FILE:autofix.yaml}
   default-base-ref: ${AUTOFIX_BASE_REF:develop}
   min-confidence: ${AUTOFIX_MIN_CONFIDENCE:0.7}
   daily-limit: ${AUTOFIX_DAILY_LIMIT:20}
   max-enqueue-per-request: ${AUTOFIX_MAX_ENQUEUE:50}
+  # 서버가 작업을 회수하는 시각. 러너 자체 상한(runner-timeout-minutes)보다 반드시 길어야 한다.
   dispatch-timeout-minutes: ${AUTOFIX_TIMEOUT_MINUTES:90}
-  # 끄면 수동 디스패치만 가능하다. 파이프라인 검증 전까지는 false를 권장.
-  scheduler-enabled: ${AUTOFIX_SCHEDULER_ENABLED:false}
+  runner-timeout-minutes: ${AUTOFIX_RUNNER_TIMEOUT_MINUTES:60}
+  runner-online-window-minutes: ${AUTOFIX_RUNNER_ONLINE_WINDOW:3}
+  # 끄면 큐에 담기만 하고 러너에게 내주지 않는다. 파이프라인 검증 전까지는 false를 권장.
+  dispatch-enabled: ${AUTOFIX_DISPATCH_ENABLED:false}
 
 # Custom Icon
 app.customicon:
@@ -220,9 +222,6 @@ firebase:
 # App config
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
-  # 이 서버의 공개 주소. 자동수정 러너가 결과를 회신할 콜백 URL 조립에 쓴다.
-  # 비어 있으면 콜백을 쓰지 않고 타임아웃 회수에만 의존한다.
-  backend-url: ${BACKEND_URL:}
   testprod-frontend-url: ${TESTPROD_FRONTEND_URL:}
   # system_config 에 저장하는 민감 설정값(AI API 키 등)의 AES-GCM 마스터 키.
   # base64 32바이트 권장. 미설정 시 관리자 대시보드에서의 키 저장이 비활성화된다.

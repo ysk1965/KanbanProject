@@ -317,6 +317,13 @@ variable "jira_oauth_redirect_uri" {
   default     = ""
 }
 
+# JIRA 자동수정(Autofix) 파이프라인
+variable "autofix_dispatch_enabled" {
+  description = "Hand queued autofix jobs to the runner. False = jobs stay queued and are never handed out."
+  type        = bool
+  default     = false
+}
+
 # GitHub App Integration (자동 보고서 커밋 수집)
 variable "github_app_id" {
   description = "GitHub App ID"

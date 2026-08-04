@@ -3,12 +3,37 @@
 BRIDGE가 JIRA 이슈를 트리아지해 후보를 고르고, 유니티 환경이 갖춰진 맥 1대가 한 건씩 순차로 고쳐
 PR을 올리는 파이프라인. 이 문서는 **그 맥에서 해야 할 셋업**만 다룬다.
 
-> ⚠️ 여기 있는 워크플로와 절차는 **실제 러너에서 아직 검증되지 않았다.** 첫 실행은 반드시
-> 이슈 1건을 수동 dispatch로 돌려 끝까지 확인한 뒤 자동화로 넘어갈 것.
+> ⚠️ 여기 있는 러너와 절차는 **실제 맥에서 아직 검증되지 않았다.** 첫 실행은 반드시
+> 이슈 1건을 수동으로(`NO_REPORT=1`) 돌려 끝까지 확인한 뒤 데몬으로 넘길 것.
 
 ---
 
-## 0. 먼저 — 이 저장소에는 테스트가 없다
+## 0. 구조 — GitHub Actions를 쓰지 않는다
+
+```
+BRIDGE (EB)                              맥 (Unity Editor 상시 기동)
+  큐 ── claim ◀──────────── 20초마다 폴링 ── bridge-autofix-runner.sh
+                                                  │
+                                          autofix-once.sh
+                                            ├ claude -p + Unity MCP
+                                            ├ verify-compile.sh
+                                            └ gh pr create
+  결과 ◀──── POST /callback ──────────────────────┘
+```
+
+맥이 **가져간다**(pull). 서버가 밀어 넣지 않는 이유:
+
+- 맥은 사내망 뒤에 있어 인바운드가 없다. 폴링이면 아웃바운드만으로 끝난다.
+- Unity Editor는 프로젝트당 1개뿐이라 언제 여유가 있는지는 맥만 안다.
+- 대상 저장소에 워크플로 파일을 심을 필요가 없다 — 기본 브랜치가 무엇인지, 거기에 파일이 올라갔는지
+  신경 쓸 일이 사라진다.
+- BRIDGE의 GitHub App에 Actions 권한이 필요 없다. 브랜치 push와 PR 생성은 맥의 `gh`가 한다.
+
+**필요한 비밀은 두 개뿐이다** — 맥의 `ANTHROPIC_API_KEY`와 BRIDGE 러너 토큰. 저장소 시크릿은 쓰지 않는다.
+
+---
+
+## 1. 먼저 — 이 저장소에는 테스트가 없다
 
 `GWBM013-auto-battle-project` 기준: asmdef 28개, **테스트 어셈블리 0개, `[Test]`/`[UnityTest]` 사용 파일 0개.**
 
@@ -21,7 +46,7 @@ BRIDGE 쪽 트리아지에서 저장소 검증 환경을 `테스트 없음`으�
 
 ---
 
-## 1. 환경 조사
+## 2. 환경 조사
 
 먼저 대상 맥에서 현황부터 찍는다. 읽기만 하고 아무것도 바꾸지 않는다.
 
@@ -35,7 +60,7 @@ BRIDGE 쪽 트리아지에서 저장소 검증 환경을 `테스트 없음`으�
 |------|-----|
 | 프로젝트 Unity 버전 = 설치된 에디터 버전 | 다르면 Hub에서 해당 버전 설치 필요 |
 | 디스크 여유 50GB+ | Library 재빌드가 반복된다 |
-| 시스템 슬립 비활성 | 잠들면 배치가 멈춘다 |
+| 시스템 슬립 비활성 | 잠들면 러너가 멈춘다 |
 | `gh` 인증됨 | PR 생성 경로 |
 | Library 크기 | 처리량을 지배하는 값 |
 
@@ -43,7 +68,7 @@ BRIDGE 쪽 트리아지에서 저장소 검증 환경을 `테스트 없음`으�
 
 ---
 
-## 2. Unity Editor 상시 기동
+## 3. Unity Editor 상시 기동
 
 Unity MCP는 **실행 중인 Editor**에 IPC로 붙는다. 에디터가 꺼져 있으면 진단도 컴파일 확인도 못 한다.
 
@@ -54,31 +79,8 @@ caffeinate -dimsu &
 
 - 에디터에 모달 다이얼로그가 하나라도 뜨면 **파이프라인 전체가 멈춘다.** 첫 실행 전에
   라이선스·패키지 임포트·API 업데이터 팝업을 모두 정리해 둘 것.
-- 프로젝트를 열어둔 채로는 `-batchmode`를 쓸 수 없다(프로젝트 락). 아래 4번 참고.
-
----
-
-## 3. 셀프호스티드 러너 설치
-
-대상 저장소 → Settings → Actions → Runners → New self-hosted runner (macOS).
-
-라벨을 **정확히** 이렇게 붙인다 — 워크플로의 `runs-on`과 일치해야 한다:
-
-```
-self-hosted, macOS, unity
-```
-
-러너는 서비스로 등록해 재부팅 후에도 살아있게 한다:
-
-```bash
-cd ~/actions-runner
-./svc.sh install
-./svc.sh start
-```
-
-> 러너 작업 디렉터리(`~/actions-runner/_work/...`)와 **Editor로 열어둔 프로젝트 경로가 같아야 한다.**
-> 다르면 에디터가 보는 파일과 러너가 고치는 파일이 달라진다. 러너를 붙이기 전에 기존 체크아웃을
-> `_work` 아래로 옮기거나, 러너 워크스페이스를 기존 경로로 심볼릭 링크할 것.
+- 러너는 Editor가 열어둔 **바로 그 디렉터리**에서 작업한다. 별도 체크아웃을 만들지 않으므로
+  경로 불일치 문제가 없다 — 대신 러너가 도는 동안 그 프로젝트를 사람이 만지면 안 된다.
 
 ---
 
@@ -95,76 +97,118 @@ cd ~/actions-runner
 - 컴파일 에러가 없으면 **exit 0**
 - 하나라도 있으면 에러를 stdout에 출력하고 **exit 1**
 
-이 스크립트가 없으면 워크플로는 PR을 만들기 전에 실패한다 — 검증 없이 PR이 나가는 것보다 낫다.
+이 스크립트가 없으면 러너는 PR을 만들기 전에 실패한다 — 검증 없이 PR이 나가는 것보다 낫다.
 
 ---
 
-## 5. 워크플로 배치
-
-`workflows/autofix.yaml`을 **대상 저장소**의 `.github/workflows/autofix.yaml`로 복사한다.
-
-`cookapps-devops/GWBM013-auto-battle-project` 기준 브랜치 구성:
-
-| | 값 | 이유 |
-|---|---|---|
-| 기본 브랜치 | `develop` | `workflow_dispatch`는 **여기 있는 파일만** 인식한다 |
-| 디스패치 `ref` | `develop` | 워크플로 정의를 읽어올 브랜치 |
-| `base_ref` 입력 | `develop` | 실제로 고칠 코드. 체크아웃 단계가 이 값을 쓴다 |
-
-`main`은 `develop`보다 4천여 커밋 뒤처진 사실상 사문화 브랜치라 여기에 올리면 안 된다.
-로컬 클론의 `origin/HEAD`는 클론 시점 캐시라 `main`을 가리킬 수 있으니 믿지 말 것 —
-실제 값은 이렇게 확인한다:
+## 5. 러너 설치
 
 ```bash
-gh api /repos/cookapps-devops/GWBM013-auto-battle-project --jq .default_branch
+mkdir -p ~/bridge-autofix/logs
+cp runner/bridge-autofix-runner.sh runner/autofix-once.sh ~/bridge-autofix/
+cp runner/runner.conf.example ~/bridge-autofix/runner.conf
+chmod 600 ~/bridge-autofix/runner.conf     # 토큰이 들어간다
 ```
 
-> 이 저장소의 기존 워크플로는 `.yaml` 확장자를 쓴다(`build-android-google.yaml`). 맞춰 뒀다.
+`~/bridge-autofix/runner.conf`를 채운다. `BRIDGE_TOKEN`은
+**보드 → JIRA 설정 → 자동수정 → 러너 토큰 발급**에서 받는다(클립보드로 복사된다).
 
-필요한 저장소 시크릿:
+수동으로 한 건 돌려본 뒤(7번) launchd에 올린다:
 
-| 시크릿 | 용도 |
-|--------|------|
-| `ANTHROPIC_API_KEY` | Claude Code 헤드리스 실행 |
-| `BRIDGE_CALLBACK_TOKEN` | 결과 회신 인증 (콜백을 쓸 때만) |
+```bash
+cp runner/com.bridge.autofix.plist ~/Library/LaunchAgents/
+# plist 안의 USERNAME 3곳을 실제 사용자명으로 치환
+launchctl load ~/Library/LaunchAgents/com.bridge.autofix.plist
+tail -f ~/bridge-autofix/logs/runner.log
+```
 
-`GITHUB_TOKEN`은 Actions가 자동 주입한다. 브랜치 push와 PR 생성은 이 토큰이 하므로
-별도 PAT가 필요 없다.
+> LaunchAgent(사용자 세션)로 올린다. Unity Editor·MCP·`gh` 인증이 모두 사용자 세션에 묶여 있어
+> LaunchDaemon(root)으로는 어느 것에도 닿지 못한다. 재부팅 후에도 살리려면 자동 로그인을 켤 것.
 
 ---
 
-## 6. GitHub App 권한 — 정정
+## 6. 러너 ↔ BRIDGE 프로토콜
 
-이전 계획서에서 `contents:write` + `pull_requests:write` + `actions:write`가 필요하다고 했는데,
-**실제로는 `Actions: Read and write` 하나면 된다.**
+세 엔드포인트 모두 `Authorization: Bearer <BRIDGE_TOKEN>`을 쓴다. 토큰은 보드별이고,
+JIRA 웹훅 토큰과 별개라 한쪽을 회전해도 다른 쪽이 죽지 않는다.
 
-코드 수정·브랜치 push·PR 생성은 전부 러너 안에서 워크플로의 `GITHUB_TOKEN`이 하고, BRIDGE의 App은
-`workflow_dispatch`를 부르는 일만 한다. 권한을 넓히면 **기존 설치자 전원이 재승인**해야 하므로
-최소로 유지하는 편이 낫다.
+| 호출 | 시점 | 내용 |
+|------|------|------|
+| `POST /api/v1/jira/autofix/runner/{boardId}/claim` | 20초마다 | 다음 한 건을 가져온다 |
+| `POST /api/v1/jira/autofix/runner/{boardId}/heartbeat` | 작업 중 60초마다 | 생존 신고 |
+| `POST /api/v1/jira/autofix/callback/{boardId}` | 작업 종료 | 결과 회신 |
+
+**claim은 내줄 게 없어도 200으로 `reason`을 돌려준다.** 러너 로그에 왜 조용한지가 남아야
+맥 앞에 앉기 전에 원인을 안다.
+
+| reason | 뜻 |
+|--------|-----|
+| `CLAIMED` | 작업을 받았다. `job`에 명세가 들어 있다 |
+| `EMPTY` | 큐가 비었다 |
+| `IN_FLIGHT` | 서버는 이전 건이 아직 진행 중이라고 본다(회신 유실 의심) |
+| `DAILY_LIMIT` | 보드 일일 상한 도달. UTC 자정 이후 재개 |
+| `DISPATCH_DISABLED` | 서버에서 자동수정 실행이 꺼져 있다 (`autofix.dispatch-enabled`) |
+| `NO_TARGET` | 대상 저장소가 없는 작업이라 실패 처리했다 |
+
+결과 회신 페이로드:
+
+```json
+{ "job_id": "...", "issue_key": "QASA-40",
+  "result": "pr | no_change | failed",
+  "pr_url": "...", "failure_reason": "...", "log_excerpt": "…에이전트 로그 꼬리" }
+```
+
+- `result=pr`인데 `pr_url`이 비면 **실패로 기록한다** — PR이 산출물이다.
+- `log_excerpt`는 화면의 "에이전트 로그"에 그대로 뜬다. Actions 실행 로그 링크가 사라진 자리를
+  이게 대신하므로, 실패 시 원인이 여기 담겨야 한다.
+- 회신이 유실되면 서버가 90분 뒤 `TIMED_OUT`으로 회수한다. 러너 자체 상한은 60분이라
+  정상 경로에서는 회수가 먼저 일어나지 않는다.
 
 ---
 
 ## 7. 첫 실행 (수동)
 
-자동화를 붙이기 전에 GitHub UI에서 직접 한 건 돌린다:
+데몬을 올리기 전에 한 건을 손으로 돌린다. `NO_REPORT=1`이면 BRIDGE에 아무것도 회신하지 않으므로
+큐 상태를 건드리지 않는다.
 
-Actions → BRIDGE Autofix → Run workflow → 트리아지가 후보로 뽑은 이슈 하나를 입력.
+```bash
+cd ~/bridge-autofix
+NO_REPORT=1 ./autofix-once.sh ~/bridge-autofix/runner.conf <<'EOF'
+{"job_id":"","jira_issue_key":"QASA-40","issue_title":"프리셋 이름 변경 팝업 문자열",
+ "issue_body":"...","verification":"문자열 정적 대조","test_infra":"NONE",
+ "repo_full_name":"cookapps-devops/GWBM013-auto-battle-project",
+ "base_ref":"develop","branch":"autofix/QASA-40","timeout_minutes":60}
+EOF
+```
 
 확인할 것:
 
-1. `Library`가 지워지지 않았는가 (체크아웃 직후 재임포트가 안 걸려야 정상)
+1. `Library`가 지워지지 않았는가 (브랜치 전환 직후 재임포트가 안 걸려야 정상)
 2. 에이전트가 관련 없는 파일을 건드리지 않았는가
 3. 컴파일 검증이 실제로 동작하는가 — 일부러 깨진 코드로 한 번 실패시켜 볼 것
 4. 정리 단계 후 작업 트리가 깨끗한가 (다음 실행이 이걸로 막힌다)
 
+그다음 BRIDGE에서 `autofix.dispatch-enabled`를 켜고(`AUTOFIX_DISPATCH_ENABLED=true`)
+데몬을 올린다. 도크의 셋업 체크리스트가 3줄 모두 초록이어야 큐가 흐른다.
+
 ---
 
-## 8. 아직 검증되지 않은 것
+## 8. 운영 중 확인
+
+| 증상 | 볼 곳 |
+|------|-------|
+| 도크에 "러너 오프라인" | `launchctl list \| grep bridge.autofix`, `~/bridge-autofix/logs/runner.log` |
+| 큐는 찼는데 아무것도 안 나감 | 러너 로그의 claim `reason` |
+| 한 건이 30분 넘게 진행 중 | 맥의 Unity에 모달이 떴는지 확인, 안 되면 도크에서 "강제 회수" |
+| 실패 이유 | 도크 → 그 외 → 해당 이슈 → 에이전트 로그 |
+
+---
+
+## 9. 아직 검증되지 않은 것
 
 | 항목 | 상태 |
 |------|------|
-| 워크플로 전체 | 실제 러너 미실행 |
+| 러너 스크립트 전체 | 실제 맥 미실행 |
 | `verify-compile.sh` | 미작성 — MCP 서버 선택에 종속 |
 | Unity MCP 서버 선택 | 미정 |
 | 재임포트 실측치 | 미측정 (probe 5번 항목) |
-| 콜백 수신 엔드포인트 | BRIDGE에 미구현 (Step 3) |

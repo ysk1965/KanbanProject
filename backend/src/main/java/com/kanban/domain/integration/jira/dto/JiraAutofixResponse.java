@@ -45,18 +45,21 @@ public class JiraAutofixResponse {
 
     /**
      * 큐 준비 상태 + 현재 현황. 화면이 "왜 시작할 수 없는지"를 스스로 설명할 수 있어야 한다 —
-     * 셋업이 4단계라 하나만 빠져도 큐가 조용히 멈춘 것처럼 보인다.
+     * 셋업이 3단계라 하나만 빠져도 큐가 조용히 멈춘 것처럼 보인다.
      */
     @Getter @Builder @AllArgsConstructor
     public static class QueueStatus {
         /** 연결된 저장소. 없으면 null, 여러 개면 ambiguous가 true. */
         private String repoFullName;
         private boolean repoAmbiguous;
-        /** 기본 브랜치에 워크플로가 있는지. 확인 실패 시 null(모름). */
-        private Boolean workflowReady;
+        /** 최근에 러너가 말을 걸어왔는지. false면 맥이 잠들었거나 데몬이 죽은 것이다. */
+        private boolean runnerOnline;
+        private String runnerName;
+        /** 마지막으로 러너를 본 시각. 오프라인일 때 "언제부터"를 말해주기 위해 항상 내려준다. */
+        private String runnerSeenAt;
         private boolean callbackTokenSet;
-        /** 자동 실행 여부. false면 큐에 담아도 아무 일이 없다. */
-        private boolean schedulerEnabled;
+        /** 작업을 내줄지 여부. false면 큐에 담아도 러너가 가져가지 못한다. */
+        private boolean dispatchEnabled;
 
         private int inFlight;
         private int queued;
@@ -87,12 +90,49 @@ public class JiraAutofixResponse {
         private String status;
         private Double confidence;
         private String repoFullName;
+        private String runnerName;
         private String prUrl;
-        private String runUrl;
         private String failureReason;
+        /** 에이전트 로그 꼬리. 실패 원인을 화면에서 볼 수 있는 유일한 경로다. */
+        private String logExcerpt;
         private String queuedAt;
         private String dispatchedAt;
         private String completedAt;
+    }
+
+    /**
+     * claim 응답. 내줄 게 없어도 200으로 이유를 돌려준다 — 204만 오면 러너 로그에
+     * "왜 조용한지"가 남지 않아 맥 앞에 앉기 전까지 원인을 알 수 없다.
+     */
+    @Getter @Builder @AllArgsConstructor
+    public static class ClaimResult {
+        /** 가져갈 작업. 없으면 null. */
+        private RunnerJob job;
+        /** CLAIMED / EMPTY / IN_FLIGHT / DAILY_LIMIT / DISPATCH_DISABLED / NO_TARGET */
+        private String reason;
+
+        public static ClaimResult of(RunnerJob job, String reason) {
+            return ClaimResult.builder().job(job).reason(reason).build();
+        }
+    }
+
+    /** 러너가 한 건을 처리하는 데 필요한 전부. 러너는 이것 말고 BRIDGE에 더 묻지 않는다. */
+    @Getter @Builder @AllArgsConstructor
+    public static class RunnerJob {
+        private String jobId;
+        private String jiraIssueKey;
+        private String issueTitle;
+        private String issueBody;
+        /** 트리아지가 판정한 검증 수단. 에이전트 프롬프트에 그대로 들어간다. */
+        private String verification;
+        /** 저장소 검증 기반 수준(NONE/PARTIAL/MATURE). 테스트를 써도 되는지 판단 근거. */
+        private String testInfra;
+        private String repoFullName;
+        private String baseRef;
+        /** 서버가 정한 작업 브랜치 이름 — 러너가 정하면 실행마다 규칙이 흔들린다. */
+        private String branch;
+        /** 러너가 한 건에 쓸 수 있는 시간. 서버의 회수 시각보다 반드시 짧다. */
+        private int timeoutMinutes;
     }
 
     @Getter @Builder @AllArgsConstructor

@@ -1,0 +1,28 @@
+# BRIDGE 자동수정 러너 설정 — ~/bridge-autofix/runner.conf 로 복사해서 채운다.
+#
+# 이 파일에는 토큰이 들어간다. 반드시 chmod 600.
+
+# BRIDGE 백엔드 공개 주소 (끝에 / 없이)
+BRIDGE_URL=https://api.bridgespots.com
+
+# 자동수정을 돌릴 보드 ID. 보드 URL의 마지막 조각.
+BRIDGE_BOARD_ID=
+
+# 보드 → JIRA 설정 → 자동수정 → "콜백 토큰 발급"으로 받은 값.
+# claim · heartbeat · 결과 회신 셋 다 이 토큰 하나를 쓴다.
+BRIDGE_TOKEN=
+
+# 이 맥의 식별 이름. 화면에 "러너 연결됨 · <이름>"으로 뜬다.
+RUNNER_NAME=mac-unity-01
+
+# Unity Editor로 열어둔 프로젝트 경로. 러너는 여기서만 작업한다.
+PROJECT_DIR=/Users/you/GWBM013-auto-battle-project
+
+# 큐를 물어보는 주기(초). 짧게 잡아도 서버 부하는 미미하지만 20초면 충분하다.
+POLL_SECONDS=20
+
+# 로그 보관 위치
+LOG_DIR=/Users/you/bridge-autofix/logs
+
+# Claude Code 헤드리스 실행용 키
+ANTHROPIC_API_KEY=

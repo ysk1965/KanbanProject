@@ -256,6 +256,9 @@ module "elastic_beanstalk" {
   jira_oauth_client_secret = var.jira_oauth_client_secret
   jira_oauth_redirect_uri  = var.jira_oauth_redirect_uri
 
+  # JIRA Autofix — 러너(맥)가 작업을 가져가는 pull 방식이라 서버가 러너를 호출하지 않는다.
+  autofix_dispatch_enabled = var.autofix_dispatch_enabled
+
   # GitHub App Integration
   github_app_id          = var.github_app_id
   github_app_private_key = var.github_app_private_key

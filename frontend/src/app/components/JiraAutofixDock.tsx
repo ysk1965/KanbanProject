@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ExternalLink,
   PauseCircle,
+  PowerOff,
   Settings2,
   Sparkles,
 } from "lucide-react";
@@ -23,6 +24,7 @@ import {
   JiraAutofixCategory,
   JiraAutofixTestInfra,
 } from "../utils/api";
+import { parseUTCDate, formatRelativeTime } from "../utils/dateUtils";
 
 interface JiraAutofixDockProps {
   boardId: string;
@@ -31,6 +33,11 @@ interface JiraAutofixDockProps {
 }
 
 const POLL_INTERVAL_MS = 10_000;
+/**
+ * 이 시간을 넘게 물고 있으면 러너를 의심해야 한다. 서버의 자동 회수(90분)보다 훨씬 짧게 잡는다 —
+ * 막힌 큐를 90분 동안 아무 설명 없이 두면 화면이 고장난 것처럼 보인다.
+ */
+const STALE_HINT_MINUTES = 30;
 /** 펼침 높이. 드래그 리사이즈는 넣지 않는다 — 담을 내용이 그만큼 가변적이지 않다. */
 const DOCK_HEIGHT = "min(40vh, 420px)";
 
@@ -42,7 +49,10 @@ const STATUS_STYLE: Record<
   JiraAutofixJobStatus,
   { chip: string; label: string }
 > = {
-  DISPATCHED: { chip: "bg-bridge-accent/15 text-bridge-accent", label: "진행 중" },
+  DISPATCHED: {
+    chip: "bg-bridge-accent/15 text-bridge-accent",
+    label: "진행 중",
+  },
   QUEUED: { chip: "bg-foreground/10 text-slate-400", label: "대기" },
   SUCCEEDED: {
     chip: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
@@ -102,11 +112,14 @@ const VERDICT_TABS: { value: JiraAutofixVerdict; label: string }[] = [
 const chipCls = (status: JiraAutofixJobStatus) =>
   `text-xs font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${STATUS_STYLE[status].chip}`;
 
+/**
+ * 서버 시각은 오프셋 표기 없는 UTC 문자열이다. raw {@code new Date()}로 파싱하면
+ * JS가 이를 로컬 타임존으로 해석해 KST 기준 540분이 통째로 더해진다 — parseUTCDate를 쓴다.
+ */
 const minutesSince = (iso: string | null): number | null => {
-  if (!iso) return null;
-  const started = new Date(iso).getTime();
-  if (Number.isNaN(started)) return null;
-  return Math.max(0, Math.floor((Date.now() - started) / 60_000));
+  const started = parseUTCDate(iso);
+  if (!started) return null;
+  return Math.max(0, Math.floor((Date.now() - started.getTime()) / 60_000));
 };
 
 const storageKey = (boardId: string) => `bridge-autofix-dock:${boardId}`;
@@ -131,6 +144,8 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
   const [expanded, setExpanded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showSettled, setShowSettled] = useState(false);
+  /** 강제 회수는 두 번 눌러야 나간다 — 실제로 돌고 있는 러너를 실수로 놓칠 수 있다. */
+  const [armedRelease, setArmedRelease] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -196,9 +211,10 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
     if (expanded) loadItems(verdict);
   }, [expanded, verdict, loadItems]);
 
-  // 접혀 있어도 폴링한다 — 바에 뜨는 경과 시간이 멈춰 있으면 안 된다
+  // 접혀 있어도 폴링한다 — 바에 뜨는 경과 시간이 멈춰 있으면 안 된다.
+  // 대기 건만 있을 때도 돌려야 한다 — 스케줄러가 집어가는 순간(대기 → 진행)이 화면에 나타나야 한다.
   useEffect(() => {
-    if (!enabled || !status?.in_flight) return;
+    if (!enabled || (!status?.in_flight && !status?.queued)) return;
     const tick = () => {
       if (document.visibilityState === "visible") load();
     };
@@ -206,7 +222,7 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
     };
-  }, [enabled, status?.in_flight, load]);
+  }, [enabled, status?.in_flight, status?.queued, load]);
 
   // 뷰 전환 버튼이 도크 위로 비켜 서도록 높이를 알린다
   useEffect(() => {
@@ -259,13 +275,27 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
       await load();
     });
 
+  /**
+   * 진행 중인 작업 강제 회수. 러너(맥)가 죽으면 콜백이 오지 않고, 직렬 보장 때문에 그 한 건이
+   * 자동 회수 시각까지 보드의 큐 전체를 막는다. 그동안 사람이 할 수 있는 일이 없으면 안 된다.
+   */
+  const handleRelease = (jobId: string) =>
+    run(`release:${jobId}`, async () => {
+      await jiraAutofixAPI.cancelJob(boardId, jobId, true);
+      setArmedRelease(null);
+      setNotice("진행 중이던 작업을 회수했습니다. 다음 대기 건이 곧 나갑니다.");
+      await Promise.all([load(), loadItems(verdict)]);
+    });
+
   const handleInfraChange = (level: JiraAutofixTestInfra) => {
     if (level === testInfra) return;
     return run("infra", async () => {
       await jiraAutofixAPI.updateTestInfra(boardId, level);
       setTestInfra(level);
       setItems([]);
-      setNotice("검증 환경이 바뀌어 기존 판정을 비웠습니다. 다시 판정해주세요.");
+      setNotice(
+        "검증 환경이 바뀌어 기존 판정을 비웠습니다. 다시 판정해주세요.",
+      );
       await load();
     });
   };
@@ -274,7 +304,9 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
     run("token", async () => {
       const result = await jiraAutofixAPI.issueCallbackToken(boardId);
       await navigator.clipboard?.writeText(result.callback_token);
-      setNotice("콜백 토큰을 복사했습니다. 저장소 시크릿 BRIDGE_CALLBACK_TOKEN에 넣어주세요.");
+      setNotice(
+        "러너 토큰을 복사했습니다. 맥의 runner.conf에 BRIDGE_TOKEN으로 넣어주세요.",
+      );
       await load();
     });
 
@@ -292,8 +324,8 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
   const setupDone =
     !!status.repo_full_name &&
     !status.repo_ambiguous &&
-    status.workflow_ready === true &&
-    status.callback_token_set;
+    status.callback_token_set &&
+    status.runner_online;
 
   const active = jobs.find((j) => j.status === "DISPATCHED") ?? null;
   const waiting = jobs.filter((j) => j.status === "QUEUED");
@@ -306,7 +338,33 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
   );
   const needsAttention = settled.some((j) => j.status === "TIMED_OUT");
   const elapsed = minutesSince(active?.dispatched_at ?? null);
-  const selectable = items.filter((i) => i.verdict === "CANDIDATE");
+
+  /** 이슈별 최근 작업. jobs는 담긴 순서 역순이라 먼저 나온 것이 최신이다. */
+  const latestJobByIssue = new Map<string, JiraAutofixJob>();
+  for (const job of jobs) {
+    if (!latestJobByIssue.has(job.jira_issue_key)) {
+      latestJobByIssue.set(job.jira_issue_key, job);
+    }
+  }
+
+  /**
+   * 서버가 조용히 걸러낼 항목을 화면에서 미리 가른다 — 골라서 담았는데 "0건 담김"만 돌아오면
+   * 무엇이 잘못됐는지 알 수 없다. 기준은 서버 가드레일과 같다(취소된 건만 다시 담을 수 있고,
+   * 임계값 미만은 담기지 않는다).
+   */
+  const decorated = items.map((item) => {
+    const latest = latestJobByIssue.get(item.jira_issue_key) ?? null;
+    const held = latest && latest.status !== "CANCELLED" ? latest : null;
+    const belowThreshold =
+      item.confidence != null && item.confidence < status.min_confidence;
+    return {
+      item,
+      held,
+      belowThreshold,
+      canSelect: item.verdict === "CANDIDATE" && !held && !belowThreshold,
+    };
+  });
+  const selectableCount = decorated.filter((d) => d.canSelect).length;
 
   return (
     <div
@@ -356,15 +414,24 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
         )}
 
         <span className="ml-auto flex items-center gap-2">
-          {!setupDone && (
+          {/* 러너가 죽으면 큐는 그냥 조용해진다 — 접힌 상태에서도 그 사실이 보여야 한다 */}
+          {!status.runner_online && (
+            <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+              <PowerOff size={11} />
+              {t("autofixDock.runnerOffline", "러너 오프라인")}
+              {status.runner_seen_at &&
+                ` · ${formatRelativeTime(status.runner_seen_at)}`}
+            </span>
+          )}
+          {!setupDone && status.runner_online && (
             <span className="text-xs text-amber-600 dark:text-amber-400">
               {t("autofixDock.setupNeeded", "셋업 필요")}
             </span>
           )}
-          {setupDone && !status.scheduler_enabled && (
+          {setupDone && !status.dispatch_enabled && (
             <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
               <PauseCircle size={11} />
-              {t("autofixDock.paused", "자동 실행 꺼짐")}
+              {t("autofixDock.paused", "실행 중지됨")}
             </span>
           )}
           <span className="text-xs text-slate-500 tabular-nums">
@@ -434,7 +501,10 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
                     ))}
                   </div>
                   <div className="text-xs text-slate-500 leading-relaxed">
-                    {TEST_INFRA_OPTIONS.find((o) => o.value === testInfra)?.hint}
+                    {
+                      TEST_INFRA_OPTIONS.find((o) => o.value === testInfra)
+                        ?.hint
+                    }
                   </div>
                 </div>
                 {!status.callback_token_set && (
@@ -443,7 +513,7 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
                     disabled={busy === "token"}
                     className="text-xs text-bridge-accent hover:underline disabled:opacity-50"
                   >
-                    {t("autofixDock.issueToken", "콜백 토큰 발급")}
+                    {t("autofixDock.issueToken", "러너 토큰 발급")}
                   </button>
                 )}
               </div>
@@ -463,18 +533,8 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
                   }
                 />
                 <SetupRow
-                  done={status.workflow_ready === true}
-                  label={
-                    status.workflow_ready === null
-                      ? "워크플로 배치 · 확인할 수 없습니다"
-                      : status.workflow_ready
-                        ? "워크플로 배치 · autofix.yaml 확인됨"
-                        : "워크플로 배치 · 기본 브랜치에 autofix.yaml이 없습니다"
-                  }
-                />
-                <SetupRow
                   done={status.callback_token_set}
-                  label="콜백 토큰"
+                  label="러너 토큰"
                   action={
                     !status.callback_token_set ? (
                       <button
@@ -484,6 +544,16 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
                         {t("autofixDock.issue", "발급")}
                       </button>
                     ) : undefined
+                  }
+                />
+                <SetupRow
+                  done={status.runner_online}
+                  label={
+                    status.runner_online
+                      ? `러너 연결 · ${status.runner_name ?? "이름 없음"}`
+                      : status.runner_seen_at
+                        ? `러너 연결 · ${formatRelativeTime(status.runner_seen_at)}부터 응답이 없습니다`
+                        : "러너 연결 · 맥에서 러너가 한 번도 접속하지 않았습니다"
                   }
                 />
               </div>
@@ -501,15 +571,14 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
 
             {/* 2열 — 왼쪽에서 고르고 오른쪽에서 지켜본다 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-
               <section className="rounded-lg border border-foreground/[0.08] overflow-hidden">
                 <div className="flex items-center gap-2 px-2.5 py-1.5 bg-foreground/[0.04] border-b border-foreground/[0.08]">
                   <span className="text-xs font-bold text-foreground">
                     {t("autofixDock.candidates", "트리아지")}
                   </span>
                   <span className="ml-auto text-xs text-slate-500 tabular-nums">
-                    {verdict === "CANDIDATE" && selected.size > 0
-                      ? `선택 ${selected.size} / ${items.length}`
+                    {verdict === "CANDIDATE"
+                      ? `선택 ${selected.size} · 담을 수 있음 ${selectableCount} / ${items.length}건`
                       : `${items.length}건`}
                   </span>
                 </div>
@@ -542,78 +611,122 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
                       )}
                     </div>
                   ) : (
-                    items.map((item) => {
-                      const isCandidate = item.verdict === "CANDIDATE";
-                      const on = selected.has(item.jira_issue_key);
-                      return (
-                        <div
-                          key={item.jira_issue_key}
-                          className={`flex items-start gap-1.5 px-2 py-1.5 rounded-lg border transition-colors ${
-                            on
-                              ? "border-bridge-accent/40 bg-bridge-accent/[0.07]"
-                              : "border-foreground/[0.08]"
-                          }`}
-                        >
-                          {isCandidate && (
-                            <button
-                              onClick={() => toggleSelect(item.jira_issue_key)}
-                              role="checkbox"
-                              aria-checked={on}
-                              aria-label={`${item.jira_issue_key} 선택`}
-                              className={`mt-0.5 w-3.5 h-3.5 shrink-0 rounded border transition-colors ${
-                                on
-                                  ? "bg-bridge-accent border-bridge-accent"
-                                  : "border-foreground/25 hover:border-bridge-accent"
-                              }`}
-                            >
-                              {on && (
-                                <Check size={11} className="text-white" strokeWidth={3} />
-                              )}
-                            </button>
-                          )}
-                          <div className="min-w-0 flex-1 space-y-0.5">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-xs font-bold text-bridge-accent">
-                                {item.jira_issue_key}
+                    decorated.map(
+                      ({ item, held, belowThreshold, canSelect }) => {
+                        const on = selected.has(item.jira_issue_key);
+                        const toggle = () => toggleSelect(item.jira_issue_key);
+                        return (
+                          // 행 어디를 눌러도 선택된다 — 체크박스만 눌리면 골랐다고 생각하고
+                          // 담기를 눌렀는데 아무 일도 일어나지 않는다
+                          <div
+                            key={item.jira_issue_key}
+                            {...(canSelect
+                              ? {
+                                  role: "checkbox" as const,
+                                  "aria-checked": on,
+                                  "aria-label": `${item.jira_issue_key} 선택`,
+                                  tabIndex: 0,
+                                  onClick: toggle,
+                                  onKeyDown: (e: React.KeyboardEvent) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      toggle();
+                                    }
+                                  },
+                                }
+                              : {})}
+                            className={`flex items-start gap-1.5 px-2 py-1.5 rounded-lg border transition-colors ${
+                              on
+                                ? "border-bridge-accent/40 bg-bridge-accent/[0.07]"
+                                : "border-foreground/[0.08]"
+                            } ${
+                              canSelect
+                                ? "cursor-pointer hover:border-bridge-accent/30 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                                : held
+                                  ? "opacity-60"
+                                  : ""
+                            }`}
+                          >
+                            {canSelect && (
+                              <span
+                                aria-hidden
+                                className={`mt-0.5 w-3.5 h-3.5 shrink-0 rounded border transition-colors ${
+                                  on
+                                    ? "bg-bridge-accent border-bridge-accent"
+                                    : "border-foreground/25"
+                                }`}
+                              >
+                                {on && (
+                                  <Check
+                                    size={11}
+                                    className="text-white"
+                                    strokeWidth={3}
+                                  />
+                                )}
                               </span>
-                              <span className="text-xs px-1.5 py-0.5 rounded-full bg-foreground/10 text-slate-400">
-                                {CATEGORY_LABEL[item.category] ?? item.category}
-                              </span>
-                              {item.confidence != null && (
-                                <span className="ml-auto text-xs text-slate-500 tabular-nums">
-                                  {item.confidence.toFixed(2)}
+                            )}
+                            <div className="min-w-0 flex-1 space-y-0.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs font-bold text-bridge-accent">
+                                  {item.jira_issue_key}
                                 </span>
+                                <span className="text-xs px-1.5 py-0.5 rounded-full bg-foreground/10 text-slate-400">
+                                  {CATEGORY_LABEL[item.category] ??
+                                    item.category}
+                                </span>
+                                {/* 이미 담긴/처리된 이슈는 다시 담기지 않는다(이슈당 1회) */}
+                                {held && (
+                                  <span className={chipCls(held.status)}>
+                                    {STATUS_STYLE[held.status].label}
+                                  </span>
+                                )}
+                                {!held && belowThreshold && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                                    {t(
+                                      "autofixDock.belowThreshold",
+                                      "임계값 미만",
+                                    )}
+                                  </span>
+                                )}
+                                {item.confidence != null && (
+                                  <span className="ml-auto text-xs text-slate-500 tabular-nums">
+                                    {item.confidence.toFixed(2)}
+                                  </span>
+                                )}
+                              </div>
+                              {item.verification && (
+                                <div className="text-xs text-slate-400 leading-relaxed">
+                                  {item.verification}
+                                </div>
+                              )}
+                              {item.reason && (
+                                <div className="text-xs text-slate-500 leading-relaxed">
+                                  {item.reason}
+                                </div>
                               )}
                             </div>
-                            {item.verification && (
-                              <div className="text-xs text-slate-400 leading-relaxed">
-                                {item.verification}
-                              </div>
-                            )}
-                            {item.reason && (
-                              <div className="text-xs text-slate-500 leading-relaxed">
-                                {item.reason}
-                              </div>
-                            )}
                           </div>
-                        </div>
-                      );
-                    })
+                        );
+                      },
+                    )
                   )}
 
-                  {verdict === "CANDIDATE" && selectable.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
+                  {verdict === "CANDIDATE" && selectableCount > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
                       <button
                         onClick={() => handleEnqueue([...selected])}
                         disabled={
-                          selected.size === 0 || !setupDone || busy === "enqueue"
+                          selected.size === 0 ||
+                          !setupDone ||
+                          busy === "enqueue"
                         }
                         className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
                       >
                         {busy === "enqueue" && (
                           <Loader2 size={12} className="animate-spin" />
                         )}
-                        {t("autofixDock.enqueueSelected", "선택")} {selected.size}
+                        {t("autofixDock.enqueueSelected", "선택")}{" "}
+                        {selected.size}
                         {t("autofixDock.countUnit", "건")}{" "}
                         {t("autofixDock.enqueue", "담기")}
                       </button>
@@ -624,6 +737,24 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
                       >
                         {t("autofixDock.enqueueAll", "조건 만족 전부")}
                       </button>
+                      {/* 버튼이 왜 안 눌리는지 화면이 말해줘야 한다 — 눌러도 아무 일이 없으면 고장으로 읽힌다 */}
+                      {!setupDone ? (
+                        <span className="text-xs text-amber-600 dark:text-amber-400">
+                          {t(
+                            "autofixDock.setupBlocksEnqueue",
+                            "셋업을 마쳐야 담을 수 있습니다",
+                          )}
+                        </span>
+                      ) : (
+                        selected.size === 0 && (
+                          <span className="text-xs text-slate-500">
+                            {t(
+                              "autofixDock.selectHint",
+                              "항목을 눌러 고르거나, 조건 만족 전부를 누르세요",
+                            )}
+                          </span>
+                        )
+                      )}
                     </div>
                   )}
                 </div>
@@ -665,16 +796,59 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
                           </span>
                         )}
                       </div>
-                      {active.run_url && (
-                        <a
-                          href={active.run_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-bridge-accent hover:underline"
+                      {active.runner_name && (
+                        <div className="text-xs text-slate-500">
+                          {t("autofixDock.runningOn", "실행 중")} ·{" "}
+                          {active.runner_name}
+                        </div>
+                      )}
+                      {/* 한 건이 오래 물고 있으면 뒤의 대기 건이 전부 멈춘다 — 러너를 확인하거나 회수해야 한다 */}
+                      {elapsed !== null && elapsed >= STALE_HINT_MINUTES && (
+                        <div className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">
+                          {t(
+                            "autofixDock.longRunningHint",
+                            "러너가 오래 회신하지 않고 있습니다. 이 건이 끝나야 대기 건이 나갑니다.",
+                          )}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() =>
+                            armedRelease === active.id
+                              ? handleRelease(active.id)
+                              : setArmedRelease(active.id)
+                          }
+                          disabled={busy === `release:${active.id}`}
+                          className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-rose-500 transition-colors disabled:opacity-50"
                         >
-                          {t("autofixDock.runLog", "실행 로그")}
-                          <ExternalLink size={10} />
-                        </a>
+                          {busy === `release:${active.id}` && (
+                            <Loader2 size={11} className="animate-spin" />
+                          )}
+                          {armedRelease === active.id
+                            ? t(
+                                "autofixDock.releaseConfirm",
+                                "정말 회수할까요?",
+                              )
+                            : t("autofixDock.release", "강제 회수")}
+                        </button>
+                        {armedRelease === active.id && (
+                          <button
+                            onClick={() => setArmedRelease(null)}
+                            className="text-xs text-slate-500 hover:text-foreground transition-colors"
+                          >
+                            {t("autofixDock.cancelAction", "취소")}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 대기 건이 왜 그대로인지 설명 — 직렬 실행이라 앞 건이 끝나야 나간다 */}
+                  {active && waiting.length > 0 && (
+                    <div className="text-xs text-slate-500 px-0.5 leading-relaxed">
+                      {t(
+                        "autofixDock.serialHint",
+                        "한 번에 한 건씩 실행합니다. 진행 중인 작업이 끝나야 아래 대기 건이 나갑니다.",
                       )}
                     </div>
                   )}
@@ -790,6 +964,17 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
                                   {job.failure_reason}
                                 </div>
                               )
+                            )}
+                            {/* Actions 실행 로그 링크가 없으므로, 원인을 볼 수 있는 곳은 여기뿐이다 */}
+                            {job.log_excerpt && (
+                              <details className="text-xs text-slate-500">
+                                <summary className="cursor-pointer hover:text-foreground transition-colors">
+                                  {t("autofixDock.agentLog", "에이전트 로그")}
+                                </summary>
+                                <pre className="mt-1 p-2 rounded-lg bg-foreground/[0.04] overflow-x-auto custom-scrollbar text-xs text-slate-400 whitespace-pre-wrap break-all max-h-48">
+                                  {job.log_excerpt}
+                                </pre>
+                              </details>
                             )}
                           </div>
                         ))}

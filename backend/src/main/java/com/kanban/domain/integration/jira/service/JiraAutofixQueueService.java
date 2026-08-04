@@ -7,7 +7,6 @@ import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.integration.github.BoardGithubRepo;
 import com.kanban.domain.integration.github.BoardGithubRepoRepository;
-import com.kanban.domain.integration.github.service.GithubApiClient;
 import com.kanban.domain.integration.jira.*;
 import com.kanban.domain.integration.jira.config.AutofixProperties;
 import com.kanban.domain.integration.jira.dto.JiraAutofixResponse;
@@ -17,7 +16,6 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,19 +25,20 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
-import java.util.Optional;
 
 /**
- * 자동수정 작업 큐 — 트리아지 후보를 담고, 러너에 한 건씩 내보내고, 콜백을 받아 마무리한다.
+ * 자동수정 작업 큐 — 트리아지 후보를 담고, 러너가 가져가게 하고, 콜백을 받아 마무리한다.
  *
- * <p><b>직렬 보장이 이 클래스의 핵심 책임이다.</b> Unity Editor는 프로젝트당 인스턴스가 하나뿐이라
- * 러너 쪽에서도 concurrency group으로 막지만, BRIDGE가 무분별하게 디스패치하면 GitHub Actions 큐에
- * 작업이 쌓이고 어느 것이 어느 이슈인지 추적이 흐려진다. 그래서 in-flight 작업이 있으면 보내지 않는다.
+ * <p><b>작업은 밀어 넣지 않고 러너가 가져간다(pull).</b> 실행 주체는 Unity Editor가 떠 있는 맥
+ * 한 대뿐이고, 그 맥이 언제 여유가 있는지는 맥만 안다. 서버가 그것을 추측해 밀어 넣으면 이미 돌고
+ * 있는데 또 보내는 사고가 나고, 그걸 막으려고 서버·러너 양쪽에 큐를 두면 두 큐가 어긋난다.
+ *
+ * <p><b>직렬 보장이 이 클래스의 핵심 책임이다.</b> Unity Editor는 프로젝트당 인스턴스가 하나뿐이므로
+ * in-flight 작업이 있으면 claim에 아무것도 내주지 않는다 — 러너가 실수로 두 번 물어도 마찬가지다.
  *
  * <p>가드레일 네 가지 — confidence 임계값 / 이슈당 1회 / 일일 상한 / 항상 PR까지만.
- * 마지막 하나는 러너 워크플로가 지킨다(머지 단계가 아예 없다).
+ * 마지막 하나는 러너 스크립트가 지킨다(머지 단계가 아예 없다).
  */
 @Slf4j
 @Service
@@ -55,13 +54,11 @@ public class JiraAutofixQueueService {
     private final JiraIntegrationConfigRepository configRepository;
     private final TaskRepository taskRepository;
     private final BoardGithubRepoRepository boardGithubRepoRepository;
-    private final GithubApiClient githubApiClient;
     private final JiraApiClient jiraApiClient;
     private final JiraOAuthService oauthService;
 
-    /** 러너가 결과를 되돌려보낼 이 서버의 공개 주소. 비어 있으면 콜백을 쓰지 않는다. */
-    @Value("${app.backend-url:}")
-    private String backendUrl;
+    /** 러너가 보낸 로그 꼬리 상한. 실패 원인을 보기엔 충분하고, 행이 비대해지진 않는 크기. */
+    private static final int MAX_LOG_EXCERPT = 8000;
 
     // ── 큐에 담기 ──────────────────────────────────
 
@@ -123,8 +120,7 @@ public class JiraAutofixQueueService {
                     .confidence(confidence)
                     .status(AutofixJobStatus.QUEUED)
                     .build();
-            job.assignTarget(target.installationId(), target.repoFullName(),
-                    properties.getWorkflowFile(), target.baseRef());
+            job.assignTarget(target.installationId(), target.repoFullName(), target.baseRef());
             toSave.add(job);
             queued++;
         }
@@ -142,64 +138,67 @@ public class JiraAutofixQueueService {
                 .build();
     }
 
-    // ── 디스패치 ───────────────────────────────────
+    // ── claim (러너가 가져간다) ──────────────────────
 
     /**
-     * 큐에서 다음 한 건을 러너에 넘긴다. 보낼 게 없거나 이미 진행 중이면 아무것도 하지 않는다.
+     * 러너에게 다음 한 건을 내준다. 내줄 게 없으면 이유를 담아 빈 결과를 돌려준다 —
+     * 러너 로그에 "왜 조용한지"가 남아야 맥 앞에 앉지 않고도 원인을 안다.
      *
-     * <p>워크플로 존재를 먼저 확인한다 — 없는 워크플로를 부르면 404가 나는데, 그걸 작업 실패로
-     * 기록하면 큐의 모든 작업이 같은 이유로 하나씩 소진된다.
-     *
-     * @return 디스패치한 작업, 없으면 empty
+     * <p>말을 걸어온 사실 자체를 기록한다(내줄 게 없어도). 이 값이 화면의 "러너 연결됨" 근거다.
      */
     @Transactional
-    public Optional<JiraAutofixJob> dispatchNext(String boardId) {
+    public JiraAutofixResponse.ClaimResult claim(String boardId, String runnerName) {
+        configRepository.findByBoardId(boardId)
+                .ifPresent(config -> config.touchAutofixRunner(runnerName));
+
+        if (!properties.isDispatchEnabled()) {
+            return JiraAutofixResponse.ClaimResult.of(null, "DISPATCH_DISABLED");
+        }
         if (jobRepository.countInFlight(boardId) > 0) {
-            return Optional.empty();   // 러너가 물고 있다 — 직렬 보장
+            // 러너가 이전 건을 회신하지 않은 채 다시 물었다. 두 건이 동시에 도는 것보다 조용한 편이 낫다.
+            return JiraAutofixResponse.ClaimResult.of(null, "IN_FLIGHT");
         }
 
         LocalDateTime dayAgo = LocalDateTime.now(ZoneOffset.UTC).minusDays(1);
         if (jobRepository.countDispatchedSince(boardId, dayAgo) >= properties.getDailyLimit()) {
-            log.info("Autofix daily limit reached for board {} ({})", boardId, properties.getDailyLimit());
-            return Optional.empty();
+            return JiraAutofixResponse.ClaimResult.of(null, "DAILY_LIMIT");
         }
 
         List<JiraAutofixJob> next = jobRepository.findByBoardIdAndStatus(
                 boardId, AutofixJobStatus.QUEUED, PageRequest.of(0, 1));
-        if (next.isEmpty()) return Optional.empty();
+        if (next.isEmpty()) {
+            return JiraAutofixResponse.ClaimResult.of(null, "EMPTY");
+        }
 
         JiraAutofixJob job = next.get(0);
-
-        if (job.getInstallationId() == null || job.getRepoFullName() == null) {
-            job.complete(AutofixJobStatus.FAILED, null, null, "디스패치 대상 저장소가 지정되지 않았습니다");
-            return Optional.empty();
+        if (job.getRepoFullName() == null || job.getRepoFullName().isBlank()) {
+            // 큐에 담길 때 대상이 없었던 건. 내주면 러너가 어디서 고칠지 모른다.
+            job.complete(AutofixJobStatus.FAILED, null, "대상 저장소가 지정되지 않았습니다", null);
+            return JiraAutofixResponse.ClaimResult.of(null, "NO_TARGET");
         }
 
-        if (!githubApiClient.hasWorkflow(job.getInstallationId(), job.getRepoFullName(), job.getWorkflowFile())) {
-            // 큐를 갉아먹지 않도록 이 작업은 QUEUED로 남기고 디스패치만 포기한다
-            log.warn("Autofix: workflow {} not found on {} — 기본 브랜치에 올렸는지 확인 필요",
-                    job.getWorkflowFile(), job.getRepoFullName());
-            throw new BusinessException(ErrorCode.JIRA_AUTOFIX_WORKFLOW_NOT_FOUND);
-        }
+        job.markClaimed(runnerName);
+        log.info("Autofix claimed: board={} issue={} repo={} runner={}",
+                boardId, job.getJiraIssueKey(), job.getRepoFullName(), runnerName);
+        return JiraAutofixResponse.ClaimResult.of(buildRunnerJob(job), "CLAIMED");
+    }
 
-        String callbackUrl = buildCallbackUrl(boardId);
-        githubApiClient.dispatchWorkflow(
-                job.getInstallationId(), job.getRepoFullName(), job.getWorkflowFile(), job.getBaseRef(),
-                buildInputs(job, callbackUrl));
-
-        job.markDispatched();
-        log.info("Autofix dispatched: board={} issue={} repo={}",
-                boardId, job.getJiraIssueKey(), job.getRepoFullName());
-        return Optional.of(job);
+    /** 러너가 살아 있다는 신호만 받는다 — 긴 작업 중에는 claim을 부르지 않기 때문이다. */
+    @Transactional
+    public void heartbeat(String boardId, String runnerName) {
+        configRepository.findByBoardId(boardId)
+                .ifPresent(config -> config.touchAutofixRunner(runnerName));
     }
 
     /**
-     * 러너에 넘길 workflow_dispatch inputs.
+     * 러너가 받아갈 작업 명세.
      *
      * <p>이슈 본문은 JIRA를 다시 부르지 않고 가져온 Task에서 읽는다 — import 시점에 이미 평문으로
-     * 변환해 저장해 뒀고, 디스패치마다 JIRA를 때리면 레이트 리밋만 소모한다.
+     * 변환해 저장해 뒀고, 매번 JIRA를 때리면 레이트 리밋만 소모한다.
+     *
+     * <p>브랜치 이름은 서버가 정한다. 러너가 정하면 재실행·수동 실행마다 규칙이 흔들린다.
      */
-    private Map<String, String> buildInputs(JiraAutofixJob job, String callbackUrl) {
+    private JiraAutofixResponse.RunnerJob buildRunnerJob(JiraAutofixJob job) {
         String title = job.getJiraIssueKey();
         String body = "";
 
@@ -216,13 +215,24 @@ public class JiraAutofixQueueService {
                 .map(JiraAutofixTriage::getVerification)
                 .orElse("");
 
-        return Map.of(
-                "issue_key", job.getJiraIssueKey(),
-                "issue_title", clip(title, 200),
-                "issue_body", clip(body, 4000),
-                "verification", clip(verification, 500),
-                "base_ref", nullToEmpty(job.getBaseRef()),
-                "callback_url", nullToEmpty(callbackUrl));
+        String testInfra = configRepository.findByBoardId(job.getBoard().getId())
+                .map(JiraIntegrationConfig::resolveAutofixTestInfra)
+                .orElse(TestInfraLevel.NONE)
+                .name();
+
+        return JiraAutofixResponse.RunnerJob.builder()
+                .jobId(job.getId())
+                .jiraIssueKey(job.getJiraIssueKey())
+                .issueTitle(clip(title, 200))
+                .issueBody(clip(body, 8000))
+                .verification(clip(verification, 500))
+                .testInfra(testInfra)
+                .repoFullName(job.getRepoFullName())
+                .baseRef(nullToEmpty(job.getBaseRef()))
+                .branch("autofix/" + job.getJiraIssueKey())
+                .timeoutMinutes(Math.min(properties.getRunnerTimeoutMinutes(),
+                        properties.getDispatchTimeoutMinutes()))
+                .build();
     }
 
     // ── 콜백 ──────────────────────────────────────
@@ -239,49 +249,62 @@ public class JiraAutofixQueueService {
     }
 
     /**
-     * 러너 결과 반영. 이슈키로 DISPATCHED 작업을 찾아 종료 상태로 넘기고, JIRA에 결과 댓글을 단다.
+     * 러너 결과 반영. 종료 상태로 넘긴 뒤 JIRA에 결과 댓글을 단다.
+     *
+     * <p>페이로드는 {@code job_id}로 매칭한다. 이슈키 매칭도 남겨 두는 이유는 사람이 손으로 한 건을
+     * 돌려볼 때(단건 스크립트) job_id 없이 회신할 수 있어야 하기 때문이다.
      *
      * <p>콜백은 재전송될 수 있으므로 멱등하게 처리한다 — 이미 종료된 작업이면 조용히 무시한다.
      */
     @Transactional
     public void handleCallback(String boardId, JsonNode payload) {
-        String issueKey = text(payload, "issue_key");
-        if (issueKey == null || issueKey.isBlank()) {
-            log.warn("Autofix callback without issue_key (board={})", boardId);
-            return;
-        }
+        JiraAutofixJob job = findCallbackTarget(boardId, payload);
+        if (job == null) return;
 
-        JiraAutofixJob job = jobRepository.findDispatchedByIssueKey(boardId, issueKey).orElse(null);
-        if (job == null) {
-            // 타임아웃으로 이미 회수됐거나 중복 콜백이다. 오류가 아니다.
-            log.info("Autofix callback for unknown/settled job: board={} issue={}", boardId, issueKey);
-            return;
-        }
+        String prUrl = blankToNull(text(payload, "pr_url"));
+        AutofixJobStatus result = resolveResult(text(payload, "result"), prUrl);
+        String failureReason = result == AutofixJobStatus.FAILED
+                ? clip(defaultIfBlank(text(payload, "failure_reason"), "러너가 실패를 보고했습니다"), 1000)
+                : null;
 
-        String prUrl = text(payload, "pr_url");
-        String runUrl = text(payload, "run_url");
-        AutofixJobStatus result = resolveResult(payload, prUrl);
-
-        boolean applied = job.complete(result, blankToNull(prUrl), blankToNull(runUrl),
-                result == AutofixJobStatus.FAILED ? clip(text(payload, "status"), 1000) : null);
+        boolean applied = job.complete(result, prUrl, failureReason,
+                blankToNull(clip(text(payload, "log_excerpt"), MAX_LOG_EXCERPT)));
         if (!applied) return;
 
-        log.info("Autofix callback: board={} issue={} result={} pr={}", boardId, issueKey, result, prUrl);
+        log.info("Autofix result: board={} issue={} result={} pr={}",
+                boardId, job.getJiraIssueKey(), result, prUrl);
         postJiraComment(boardId, job, result);
     }
 
-    /**
-     * 러너가 보낸 job.status와 변경 여부를 조합해 결과를 정한다.
-     * 러너가 성공했다고 해도 PR이 없으면 SUCCEEDED로 치지 않는다 — PR이 산출물이다.
-     */
-    private AutofixJobStatus resolveResult(JsonNode payload, String prUrl) {
-        String jobStatus = text(payload, "status");
-        String changeResult = text(payload, "result");
+    /** 진행 중인 작업만 찾는다. 없으면 타임아웃 회수됐거나 중복 콜백이다 — 오류가 아니다. */
+    private JiraAutofixJob findCallbackTarget(String boardId, JsonNode payload) {
+        String jobId = blankToNull(text(payload, "job_id"));
+        String issueKey = blankToNull(text(payload, "issue_key"));
 
-        if (!"success".equalsIgnoreCase(jobStatus)) return AutofixJobStatus.FAILED;
-        if ("none".equalsIgnoreCase(changeResult)) return AutofixJobStatus.NO_CHANGE;
-        if (prUrl == null || prUrl.isBlank()) return AutofixJobStatus.FAILED;
-        return AutofixJobStatus.SUCCEEDED;
+        JiraAutofixJob job = jobId != null
+                ? jobRepository.findById(jobId)
+                        .filter(j -> j.getBoard().getId().equals(boardId))
+                        .filter(j -> j.getStatus() == AutofixJobStatus.DISPATCHED)
+                        .orElse(null)
+                : issueKey != null
+                        ? jobRepository.findDispatchedByIssueKey(boardId, issueKey).orElse(null)
+                        : null;
+
+        if (job == null) {
+            log.info("Autofix callback for unknown/settled job: board={} job={} issue={}",
+                    boardId, jobId, issueKey);
+        }
+        return job;
+    }
+
+    /**
+     * 러너가 보고한 결과를 상태로 옮긴다. {@code result}는 pr / no_change / failed 셋뿐이다.
+     * 러너가 pr이라고 해도 URL이 없으면 SUCCEEDED로 치지 않는다 — PR이 산출물이다.
+     */
+    private AutofixJobStatus resolveResult(String result, String prUrl) {
+        if ("no_change".equalsIgnoreCase(result)) return AutofixJobStatus.NO_CHANGE;
+        if ("pr".equalsIgnoreCase(result) && prUrl != null) return AutofixJobStatus.SUCCEEDED;
+        return AutofixJobStatus.FAILED;
     }
 
     /** JIRA 이슈에 결과를 남긴다. 실패해도 작업 상태는 이미 확정됐으므로 예외를 삼킨다. */
@@ -294,7 +317,7 @@ public class JiraAutofixQueueService {
                     + "\n자동 검증은 컴파일 통과까지만입니다. 머지 전 검토가 필요합니다.";
             case NO_CHANGE -> "BRIDGE 자동수정이 이 이슈를 자동으로 고칠 수 없다고 판단했습니다.";
             default -> "BRIDGE 자동수정이 실패했습니다."
-                    + (job.getRunUrl() != null ? " 실행 로그: " + job.getRunUrl() : "");
+                    + (job.getFailureReason() != null ? " 사유: " + job.getFailureReason() : "");
         };
 
         try {
@@ -309,7 +332,7 @@ public class JiraAutofixQueueService {
     // ── 회수 ──────────────────────────────────────
 
     /**
-     * 콜백이 끝내 오지 않은 작업을 회수한다. 맥이 죽거나 네트워크가 끊기면 발생하며,
+     * 회신이 끝내 오지 않은 작업을 회수한다. 맥이 죽거나 잠들거나 네트워크가 끊기면 발생하며,
      * 이게 없으면 DISPATCHED 하나가 그 보드의 큐를 영구히 막는다.
      *
      * @return 회수한 건수
@@ -329,7 +352,7 @@ public class JiraAutofixQueueService {
     // ── 조회 / 취소 ────────────────────────────────
 
     /**
-     * 큐 준비 상태. 셋업이 4단계라 하나만 빠져도 큐가 조용히 멈춘 것처럼 보이므로,
+     * 큐 준비 상태. 셋업이 3단계라 하나만 빠져도 큐가 조용히 멈춘 것처럼 보이므로,
      * 무엇이 빠졌는지 화면이 스스로 설명할 수 있게 전부 내려준다.
      */
     @Transactional(readOnly = true)
@@ -338,22 +361,18 @@ public class JiraAutofixQueueService {
 
         String repoFullName = null;
         boolean ambiguous = false;
-        Boolean workflowReady = null;
 
         List<BoardGithubRepo> repos = boardGithubRepoRepository.findByBoardIdAndActiveTrue(boardId);
         if (repos.size() > 1) {
             ambiguous = true;
         } else if (repos.size() == 1) {
-            BoardGithubRepo repo = repos.get(0);
-            repoFullName = repo.getRepoFullName();
-            try {
-                workflowReady = githubApiClient.hasWorkflow(
-                        repo.getInstallation().getInstallationId(), repoFullName, properties.getWorkflowFile());
-            } catch (Exception e) {
-                // 권한·레이트리밋 문제로 확인 자체가 실패할 수 있다. "없음"이 아니라 "모름"이다.
-                log.debug("Autofix: 워크플로 확인 실패 {}: {}", repoFullName, e.getMessage());
-            }
+            repoFullName = repos.get(0).getRepoFullName();
         }
+
+        JiraIntegrationConfig config = configRepository.findByBoardId(boardId).orElse(null);
+        LocalDateTime runnerSeenAt = config != null ? config.getAutofixRunnerSeenAt() : null;
+        boolean runnerOnline = runnerSeenAt != null && runnerSeenAt.isAfter(
+                LocalDateTime.now(ZoneOffset.UTC).minusMinutes(properties.getRunnerOnlineWindowMinutes()));
 
         List<JiraAutofixTriage> candidates =
                 triageRepository.findByBoardIdAndVerdict(boardId, AutofixVerdict.CANDIDATE);
@@ -362,19 +381,19 @@ public class JiraAutofixQueueService {
                 .filter(t -> !jobRepository.existsActiveForIssue(boardId, t.getJiraIssueKey()))
                 .count();
 
-        boolean tokenSet = configRepository.findByBoardId(boardId)
-                .map(JiraIntegrationConfig::getAutofixCallbackToken)
-                .map(t -> t != null && !t.isBlank())
-                .orElse(false);
+        boolean tokenSet = config != null && config.getAutofixCallbackToken() != null
+                && !config.getAutofixCallbackToken().isBlank();
 
         LocalDateTime dayAgo = LocalDateTime.now(ZoneOffset.UTC).minusDays(1);
 
         return JiraAutofixResponse.QueueStatus.builder()
                 .repoFullName(repoFullName)
                 .repoAmbiguous(ambiguous)
-                .workflowReady(workflowReady)
+                .runnerOnline(runnerOnline)
+                .runnerName(config != null ? config.getAutofixRunnerName() : null)
+                .runnerSeenAt(toIso(runnerSeenAt))
                 .callbackTokenSet(tokenSet)
-                .schedulerEnabled(properties.isSchedulerEnabled())
+                .dispatchEnabled(properties.isDispatchEnabled())
                 .inFlight((int) jobRepository.countInFlight(boardId))
                 .queued((int) jobRepository.countQueued(boardId))
                 .dispatchedToday((int) jobRepository.countDispatchedSince(boardId, dayAgo))
@@ -393,16 +412,27 @@ public class JiraAutofixQueueService {
                 .toList();
     }
 
+    /**
+     * 작업 취소. 기본은 아직 나가지 않은 QUEUED만이다.
+     *
+     * @param force true면 러너가 물고 있는 DISPATCHED도 강제 회수한다. 러너가 죽어 콜백이 오지
+     *              않으면 그 한 건이 타임아웃까지 보드의 큐 전체를 막으므로, 사람이 즉시 풀 수 있는
+     *              길을 남긴다. 실제 Actions 실행이 멈추지는 않는다.
+     */
     @Transactional
-    public void cancelJob(String boardId, String userId, String jobId) {
+    public void cancelJob(String boardId, String userId, String jobId, boolean force) {
         boardService.checkAdminOrAbove(boardId, userId);
         JiraAutofixJob job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_AUTOFIX_JOB_NOT_FOUND));
         if (!job.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.JIRA_AUTOFIX_JOB_NOT_FOUND);
         }
-        if (!job.cancel()) {
+        boolean applied = job.cancel() || (force && job.release());
+        if (!applied) {
             throw new BusinessException(ErrorCode.JIRA_AUTOFIX_JOB_NOT_CANCELLABLE);
+        }
+        if (force) {
+            log.warn("Autofix job force-released: board={} issue={}", boardId, job.getJiraIssueKey());
         }
     }
 
@@ -422,9 +452,10 @@ public class JiraAutofixQueueService {
                 .status(job.getStatus().name())
                 .confidence(job.getConfidence())
                 .repoFullName(job.getRepoFullName())
+                .runnerName(job.getRunnerName())
                 .prUrl(job.getPrUrl())
-                .runUrl(job.getRunUrl())
                 .failureReason(job.getFailureReason())
+                .logExcerpt(job.getLogExcerpt())
                 .queuedAt(toIso(job.getQueuedAt()))
                 .dispatchedAt(toIso(job.getDispatchedAt()))
                 .completedAt(toIso(job.getCompletedAt()))
@@ -454,19 +485,6 @@ public class JiraAutofixQueueService {
                 repo.getInstallation().getInstallationId(), repo.getRepoFullName(), baseRef);
     }
 
-    /**
-     * 러너가 결과를 POST할 절대 URL. 콜백 토큰이 없으면 빈 문자열을 돌려주고, 워크플로는
-     * 회신 단계를 건너뛴다 — 그 경우 작업은 타임아웃 회수에만 의존하게 된다.
-     */
-    private String buildCallbackUrl(String boardId) {
-        if (backendUrl == null || backendUrl.isBlank()) return "";
-        return configRepository.findByBoardId(boardId)
-                .map(JiraIntegrationConfig::getAutofixCallbackToken)
-                .filter(t -> t != null && !t.isBlank())
-                .map(t -> backendUrl.replaceAll("/+$", "") + "/api/v1/jira/autofix/callback/" + boardId)
-                .orElse("");
-    }
-
     /** 토큰 비교는 길이 정보만 흘리도록 상수 시간으로 한다. */
     private boolean constantTimeEquals(String a, String b) {
         if (a.length() != b.length()) return false;
@@ -487,6 +505,10 @@ public class JiraAutofixQueueService {
 
     private static String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private static String defaultIfBlank(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     private static String clip(String value, int limit) {

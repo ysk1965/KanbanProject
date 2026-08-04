@@ -279,6 +279,15 @@ variable "jira_oauth_redirect_uri" {
   default     = "https://api.bridgespots.com/api/v1/jira/oauth/callback"
 }
 
+# JIRA 자동수정(Autofix) 파이프라인
+# 러너(맥)가 작업을 가져가는 pull 방식이라 서버가 러너를 호출하지 않는다 — 러너 주소도,
+# 이 서버의 공개 주소도 설정할 것이 없다. 러너가 자기 runner.conf에 BRIDGE_URL을 들고 있다.
+variable "autofix_dispatch_enabled" {
+  description = "Hand queued autofix jobs to the runner. False = jobs stay queued."
+  type        = bool
+  default     = true
+}
+
 # GitHub App Integration (자동 보고서 커밋 수집)
 variable "github_app_id" {
   description = "GitHub App ID"

@@ -6,17 +6,17 @@ import java.util.Set;
  * 자동수정 작업 상태.
  *
  * <pre>
- * QUEUED ──dispatch──▶ DISPATCHED ──callback──▶ SUCCEEDED / NO_CHANGE / FAILED
- *   │                      └──────timeout─────▶ TIMED_OUT
+ * QUEUED ──claim──▶ DISPATCHED ──callback──▶ SUCCEEDED / NO_CHANGE / FAILED
+ *   │                   └───────timeout────▶ TIMED_OUT
  *   └──cancel──▶ CANCELLED
  * </pre>
  */
 public enum AutofixJobStatus {
 
-    /** 큐에 담김. 아직 러너를 부르지 않았다. */
+    /** 큐에 담김. 아직 러너가 가져가지 않았다. */
     QUEUED,
 
-    /** 러너에 넘김. 콜백을 기다리는 중 — 이 상태의 작업이 있으면 다음 건을 보내지 않는다. */
+    /** 러너가 가져가 작업 중. 이 상태의 작업이 있으면 다음 건을 내주지 않는다(직렬 보장). */
     DISPATCHED,
 
     /** PR이 만들어졌다. */

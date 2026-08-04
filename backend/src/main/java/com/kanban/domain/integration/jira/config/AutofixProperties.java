@@ -15,9 +15,6 @@ import org.springframework.context.annotation.Configuration;
 @Setter
 public class AutofixProperties {
 
-    /** 대상 저장소에 둘 워크플로 파일명. */
-    private String workflowFile = "autofix.yaml";
-
     /** 보드의 저장소 연결에 브랜치가 지정되지 않았을 때 쓸 기본 브랜치. */
     private String defaultBaseRef = "develop";
 
@@ -36,6 +33,23 @@ public class AutofixProperties {
      */
     private int dispatchTimeoutMinutes = 90;
 
-    /** 큐 펌프 사용 여부. 끄면 수동 디스패치만 가능하다. */
-    private boolean schedulerEnabled = true;
+    /**
+     * 러너가 한 건에 쓸 수 있는 시간. claim 응답에 실려 나간다.
+     *
+     * <p>반드시 {@link #dispatchTimeoutMinutes}보다 짧아야 한다 — 길면 서버가 먼저 TIMED_OUT으로
+     * 회수해 다음 건을 내주는데 맥에서는 아직 이전 건이 돌고 있는, 정확히 피하려던 상황이 된다.
+     */
+    private int runnerTimeoutMinutes = 60;
+
+    /**
+     * 러너에게 작업을 내줄지. 끄면 후보를 큐에 담기만 하고 claim에는 아무것도 주지 않는다 —
+     * 러너를 세우지 않고도 파이프라인을 멈출 수 있는 스위치다.
+     */
+    private boolean dispatchEnabled = true;
+
+    /**
+     * 이 시간 안에 claim이나 heartbeat가 있었으면 러너가 살아 있다고 본다.
+     * 러너 폴링 주기(기본 20초)보다 넉넉해야 잠깐의 네트워크 끊김이 "오프라인"으로 보이지 않는다.
+     */
+    private int runnerOnlineWindowMinutes = 3;
 }
