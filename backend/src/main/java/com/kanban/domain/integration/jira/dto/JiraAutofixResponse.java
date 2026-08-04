@@ -76,6 +76,16 @@ public class JiraAutofixResponse {
         /** 임계값을 넘어 지금 담을 수 있는 후보 수. */
         private int eligibleCandidates;
         private int totalCandidates;
+
+        /**
+         * 결과를 게시할 자동수정 전용 슬랙 채널. 지정하지 않았으면 null이고, 그때는 설치
+         * 기본 채널로 나간다 — 화면이 "어디로 나가는지 모르는" 상태를 만들지 않으려면
+         * 둘을 구분해 보여줘야 한다.
+         */
+        private String slackChannelId;
+        private String slackChannelName;
+        /** 서버에서 자동수정 슬랙 알림 자체가 꺼져 있으면 채널을 골라도 나가지 않는다. */
+        private boolean slackNotifyEnabled;
     }
 
     /** 큐 투입 결과. 건너뛴 이유를 나눠 보여줘야 왜 적게 담겼는지 알 수 있다. */

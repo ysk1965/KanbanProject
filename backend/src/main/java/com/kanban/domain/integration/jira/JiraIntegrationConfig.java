@@ -195,6 +195,20 @@ public class JiraIntegrationConfig {
     @Column(name = "autofix_runner_status", length = 500)
     private String autofixRunnerStatus;
 
+    /**
+     * 자동수정 결과를 게시할 슬랙 채널. 비어 있으면 슬랙 알림을 보내지 않는다.
+     *
+     * <p>주간보고서 발송 채널({@code report_delivery_channels})을 재사용하지 않는 이유: 보고서는
+     * 사람이 읽는 요약이고 자동수정 알림은 봇이 만든 작업 로그다. 같은 채널에 섞으면 둘 중 하나가
+     * 반드시 소음이 된다. 채널을 나눌 수 있어야 알림을 끄지 않고도 볼 것만 볼 수 있다.
+     */
+    @Column(name = "autofix_slack_channel_id", length = 40)
+    private String autofixSlackChannelId;
+
+    /** 화면 표기용 채널명. 슬랙에서 이름이 바뀌어도 게시는 ID로 하므로 표시만 낡을 뿐 깨지지 않는다. */
+    @Column(name = "autofix_slack_channel_name", length = 100)
+    private String autofixSlackChannelName;
+
     // ④ 진행상태
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -345,6 +359,21 @@ public class JiraIntegrationConfig {
 
     public void updateAutofixTestInfra(TestInfraLevel level) {
         this.autofixTestInfra = level != null ? level : TestInfraLevel.NONE;
+    }
+
+    /**
+     * 자동수정 알림 채널을 지정하거나 해제한다. 채널 ID가 비면 이름도 같이 지운다 —
+     * 채널명만 남으면 화면에는 설정된 것처럼 보이는데 실제로는 아무데도 안 나간다.
+     */
+    public void updateAutofixSlackChannel(String channelId, String channelName) {
+        if (channelId == null || channelId.isBlank()) {
+            this.autofixSlackChannelId = null;
+            this.autofixSlackChannelName = null;
+            return;
+        }
+        this.autofixSlackChannelId = channelId.length() > 40 ? channelId.substring(0, 40) : channelId;
+        this.autofixSlackChannelName = channelName == null || channelName.isBlank() ? null
+                : (channelName.length() > 100 ? channelName.substring(0, 100) : channelName);
     }
 
     /** 기존 행은 컬럼이 null이라 방어한다. */

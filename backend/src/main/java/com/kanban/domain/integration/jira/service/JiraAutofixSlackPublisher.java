@@ -17,7 +17,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 자동수정 결과를 슬랙 채널에 남긴다 — 보드에 연결된 슬랙 설치의 <b>기본 채널</b> 하나로만 나간다.
+ * 자동수정 결과를 슬랙 채널에 남긴다 — 보드에 지정한 <b>자동수정 전용 채널</b> 하나로 나가고,
+ * 지정이 없으면 슬랙 설치의 기본 채널로 떨어진다.
  *
  * <p>도크를 열어야만 결과를 알 수 있던 자리를 메운다. JIRA 결과 댓글은 이슈를 보는 사람에게만
  * 닿지만, PR은 리뷰어가 있어야 진행되고 실패는 러너를 손봐야 풀리므로 팀이 보는 곳에 한 번 더 남긴다.
@@ -47,8 +48,10 @@ public class JiraAutofixSlackPublisher {
      *
      * @param issueTitle  카드 제목. 이슈키만으로는 채널에서 무슨 건인지 알 수 없다.
      * @param jiraBaseUrl JIRA 사이트 주소(없으면 이슈 링크 버튼을 빼고 보낸다)
+     * @param configuredChannelId 자동수정 전용 채널. 비어 있으면 설치 기본 채널로 떨어진다.
      */
-    public void publish(Board board, JiraAutofixJob job, String issueTitle, String jiraBaseUrl) {
+    public void publish(Board board, JiraAutofixJob job, String issueTitle, String jiraBaseUrl,
+                        String configuredChannelId) {
         if (board == null || job == null) return;
         if (job.getStatus() == AutofixJobStatus.CANCELLED) return;
 
@@ -56,19 +59,20 @@ public class JiraAutofixSlackPublisher {
             SlackInstallation installation = slackOAuthService.findActiveInstallation(board).orElse(null);
             if (installation == null) return;
 
-            String channelId = installation.getDefaultChannelId();
+            String channelId = configuredChannelId != null && !configuredChannelId.isBlank()
+                    ? configuredChannelId
+                    : installation.getDefaultChannelId();
             if (channelId == null || channelId.isBlank()) {
-                // 설치는 있는데 기본 채널이 없다. 어디로 보낼지 고를 수 없으므로 보내지 않는다.
-                log.debug("Autofix Slack: 기본 채널이 없어 게시를 건너뜁니다 board={}", board.getId());
+                // 전용 채널도 기본 채널도 없다. 어디로 보낼지 고를 수 없으므로 보내지 않는다.
+                log.debug("Autofix Slack: 게시할 채널이 없어 건너뜁니다 board={}", board.getId());
                 return;
             }
 
             String botToken = slackOAuthService.decryptBotToken(installation);
             slackApiClient.postMessage(botToken, channelId,
                     buildBlocks(board, job, issueTitle, jiraBaseUrl));
-            log.info("Autofix Slack: board={} issue={} status={} → #{}",
-                    board.getId(), job.getJiraIssueKey(), job.getStatus(),
-                    installation.getDefaultChannelName());
+            log.info("Autofix Slack: board={} issue={} status={} → {}",
+                    board.getId(), job.getJiraIssueKey(), job.getStatus(), channelId);
         } catch (Exception e) {
             // 대표 사유: 채널에 봇(MILKYWAY)이 초대되지 않음(not_in_channel), 토큰 만료.
             log.warn("Autofix Slack 게시 실패 board={} issue={}: {}",

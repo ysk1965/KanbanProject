@@ -6186,6 +6186,11 @@ export interface JiraAutofixQueueStatus {
   min_confidence: number;
   eligible_candidates: number;
   total_candidates: number;
+  /** 결과를 게시할 전용 채널. null이면 슬랙 설치의 기본 채널로 나간다. */
+  slack_channel_id: string | null;
+  slack_channel_name: string | null;
+  /** 서버에서 자동수정 슬랙 알림 자체가 꺼져 있으면 채널을 골라도 나가지 않는다. */
+  slack_notify_enabled: boolean;
 }
 
 export interface JiraAutofixJob {
@@ -6254,6 +6259,21 @@ export const jiraAutofixAPI = {
   issueCallbackToken: async (boardId: string) => {
     return apiClient.post<{ callback_token: string }>(
       `/boards/${boardId}/jira/autofix/callback-token`,
+    );
+  },
+
+  /**
+   * 결과를 게시할 슬랙 채널 지정. channelId를 null로 주면 해제되고 설치 기본 채널로
+   * 떨어진다 — 알림을 끄는 스위치가 아니다.
+   */
+  updateSlackChannel: async (
+    boardId: string,
+    channelId: string | null,
+    channelName?: string | null,
+  ) => {
+    return apiClient.put<void>(
+      `/boards/${boardId}/jira/autofix/slack-channel`,
+      { slack_channel_id: channelId, slack_channel_name: channelName ?? null },
     );
   },
 

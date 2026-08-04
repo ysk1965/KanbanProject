@@ -365,11 +365,11 @@ public class JiraAutofixQueueService {
         String title = job.getTaskId() != null
                 ? taskRepository.findById(job.getTaskId()).map(Task::getTitle).orElse(null)
                 : null;
-        String jiraBaseUrl = configRepository.findByBoardId(boardId)
-                .map(JiraIntegrationConfig::getBaseUrl)
-                .orElse(null);
+        JiraIntegrationConfig config = configRepository.findByBoardId(boardId).orElse(null);
+        String jiraBaseUrl = config != null ? config.getBaseUrl() : null;
 
-        slackPublisher.publish(job.getBoard(), job, title, jiraBaseUrl);
+        slackPublisher.publish(job.getBoard(), job, title, jiraBaseUrl,
+                config != null ? config.getAutofixSlackChannelId() : null);
     }
 
     // ── 회수 ──────────────────────────────────────
@@ -450,7 +450,22 @@ public class JiraAutofixQueueService {
                 .minConfidence(properties.getMinConfidence())
                 .eligibleCandidates(eligible)
                 .totalCandidates(candidates.size())
+                .slackChannelId(config != null ? config.getAutofixSlackChannelId() : null)
+                .slackChannelName(config != null ? config.getAutofixSlackChannelName() : null)
+                .slackNotifyEnabled(properties.isSlackNotifyEnabled())
                 .build();
+    }
+
+    /**
+     * 결과를 게시할 슬랙 채널을 지정하거나 해제한다. 채널 ID를 비우면 해제이고, 그때는 설치
+     * 기본 채널로 떨어진다 — 알림을 완전히 끄는 스위치가 아니다.
+     */
+    @Transactional
+    public void updateSlackChannel(String boardId, String userId, String channelId, String channelName) {
+        boardService.checkAdminOrAbove(boardId, userId);
+        JiraIntegrationConfig config = configRepository.findByBoardId(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
+        config.updateAutofixSlackChannel(channelId, channelName);
     }
 
     @Transactional(readOnly = true)
