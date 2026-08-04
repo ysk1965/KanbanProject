@@ -1,0 +1,207 @@
+# BRIDGE 자동수정 러너 — 대상 Unity 저장소의 .github/workflows/autofix.yaml 로 복사해서 쓴다.
+#
+# BRIDGE가 workflow_dispatch로 깨우고, 이 잡이 한 이슈를 고쳐 PR까지 만든 뒤 BRIDGE로 결과를 돌려준다.
+# 머지는 하지 않는다 — 사람 리뷰가 마지막 게이트다.
+#
+# ⚠️ 배치 위치: workflow_dispatch는 이 파일이 저장소의 **기본 브랜치**에 있어야 인식한다.
+# 기능 브랜치에만 두면 BRIDGE가 아무리 불러도 404가 난다.
+# GWBM013 기준 기본 브랜치는 develop이다(main은 4천여 커밋 뒤처진 사실상 사문화 브랜치).
+# 확인: gh api /repos/{owner}/{repo} --jq .default_branch
+#
+# 체크아웃 대상은 base_ref 입력으로 따로 받는다 — 기본 브랜치와 고칠 브랜치를 분리해야
+# 나중에 릴리스 브랜치를 고치는 경우까지 같은 워크플로로 덮을 수 있다.
+#
+# ⚠️ 이 파일은 실제 러너에서 아직 검증되지 않았다. 첫 실행은 반드시 수동 dispatch로 한 건만 돌려볼 것.
+
+name: BRIDGE Autofix
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_key:
+        description: "JIRA 이슈 키 (예: QASA-92)"
+        required: true
+      issue_title:
+        description: "이슈 제목"
+        required: true
+      issue_body:
+        description: "이슈 본문"
+        required: false
+        default: ""
+      verification:
+        description: "트리아지가 판정한 검증 수단"
+        required: false
+        default: ""
+      base_ref:
+        description: "분기 기준 브랜치"
+        required: false
+        default: "develop"
+      callback_url:
+        description: "결과를 돌려줄 BRIDGE 엔드포인트"
+        required: false
+        default: ""
+
+# Unity Editor는 프로젝트당 인스턴스 1개다. 병렬 실행은 물리적으로 불가능하므로 직렬을 강제한다.
+# cancel-in-progress: false — 진행 중인 수정을 중간에 끊으면 작업 트리가 더러운 채로 남는다.
+concurrency:
+  group: unity-autofix
+  cancel-in-progress: false
+
+jobs:
+  autofix:
+    runs-on: [self-hosted, macOS, unity]
+    timeout-minutes: 60
+
+    # 브랜치 push와 PR 생성은 이 GITHUB_TOKEN이 한다.
+    # 덕분에 BRIDGE의 GitHub App은 Actions 쓰기 권한만 있으면 된다.
+    permissions:
+      contents: write
+      pull-requests: write
+
+    env:
+      BRANCH: autofix/${{ inputs.issue_key }}
+
+    steps:
+      # clean: false 가 핵심이다. 기본값(true)이면 gitignore된 Library/가 지워져
+      # 매 실행마다 수만 개 에셋을 재임포트한다 — 처리량이 무너진다.
+      - name: Checkout (Library 보존)
+        uses: actions/checkout@v4
+        with:
+          clean: false
+          fetch-depth: 0
+          ref: ${{ inputs.base_ref }}
+
+      - name: 사전 점검
+        run: |
+          set -euo pipefail
+
+          # Unity MCP는 실행 중인 Editor에 붙는다. 꺼져 있으면 진단도 컴파일 확인도 못 한다.
+          if ! pgrep -x Unity >/dev/null; then
+            echo "::error::Unity Editor가 실행 중이 아니다. MCP가 붙을 대상이 없다."
+            exit 1
+          fi
+
+          # 이전 실행이 남긴 변경이 있으면 이번 수정과 섞여 잘못된 PR이 나간다.
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::작업 트리가 더럽다. 이전 실행이 정리되지 않았다."
+            git status --porcelain
+            exit 1
+          fi
+
+          git checkout -b "$BRANCH"
+
+      - name: 수정 시도 (Claude Code + Unity MCP)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/autofix-prompt.txt <<'PROMPT'
+          아래 QA 이슈를 이 Unity 저장소에서 고쳐라.
+
+          제약:
+          - 이슈에 적힌 증상과 직접 관련된 최소 변경만 한다. 리팩터링·정리·포맷팅 금지
+          - 기대 동작이 이슈에서 확정되지 않으면 아무것도 고치지 말고 그 이유를 말하고 끝낸다
+          - 에셋 바이너리(.unity, .prefab, .asset)는 건드리지 않는다. 코드만 수정한다
+          - Unity MCP로 콘솔 에러와 관련 스크립트를 먼저 확인한 뒤 수정한다
+          PROMPT
+          {
+            echo ""
+            echo "이슈 ${{ inputs.issue_key }}: ${{ inputs.issue_title }}"
+            echo ""
+            echo "${{ inputs.issue_body }}"
+            echo ""
+            echo "트리아지가 본 검증 수단: ${{ inputs.verification }}"
+          } >> /tmp/autofix-prompt.txt
+
+          claude -p "$(cat /tmp/autofix-prompt.txt)" \
+            --allowedTools "Read,Grep,Glob,Edit,mcp__unity" \
+            --permission-mode acceptEdits \
+            2>&1 | tee /tmp/autofix-agent.log
+
+      - name: 변경 여부 확인
+        id: changed
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "result=none" >> "$GITHUB_OUTPUT"
+            echo "에이전트가 변경을 만들지 않았다 — 고칠 수 없다고 판단한 것으로 본다."
+          else
+            echo "result=changed" >> "$GITHUB_OUTPUT"
+            git status --porcelain
+          fi
+
+      # ⚠️ 적응 지점 — 설치한 Unity MCP 서버에 맞춰 바꿔야 한다.
+      #
+      # Editor가 떠 있는 프로젝트에는 -batchmode를 쓸 수 없다(프로젝트 락 충돌). 그래서 컴파일 확인도
+      # Editor를 통해야 하고, 그 방법은 MCP 서버마다 다르다(대개 "리컴파일 후 콘솔 에러 조회" 도구).
+      # 저장소에 테스트가 0개인 동안은 이 컴파일 통과가 유일한 자동 게이트다.
+      - name: 컴파일 확인
+        if: steps.changed.outputs.result == 'changed'
+        run: |
+          set -euo pipefail
+          if [ ! -x tools/autofix/verify-compile.sh ]; then
+            echo "::error::tools/autofix/verify-compile.sh 가 없다. MCP 서버에 맞춰 작성해야 한다."
+            exit 1
+          fi
+          ./tools/autofix/verify-compile.sh
+
+      - name: PR 생성
+        if: steps.changed.outputs.result == 'changed'
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name  "bridge-autofix[bot]"
+          git config user.email "bridge-autofix@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(${{ inputs.issue_key }}): ${{ inputs.issue_title }}"
+          git push -u origin "$BRANCH"
+
+          URL=$(gh pr create \
+            --base "${{ inputs.base_ref }}" \
+            --head "$BRANCH" \
+            --title "[${{ inputs.issue_key }}] ${{ inputs.issue_title }}" \
+            --body "$(cat <<EOF
+          BRIDGE 자동수정이 생성한 PR입니다. **머지 전 반드시 사람이 검토하세요.**
+
+          - 이슈: ${{ inputs.issue_key }}
+          - 트리아지 검증 수단: ${{ inputs.verification }}
+          - 자동 검증 범위: 컴파일 통과까지만. 동작은 확인되지 않았습니다.
+
+          <details><summary>에이전트 로그</summary>
+
+          \`\`\`
+          $(tail -c 8000 /tmp/autofix-agent.log)
+          \`\`\`
+
+          </details>
+          EOF
+          )")
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "PR: $URL"
+
+      - name: BRIDGE에 결과 회신
+        if: always() && inputs.callback_url != ''
+        env:
+          CALLBACK_TOKEN: ${{ secrets.BRIDGE_CALLBACK_TOKEN }}
+        run: |
+          curl -sS -X POST "${{ inputs.callback_url }}" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $CALLBACK_TOKEN" \
+            -d "$(jq -n \
+              --arg key    "${{ inputs.issue_key }}" \
+              --arg status "${{ job.status }}" \
+              --arg result "${{ steps.changed.outputs.result }}" \
+              --arg pr     "${{ steps.pr.outputs.url }}" \
+              --arg run    "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{issue_key:$key, status:$status, result:$result, pr_url:$pr, run_url:$run}')" \
+            || echo "::warning::콜백 실패 — BRIDGE가 결과를 못 받았다"
+
+      # 성공하든 실패하든 워크스페이스를 원래 브랜치로 되돌린다.
+      # 다음 실행의 "작업 트리가 더럽다" 실패를 막는 유일한 장치다. Library는 건드리지 않는다.
+      - name: 정리
+        if: always()
+        run: |
+          git reset --hard
+          git clean -fd -e Library -e Temp -e obj
+          git checkout "${{ inputs.base_ref }}" || true

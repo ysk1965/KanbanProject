@@ -30,6 +30,8 @@ import {
   JiraSiteRef,
   JiraAgileBoard,
 } from "../utils/api";
+import { JiraAutofixTriageCard } from "./JiraAutofixTriageCard";
+import { JiraAutofixQueueCard } from "./JiraAutofixQueueCard";
 
 interface JiraSettingsPanelProps {
   boardId: string;
@@ -1152,6 +1154,10 @@ export function JiraSettingsPanel({
             </div>
           )}
         </div>
+
+        {/* 자동수정 — 트리아지(판정) → 큐(실행) 순서로 읽히게 배치 */}
+        <JiraAutofixTriageCard boardId={boardId} />
+        <JiraAutofixQueueCard boardId={boardId} />
 
         {/* 웹훅 (근실시간 pull) */}
         {status.webhook_token && (

@@ -111,6 +111,8 @@ ai:
       # MILKYWAY 커밋 플랜 — ai.provider 값과 무관하게 항상 Claude로 호출된다.
       # 비용을 줄이려면 CLAUDE_MODEL_COMMIT_PLAN=claude-haiku-4-5 로 교체.
       commit-plan: ${CLAUDE_MODEL_COMMIT_PLAN:claude-opus-4-8}
+      # JIRA 자동수정 트리아지 — structured outputs가 필요해 항상 Claude로 호출된다.
+      jira-triage: ${CLAUDE_MODEL_JIRA_TRIAGE:claude-sonnet-5}
   openai:
     api-key: ${OPENAI_API_KEY:}
     admin-key: ${OPENAI_ADMIN_KEY:}
@@ -122,6 +124,18 @@ ai:
       diary: ${OPENAI_MODEL_DIARY:gpt-4o-mini}
   credit:
     reset-cron: "0 0 0 * * *"  # 매일 자정 UTC
+
+# JIRA 자동수정 큐 — 전부 가드레일이라 기본값을 보수적으로 둔다.
+# 검증되지 않은 파이프라인이 밤새 수십 건을 쏟아내면 리뷰 부담이 자동화 이득을 넘는다.
+autofix:
+  workflow-file: ${AUTOFIX_WORKFLOW_FILE:autofix.yaml}
+  default-base-ref: ${AUTOFIX_BASE_REF:develop}
+  min-confidence: ${AUTOFIX_MIN_CONFIDENCE:0.7}
+  daily-limit: ${AUTOFIX_DAILY_LIMIT:20}
+  max-enqueue-per-request: ${AUTOFIX_MAX_ENQUEUE:50}
+  dispatch-timeout-minutes: ${AUTOFIX_TIMEOUT_MINUTES:90}
+  # 끄면 수동 디스패치만 가능하다. 파이프라인 검증 전까지는 false를 권장.
+  scheduler-enabled: ${AUTOFIX_SCHEDULER_ENABLED:false}
 
 # Custom Icon
 app.customicon:
@@ -206,6 +220,9 @@ firebase:
 # App config
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  # 이 서버의 공개 주소. 자동수정 러너가 결과를 회신할 콜백 URL 조립에 쓴다.
+  # 비어 있으면 콜백을 쓰지 않고 타임아웃 회수에만 의존한다.
+  backend-url: ${BACKEND_URL:}
   testprod-frontend-url: ${TESTPROD_FRONTEND_URL:}
   # system_config 에 저장하는 민감 설정값(AI API 키 등)의 AES-GCM 마스터 키.
   # base64 32바이트 권장. 미설정 시 관리자 대시보드에서의 키 저장이 비활성화된다.

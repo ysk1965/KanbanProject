@@ -154,6 +154,25 @@ public class JiraIntegrationConfig {
     @Column(name = "webhook_token", length = 64)
     private String webhookToken;
 
+    /**
+     * 연결된 저장소의 자동 검증 기반 수준 — 자동수정 트리아지 판정에 쓴다.
+     *
+     * <p>기본값이 {@link TestInfraLevel#NONE}인 이유: 테스트가 있다고 잘못 가정하면 실행 불가능한
+     * 이슈가 후보로 올라오지만, 없다고 가정하면 후보가 보수적으로 줄 뿐이다. 틀렸을 때 비용이
+     * 작은 쪽을 기본으로 둔다.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "autofix_test_infra", length = 20)
+    @Builder.Default
+    private TestInfraLevel autofixTestInfra = TestInfraLevel.NONE;
+
+    /**
+     * 자동수정 러너가 결과를 회신할 때 쓰는 보드별 시크릿.
+     * {@link #webhookToken}과 분리한다 — 하나를 회전해도 다른 경로가 죽지 않아야 한다.
+     */
+    @Column(name = "autofix_callback_token", length = 64)
+    private String autofixCallbackToken;
+
     // ④ 진행상태
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -292,6 +311,23 @@ public class JiraIntegrationConfig {
 
     public boolean isCommentSyncEnabled() {
         return Boolean.TRUE.equals(this.commentSyncEnabled);
+    }
+
+    /** 자동수정 콜백 토큰이 없으면 생성해 반환(멱등). */
+    public String ensureAutofixCallbackToken() {
+        if (this.autofixCallbackToken == null || this.autofixCallbackToken.isBlank()) {
+            this.autofixCallbackToken = UUID.randomUUID().toString().replace("-", "");
+        }
+        return this.autofixCallbackToken;
+    }
+
+    public void updateAutofixTestInfra(TestInfraLevel level) {
+        this.autofixTestInfra = level != null ? level : TestInfraLevel.NONE;
+    }
+
+    /** 기존 행은 컬럼이 null이라 방어한다. */
+    public TestInfraLevel resolveAutofixTestInfra() {
+        return this.autofixTestInfra != null ? this.autofixTestInfra : TestInfraLevel.NONE;
     }
 
     public void markSynced() {
