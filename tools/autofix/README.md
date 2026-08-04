@@ -11,12 +11,12 @@ PR을 올리는 파이프라인. 이 문서는 **그 맥에서 해야 할 셋업
 ## 0. 구조 — GitHub Actions를 쓰지 않는다
 
 ```
-BRIDGE (EB)                              맥 (Unity Editor 상시 기동)
+BRIDGE (EB)                              맥
   큐 ── claim ◀──────────── 20초마다 폴링 ── bridge-autofix-runner.sh
                                                   │
                                           autofix-once.sh
-                                            ├ claude -p + Unity MCP
-                                            ├ verify-compile.sh
+                                            ├ claude -p + Unity MCP  ← Editor 연 프로젝트(진단)
+                                            ├ verify-compile.sh      ← 별도 클론 batchmode(게이트)
                                             └ gh pr create
   결과 ◀──── POST /callback ──────────────────────┘
 ```
@@ -77,27 +77,43 @@ Unity MCP는 **실행 중인 Editor**에 IPC로 붙는다. 에디터가 꺼져 �
 caffeinate -dimsu &
 ```
 
-- 에디터에 모달 다이얼로그가 하나라도 뜨면 **파이프라인 전체가 멈춘다.** 첫 실행 전에
-  라이선스·패키지 임포트·API 업데이터 팝업을 모두 정리해 둘 것.
-- 러너는 Editor가 열어둔 **바로 그 디렉터리**에서 작업한다. 별도 체크아웃을 만들지 않으므로
-  경로 불일치 문제가 없다 — 대신 러너가 도는 동안 그 프로젝트를 사람이 만지면 안 된다.
+- 에디터 모달이 뜨면 MCP 진단이 멈춘다. 첫 실행 전에 라이선스·패키지 임포트·API 업데이터
+  팝업을 모두 정리해 둘 것. 다만 **게이트는 Editor와 무관하므로**(4번) Editor가 죽어도
+  파이프라인은 계속 돈다 — 진단 품질만 떨어지고, 러너가 경고를 로그에 남긴다.
+- 러너는 Editor가 열어둔 **바로 그 디렉터리**에서 작업한다. 러너가 도는 동안 그 프로젝트를
+  사람이 만지면 안 된다 — 브랜치가 바뀌고, 끝나면 `git clean -fd`로 untracked 파일이 지워진다.
 
 ---
 
-## 4. 컴파일 검증 스크립트 (필수 · 미작성)
+## 4. 컴파일 검증 — 별도 클론 batchmode
 
-**여기가 이 셋업의 유일한 빈칸이다.**
+저장소에 테스트가 0개인 동안 **컴파일 통과가 유일한 자동 게이트**다. 그래서 이 판정은 LLM도
+MCP도 끼지 않는 경로여야 한다. `runner/verify-compile.sh`가 그 역할을 한다.
 
-에디터가 프로젝트를 잠그고 있어서 `Unity -batchmode -runTests`를 쓸 수 없다. 따라서 컴파일 확인도
-실행 중인 Editor를 통해야 하는데, 그 방법은 설치한 Unity MCP 서버마다 다르다
-(대개 "리컴파일 트리거 + 콘솔 에러 조회" 도구를 제공한다).
+검증 전용 클론을 하나 더 둔다:
 
-대상 저장소에 `tools/autofix/verify-compile.sh`를 만들고, 아래 계약만 지키면 된다:
+```bash
+git clone https://github.com/cookapps-devops/GWBM013-auto-battle-project.git ~/GWBM013-verify
+cd ~/GWBM013-verify && git checkout develop
 
-- 컴파일 에러가 없으면 **exit 0**
-- 하나라도 있으면 에러를 stdout에 출력하고 **exit 1**
+# 초기 임포트를 한 번 돌려 Library를 warm하게 만든다 (여기서만 오래 걸린다)
+/Applications/Unity/Hub/Editor/$(awk '/^m_EditorVersion:/ {print $2}' ProjectSettings/ProjectVersion.txt)/Unity.app/Contents/MacOS/Unity \
+  -batchmode -quit -nographics -projectPath "$PWD" -logFile /tmp/verify-warmup.log
+```
 
-이 스크립트가 없으면 러너는 PR을 만들기 전에 실패한다 — 검증 없이 PR이 나가는 것보다 낫다.
+> 이미 임포트된 프로젝트가 있다면 `rsync -a <기존>/Library/ ~/GWBM013-verify/Library/`로
+> 몇 시간을 아낄 수 있다(같은 에디터 버전이면 대개 유효하고, 안 맞아도 재임포트로 떨어질 뿐이다).
+
+검증은 매번 이렇게 돈다: 작업 트리의 `Assets`/`Packages`/`ProjectSettings`를 이 클론으로
+rsync → `Unity -batchmode -quit` → 로그에서 `error CS####`를 찾아 판정. `Library`는 건드리지
+않으므로 warm 상태가 유지돼 1~3분에 끝난다.
+
+**왜 Editor(MCP)로 검증하지 않는가:** 프로젝트가 컴파일 실패 상태면 MCP 브릿지 어셈블리가
+로드되지 않아 연결이 끊긴다. 즉 실패를 잡아야 할 바로 그 순간에 검증 경로가 사라진다.
+프로젝트 락은 디렉터리 단위라, 클론을 나누면 Editor를 열어둔 채로도 batchmode를 쓸 수 있다.
+
+계약은 그대로다 — 에러 없으면 **exit 0**, 있으면 stdout에 출력하고 **exit 1**. 대상 저장소가
+자체 `tools/autofix/verify-compile.sh`를 제공하면 러너가 그쪽을 우선한다.
 
 ---
 
@@ -105,7 +121,7 @@ caffeinate -dimsu &
 
 ```bash
 mkdir -p ~/bridge-autofix/logs
-cp runner/bridge-autofix-runner.sh runner/autofix-once.sh ~/bridge-autofix/
+cp runner/bridge-autofix-runner.sh runner/autofix-once.sh runner/verify-compile.sh ~/bridge-autofix/
 cp runner/runner.conf.example ~/bridge-autofix/runner.conf
 chmod 600 ~/bridge-autofix/runner.conf     # 토큰이 들어간다
 ```
@@ -140,6 +156,22 @@ JIRA 웹훅 토큰과 별개라 한쪽을 회전해도 다른 쪽이 죽지 않�
 
 **claim은 내줄 게 없어도 200으로 `reason`을 돌려준다.** 러너 로그에 왜 조용한지가 남아야
 맥 앞에 앉기 전에 원인을 안다.
+
+claim 요청에는 러너 자가진단이 같이 실린다 — 같은 이유로, 이번엔 **화면**이 원인을 말할 수 있게:
+
+```json
+{ "runner_name": "mac-unity-01",
+  "status": { "disk_free_gb": 45, "unity_running": true, "unity_version_ok": true,
+              "verify_ready": true, "gh_authenticated": true, "project_dirty": false } }
+```
+
+- 확인에 실패한 항목은 `false`가 아니라 **키를 뺀다.** 모르는 것을 문제로 표시하면 화면이 거짓말을 한다.
+- 서버는 아는 필드만 뽑아 다시 직렬화해 저장한다. 이 엔드포인트는 보드 토큰만으로 열려 있어서
+  임의 문자열이 DB로 들어가는 통로가 되면 안 된다.
+- `status`를 안 보내면 마지막으로 알던 값을 유지한다(heartbeat가 그렇다) — 구버전 러너나 진단
+  실패가 "정상"으로 보이면 안 되지만, 알던 것까지 잃으면 화면이 더 말할 게 없어진다.
+- `verify_ready: false`면 도크가 **후보 담기를 막는다.** 담아봐야 전부 PR 직전에 실패하는데,
+  실패한 작업은 이슈당 1회 가드레일에 걸려 다시 담을 수 없어 후보를 영구히 태운다.
 
 | reason | 뜻 |
 |--------|-----|
@@ -209,6 +241,6 @@ EOF
 | 항목 | 상태 |
 |------|------|
 | 러너 스크립트 전체 | 실제 맥 미실행 |
-| `verify-compile.sh` | 미작성 — MCP 서버 선택에 종속 |
-| Unity MCP 서버 선택 | 미정 |
+| `verify-compile.sh` | 작성됨 · 실제 프로젝트에서 미검증 |
+| Unity MCP 서버 | [CoplayDev/unity-mcp](https://github.com/CoplayDev/unity-mcp) 선정 (진단 전용, 게이트 아님) — 설치 전 |
 | 재임포트 실측치 | 미측정 (probe 5번 항목) |

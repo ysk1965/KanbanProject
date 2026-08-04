@@ -23,6 +23,7 @@ import {
   JiraAutofixVerdict,
   JiraAutofixCategory,
   JiraAutofixTestInfra,
+  JiraAutofixRunnerStatus,
 } from "../utils/api";
 import { parseUTCDate, formatRelativeTime } from "../utils/dateUtils";
 
@@ -123,6 +124,61 @@ const minutesSince = (iso: string | null): number | null => {
 };
 
 const storageKey = (boardId: string) => `bridge-autofix-dock:${boardId}`;
+
+/** 디스크가 이보다 적으면 경고. Library 재빌드가 반복되므로 여유가 곧 처리량이다. */
+const LOW_DISK_GB = 20;
+
+/**
+ * 러너 자가진단 → 화면에 띄울 문제 목록. **정상 항목은 만들지 않는다** — 초록 체크 다섯 줄보다
+ * 빨간 한 줄이 눈에 들어와야 한다.
+ *
+ * <p>`=== false`로만 비교한다. 확인에 실패한 항목은 null(모름)로 오는데, 그걸 문제로 그리면
+ * 러너가 멀쩡한데도 화면이 고장난 것처럼 보인다.
+ *
+ * @param inFlight 진행 중인 작업 수. 작업 중에는 작업 트리가 더러운 것이 정상이라 그때는 감춘다.
+ */
+function runnerProblems(
+  s: JiraAutofixRunnerStatus | null,
+  inFlight: number,
+): { text: string; blocking: boolean }[] {
+  if (!s) return [];
+  const out: { text: string; blocking: boolean }[] = [];
+
+  if (s.verify_ready === false) {
+    out.push({
+      text: "검증 클론이 준비되지 않았습니다 — 모든 작업이 PR 직전에 실패합니다",
+      blocking: true,
+    });
+  }
+  if (s.unity_version_ok === false) {
+    out.push({
+      text: "프로젝트가 요구하는 Unity 버전이 맥에 설치돼 있지 않습니다",
+      blocking: true,
+    });
+  }
+  if (s.gh_authenticated === false) {
+    out.push({
+      text: "gh 인증이 없습니다 — PR을 만들 수 없습니다",
+      blocking: true,
+    });
+  }
+  if (s.project_dirty === true && inFlight === 0) {
+    out.push({
+      text: "맥의 작업 트리가 더럽습니다 — 다음 작업이 시작되지 못합니다",
+      blocking: true,
+    });
+  }
+  if (typeof s.disk_free_gb === "number" && s.disk_free_gb < LOW_DISK_GB) {
+    out.push({ text: `맥 디스크 여유 ${s.disk_free_gb}GB`, blocking: false });
+  }
+  if (s.unity_running === false) {
+    out.push({
+      text: "Unity Editor가 꺼져 있습니다 — 컴파일 검증은 그대로지만 MCP 진단 없이 수정합니다",
+      blocking: false,
+    });
+  }
+  return out;
+}
 
 /**
  * 자동수정 하단 도크 — 접으면 한 줄, 펼치면 화면 하단 40%.
@@ -321,11 +377,19 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
 
   if (!enabled || isLoading || !status) return null;
 
+  /**
+   * 검증 클론이 없으면 담아봐야 전부 PR 직전에 실패한다. 그런데 실패한 작업은 이슈당 1회
+   * 가드레일에 걸려 다시 담을 수 없으므로, 그냥 두면 후보를 영구히 태워버린다 — 그래서 막는다.
+   * (모름=null일 때는 막지 않는다. 구버전 러너를 세우면 안 된다.)
+   */
   const setupDone =
     !!status.repo_full_name &&
     !status.repo_ambiguous &&
     status.callback_token_set &&
-    status.runner_online;
+    status.runner_online &&
+    status.runner_status?.verify_ready !== false;
+
+  const problems = runnerProblems(status.runner_status, status.in_flight);
 
   const active = jobs.find((j) => j.status === "DISPATCHED") ?? null;
   const waiting = jobs.filter((j) => j.status === "QUEUED");
@@ -556,6 +620,33 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
                         : "러너 연결 · 맥에서 러너가 한 번도 접속하지 않았습니다"
                   }
                 />
+              </div>
+            )}
+
+            {/*
+              러너 자가진단 — 셋업이 끝난 뒤에도 계속 보여야 한다. 디스크가 차거나 검증 클론이
+              사라지는 건 설정 문제가 아니라 운영 중에 생기는 일이고, 그때 화면이 침묵하면
+              큐가 조용히 멈춘 것처럼 보인다.
+            */}
+            {problems.length > 0 && (
+              <div className="px-2.5 py-2 rounded-lg bg-foreground/[0.03] border border-foreground/[0.08] space-y-1">
+                <div className="text-xs text-slate-400">
+                  {t("autofixDock.runnerDiagnostics", "러너 상태")}
+                  {status.runner_name && ` · ${status.runner_name}`}
+                </div>
+                {problems.map((p) => (
+                  <div
+                    key={p.text}
+                    className={`flex items-start gap-1.5 text-xs leading-relaxed ${
+                      p.blocking
+                        ? "text-rose-600 dark:text-rose-400"
+                        : "text-amber-600 dark:text-amber-400"
+                    }`}
+                  >
+                    <AlertCircle size={12} className="shrink-0 mt-0.5" />
+                    <span>{p.text}</span>
+                  </div>
+                ))}
               </div>
             )}
 

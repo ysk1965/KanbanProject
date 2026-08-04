@@ -33,6 +33,47 @@ mkdir -p "$LOG_DIR"
 
 log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"; }
 
+# 러너 자가진단 — claim에 실어 보낸다.
+#
+# 러너가 조용한 이유는 대부분 큐가 아니라 이 맥의 환경이다(디스크가 찼다, 에디터 버전이 어긋났다,
+# 검증 클론이 없다...). 그걸 서버가 알아야 화면이 "왜 안 도는지"를 말할 수 있고, 그래야 맥에
+# SSH로 들어가지 않아도 원인을 안다.
+#
+# 확인에 실패한 항목은 false가 아니라 **키를 빼서** 보낸다 — 모르는 것을 문제로 표시하면
+# 화면이 거짓말을 한다(서버도 null을 "모름"으로 취급한다).
+runner_status_json() {
+  local disk unity_running version_ok verify_ready gh_ok dirty project_version
+  disk=$(df -g "$PROJECT_DIR" 2>/dev/null | awk 'NR==2 {print $4}')
+  pgrep -x Unity >/dev/null && unity_running=true || unity_running=false
+  gh auth status >/dev/null 2>&1 && gh_ok=true || gh_ok=false
+  [ -n "$(git -C "$PROJECT_DIR" status --porcelain 2>/dev/null)" ] && dirty=true || dirty=false
+
+  project_version=$(awk '/^m_EditorVersion:/ {print $2}' \
+    "$PROJECT_DIR/ProjectSettings/ProjectVersion.txt" 2>/dev/null)
+  if [ -n "$project_version" ]; then
+    [ -x "/Applications/Unity/Hub/Editor/$project_version/Unity.app/Contents/MacOS/Unity" ] \
+      && version_ok=true || version_ok=false
+  fi
+
+  # Library까지 있어야 "준비됨"이다. 클론만 있고 임포트가 안 됐으면 첫 검증이 타임아웃으로 죽는다.
+  if [ -n "${VERIFY_PROJECT_DIR:-}" ] && [ -d "$VERIFY_PROJECT_DIR/Library" ]; then
+    verify_ready=true
+  else
+    verify_ready=false
+  fi
+
+  jq -n \
+    --argjson disk "${disk:-null}" \
+    --argjson unity "$unity_running" \
+    --argjson version "${version_ok:-null}" \
+    --argjson verify "$verify_ready" \
+    --argjson gh "$gh_ok" \
+    --argjson dirty "$dirty" \
+    '{disk_free_gb:$disk, unity_running:$unity, unity_version_ok:$version,
+      verify_ready:$verify, gh_authenticated:$gh, project_dirty:$dirty}
+     | with_entries(select(.value != null))'
+}
+
 # 사전 점검은 루프에 들어가기 전에 한 번만 한다 — 매 주기 실패 로그를 쌓아도 고쳐지지 않는다.
 for cmd in jq curl gh claude git; do
   command -v "$cmd" >/dev/null || { log "필수 명령이 없다: $cmd"; exit 1; }
@@ -50,7 +91,8 @@ while true; do
     "$BRIDGE_URL/api/v1/jira/autofix/runner/$BRIDGE_BOARD_ID/claim" \
     -H "Authorization: Bearer $BRIDGE_TOKEN" \
     -H "Content-Type: application/json" \
-    -d "$(jq -n --arg n "$RUNNER_NAME" '{runner_name:$n}')" 2>&1)
+    -d "$(jq -n --arg n "$RUNNER_NAME" --argjson s "$(runner_status_json)" \
+          '{runner_name:$n, status:$s}')" 2>&1)
   rc=$?
 
   if [ $rc -ne 0 ] || ! echo "$response" | jq -e . >/dev/null 2>&1; then

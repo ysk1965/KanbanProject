@@ -48,6 +48,12 @@ public class AutofixProperties {
     private boolean dispatchEnabled = true;
 
     /**
+     * 종료된 작업을 슬랙 기본 채널에도 남길지. 보드에 슬랙이 연결돼 있고 기본 채널이 지정된
+     * 경우에만 실제로 나가므로, 이 스위치는 "연결은 그대로 두고 알림만 끄고 싶을 때" 쓴다.
+     */
+    private boolean slackNotifyEnabled = true;
+
+    /**
      * 이 시간 안에 claim이나 heartbeat가 있었으면 러너가 살아 있다고 본다.
      * 러너 폴링 주기(기본 20초)보다 넉넉해야 잠깐의 네트워크 끊김이 "오프라인"으로 보이지 않는다.
      */

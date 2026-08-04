@@ -135,8 +135,12 @@ if [ -n "$REPO_FULL_NAME" ]; then
   fi
 fi
 
-# Unity MCP는 실행 중인 Editor에 붙는다. 꺼져 있으면 진단도 컴파일 확인도 못 한다.
-pgrep -x Unity >/dev/null || fail "Unity Editor가 실행 중이 아닙니다. MCP가 붙을 대상이 없습니다"
+# Unity MCP는 실행 중인 Editor에 붙는다. 꺼져 있으면 에이전트가 콘솔을 못 읽어 진단 품질이
+# 떨어지지만, 게이트(batchmode 컴파일)는 별도 클론에서 돌아 영향이 없다.
+# 그래서 여기서 멈추지 않는다 — Editor가 죽었다고 큐 전체를 세우는 편이 더 나쁘다.
+if ! pgrep -x Unity >/dev/null; then
+  log "경고: Unity Editor가 실행 중이 아니다. MCP 진단 없이 소스만 보고 수정하게 된다."
+fi
 
 # 이전 실행이 남긴 변경이 있으면 이번 수정과 섞여 잘못된 PR이 나간다.
 if [ -n "$(git status --porcelain)" ]; then
@@ -144,8 +148,13 @@ if [ -n "$(git status --porcelain)" ]; then
   fail "작업 트리가 더럽습니다. 이전 실행이 정리되지 않았습니다"
 fi
 
-[ -x tools/autofix/verify-compile.sh ] || \
-  fail "tools/autofix/verify-compile.sh 가 없습니다. 검증 없이 PR을 만들지 않습니다"
+# 검증 스크립트는 러너 쪽(~/bridge-autofix)에 두는 것이 기본이다 — 대상 게임 저장소에
+# 파일을 심지 않아도 되고, 러너를 고칠 때 게임 저장소에 PR을 올릴 필요가 없다.
+# 저장소가 자체 스크립트를 제공하면 그쪽을 쓴다.
+VERIFY_SCRIPT="${VERIFY_SCRIPT:-$HOME/bridge-autofix/verify-compile.sh}"
+[ -x "$VERIFY_SCRIPT" ] || VERIFY_SCRIPT="$PROJECT_DIR/tools/autofix/verify-compile.sh"
+[ -x "$VERIFY_SCRIPT" ] || \
+  fail "컴파일 검증 스크립트를 찾지 못했습니다($VERIFY_SCRIPT). 검증 없이 PR을 만들지 않습니다"
 
 [ -n "${BRIDGE_TOKEN:-}" ] && [ "$NO_REPORT" != "1" ] && { heartbeat_loop & HB_PID=$!; }
 
@@ -203,13 +212,13 @@ git status --porcelain
 
 # ── 컴파일 확인 ────────────────────────────────
 #
-# Editor가 프로젝트를 잠그고 있어 -batchmode를 쓸 수 없다. 확인도 실행 중인 Editor를 통해야 하고,
-# 그 방법은 설치한 MCP 서버마다 다르다 — 그래서 계약(exit 0/1)만 정해 두고 구현은 대상 저장소에 둔다.
-# 저장소에 테스트가 0개인 동안은 이 컴파일 통과가 유일한 자동 게이트다.
+# 저장소에 테스트가 0개인 동안 이 컴파일 통과가 유일한 자동 게이트다. 그래서 이 판정만큼은
+# LLM도 MCP도 끼지 않는 경로여야 한다 — 검증 전용 클론에서 batchmode로 돌리고 exit code만 본다.
+# (스크립트 주석 참고: MCP로 검증하면 컴파일이 깨진 바로 그때 브릿지가 죽어 확인이 불가능해진다.)
 
 VERIFY_LOG=$(mktemp -t autofix-verify)
-log "컴파일 확인"
-if ! run_with_timeout 15 ./tools/autofix/verify-compile.sh > "$VERIFY_LOG" 2>&1; then
+log "컴파일 확인 ($VERIFY_SCRIPT)"
+if ! PROJECT_DIR="$PROJECT_DIR" run_with_timeout 20 "$VERIFY_SCRIPT" > "$VERIFY_LOG" 2>&1; then
   tail -c 2000 "$VERIFY_LOG"
   cat "$VERIFY_LOG" >> "$AGENT_LOG"
   fail "컴파일 검증에 실패했습니다: $(tail -c 300 "$VERIFY_LOG" | tr '\n' ' ')"

@@ -1,5 +1,6 @@
 package com.kanban.domain.integration.jira.controller;
 
+import com.kanban.domain.integration.jira.dto.JiraAutofixRequest;
 import com.kanban.domain.integration.jira.dto.JiraAutofixResponse;
 import com.kanban.domain.integration.jira.service.JiraAutofixQueueService;
 import lombok.RequiredArgsConstructor;
@@ -7,8 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 /**
  * 자동수정 러너 전용 API. 공개 엔드포인트 — 보드별 시크릿 토큰으로 검증한다(SecurityConfig permit).
@@ -37,12 +36,12 @@ public class JiraAutofixRunnerController {
     public ResponseEntity<JiraAutofixResponse.ClaimResult> claim(
             @PathVariable String boardId,
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestBody(required = false) Map<String, String> body) {
+            @RequestBody(required = false) JiraAutofixRequest.RunnerHello body) {
 
         if (!authorized(boardId, authorization)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        return ResponseEntity.ok(queueService.claim(boardId, runnerName(body)));
+        return ResponseEntity.ok(queueService.claim(boardId, runnerName(body), status(body)));
     }
 
     /**
@@ -53,12 +52,12 @@ public class JiraAutofixRunnerController {
     public ResponseEntity<Void> heartbeat(
             @PathVariable String boardId,
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestBody(required = false) Map<String, String> body) {
+            @RequestBody(required = false) JiraAutofixRequest.RunnerHello body) {
 
         if (!authorized(boardId, authorization)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        queueService.heartbeat(boardId, runnerName(body));
+        queueService.heartbeat(boardId, runnerName(body), status(body));
         return ResponseEntity.ok().build();
     }
 
@@ -72,9 +71,13 @@ public class JiraAutofixRunnerController {
     }
 
     /** 러너 이름은 식별용 표시일 뿐 인증 수단이 아니다 — 길이만 자르고 그대로 쓴다. */
-    private String runnerName(Map<String, String> body) {
-        String name = body != null ? body.get("runner_name") : null;
+    private String runnerName(JiraAutofixRequest.RunnerHello body) {
+        String name = body != null ? body.getRunnerName() : null;
         if (name == null || name.isBlank()) return "unknown";
         return name.length() > 100 ? name.substring(0, 100) : name;
+    }
+
+    private JiraAutofixRequest.RunnerStatus status(JiraAutofixRequest.RunnerHello body) {
+        return body != null ? body.getStatus() : null;
     }
 }

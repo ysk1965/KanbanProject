@@ -9,6 +9,7 @@ import com.kanban.domain.integration.github.BoardGithubRepo;
 import com.kanban.domain.integration.github.BoardGithubRepoRepository;
 import com.kanban.domain.integration.jira.*;
 import com.kanban.domain.integration.jira.config.AutofixProperties;
+import com.kanban.domain.integration.jira.dto.JiraAutofixRequest;
 import com.kanban.domain.integration.jira.dto.JiraAutofixResponse;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
@@ -56,6 +57,7 @@ public class JiraAutofixQueueService {
     private final BoardGithubRepoRepository boardGithubRepoRepository;
     private final JiraApiClient jiraApiClient;
     private final JiraOAuthService oauthService;
+    private final JiraAutofixSlackPublisher slackPublisher;
 
     /** 러너가 보낸 로그 꼬리 상한. 실패 원인을 보기엔 충분하고, 행이 비대해지진 않는 크기. */
     private static final int MAX_LOG_EXCERPT = 8000;
@@ -147,9 +149,9 @@ public class JiraAutofixQueueService {
      * <p>말을 걸어온 사실 자체를 기록한다(내줄 게 없어도). 이 값이 화면의 "러너 연결됨" 근거다.
      */
     @Transactional
-    public JiraAutofixResponse.ClaimResult claim(String boardId, String runnerName) {
-        configRepository.findByBoardId(boardId)
-                .ifPresent(config -> config.touchAutofixRunner(runnerName));
+    public JiraAutofixResponse.ClaimResult claim(String boardId, String runnerName,
+                                                 JiraAutofixRequest.RunnerStatus status) {
+        touchRunner(boardId, runnerName, status);
 
         if (!properties.isDispatchEnabled()) {
             return JiraAutofixResponse.ClaimResult.of(null, "DISPATCH_DISABLED");
@@ -185,9 +187,28 @@ public class JiraAutofixQueueService {
 
     /** 러너가 살아 있다는 신호만 받는다 — 긴 작업 중에는 claim을 부르지 않기 때문이다. */
     @Transactional
-    public void heartbeat(String boardId, String runnerName) {
+    public void heartbeat(String boardId, String runnerName, JiraAutofixRequest.RunnerStatus status) {
+        touchRunner(boardId, runnerName, status);
+    }
+
+    /**
+     * 러너 생존·자가진단 반영.
+     *
+     * <p>러너가 보낸 값을 그대로 저장하지 않고 서버가 아는 필드만 뽑아 다시 직렬화한다 —
+     * 이 엔드포인트는 보드 토큰만으로 열려 있어서, 임의의 문자열이 DB에 들어가는 통로가 되면 안 된다.
+     */
+    private void touchRunner(String boardId, String runnerName, JiraAutofixRequest.RunnerStatus status) {
+        String statusJson = null;
+        if (status != null) {
+            try {
+                statusJson = objectMapper.writeValueAsString(status);
+            } catch (Exception e) {
+                log.debug("Autofix: 러너 상태 직렬화 실패 board={}: {}", boardId, e.getMessage());
+            }
+        }
+        String json = statusJson;
         configRepository.findByBoardId(boardId)
-                .ifPresent(config -> config.touchAutofixRunner(runnerName));
+                .ifPresent(config -> config.touchAutofixRunner(runnerName, json));
     }
 
     /**
@@ -274,6 +295,7 @@ public class JiraAutofixQueueService {
         log.info("Autofix result: board={} issue={} result={} pr={}",
                 boardId, job.getJiraIssueKey(), result, prUrl);
         postJiraComment(boardId, job, result);
+        notifySlack(job);
     }
 
     /** 진행 중인 작업만 찾는다. 없으면 타임아웃 회수됐거나 중복 콜백이다 — 오류가 아니다. */
@@ -329,6 +351,27 @@ public class JiraAutofixQueueService {
         }
     }
 
+    /**
+     * 결과를 슬랙 채널에도 남긴다. JIRA 댓글은 그 이슈를 보는 사람에게만 닿지만, PR은 리뷰어가
+     * 있어야 진행되고 실패는 러너를 손봐야 풀린다 — 팀이 보는 곳에 한 번 더 남긴다.
+     *
+     * <p>이슈 제목과 JIRA 주소는 여기서 값으로 뽑아 넘긴다. 게시 쪽이 지연 로딩 엔티티를 만지지
+     * 않아야 나중에 비동기로 빼도 그대로 동작한다.
+     */
+    private void notifySlack(JiraAutofixJob job) {
+        if (!properties.isSlackNotifyEnabled()) return;
+
+        String boardId = job.getBoard().getId();
+        String title = job.getTaskId() != null
+                ? taskRepository.findById(job.getTaskId()).map(Task::getTitle).orElse(null)
+                : null;
+        String jiraBaseUrl = configRepository.findByBoardId(boardId)
+                .map(JiraIntegrationConfig::getBaseUrl)
+                .orElse(null);
+
+        slackPublisher.publish(job.getBoard(), job, title, jiraBaseUrl);
+    }
+
     // ── 회수 ──────────────────────────────────────
 
     /**
@@ -342,7 +385,12 @@ public class JiraAutofixQueueService {
         LocalDateTime deadline = LocalDateTime.now(ZoneOffset.UTC)
                 .minusMinutes(properties.getDispatchTimeoutMinutes());
         List<JiraAutofixJob> stale = jobRepository.findStaleDispatched(deadline);
-        stale.forEach(JiraAutofixJob::markTimedOut);
+        for (JiraAutofixJob job : stale) {
+            job.markTimedOut();
+            // 회수는 아무도 요청하지 않은 종료다 — 알리지 않으면 러너가 죽은 걸 다음 사람이 큐를
+            // 열어볼 때까지 모른다.
+            notifySlack(job);
+        }
         if (!stale.isEmpty()) {
             log.warn("Autofix: {}건이 콜백 없이 타임아웃됐다", stale.size());
         }
@@ -392,6 +440,7 @@ public class JiraAutofixQueueService {
                 .runnerOnline(runnerOnline)
                 .runnerName(config != null ? config.getAutofixRunnerName() : null)
                 .runnerSeenAt(toIso(runnerSeenAt))
+                .runnerStatus(parseRunnerStatus(config))
                 .callbackTokenSet(tokenSet)
                 .dispatchEnabled(properties.isDispatchEnabled())
                 .inFlight((int) jobRepository.countInFlight(boardId))
@@ -505,6 +554,16 @@ public class JiraAutofixQueueService {
 
     private static String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    /** 저장해 둔 러너 자가진단을 그대로 내려준다. 깨진 값이면 조용히 null — 화면이 멈출 이유는 아니다. */
+    private JsonNode parseRunnerStatus(JiraIntegrationConfig config) {
+        if (config == null || config.getAutofixRunnerStatus() == null) return null;
+        try {
+            return objectMapper.readTree(config.getAutofixRunnerStatus());
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static String defaultIfBlank(String value, String fallback) {

@@ -6150,6 +6150,21 @@ export type JiraAutofixJobStatus =
   | "TIMED_OUT"
   | "CANCELLED";
 
+/**
+ * 러너(맥) 자가진단. 러너가 claim에 실어 보낸다.
+ *
+ * 전부 optional인 이유: 확인에 실패한 항목은 false가 아니라 "모름"으로 온다.
+ * 모르는 것을 문제로 그리면 화면이 거짓말을 한다 — 반드시 `=== false`로 비교할 것.
+ */
+export interface JiraAutofixRunnerStatus {
+  disk_free_gb?: number | null;
+  unity_running?: boolean | null;
+  unity_version_ok?: boolean | null;
+  verify_ready?: boolean | null;
+  gh_authenticated?: boolean | null;
+  project_dirty?: boolean | null;
+}
+
 /** 큐 준비 상태 — 셋업 3단계 중 무엇이 빠졌는지 화면이 스스로 설명하기 위한 값. */
 export interface JiraAutofixQueueStatus {
   repo_full_name: string | null;
@@ -6159,6 +6174,8 @@ export interface JiraAutofixQueueStatus {
   runner_name: string | null;
   /** 마지막으로 러너를 본 시각. 오프라인일 때 "언제부터"를 말해주기 위해 항상 내려온다. */
   runner_seen_at: string | null;
+  /** 러너 자가진단. 아직 한 번도 안 보냈으면 null. */
+  runner_status: JiraAutofixRunnerStatus | null;
   callback_token_set: boolean;
   /** false면 큐에 담아도 러너가 가져가지 못한다. */
   dispatch_enabled: boolean;
