@@ -587,7 +587,25 @@ class JiraAutofixQueueServiceTest {
                 {"issue_key":"QASA-92","result":"pr","pr_url":"https://github.com/o/r/pull/1"}
                 """));
 
-        verify(slackPublisher).publish(board, job, "[문구] 프리셋 이름 오탈자", "https://acme.atlassian.net");
+        verify(slackPublisher).publish(board, job, "[문구] 프리셋 이름 오탈자",
+                "https://acme.atlassian.net", null);
+    }
+
+    @Test
+    @DisplayName("전용 채널을 지정했으면 그 채널로 넘긴다 — 기본 채널로 새지 않아야 한다")
+    void notifiesSlackToConfiguredChannel() throws Exception {
+        JiraAutofixJob job = dispatchedJob("QASA-93");
+        JiraIntegrationConfig config = JiraIntegrationConfig.builder()
+                .board(board).baseUrl("https://acme.atlassian.net").build();
+        config.updateAutofixSlackChannel("C0AUTOFIX", "qa-autofix");
+        when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(config));
+
+        service.handleCallback(BOARD_ID, payload("""
+                {"issue_key":"QASA-93","result":"no_change"}
+                """));
+
+        verify(slackPublisher).publish(eq(board), eq(job), any(),
+                eq("https://acme.atlassian.net"), eq("C0AUTOFIX"));
     }
 
     @Test
@@ -599,7 +617,7 @@ class JiraAutofixQueueServiceTest {
 
         service.sweepStaleDispatches();
 
-        verify(slackPublisher).publish(eq(board), eq(stale), any(), any());
+        verify(slackPublisher).publish(eq(board), eq(stale), any(), any(), any());
     }
 
     @Test
