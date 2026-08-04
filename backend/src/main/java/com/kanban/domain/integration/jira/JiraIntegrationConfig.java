@@ -185,6 +185,16 @@ public class JiraIntegrationConfig {
     @Column(name = "autofix_runner_name", length = 100)
     private String autofixRunnerName;
 
+    /**
+     * 러너 자가진단 스냅샷(JSON). 맥에 들어가지 않고도 "왜 안 도는지"를 화면이 설명하기 위한 값이다.
+     *
+     * <p>컬럼 하나로 두는 이유: 러너 환경 점검 항목은 앞으로도 늘어난다. 항목마다 컬럼을 파면
+     * 러너 스크립트를 고칠 때마다 마이그레이션이 따라붙는다. 대신 서버가 아는 필드만 뽑아
+     * 다시 직렬화해 저장하므로, 러너가 보낸 임의의 값이 그대로 들어오지는 않는다.
+     */
+    @Column(name = "autofix_runner_status", length = 500)
+    private String autofixRunnerStatus;
+
     // ④ 진행상태
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -342,11 +352,20 @@ public class JiraIntegrationConfig {
         return this.autofixTestInfra != null ? this.autofixTestInfra : TestInfraLevel.NONE;
     }
 
-    /** 러너가 말을 걸어왔다 — claim이든 heartbeat든 살아 있다는 신호는 같다. */
-    public void touchAutofixRunner(String runnerName) {
+    /**
+     * 러너가 말을 걸어왔다 — claim이든 heartbeat든 살아 있다는 신호는 같다.
+     *
+     * @param statusJson 자가진단 스냅샷. null이면 직전 값을 지우지 않는다 — 구버전 러너나
+     *                   진단 실패가 "정상"으로 보이면 안 되지만, 마지막으로 알던 것까지
+     *                   잃으면 화면이 더 말할 게 없어진다.
+     */
+    public void touchAutofixRunner(String runnerName, String statusJson) {
         this.autofixRunnerSeenAt = LocalDateTime.now(ZoneOffset.UTC);
         if (runnerName != null && !runnerName.isBlank()) {
             this.autofixRunnerName = runnerName.length() > 100 ? runnerName.substring(0, 100) : runnerName;
+        }
+        if (statusJson != null && statusJson.length() <= 500) {
+            this.autofixRunnerStatus = statusJson;
         }
     }
 

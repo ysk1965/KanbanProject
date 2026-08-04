@@ -57,6 +57,13 @@ public class JiraAutofixResponse {
         private String runnerName;
         /** 마지막으로 러너를 본 시각. 오프라인일 때 "언제부터"를 말해주기 위해 항상 내려준다. */
         private String runnerSeenAt;
+        /**
+         * 러너 자가진단 스냅샷(디스크·에디터·검증 클론 등). 러너가 아직 안 보냈으면 null.
+         *
+         * <p>필드가 늘어나도 서버 DTO를 고치지 않도록 그대로 통과시킨다 — 어차피 저장 시점에
+         * 서버가 아는 필드만 걸러 두었다.
+         */
+        private com.fasterxml.jackson.databind.JsonNode runnerStatus;
         private boolean callbackTokenSet;
         /** 작업을 내줄지 여부. false면 큐에 담아도 러너가 가져가지 못한다. */
         private boolean dispatchEnabled;

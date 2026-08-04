@@ -138,6 +138,8 @@ autofix:
   runner-online-window-minutes: ${AUTOFIX_RUNNER_ONLINE_WINDOW:3}
   # 끄면 큐에 담기만 하고 러너에게 내주지 않는다. 파이프라인 검증 전까지는 false를 권장.
   dispatch-enabled: ${AUTOFIX_DISPATCH_ENABLED:false}
+  # 종료된 작업을 슬랙 기본 채널에도 남긴다. 슬랙 미연결 보드에서는 아무 일도 하지 않는다.
+  slack-notify-enabled: ${AUTOFIX_SLACK_NOTIFY_ENABLED:true}
 
 # Custom Icon
 app.customicon:

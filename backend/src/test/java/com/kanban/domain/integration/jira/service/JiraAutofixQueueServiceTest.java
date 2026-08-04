@@ -9,7 +9,9 @@ import com.kanban.domain.integration.github.BoardGithubRepoRepository;
 import com.kanban.domain.integration.github.GithubInstallation;
 import com.kanban.domain.integration.jira.*;
 import com.kanban.domain.integration.jira.config.AutofixProperties;
+import com.kanban.domain.integration.jira.dto.JiraAutofixRequest;
 import com.kanban.domain.integration.jira.dto.JiraAutofixResponse;
+import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
@@ -55,6 +57,7 @@ class JiraAutofixQueueServiceTest {
     private BoardGithubRepoRepository boardGithubRepoRepository;
     private JiraApiClient jiraApiClient;
     private JiraOAuthService oauthService;
+    private JiraAutofixSlackPublisher slackPublisher;
     private JiraAutofixQueueService service;
 
     private Board board;
@@ -71,11 +74,12 @@ class JiraAutofixQueueServiceTest {
         boardGithubRepoRepository = mock(BoardGithubRepoRepository.class);
         jiraApiClient = mock(JiraApiClient.class);
         oauthService = mock(JiraOAuthService.class);
+        slackPublisher = mock(JiraAutofixSlackPublisher.class);
 
         service = new JiraAutofixQueueService(
                 properties, new ObjectMapper(), boardRepository, boardService,
                 triageRepository, jobRepository, configRepository, taskRepository,
-                boardGithubRepoRepository, jiraApiClient, oauthService);
+                boardGithubRepoRepository, jiraApiClient, oauthService, slackPublisher);
 
         board = mock(Board.class);
         lenient().when(board.getId()).thenReturn(BOARD_ID);
@@ -244,7 +248,7 @@ class JiraAutofixQueueServiceTest {
         properties.setDispatchEnabled(true);
         when(jobRepository.countInFlight(BOARD_ID)).thenReturn(1L);
 
-        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01");
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null);
 
         assertThat(result.getJob()).isNull();
         assertThat(result.getReason()).isEqualTo("IN_FLIGHT");
@@ -259,7 +263,7 @@ class JiraAutofixQueueServiceTest {
         when(jobRepository.countInFlight(BOARD_ID)).thenReturn(0L);
         when(jobRepository.countDispatchedSince(eq(BOARD_ID), any())).thenReturn(5L);
 
-        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01");
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null);
 
         assertThat(result.getJob()).isNull();
         assertThat(result.getReason()).isEqualTo("DAILY_LIMIT");
@@ -271,7 +275,7 @@ class JiraAutofixQueueServiceTest {
         properties.setDispatchEnabled(false);
         givenNextQueued(queuedJob("QASA-1"));
 
-        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01");
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null);
 
         assertThat(result.getJob()).isNull();
         assertThat(result.getReason()).isEqualTo("DISPATCH_DISABLED");
@@ -284,7 +288,7 @@ class JiraAutofixQueueServiceTest {
         when(jobRepository.findByBoardIdAndStatus(eq(BOARD_ID), eq(AutofixJobStatus.QUEUED), any(Pageable.class)))
                 .thenReturn(List.of());
 
-        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01");
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null);
 
         assertThat(result.getJob()).isNull();
         assertThat(result.getReason()).isEqualTo("EMPTY");
@@ -298,7 +302,7 @@ class JiraAutofixQueueServiceTest {
         givenNextQueued(job);
         when(taskRepository.findById("task-QASA-92")).thenReturn(Optional.empty());
 
-        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01");
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null);
 
         assertThat(result.getReason()).isEqualTo("CLAIMED");
         assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.DISPATCHED);
@@ -321,7 +325,7 @@ class JiraAutofixQueueServiceTest {
         properties.setRunnerTimeoutMinutes(60);
         givenNextQueued(queuedJob("QASA-92"));
 
-        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01");
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null);
 
         assertThat(result.getJob().getTimeoutMinutes()).isEqualTo(30);
     }
@@ -335,7 +339,7 @@ class JiraAutofixQueueServiceTest {
                 .queuedAt(LocalDateTime.now()).build();
         givenNextQueued(job);
 
-        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01");
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null);
 
         assertThat(result.getJob()).isNull();
         assertThat(result.getReason()).isEqualTo("NO_TARGET");
@@ -351,7 +355,7 @@ class JiraAutofixQueueServiceTest {
         when(jobRepository.findByBoardIdAndStatus(eq(BOARD_ID), eq(AutofixJobStatus.QUEUED), any(Pageable.class)))
                 .thenReturn(List.of());
 
-        service.claim(BOARD_ID, "mac-01");
+        service.claim(BOARD_ID, "mac-01", null);
 
         assertThat(config.getAutofixRunnerSeenAt()).isNotNull();
         assertThat(config.getAutofixRunnerName()).isEqualTo("mac-01");
@@ -363,10 +367,42 @@ class JiraAutofixQueueServiceTest {
         JiraIntegrationConfig config = JiraIntegrationConfig.builder().board(board).build();
         when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(config));
 
-        service.heartbeat(BOARD_ID, "mac-01");
+        service.heartbeat(BOARD_ID, "mac-01", null);
 
         assertThat(config.getAutofixRunnerSeenAt()).isNotNull();
         verify(jobRepository, never()).findByBoardIdAndStatus(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("러너 자가진단은 서버가 아는 필드만 뽑아 저장한다 — 임의 값이 들어오는 통로가 되면 안 된다")
+    void storesKnownRunnerStatusFieldsOnly() {
+        JiraIntegrationConfig config = JiraIntegrationConfig.builder().board(board).build();
+        when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(config));
+
+        JiraAutofixRequest.RunnerStatus status = new JiraAutofixRequest.RunnerStatus();
+        status.setDiskFreeGb(41.5);
+        status.setUnityRunning(true);
+        status.setVerifyReady(false);
+
+        service.heartbeat(BOARD_ID, "mac-01", status);
+
+        assertThat(config.getAutofixRunnerStatus())
+                .contains("\"disk_free_gb\":41.5")
+                .contains("\"verify_ready\":false");
+    }
+
+    @Test
+    @DisplayName("진단을 안 보내면 마지막으로 알던 값을 지우지 않는다 — 모르는 것이 정상으로 보이면 안 된다")
+    void keepsLastKnownStatusWhenOmitted() {
+        JiraIntegrationConfig config = JiraIntegrationConfig.builder().board(board).build();
+        when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(config));
+
+        JiraAutofixRequest.RunnerStatus status = new JiraAutofixRequest.RunnerStatus();
+        status.setVerifyReady(true);
+        service.heartbeat(BOARD_ID, "mac-01", status);
+        service.heartbeat(BOARD_ID, "mac-01", null);
+
+        assertThat(config.getAutofixRunnerStatus()).contains("\"verify_ready\":true");
     }
 
     // ── 결과 회신 ──────────────────────────────────
@@ -533,6 +569,50 @@ class JiraAutofixQueueServiceTest {
         assertThat(service.sweepStaleDispatches()).isEqualTo(1);
         assertThat(stale.getStatus()).isEqualTo(AutofixJobStatus.TIMED_OUT);
         assertThat(stale.getCompletedAt()).isNotNull();
+    }
+
+    // ── 슬랙 알림 ──────────────────────────────────
+
+    @Test
+    @DisplayName("결과가 확정되면 슬랙에도 남긴다 — 제목과 JIRA 주소를 값으로 넘긴다")
+    void notifiesSlackOnResult() throws Exception {
+        JiraAutofixJob job = dispatchedJob("QASA-92");
+        Task task = mock(Task.class);
+        when(task.getTitle()).thenReturn("[문구] 프리셋 이름 오탈자");
+        when(taskRepository.findById("task-QASA-92")).thenReturn(Optional.of(task));
+        when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(
+                JiraIntegrationConfig.builder().board(board).baseUrl("https://acme.atlassian.net").build()));
+
+        service.handleCallback(BOARD_ID, payload("""
+                {"issue_key":"QASA-92","result":"pr","pr_url":"https://github.com/o/r/pull/1"}
+                """));
+
+        verify(slackPublisher).publish(board, job, "[문구] 프리셋 이름 오탈자", "https://acme.atlassian.net");
+    }
+
+    @Test
+    @DisplayName("타임아웃 회수도 알린다 — 아무도 요청하지 않은 종료라 알리지 않으면 아무도 모른다")
+    void notifiesSlackOnTimeout() {
+        JiraAutofixJob stale = queuedJob("QASA-1");
+        stale.markClaimed("mac-01");
+        when(jobRepository.findStaleDispatched(any())).thenReturn(List.of(stale));
+
+        service.sweepStaleDispatches();
+
+        verify(slackPublisher).publish(eq(board), eq(stale), any(), any());
+    }
+
+    @Test
+    @DisplayName("슬랙 알림을 끄면 게시하지 않는다 — 연결은 그대로 두고 알림만 끈다")
+    void slackNotifyCanBeDisabled() throws Exception {
+        properties.setSlackNotifyEnabled(false);
+        dispatchedJob("QASA-92");
+
+        service.handleCallback(BOARD_ID, payload("""
+                {"issue_key":"QASA-92","result":"no_change"}
+                """));
+
+        verifyNoInteractions(slackPublisher);
     }
 
     // ── 취소 ──────────────────────────────────────
