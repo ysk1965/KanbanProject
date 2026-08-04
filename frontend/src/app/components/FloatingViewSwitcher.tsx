@@ -110,6 +110,10 @@ export function FloatingViewSwitcher({
       <PopoverTrigger asChild>
         <button
           aria-label={t("kanban.viewSwitcher", "뷰 전환")}
+          // 자동수정 도크가 열리면 그 높이만큼 비켜 올라간다. 도크가 없으면 0px.
+          style={{
+            transform: "translateY(calc(-1 * var(--autofix-dock-h, 0px)))",
+          }}
           className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-40
             flex items-center gap-1.5 px-3.5 py-2.5 rounded-full
             bg-bridge-obsidian/95 backdrop-blur-xl

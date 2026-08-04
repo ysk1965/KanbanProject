@@ -26,6 +26,10 @@ import {
 import { BoardMember } from "../ShareBoardModal";
 import { BoardContractor, Feature, JobRole, Milestone } from "../../types";
 import {
+  BACKLOG_DRAG_TYPE,
+  BACKLOG_DROP_EVENT,
+} from "../../utils/backlogDrag";
+import {
   boardChecklistAPI,
   checklistAPI,
   contractorAPI,
@@ -1743,6 +1747,24 @@ export function ScheduleResourceView({
       if (readOnly) return;
 
       try {
+        // 백로그 카드를 날짜 칸에 놓은 경우 — 어느 피처에 붙일지는 백로그 레일이 묻는다.
+        // 여기서 모달을 띄우지 않는 이유: 이 뷰는 일정 탭에서도 쓰이고, 그쪽엔 백로그가 없다.
+        const backlogRaw = e.dataTransfer.getData(BACKLOG_DRAG_TYPE);
+        if (backlogRaw) {
+          const backlog = JSON.parse(backlogRaw);
+          if (backlog?.id) {
+            window.dispatchEvent(
+              new CustomEvent(BACKLOG_DROP_EVENT, {
+                detail: {
+                  id: backlog.id,
+                  date: formatDateStr(timelineDays[dayIndex]),
+                },
+              }),
+            );
+          }
+          return;
+        }
+
         const rawData = e.dataTransfer.getData("application/checklist-item");
         if (!rawData) return;
         const parsed = JSON.parse(rawData);

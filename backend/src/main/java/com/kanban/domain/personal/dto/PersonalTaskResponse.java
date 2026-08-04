@@ -27,8 +27,25 @@ public class PersonalTaskResponse {
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
+        /** 백로그: 어느 보드에서 적었나 (NULL이면 마이스페이스 전역) */
+        private String boardId;
+        private PersonalTaskPromotionType promotedType;
+        private String promotedRefId;
+        private LocalDateTime promotedAt;
+        /** 승격 결과를 카드에 한 줄로 보여주기 위한 이름 (태스크 제목 · 블록 제목 등) */
+        private String promotedLabel;
+
         public static Detail of(PersonalTask task) {
+            return of(task, null);
+        }
+
+        public static Detail of(PersonalTask task, String promotedLabel) {
             return Detail.builder()
+                    .boardId(task.getBoardId())
+                    .promotedType(task.getPromotedType())
+                    .promotedRefId(task.getPromotedRefId())
+                    .promotedAt(task.getPromotedAt())
+                    .promotedLabel(promotedLabel)
                     .id(task.getId())
                     .title(task.getTitle())
                     .description(task.getDescription())

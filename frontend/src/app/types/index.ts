@@ -2277,7 +2277,18 @@ export interface DiaryVoiceSettings {
 // ─── Personal Task (v9.0 MySpace) ───
 
 export type PersonalTaskStatus = "TODO" | "IN_PROGRESS" | "DONE" | "ARCHIVED";
-export type PersonalTaskPriority = "MEDIUM" | "HIGH" | "URGENT";
+export type PersonalTaskPriority =
+  | "NONE"
+  | "LOW"
+  | "MEDIUM"
+  | "HIGH"
+  | "URGENT";
+
+/** 백로그 항목이 무엇으로 승격됐는지 */
+export type PersonalTaskPromotionType =
+  | "TIMEBLOCK"
+  | "TASK"
+  | "CHECKLIST_ITEM";
 export type HabitFrequency = "DAILY" | "WEEKDAY" | "WEEKEND" | "CUSTOM";
 export type HabitImportance = "HIGH" | "MEDIUM";
 
@@ -2294,6 +2305,13 @@ export interface PersonalTask {
   completed_at: string | null;
   created_at: string;
   updated_at: string | null;
+  /** 백로그: 어느 보드에서 적었나. null이면 마이스페이스 전역 항목 */
+  board_id?: string | null;
+  promoted_type?: PersonalTaskPromotionType | null;
+  promoted_ref_id?: string | null;
+  promoted_at?: string | null;
+  /** 승격 결과를 카드에 보여줄 이름 (블록명 · 태스크 제목 · 시각) */
+  promoted_label?: string | null;
 }
 
 export interface PersonalHabit {

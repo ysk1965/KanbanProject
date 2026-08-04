@@ -37,6 +37,19 @@ public class ScheduleRequest {
 
         @NotNull(message = "종료 시간은 필수입니다")
         private LocalTime endTime;
+
+        /** 서버 내부에서 CUSTOM 블록을 조립할 때 쓴다 (개인 백로그 → 타임블록 승격 등). */
+        public static Create custom(String title, String assigneeId, LocalDate scheduledDate,
+                                    LocalTime startTime, LocalTime endTime) {
+            Create create = new Create();
+            create.blockType = "CUSTOM";
+            create.title = title;
+            create.assigneeId = assigneeId;
+            create.scheduledDate = scheduledDate;
+            create.startTime = startTime;
+            create.endTime = endTime;
+            return create;
+        }
     }
 
     @Getter

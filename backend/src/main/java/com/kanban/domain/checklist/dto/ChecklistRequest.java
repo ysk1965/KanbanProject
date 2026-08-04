@@ -34,6 +34,14 @@ public class ChecklistRequest {
         private LocalDate startDate;
 
         private LocalDate dueDate;
+
+        /** 서버 내부에서 조립할 때 쓴다 (개인 백로그 → 체크리스트 항목 승격 등). */
+        public static Create of(String title, String assigneeId) {
+            Create create = new Create();
+            create.title = title;
+            create.assigneeId = assigneeId;
+            return create;
+        }
     }
 
     @Getter
