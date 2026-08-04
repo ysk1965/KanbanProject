@@ -126,9 +126,11 @@ variable "dns_account_role_arn" {
 }
 
 variable "rds_engine_version" {
-  description = "PostgreSQL engine version for RDS. Pin to the SOURCE instance's actual version during migration (check: aws rds describe-db-instances)."
+  description = "PostgreSQL engine version for RDS. Pin to the instance's ACTUAL version (check: aws rds describe-db-instances)."
   type        = string
-  default     = "15.10"
+  # 실제 인스턴스는 15.17이다. 15.10으로 두면 apply가 다운그레이드를 시도해
+  # "Cannot find upgrade path from 15.17 to 15.10"으로 스택 전체가 중단된다.
+  default = "15.17"
 }
 
 variable "rds_kms_key_id" {
