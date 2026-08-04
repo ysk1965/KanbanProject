@@ -28,13 +28,19 @@ type Quadrant = 'q1' | 'q2' | 'q3' | 'q4';
 
 // ── Constants ─────────────────────────────────────────────────
 
+// NONE·LOW는 백엔드 PersonalTaskPriority에 원래 있던 값이다.
+// 보드 백로그가 NONE으로 항목을 만들면서 화면에도 들어오게 됐다.
 const PRIORITY_CONFIG: Record<PersonalTaskPriority, { color: string; dot: string }> = {
+  NONE:   { color: 'text-slate-500',  dot: 'bg-slate-500' },
+  LOW:    { color: 'text-slate-400',  dot: 'bg-slate-400' },
   MEDIUM: { color: 'text-amber-400',  dot: 'bg-amber-400' },
   HIGH:   { color: 'text-orange-500', dot: 'bg-orange-500' },
   URGENT: { color: 'text-red-500',    dot: 'bg-red-500' },
 };
 
 const PRIORITY_LABEL_KEYS: Record<PersonalTaskPriority, string> = {
+  NONE:   'personal.tasks.priorityNone',
+  LOW:    'personal.tasks.priorityLow',
   MEDIUM: 'personal.tasks.priorityMedium',
   HIGH:   'personal.tasks.priorityHigh',
   URGENT: 'personal.tasks.priorityUrgent',

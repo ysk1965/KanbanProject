@@ -3174,6 +3174,10 @@ export function KanbanBoardPage() {
               handleScheduleSubTabChange("resource");
               handleViewModeChange("schedule");
             }}
+            onRefreshAfterPromote={() => {
+              setScheduleRefreshKey((k) => k + 1);
+              setScheduleRefreshPanel((k) => k + 1);
+            }}
           />
         ) : viewMode === "gantt" ? (
           <GanttView

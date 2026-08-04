@@ -6203,11 +6203,18 @@ export const jiraAutofixAPI = {
     );
   },
 
-  /** 트리아지 후보를 큐에 담는다. 임계값·이슈당 1회 가드레일은 서버가 건다. */
-  enqueue: async (boardId: string, limit?: number) => {
-    const query = limit != null ? `?limit=${limit}` : "";
+  /**
+   * 트리아지 후보를 큐에 담는다. 임계값·이슈당 1회 가드레일은 서버가 건다.
+   * issueKeys를 주면 그중에서만 — 목록에서 골라 담는 경로.
+   */
+  enqueue: async (
+    boardId: string,
+    options?: { limit?: number; issueKeys?: string[] },
+  ) => {
+    const query = options?.limit != null ? `?limit=${options.limit}` : "";
     return apiClient.post<JiraAutofixEnqueueResult>(
       `/boards/${boardId}/jira/autofix/queue${query}`,
+      options?.issueKeys?.length ? { issue_keys: options.issueKeys } : {},
     );
   },
 
@@ -7744,6 +7751,15 @@ export const personalTaskAPI = {
     return apiClient.get(`/personal/tasks/${taskId}`);
   },
 
+  /** 보드 대시보드 백로그 레일 — board_id로 그 보드에서 적은 것만 가져온다 */
+  getBacklog: async (
+    boardId: string,
+  ): Promise<import("../types").PersonalTask[]> => {
+    return apiClient.get(
+      `/personal/tasks?board_id=${encodeURIComponent(boardId)}`,
+    );
+  },
+
   create: async (data: {
     title: string;
     description?: string;
@@ -7751,8 +7767,37 @@ export const personalTaskAPI = {
     due_date?: string;
     category?: string;
     color?: string;
+    /** 넘기면 그 보드의 백로그로 저장된다 (마감일 자동 지정도 하지 않는다) */
+    board_id?: string;
   }): Promise<import("../types").PersonalTask> => {
     return apiClient.post("/personal/tasks", data);
+  },
+
+  /**
+   * 백로그 항목 승격.
+   * target별 필수 필드가 다르다 — timeblock: 날짜·시각 / task: feature_id / checklist_item: task_id
+   */
+  promote: async (
+    taskId: string,
+    data: {
+      target: import("../types").PersonalTaskPromotionType;
+      feature_id?: string;
+      task_id?: string;
+      scheduled_date?: string;
+      start_time?: string;
+      end_time?: string;
+      start_date?: string;
+      due_date?: string;
+    },
+  ): Promise<import("../types").PersonalTask> => {
+    return apiClient.post(`/personal/tasks/${taskId}/promote`, data);
+  },
+
+  /** 승격 되돌리기 — 만들어진 대상은 그대로 두고 항목만 대기로 되돌린다 */
+  unpromote: async (
+    taskId: string,
+  ): Promise<import("../types").PersonalTask> => {
+    return apiClient.delete(`/personal/tasks/${taskId}/promote`);
   },
 
   update: async (

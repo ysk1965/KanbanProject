@@ -28,6 +28,15 @@ public class TaskRequest {
 
         /** 배정할 마일스톤 ID (선택). 없으면 피처의 대표 마일스톤으로 설정된다. */
         private String milestoneId;
+
+        /** 서버 내부에서 조립할 때 쓴다 (개인 백로그 → 태스크 승격 등). */
+        public static Create of(String title, LocalDate startDate, LocalDate dueDate) {
+            Create create = new Create();
+            create.title = title;
+            create.startDate = startDate;
+            create.dueDate = dueDate;
+            return create;
+        }
     }
 
     @Getter

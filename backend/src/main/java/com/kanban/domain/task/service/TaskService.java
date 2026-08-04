@@ -241,10 +241,12 @@ public class TaskService {
                 ActivityAction.TASK_CREATED,
                 TargetType.TASK,
                 task.getId(),
+                // Map.of 는 null 값을 허용하지 않는다 — 색이 없는 피처에 태스크를 만들면 NPE.
+                // FeatureService.createFeature 와 같은 방식으로 막는다.
                 Map.of(
                         "taskTitle", task.getTitle(),
                         "featureTitle", feature.getTitle(),
-                        "featureColor", feature.getColor()
+                        "featureColor", feature.getColor() != null ? feature.getColor() : ""
                 )
         );
 
@@ -557,7 +559,8 @@ public class TaskService {
                 Map.of("taskTitle", task.getTitle(),
                         "fromFeature", oldFeatureTitle,
                         "toFeature", targetFeature.getTitle(),
-                        "toFeatureColor", targetFeature.getColor()));
+                        // 위와 같은 이유 — Map.of 는 null 을 허용하지 않는다
+                        "toFeatureColor", targetFeature.getColor() != null ? targetFeature.getColor() : ""));
 
         List<Tag> tags = taskTagRepository.findByTaskId(taskId).stream()
                 .map(TaskTag::getTag)

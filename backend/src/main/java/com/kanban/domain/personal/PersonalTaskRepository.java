@@ -28,6 +28,21 @@ public interface PersonalTaskRepository extends JpaRepository<PersonalTask, Stri
     @Query("SELECT DISTINCT t.category FROM PersonalTask t WHERE t.user.id = :userId AND t.category IS NOT NULL ORDER BY t.category")
     List<String> findDistinctCategoriesByUserId(@Param("userId") String userId);
 
+    /**
+     * 보드 대시보드 백로그 레일 목록.
+     * 최신이 앞이다 — 방금 적은 게 눈앞에 있어야 들어간 걸 확인한다.
+     */
+    @Query("SELECT t FROM PersonalTask t WHERE t.user.id = :userId AND t.boardId = :boardId " +
+            "AND t.status <> 'ARCHIVED' ORDER BY t.position ASC, t.createdAt DESC")
+    List<PersonalTask> findBacklogByUserIdAndBoardId(@Param("userId") String userId,
+                                                     @Param("boardId") String boardId);
+
+    /** 새 항목을 맨 앞에 꽂기 위한 기준값 — 전체 재정렬을 피한다 */
+    @Query("SELECT COALESCE(MIN(t.position), 0) FROM PersonalTask t " +
+            "WHERE t.user.id = :userId AND t.boardId = :boardId")
+    Integer findMinPositionByUserIdAndBoardId(@Param("userId") String userId,
+                                              @Param("boardId") String boardId);
+
     long countByUserIdAndStatus(String userId, PersonalTaskStatus status);
 
     @Query("SELECT COUNT(t) FROM PersonalTask t WHERE t.user.id = :userId AND t.status = 'DONE' AND t.completedAt >= :since")

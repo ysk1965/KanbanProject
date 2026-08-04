@@ -26,7 +26,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.Optional;
 
 /**
@@ -68,10 +70,14 @@ public class JiraAutofixQueueService {
      *
      * <p>이미 작업이 있는 이슈는 건너뛴다 — 같은 이슈로 PR이 두 개 열리면 리뷰어가 혼란스럽다.
      *
-     * @param limit null이면 후보 전부(설정 상한까지)
+     * @param limit     null이면 후보 전부(설정 상한까지)
+     * @param issueKeys 지정하면 그중에서만 고른다. 사람이 목록에서 골라 담는 경로.
+     *                  confidence 임계값은 여기서도 그대로 적용된다 — 화면에서 고른 것이
+     *                  가드레일을 우회하는 통로가 되면 안 된다.
      */
     @Transactional
-    public JiraAutofixResponse.EnqueueResult enqueueCandidates(String boardId, String userId, Integer limit) {
+    public JiraAutofixResponse.EnqueueResult enqueueCandidates(String boardId, String userId,
+                                                               Integer limit, List<String> issueKeys) {
         boardService.checkAdminOrAbove(boardId, userId);
 
         Board board = boardRepository.findById(boardId)
@@ -84,6 +90,13 @@ public class JiraAutofixQueueService {
 
         List<JiraAutofixTriage> candidates =
                 triageRepository.findByBoardIdAndVerdict(boardId, AutofixVerdict.CANDIDATE);
+
+        if (issueKeys != null && !issueKeys.isEmpty()) {
+            Set<String> wanted = new HashSet<>(issueKeys);
+            candidates = candidates.stream()
+                    .filter(t -> wanted.contains(t.getJiraIssueKey()))
+                    .toList();
+        }
 
         int queued = 0;
         int skippedLowConfidence = 0;

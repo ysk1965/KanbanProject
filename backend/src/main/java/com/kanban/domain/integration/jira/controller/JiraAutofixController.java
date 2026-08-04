@@ -1,5 +1,6 @@
 package com.kanban.domain.integration.jira.controller;
 
+import com.kanban.domain.integration.jira.dto.JiraAutofixRequest;
 import com.kanban.domain.integration.jira.dto.JiraAutofixResponse;
 import com.kanban.domain.integration.jira.service.JiraAutofixQueueService;
 import com.kanban.domain.integration.jira.service.JiraAutofixTriageService;
@@ -29,13 +30,21 @@ public class JiraAutofixController {
 
     // ── 큐 ────────────────────────────────────────
 
-    /** 트리아지 후보를 큐에 담는다. confidence 임계값·이슈당 1회 가드레일이 여기서 걸린다. */
+    /**
+     * 트리아지 후보를 큐에 담는다. confidence 임계값·이슈당 1회 가드레일이 여기서 걸린다.
+     *
+     * <p>본문에 {@code issue_keys}를 주면 그중에서만 고른다(화면에서 골라 담는 경로).
+     * 없으면 조건을 만족하는 후보 전부.
+     */
     @PostMapping("/api/v1/boards/{boardId}/jira/autofix/queue")
     public ResponseEntity<JiraAutofixResponse.EnqueueResult> enqueue(
             @PathVariable String boardId,
             @RequestParam(value = "limit", required = false) Integer limit,
+            @RequestBody(required = false) JiraAutofixRequest.Enqueue request,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(queueService.enqueueCandidates(boardId, principal.getUserId(), limit));
+        List<String> issueKeys = request != null ? request.getIssueKeys() : null;
+        return ResponseEntity.ok(
+                queueService.enqueueCandidates(boardId, principal.getUserId(), limit, issueKeys));
     }
 
     /** 큐 준비 상태 + 현황. 셋업 체크리스트와 배너가 이 값으로 그려진다. */

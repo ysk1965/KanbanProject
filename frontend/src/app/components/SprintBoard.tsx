@@ -65,6 +65,7 @@ import { MilestoneConsoleModal } from "./MilestoneConsoleModal";
 import { JiraOnboardingGuide } from "./JiraOnboardingGuide";
 import { JiraSettingsPanel } from "./JiraSettingsPanel";
 import { JiraSyncIndicator } from "./JiraSyncIndicator";
+import { JiraAutofixDock } from "./JiraAutofixDock";
 import type { FilterOptions } from "./FilterModal";
 
 interface SprintBoardProps {
@@ -4963,6 +4964,9 @@ export function SprintBoard({
           />
         </div>
       </MotionModal>
+
+      {/* 자동수정 하단 도크 — 보드를 보면서 후보를 고를 수 있어야 해서 여기 둔다 */}
+      <JiraAutofixDock boardId={boardId} enabled={jiraConnected} />
     </div>
   );
 }

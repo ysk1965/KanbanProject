@@ -139,7 +139,7 @@ class JiraAutofixQueueServiceTest {
         givenRepo("develop");
         givenCandidates(candidate("QASA-1", 0.9), candidate("QASA-2", 0.5));
 
-        JiraAutofixResponse.EnqueueResult result = service.enqueueCandidates(BOARD_ID, USER_ID, null);
+        JiraAutofixResponse.EnqueueResult result = service.enqueueCandidates(BOARD_ID, USER_ID, null, null);
 
         assertThat(result.getQueued()).isEqualTo(1);
         assertThat(result.getSkippedLowConfidence()).isEqualTo(1);
@@ -152,7 +152,7 @@ class JiraAutofixQueueServiceTest {
         givenCandidates(candidate("QASA-1", 0.9));
         when(jobRepository.existsActiveForIssue(BOARD_ID, "QASA-1")).thenReturn(true);
 
-        JiraAutofixResponse.EnqueueResult result = service.enqueueCandidates(BOARD_ID, USER_ID, null);
+        JiraAutofixResponse.EnqueueResult result = service.enqueueCandidates(BOARD_ID, USER_ID, null, null);
 
         assertThat(result.getQueued()).isZero();
         assertThat(result.getSkippedAlreadyQueued()).isEqualTo(1);
@@ -164,7 +164,7 @@ class JiraAutofixQueueServiceTest {
         givenRepo("release/1.2");
         givenCandidates(candidate("QASA-1", 0.9));
 
-        service.enqueueCandidates(BOARD_ID, USER_ID, null);
+        service.enqueueCandidates(BOARD_ID, USER_ID, null, null);
 
         ArgumentCaptor<List<JiraAutofixJob>> saved = ArgumentCaptor.forClass(List.class);
         verify(jobRepository).saveAll(saved.capture());
@@ -181,7 +181,7 @@ class JiraAutofixQueueServiceTest {
         givenRepo(null);
         givenCandidates(candidate("QASA-1", 0.9));
 
-        service.enqueueCandidates(BOARD_ID, USER_ID, null);
+        service.enqueueCandidates(BOARD_ID, USER_ID, null, null);
 
         ArgumentCaptor<List<JiraAutofixJob>> saved = ArgumentCaptor.forClass(List.class);
         verify(jobRepository).saveAll(saved.capture());
@@ -189,11 +189,40 @@ class JiraAutofixQueueServiceTest {
     }
 
     @Test
+    @DisplayName("이슈키를 지정하면 그중에서만 담는다")
+    void enqueuesOnlySelected() {
+        givenRepo("develop");
+        givenCandidates(candidate("QASA-1", 0.9), candidate("QASA-2", 0.9), candidate("QASA-3", 0.9));
+
+        JiraAutofixResponse.EnqueueResult result =
+                service.enqueueCandidates(BOARD_ID, USER_ID, null, List.of("QASA-2"));
+
+        assertThat(result.getQueued()).isEqualTo(1);
+        ArgumentCaptor<List<JiraAutofixJob>> saved = ArgumentCaptor.forClass(List.class);
+        verify(jobRepository).saveAll(saved.capture());
+        assertThat(saved.getValue()).singleElement()
+                .extracting(JiraAutofixJob::getJiraIssueKey).isEqualTo("QASA-2");
+    }
+
+    @Test
+    @DisplayName("골라 담아도 confidence 임계값은 그대로 적용된다 — 화면이 가드레일 우회 통로가 되면 안 된다")
+    void selectionDoesNotBypassThreshold() {
+        givenRepo("develop");
+        givenCandidates(candidate("QASA-1", 0.4));
+
+        JiraAutofixResponse.EnqueueResult result =
+                service.enqueueCandidates(BOARD_ID, USER_ID, null, List.of("QASA-1"));
+
+        assertThat(result.getQueued()).isZero();
+        assertThat(result.getSkippedLowConfidence()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("연결된 저장소가 없으면 거부한다")
     void rejectsWhenNoRepo() {
         when(boardGithubRepoRepository.findByBoardIdAndActiveTrue(BOARD_ID)).thenReturn(List.of());
 
-        assertThatThrownBy(() -> service.enqueueCandidates(BOARD_ID, USER_ID, null))
+        assertThatThrownBy(() -> service.enqueueCandidates(BOARD_ID, USER_ID, null, null))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.JIRA_AUTOFIX_NO_REPO);
@@ -205,7 +234,7 @@ class JiraAutofixQueueServiceTest {
         when(boardGithubRepoRepository.findByBoardIdAndActiveTrue(BOARD_ID))
                 .thenReturn(List.of(mock(BoardGithubRepo.class), mock(BoardGithubRepo.class)));
 
-        assertThatThrownBy(() -> service.enqueueCandidates(BOARD_ID, USER_ID, null))
+        assertThatThrownBy(() -> service.enqueueCandidates(BOARD_ID, USER_ID, null, null))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.JIRA_AUTOFIX_AMBIGUOUS_REPO);

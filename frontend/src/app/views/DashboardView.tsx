@@ -8,6 +8,7 @@ import type {
 } from "../types";
 import type { BoardMember as ShareBoardMember } from "../components/ShareBoardModal";
 import { buildMilestoneColorMap } from "../utils/milestoneColor";
+import { BacklogRail } from "../components/boarddashboard/BacklogRail";
 import { DashboardScopeRow } from "../components/boarddashboard/DashboardScopeRow";
 import { MyWorkloadWidget } from "../components/boarddashboard/MyWorkloadWidget";
 import { TodayTimeblockWidget } from "../components/boarddashboard/TodayTimeblockWidget";
@@ -46,6 +47,8 @@ interface DashboardViewProps {
   onOpenSchedule: () => void;
   /** 일정 탭 리소스 뷰로 전환 */
   onOpenResourceView: () => void;
+  /** 백로그 승격 직후 — 새로 생긴 태스크·블록이 타임블록·워크로드에 바로 보이게 한다 */
+  onRefreshAfterPromote?: () => void;
 }
 
 /**
@@ -77,6 +80,7 @@ export function DashboardView({
   onOpenKanban,
   onOpenSchedule,
   onOpenResourceView,
+  onRefreshAfterPromote,
 }: DashboardViewProps) {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -191,6 +195,22 @@ export function DashboardView({
               />
             </div>
           </div>
+
+          {/*
+            백로그 레일 — 대시보드 맨 아래 한 층.
+            sticky로 붙여 스크롤 위치와 무관하게 항상 보이게 한다(안 보이는 백로그는 안 쓰인다).
+            남의 대시보드를 보는 중이면 개인 데이터이므로 아예 렌더하지 않는다 —
+            읽기 전용이 아니라 부재다.
+          */}
+          {!isOtherScope && (
+            <div className="sticky bottom-0 z-10 pb-1 shadow-[0_-10px_26px_rgba(0,0,0,0.14)] rounded-2xl">
+              <BacklogRail
+                boardId={boardId}
+                features={allFeatures}
+                onPromoted={onRefreshAfterPromote}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>
