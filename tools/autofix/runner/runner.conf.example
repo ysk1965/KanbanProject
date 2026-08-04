@@ -18,6 +18,20 @@ RUNNER_NAME=mac-unity-01
 # Unity Editor로 열어둔 프로젝트 경로. 러너는 여기서만 작업한다.
 PROJECT_DIR=/Users/you/GWBM013-auto-battle-project
 
+# 컴파일 검증 전용 클론. Editor가 연 프로젝트와 **반드시 다른 디렉터리**여야 한다 —
+# 프로젝트 락은 디렉터리 단위라, 달라야 Editor를 열어둔 채 batchmode를 돌릴 수 있다.
+# 이 클론의 Library는 지우지 말 것(warm해야 검증이 몇 분 안에 끝난다).
+VERIFY_PROJECT_DIR=/Users/you/GWBM013-verify
+
+# 검증 스크립트. 기본값은 러너 디렉터리에 설치된 것을 쓴다(게임 저장소를 건드리지 않는다).
+VERIFY_SCRIPT=/Users/you/bridge-autofix/verify-compile.sh
+
+# 검증 1회 상한(분). autofix-once.sh 쪽 상한(20분)보다 짧아야 한다.
+VERIFY_TIMEOUT_MINUTES=12
+
+# Unity 실행 파일. 비워두면 프로젝트의 ProjectVersion.txt에서 버전을 읽어 자동으로 찾는다.
+# UNITY_BIN=
+
 # 큐를 물어보는 주기(초). 짧게 잡아도 서버 부하는 미미하지만 20초면 충분하다.
 POLL_SECONDS=20
 
