@@ -45,15 +45,11 @@ public interface JiraAutofixJobRepository extends JpaRepository<JiraAutofixJob, 
     @Query("SELECT j FROM JiraAutofixJob j WHERE j.status = 'DISPATCHED' AND j.dispatchedAt < :deadline")
     List<JiraAutofixJob> findStaleDispatched(@Param("deadline") LocalDateTime deadline);
 
-    /** 콜백 매칭 — 러너는 이슈키만 알고 job id는 모른다. */
+    /** 콜백 매칭 폴백 — job id 없이 이슈키만으로 회신하는 수동 실행 경로가 있다. */
     @Query("SELECT j FROM JiraAutofixJob j WHERE j.board.id = :boardId AND j.jiraIssueKey = :key "
         + "AND j.status = 'DISPATCHED'")
     Optional<JiraAutofixJob> findDispatchedByIssueKey(@Param("boardId") String boardId,
                                                       @Param("key") String key);
-
-    /** 큐가 남아 있는 보드 — 스케줄러가 매번 전 보드를 훑지 않도록. */
-    @Query("SELECT DISTINCT j.board.id FROM JiraAutofixJob j WHERE j.status = 'QUEUED'")
-    List<String> findBoardIdsWithQueuedJobs();
 
     @Modifying
     @Query("DELETE FROM JiraAutofixJob j WHERE j.board.id = :boardId")

@@ -144,7 +144,8 @@ check_cmd git   "git --version"          "Xcode CLT 설치 필요"
 check_cmd gh    "gh --version"           "PR 생성용. brew install gh"
 check_cmd node  "node --version"         "Claude Code 실행에 필요"
 check_cmd claude "claude --version"      "코딩 에이전트 본체"
-check_cmd jq    "jq --version"           "워크플로 JSON 처리에 사용"
+check_cmd jq    "jq --version"           "러너 JSON 처리에 사용"
+check_cmd curl  "curl --version"         "BRIDGE와 통신"
 
 if command -v gh >/dev/null 2>&1; then
   if gh auth status >/dev/null 2>&1; then
@@ -154,15 +155,15 @@ if command -v gh >/dev/null 2>&1; then
   fi
 fi
 
-if [ -d "$HOME/actions-runner" ]; then
-  ok "GitHub Actions 셀프호스티드 러너 디렉터리 있음"
-  if pgrep -f "Runner.Listener" >/dev/null 2>&1; then
+if [ -f "$HOME/bridge-autofix/runner.conf" ]; then
+  ok "러너 설정 있음 (~/bridge-autofix/runner.conf)"
+  if pgrep -f "bridge-autofix-runner.sh" >/dev/null 2>&1; then
     ok "러너 프로세스 실행 중"
   else
-    warn "러너가 설치돼 있으나 실행 중이 아니다"
+    warn "러너가 설정돼 있으나 실행 중이 아니다 — launchctl list | grep bridge.autofix"
   fi
 else
-  no "셀프호스티드 러너 없음 — Step 2에서 설치 필요"
+  no "러너 미설치 — README 3번(러너 설치) 참고"
 fi
 
 # MCP 설정 확인 (Claude Code 사용자 설정)

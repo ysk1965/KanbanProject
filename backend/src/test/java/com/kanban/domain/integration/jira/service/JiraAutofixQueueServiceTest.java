@@ -7,7 +7,6 @@ import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.integration.github.BoardGithubRepo;
 import com.kanban.domain.integration.github.BoardGithubRepoRepository;
 import com.kanban.domain.integration.github.GithubInstallation;
-import com.kanban.domain.integration.github.service.GithubApiClient;
 import com.kanban.domain.integration.jira.*;
 import com.kanban.domain.integration.jira.config.AutofixProperties;
 import com.kanban.domain.integration.jira.dto.JiraAutofixResponse;
@@ -19,13 +18,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.Pageable;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,6 +35,9 @@ import static org.mockito.Mockito.*;
  *
  * <p>여기서 잡는 것은 가드레일이다 — 직렬 보장, 이슈당 1회, confidence 임계값, 일일 상한,
  * 타임아웃 회수. 하나라도 새면 검증 안 된 PR이 쏟아지거나 큐가 영구히 막힌다.
+ *
+ * <p>작업은 러너가 claim으로 가져간다. 서버가 밀어 넣지 않으므로, 내주지 <b>않는</b> 조건이
+ * 곧 가드레일이다.
  */
 class JiraAutofixQueueServiceTest {
 
@@ -53,7 +53,6 @@ class JiraAutofixQueueServiceTest {
     private JiraIntegrationConfigRepository configRepository;
     private TaskRepository taskRepository;
     private BoardGithubRepoRepository boardGithubRepoRepository;
-    private GithubApiClient githubApiClient;
     private JiraApiClient jiraApiClient;
     private JiraOAuthService oauthService;
     private JiraAutofixQueueService service;
@@ -70,15 +69,13 @@ class JiraAutofixQueueServiceTest {
         configRepository = mock(JiraIntegrationConfigRepository.class);
         taskRepository = mock(TaskRepository.class);
         boardGithubRepoRepository = mock(BoardGithubRepoRepository.class);
-        githubApiClient = mock(GithubApiClient.class);
         jiraApiClient = mock(JiraApiClient.class);
         oauthService = mock(JiraOAuthService.class);
 
         service = new JiraAutofixQueueService(
                 properties, new ObjectMapper(), boardRepository, boardService,
                 triageRepository, jobRepository, configRepository, taskRepository,
-                boardGithubRepoRepository, githubApiClient, jiraApiClient, oauthService);
-        ReflectionTestUtils.setField(service, "backendUrl", "https://api.example.com");
+                boardGithubRepoRepository, jiraApiClient, oauthService);
 
         board = mock(Board.class);
         lenient().when(board.getId()).thenReturn(BOARD_ID);
@@ -122,7 +119,7 @@ class JiraAutofixQueueServiceTest {
                 .confidence(0.9).status(AutofixJobStatus.QUEUED)
                 .queuedAt(LocalDateTime.now())
                 .build();
-        job.assignTarget("inst-1", REPO, "autofix.yaml", "develop");
+        job.assignTarget("inst-1", REPO, "develop");
         return job;
     }
 
@@ -159,7 +156,7 @@ class JiraAutofixQueueServiceTest {
     }
 
     @Test
-    @DisplayName("디스패치 대상은 큐에 담는 시점에 스냅샷된다")
+    @DisplayName("대상 저장소는 큐에 담는 시점에 스냅샷된다")
     void snapshotsDispatchTarget() {
         givenRepo("release/1.2");
         givenCandidates(candidate("QASA-1", 0.9));
@@ -172,7 +169,6 @@ class JiraAutofixQueueServiceTest {
         assertThat(job.getRepoFullName()).isEqualTo(REPO);
         assertThat(job.getInstallationId()).isEqualTo("inst-1");
         assertThat(job.getBaseRef()).isEqualTo("release/1.2");
-        assertThat(job.getWorkflowFile()).isEqualTo("autofix.yaml");
     }
 
     @Test
@@ -240,84 +236,144 @@ class JiraAutofixQueueServiceTest {
                 .isEqualTo(ErrorCode.JIRA_AUTOFIX_AMBIGUOUS_REPO);
     }
 
-    // ── 디스패치 가드레일 ──────────────────────────
+    // ── claim 가드레일 ────────────────────────────
 
     @Test
-    @DisplayName("진행 중인 작업이 있으면 다음 건을 보내지 않는다 — 직렬 보장")
-    void doesNotDispatchWhileInFlight() {
+    @DisplayName("진행 중인 작업이 있으면 내주지 않는다 — 직렬 보장")
+    void doesNotHandOutWhileInFlight() {
+        properties.setDispatchEnabled(true);
         when(jobRepository.countInFlight(BOARD_ID)).thenReturn(1L);
 
-        assertThat(service.dispatchNext(BOARD_ID)).isEmpty();
-        verify(githubApiClient, never()).dispatchWorkflow(any(), any(), any(), any(), any());
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01");
+
+        assertThat(result.getJob()).isNull();
+        assertThat(result.getReason()).isEqualTo("IN_FLIGHT");
+        verify(jobRepository, never()).findByBoardIdAndStatus(any(), any(), any());
     }
 
     @Test
-    @DisplayName("일일 상한에 도달하면 보내지 않는다")
+    @DisplayName("일일 상한에 도달하면 내주지 않는다")
     void respectsDailyLimit() {
+        properties.setDispatchEnabled(true);
         properties.setDailyLimit(5);
         when(jobRepository.countInFlight(BOARD_ID)).thenReturn(0L);
         when(jobRepository.countDispatchedSince(eq(BOARD_ID), any())).thenReturn(5L);
 
-        assertThat(service.dispatchNext(BOARD_ID)).isEmpty();
-        verify(githubApiClient, never()).dispatchWorkflow(any(), any(), any(), any(), any());
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01");
+
+        assertThat(result.getJob()).isNull();
+        assertThat(result.getReason()).isEqualTo("DAILY_LIMIT");
     }
 
     @Test
-    @DisplayName("워크플로가 기본 브랜치에 없으면 작업을 소진하지 않고 예외를 던진다")
-    void failsFastWhenWorkflowMissing() {
-        JiraAutofixJob job = queuedJob("QASA-1");
-        givenNextQueued(job);
-        when(githubApiClient.hasWorkflow("inst-1", REPO, "autofix.yaml")).thenReturn(false);
+    @DisplayName("dispatch-enabled가 꺼져 있으면 큐가 차 있어도 내주지 않는다")
+    void respectsDispatchDisabled() {
+        properties.setDispatchEnabled(false);
+        givenNextQueued(queuedJob("QASA-1"));
 
-        assertThatThrownBy(() -> service.dispatchNext(BOARD_ID))
-                .isInstanceOf(BusinessException.class)
-                .extracting(e -> ((BusinessException) e).getErrorCode())
-                .isEqualTo(ErrorCode.JIRA_AUTOFIX_WORKFLOW_NOT_FOUND);
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01");
 
-        // 작업은 QUEUED로 남아야 한다 — 설정을 고치면 다음 주기에 다시 시도된다
-        assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.QUEUED);
+        assertThat(result.getJob()).isNull();
+        assertThat(result.getReason()).isEqualTo("DISPATCH_DISABLED");
     }
 
     @Test
-    @DisplayName("정상 디스패치 — inputs와 상태 전이")
-    void dispatchesWithInputs() {
+    @DisplayName("큐가 비면 이유를 담아 빈 결과를 준다 — 러너 로그에 원인이 남아야 한다")
+    void reportsEmptyQueue() {
+        properties.setDispatchEnabled(true);
+        when(jobRepository.findByBoardIdAndStatus(eq(BOARD_ID), eq(AutofixJobStatus.QUEUED), any(Pageable.class)))
+                .thenReturn(List.of());
+
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01");
+
+        assertThat(result.getJob()).isNull();
+        assertThat(result.getReason()).isEqualTo("EMPTY");
+    }
+
+    @Test
+    @DisplayName("정상 claim — 명세와 상태 전이")
+    void handsOutNextJob() {
+        properties.setDispatchEnabled(true);
         JiraAutofixJob job = queuedJob("QASA-92");
         givenNextQueued(job);
-        when(githubApiClient.hasWorkflow(any(), any(), any())).thenReturn(true);
+        when(taskRepository.findById("task-QASA-92")).thenReturn(Optional.empty());
 
-        assertThat(service.dispatchNext(BOARD_ID)).isPresent();
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01");
+
+        assertThat(result.getReason()).isEqualTo("CLAIMED");
         assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.DISPATCHED);
         assertThat(job.getDispatchedAt()).isNotNull();
+        assertThat(job.getRunnerName()).isEqualTo("mac-01");
 
-        ArgumentCaptor<Map<String, String>> inputs = ArgumentCaptor.forClass(Map.class);
-        verify(githubApiClient).dispatchWorkflow(
-                eq("inst-1"), eq(REPO), eq("autofix.yaml"), eq("develop"), inputs.capture());
-        assertThat(inputs.getValue())
-                .containsEntry("issue_key", "QASA-92")
-                .containsEntry("base_ref", "develop");
-        // GitHub 제약: inputs 10개 이하
-        assertThat(inputs.getValue()).hasSizeLessThanOrEqualTo(10);
+        JiraAutofixResponse.RunnerJob handed = result.getJob();
+        assertThat(handed.getJiraIssueKey()).isEqualTo("QASA-92");
+        assertThat(handed.getRepoFullName()).isEqualTo(REPO);
+        assertThat(handed.getBaseRef()).isEqualTo("develop");
+        // 브랜치 이름은 서버가 정한다 — 러너가 정하면 실행마다 규칙이 흔들린다
+        assertThat(handed.getBranch()).isEqualTo("autofix/QASA-92");
     }
 
     @Test
-    @DisplayName("콜백 토큰이 없으면 callback_url을 비워 보낸다 — 러너가 회신 단계를 건너뛴다")
-    void emptyCallbackUrlWithoutToken() {
-        JiraAutofixJob job = queuedJob("QASA-92");
-        givenNextQueued(job);
-        when(githubApiClient.hasWorkflow(any(), any(), any())).thenReturn(true);
+    @DisplayName("러너 상한은 서버 회수 시각보다 짧게 내려간다 — 겹쳐 돌면 직렬 보장이 깨진다")
+    void runnerTimeoutStaysBelowSweepDeadline() {
+        properties.setDispatchEnabled(true);
+        properties.setDispatchTimeoutMinutes(30);
+        properties.setRunnerTimeoutMinutes(60);
+        givenNextQueued(queuedJob("QASA-92"));
 
-        service.dispatchNext(BOARD_ID);
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01");
 
-        ArgumentCaptor<Map<String, String>> inputs = ArgumentCaptor.forClass(Map.class);
-        verify(githubApiClient).dispatchWorkflow(any(), any(), any(), any(), inputs.capture());
-        assertThat(inputs.getValue()).containsEntry("callback_url", "");
+        assertThat(result.getJob().getTimeoutMinutes()).isEqualTo(30);
     }
 
-    // ── 콜백 ──────────────────────────────────────
+    @Test
+    @DisplayName("대상 저장소가 없는 작업은 내주지 않고 실패시킨다 — 러너가 어디서 고칠지 모른다")
+    void failsJobWithoutTarget() {
+        properties.setDispatchEnabled(true);
+        JiraAutofixJob job = JiraAutofixJob.builder()
+                .board(board).jiraIssueKey("QASA-1").status(AutofixJobStatus.QUEUED)
+                .queuedAt(LocalDateTime.now()).build();
+        givenNextQueued(job);
+
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01");
+
+        assertThat(result.getJob()).isNull();
+        assertThat(result.getReason()).isEqualTo("NO_TARGET");
+        assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.FAILED);
+    }
+
+    @Test
+    @DisplayName("내줄 게 없어도 러너를 봤다는 사실은 기록한다 — 화면의 '러너 연결됨' 근거")
+    void recordsRunnerEvenWhenNothingToHandOut() {
+        properties.setDispatchEnabled(true);
+        JiraIntegrationConfig config = JiraIntegrationConfig.builder().board(board).build();
+        when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(config));
+        when(jobRepository.findByBoardIdAndStatus(eq(BOARD_ID), eq(AutofixJobStatus.QUEUED), any(Pageable.class)))
+                .thenReturn(List.of());
+
+        service.claim(BOARD_ID, "mac-01");
+
+        assertThat(config.getAutofixRunnerSeenAt()).isNotNull();
+        assertThat(config.getAutofixRunnerName()).isEqualTo("mac-01");
+    }
+
+    @Test
+    @DisplayName("heartbeat는 생존 신고만 한다 — 긴 작업 중에는 claim을 부르지 않는다")
+    void heartbeatTouchesRunnerOnly() {
+        JiraIntegrationConfig config = JiraIntegrationConfig.builder().board(board).build();
+        when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(config));
+
+        service.heartbeat(BOARD_ID, "mac-01");
+
+        assertThat(config.getAutofixRunnerSeenAt()).isNotNull();
+        verify(jobRepository, never()).findByBoardIdAndStatus(any(), any(), any());
+    }
+
+    // ── 결과 회신 ──────────────────────────────────
 
     private JiraAutofixJob dispatchedJob(String key) {
         JiraAutofixJob job = queuedJob(key);
-        job.markDispatched();
+        job.markClaimed("mac-01");
         when(jobRepository.findDispatchedByIssueKey(BOARD_ID, key)).thenReturn(Optional.of(job));
         return job;
     }
@@ -327,27 +383,28 @@ class JiraAutofixQueueServiceTest {
     }
 
     @Test
-    @DisplayName("성공 콜백 — PR URL이 있으면 SUCCEEDED")
+    @DisplayName("PR 회신 — pr_url이 있으면 SUCCEEDED")
     void callbackSuccess() throws Exception {
         JiraAutofixJob job = dispatchedJob("QASA-92");
 
         service.handleCallback(BOARD_ID, payload("""
-                {"issue_key":"QASA-92","status":"success","result":"changed",
-                 "pr_url":"https://github.com/o/r/pull/1","run_url":"https://github.com/o/r/actions/runs/9"}
+                {"issue_key":"QASA-92","result":"pr",
+                 "pr_url":"https://github.com/o/r/pull/1","log_excerpt":"...ok"}
                 """));
 
         assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.SUCCEEDED);
         assertThat(job.getPrUrl()).isEqualTo("https://github.com/o/r/pull/1");
+        assertThat(job.getLogExcerpt()).isEqualTo("...ok");
         assertThat(job.getCompletedAt()).isNotNull();
     }
 
     @Test
-    @DisplayName("성공했다고 해도 PR이 없으면 FAILED — PR이 산출물이다")
+    @DisplayName("PR을 만들었다고 해도 URL이 없으면 FAILED — PR이 산출물이다")
     void callbackSuccessWithoutPrIsFailure() throws Exception {
         JiraAutofixJob job = dispatchedJob("QASA-92");
 
         service.handleCallback(BOARD_ID, payload(
-                "{\"issue_key\":\"QASA-92\",\"status\":\"success\",\"result\":\"changed\",\"pr_url\":\"\"}"));
+                "{\"issue_key\":\"QASA-92\",\"result\":\"pr\",\"pr_url\":\"\"}"));
 
         assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.FAILED);
     }
@@ -358,42 +415,86 @@ class JiraAutofixQueueServiceTest {
         JiraAutofixJob job = dispatchedJob("QASA-92");
 
         service.handleCallback(BOARD_ID, payload(
-                "{\"issue_key\":\"QASA-92\",\"status\":\"success\",\"result\":\"none\"}"));
+                "{\"issue_key\":\"QASA-92\",\"result\":\"no_change\"}"));
 
         assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.NO_CHANGE);
+        assertThat(job.getFailureReason()).isNull();
     }
 
     @Test
-    @DisplayName("러너 실패는 FAILED")
-    void callbackFailure() throws Exception {
+    @DisplayName("실패 회신은 사유를 남긴다 — 실행 로그 링크가 없으므로 이게 유일한 단서다")
+    void callbackFailureKeepsReason() throws Exception {
         JiraAutofixJob job = dispatchedJob("QASA-92");
 
-        service.handleCallback(BOARD_ID, payload(
-                "{\"issue_key\":\"QASA-92\",\"status\":\"failure\",\"result\":\"changed\"}"));
+        service.handleCallback(BOARD_ID, payload("""
+                {"issue_key":"QASA-92","result":"failed",
+                 "failure_reason":"컴파일 실패: CS1002","log_excerpt":"Assets/Foo.cs(12,9): error CS1002"}
+                """));
 
         assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.FAILED);
+        assertThat(job.getFailureReason()).isEqualTo("컴파일 실패: CS1002");
+        assertThat(job.getLogExcerpt()).contains("CS1002");
     }
 
     @Test
-    @DisplayName("중복 콜백은 무시한다 — 이미 종료된 작업을 되돌리지 않는다")
+    @DisplayName("사유 없는 실패도 빈칸으로 남기지 않는다")
+    void callbackFailureFallsBackToDefaultReason() throws Exception {
+        JiraAutofixJob job = dispatchedJob("QASA-92");
+
+        service.handleCallback(BOARD_ID, payload("{\"issue_key\":\"QASA-92\",\"result\":\"failed\"}"));
+
+        assertThat(job.getFailureReason()).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("job_id로 매칭한다 — 같은 이슈를 두 번 돌린 경우에도 어긋나지 않는다")
+    void callbackMatchesByJobId() throws Exception {
+        JiraAutofixJob job = queuedJob("QASA-92");
+        job.markClaimed("mac-01");
+        when(jobRepository.findById("job-9")).thenReturn(Optional.of(job));
+
+        service.handleCallback(BOARD_ID, payload("""
+                {"job_id":"job-9","result":"pr","pr_url":"https://github.com/o/r/pull/1"}
+                """));
+
+        assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.SUCCEEDED);
+        verify(jobRepository, never()).findDispatchedByIssueKey(any(), any());
+    }
+
+    @Test
+    @DisplayName("다른 보드의 job_id로는 끝낼 수 없다")
+    void callbackRejectsOtherBoardsJob() throws Exception {
+        Board other = mock(Board.class);
+        when(other.getId()).thenReturn("board-2");
+        JiraAutofixJob job = JiraAutofixJob.builder()
+                .board(other).jiraIssueKey("QASA-92").status(AutofixJobStatus.DISPATCHED)
+                .queuedAt(LocalDateTime.now()).build();
+        when(jobRepository.findById("job-9")).thenReturn(Optional.of(job));
+
+        service.handleCallback(BOARD_ID, payload("{\"job_id\":\"job-9\",\"result\":\"pr\"}"));
+
+        assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.DISPATCHED);
+    }
+
+    @Test
+    @DisplayName("중복 회신은 무시한다 — 이미 종료된 작업을 되돌리지 않는다")
     void callbackIsIdempotent() throws Exception {
         JiraAutofixJob job = dispatchedJob("QASA-92");
-        String body = """
-                {"issue_key":"QASA-92","status":"success","result":"changed",
-                 "pr_url":"https://github.com/o/r/pull/1"}
-                """;
 
-        service.handleCallback(BOARD_ID, payload(body));
+        service.handleCallback(BOARD_ID, payload("""
+                {"issue_key":"QASA-92","result":"pr","pr_url":"https://github.com/o/r/pull/1"}
+                """));
         // 두 번째는 DISPATCHED 조회에서 안 잡히지만, 잡히더라도 complete()가 막는다
-        assertThat(job.complete(AutofixJobStatus.FAILED, null, null, "덮어쓰기 시도")).isFalse();
+        assertThat(job.complete(AutofixJobStatus.FAILED, null, "덮어쓰기 시도", null)).isFalse();
         assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.SUCCEEDED);
     }
 
     @Test
-    @DisplayName("issue_key 없는 콜백은 조용히 무시한다")
-    void callbackWithoutIssueKey() throws Exception {
-        service.handleCallback(BOARD_ID, payload("{\"status\":\"success\"}"));
+    @DisplayName("식별자 없는 회신은 조용히 무시한다")
+    void callbackWithoutIdentifiers() throws Exception {
+        service.handleCallback(BOARD_ID, payload("{\"result\":\"pr\"}"));
         verify(jobRepository, never()).findDispatchedByIssueKey(any(), any());
+        verify(jobRepository, never()).findById(any());
     }
 
     // ── 토큰 검증 ─────────────────────────────────
@@ -426,7 +527,7 @@ class JiraAutofixQueueServiceTest {
     @DisplayName("콜백이 안 온 작업을 회수한다 — 없으면 큐가 영구히 막힌다")
     void sweepsStaleDispatches() {
         JiraAutofixJob stale = queuedJob("QASA-1");
-        stale.markDispatched();
+        stale.markClaimed("mac-01");
         when(jobRepository.findStaleDispatched(any())).thenReturn(List.of(stale));
 
         assertThat(service.sweepStaleDispatches()).isEqualTo(1);
@@ -442,23 +543,53 @@ class JiraAutofixQueueServiceTest {
         JiraAutofixJob job = queuedJob("QASA-1");
         when(jobRepository.findById("job-1")).thenReturn(Optional.of(job));
 
-        service.cancelJob(BOARD_ID, USER_ID, "job-1");
+        service.cancelJob(BOARD_ID, USER_ID, "job-1", false);
 
         assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.CANCELLED);
         verify(boardService).checkAdminOrAbove(BOARD_ID, USER_ID);
     }
 
     @Test
-    @DisplayName("이미 나간 작업은 취소할 수 없다")
+    @DisplayName("이미 나간 작업은 일반 취소로는 되돌릴 수 없다")
     void cannotCancelDispatchedJob() {
         JiraAutofixJob job = queuedJob("QASA-1");
-        job.markDispatched();
+        job.markClaimed("mac-01");
         when(jobRepository.findById("job-1")).thenReturn(Optional.of(job));
 
-        assertThatThrownBy(() -> service.cancelJob(BOARD_ID, USER_ID, "job-1"))
+        assertThatThrownBy(() -> service.cancelJob(BOARD_ID, USER_ID, "job-1", false))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.JIRA_AUTOFIX_JOB_NOT_CANCELLABLE);
+    }
+
+    @Test
+    @DisplayName("force면 러너가 물고 있는 작업도 회수해 큐를 다시 흐르게 한다")
+    void forceReleasesDispatchedJob() {
+        JiraAutofixJob job = queuedJob("QASA-1");
+        job.markClaimed("mac-01");
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(job));
+
+        service.cancelJob(BOARD_ID, USER_ID, "job-1", true);
+
+        // CANCELLED이므로 같은 이슈를 다시 담을 수 있다(이슈당 1회 가드레일은 CANCELLED를 제외한다)
+        assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.CANCELLED);
+        assertThat(job.getCompletedAt()).isNotNull();
+        assertThat(job.getFailureReason()).contains("회수");
+    }
+
+    @Test
+    @DisplayName("force여도 이미 끝난 작업은 되살리지 않는다")
+    void forceDoesNotTouchTerminalJob() {
+        JiraAutofixJob job = queuedJob("QASA-1");
+        job.markClaimed("mac-01");
+        job.complete(AutofixJobStatus.SUCCEEDED, "https://github.com/o/r/pull/1", null, null);
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(job));
+
+        assertThatThrownBy(() -> service.cancelJob(BOARD_ID, USER_ID, "job-1", true))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.JIRA_AUTOFIX_JOB_NOT_CANCELLABLE);
+        assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.SUCCEEDED);
     }
 
     @Test
@@ -471,7 +602,7 @@ class JiraAutofixQueueServiceTest {
                 .queuedAt(LocalDateTime.now()).build();
         when(jobRepository.findById("job-1")).thenReturn(Optional.of(job));
 
-        assertThatThrownBy(() -> service.cancelJob(BOARD_ID, USER_ID, "job-1"))
+        assertThatThrownBy(() -> service.cancelJob(BOARD_ID, USER_ID, "job-1", false))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.JIRA_AUTOFIX_JOB_NOT_FOUND);

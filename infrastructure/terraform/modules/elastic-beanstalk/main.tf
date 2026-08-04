@@ -685,6 +685,15 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = var.github_app_private_key != "" ? aws_ssm_parameter.github_app_private_key[0].name : ""
   }
 
+  # JIRA 자동수정(Autofix) 파이프라인
+  # 끄면 후보를 큐에 담기만 하고 러너의 claim에 아무것도 내주지 않는다(수동 검증 단계용).
+  # 방치된 작업 회수는 이 값과 무관하게 계속 돈다 — 끄는 순간 물고 있던 작업이 영원히 남으면 안 된다.
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "AUTOFIX_DISPATCH_ENABLED"
+    value     = tostring(var.autofix_dispatch_enabled)
+  }
+
   # Confluence OAuth Integration (주간보고 수집) — JIRA와 별개의 앱
   setting {
     namespace = "aws:elasticbeanstalk:application:environment"

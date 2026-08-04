@@ -30,6 +30,7 @@ import {
   JiraSiteRef,
   JiraAgileBoard,
 } from "../utils/api";
+import { formatDateTime } from "../utils/dateUtils";
 
 interface JiraSettingsPanelProps {
   boardId: string;
@@ -705,7 +706,7 @@ export function JiraSettingsPanel({
         {status.last_synced_at && (
           <div className="text-xs text-slate-500">
             {t("jiraIntegration.lastSynced", "마지막 동기화")}:{" "}
-            {new Date(status.last_synced_at).toLocaleString()}
+            {formatDateTime(status.last_synced_at)}
           </div>
         )}
 

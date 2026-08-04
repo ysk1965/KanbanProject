@@ -63,14 +63,18 @@ public class JiraAutofixController {
         return ResponseEntity.ok(queueService.getJobs(boardId, principal.getUserId(), limit));
     }
 
-    /** 아직 나가지 않은 작업만 취소할 수 있다 — 이미 러너가 물고 있으면 되돌릴 수 없다. */
+    /**
+     * 아직 나가지 않은 작업 취소. {@code force=true}면 러너가 물고 있는 작업도 강제 회수한다 —
+     * 러너가 죽었을 때 그 한 건이 보드의 큐 전체를 막는 것을 사람이 즉시 풀 수 있어야 하기 때문이다.
+     */
     @DeleteMapping("/api/v1/boards/{boardId}/jira/autofix/jobs/{jobId}")
     public ResponseEntity<Map<String, String>> cancelJob(
             @PathVariable String boardId,
             @PathVariable String jobId,
+            @RequestParam(value = "force", defaultValue = "false") boolean force,
             @AuthenticationPrincipal UserPrincipal principal) {
-        queueService.cancelJob(boardId, principal.getUserId(), jobId);
-        return ResponseEntity.ok(Map.of("message", "작업을 취소했습니다"));
+        queueService.cancelJob(boardId, principal.getUserId(), jobId, force);
+        return ResponseEntity.ok(Map.of("message", force ? "진행 중이던 작업을 회수했습니다" : "작업을 취소했습니다"));
     }
 
     /** 콜백 토큰 발급/조회(멱등). 러너 시크릿 BRIDGE_CALLBACK_TOKEN에 넣을 값. */

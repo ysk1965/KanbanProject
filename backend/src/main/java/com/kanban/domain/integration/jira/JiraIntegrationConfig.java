@@ -173,6 +173,18 @@ public class JiraIntegrationConfig {
     @Column(name = "autofix_callback_token", length = 64)
     private String autofixCallbackToken;
 
+    /**
+     * 마지막으로 러너가 말을 걸어온 시각(claim 또는 heartbeat).
+     *
+     * <p>러너가 살아 있는지는 이 값으로만 알 수 있다 — 맥이 잠들거나 데몬이 죽어도 아무도 알려주지
+     * 않고, 큐가 그냥 조용해질 뿐이다. 셋업 체크리스트가 "러너 연결됨"을 표시하는 근거이기도 하다.
+     */
+    @Column(name = "autofix_runner_seen_at")
+    private LocalDateTime autofixRunnerSeenAt;
+
+    @Column(name = "autofix_runner_name", length = 100)
+    private String autofixRunnerName;
+
     // ④ 진행상태
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -328,6 +340,14 @@ public class JiraIntegrationConfig {
     /** 기존 행은 컬럼이 null이라 방어한다. */
     public TestInfraLevel resolveAutofixTestInfra() {
         return this.autofixTestInfra != null ? this.autofixTestInfra : TestInfraLevel.NONE;
+    }
+
+    /** 러너가 말을 걸어왔다 — claim이든 heartbeat든 살아 있다는 신호는 같다. */
+    public void touchAutofixRunner(String runnerName) {
+        this.autofixRunnerSeenAt = LocalDateTime.now(ZoneOffset.UTC);
+        if (runnerName != null && !runnerName.isBlank()) {
+            this.autofixRunnerName = runnerName.length() > 100 ? runnerName.substring(0, 100) : runnerName;
+        }
     }
 
     public void markSynced() {

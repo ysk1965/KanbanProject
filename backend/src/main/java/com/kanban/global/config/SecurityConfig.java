@@ -95,6 +95,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/jira/webhook/**").permitAll()
                         // 자동수정 러너 콜백 (보드별 시크릿 토큰을 서비스에서 검증)
                         .requestMatchers("/api/v1/jira/autofix/callback/**").permitAll()
+                        // 러너(맥)는 BRIDGE 계정이 없다. 보드별 시크릿 토큰으로 컨트롤러에서 검증한다.
+                        .requestMatchers("/api/v1/jira/autofix/runner/**").permitAll()
                         // WebSocket endpoints
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/ws-collab/**").permitAll()

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  BRIDGE 자동수정 러너 — launchd 등록용.
+
+  ~/Library/LaunchAgents/com.bridge.autofix.plist 로 복사하고 아래 경로 3개를 실제 값으로 바꾼다.
+  (USERNAME, 저장소 체크아웃 위치)
+
+    launchctl load  ~/Library/LaunchAgents/com.bridge.autofix.plist
+    launchctl list | grep bridge.autofix          # 살아 있는지
+    launchctl unload ~/Library/LaunchAgents/com.bridge.autofix.plist
+
+  LaunchAgent(사용자 세션)로 등록하는 이유: Unity Editor가 그 세션에서 떠 있고, MCP도 gh 인증도
+  전부 사용자 세션에 묶여 있다. LaunchDaemon(부팅 시 root)으로 올리면 그 어느 것에도 닿지 못한다.
+  따라서 재부팅 후에는 자동 로그인이 켜져 있어야 러너가 살아난다.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.bridge.autofix</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/USERNAME/bridge-autofix/bridge-autofix-runner.sh</string>
+        <string>/Users/USERNAME/bridge-autofix/runner.conf</string>
+    </array>
+
+    <!-- 죽으면 다시 띄운다. 러너가 조용히 사라지면 큐는 그냥 멈춘 것처럼 보인다. -->
+    <key>KeepAlive</key>
+    <true/>
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- 재시작 폭주 방지 (설정 오류로 즉시 죽는 경우) -->
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/USERNAME/bridge-autofix/logs/runner.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/USERNAME/bridge-autofix/logs/runner.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <!-- launchd는 로그인 셸의 PATH를 물려받지 않는다. gh·claude·jq가 있는 경로를 직접 준다.
+             Apple Silicon은 /opt/homebrew/bin, Intel은 /usr/local/bin. -->
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>
