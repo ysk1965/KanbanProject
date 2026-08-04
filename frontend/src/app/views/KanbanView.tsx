@@ -146,11 +146,14 @@ export const KanbanView = memo(function KanbanView({
   const { t } = useTranslation();
 
   // 보드 모드: 블록 보드 ↔ 스프린트 (칸반 탭 내 토글, 보드별 유지)
+  // 스프린트로 단일화하는 중 — 블록 보드는 제거하지 않고 관리자/오너에게만 남겨 둔다.
+  // 블록 추가·이름 변경·삭제·숨김·순서(=JIRA 상태 매핑 키)를 다룰 수 있는 화면이 여기뿐이라
+  // 전면 제거는 이관 후에. 일반 멤버에게는 토글 자체가 보이지 않는다.
   const [boardMode, setBoardModeState] = useState<"blocks" | "sprint">(() => {
-    if (typeof window === "undefined") return "blocks";
+    if (typeof window === "undefined") return "sprint";
     return (
       (localStorage.getItem(`kanbanBoardMode:${boardId}`) as
-        "blocks" | "sprint" | null) ?? "blocks"
+        "blocks" | "sprint" | null) ?? "sprint"
     );
   });
   const setBoardMode = (mode: "blocks" | "sprint") => {
@@ -161,6 +164,9 @@ export const KanbanView = memo(function KanbanView({
       /* noop */
     }
   };
+  // 저장값이 아니라 이 값으로 렌더한다 — 예전에 blocks로 저장해 둔 일반 멤버가
+  // 토글 없는 블록 보드에 갇히지 않도록. 권한이 뒤늦게 도착해도 자동으로 맞춰진다.
+  const effectiveBoardMode = isAdminOrOwner ? boardMode : "sprint";
 
   // @dnd-kit 블록 드래그 상태
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
@@ -348,31 +354,34 @@ export const KanbanView = memo(function KanbanView({
             boardId={boardId}
             canEdit={canEdit}
           />
-          {/* 블록 보드 ↔ 스프린트 모드 토글 */}
-          <div className="shrink-0 flex items-center gap-1 px-4 md:px-6 pt-1 pb-2">
-            <button
-              onClick={() => setBoardMode("blocks")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                boardMode === "blocks"
-                  ? "bg-bridge-accent/15 text-bridge-accent"
-                  : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
-              }`}
-            >
-              블록 보드
-            </button>
-            <button
-              onClick={() => setBoardMode("sprint")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                boardMode === "sprint"
-                  ? "bg-bridge-accent/15 text-bridge-accent"
-                  : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
-              }`}
-            >
-              스프린트
-            </button>
-          </div>
+          {/* 블록 보드 ↔ 스프린트 모드 토글 — 관리자/오너 전용(블록 관리 진입점 보존) */}
+          {isAdminOrOwner && (
+            <div className="shrink-0 flex items-center gap-1 px-4 md:px-6 pt-1 pb-2">
+              <button
+                onClick={() => setBoardMode("sprint")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  effectiveBoardMode === "sprint"
+                    ? "bg-bridge-accent/15 text-bridge-accent"
+                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                }`}
+              >
+                스프린트
+              </button>
+              <button
+                onClick={() => setBoardMode("blocks")}
+                title="블록(상태 열) 관리용 화면입니다. 관리자에게만 보입니다."
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  effectiveBoardMode === "blocks"
+                    ? "bg-bridge-accent/15 text-bridge-accent"
+                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                }`}
+              >
+                블록 보드
+              </button>
+            </div>
+          )}
 
-          {boardMode === "sprint" ? (
+          {effectiveBoardMode === "sprint" ? (
             <div className="flex-1 min-h-0">
               <SprintBoard
                 boardId={boardId}

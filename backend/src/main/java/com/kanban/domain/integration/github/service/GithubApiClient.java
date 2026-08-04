@@ -18,7 +18,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * GitHub REST v3 호출. 필요한 것은 세 가지뿐이다 — 설치 저장소 목록, 커밋 목록, 커밋 상세.
@@ -31,6 +33,9 @@ public class GithubApiClient {
 
     /** 커밋당 AI 매칭에 넘길 파일 경로 상한. 너무 많으면 토큰만 먹고 신호는 앞쪽 몇 개면 충분하다. */
     private static final int MAX_FILES_PER_COMMIT = 12;
+
+    /** workflow_dispatch inputs 개수 상한 — GitHub 제약. */
+    private static final int MAX_DISPATCH_INPUTS = 10;
 
     private final GithubAppProperties properties;
     private final GithubAppTokenService tokenService;
@@ -318,6 +323,81 @@ public class GithubApiClient {
                 // 상태 응답(4xx/5xx)은 재시도 대상이 아니다 — 바로 도메인 예외로 매핑한다.
                 throw mapStatusError(url, e);
             }
+        }
+    }
+
+    // ── 자동수정 러너 트리거 ────────────────────────
+
+    /**
+     * 대상 저장소에 워크플로가 존재하는지. 디스패치 전 셋업 진단용 —
+     * 없는 워크플로를 부르면 404가 나는데, 그게 "권한 부족"인지 "파일 없음"인지 구분해 주기 위함이다.
+     *
+     * @param workflowFile 워크플로 파일명 (예: {@code autofix.yml})
+     */
+    public boolean hasWorkflow(String installationId, String repoFullName, String workflowFile) {
+        String token = tokenService.getInstallationToken(installationId);
+        String url = properties.getApiBaseUrl()
+                + "/repos/" + repoFullName + "/actions/workflows/" + workflowFile;
+        try {
+            get(url, token);
+            return true;
+        } catch (BusinessException e) {
+            if (ErrorCode.GITHUB_REPO_NOT_FOUND.equals(e.getErrorCode())) {
+                return false;
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * {@code workflow_dispatch} 트리거 — 자동수정 러너를 깨우는 유일한 쓰기 경로.
+     *
+     * <p>App에 필요한 권한은 <b>Actions: Read and write</b> 하나뿐이다. 브랜치 생성·커밋·PR은
+     * 러너 안에서 워크플로의 {@code GITHUB_TOKEN}이 처리하므로 App에 contents/pull_requests
+     * 쓰기 권한을 줄 필요가 없다 — 권한을 넓히면 기존 설치자 전원이 재승인해야 하므로 최소로 유지한다.
+     *
+     * <p>GitHub 제약: 워크플로 파일은 기본 브랜치에 있어야 하고, inputs는 최대 10개이며 값은 전부 문자열이다.
+     *
+     * @param ref    워크플로를 실행할 브랜치
+     * @param inputs {@code workflow_dispatch} inputs
+     */
+    public void dispatchWorkflow(String installationId, String repoFullName,
+                                 String workflowFile, String ref, Map<String, String> inputs) {
+        String token = tokenService.getInstallationToken(installationId);
+        String url = properties.getApiBaseUrl()
+                + "/repos/" + repoFullName + "/actions/workflows/" + workflowFile + "/dispatches";
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("ref", ref);
+        if (inputs != null && !inputs.isEmpty()) {
+            if (inputs.size() > MAX_DISPATCH_INPUTS) {
+                throw new BusinessException(ErrorCode.GITHUB_API_ERROR,
+                        "workflow_dispatch inputs는 최대 " + MAX_DISPATCH_INPUTS + "개입니다");
+            }
+            body.put("inputs", inputs);
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setAccept(List.of(MediaType.valueOf("application/vnd.github+json")));
+        headers.set("X-GitHub-Api-Version", "2022-11-28");
+
+        try {
+            // 성공 시 204 No Content — 반환할 본문이 없다
+            restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(body, headers), Void.class);
+            log.info("Dispatched workflow {} on {} (ref={})", workflowFile, repoFullName, ref);
+        } catch (HttpStatusCodeException e) {
+            if (e.getStatusCode().value() == 422) {
+                // 셋업 단계에서 압도적으로 흔한 실패다. 일반 메시지로 뭉개면 원인을 못 찾는다.
+                throw new BusinessException(ErrorCode.GITHUB_API_ERROR,
+                        "워크플로를 실행할 수 없습니다 — ref(" + ref + ")가 없거나 "
+                        + "워크플로의 workflow_dispatch inputs 정의와 맞지 않습니다");
+            }
+            throw mapStatusError(url, e);
+        } catch (RestClientException e) {
+            log.error("workflow_dispatch 호출 실패 repo={}: {}", repoFullName, e.getMessage());
+            throw new BusinessException(ErrorCode.GITHUB_API_ERROR);
         }
     }
 

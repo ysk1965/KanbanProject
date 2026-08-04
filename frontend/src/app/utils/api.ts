@@ -6081,6 +6081,179 @@ export interface JiraImportResult {
   errors: string[];
 }
 
+/** 자동수정 트리아지 판정. 기준은 "고쳐졌음을 자동 검증할 수 있는가". */
+export type JiraAutofixVerdict = "CANDIDATE" | "CONDITIONAL" | "EXCLUDED";
+
+export type JiraAutofixCategory =
+  | "TEXT"
+  | "NULL_GUARD"
+  | "CONSTANT"
+  | "LOGIC"
+  | "UI_STATE"
+  | "ASSET"
+  | "DESIGN_INTENT"
+  | "OTHER";
+
+export interface JiraAutofixCategoryCount {
+  category: JiraAutofixCategory;
+  candidate: number;
+  conditional: number;
+  excluded: number;
+  total: number;
+}
+
+export interface JiraAutofixSummary {
+  total: number;
+  candidate: number;
+  conditional: number;
+  excluded: number;
+  /** 후보 비율(%). 파이프라인 투자 여부를 가르는 숫자. */
+  candidate_ratio: number;
+  categories: JiraAutofixCategoryCount[];
+}
+
+export interface JiraAutofixTriageRun {
+  scanned: number;
+  triaged: number;
+  skipped: number;
+  /** 0이 아니면 summary가 부분 결과다. */
+  failed_batches: number;
+  summary: JiraAutofixSummary;
+}
+
+export interface JiraAutofixItem {
+  jira_issue_key: string;
+  task_id: string | null;
+  verdict: JiraAutofixVerdict;
+  category: JiraAutofixCategory;
+  confidence: number;
+  verification: string | null;
+  reason: string | null;
+  triaged_at: string | null;
+}
+
+/** 연결된 저장소의 자동 검증 기반 수준. 판정 기준을 통째로 바꾼다. */
+export type JiraAutofixTestInfra = "NONE" | "PARTIAL" | "MATURE";
+
+export type JiraAutofixJobStatus =
+  | "QUEUED"
+  | "DISPATCHED"
+  | "SUCCEEDED"
+  | "NO_CHANGE"
+  | "FAILED"
+  | "TIMED_OUT"
+  | "CANCELLED";
+
+/** 큐 준비 상태 — 셋업 4단계 중 무엇이 빠졌는지 화면이 스스로 설명하기 위한 값. */
+export interface JiraAutofixQueueStatus {
+  repo_full_name: string | null;
+  repo_ambiguous: boolean;
+  /** null이면 확인 실패(= "없음"이 아니라 "모름"). */
+  workflow_ready: boolean | null;
+  callback_token_set: boolean;
+  /** false면 큐에 담아도 자동 실행되지 않는다. */
+  scheduler_enabled: boolean;
+  in_flight: number;
+  queued: number;
+  dispatched_today: number;
+  daily_limit: number;
+  min_confidence: number;
+  eligible_candidates: number;
+  total_candidates: number;
+}
+
+export interface JiraAutofixJob {
+  id: string;
+  jira_issue_key: string;
+  status: JiraAutofixJobStatus;
+  confidence: number | null;
+  repo_full_name: string | null;
+  pr_url: string | null;
+  run_url: string | null;
+  failure_reason: string | null;
+  queued_at: string | null;
+  dispatched_at: string | null;
+  completed_at: string | null;
+}
+
+export interface JiraAutofixEnqueueResult {
+  queued: number;
+  skipped_low_confidence: number;
+  skipped_already_queued: number;
+  repo_full_name: string | null;
+  base_ref: string | null;
+}
+
+export const jiraAutofixAPI = {
+  getQueueStatus: async (boardId: string) => {
+    return apiClient.get<JiraAutofixQueueStatus>(
+      `/boards/${boardId}/jira/autofix/queue-status`,
+    );
+  },
+
+  getJobs: async (boardId: string, limit = 50) => {
+    return apiClient.get<JiraAutofixJob[]>(
+      `/boards/${boardId}/jira/autofix/jobs?limit=${limit}`,
+    );
+  },
+
+  /** 트리아지 후보를 큐에 담는다. 임계값·이슈당 1회 가드레일은 서버가 건다. */
+  enqueue: async (boardId: string, limit?: number) => {
+    const query = limit != null ? `?limit=${limit}` : "";
+    return apiClient.post<JiraAutofixEnqueueResult>(
+      `/boards/${boardId}/jira/autofix/queue${query}`,
+    );
+  },
+
+  /** 대기 중인 작업만 취소 가능. 이미 러너로 넘어간 건 되돌릴 수 없다. */
+  cancelJob: async (boardId: string, jobId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/jira/autofix/jobs/${jobId}`,
+    );
+  },
+
+  /** 러너 시크릿 BRIDGE_CALLBACK_TOKEN에 넣을 값을 발급/조회(멱등). */
+  issueCallbackToken: async (boardId: string) => {
+    return apiClient.post<{ callback_token: string }>(
+      `/boards/${boardId}/jira/autofix/callback-token`,
+    );
+  },
+
+  getTestInfra: async (boardId: string) => {
+    return apiClient.get<{ test_infra: JiraAutofixTestInfra }>(
+      `/boards/${boardId}/jira/autofix/test-infra`,
+    );
+  },
+
+  /** 값이 바뀌면 서버가 기존 판정을 비운다 — 다른 기준으로 낸 판정은 무의미하다. */
+  updateTestInfra: async (boardId: string, level: JiraAutofixTestInfra) => {
+    return apiClient.put<{ test_infra: JiraAutofixTestInfra }>(
+      `/boards/${boardId}/jira/autofix/test-infra`,
+      { test_infra: level },
+    );
+  },
+
+  /** 트리아지 실행 (관리자 이상). force=true면 안 바뀐 이슈도 재판정. */
+  runTriage: async (boardId: string, force = false) => {
+    return apiClient.post<JiraAutofixTriageRun>(
+      `/boards/${boardId}/jira/autofix/triage?force=${force}`,
+    );
+  },
+
+  getSummary: async (boardId: string) => {
+    return apiClient.get<JiraAutofixSummary>(
+      `/boards/${boardId}/jira/autofix/summary`,
+    );
+  },
+
+  getItems: async (boardId: string, verdict?: JiraAutofixVerdict) => {
+    const query = verdict ? `?verdict=${verdict}` : "";
+    return apiClient.get<JiraAutofixItem[]>(
+      `/boards/${boardId}/jira/autofix/items${query}`,
+    );
+  },
+};
+
 export const jiraAPI = {
   getStatus: async (boardId: string) => {
     return apiClient.get<JiraStatus | null>(`/boards/${boardId}/jira/status`);

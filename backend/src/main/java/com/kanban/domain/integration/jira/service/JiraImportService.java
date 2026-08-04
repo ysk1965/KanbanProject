@@ -42,6 +42,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -176,6 +177,7 @@ public class JiraImportService {
         // 댓글 대조 대상 — JIRA 쪽이 갱신됐거나 새로 만든 이슈. 코멘트 추가/삭제도 issue.updated를 올리므로
         // 이 조건이면 웹훅을 놓친 댓글 변경까지 함께 잡힌다.
         List<String> commentReconcileKeys = new ArrayList<>();
+        boolean commentSyncOn = config.isCommentSyncEnabled();
 
         // ── 업서트: 이미 연동된 이슈는 갱신, 없으면(또는 삭제 후) 생성 ──
         for (ParsedJiraIssue issue : importable) {
@@ -184,14 +186,24 @@ public class JiraImportService {
                 // 대상 Task가 살아있음 → JIRA 최신값으로 갱신(제목/설명/상태→블록)
                 Task existingTask = taskRepository.findById(taskLink.getTargetId()).orElse(null);
                 if (existingTask != null) {
-                    if (taskLink.isStaleAgainst(issue.updated())) commentReconcileKeys.add(issue.key());
+                    boolean stale = taskLink.isStaleAgainst(issue.updated());
+                    boolean batched = stale && commentSyncOn
+                        && commentReconcileKeys.size() < MAX_COMMENT_RECONCILES;
+                    if (batched) commentReconcileKeys.add(issue.key());
+
+                    // 대조 배치에서 밀린 이슈는 워터마크를 올리지 않는다 — 올려버리면 다음 주기에 stale이
+                    // 아니게 되어 그 이슈의 댓글은 영영 대조되지 않는다("다음 주기에 이어서 처리"가 성립하려면
+                    // stale 상태로 남아 있어야 한다). Task 본문 갱신은 이미 끝났으므로 재처리해도 멱등.
+                    boolean hold = commentSyncOn && stale && !batched;
+
                     // 삭제 표시된 키가 다시 조회됨(복구/재생성) → 연동 복구
                     if (taskLink.isJiraDeleted()) {
                         taskLink.clearJiraDeleted();
                         log.info("JIRA reconcile board {}: {} 재등장 → 연동 복구", boardId, issue.key());
                     }
                     updateTaskFromIssue(existingTask, board, importer, issue, blockMap, mirror, statusToBlock, taskBlock, ctx, taskLink);
-                    taskLink.touchImport(JiraLinkTargetType.TASK, existingTask.getId(), issue.updated());
+                    taskLink.touchImport(JiraLinkTargetType.TASK, existingTask.getId(),
+                        hold ? taskLink.getJiraUpdatedAt() : issue.updated());
                     c.updated++;
                     continue;
                 }
@@ -200,8 +212,11 @@ public class JiraImportService {
             // 신규 생성 (또는 삭제 후 재생성)
             Feature feature = resolveProjectFeature(board, importer, issue, projectKeyToFeatureId, c);
             Task task = createTask(board, importer, feature, issue, blockMap, mirror, statusToBlock, taskBlock, currentMilestone);
-            saveLink(board, issue, JiraLinkTargetType.TASK, task.getId());
-            commentReconcileKeys.add(issue.key());
+            // 신규 이슈도 대조 배치 상한을 함께 쓴다. 밀렸으면 워터마크를 비워 다음 주기에 stale로 잡히게 한다.
+            boolean batchedNew = commentSyncOn && commentReconcileKeys.size() < MAX_COMMENT_RECONCILES;
+            if (batchedNew) commentReconcileKeys.add(issue.key());
+            saveLink(board, issue, JiraLinkTargetType.TASK, task.getId(),
+                commentSyncOn && !batchedNew ? null : issue.updated());
             c.tasks++;
             c.created++;
 
@@ -234,7 +249,7 @@ public class JiraImportService {
         int deleted = reconcileDeletedInJira(boardId, ctx, taskLinkByKey, importable);
 
         // 댓글 대조 (웹훅 유실 백업). 링크 원장이 에코를 막으므로 몇 번을 돌려도 중복 생성되지 않는다.
-        reconcileComments(boardId, config, commentReconcileKeys);
+        reconcileComments(boardId, commentReconcileKeys);
 
         config.markSynced();
         log.info("JIRA import to board {}: created={} updated={} orphans={} jiraDeleted={} (F{} T{} CL{} C{})",
@@ -315,22 +330,15 @@ public class JiraImportService {
      * 댓글 대조(웹훅 백업) — JIRA가 갱신된 이슈만 코멘트 목록을 확인해 누락된 생성/삭제를 보충한다.
      *
      * <p>이슈당 코멘트 조회 1콜이 붙으므로 한 주기 처리량을 {@link #MAX_COMMENT_RECONCILES}로 묶는다.
-     * 남은 이슈는 다음 주기에 이어서 처리된다 — 웹훅이 정상이면 애초에 대부분 no-op이다.
+     * 상한은 호출 측 루프에서 걸고, 밀린 이슈는 워터마크를 올리지 않아 다음 주기에 다시 stale로 잡힌다.
      */
-    private void reconcileComments(String boardId, JiraIntegrationConfig config, List<String> issueKeys) {
-        if (!config.isCommentSyncEnabled() || issueKeys.isEmpty()) return;
-
-        int limit = Math.min(issueKeys.size(), MAX_COMMENT_RECONCILES);
-        for (String key : issueKeys.subList(0, limit)) {
+    private void reconcileComments(String boardId, List<String> issueKeys) {
+        for (String key : issueKeys) {
             try {
                 commentSyncService.reconcileIssue(boardId, key);
             } catch (Exception e) {
                 log.warn("JIRA comment reconcile failed for {}: {}", key, e.getMessage());
             }
-        }
-        if (issueKeys.size() > limit) {
-            log.info("JIRA comment reconcile board {}: {}건 남음 — 다음 주기에 이어서 처리",
-                boardId, issueKeys.size() - limit);
         }
     }
 
@@ -803,14 +811,16 @@ public class JiraImportService {
         }
     }
 
-    private void saveLink(Board board, ParsedJiraIssue issue, JiraLinkTargetType type, String targetId) {
+    /** {@code jiraUpdatedAt}은 호출 측이 정한다 — 댓글 대조가 밀린 이슈는 null로 남겨 다음 주기에 다시 잡는다. */
+    private void saveLink(Board board, ParsedJiraIssue issue, JiraLinkTargetType type, String targetId,
+                          LocalDateTime jiraUpdatedAt) {
         issueLinkRepository.save(JiraIssueLink.builder()
             .board(board)
             .jiraIssueKey(issue.key())
             .jiraIssueId(issue.id())
             .targetType(type)
             .targetId(targetId)
-            .jiraUpdatedAt(issue.updated())
+            .jiraUpdatedAt(jiraUpdatedAt)
             .lastJiraStatusId(issue.statusId())
             .build());
     }

@@ -234,6 +234,14 @@ public enum ErrorCode {
     JIRA_ISSUE_NOT_FOUND(HttpStatus.NOT_FOUND, "JI007", "JIRA 이슈를 찾을 수 없습니다"),
     JIRA_TRANSITION_NOT_AVAILABLE(HttpStatus.UNPROCESSABLE_ENTITY, "JI008", "해당 이슈에 사용 가능한 완료 전환이 없습니다"),
     JIRA_IMPORT_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "JI009", "JIRA 이슈 가져오기에 실패했습니다"),
+    JIRA_AUTOFIX_NO_LINKED_ISSUES(HttpStatus.BAD_REQUEST, "JI010", "트리아지할 JIRA 연동 이슈가 없습니다. 먼저 이슈를 가져와주세요"),
+    JIRA_AUTOFIX_TRIAGE_FAILED(HttpStatus.BAD_GATEWAY, "JI011", "이슈 트리아지에 실패했습니다 — 다시 시도해주세요"),
+    JIRA_AUTOFIX_INVALID_VERDICT(HttpStatus.BAD_REQUEST, "JI012", "판정 값이 올바르지 않습니다 (CANDIDATE/CONDITIONAL/EXCLUDED)"),
+    JIRA_AUTOFIX_NO_REPO(HttpStatus.BAD_REQUEST, "JI013", "보드에 연결된 GitHub 저장소가 없습니다. 먼저 저장소를 연결해주세요"),
+    JIRA_AUTOFIX_AMBIGUOUS_REPO(HttpStatus.BAD_REQUEST, "JI014", "연결된 저장소가 여러 개입니다. 자동수정 대상 저장소를 하나만 남겨주세요"),
+    JIRA_AUTOFIX_WORKFLOW_NOT_FOUND(HttpStatus.BAD_REQUEST, "JI015", "대상 저장소의 기본 브랜치에 자동수정 워크플로가 없습니다"),
+    JIRA_AUTOFIX_JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "JI016", "자동수정 작업을 찾을 수 없습니다"),
+    JIRA_AUTOFIX_JOB_NOT_CANCELLABLE(HttpStatus.CONFLICT, "JI017", "이미 러너로 넘어간 작업은 취소할 수 없습니다"),
 
     // System
     ANNOUNCEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "SY001", "공지사항을 찾을 수 없습니다"),

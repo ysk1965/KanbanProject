@@ -93,6 +93,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/confluence/oauth/callback").permitAll()
                         // JIRA webhook receiver (per-board secret token verified in service)
                         .requestMatchers("/api/v1/jira/webhook/**").permitAll()
+                        // 자동수정 러너 콜백 (보드별 시크릿 토큰을 서비스에서 검증)
+                        .requestMatchers("/api/v1/jira/autofix/callback/**").permitAll()
                         // WebSocket endpoints
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/ws-collab/**").permitAll()
