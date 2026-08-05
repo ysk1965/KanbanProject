@@ -25,8 +25,10 @@ import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.service.FileUploadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -76,6 +78,7 @@ public class JiraAutofixQueueService {
     private final JiraApiClient jiraApiClient;
     private final JiraOAuthService oauthService;
     private final JiraAutofixSlackPublisher slackPublisher;
+    private final ApplicationEventPublisher eventPublisher;
 
     /** 러너가 보낸 로그 꼬리 상한. 실패 원인을 보기엔 충분하고, 행이 비대해지진 않는 크기. */
     private static final int MAX_LOG_EXCERPT = 8000;
@@ -157,7 +160,7 @@ public class JiraAutofixQueueService {
             }
 
             JiraAutofixJob job = JiraAutofixJob.forJiraIssue(
-                    board, triage.getJiraIssueKey(), triage.getTaskId(), confidence);
+                    board, triage.getJiraIssueKey(), triage.getTaskId(), confidence, userId);
             job.assignTarget(target.installationId(), target.repoFullName(), target.baseRef());
             toSave.add(job);
             queued++;
@@ -720,6 +723,38 @@ public class JiraAutofixQueueService {
                     boardId, job.getJobKey(), result, prUrl);
         }
 
+        /*
+         * 통지는 결과가 커밋된 <b>뒤에</b> 한다. 같은 트랜잭션에 두면 통지 하나가 결과를 통째로
+         * 날린다 — 카드 댓글 INSERT가 커밋 시점 flush에서 터진 적이 있고(작성자 없는 댓글),
+         * 그 예외는 여기 try/catch 바깥이라 삼켜지지도 않았다. 롤백되는 것은 댓글이 아니라
+         * {@code job.complete()}다: PR은 실제로 열렸는데 작업은 DISPATCHED로 남아 나중에
+         * 시간 초과로 회수되고, 슬랙에는 이미 성공 메시지가 올라가 있고, 러너는 500을 받아
+         * 같은 회신을 계속 재전송한다.
+         *
+         * 결과 확정과 통지는 성패를 공유할 이유가 없다. 확정은 여기서 끝내고, 통지는
+         * {@link JiraAutofixResultListener}가 커밋 뒤 자기 트랜잭션에서 처리한다.
+         */
+        eventPublisher.publishEvent(
+                new JiraAutofixResultSettledEvent(boardId, job.getId(), result, corrected));
+    }
+
+    /**
+     * 확정된 결과를 사람이 보는 자리(JIRA·카드·슬랙)에 남긴다. 커밋 이후에만 불린다 —
+     * 진입점은 {@link JiraAutofixResultListener}뿐이다.
+     *
+     * <p>{@code REQUIRES_NEW}가 필수다. 커밋 후 콜백은 이미 끝난 트랜잭션에 묶여 있어,
+     * 새 트랜잭션을 열지 않으면 여기서 저장한 댓글이 커밋되지 않는다.
+     *
+     * <p>작업을 다시 읽는다 — 앞 트랜잭션의 엔티티는 준영속이라 지연 로딩이 터진다.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void publishResult(String boardId, String jobId, AutofixJobStatus result, boolean corrected) {
+        JiraAutofixJob job = jobRepository.findById(jobId).orElse(null);
+        if (job == null) {
+            log.warn("Autofix: 통지할 작업이 사라졌다 job={}", jobId);
+            return;
+        }
+
         // 출처에 따라 결과가 돌아가는 자리가 다르다. MANUAL은 JIRA 이슈가 아예 없다.
         if (job.getJobKind().isManual()) {
             postTaskComment(job, result);
@@ -735,7 +770,7 @@ public class JiraAutofixQueueService {
              * 보고가 있을 때만 단다. 결과 통보 자체를 카드에도 복제하면 성공·실패마다 댓글이
              * 두 벌씩 쌓여 카드가 알림판이 된다 — 여기서 옮길 값어치가 있는 것은 보고뿐이다.
              */
-            if (AutofixSuggestionExtractor.extract(excerpt) != null) {
+            if (AutofixSuggestionExtractor.extract(job.getLogExcerpt()) != null) {
                 postTaskComment(job, result);
             }
         }
@@ -858,6 +893,19 @@ public class JiraAutofixQueueService {
 
             User author = job.getCreatedBy() != null
                     ? userRepository.findById(job.getCreatedBy()).orElse(null) : null;
+
+            /*
+             * 작성자를 못 찾으면 댓글을 접는다. 스키마가 {@code author_id}를 비워 두는 것을
+             * 허용하더라도(계정 삭제 경로가 그렇다) 화면이 버티지 못한다 — 댓글 목록이
+             * {@code comment.author.id}를 그대로 읽어서, 작성자 없는 한 줄이 그 카드의 댓글
+             * 패널 전체를 무너뜨린다. 결과 자체는 도크·슬랙에 남아 있으므로 여기서 잃는 것은
+             * 카드에 남는 사본 하나뿐이다.
+             */
+            if (author == null) {
+                log.warn("Autofix: 결과 댓글 생략 — 작성자 미확인 job={} createdBy={}",
+                        job.getJobKey(), job.getCreatedBy());
+                return;
+            }
 
             commentRepository.save(Comment.builder()
                     .task(task)
