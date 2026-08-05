@@ -27,6 +27,21 @@ public interface JiraAutofixTriageRepository extends JpaRepository<JiraAutofixTr
         + "WHERE t.board.id = :boardId GROUP BY t.verdict, t.category")
     List<Object[]> countByVerdictAndCategory(@Param("boardId") String boardId);
 
+    /**
+     * 유형 × 실제 결과 집계 — [category, jobStatus, count].
+     *
+     * <p>판정이 맞았는지는 판정 자체로는 알 수 없고 그 뒤에 벌어진 일로만 알 수 있다. 이슈키로
+     * 작업과 이어 붙여, 어떤 유형이 실제로 PR까지 갔고 어떤 유형이 헛돌았는지를 센다.
+     *
+     * <p>종료된 작업만 센다 — 아직 도는 건은 결과가 아니다.
+     */
+    @Query("SELECT t.category, j.status, COUNT(j) FROM JiraAutofixTriage t, JiraAutofixJob j "
+        + "WHERE t.board.id = :boardId AND j.board.id = :boardId "
+        + "AND t.jiraIssueKey = j.jiraIssueKey "
+        + "AND j.status IN ('SUCCEEDED', 'NO_CHANGE', 'FAILED') "
+        + "GROUP BY t.category, j.status")
+    List<Object[]> countOutcomesByCategory(@Param("boardId") String boardId);
+
     @Modifying
     @Query("DELETE FROM JiraAutofixTriage t WHERE t.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
