@@ -5069,7 +5069,10 @@
     "reasonMine": "Assigned to you",
     "reasonRecent": "Attached here recently",
     "reasonSameMilestone": "Same milestone",
-    "reasonRelated": "Closely related"
+    "reasonRelated": "Closely related",
+    "oldestDays": "Oldest {{count}}d",
+    "staleDays": "{{count}}d",
+    "staleOldest": "{{count}}d · oldest"
   },
   "boardDashboard": {
     "scopePrefix": "Dashboard",
@@ -5143,6 +5146,7 @@
     "railDropHint": "Drop here to clear its dates and send it back to a card",
     "railToBacklog": "Backlog",
     "unscheduleFailed": "Could not clear the schedule.",
-    "unscheduledNotice": "“{{title}}” schedule cleared · assignee and checklist are unchanged"
+    "unscheduledNotice": "“{{title}}” schedule cleared · assignee and checklist are unchanged",
+    "railToBacklogAria": "Move to backlog"
   }
 }

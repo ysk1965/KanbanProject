@@ -5091,7 +5091,10 @@
     "reasonMine": "내가 맡은 일",
     "reasonRecent": "최근에 붙인 곳",
     "reasonSameMilestone": "같은 마일스톤",
-    "reasonRelated": "관련도 높음"
+    "reasonRelated": "관련도 높음",
+    "oldestDays": "가장 오래된 것 {{count}}일",
+    "staleDays": "{{count}}일",
+    "staleOldest": "{{count}}일 · 가장 오래됨"
   },
   "boardDashboard": {
     "scopePrefix": "대시보드",
@@ -5165,6 +5168,7 @@
     "railDropHint": "여기에 놓으면 일정 없이 카드로 돌아옵니다",
     "railToBacklog": "백로그",
     "unscheduleFailed": "일정을 해제하지 못했습니다.",
-    "unscheduledNotice": "「{{title}}」 일정 해제됨 · 담당자와 체크리스트는 그대로입니다"
+    "unscheduledNotice": "「{{title}}」 일정 해제됨 · 담당자와 체크리스트는 그대로입니다",
+    "railToBacklogAria": "백로그로 내리기"
   }
 }

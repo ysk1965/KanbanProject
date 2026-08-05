@@ -1,0 +1,993 @@
+<title>백로그 노출 개선안 — 보드 대시보드 B안</title>
+<style>
+  :root{
+    --dark:#191f2d; --obsidian:#151B28; --surface:#1e2a42; --edge:#384d6e;
+    --accent:#6366F1; --accent-soft:#a5b4fc; --secondary:#2DD4BF;
+    --emerald:#10b981; --amber:#f59e0b; --rose:#f43f5e; --violet:#8b5cf6;
+    --fg:#e9ecf3; --fg-2:#b6bdcc; --muted:#94a3b8; --muted-2:#64748b; --muted-3:#4b5566;
+    --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.05);
+    --card:#151B28; --ground:#131824; --hatch:rgba(255,255,255,.045);
+    --shadow:0 18px 50px rgba(0,0,0,.45);
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --dark:#fffcf8; --obsidian:#efe6d8; --surface:#efe3d2; --edge:#E4DFDA; --secondary:#14B8A6;
+      --fg:#3D2E1F; --fg-2:#5c4a37; --muted:#7b6a58; --muted-2:#94836f; --muted-3:#b4a692;
+      --line:rgba(61,46,31,.10); --line-2:rgba(61,46,31,.06);
+      --card:#efe6d8; --ground:#f7f1e8; --hatch:rgba(61,46,31,.05);
+      --shadow:0 18px 50px rgba(61,46,31,.12);
+    }
+  }
+  :root[data-theme="dark"]{
+    --dark:#191f2d; --obsidian:#151B28; --surface:#1e2a42; --edge:#384d6e; --secondary:#2DD4BF;
+    --fg:#e9ecf3; --fg-2:#b6bdcc; --muted:#94a3b8; --muted-2:#64748b; --muted-3:#4b5566;
+    --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.05);
+    --card:#151B28; --ground:#131824; --hatch:rgba(255,255,255,.045);
+    --shadow:0 18px 50px rgba(0,0,0,.45);
+  }
+  :root[data-theme="light"]{
+    --dark:#fffcf8; --obsidian:#efe6d8; --surface:#efe3d2; --edge:#E4DFDA; --secondary:#14B8A6;
+    --fg:#3D2E1F; --fg-2:#5c4a37; --muted:#7b6a58; --muted-2:#94836f; --muted-3:#b4a692;
+    --line:rgba(61,46,31,.10); --line-2:rgba(61,46,31,.06);
+    --card:#efe6d8; --ground:#f7f1e8; --hatch:rgba(61,46,31,.05);
+    --shadow:0 18px 50px rgba(61,46,31,.12);
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--dark); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo","Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+    font-size:14px; line-height:1.65; letter-spacing:-.005em; padding:0 20px 96px;
+  }
+  .wrap{max-width:1080px;margin:0 auto}
+  code,.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums}
+  ::selection{background:rgba(99,102,241,.3)}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+  header.top{padding:56px 0 0}
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-2);margin:0 0 14px}
+  h1{font-size:clamp(26px,3.4vw,38px);font-weight:700;letter-spacing:-.03em;line-height:1.2;margin:0 0 12px;text-wrap:balance}
+  .lede{font-size:16px;color:var(--fg-2);margin:0;max-width:64ch;line-height:1.7}
+  .lede b{color:var(--fg);font-weight:700}
+  .rule{height:1px;background:var(--line);border:0;margin:44px 0}
+  h2{font-size:20px;font-weight:700;letter-spacing:-.02em;margin:0 0 6px;text-wrap:balance}
+  .sect-note{font-size:13.5px;color:var(--muted);margin:0 0 24px;max-width:66ch}
+  p{margin:0 0 10px}
+
+  /* premise */
+  .premise{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+  .pm{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+  .pm h3{margin:0 0 7px;font-size:14px;font-weight:700}
+  .pm p{margin:0;font-size:13px;color:var(--fg-2);line-height:1.65}
+  .pm code{background:var(--hatch);padding:1.5px 6px;border-radius:5px;font-size:11.5px;color:var(--muted)}
+  .pm.on{border-color:rgba(16,185,129,.32);background:linear-gradient(135deg,rgba(16,185,129,.08),transparent)}
+  .pm.off{border-color:rgba(244,63,94,.3);background:linear-gradient(135deg,rgba(244,63,94,.07),transparent)}
+  .pm .tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin:0 0 6px}
+  .pm.on .tag{color:var(--emerald)}
+  .pm.off .tag{color:#fb7185}
+
+  /* tabs */
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;padding:5px;background:var(--card);border:1px solid var(--line);border-radius:14px}
+  .tab{appearance:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font:inherit;font-size:13px;font-weight:700;
+       padding:8px 14px;border-radius:10px;transition:background .16s,color .16s;display:flex;align-items:center;gap:7px}
+  .tab:hover{color:var(--fg);background:var(--hatch)}
+  .tab[aria-selected="true"]{background:var(--accent);color:#fff}
+  .tab[aria-selected="true"] .tab-k{color:rgba(255,255,255,.72)}
+  .tab-k{font-size:11px;font-weight:700;color:var(--muted-3);letter-spacing:.06em}
+
+  .frame{background:var(--ground);border:1px solid var(--line);border-radius:18px;padding:12px;box-shadow:var(--shadow);overflow:hidden}
+  .stage{position:relative;width:100%;overflow:hidden;border-radius:10px}
+  .canvas{width:1240px;height:760px;transform-origin:top left;transform:scale(var(--s,1));background:var(--dark);
+          border-radius:10px;overflow:hidden;position:relative;display:flex;flex-direction:column;font-size:12px;color:var(--fg)}
+  .canvas[hidden]{display:none}
+  .frame-cap{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;padding:12px 4px 2px;font-size:12.5px;color:var(--muted)}
+  .frame-cap b{color:var(--fg);font-size:13px;font-weight:700}
+
+  /* mock chrome */
+  .m-top{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--line);flex:none;background:var(--obsidian)}
+  .m-back{width:16px;height:16px;border-left:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(45deg) scale(.6)}
+  .m-title{font-size:14px;font-weight:700}
+  .m-nav{display:flex;gap:3px;margin:0 auto;background:var(--hatch);padding:3px;border-radius:9px}
+  .m-nav span{padding:4px 11px;border-radius:7px;color:var(--muted);font-weight:500}
+  .m-nav span.on{background:var(--accent);color:#fff;font-weight:700}
+  .m-right{display:flex;gap:9px;align-items:center;color:var(--muted-2)}
+  .m-dot{width:16px;height:16px;border-radius:5px;background:var(--hatch)}
+  .m-sub{display:flex;justify-content:center;gap:3px;padding:9px 0;flex:none;background:var(--dark)}
+  .m-sub span{padding:4px 12px;border-radius:8px;color:var(--muted);font-weight:500}
+  .m-sub span.on{background:var(--surface);color:var(--fg);font-weight:700}
+  .m-scope{display:flex;align-items:center;gap:8px;padding:0 16px 10px;flex:none}
+  .chipme{display:flex;align-items:center;gap:7px;background:var(--hatch);border:1px solid var(--line);border-radius:999px;padding:3px 12px 3px 4px}
+  .ava{width:20px;height:20px;border-radius:999px;background:var(--emerald);color:#08261c;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700}
+  .scope-t{color:var(--muted);font-weight:500}
+  .scope-t b{color:var(--fg);font-weight:700}
+
+  .mc{background:var(--obsidian);border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+  .mc-h{display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:1px solid var(--line);flex:none}
+  .mc-h h4{margin:0;font-size:12.5px;font-weight:700}
+  .mc-h .lnk{margin-left:auto;color:var(--muted-2);font-weight:500;font-size:11.5px}
+  .bdg{font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;font-variant-numeric:tabular-nums}
+  .bdg.teal{background:rgba(45,212,191,.15);color:var(--secondary)}
+  .bdg.rose{background:rgba(244,63,94,.15);color:#fb7185}
+  .bdg.ind{background:rgba(99,102,241,.15);color:var(--accent-soft)}
+  .bdg.gray{background:var(--hatch);color:var(--muted)}
+  .bdg.amber{background:rgba(245,158,11,.15);color:#fbbf24}
+
+  .tg{flex:1;display:flex;min-height:0;position:relative;overflow:hidden}
+  .tg-ax{width:38px;flex:none;border-right:1px solid var(--line-2);display:flex;flex-direction:column}
+  .tg-ax i{flex:1;font-style:normal;font-size:10px;color:var(--muted-3);padding:2px 5px 0;text-align:right;border-bottom:1px solid var(--line-2);font-variant-numeric:tabular-nums}
+  .tg-body{flex:1;position:relative;display:flex;flex-direction:column}
+  .tg-body i{flex:1;border-bottom:1px solid var(--line-2)}
+  .tblk{position:absolute;left:6px;right:6px;border-radius:7px;padding:5px 7px;border-left:2.5px solid;overflow:hidden}
+  .tblk b{display:block;font-size:11px;font-weight:500;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tblk s{display:block;text-decoration:none;font-size:10px;color:var(--muted-2);margin-top:1px}
+  .k-teal{background:rgba(45,212,191,.16);border-color:var(--secondary)}
+  .k-em{background:rgba(16,185,129,.14);border-color:var(--emerald)}
+  .k-ind{background:rgba(99,102,241,.16);border-color:var(--accent)}
+  .k-am{background:rgba(245,158,11,.14);border-color:var(--amber)}
+  .nowline{position:absolute;left:0;right:0;height:1px;background:var(--rose)}
+  .nowline::before{content:"";position:absolute;left:0;top:-2.5px;width:6px;height:6px;border-radius:999px;background:var(--rose)}
+
+  .gt-days{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--line);flex:none}
+  .gt-days b{font-size:10.5px;font-weight:500;color:var(--muted-2);text-align:center;padding:5px 0;border-right:1px solid var(--line-2);font-variant-numeric:tabular-nums}
+  .gt-days b.today{color:var(--accent-soft);font-weight:700;background:rgba(99,102,241,.08)}
+  .gt-lane{position:relative;border-bottom:1px solid var(--line-2);display:grid;grid-template-columns:repeat(7,1fr)}
+  .gt-lane>i{border-right:1px solid var(--line-2)}
+  .gbar{position:absolute;height:16px;border-radius:5px;font-size:10px;font-weight:500;padding:0 7px;display:flex;align-items:center;overflow:hidden;white-space:nowrap;color:var(--fg)}
+
+  /* queue cards */
+  .ql{flex:1;overflow:hidden;padding:7px;display:flex;flex-direction:column;gap:6px}
+  .qi{background:var(--dark);border:1px solid var(--line);border-radius:10px;padding:7px 9px;display:flex;flex-direction:column;gap:3px}
+  .qi .r1{display:flex;align-items:center;gap:5px;min-width:0}
+  .grip{width:8px;height:12px;flex:none;background:radial-gradient(circle,var(--muted-3) 1px,transparent 1.2px) 0 0/4px 4px}
+  .ms{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;padding:1px 8px 1px 6px;border-radius:999px;max-width:100%}
+  .ms em{width:6px;height:6px;border-radius:1.5px;flex:none}
+  .ms span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ms.mstone{background:rgba(139,92,246,.15);color:#c4b5fd}
+  .ms.mstone em{background:#8b5cf6}
+  .ms.blog{background:rgba(99,102,241,.15);color:var(--accent-soft)}
+  .ms.blog em{background:#6366F1}
+  .qt{font-size:11.5px;font-weight:500;line-height:1.4;color:var(--fg);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .qm{font-size:10.5px;color:var(--muted-2);display:flex;align-items:center;gap:6px;min-width:0}
+  .qm span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .qact{display:flex;gap:4px;margin-top:2px}
+  .qact u{text-decoration:none;font-size:10.5px;font-weight:700;color:var(--muted-2);background:var(--hatch);padding:2px 7px;border-radius:6px}
+
+  .segs{display:flex;gap:4px}
+  .seg{font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;color:var(--muted);background:var(--hatch);display:flex;align-items:center;gap:5px}
+  .seg.on{background:rgba(99,102,241,.16);color:var(--accent-soft)}
+  .seg em{width:5px;height:5px;border-radius:999px;background:currentColor;font-style:normal}
+
+  /* ── new: row-based queue with sections ── */
+  .qlist{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+  .qlist>*{flex:none}
+  .sec-h{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--hatch);border-bottom:1px solid var(--line-2);flex:none}
+  .sec-h b{font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-2)}
+  .sec-h .hint{margin-left:auto;font-size:10.5px;color:var(--muted-3)}
+  .qrow{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--line-2);min-width:0}
+  .qrow .t{flex:1;min-width:0;font-size:11.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .qrow .sub{font-size:10.5px;color:var(--muted-2);flex:none;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .qrow .acts{display:flex;gap:4px;flex:none}
+  .qrow .acts u{text-decoration:none;font-size:10.5px;font-weight:700;color:var(--muted-2);background:var(--hatch);padding:1px 7px;border-radius:6px}
+  .qrow.blog{background:rgba(99,102,241,.05)}
+  .qinput{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--line-2)}
+  .qinput .box{flex:1;background:var(--hatch);border:1px dashed var(--line);border-radius:8px;padding:5px 9px;font-size:11px;color:var(--muted-3)}
+  .qinput .kbd{font-size:10px;font-weight:700;color:var(--muted-3);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+
+  /* ── new: dock ── */
+  .dock{flex:none;display:flex;align-items:center;gap:9px;padding:8px 12px;border-top:1px solid var(--line);background:linear-gradient(180deg,transparent,rgba(99,102,241,.06))}
+  .dock .flag{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--accent-soft)}
+  .dock .marq{flex:1;min-width:0;display:flex;gap:6px;overflow:hidden}
+  .dock .marq span{flex:none;font-size:10.5px;color:var(--muted-2);background:var(--hatch);border-radius:999px;padding:2px 9px;white-space:nowrap}
+  .dock .age{font-size:10.5px;font-weight:700;color:#fbbf24;background:rgba(245,158,11,.15);border-radius:999px;padding:2px 8px;flex:none}
+
+  /* ── new: card dock ── */
+  .cdock{flex:none;border-top:1px solid rgba(99,102,241,.28);background:linear-gradient(180deg,rgba(99,102,241,.09),transparent 70%)}
+  .cdock-h{display:flex;align-items:center;gap:8px;padding:7px 12px 6px}
+  .cdock-h .ttl{font-size:11.5px;font-weight:700;color:var(--accent-soft);display:flex;align-items:center;gap:6px}
+  .cdock-h .ttl i{font-style:normal;font-size:9px}
+  .cdock-h .lnk{margin-left:auto;font-size:11px;color:var(--muted-2);font-weight:500}
+  .kbd{font-size:10px;font-weight:700;color:var(--muted-3);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+  .cdock-strip{display:flex;gap:7px;padding:0 12px 10px;overflow:hidden}
+  .bcard{flex:none;width:194px;background:var(--dark);border:1px solid var(--line);border-radius:11px;padding:8px 9px;display:flex;flex-direction:column;gap:4px;min-height:76px}
+  .bcard .age{font-size:10px;font-weight:700;color:var(--muted-2);font-variant-numeric:tabular-nums}
+  .bcard .age.old{color:#fbbf24}
+  .bcard .t{font-size:11.5px;font-weight:500;line-height:1.38;color:var(--fg);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .bcard .acts{display:flex;gap:4px;margin-top:auto}
+  .bcard .acts u{text-decoration:none;font-size:10px;font-weight:700;color:var(--muted-2);background:var(--hatch);padding:2px 7px;border-radius:6px}
+  .bcard.hover{border-color:rgba(99,102,241,.45);background:rgba(99,102,241,.07)}
+  .bcard.new{border-style:dashed;justify-content:center;gap:5px}
+  .bcard.new .ph{font-size:11px;color:var(--muted-3)}
+  .bcard.more{width:52px;align-items:center;justify-content:center;border-style:dashed;color:var(--muted-2);font-size:11px;font-weight:700}
+
+  /* ── new: review mode ── */
+  .review{flex:1;display:flex;flex-direction:column;min-height:0;padding:0 16px 16px}
+  .rv-h{display:flex;align-items:center;gap:10px;padding:0 2px 12px;flex:none}
+  .rv-h h3{margin:0;font-size:16px;font-weight:700}
+  .rv-grid{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:11px;align-content:start;overflow:hidden}
+  .rv-card{background:var(--obsidian);border:1px solid var(--line);border-radius:14px;padding:12px 13px;display:flex;flex-direction:column;gap:7px;min-height:0}
+  .rv-card .age{font-size:10.5px;font-weight:700;color:var(--muted-2)}
+  .rv-card .age.old{color:#fbbf24}
+  .rv-card .txt{font-size:12.5px;font-weight:500;line-height:1.45;flex:1}
+  .rv-card .row{display:flex;gap:5px;flex-wrap:wrap}
+  .rv-card .row u{text-decoration:none;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:7px;background:var(--hatch);color:var(--muted)}
+  .rv-card .row u.pri{background:var(--accent);color:#fff}
+  .rv-card .row u.del{color:var(--muted-3)}
+  .rv-bar{flex:none;display:flex;align-items:center;gap:10px;padding:12px 2px 0;border-top:1px solid var(--line);margin-top:12px;font-size:11.5px;color:var(--muted-2)}
+
+  /* notes */
+  .notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-top:16px}
+  .nb{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px 17px}
+  .nb h4{margin:0 0 9px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-2)}
+  .nb ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+  .nb li{font-size:13px;color:var(--fg-2);line-height:1.6;padding-left:16px;position:relative}
+  .nb li::before{content:"";position:absolute;left:2px;top:8px;width:5px;height:5px;border-radius:999px;background:var(--muted-3)}
+  .nb.good li::before{background:var(--emerald)}
+  .nb.bad li::before{background:var(--amber)}
+  .nb.cost li::before{background:var(--accent)}
+  .nb li b{color:var(--fg);font-weight:700}
+  .nb li code{background:var(--hatch);padding:1px 5px;border-radius:4px;font-size:11.5px;color:var(--muted)}
+
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:16px;background:var(--card)}
+  table{border-collapse:collapse;width:100%;min-width:660px;font-size:13px}
+  th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line-2);vertical-align:top}
+  thead th{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-2);background:var(--hatch)}
+  tbody tr:last-child td{border-bottom:0}
+  td:first-child{font-weight:700;color:var(--fg);white-space:nowrap}
+  .mark{font-weight:700}
+  .mark.y{color:var(--emerald)} .mark.n{color:var(--muted-3)} .mark.m{color:var(--amber)}
+
+  .verdict{background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(45,212,191,.06));border:1px solid rgba(99,102,241,.28);border-radius:18px;padding:22px 24px}
+  .verdict h3{font-size:16px;margin:0 0 10px}
+  .verdict ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:9px}
+  .verdict li{font-size:13.5px;color:var(--fg-2);line-height:1.65}
+  .verdict li b{color:var(--fg)}
+  .verdict li code{background:rgba(99,102,241,.16);padding:1px 6px;border-radius:5px;font-size:12px;color:var(--accent-soft)}
+  .foot{margin-top:40px;font-size:12px;color:var(--muted-3);display:flex;gap:14px;flex-wrap:wrap}
+
+  @media (max-width:640px){ body{padding:0 14px 64px} .frame{padding:8px;border-radius:14px} }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">BRIDGE · Board › Dashboard › Backlog</p>
+  <h1>백로그를 어디에 둘 것인가</h1>
+  <p class="lede">
+    B안에서 백로그를 큐 탭 하나로 접었더니 존재가 사라졌습니다. 다만 고쳐야 할 것은 면적이 아닙니다 —
+    백로그는 <b>쓰기와 읽기의 요구가 정반대</b>인데 지금은 한 UI가 둘 다 맡고 있습니다.
+    쓰기는 이미 훌륭하고, 부족한 건 <b>쌓였다는 사실이 보이는 것</b>입니다.
+  </p>
+</header>
+
+<hr class="rule" />
+
+<section>
+  <h2>전제 — 이미 되어 있는 것과 안 되어 있는 것</h2>
+  <p class="sect-note"><code class="mono">BacklogRail.tsx</code>에서 확인한 현재 기능입니다.</p>
+  <div class="premise">
+    <div class="pm on">
+      <span class="tag">쓰기 · 이미 좋음</span>
+      <h3>어디서든 한 글자로 열린다</h3>
+      <p><code>b</code>(한글 자판 <code>ㅠ</code>) 전역 단축키가 레일을 펼치고 입력칸에 포커스합니다. 입력 중일 때는 가로채지 않습니다.</p>
+    </div>
+    <div class="pm on">
+      <span class="tag">쓰기 · 이미 좋음</span>
+      <h3>여러 줄을 붙여넣으면 나눠 준다</h3>
+      <p>회의록에서 긁어 붙이면 <b>"N개 항목으로 나눌까요?"</b>를 먼저 묻습니다. 캡처 마찰이 거의 없습니다.</p>
+    </div>
+    <div class="pm on">
+      <span class="tag">승격 · 이미 좋음</span>
+      <h3>간트 날짜 칸에 떨구면 그 날짜로 승격</h3>
+      <p><code>BACKLOG_DROP_EVENT</code>가 날짜를 실어 보내 승격 모달이 그 날짜로 열립니다. 날짜를 두 번 안 고릅니다.</p>
+    </div>
+    <div class="pm off">
+      <span class="tag">읽기 · 비어 있음</span>
+      <h3>쌓인 걸 알려 주는 신호가 없다</h3>
+      <p>접으면 개수만 남고, 항목이 <b>얼마나 오래 방치됐는지</b>는 어디에도 안 나옵니다. 안 보이면 안 쓰이고, 안 쓰이면 다시 안 봅니다.</p>
+    </div>
+    <div class="pm off">
+      <span class="tag">읽기 · 비어 있음</span>
+      <h3>제대로 훑을 자리가 없다</h3>
+      <p>가로 스크롤 236px 카드라 <b>한 번에 3건</b>입니다. 20건이 쌓이면 정리할 방법이 사실상 없습니다.</p>
+    </div>
+    <div class="pm off">
+      <span class="tag">위치 · 비어 있음</span>
+      <h3>팀 큐와 섞여 소유가 흐려진다</h3>
+      <p>배치 대기는 <b>팀 태스크</b>, 백로그는 <b>나만 보이는 개인 메모</b>입니다. 같은 패널의 형제 탭으로 두면 이 차이가 지워집니다.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="rule" />
+
+<section>
+  <h2>개선 4안</h2>
+  <p class="sect-note">모두 B안 레이아웃(왼쪽 오늘 · 오른쪽 워크로드+큐) 위에서의 변형입니다. 백로그 부분만 다릅니다.</p>
+
+  <div class="tabs" role="tablist" aria-label="백로그 개선안">
+    <button class="tab" role="tab" id="tab-base" aria-controls="p-base" aria-selected="true" data-k="base"><span class="tab-k">기준</span> B안 그대로</button>
+    <button class="tab" role="tab" id="tab-s1" aria-controls="p-s1" aria-selected="false" data-k="s1"><span class="tab-k">1</span> 한 목록 · 두 섹션</button>
+    <button class="tab" role="tab" id="tab-s2" aria-controls="p-s2" aria-selected="false" data-k="s2"><span class="tab-k">2</span> 내 열로 옮기기</button>
+    <button class="tab" role="tab" id="tab-s3" aria-controls="p-s3" aria-selected="false" data-k="s3"><span class="tab-k">3</span> 압력 있는 독</button>
+    <button class="tab" role="tab" id="tab-s5" aria-controls="p-s5" aria-selected="false" data-k="s5"><span class="tab-k">3′</span> 카드 독</button>
+    <button class="tab" role="tab" id="tab-s4" aria-controls="p-s4" aria-selected="false" data-k="s4"><span class="tab-k">4</span> 주간 정리 모드</button>
+  </div>
+
+  <div class="frame">
+    <div class="stage" id="stage">
+
+      <!-- ═══ 기준 ═══ -->
+      <div class="canvas" id="p-base" role="tabpanel" aria-labelledby="tab-base">
+        <div class="m-top"><span class="m-back"></span><span class="m-title">오토배틀러 프로젝트</span>
+          <div class="m-nav"><span class="on">보드</span><span>일정</span><span>회의</span><span>자료실</span><span>보고서</span></div>
+          <div class="m-right"><span class="m-dot"></span><span class="m-dot"></span><span class="m-dot"></span></div></div>
+        <div class="m-sub"><span class="on">대시보드</span><span>칸반</span><span>마일스톤</span><span>마인드맵</span></div>
+        <div class="m-scope"><span class="chipme"><i class="ava">상건</i><span class="scope-t">대시보드 · <b>유상건 (나)</b></span></span>
+          <span class="bdg rose">지연 0</span><span class="bdg teal">미배치 13</span><span class="bdg ind">오늘 6</span></div>
+
+        <div style="flex:1;display:grid;grid-template-columns:320px minmax(0,1fr);gap:12px;padding:0 16px 14px;min-height:0">
+          <div class="mc">
+            <div class="mc-h"><h4>오늘 · 8월 5일 수요일</h4><span class="bdg ind">6</span><span class="lnk">주간 ↗</span></div>
+            <div class="tg">
+              <div class="tg-ax"><i>09:00</i><i>10:00</i><i>11:00</i><i>12:00</i><i>13:00</i><i>14:00</i><i>15:00</i><i>16:00</i><i>17:00</i><i>18:00</i><i>19:00</i><i>20:00</i><i>21:00</i><i>22:00</i></div>
+              <div class="tg-body"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                <div class="tblk k-teal" style="top:2px;height:38px"><b>[버그] 발열/메모리 이슈 점검</b><s>09:00 – 10:00</s></div>
+                <div class="tblk k-am" style="top:82px;height:36px"><b>주간 스탠드업</b><s>11:00 – 11:30 · 회의</s></div>
+                <div class="tblk k-em" style="top:122px;height:38px"><b>[관측] 관측 연출이 금빛으로 노출</b><s>[QA] 스텔라나이츠</s></div>
+                <div class="tblk k-em" style="top:243px;height:38px"><b>[실행] 게스트 로그인 버튼 터치 후</b><s>[QA] 스텔라나이츠</s></div>
+                <div class="tblk k-em" style="top:284px;height:38px"><b>[그래픽] 캐릭터 도트 애니메이션</b><s>[QA] 스텔라나이츠</s></div>
+                <div class="tblk k-ind" style="top:325px;height:78px"><b>지라 이슈 자동 수정 기능</b><s>미분류 · 기타 작업</s></div>
+                <div class="nowline" style="top:490px"></div></div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;min-height:0">
+            <div class="mc" style="flex:none">
+              <div class="mc-h"><h4>이번 주 워크로드</h4><span class="lnk">리소스 뷰에서 열기 ↗</span></div>
+              <div class="gt-days"><b>8/3 월</b><b>8/4 화</b><b class="today">8/5 수</b><b>8/6 목</b><b>8/7 금</b><b>8/8 토</b><b>8/9 일</b></div>
+              <div class="gt-lane" style="height:24px;background:var(--hatch)"><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                <div class="gbar" style="left:.6%;width:56%;top:4px;background:rgba(139,92,246,.28);color:#c4b5fd">4.테스트런칭</div>
+                <div class="gbar" style="left:57.5%;width:41%;top:4px;background:rgba(45,212,191,.24);color:var(--secondary)">5.정식출시 준비</div></div>
+              <div class="gt-lane" style="height:82px"><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                <div class="gbar" style="left:29%;width:33%;top:6px;background:rgba(45,212,191,.3)">[버그] 발열/메모리 이슈 점검</div>
+                <div class="gbar" style="left:15%;width:32%;top:27px;background:rgba(45,212,191,.42)">차후 일정 정리</div>
+                <div class="gbar" style="left:15%;width:12%;top:48px;background:rgba(139,92,246,.34)">[실행] 게스트…</div>
+                <div class="gbar" style="left:72%;width:24%;top:6px;background:rgba(16,185,129,.3)">로비 망원경이나 캐릭터…</div></div>
+            </div>
+            <div class="mc" style="flex:1;min-height:0">
+              <div class="mc-h"><h4>큐</h4>
+                <div class="segs"><span class="seg on"><em></em>배치 대기 13</span><span class="seg"><em></em>지연 0</span><span class="seg"><em></em>백로그 1</span></div>
+                <span class="lnk">끌어 올려 날짜에 놓으면 배치</span></div>
+              <div class="ql" style="display:grid;grid-template-columns:1fr 1fr;gap:7px;align-content:start;overflow:hidden">
+                <div class="qi"><div class="r1"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span><span class="bdg teal" style="margin-left:auto">NEW</span></div>
+                  <p class="qt">[네트워크] 네트워크 연결 실패 팝업 미노출</p><p class="qm"><span>[QA] 스텔라나이츠</span></p><div class="qact"><u>오늘</u><u>내일</u></div></div>
+                <div class="qi"><div class="r1"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span><span class="bdg teal" style="margin-left:auto">NEW</span></div>
+                  <p class="qt">[스토리] 목록에서 테크런칭 스펙이 아닌 항목</p><p class="qm"><span>[QA] 스텔라나이츠</span></p><div class="qact"><u>오늘</u><u>내일</u></div></div>
+                <div class="qi"><div class="r1"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span></div>
+                  <p class="qt">[스토리] 추천 편성 버튼 상시 노출 건의</p><p class="qm"><span>[QA] 스텔라나이츠</span></p><div class="qact"><u>오늘</u><u>내일</u></div></div>
+                <div class="qi"><div class="r1"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span></div>
+                  <p class="qt">[택티스 모드] 일부 증강 카드 이미지에 여백</p><p class="qm"><span>[QA] 스텔라나이츠</span></p><div class="qact"><u>오늘</u><u>내일</u></div></div>
+                <div class="qi"><div class="r1"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span></div>
+                  <p class="qt">[텍스트 모드] 시즌 남은 시간 표기가 어색함</p><p class="qm"><span>[QA] 스텔라나이츠</span></p><div class="qact"><u>오늘</u><u>내일</u></div></div>
+                <div class="qi" style="opacity:.45"><div class="r1"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span></div>
+                  <p class="qt">[튜토리얼] 초반 튜토리얼 중 화자와 대사가…</p><p class="qm"><span>[QA] 스텔라나이츠</span></p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 개선 1 ═══ -->
+      <div class="canvas" id="p-s1" role="tabpanel" aria-labelledby="tab-s1" hidden>
+        <div class="m-top"><span class="m-back"></span><span class="m-title">오토배틀러 프로젝트</span>
+          <div class="m-nav"><span class="on">보드</span><span>일정</span><span>회의</span><span>자료실</span><span>보고서</span></div>
+          <div class="m-right"><span class="m-dot"></span><span class="m-dot"></span><span class="m-dot"></span></div></div>
+        <div class="m-sub"><span class="on">대시보드</span><span>칸반</span><span>마일스톤</span><span>마인드맵</span></div>
+        <div class="m-scope"><span class="chipme"><i class="ava">상건</i><span class="scope-t">대시보드 · <b>유상건 (나)</b></span></span>
+          <span class="bdg rose">지연 0</span><span class="bdg teal">미배치 13</span><span class="bdg ind">오늘 6</span></div>
+
+        <div style="flex:1;display:grid;grid-template-columns:320px minmax(0,1fr);gap:12px;padding:0 16px 14px;min-height:0">
+          <div class="mc">
+            <div class="mc-h"><h4>오늘 · 8월 5일 수요일</h4><span class="bdg ind">6</span><span class="lnk">주간 ↗</span></div>
+            <div class="tg">
+              <div class="tg-ax"><i>09:00</i><i>10:00</i><i>11:00</i><i>12:00</i><i>13:00</i><i>14:00</i><i>15:00</i><i>16:00</i><i>17:00</i><i>18:00</i><i>19:00</i><i>20:00</i><i>21:00</i><i>22:00</i></div>
+              <div class="tg-body"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                <div class="tblk k-teal" style="top:2px;height:38px"><b>[버그] 발열/메모리 이슈 점검</b><s>09:00 – 10:00</s></div>
+                <div class="tblk k-am" style="top:82px;height:36px"><b>주간 스탠드업</b><s>11:00 – 11:30 · 회의</s></div>
+                <div class="tblk k-em" style="top:122px;height:38px"><b>[관측] 관측 연출이 금빛으로 노출</b><s>[QA] 스텔라나이츠</s></div>
+                <div class="tblk k-em" style="top:243px;height:38px"><b>[실행] 게스트 로그인 버튼 터치 후</b><s>[QA] 스텔라나이츠</s></div>
+                <div class="tblk k-em" style="top:284px;height:38px"><b>[그래픽] 캐릭터 도트 애니메이션</b><s>[QA] 스텔라나이츠</s></div>
+                <div class="tblk k-ind" style="top:325px;height:78px"><b>지라 이슈 자동 수정 기능</b><s>미분류 · 기타 작업</s></div>
+                <div class="nowline" style="top:490px"></div></div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;min-height:0">
+            <div class="mc" style="flex:none">
+              <div class="mc-h"><h4>이번 주 워크로드</h4><span class="lnk">리소스 뷰에서 열기 ↗</span></div>
+              <div class="gt-days"><b>8/3 월</b><b>8/4 화</b><b class="today">8/5 수</b><b>8/6 목</b><b>8/7 금</b><b>8/8 토</b><b>8/9 일</b></div>
+              <div class="gt-lane" style="height:24px;background:var(--hatch)"><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                <div class="gbar" style="left:.6%;width:56%;top:4px;background:rgba(139,92,246,.28);color:#c4b5fd">4.테스트런칭</div>
+                <div class="gbar" style="left:57.5%;width:41%;top:4px;background:rgba(45,212,191,.24);color:var(--secondary)">5.정식출시 준비</div></div>
+              <div class="gt-lane" style="height:70px"><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                <div class="gbar" style="left:29%;width:33%;top:6px;background:rgba(45,212,191,.3)">[버그] 발열/메모리 이슈 점검</div>
+                <div class="gbar" style="left:15%;width:32%;top:27px;background:rgba(45,212,191,.42)">차후 일정 정리</div>
+                <div class="gbar" style="left:15%;width:12%;top:48px;background:rgba(139,92,246,.34)">[실행] 게스트…</div>
+                <div class="gbar" style="left:72%;width:24%;top:6px;background:rgba(16,185,129,.3)">로비 망원경이나 캐릭터…</div></div>
+            </div>
+
+            <div class="mc" style="flex:1;min-height:0">
+              <div class="mc-h"><h4>큐</h4><span class="bdg gray">14</span>
+                <span class="lnk">한 목록 · 위로 끌면 승격 · 날짜 칸에 놓으면 배치</span></div>
+              <div class="qlist">
+                <div class="sec-h"><b>백로그 1</b><span class="bdg ind">나만 보임</span><span class="hint">Enter 로 추가 · 아래로 끌면 태스크가 됩니다</span></div>
+                <div class="qinput"><span class="box">떠오른 걸 한 줄로…</span><span class="kbd">b</span></div>
+                <div class="qrow blog"><span class="grip"></span><span class="ms blog"><em></em><span>백로그</span></span>
+                  <span class="t">안녕하세요</span><span class="sub">9시간 전</span>
+                  <span class="acts"><u>타임블록</u><u>태스크</u></span></div>
+
+                <div class="sec-h"><b>배치 대기 13</b><span class="bdg rose">지연 0</span><span class="hint">끌어 올려 날짜에 놓으면 배치</span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[네트워크] 네트워크 연결 실패 팝업 미노출</span><span class="bdg teal">NEW</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[스토리] 목록에서 테크런칭 스펙이 아닌 항목 노출</span><span class="bdg teal">NEW</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[스토리] 추천 편성 버튼 상시 노출 건의</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[택티스 모드] 일부 증강 카드 이미지에 여백이 생김</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[텍스트 모드] 시즌 남은 시간 표기가 어색함</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[튜토리얼] 초반 튜토리얼 중 화자와 대사가 어긋남</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[로비] 망원경이나 캐릭터 누르면 반응이 없음</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow" style="opacity:.45"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[사운드] 패배창 효과음이 안 뜨는 문제</span>
+                  <span class="sub">[QA] 스텔라나이츠</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 개선 2 ═══ -->
+      <div class="canvas" id="p-s2" role="tabpanel" aria-labelledby="tab-s2" hidden>
+        <div class="m-top"><span class="m-back"></span><span class="m-title">오토배틀러 프로젝트</span>
+          <div class="m-nav"><span class="on">보드</span><span>일정</span><span>회의</span><span>자료실</span><span>보고서</span></div>
+          <div class="m-right"><span class="m-dot"></span><span class="m-dot"></span><span class="m-dot"></span></div></div>
+        <div class="m-sub"><span class="on">대시보드</span><span>칸반</span><span>마일스톤</span><span>마인드맵</span></div>
+        <div class="m-scope"><span class="chipme"><i class="ava">상건</i><span class="scope-t">대시보드 · <b>유상건 (나)</b></span></span>
+          <span class="bdg rose">지연 0</span><span class="bdg teal">미배치 13</span><span class="bdg ind">오늘 6</span></div>
+
+        <div style="flex:1;display:grid;grid-template-columns:320px minmax(0,1fr);gap:12px;padding:0 16px 14px;min-height:0">
+          <!-- 내 열: 오늘 + 언젠가 -->
+          <div style="display:flex;flex-direction:column;gap:12px;min-height:0">
+            <div class="mc" style="flex:1;min-height:0">
+              <div class="mc-h"><h4>오늘 · 8월 5일 수요일</h4><span class="bdg ind">6</span><span class="lnk">주간 ↗</span></div>
+              <div class="tg">
+                <div class="tg-ax"><i>09:00</i><i>10:00</i><i>11:00</i><i>12:00</i><i>13:00</i><i>14:00</i><i>15:00</i><i>16:00</i><i>17:00</i><i>18:00</i><i>19:00</i><i>20:00</i></div>
+                <div class="tg-body"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  <div class="tblk k-teal" style="top:2px;height:34px"><b>[버그] 발열/메모리 이슈 점검</b><s>09:00 – 10:00</s></div>
+                  <div class="tblk k-am" style="top:70px;height:32px"><b>주간 스탠드업</b><s>11:00 – 11:30 · 회의</s></div>
+                  <div class="tblk k-em" style="top:104px;height:34px"><b>[관측] 관측 연출이 금빛으로</b><s>[QA] 스텔라나이츠</s></div>
+                  <div class="tblk k-em" style="top:207px;height:34px"><b>[실행] 게스트 로그인 버튼</b><s>[QA] 스텔라나이츠</s></div>
+                  <div class="tblk k-em" style="top:242px;height:34px"><b>[그래픽] 캐릭터 도트 애니</b><s>[QA] 스텔라나이츠</s></div>
+                  <div class="tblk k-ind" style="top:277px;height:68px"><b>지라 이슈 자동 수정 기능</b><s>미분류 · 기타 작업</s></div>
+                  <div class="nowline" style="top:420px"></div></div></div>
+            </div>
+            <div class="mc" style="flex:none;border-color:rgba(99,102,241,.28)">
+              <div class="mc-h" style="background:rgba(99,102,241,.06)"><h4>언젠가</h4><span class="bdg ind">1</span>
+                <span class="lnk">나만 보임</span><span class="kbd">b</span></div>
+              <div class="ql" style="padding:8px;gap:6px">
+                <div class="qinput" style="border:0;padding:0"><span class="box">떠오른 걸 한 줄로…</span><span class="kbd">b</span></div>
+                <div class="qrow blog" style="border:1px solid var(--line);border-radius:9px;padding:6px 9px">
+                  <span class="grip"></span><span class="t">안녕하세요</span><span class="sub">9시간 전</span>
+                  <span class="acts"><u>타임블록</u><u>태스크</u></span></div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px;min-height:0">
+            <div class="mc" style="flex:none">
+              <div class="mc-h"><h4>이번 주 워크로드</h4><span class="lnk">리소스 뷰에서 열기 ↗</span></div>
+              <div class="gt-days"><b>8/3 월</b><b>8/4 화</b><b class="today">8/5 수</b><b>8/6 목</b><b>8/7 금</b><b>8/8 토</b><b>8/9 일</b></div>
+              <div class="gt-lane" style="height:24px;background:var(--hatch)"><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                <div class="gbar" style="left:.6%;width:56%;top:4px;background:rgba(139,92,246,.28);color:#c4b5fd">4.테스트런칭</div>
+                <div class="gbar" style="left:57.5%;width:41%;top:4px;background:rgba(45,212,191,.24);color:var(--secondary)">5.정식출시 준비</div></div>
+              <div class="gt-lane" style="height:82px"><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                <div class="gbar" style="left:29%;width:33%;top:6px;background:rgba(45,212,191,.3)">[버그] 발열/메모리 이슈 점검</div>
+                <div class="gbar" style="left:15%;width:32%;top:27px;background:rgba(45,212,191,.42)">차후 일정 정리</div>
+                <div class="gbar" style="left:15%;width:12%;top:48px;background:rgba(139,92,246,.34)">[실행] 게스트…</div>
+                <div class="gbar" style="left:72%;width:24%;top:6px;background:rgba(16,185,129,.3)">로비 망원경이나 캐릭터…</div></div>
+            </div>
+            <div class="mc" style="flex:1;min-height:0">
+              <div class="mc-h"><h4>배치 대기</h4><span class="bdg teal">13</span><span class="bdg rose">지연 0</span>
+                <span class="lnk">팀 태스크 · 끌어 올려 날짜에 놓기</span></div>
+              <div class="qlist">
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[네트워크] 네트워크 연결 실패 팝업 미노출</span><span class="bdg teal">NEW</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[스토리] 목록에서 테크런칭 스펙이 아닌 항목 노출</span><span class="bdg teal">NEW</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[스토리] 추천 편성 버튼 상시 노출 건의</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[택티스 모드] 일부 증강 카드 이미지에 여백이 생김</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[텍스트 모드] 시즌 남은 시간 표기가 어색함</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[튜토리얼] 초반 튜토리얼 중 화자와 대사가 어긋남</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[로비] 망원경이나 캐릭터 누르면 반응이 없음</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[사운드] 패배창 효과음이 안 뜨는 문제</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow" style="opacity:.45"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[UI] 설문지 진입 버튼 위치 조정</span>
+                  <span class="sub">[QA] 스텔라나이츠</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 개선 3 ═══ -->
+      <div class="canvas" id="p-s3" role="tabpanel" aria-labelledby="tab-s3" hidden>
+        <div class="m-top"><span class="m-back"></span><span class="m-title">오토배틀러 프로젝트</span>
+          <div class="m-nav"><span class="on">보드</span><span>일정</span><span>회의</span><span>자료실</span><span>보고서</span></div>
+          <div class="m-right"><span class="m-dot"></span><span class="m-dot"></span><span class="m-dot"></span></div></div>
+        <div class="m-sub"><span class="on">대시보드</span><span>칸반</span><span>마일스톤</span><span>마인드맵</span></div>
+        <div class="m-scope"><span class="chipme"><i class="ava">상건</i><span class="scope-t">대시보드 · <b>유상건 (나)</b></span></span>
+          <span class="bdg rose">지연 0</span><span class="bdg teal">미배치 13</span><span class="bdg ind">오늘 6</span></div>
+
+        <div style="flex:1;display:grid;grid-template-columns:320px minmax(0,1fr);gap:12px;padding:0 16px 14px;min-height:0">
+          <div class="mc">
+            <div class="mc-h"><h4>오늘 · 8월 5일 수요일</h4><span class="bdg ind">6</span><span class="lnk">주간 ↗</span></div>
+            <div class="tg">
+              <div class="tg-ax"><i>09:00</i><i>10:00</i><i>11:00</i><i>12:00</i><i>13:00</i><i>14:00</i><i>15:00</i><i>16:00</i><i>17:00</i><i>18:00</i><i>19:00</i><i>20:00</i><i>21:00</i><i>22:00</i></div>
+              <div class="tg-body"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                <div class="tblk k-teal" style="top:2px;height:38px"><b>[버그] 발열/메모리 이슈 점검</b><s>09:00 – 10:00</s></div>
+                <div class="tblk k-am" style="top:82px;height:36px"><b>주간 스탠드업</b><s>11:00 – 11:30 · 회의</s></div>
+                <div class="tblk k-em" style="top:122px;height:38px"><b>[관측] 관측 연출이 금빛으로 노출</b><s>[QA] 스텔라나이츠</s></div>
+                <div class="tblk k-em" style="top:243px;height:38px"><b>[실행] 게스트 로그인 버튼 터치 후</b><s>[QA] 스텔라나이츠</s></div>
+                <div class="tblk k-em" style="top:284px;height:38px"><b>[그래픽] 캐릭터 도트 애니메이션</b><s>[QA] 스텔라나이츠</s></div>
+                <div class="tblk k-ind" style="top:325px;height:78px"><b>지라 이슈 자동 수정 기능</b><s>미분류 · 기타 작업</s></div>
+                <div class="nowline" style="top:490px"></div></div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;min-height:0">
+            <div class="mc" style="flex:none">
+              <div class="mc-h"><h4>이번 주 워크로드</h4><span class="lnk">리소스 뷰에서 열기 ↗</span></div>
+              <div class="gt-days"><b>8/3 월</b><b>8/4 화</b><b class="today">8/5 수</b><b>8/6 목</b><b>8/7 금</b><b>8/8 토</b><b>8/9 일</b></div>
+              <div class="gt-lane" style="height:24px;background:var(--hatch)"><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                <div class="gbar" style="left:.6%;width:56%;top:4px;background:rgba(139,92,246,.28);color:#c4b5fd">4.테스트런칭</div>
+                <div class="gbar" style="left:57.5%;width:41%;top:4px;background:rgba(45,212,191,.24);color:var(--secondary)">5.정식출시 준비</div></div>
+              <div class="gt-lane" style="height:82px"><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                <div class="gbar" style="left:29%;width:33%;top:6px;background:rgba(45,212,191,.3)">[버그] 발열/메모리 이슈 점검</div>
+                <div class="gbar" style="left:15%;width:32%;top:27px;background:rgba(45,212,191,.42)">차후 일정 정리</div>
+                <div class="gbar" style="left:15%;width:12%;top:48px;background:rgba(139,92,246,.34)">[실행] 게스트…</div>
+                <div class="gbar" style="left:72%;width:24%;top:6px;background:rgba(16,185,129,.3)">로비 망원경이나 캐릭터…</div></div>
+            </div>
+            <div class="mc" style="flex:1;min-height:0">
+              <div class="mc-h"><h4>배치 대기</h4><span class="bdg teal">13</span><span class="bdg rose">지연 0</span>
+                <span class="lnk">끌어 올려 날짜에 놓으면 배치</span></div>
+              <div class="qlist">
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[네트워크] 네트워크 연결 실패 팝업 미노출</span><span class="bdg teal">NEW</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[스토리] 목록에서 테크런칭 스펙이 아닌 항목 노출</span><span class="bdg teal">NEW</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[스토리] 추천 편성 버튼 상시 노출 건의</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[택티스 모드] 일부 증강 카드 이미지에 여백이 생김</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[텍스트 모드] 시즌 남은 시간 표기가 어색함</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[튜토리얼] 초반 튜토리얼 중 화자와 대사가 어긋남</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow" style="opacity:.45"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[로비] 망원경이나 캐릭터 누르면 반응이 없음</span>
+                  <span class="sub">[QA] 스텔라나이츠</span></div>
+              </div>
+              <!-- dock -->
+              <div class="dock">
+                <span class="flag">▲ 백로그 7</span>
+                <span class="age">가장 오래된 것 24일</span>
+                <span class="marq">
+                  <span>안녕하세요</span><span>스킬 툴팁 문구 손보기</span><span>주차별 리텐션 대시보드</span><span>사운드 볼륨 기본값</span><span>+3</span>
+                </span>
+                <span class="kbd" style="font-size:10px;font-weight:700;color:var(--muted-3);border:1px solid var(--line);border-radius:5px;padding:1px 5px">b</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 개선 3′ · 카드 독 ═══ -->
+      <div class="canvas" id="p-s5" role="tabpanel" aria-labelledby="tab-s5" hidden>
+        <div class="m-top"><span class="m-back"></span><span class="m-title">오토배틀러 프로젝트</span>
+          <div class="m-nav"><span class="on">보드</span><span>일정</span><span>회의</span><span>자료실</span><span>보고서</span></div>
+          <div class="m-right"><span class="m-dot"></span><span class="m-dot"></span><span class="m-dot"></span></div></div>
+        <div class="m-sub"><span class="on">대시보드</span><span>칸반</span><span>마일스톤</span><span>마인드맵</span></div>
+        <div class="m-scope"><span class="chipme"><i class="ava">상건</i><span class="scope-t">대시보드 · <b>유상건 (나)</b></span></span>
+          <span class="bdg rose">지연 0</span><span class="bdg teal">미배치 13</span><span class="bdg ind">오늘 6</span></div>
+
+        <div style="flex:1;display:grid;grid-template-columns:320px minmax(0,1fr);gap:12px;padding:0 16px 14px;min-height:0">
+          <div class="mc">
+            <div class="mc-h"><h4>오늘 · 8월 5일</h4><span class="bdg ind">6</span><span class="lnk">주간 ↗</span></div>
+            <div class="tg">
+              <div class="tg-ax"><i>09:00</i><i>10:00</i><i>11:00</i><i>12:00</i><i>13:00</i><i>14:00</i><i>15:00</i><i>16:00</i><i>17:00</i><i>18:00</i><i>19:00</i><i>20:00</i><i>21:00</i><i>22:00</i></div>
+              <div class="tg-body"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                <div class="tblk k-teal" style="top:2px;height:38px"><b>[버그] 발열/메모리 이슈 점검</b><s>09:00 – 10:00</s></div>
+                <div class="tblk k-am" style="top:82px;height:36px"><b>주간 스탠드업</b><s>11:00 – 11:30 · 회의</s></div>
+                <div class="tblk k-em" style="top:122px;height:38px"><b>[관측] 관측 연출이 금빛으로</b><s>[QA] 스텔라나이츠</s></div>
+                <div class="tblk k-em" style="top:243px;height:38px"><b>[실행] 게스트 로그인 버튼</b><s>[QA] 스텔라나이츠</s></div>
+                <div class="tblk k-em" style="top:284px;height:38px"><b>[그래픽] 캐릭터 도트 애니</b><s>[QA] 스텔라나이츠</s></div>
+                <div class="tblk k-ind" style="top:325px;height:78px"><b>지라 이슈 자동 수정 기능</b><s>미분류 · 기타 작업</s></div>
+                <div class="nowline" style="top:490px"></div></div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;min-height:0">
+            <div class="mc" style="flex:none">
+              <div class="mc-h"><h4>이번 주 워크로드</h4><span class="lnk">리소스 뷰에서 열기 ↗</span></div>
+              <div class="gt-days"><b>8/3 월</b><b>8/4 화</b><b class="today">8/5 수</b><b>8/6 목</b><b>8/7 금</b><b>8/8 토</b><b>8/9 일</b></div>
+              <div class="gt-lane" style="height:24px;background:var(--hatch)"><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                <div class="gbar" style="left:.6%;width:56%;top:4px;background:rgba(139,92,246,.28);color:#c4b5fd">4.테스트런칭</div>
+                <div class="gbar" style="left:57.5%;width:41%;top:4px;background:rgba(45,212,191,.24);color:var(--secondary)">5.정식출시 준비</div></div>
+              <div class="gt-lane" style="height:70px"><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                <div class="gbar" style="left:29%;width:33%;top:6px;background:rgba(45,212,191,.3)">[버그] 발열/메모리 이슈 점검</div>
+                <div class="gbar" style="left:15%;width:32%;top:27px;background:rgba(45,212,191,.42)">차후 일정 정리</div>
+                <div class="gbar" style="left:15%;width:12%;top:48px;background:rgba(139,92,246,.34)">[실행] 게스트…</div>
+                <div class="gbar" style="left:72%;width:24%;top:6px;background:rgba(16,185,129,.3)">로비 망원경이나 캐릭터…</div></div>
+            </div>
+
+            <div class="mc" style="flex:1;min-height:0">
+              <div class="mc-h"><h4>배치 대기</h4><span class="bdg teal">13</span><span class="bdg rose">지연 0</span>
+                <span class="lnk">끌어 올려 날짜에 놓으면 배치</span></div>
+              <div class="qlist">
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[네트워크] 네트워크 연결 실패 팝업 미노출</span><span class="bdg teal">NEW</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[스토리] 목록에서 테크런칭 스펙이 아닌 항목 노출</span><span class="bdg teal">NEW</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[스토리] 추천 편성 버튼 상시 노출 건의</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[택티스 모드] 일부 증강 카드 이미지에 여백이 생김</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[텍스트 모드] 시즌 남은 시간 표기가 어색함</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[튜토리얼] 초반 튜토리얼 중 화자와 대사가 어긋남</span>
+                  <span class="sub">[QA] 스텔라나이츠</span><span class="acts"><u>오늘</u><u>내일</u></span></div>
+                <div class="qrow" style="opacity:.45"><span class="grip"></span><span class="ms mstone"><em></em><span>4.테스트런칭</span></span>
+                  <span class="t">[로비] 망원경이나 캐릭터 누르면 반응이 없음</span>
+                  <span class="sub">[QA] 스텔라나이츠</span></div>
+              </div>
+
+              <!-- 카드 독 -->
+              <div class="cdock">
+                <div class="cdock-h">
+                  <span class="ttl"><i>▲</i> 내 백로그 <span class="bdg ind">7</span></span>
+                  <span class="bdg amber">가장 오래된 것 24일</span>
+                  <span class="lnk">나만 보임 · 위로 끌어 올리면 승격</span>
+                  <span class="kbd">b</span>
+                  <span class="lnk" style="margin-left:0">정리 ↗</span>
+                </div>
+                <div class="cdock-strip">
+                  <div class="bcard new">
+                    <span class="ph">떠오른 걸 한 줄로…</span>
+                    <span class="age">Enter 로 추가 · 여러 줄은 나눠 담김</span>
+                  </div>
+                  <div class="bcard hover">
+                    <span class="age old">24일 전 · 가장 오래됨</span>
+                    <p class="t">주차별 리텐션 대시보드 만들어 보기</p>
+                    <span class="acts"><u>태스크로</u><u>타임블록</u></span>
+                  </div>
+                  <div class="bcard">
+                    <span class="age old">19일 전</span>
+                    <p class="t">사운드 볼륨 기본값이 너무 큼 — 기본 60%로?</p>
+                  </div>
+                  <div class="bcard">
+                    <span class="age old">15일 전</span>
+                    <p class="t">스킬 툴팁 문구 손보기 (용어가 게임 내랑 다름)</p>
+                  </div>
+                  <div class="bcard">
+                    <span class="age">6일 전</span>
+                    <p class="t">패배창 효과음 안 뜨는 건 사운드팀에 공유</p>
+                  </div>
+                  <div class="bcard" style="opacity:.5">
+                    <span class="age">4일 전</span>
+                    <p class="t">설문지 문항 초안 — 테스트런칭 끝나고</p>
+                  </div>
+                  <div class="bcard more">+2</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 개선 4 ═══ -->
+      <div class="canvas" id="p-s4" role="tabpanel" aria-labelledby="tab-s4" hidden>
+        <div class="m-top"><span class="m-back"></span><span class="m-title">오토배틀러 프로젝트</span>
+          <div class="m-nav"><span class="on">보드</span><span>일정</span><span>회의</span><span>자료실</span><span>보고서</span></div>
+          <div class="m-right"><span class="m-dot"></span><span class="m-dot"></span><span class="m-dot"></span></div></div>
+        <div class="m-sub"><span class="on">대시보드</span><span>칸반</span><span>마일스톤</span><span>마인드맵</span></div>
+
+        <div class="review">
+          <div class="rv-h">
+            <h3>백로그 정리</h3>
+            <span class="bdg ind">7건</span>
+            <span class="bdg amber">3건이 2주 넘게 그대로</span>
+            <span style="margin-left:auto;color:var(--muted-2);font-size:11.5px">대시보드로 돌아가기 · Esc</span>
+          </div>
+          <div class="rv-grid">
+            <div class="rv-card"><span class="age old">24일 전</span><p class="txt">주차별 리텐션 대시보드 만들어 보기</p>
+              <div class="row"><u class="pri">태스크로</u><u>타임블록</u><u class="del">지우기</u></div></div>
+            <div class="rv-card"><span class="age old">19일 전</span><p class="txt">사운드 볼륨 기본값이 너무 큼 — 기본 60%로?</p>
+              <div class="row"><u class="pri">태스크로</u><u>타임블록</u><u class="del">지우기</u></div></div>
+            <div class="rv-card"><span class="age old">15일 전</span><p class="txt">스킬 툴팁 문구 손보기 (용어가 게임 내랑 다름)</p>
+              <div class="row"><u class="pri">태스크로</u><u>타임블록</u><u class="del">지우기</u></div></div>
+            <div class="rv-card"><span class="age">6일 전</span><p class="txt">패배창 효과음 안 뜨는 건 사운드팀에 공유</p>
+              <div class="row"><u class="pri">태스크로</u><u>타임블록</u><u class="del">지우기</u></div></div>
+            <div class="rv-card"><span class="age">4일 전</span><p class="txt">설문지 문항 초안 — 테스트런칭 끝나고</p>
+              <div class="row"><u class="pri">태스크로</u><u>타임블록</u><u class="del">지우기</u></div></div>
+            <div class="rv-card"><span class="age">2일 전</span><p class="txt">로비 망원경 인터랙션 레퍼런스 모으기</p>
+              <div class="row"><u class="pri">태스크로</u><u>타임블록</u><u class="del">지우기</u></div></div>
+            <div class="rv-card"><span class="age">9시간 전</span><p class="txt">안녕하세요</p>
+              <div class="row"><u class="pri">태스크로</u><u>타임블록</u><u class="del">지우기</u></div></div>
+            <div class="rv-card" style="border-style:dashed;justify-content:center;align-items:center;color:var(--muted-3)">
+              <p class="txt" style="flex:0;text-align:center">떠오른 걸 한 줄로…<br /><span style="font-size:10.5px">여러 줄을 붙여넣으면 나눠 담습니다</span></p></div>
+          </div>
+          <div class="rv-bar">
+            <span>승격하면 마일스톤·담당자를 고르는 기존 승격 모달이 그대로 열립니다</span>
+            <span style="margin-left:auto">이번 주 승격 0건 · 지난주 4건</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="frame-cap" id="cap"></div>
+  <div class="notes" id="notes"></div>
+</section>
+
+<hr class="rule" />
+
+<section>
+  <h2>한 표로</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th></th><th>B안 그대로</th><th>1 · 두 섹션</th><th>2 · 내 열로</th><th>3 · 독</th><th>3′ · 카드 독</th><th>4 · 정리 모드</th></tr></thead>
+      <tbody>
+        <tr><td>백로그가 항상 보이나</td><td class="mark n">아니오</td><td class="mark y">예 · 목록 맨 위</td><td class="mark y">예 · 전용 칸</td><td class="mark y">예 · 40px 바</td><td class="mark y">예 · 카드 한 줄</td><td class="mark n">아니오 · 배지만</td></tr>
+        <tr><td>제목이 읽히나</td><td class="mark n">—</td><td class="mark y">한 줄</td><td class="mark y">한 줄</td><td class="mark m">칩으로 흘러감</td><td class="mark y">카드 두 줄</td><td class="mark y">카드 세 줄</td></tr>
+        <tr><td>쌓인 걸 잊지 않게 하나</td><td class="mark n">—</td><td class="mark m">개수만</td><td class="mark m">개수만</td><td class="mark y">개수 + 방치 일수</td><td class="mark y">방치 일수 + 오래된 순</td><td class="mark y">방치 항목이 앞에</td></tr>
+        <tr><td>20건 쌓였을 때 정리 가능</td><td class="mark n">불가</td><td class="mark m">스크롤로 가능</td><td class="mark m">스크롤로 가능</td><td class="mark n">불가</td><td class="mark m">4~5장 + 정리로 연결</td><td class="mark y">한 화면에 9건</td></tr>
+        <tr><td>큐 공간을 얼마나 뺏나</td><td>0</td><td>약 60px</td><td>0 · 왼쪽에서 가져옴</td><td>약 40px</td><td>약 96px</td><td>0</td></tr>
+        <tr><td>펼칠 때 다른 영역을 가리나</td><td class="mark n">탭이 바뀜</td><td class="mark y">안 가림</td><td class="mark y">안 가림</td><td class="mark n">겹쳐서 가림</td><td class="mark y">제자리에서 자람</td><td class="mark m">전체 화면</td></tr>
+        <tr><td>개인 / 팀 구분이 보이나</td><td class="mark n">흐려짐</td><td class="mark m">섹션 배경으로</td><td class="mark y">열이 다름</td><td class="mark y">독이 따로</td><td class="mark m">테두리 색으로</td><td class="mark y">화면이 따로</td></tr>
+        <tr><td>구현</td><td>—</td><td>소 · 큐를 행 목록으로</td><td>소 · 컴포넌트 이동</td><td>중 · 접힘 독 + 방치 계산</td><td>소 · 기존 레일 거의 재사용</td><td>중 · 새 화면 1개</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr class="rule" />
+
+<section>
+  <div class="verdict">
+    <h3>추천 — 3′ + 4 조합</h3>
+    <ol>
+      <li><b>카드 독을 큐 패널 바닥에 답니다(3′).</b> 3안이 놓쳤던 건 카드였습니다 —
+        칩이 흘러가면 존재는 알려도 <b>집어서 옮길 대상</b>으로는 안 읽힙니다.
+        카드로 세우면 제목이 두 줄까지 보이고, 그대로 잡아 위로 끌면 승격입니다.
+        게다가 펼칠 때 <b>겹치지 않고 제자리에서 자라므로</b> 3안의 오버레이 문제도 같이 없어집니다.</li>
+      <li><b>타임블록 열을 400 → 320px로 좁힙니다.</b> 왼쪽에서 80px을 벌어 오른쪽 큐와 독에 넘깁니다.
+        시간축은 시각 라벨 38px만 있으면 되고 블록 제목은 어차피 두 줄 이내라 손해가 작습니다.
+        이 폭에서 독 카드가 입력칸 포함 <b>5장</b> 보입니다.</li>
+      <li><b>큐를 카드에서 행으로 바꿉니다(1안의 밀도만 차용).</b> 오른쪽 열이 870px 가까이 되는데 236px 카드를 쓸 이유가 없습니다.
+        한 줄 행으로 바꾸면 배치 대기가 <b>6건 → 9~12건</b>. 독이 가져간 96px을 여기서 되찾습니다.</li>
+      <li><b>정리 모드를 하나 추가합니다(4안).</b> 독은 5장까지가 한계이고, 백로그의 실제 리듬은 매일이 아니라 주 1회입니다.
+        독 헤더의 <code>정리 ↗</code>로 전체 화면에 들어가 오래된 것부터 훑고,
+        거기서 <code>지우기</code>가 승격과 나란히 놓입니다 — 지금은 버리는 경로가 사실상 없어 쌓이기만 합니다.</li>
+      <li><b>대안:</b> 개인/팀 구분을 더 강하게 하고 싶으면 <b>2안</b>(왼쪽 열에 「오늘 + 언젠가」)이 낫습니다.
+        큐 공간을 전혀 안 뺏는 대신, 승격 드래그가 화면을 가로지르고 타임블록이 세로로 짧아집니다.</li>
+    </ol>
+  </div>
+
+  <p class="foot">
+    <span>BRIDGE 디자인 토큰 사용 · 다크/라이트 모두 대응</span>
+    <span class="mono">docs/Design/board-dashboard-backlog.html</span>
+  </p>
+</section>
+
+</div>
+
+<script>
+(function(){
+  var NOTES = {
+    base: {
+      cap: "<b>기준 · B안 그대로</b> 백로그가 큐 패널의 세 번째 탭. 배지에 개수만 남고 내용은 안 보입니다.",
+      cols: [
+        {k:"bad", h:"문제", items:[
+          "백로그를 보려면 <b>탭을 눌러야</b> 하고, 누르면 배치 대기가 사라진다 — 승격 드래그가 탭 전환을 사이에 끼운다",
+          "개인 메모(나만 보임)와 팀 태스크가 <b>형제 탭</b>이라 소유 구분이 지워진다",
+          "쌓여 있어도 <code>백로그 1</code> 배지 말고는 아무 신호가 없다"
+        ]},
+        {k:"", h:"참고 · 이건 이미 잘 됨", items:[
+          "<code>b</code> 한 글자로 어디서든 입력칸이 열린다 — 캡처 마찰은 이미 거의 없다",
+          "따라서 고칠 것은 <b>쓰기가 아니라 읽기</b>다"
+        ]}
+      ]
+    },
+    s1: {
+      cap: "<b>1 · 한 목록, 두 섹션</b> 탭을 없애고 큐를 하나의 세로 목록으로. 백로그 섹션이 맨 위, 배치 대기가 아래. 카드 대신 행.",
+      cols: [
+        {k:"good", h:"좋아지는 것", items:[
+          "탭 전환이 사라진다 — 백로그와 배치 대기가 <b>같은 목록</b>에 있어 승격이 그냥 위아래 이동이 된다",
+          "카드를 행으로 바꾸면서 배치 대기가 6건 → <b>9~12건</b> 보인다",
+          "백로그는 보통 항목이 적어서 위에 둬도 아래를 크게 밀지 않는다",
+          "입력칸이 목록 안에 상주해 <code>b</code>를 눌러도 레이아웃이 안 튄다"
+        ]},
+        {k:"bad", h:"감수하는 것", items:[
+          "백로그가 20건 넘게 쌓이면 <b>배치 대기를 아래로 밀어낸다</b> — 섹션에 <code>max-h</code>와 접기가 필요",
+          "개인/팀 구분이 섹션 배경색과 <code>나만 보임</code> 배지에만 의존한다",
+          "행이라 마일스톤 칩·NEW·마감이 한 줄에 몰려 좁은 화면에서 잘린다"
+        ]},
+        {k:"cost", h:"구현", items:[
+          "<code>PlacementRail</code> 카드를 행 컴포넌트로 — 기존 드래그 페이로드는 그대로",
+          "sticky 섹션 헤더 2개 + 각 섹션 <code>max-h</code>",
+          "백로그 입력칸을 목록 상단에 상주시키고 <code>focusAdd</code>가 그리로 포커스"
+        ]}
+      ]
+    },
+    s2: {
+      cap: "<b>2 · 내 열로 옮기기</b> 왼쪽 열을 「오늘(내 시간) + 언젠가(내 생각)」으로 세웁니다. 오른쪽은 팀 태스크만.",
+      cols: [
+        {k:"good", h:"좋아지는 것", items:[
+          "<b>소유가 열로 구분된다</b> — 왼쪽은 나만 보이는 것, 오른쪽은 팀이 함께 보는 것",
+          "큐 공간을 <b>전혀 안 뺏는다</b>. 오늘 시간축에서 약 90px만 가져오고, 그만큼 배치 대기는 그대로 넓다",
+          "백로그가 항상 펼쳐져 있어 탭 전환이 없다 — <code>b</code>를 누르면 이미 보이는 입력칸에 커서만 간다",
+          "\"오늘 vs 언젠가\"라는 대비가 위아래로 서서 개념이 저절로 읽힌다"
+        ]},
+        {k:"bad", h:"감수하는 것", items:[
+          "오늘 시간축이 <b>약 90px 짧아진다</b> — 09~20시가 기본으로 보이고 나머지는 스크롤",
+          "백로그를 접었을 때 시간축이 다시 늘어나므로 <b>높이가 두 상태를 오간다</b>",
+          "승격 드래그가 왼쪽 → 오른쪽 간트로 화면을 가로지른다 (버튼 승격 경로가 이미 있어 치명적이진 않음)"
+        ]},
+        {k:"cost", h:"구현", items:[
+          "<code>BacklogRail</code>을 세로 카드 목록으로 바꿔 왼쪽 열 아래에 배치 — 승격·드롭 로직 변경 없음",
+          "접힘 상태를 기존 <code>applyCollapsed</code> 그대로 재사용",
+          "왼쪽 열: 오늘 <code>flex-1</code>, 백로그 <code>flex-none max-h-[30%]</code>"
+        ]}
+      ]
+    },
+    s3: {
+      cap: "<b>3 · 압력 있는 독</b> 큐 패널 바닥에 40px 바로 상주. 접힌 채로도 최근 항목 제목과 <b>방치 일수</b>를 흘려 보여 줍니다.",
+      cols: [
+        {k:"good", h:"좋아지는 것", items:[
+          "<b>가장 오래된 것 24일</b> — 지금 백로그에 없는 유일한 정보이고, 다시 열게 만드는 건 개수가 아니라 이 숫자다",
+          "면적을 40px만 쓰면서 <b>내용이 보인다</b> — 배지 하나보다 훨씬 강한 신호",
+          "큐도 오늘도 거의 안 좁아진다",
+          "펼치면 큐 위에 겹쳐 올라오므로 다른 영역의 높이가 안 흔들린다"
+        ]},
+        {k:"bad", h:"감수하는 것", items:[
+          "겹쳐 뜨는 오버레이라 <b>펼친 상태에서 배치 대기가 가려진다</b> — 결국 탭과 비슷한 문제로 돌아갈 수 있다",
+          "제목이 흘러가는 표시는 <b>움직임이 시선을 계속 끈다</b>. 정적 목록으로 바꾸면 3~4건만 보인다",
+          "개인/팀 구분은 위치로만 표현된다"
+        ]},
+        {k:"cost", h:"구현", items:[
+          "방치 일수 계산 — <code>PersonalTask.created_at</code> 기준, 서버 변경 없음",
+          "접힘/펼침 오버레이 + 포커스 트랩",
+          "<code>b</code>가 오버레이를 열도록 <code>focusAdd</code> 연결"
+        ]}
+      ]
+    },
+    s5: {
+      cap: "<b>3′ · 카드 독</b> 3안의 압력 신호는 그대로 두고, 칩 대신 <b>카드</b>를 세웠습니다. 접힌 기본 높이 약 96px — 헤더 한 줄 + 카드 한 줄.",
+      cols: [
+        {k:"good", h:"좋아지는 것", items:[
+          "칩이 흘러가는 대신 <b>카드가 서 있다</b> — 제목이 두 줄까지 보이고, 잡아서 위로 끌면 그대로 승격이다",
+          "<b>오래된 것부터</b> 왼쪽에 온다. 첫 카드에 <code>24일 전 · 가장 오래됨</code>이 붙어 방치가 목록 순서로 드러난다",
+          "입력 카드가 맨 앞에 상주해 <code>b</code>를 눌러도 레이아웃이 안 튄다 — 원래 백로그의 손맛 그대로",
+          "펼칠 때 <b>겹치지 않고 제자리에서 자란다</b>. 큐를 위로 밀 뿐이라 3안의 오버레이 문제가 없다",
+          "<code>정리 ↗</code>가 헤더에 있어 4안(정리 모드)으로 바로 이어진다"
+        ]},
+        {k:"bad", h:"감수하는 것", items:[
+          "큐에서 <b>약 96px</b>을 가져간다 — 행 3개어치. 대신 타임블록을 320px로 좁혀 그만큼 가로를 벌었다",
+          "가로 스크롤이라 4장 뒤는 <code>+2</code>로 접힌다. 전부 훑는 건 여전히 정리 모드의 일",
+          "개인/팀 구분은 위치와 색(인디고 테두리)에만 의존한다 — 2안처럼 열이 갈리진 않는다"
+        ]},
+        {k:"cost", h:"구현", items:[
+          "<code>BacklogRail</code>을 <b>거의 그대로</b> 큐 패널 바닥에 끼운다 — 카드 마크업·드래그·<code>focusAdd</code> 모두 재사용",
+          "카드 폭 236px → <b>194px</b>, 정렬 기본값을 <b>오래된 순</b>으로",
+          "방치 일수는 <code>PersonalTask.created_at</code>로 계산 — 서버 변경 없음",
+          "기존 <code>applyCollapsed</code>가 완전 접기(헤더만 28px) 상태를 그대로 맡는다"
+        ]}
+      ]
+    },
+    s4: {
+      cap: "<b>4 · 주간 정리 모드</b> 상시 노출은 최소로 두고, 볼 때는 전체 화면으로 제대로 봅니다. 방치가 오래된 것부터 앞에.",
+      cols: [
+        {k:"good", h:"좋아지는 것", items:[
+          "<b>20건이 쌓여도 정리가 된다</b> — 한 화면에 8건, 각 카드에 태스크로 / 타임블록 / 지우기",
+          "백로그의 실제 리듬(<b>주 1회 정리</b>)에 맞는 유일한 안. 매일 보라고 강요하지 않는다",
+          "<code>지우기</code>가 동등한 선택지로 올라온다 — 지금은 버리는 경로가 사실상 없어 계속 쌓이기만 한다",
+          "승격은 기존 <code>PromoteBacklogModal</code>을 그대로 띄우면 된다"
+        ]},
+        {k:"bad", h:"감수하는 것", items:[
+          "<b>대시보드에서는 여전히 안 보인다</b> — 배지 하나뿐이라 단독으로 쓰면 지금과 크게 다르지 않다",
+          "화면이 하나 늘어난다 (라우트 또는 전체 화면 모달)",
+          "들어가는 계기를 만들어야 한다 — 배지 클릭 외에 주간 리포트나 스탠드업에서 링크를 걸어 주는 편이 좋다"
+        ]},
+        {k:"cost", h:"구현", items:[
+          "정리 화면 1개 — 목록 조회는 기존 백로그 API 그대로",
+          "정렬 기본값을 <b>오래된 순</b>으로, 상단에 방치 요약",
+          "헤더 배지: <code>백로그 7 · 24일</code> → 클릭 시 진입"
+        ]}
+      ]
+    }
+  };
+
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+  var panels = { base:document.getElementById('p-base'), s1:document.getElementById('p-s1'), s2:document.getElementById('p-s2'), s3:document.getElementById('p-s3'), s5:document.getElementById('p-s5'), s4:document.getElementById('p-s4') };
+  var cap = document.getElementById('cap');
+  var notes = document.getElementById('notes');
+
+  function renderNotes(k){
+    var d = NOTES[k];
+    cap.innerHTML = d.cap;
+    notes.innerHTML = d.cols.map(function(c){
+      return '<div class="nb ' + c.k + '"><h4>' + c.h + '</h4><ul>' +
+        c.items.map(function(i){ return '<li>' + i + '</li>'; }).join('') + '</ul></div>';
+    }).join('');
+  }
+  function select(k){
+    tabs.forEach(function(t){ t.setAttribute('aria-selected', String(t.dataset.k === k)); });
+    Object.keys(panels).forEach(function(key){ panels[key].hidden = (key !== k); });
+    renderNotes(k);
+  }
+  tabs.forEach(function(t){
+    t.addEventListener('click', function(){ select(t.dataset.k); });
+    t.addEventListener('keydown', function(e){
+      var i = tabs.indexOf(t), n = null;
+      if (e.key === 'ArrowRight') n = tabs[(i + 1) % tabs.length];
+      else if (e.key === 'ArrowLeft') n = tabs[(i - 1 + tabs.length) % tabs.length];
+      if (n) { e.preventDefault(); n.focus(); select(n.dataset.k); }
+    });
+  });
+
+  var stage = document.getElementById('stage');
+  var W = 1240, H = 760;
+  function fit(){
+    var s = stage.clientWidth / W;
+    stage.style.setProperty('--s', s);
+    stage.style.height = (H * s) + 'px';
+  }
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(stage);
+  window.addEventListener('resize', fit);
+  fit();
+
+  select('base');
+})();
+</script>

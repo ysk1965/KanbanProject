@@ -8,7 +8,6 @@ import type {
 } from "../types";
 import type { BoardMember as ShareBoardMember } from "../components/ShareBoardModal";
 import { buildMilestoneColorMap } from "../utils/milestoneColor";
-import { BacklogRail } from "../components/boarddashboard/BacklogRail";
 import { DashboardScopeRow } from "../components/boarddashboard/DashboardScopeRow";
 import { MyWorkloadWidget } from "../components/boarddashboard/MyWorkloadWidget";
 import { TodayTimeblockWidget } from "../components/boarddashboard/TodayTimeblockWidget";
@@ -148,33 +147,44 @@ export function DashboardView({
         </div>
       )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+      {/*
+        xl 이상에서는 화면이 곧 레이아웃이다 — 페이지는 스크롤하지 않고,
+        왼쪽 오늘이 뷰포트 높이를 그대로 쓰고 오른쪽은 워크로드가 필요한 만큼만
+        가져간 뒤 나머지를 전부 큐가 받는다.
+
+        xl 미만에서는 두 열이 한 줄로 접힌다. 이때는 화면 높이를 나눠 가질 수 없으므로
+        각 블록에 높이를 주고 페이지 쪽이 스크롤한다 — 안 그러면 타임블록·간트처럼
+        "부모가 준 높이를 채우는" 뷰가 0으로 무너진다.
+      */}
+      <div className="flex-1 min-h-0 overflow-y-auto xl:overflow-hidden custom-scrollbar">
         {/* 스코프 행이 없을 때는 원래대로 위 여백을 준다 */}
         <div
-          className={`px-3 md:px-5 pb-3 md:pb-5 flex flex-col gap-3 ${
+          className={`xl:h-full px-3 md:px-5 pb-3 md:pb-5 ${
             selectableMembers.length > 1 ? "" : "pt-3 md:pt-5"
           }`}
         >
-          {/* 타임블록 │ 워크로드 + 내 태스크 */}
-          <div className="grid grid-cols-1 xl:grid-cols-[380px_minmax(0,1fr)] gap-3 items-start">
-            <TodayTimeblockWidget
-              boardId={boardId}
-              organizationId={organizationId}
-              boardMembers={boardMembersData}
-              userId={scopeUserId}
-              scopeName={isOtherScope ? scopeMember?.name : undefined}
-              memberColorMap={memberColorMap}
-              milestoneColorMap={milestoneColorMap}
-              currentUserRole={effectiveRole}
-              refreshTrigger={scheduleRefreshKey}
-              wsChecklistEvent={wsChecklistEvent}
-              onViewFeature={onViewFeatureById}
-              onViewTask={onViewTaskWithChecklist}
-              onViewMeeting={(_meetingId, date) => onNavigateToMeeting(date)}
-              onOpenSchedule={onOpenSchedule}
-            />
+          {/* 오늘 │ 워크로드 + 큐(바닥에 백로그 독) */}
+          <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-3 xl:h-full xl:min-h-0">
+            <div className="h-[520px] xl:h-full min-h-0">
+              <TodayTimeblockWidget
+                boardId={boardId}
+                organizationId={organizationId}
+                boardMembers={boardMembersData}
+                userId={scopeUserId}
+                scopeName={isOtherScope ? scopeMember?.name : undefined}
+                memberColorMap={memberColorMap}
+                milestoneColorMap={milestoneColorMap}
+                currentUserRole={effectiveRole}
+                refreshTrigger={scheduleRefreshKey}
+                wsChecklistEvent={wsChecklistEvent}
+                onViewFeature={onViewFeatureById}
+                onViewTask={onViewTaskWithChecklist}
+                onViewMeeting={(_meetingId, date) => onNavigateToMeeting(date)}
+                onOpenSchedule={onOpenSchedule}
+              />
+            </div>
 
-            <div className="flex flex-col gap-3 min-w-0">
+            <div className="min-w-0 min-h-0 h-[640px] xl:h-full">
               <MyWorkloadWidget
                 boardId={boardId}
                 boardMembers={boardMembersData}
@@ -195,28 +205,12 @@ export function DashboardView({
                 onOpenContractorManager={onOpenContractorManager}
                 onOpenResourceView={onOpenResourceView}
                 onOpenKanban={onOpenKanban}
+                showBacklog={!isOtherScope}
+                selectedMilestoneId={selectedMilestoneId}
+                onRefreshAfterPromote={onRefreshAfterPromote}
               />
             </div>
           </div>
-
-          {/*
-            백로그 레일 — 대시보드 맨 아래 한 층.
-            sticky로 붙여 스크롤 위치와 무관하게 항상 보이게 한다(안 보이는 백로그는 안 쓰인다).
-            남의 대시보드를 보는 중이면 개인 데이터이므로 아예 렌더하지 않는다 —
-            읽기 전용이 아니라 부재다.
-          */}
-          {!isOtherScope && (
-            <div className="sticky bottom-0 z-10 pb-1 shadow-[0_-10px_26px_rgba(0,0,0,0.14)] rounded-2xl">
-              <BacklogRail
-                boardId={boardId}
-                userId={userId}
-                features={allFeatures}
-                milestones={milestones}
-                selectedMilestoneId={selectedMilestoneId}
-                onPromoted={onRefreshAfterPromote}
-              />
-            </div>
-          )}
         </div>
       </div>
     </div>

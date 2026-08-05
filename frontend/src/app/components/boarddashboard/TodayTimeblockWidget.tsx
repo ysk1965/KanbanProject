@@ -6,7 +6,6 @@ import type { MilestoneColorMap } from "../../utils/milestoneColor";
 import { DailyScheduleView } from "../DailyScheduleView";
 import type { BoardMember as ShareBoardMember } from "../ShareBoardModal";
 import { DashboardEmpty } from "./DashboardCard";
-import { DASHBOARD_ROW_HEIGHT } from "./dashboardUtils";
 
 interface TodayTimeblockWidgetProps {
   boardId: string;
@@ -60,10 +59,8 @@ export function TodayTimeblockWidget({
   );
 
   return (
-    <section
-      className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden flex flex-col"
-      style={{ height: DASHBOARD_ROW_HEIGHT }}
-    >
+    // 높이는 부모가 준 만큼 다 쓴다 — 하루가 안 들어오면 이 안에서만 스크롤한다
+    <section className="h-full min-h-0 bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden flex flex-col">
       <header className="flex items-center gap-2 px-4 py-3 border-b border-foreground/[0.08] flex-none">
         <h2 className="text-xs md:text-sm font-bold text-foreground truncate">
           {t("boardDashboard.timeblockTitle", "오늘의 타임블록")}

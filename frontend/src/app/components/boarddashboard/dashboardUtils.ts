@@ -1,17 +1,38 @@
 import type { Task } from "../../types";
+import { getTodayDateString, toDateInputValue } from "../../utils/dateUtils";
 
 /**
- * 대시보드 상단 행 카드 높이.
+ * 워크로드(간트) 카드 높이.
  *
- * 타임블록과 워크로드가 같은 그리드 행에 나란히 서므로 바닥선을 공유해야 한다.
- * (워크로드의 배치 레일이 타임블록 아래 끝과 같은 선에 붙는다.)
- * 두 위젯이 이 값을 함께 쓴다 — 한쪽만 고치면 정렬이 조용히 어긋난다.
+ * 대시보드는 보고 있는 대상 1명만 간트에 넘기므로 담당자 행이 늘 하나다.
+ * 그런데 ScheduleResourceView는 부모가 준 높이를 채우는 구조라(root가 flex-1)
+ * 높이를 안 주면 내용 높이로 접히지 않고 0으로 무너진다 —
+ * 그래서 "한 줄이 들어가는 높이"를 여기서 정해 준다.
  *
- * 값의 근거: 워크로드 간트(멤버 행 + 하단 배치 레일)가 접히지 않고 들어오는 높이.
- * 타임블록은 슬롯을 34px로 키운 뒤로 하루가 다 들어오지 않는다 —
- * 모자란 만큼은 위젯 안에서 세로 스크롤로 처리한다(현재 시각으로 자동 스크롤).
+ * 근거: 헤더 48 + 마일스톤 밴드 48 + 이벤트 밴드 48 + 담당자 행 80 + 그룹 줄·여백.
+ * 나머지 세로 공간은 전부 아래 큐가 가져간다(늘 자리가 모자란 쪽이 큐다).
  */
-export const DASHBOARD_ROW_HEIGHT = 1000;
+export const WORKLOAD_CARD_HEIGHT = 292;
+
+/**
+ * ISO 시각(UTC)에서 오늘까지 지난 날짜 수. 오늘 만든 것은 0, 값이 없으면 null.
+ *
+ * 백로그 카드의 "방치 일수"에 쓴다 — 백로그를 다시 열게 만드는 건 개수가 아니라 이 숫자다.
+ * 시각이 아니라 로컬 날짜끼리 빼므로 자정을 넘기면 1일이 된다.
+ */
+export function daysSince(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const then = toDateInputValue(iso);
+  if (!then) return null;
+  const from = new Date(`${then}T00:00:00`).getTime();
+  const to = new Date(`${getTodayDateString()}T00:00:00`).getTime();
+  if (Number.isNaN(from) || Number.isNaN(to)) return null;
+  const diff = Math.round((to - from) / 86_400_000);
+  return diff < 0 ? 0 : diff;
+}
+
+/** 이 일수를 넘기면 방치로 본다 — 한 주가 통째로 지나간 시점 */
+export const BACKLOG_STALE_DAYS = 7;
 
 // ────────────────────────────────────────────────────────────
 // 보드 대시보드 파생 규칙

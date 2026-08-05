@@ -15,7 +15,8 @@ import { formatDate } from "../../utils/dateUtils";
 import { parseDate } from "../../utils/workloadBar";
 import type { BoardMember as ShareBoardMember } from "../ShareBoardModal";
 import { DashboardEmpty } from "./DashboardCard";
-import { DASHBOARD_ROW_HEIGHT } from "./dashboardUtils";
+import { WORKLOAD_CARD_HEIGHT } from "./dashboardUtils";
+import { BacklogRail } from "./BacklogRail";
 import { PlacementRail } from "./PlacementRail";
 import { useAxisRefresh, useAxisTransfer } from "../../utils/axisTransfer";
 
@@ -73,13 +74,26 @@ interface MyWorkloadWidgetProps {
   onOpenResourceView: () => void;
   /** 레일 링크: 칸반 뷰로 이동 */
   onOpenKanban: () => void;
+  /** 큐 바닥의 백로그 독을 그릴지 — 남의 대시보드에서는 개인 데이터라 아예 없다 */
+  showBacklog: boolean;
+  /** 보드에서 고른 마일스톤 — 백로그 승격 모달의 기본 필터 */
+  selectedMilestoneId?: string | null;
+  /** 승격 직후 보드 데이터를 다시 읽게 한다 */
+  onRefreshAfterPromote?: () => void;
 }
 
 /**
- * 내 워크로드 — 일정 탭의 ScheduleResourceView + 하단 배치 레일을 한 카드에 담는다.
+ * 대시보드 오른쪽 열 — 카드 두 장을 세로로 쌓는다.
  *
- * 위(간트)는 이미 배치된 일, 아래(레일)는 아직 자리가 없는 일이다.
- * 레일 카드를 내 행의 날짜 칸에 떨구면 그 날짜로 시작·마감이 잡히고 바가 생긴다.
+ *   위 = 이번 주 워크로드 (일정 탭의 ScheduleResourceView). 이미 배치된 일.
+ *   아래 = 큐. 배치 대기·지연이 본문이고, 바닥에 백로그 독이 붙는다.
+ *
+ * 성숙도 순으로 내려간다: 간트(날짜 있음) → 배치 대기(태스크는 됨) → 백로그(아직 아무것도 아님).
+ * 아래에서 위로 끌어 올리는 것이 곧 승격이고, 위에서 아래로 내리면 강등이다.
+ *
+ * 높이 규칙 — 간트는 담당자 행이 늘 하나라 WORKLOAD_CARD_HEIGHT만 쓰고,
+ * 남는 세로 공간은 전부 큐가 가져간다(늘 자리가 모자란 쪽이 큐다).
+ *
  * 바 이동 · 기간 조절 · 빈 행 드래그로 업무 생성 · 특별일 등록 · 줌은 원본 그대로 동작한다.
  */
 export function MyWorkloadWidget({
@@ -100,8 +114,17 @@ export function MyWorkloadWidget({
   onOpenContractorManager,
   onOpenResourceView,
   onOpenKanban,
+  showBacklog,
+  selectedMilestoneId,
+  onRefreshAfterPromote,
 }: MyWorkloadWidgetProps) {
   const { t } = useTranslation();
+
+  // 두 카드가 같은 문구를 쓴다 — 멤버가 아니면 간트도 큐도 만들 수 없다
+  const notMemberMessage = t(
+    "boardDashboard.notBoardMember",
+    "이 보드의 멤버로 등록되어 있지 않습니다.",
+  );
 
   // 보고 있는 대상의 행만 남긴다 — 참조가 매 렌더 바뀌면 하위 뷰가 재조회하므로 메모한다
   const myMembers = useMemo(
@@ -115,7 +138,6 @@ export function MyWorkloadWidget({
   // 배치 후 간트·레일을 함께 다시 그리기 위한 자체 신호.
   // 부모의 notifyScheduleRefresh는 일정 탭에서만 올라가므로 여기서 따로 센다.
   const [refreshTick, setRefreshTick] = useState(0);
-  const [pendingCount, setPendingCount] = useState(0);
   const [notice, setNotice] = useState<PlacementNotice | null>(null);
   const [error, setError] = useState<string | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
@@ -331,87 +353,79 @@ export function MyWorkloadWidget({
   );
 
   const childRefreshTrigger = refreshTrigger + refreshTick;
-
   return (
-    <section
-      className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden flex flex-col"
-      style={{ height: DASHBOARD_ROW_HEIGHT }}
-    >
-      <header className="flex items-center gap-2 px-4 py-3 border-b border-foreground/[0.08] flex-none">
-        <h2 className="text-xs md:text-sm font-bold text-foreground truncate">
-          {scopeName
-            ? t("boardDashboard.workloadTitleOf", "{{name}}의 워크로드", {
-                name: scopeName,
-              })
-            : t("boardDashboard.workloadTitle", "내 워크로드")}
-        </h2>
-        {pendingCount > 0 && (
-          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
-            {t("boardDashboard.pendingPlacement", {
-              count: pendingCount,
-              defaultValue: "미배치 {{count}}",
-            })}
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={onOpenResourceView}
-          className="ml-auto flex items-center gap-1 text-xs text-slate-400 hover:text-foreground transition-colors"
-        >
-          {t("boardDashboard.workloadLink", "리소스 뷰에서 열기")}
-          <ExternalLink size={12} aria-hidden="true" />
-        </button>
-      </header>
+    <div className="h-full min-h-0 flex flex-col gap-3">
+      {/*
+        이번 주 워크로드 — 담당자 행이 늘 하나라 카드 높이도 그만큼만 쓴다.
+        남는 세로 공간은 전부 아래 큐가 가져간다.
+      */}
+      <section
+        className="flex-none bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden flex flex-col"
+        style={{ height: WORKLOAD_CARD_HEIGHT }}
+      >
+        <header className="flex items-center gap-2 px-4 py-3 border-b border-foreground/[0.08] flex-none">
+          <h2 className="text-xs md:text-sm font-bold text-foreground truncate">
+            {scopeName
+              ? t("boardDashboard.workloadTitleOf", "{{name}}의 워크로드", {
+                  name: scopeName,
+                })
+              : t("boardDashboard.workloadTitle", "내 워크로드")}
+          </h2>
+          <button
+            type="button"
+            onClick={onOpenResourceView}
+            className="ml-auto flex items-center gap-1 text-xs text-slate-400 hover:text-foreground transition-colors"
+          >
+            {t("boardDashboard.workloadLink", "리소스 뷰에서 열기")}
+            <ExternalLink size={12} aria-hidden="true" />
+          </button>
+        </header>
 
-      {(notice || error) && (
-        <div
-          role="status"
-          className="flex items-center gap-2 px-4 py-2 border-b border-foreground/[0.08] flex-none bg-foreground/[0.03]"
-        >
-          {error ? (
-            <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>
-          ) : (
-            <>
-              <p className="text-xs text-slate-400 truncate">
-                {notice!.kind === "unscheduled"
-                  ? t("boardDashboard.unscheduledNotice", {
-                      title: notice!.title,
-                      defaultValue:
-                        "「{{title}}」 일정 해제됨 · 담당자와 체크리스트는 그대로입니다",
-                    })
-                  : t("boardDashboard.placedNotice", {
-                      title: notice!.title,
-                      // 로컬 Date로 넘긴다 — 문자열은 UTC로 해석돼 하루 어긋날 수 있다
-                      date: formatDate(
-                        parseDate(notice!.targetDate ?? ""),
-                        "PPP",
-                      ),
-                      defaultValue: "「{{title}}」 {{date}}에 배치됨",
-                    })}
+        {(notice || error) && (
+          <div
+            role="status"
+            className="flex items-center gap-2 px-4 py-2 border-b border-foreground/[0.08] flex-none bg-foreground/[0.03]"
+          >
+            {error ? (
+              <p className="text-xs text-rose-600 dark:text-rose-400">
+                {error}
               </p>
-              <button
-                type="button"
-                onClick={handleUndo}
-                className="ml-auto flex-none flex items-center gap-1 text-xs font-bold text-bridge-accent hover:underline"
-              >
-                <Undo2 size={12} aria-hidden="true" />
-                {t("boardDashboard.undo", "되돌리기")}
-              </button>
-            </>
-          )}
-        </div>
-      )}
-
-      <div className="flex-1 min-h-0 flex flex-col">
-        {myMembers.length === 0 ? (
-          <DashboardEmpty
-            message={t(
-              "boardDashboard.notBoardMember",
-              "이 보드의 멤버로 등록되어 있지 않습니다.",
+            ) : (
+              <>
+                <p className="text-xs text-slate-400 truncate">
+                  {notice!.kind === "unscheduled"
+                    ? t("boardDashboard.unscheduledNotice", {
+                        title: notice!.title,
+                        defaultValue:
+                          "「{{title}}」 일정 해제됨 · 담당자와 체크리스트는 그대로입니다",
+                      })
+                    : t("boardDashboard.placedNotice", {
+                        title: notice!.title,
+                        // 로컬 Date로 넘긴다 — 문자열은 UTC로 해석돼 하루 어긋날 수 있다
+                        date: formatDate(
+                          parseDate(notice!.targetDate ?? ""),
+                          "PPP",
+                        ),
+                        defaultValue: "「{{title}}」 {{date}}에 배치됨",
+                      })}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleUndo}
+                  className="ml-auto flex-none flex items-center gap-1 text-xs font-bold text-bridge-accent hover:underline"
+                >
+                  <Undo2 size={12} aria-hidden="true" />
+                  {t("boardDashboard.undo", "되돌리기")}
+                </button>
+              </>
             )}
-          />
-        ) : (
-          <>
+          </div>
+        )}
+
+        <div className="flex-1 min-h-0 flex flex-col">
+          {myMembers.length === 0 ? (
+            <DashboardEmpty message={notMemberMessage} />
+          ) : (
             <div className="flex-1 min-h-0 min-w-0 flex">
               <Suspense
                 fallback={
@@ -444,7 +458,19 @@ export function MyWorkloadWidget({
                 />
               </Suspense>
             </div>
+          )}
+        </div>
+      </section>
 
+      {/*
+        큐 — 남는 높이를 전부 가져간다(늘 자리가 모자란 쪽이다).
+        위는 배치 대기·지연, 바닥에 붙는 독은 아직 태스크도 아닌 내 백로그다.
+      */}
+      <section className="flex-1 min-h-0 bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden flex flex-col">
+        {myMembers.length === 0 ? (
+          <DashboardEmpty message={notMemberMessage} />
+        ) : (
+          <>
             <PlacementRail
               boardId={boardId}
               userId={userId}
@@ -454,11 +480,22 @@ export function MyWorkloadWidget({
               onPlace={handleQuickPlace}
               onOpenTask={onViewTask}
               onOpenKanban={onOpenKanban}
-              onPendingChange={setPendingCount}
             />
+
+            {/* 남의 대시보드에서는 개인 데이터라 아예 렌더하지 않는다 — 읽기 전용이 아니라 부재다 */}
+            {showBacklog && (
+              <BacklogRail
+                boardId={boardId}
+                userId={userId}
+                features={features}
+                milestones={milestones}
+                selectedMilestoneId={selectedMilestoneId}
+                onPromoted={onRefreshAfterPromote}
+              />
+            )}
           </>
         )}
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }

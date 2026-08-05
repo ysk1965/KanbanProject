@@ -2,8 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ArrowDownToLine,
-  ChevronDown,
-  ChevronUp,
   ExternalLink,
   GripVertical,
   Loader2,
@@ -56,8 +54,6 @@ interface PlacementRailProps {
   ) => void | Promise<void>;
   onOpenTask: (taskId: string, checklistItemId?: string) => void;
   onOpenKanban: () => void;
-  /** 미배치 건수 — 워크로드 헤더 배지용 */
-  onPendingChange?: (count: number) => void;
 }
 
 /** 배치가 필요한 항목인지 — 시작·마감이 둘 다 없으면 간트에 놓일 자리가 없다 */
@@ -78,14 +74,14 @@ function isCreatedToday(
 }
 
 /**
- * 배치 레일 — 워크로드 간트에 아직 자리가 없는 내 항목들을 간트 아래 가로줄로 깔아 둔다.
+ * 배치 대기 — 워크로드 간트에 아직 자리가 없는 내 항목들. 큐 카드의 본문이다.
  *
- * 간트 바는 체크리스트 항목 단위라 레일도 항목 단위로 담는다.
- * 카드를 내 행의 날짜 칸에 떨구면 그 날짜로 시작·마감이 잡히고 바가 생긴다.
+ * 간트 바는 체크리스트 항목 단위라 이 목록도 항목 단위로 담는다.
+ * 행을 내 행의 날짜 칸에 떨구면 그 날짜로 시작·마감이 잡히고 바가 생긴다.
  * 지연 탭은 "다시 배치할 것"이라 같은 동작으로 리스케줄된다.
  *
- * 세로 목록이 아닌 가로 레일인 이유: 항목이 늘어도 간트 높이를 잠식하지 않고,
- * 넘치는 만큼 옆으로만 밀린다.
+ * 가로 카드가 아닌 세로 행인 이유: 큐 카드가 오른쪽 열 폭을 다 쓰므로
+ * 236px 카드로는 한 번에 3건뿐이었다. 한 줄 행이면 같은 높이에 3~4배가 들어온다.
  */
 export function PlacementRail({
   boardId,
@@ -96,11 +92,9 @@ export function PlacementRail({
   onPlace,
   onOpenTask,
   onOpenKanban,
-  onPendingChange,
 }: PlacementRailProps) {
   const { t } = useTranslation();
   const today = getTodayDateString();
-  const storageKey = `placementRailOpen_${boardId}`;
 
   const [items, setItems] = useState<BoardChecklistItemResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -110,10 +104,6 @@ export function PlacementRail({
   const [onlyToday, setOnlyToday] = useState(false);
   // 빠른 배치 직후 서버 응답을 기다리는 동안 카드를 미리 감춘다
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
-  const [open, setOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    return window.localStorage.getItem(storageKey) !== "false";
-  });
   const trackRef = useRef<HTMLDivElement | null>(null);
 
   // 위(간트 바)·아래(백로그)에서 내려오거나 올라오는 항목을 받는다.
@@ -154,28 +144,10 @@ export function PlacementRail({
     [milestoneRank],
   );
 
-  const toggleOpen = useCallback(() => {
-    setOpen((prev) => {
-      const next = !prev;
-      try {
-        window.localStorage.setItem(storageKey, String(next));
-      } catch {
-        // 저장 실패는 접힘 상태만 잃을 뿐이라 무시한다
-      }
-      return next;
-    });
-  }, [storageKey]);
-
-  // 접혀 있으면 떨굴 자리가 없다 — 받을 수 있는 드래그가 시작되면 펼쳐 준다.
-  // 사용자가 접어 둔 상태를 저장값까지 바꾸진 않는다(드래그가 끝나면 그대로 남는다).
-  useEffect(() => {
-    if (dropActive) setOpen(true);
-  }, [dropActive]);
-
   useEffect(() => {
     if (!boardId || !userId) return;
     let cancelled = false;
-    const savedScrollLeft = trackRef.current?.scrollLeft ?? 0;
+    const savedScrollTop = trackRef.current?.scrollTop ?? 0;
 
     setIsLoading(true);
     boardChecklistAPI
@@ -185,9 +157,9 @@ export function PlacementRail({
         setItems(res.items ?? []);
         setHiddenIds(new Set());
         setError(null);
-        // 배치로 카드가 빠져도 보던 위치가 튀지 않도록 되돌린다
+        // 배치로 행이 빠져도 보던 위치가 튀지 않도록 되돌린다
         requestAnimationFrame(() => {
-          if (trackRef.current) trackRef.current.scrollLeft = savedScrollLeft;
+          if (trackRef.current) trackRef.current.scrollTop = savedScrollTop;
         });
       })
       .catch(() => {
@@ -220,10 +192,6 @@ export function PlacementRail({
 
     return { unplaced: unplacedList, overdue: overdueList };
   }, [items, hiddenIds, today, rankOf]);
-
-  useEffect(() => {
-    onPendingChange?.(unplaced.length);
-  }, [unplaced.length, onPendingChange]);
 
   // 보고 있던 탭이 비면 남아 있는 쪽으로 옮겨 준다
   useEffect(() => {
@@ -286,16 +254,16 @@ export function PlacementRail({
   return (
     <div
       {...zoneProps}
-      className={`flex-none border-t transition-colors ${
+      className={`flex-1 min-h-0 flex flex-col transition-colors ${
         dropOver
-          ? "border-bridge-accent bg-bridge-accent/[0.12]"
+          ? "bg-bridge-accent/[0.12]"
           : dropActive
-            ? "border-bridge-accent/40 bg-bridge-accent/[0.05]"
-            : "border-foreground/[0.08]"
+            ? "bg-bridge-accent/[0.05]"
+            : ""
       }`}
     >
       <div
-        className="flex items-center gap-1 px-3 py-2"
+        className="flex-none flex items-center gap-1 px-3 py-2 border-b border-foreground/[0.08]"
         role="tablist"
         aria-label={t("boardDashboard.railTabsLabel", "배치 대기 항목")}
       >
@@ -375,31 +343,14 @@ export function PlacementRail({
           {t("boardDashboard.myTasksLink", "칸반에서 보기")}
           <ExternalLink size={11} aria-hidden="true" />
         </button>
-
-        <button
-          type="button"
-          onClick={toggleOpen}
-          aria-expanded={open}
-          aria-label={
-            open
-              ? t("boardDashboard.railCollapse", "배치 레일 접기")
-              : t("boardDashboard.railExpand", "배치 레일 펼치기")
-          }
-          className="flex-none p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-        >
-          {open ? (
-            <ChevronDown size={14} aria-hidden="true" />
-          ) : (
-            <ChevronUp size={14} aria-hidden="true" />
-          )}
-        </button>
       </div>
 
       <div
+        ref={trackRef}
         id="placement-rail-panel"
         role="tabpanel"
         aria-labelledby={`placement-rail-tab-${tab}`}
-        hidden={!open}
+        className="flex-1 min-h-0 overflow-y-auto custom-scrollbar"
       >
         {isLoading && items.length === 0 ? (
           <div className="flex items-center justify-center py-6">
@@ -417,10 +368,7 @@ export function PlacementRail({
               : t("boardDashboard.railNoOverdue", "지연된 항목이 없습니다.")}
           </p>
         ) : (
-          <div
-            ref={trackRef}
-            className="flex items-stretch gap-2 px-3 pb-3 overflow-x-auto custom-scrollbar snap-x"
-          >
+          <ul className="flex flex-col">
             {list.map((item) => {
               const taskId = item.task?.id;
               const draggable = canEdit && !!taskId;
@@ -432,7 +380,7 @@ export function PlacementRail({
                 : null;
 
               return (
-                <div
+                <li
                   key={item.id}
                   draggable={draggable}
                   onDragStart={(e) => {
@@ -448,7 +396,7 @@ export function PlacementRail({
                       }),
                     );
                     // 축 이동용 페이로드도 함께 싣는다 — 간트는 위의 기존 키를,
-                    // 백로그 레일은 이 키를 읽는다
+                    // 백로그 독은 이 키를 읽는다
                     setAxisDragData(e.dataTransfer, "placement", {
                       id: item.id,
                       task_id: taskId,
@@ -458,90 +406,75 @@ export function PlacementRail({
                     });
                   }}
                   onDragEnd={endAxisDrag}
-                  className={`group flex-none w-[236px] snap-start bg-bridge-dark rounded-xl border border-foreground/[0.08] hover:border-foreground/[0.12] p-2.5 flex flex-col gap-1 transition-colors ${
+                  className={`group flex items-center gap-2 px-3 py-1.5 border-b border-foreground/[0.06] hover:bg-foreground/[0.03] transition-colors ${
                     draggable ? "cursor-grab active:cursor-grabbing" : ""
                   }`}
                 >
-                  <div className="flex items-start gap-1.5">
-                    {draggable && (
-                      <GripVertical
-                        size={12}
-                        className="text-slate-600 mt-0.5 flex-none"
+                  {draggable && (
+                    <GripVertical
+                      size={12}
+                      className="flex-none text-slate-600"
+                      aria-hidden="true"
+                    />
+                  )}
+
+                  {/* 마일스톤이 1순위 단서 — 색은 간트·마인드맵과 같은 팔레트를 쓴다 */}
+                  {milestone && milestoneHex ? (
+                    <span
+                      className="flex-none flex items-center gap-1 min-w-0 max-w-[7.5rem] text-xs font-bold pl-1.5 pr-2 py-0.5 rounded-full"
+                      style={{
+                        backgroundColor: withAlpha(milestoneHex, 0.15),
+                        color: milestoneHex,
+                      }}
+                      title={milestone.title}
+                    >
+                      <span
+                        className="flex-none w-1.5 h-1.5 rounded-[1px]"
+                        style={{ backgroundColor: milestoneHex }}
                         aria-hidden="true"
                       />
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => taskId && onOpenTask(taskId, item.id)}
-                      className="flex-1 min-w-0 text-left"
-                    >
-                      {/* 마일스톤이 1순위 단서 — 색은 간트·마인드맵과 같은 팔레트를 쓴다 */}
-                      <div className="flex items-center gap-1 mb-1 min-w-0">
-                        {milestone && milestoneHex ? (
-                          <span
-                            className="flex items-center gap-1 min-w-0 text-xs font-bold pl-1.5 pr-2 py-0.5 rounded-full"
-                            style={{
-                              backgroundColor: withAlpha(milestoneHex, 0.15),
-                              color: milestoneHex,
-                            }}
-                            title={milestone.title}
-                          >
-                            <span
-                              className="flex-none w-1.5 h-1.5 rounded-[1px]"
-                              style={{ backgroundColor: milestoneHex }}
-                              aria-hidden="true"
-                            />
-                            <span className="truncate">{milestone.title}</span>
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 min-w-0 text-xs font-bold pl-1.5 pr-2 py-0.5 rounded-full bg-foreground/[0.06] text-slate-500">
-                            <span
-                              className="flex-none w-1.5 h-1.5 rounded-[1px] bg-slate-600"
-                              aria-hidden="true"
-                            />
-                            <span className="truncate">
-                              {t(
-                                "boardDashboard.railNoMilestone",
-                                "마일스톤 없음",
-                              )}
-                            </span>
-                          </span>
-                        )}
-                      </div>
+                      <span className="truncate">{milestone.title}</span>
+                    </span>
+                  ) : (
+                    <span className="flex-none flex items-center gap-1 min-w-0 max-w-[7.5rem] text-xs font-bold pl-1.5 pr-2 py-0.5 rounded-full bg-foreground/[0.06] text-slate-500">
+                      <span
+                        className="flex-none w-1.5 h-1.5 rounded-[1px] bg-slate-600"
+                        aria-hidden="true"
+                      />
+                      <span className="truncate">
+                        {t("boardDashboard.railNoMilestone", "마일스톤 없음")}
+                      </span>
+                    </span>
+                  )}
 
-                      {(item.feature || isNew) && (
-                        <div className="flex items-center gap-1 mb-1 min-w-0">
-                          {item.feature && (
-                            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full truncate bg-foreground/[0.06] text-slate-400">
-                              {item.feature.title}
-                            </span>
-                          )}
-                          {isNew && (
-                            <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
-                              {t("boardDashboard.railNew", "NEW")}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      <p className="text-xs font-medium text-foreground leading-snug line-clamp-2">
-                        {item.title}
-                      </p>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <span className="text-xs text-slate-500 truncate">
-                          {item.task?.title ??
-                            t("boardDashboard.noBlock", "미분류")}
-                        </span>
-                        {tab === "overdue" && dday.text && (
-                          <span className="ml-auto flex-none text-xs font-bold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400">
-                            {dday.text}
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => taskId && onOpenTask(taskId, item.id)}
+                    title={item.title}
+                    className="flex-1 min-w-0 text-left text-xs font-medium text-foreground truncate"
+                  >
+                    {item.title}
+                  </button>
+
+                  {isNew && (
+                    <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
+                      {t("boardDashboard.railNew", "NEW")}
+                    </span>
+                  )}
+
+                  {tab === "overdue" && dday.text && (
+                    <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400">
+                      {dday.text}
+                    </span>
+                  )}
+
+                  {/* 어느 태스크에 붙은 항목인지 — 좁은 폭에서는 제목에 자리를 내준다 */}
+                  <span className="hidden lg:block flex-none max-w-[10rem] text-xs text-slate-500 truncate">
+                    {item.task?.title ?? t("boardDashboard.noBlock", "미분류")}
+                  </span>
 
                   {canEdit && (
-                    <div className="flex items-center gap-1 mt-auto">
+                    <span className="flex-none flex items-center gap-1">
                       <button
                         type="button"
                         onClick={() => handleQuickPlace(item, today)}
@@ -576,18 +509,22 @@ export function PlacementRail({
                               },
                             })
                           }
-                          className="ml-auto flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                          aria-label={t(
+                            "boardDashboard.railToBacklogAria",
+                            "백로그로 내리기",
+                          )}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                         >
                           <ArrowDownToLine size={11} aria-hidden="true" />
                           {t("boardDashboard.railToBacklog", "백로그")}
                         </button>
                       )}
-                    </div>
+                    </span>
                   )}
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
       </div>
     </div>

@@ -36,6 +36,7 @@ import {
   type AxisZone,
 } from "../../utils/axisTransfer";
 import { PromoteBacklogModal, type PromoteTarget } from "./PromoteBacklogModal";
+import { BACKLOG_STALE_DAYS, daysSince } from "./dashboardUtils";
 
 /** 백로그 제목 최대 길이 — 백엔드 @Size(max = 200)과 같은 값 */
 const TITLE_MAX = 200;
@@ -83,13 +84,17 @@ const draftKey = (boardId: string) => `bridge.backlog.draft.${boardId}`;
 const collapseKey = (boardId: string) => `bridge.backlog.collapsed.${boardId}`;
 
 /**
- * 백로그 레일 — 대시보드 맨 아래에 붙는 개인 TODO.
+ * 백로그 독 — 큐 카드 바닥에 붙는 개인 TODO.
  *
- * 대시보드는 성숙도 순으로 쌓여 있다(타임블록·간트 = 확정 / 배치 레일 = 태스크는 됨).
+ * 대시보드는 성숙도 순으로 쌓여 있다(타임블록·간트 = 확정 / 배치 대기 = 태스크는 됨).
  * 백로그는 그 아래 한 층, "아직 아무것도 아닌 일"을 담는다. 나만 보인다.
  *
  * 카드를 위로 끌어 놓는 자리가 곧 승격 대상이 된다. 드래그를 못 쓰는 환경을 위해
- * 카드마다 빠른 승격 버튼을 함께 둔다(배치 레일의 "오늘/내일"과 같은 패턴).
+ * 카드마다 빠른 승격 버튼을 함께 둔다(배치 대기의 "오늘/내일"과 같은 패턴).
+ *
+ * 쓰기(b 단축키·붙여넣기 분할)는 원래 충분했다. 비어 있던 건 읽기 쪽이라,
+ * 오래된 것부터 앞에 세우고 방치 일수를 배지로 띄운다 —
+ * 백로그를 다시 열게 만드는 건 개수가 아니라 그 숫자다.
  */
 export function BacklogRail({
   boardId,
@@ -170,8 +175,15 @@ export function BacklogRail({
     void load();
   }, [load]);
 
+  /**
+   * 오래된 것부터 앞에 둔다 — 방치가 목록 순서로 드러난다.
+   * 백로그를 다시 열게 만드는 건 개수가 아니라 "가장 오래된 게 맨 앞에 있다"는 사실이다.
+   */
   const openItems = useMemo(
-    () => items.filter((i) => !i.promoted_type),
+    () =>
+      items
+        .filter((i) => !i.promoted_type)
+        .sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? "")),
     [items],
   );
   const promotedItems = useMemo(
@@ -179,6 +191,12 @@ export function BacklogRail({
     [items],
   );
   const visible = tab === "open" ? openItems : promotedItems;
+
+  /** 가장 오래된 미승격 항목의 방치 일수 — 헤더에 띄우는 압력 신호 */
+  const oldestDays = useMemo(
+    () => (openItems.length > 0 ? daysSince(openItems[0].created_at) : null),
+    [openItems],
+  );
 
   /* ── 추가 ── */
   const persist = useCallback(
@@ -477,24 +495,22 @@ export function BacklogRail({
     return item.promoted_label ? `${kind} · ${item.promoted_label}` : kind;
   };
 
+  // 큐 패널 바닥에 붙는 독이라 카드가 좁다 — 좁힌 만큼 한 번에 한 장 더 보인다
   const cardBase =
-    "flex-none w-[236px] snap-start bg-bridge-dark rounded-xl border p-2.5 flex flex-col gap-1 transition-colors";
+    "flex-none w-[194px] snap-start bg-bridge-dark rounded-xl border p-2.5 flex flex-col gap-1 transition-colors";
 
   return (
     <section
       {...zoneProps}
-      className={`flex-none bg-bridge-obsidian rounded-2xl border overflow-hidden transition-colors ${
+      className={`flex-none border-t transition-colors ${
         dropOver
           ? "border-bridge-accent bg-bridge-accent/[0.12]"
           : dropActive
-            ? "border-bridge-accent/40"
-            : "border-foreground/[0.08]"
+            ? "border-bridge-accent/40 bg-bridge-accent/[0.05]"
+            : "border-bridge-accent/25 bg-bridge-accent/[0.04]"
       }`}
       aria-label={t("backlog.title", "내 백로그")}
     >
-      {/* Top Accent Line — 다른 레일과 구분되는 유일한 장식 */}
-      <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
-
       {(demoted || transferError) && (
         <div
           role="status"
@@ -587,8 +603,19 @@ export function BacklogRail({
           );
         })}
 
+        {/* 방치 신호 — 개수는 이미 탭에 있다. 다시 열게 만드는 건 이 숫자다 */}
+        {tab === "open" &&
+          oldestDays !== null &&
+          oldestDays >= BACKLOG_STALE_DAYS && (
+            <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+              {t("backlog.oldestDays", "가장 오래된 것 {{count}}일", {
+                count: oldestDays,
+              })}
+            </span>
+          )}
+
         <p
-          className={`ml-auto hidden md:block text-xs truncate ${
+          className={`ml-auto hidden lg:block text-xs truncate ${
             dropActive ? "font-bold text-bridge-accent" : "text-slate-600"
           }`}
         >
@@ -810,8 +837,13 @@ export function BacklogRail({
               </p>
             )}
 
-            {visible.map((item) => {
+            {visible.map((item, index) => {
               const draggable = !item.promoted_type;
+              const age = daysSince(item.created_at);
+              // 오래된 순으로 정렬돼 있으므로 방치 1등은 언제나 첫 카드다
+              const stale =
+                draggable && age !== null && age >= BACKLOG_STALE_DAYS;
+              const isOldest = stale && index === 0;
               return (
                 <div
                   key={item.id}
@@ -858,6 +890,19 @@ export function BacklogRail({
                         {item.promoted_type && (
                           <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full truncate bg-bridge-secondary/15 text-bridge-secondary">
                             → {promotedLabel(item)}
+                          </span>
+                        )}
+                        {stale && (
+                          <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                            {isOldest
+                              ? t(
+                                  "backlog.staleOldest",
+                                  "{{count}}일 · 가장 오래됨",
+                                  { count: age as number },
+                                )
+                              : t("backlog.staleDays", "{{count}}일", {
+                                  count: age as number,
+                                })}
                           </span>
                         )}
                       </div>
