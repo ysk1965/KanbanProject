@@ -164,7 +164,8 @@ export function DashboardView({
           }`}
         >
           {/* 오늘 │ 워크로드 + 큐(바닥에 백로그 독) */}
-          <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-3 xl:h-full xl:min-h-0">
+          {/* 왼쪽 폭 380 — 타임블록 카드가 제목·태스크명 두 줄을 자르지 않고 담는 최소치 */}
+          <div className="grid grid-cols-1 xl:grid-cols-[380px_minmax(0,1fr)] gap-3 xl:h-full xl:min-h-0">
             <div className="h-[520px] xl:h-full min-h-0">
               <TodayTimeblockWidget
                 boardId={boardId}
