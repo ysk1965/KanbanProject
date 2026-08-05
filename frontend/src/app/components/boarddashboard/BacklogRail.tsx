@@ -19,7 +19,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { checklistAPI, personalTaskAPI } from "../../utils/api";
-import type { Feature, PersonalTask } from "../../types";
+import type { Feature, Milestone, PersonalTask } from "../../types";
 import { formatRelativeTime } from "../../utils/dateUtils";
 import {
   BACKLOG_DRAG_TYPE,
@@ -57,6 +57,10 @@ interface BacklogRailProps {
   userId?: string;
   /** 보드의 피처 목록 — 태스크 승격 시 붙일 곳을 고른다 */
   features: Feature[];
+  /** 보드의 마일스톤 — 승격 모달의 1차 필터 */
+  milestones?: Milestone[];
+  /** 보드에서 보고 있던 마일스톤 — 승격 모달의 기본 필터가 된다 */
+  selectedMilestoneId?: string | null;
   /** 승격 후 보드 데이터를 다시 읽게 한다 */
   onPromoted?: () => void;
 }
@@ -91,6 +95,8 @@ export function BacklogRail({
   boardId,
   userId,
   features,
+  milestones,
+  selectedMilestoneId,
   onPromoted,
 }: BacklogRailProps) {
   const { t } = useTranslation();
@@ -919,6 +925,8 @@ export function BacklogRail({
           target={promoting.target}
           presetDate={promoting.presetDate}
           features={features}
+          milestones={milestones}
+          selectedMilestoneId={selectedMilestoneId}
           userId={userId}
           onClose={() => setPromoting(null)}
           onPromoted={handlePromoted}

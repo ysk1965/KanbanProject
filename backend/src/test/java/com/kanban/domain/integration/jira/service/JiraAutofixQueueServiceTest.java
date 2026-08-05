@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.checklist.ChecklistItem;
+import com.kanban.domain.checklist.ChecklistItemRepository;
+import com.kanban.domain.comment.Comment;
+import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.integration.github.BoardGithubRepo;
 import com.kanban.domain.integration.github.BoardGithubRepoRepository;
 import com.kanban.domain.integration.github.GithubInstallation;
@@ -11,8 +15,10 @@ import com.kanban.domain.integration.jira.*;
 import com.kanban.domain.integration.jira.config.AutofixProperties;
 import com.kanban.domain.integration.jira.dto.JiraAutofixRequest;
 import com.kanban.domain.integration.jira.dto.JiraAutofixResponse;
+import com.kanban.domain.task.QaState;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
+import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,6 +60,9 @@ class JiraAutofixQueueServiceTest {
     private JiraAutofixJobRepository jobRepository;
     private JiraIntegrationConfigRepository configRepository;
     private TaskRepository taskRepository;
+    private ChecklistItemRepository checklistItemRepository;
+    private CommentRepository commentRepository;
+    private UserRepository userRepository;
     private BoardGithubRepoRepository boardGithubRepoRepository;
     private JiraApiClient jiraApiClient;
     private JiraOAuthService oauthService;
@@ -71,6 +80,9 @@ class JiraAutofixQueueServiceTest {
         jobRepository = mock(JiraAutofixJobRepository.class);
         configRepository = mock(JiraIntegrationConfigRepository.class);
         taskRepository = mock(TaskRepository.class);
+        checklistItemRepository = mock(ChecklistItemRepository.class);
+        commentRepository = mock(CommentRepository.class);
+        userRepository = mock(UserRepository.class);
         boardGithubRepoRepository = mock(BoardGithubRepoRepository.class);
         jiraApiClient = mock(JiraApiClient.class);
         oauthService = mock(JiraOAuthService.class);
@@ -79,6 +91,7 @@ class JiraAutofixQueueServiceTest {
         service = new JiraAutofixQueueService(
                 properties, new ObjectMapper(), boardRepository, boardService,
                 triageRepository, jobRepository, configRepository, taskRepository,
+                checklistItemRepository, commentRepository, userRepository,
                 boardGithubRepoRepository, jiraApiClient, oauthService, slackPublisher);
 
         board = mock(Board.class);
@@ -118,11 +131,7 @@ class JiraAutofixQueueServiceTest {
     }
 
     private JiraAutofixJob queuedJob(String key) {
-        JiraAutofixJob job = JiraAutofixJob.builder()
-                .board(board).jiraIssueKey(key).taskId("task-" + key)
-                .confidence(0.9).status(AutofixJobStatus.QUEUED)
-                .queuedAt(LocalDateTime.now())
-                .build();
+        JiraAutofixJob job = JiraAutofixJob.forJiraIssue(board, key, "task-" + key, 0.9);
         job.assignTarget("inst-1", REPO, "develop");
         return job;
     }
@@ -157,6 +166,73 @@ class JiraAutofixQueueServiceTest {
 
         assertThat(result.getQueued()).isZero();
         assertThat(result.getSkippedAlreadyQueued()).isEqualTo(1);
+    }
+
+    /** 판정 이후 상태가 바뀐 태스크를 조회 결과에 심는다. 담기가 실제로 읽는 경로를 그대로 태운다. */
+    private void givenTasks(Task... tasks) {
+        when(taskRepository.findByIdInWithBlockAndFeature(anyList())).thenReturn(List.of(tasks));
+    }
+
+    private Task taskOf(String key, boolean completed, QaState qaState) {
+        Task task = Task.builder()
+                .id("task-" + key)
+                .title(key + " 오탈자")
+                .isCompleted(completed)
+                .build();
+        task.applyQaState(qaState);
+        return task;
+    }
+
+    @Test
+    @DisplayName("이미 끝난 태스크는 담지 않는다 — 판정은 스냅샷이라 그 뒤 완료된 건이 후보에 남는다")
+    void skipsAlreadyDoneTask() {
+        givenRepo("develop");
+        givenCandidates(candidate("QASA-1", 0.9), candidate("QASA-2", 0.9));
+        givenTasks(taskOf("QASA-1", false, null), taskOf("QASA-2", true, null));
+
+        JiraAutofixResponse.EnqueueResult result = service.enqueueCandidates(BOARD_ID, USER_ID, null, null);
+
+        assertThat(result.getQueued()).isEqualTo(1);
+        assertThat(result.getSkippedAlreadyDone()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("QA가 물고 있는 태스크도 담지 않는다")
+    void skipsTaskHeldByQa() {
+        givenRepo("develop");
+        givenCandidates(candidate("QASA-1", 0.9));
+        givenTasks(taskOf("QASA-1", false, QaState.REVIEW));
+
+        JiraAutofixResponse.EnqueueResult result = service.enqueueCandidates(BOARD_ID, USER_ID, null, null);
+
+        assertThat(result.getQueued()).isZero();
+        assertThat(result.getSkippedAlreadyDone()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("QA 반려는 담는다 — 되돌려 보냈다는 건 아직 안 고쳐졌다는 뜻이다")
+    void enqueuesRejectedTask() {
+        givenRepo("develop");
+        givenCandidates(candidate("QASA-1", 0.9));
+        givenTasks(taskOf("QASA-1", false, QaState.REJECTED));
+
+        JiraAutofixResponse.EnqueueResult result = service.enqueueCandidates(BOARD_ID, USER_ID, null, null);
+
+        assertThat(result.getQueued()).isEqualTo(1);
+        assertThat(result.getSkippedAlreadyDone()).isZero();
+    }
+
+    @Test
+    @DisplayName("태스크를 못 찾아도 담는다 — 연동이 끊긴 건까지 막으면 후보가 조용히 사라진다")
+    void enqueuesWhenTaskMissing() {
+        givenRepo("develop");
+        givenCandidates(candidate("QASA-1", 0.9));
+        givenTasks();  // 조회 결과 없음
+
+        JiraAutofixResponse.EnqueueResult result = service.enqueueCandidates(BOARD_ID, USER_ID, null, null);
+
+        assertThat(result.getQueued()).isEqualTo(1);
+        assertThat(result.getSkippedAlreadyDone()).isZero();
     }
 
     @Test
@@ -201,7 +277,7 @@ class JiraAutofixQueueServiceTest {
         ArgumentCaptor<List<JiraAutofixJob>> saved = ArgumentCaptor.forClass(List.class);
         verify(jobRepository).saveAll(saved.capture());
         assertThat(saved.getValue()).singleElement()
-                .extracting(JiraAutofixJob::getJiraIssueKey).isEqualTo("QASA-2");
+                .extracting(JiraAutofixJob::getJobKey).isEqualTo("QASA-2");
     }
 
     @Test
@@ -310,11 +386,13 @@ class JiraAutofixQueueServiceTest {
         assertThat(job.getRunnerName()).isEqualTo("mac-01");
 
         JiraAutofixResponse.RunnerJob handed = result.getJob();
-        assertThat(handed.getJiraIssueKey()).isEqualTo("QASA-92");
+        assertThat(handed.getJobKey()).isEqualTo("QASA-92");
         assertThat(handed.getRepoFullName()).isEqualTo(REPO);
         assertThat(handed.getBaseRef()).isEqualTo("develop");
-        // 브랜치 이름은 서버가 정한다 — 러너가 정하면 실행마다 규칙이 흔들린다
-        assertThat(handed.getBranch()).isEqualTo("autofix/QASA-92");
+        // 브랜치 이름은 서버가 정한다 — 러너가 정하면 실행마다 규칙이 흔들린다.
+        // 뒤에 job id를 붙이는 이유는 재시도다: 대상 키로만 정하면 remote에 남은 이전 브랜치와
+        // non-fast-forward로 부딪혀 push가 실패한다.
+        assertThat(handed.getBranch()).startsWith("autofix/QASA-92-");
     }
 
     @Test
@@ -334,9 +412,8 @@ class JiraAutofixQueueServiceTest {
     @DisplayName("대상 저장소가 없는 작업은 내주지 않고 실패시킨다 — 러너가 어디서 고칠지 모른다")
     void failsJobWithoutTarget() {
         properties.setDispatchEnabled(true);
-        JiraAutofixJob job = JiraAutofixJob.builder()
-                .board(board).jiraIssueKey("QASA-1").status(AutofixJobStatus.QUEUED)
-                .queuedAt(LocalDateTime.now()).build();
+        // 대상을 지정하지 않은(assignTarget 미호출) 작업
+        JiraAutofixJob job = JiraAutofixJob.forJiraIssue(board, "QASA-1", null, 0.9);
         givenNextQueued(job);
 
         JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null);
@@ -410,7 +487,7 @@ class JiraAutofixQueueServiceTest {
     private JiraAutofixJob dispatchedJob(String key) {
         JiraAutofixJob job = queuedJob(key);
         job.markClaimed("mac-01");
-        when(jobRepository.findDispatchedByIssueKey(BOARD_ID, key)).thenReturn(Optional.of(job));
+        when(jobRepository.findDispatchedByJobKey(BOARD_ID, key)).thenReturn(Optional.of(job));
         return job;
     }
 
@@ -424,7 +501,7 @@ class JiraAutofixQueueServiceTest {
         JiraAutofixJob job = dispatchedJob("QASA-92");
 
         service.handleCallback(BOARD_ID, payload("""
-                {"issue_key":"QASA-92","result":"pr",
+                {"job_key":"QASA-92","result":"pr",
                  "pr_url":"https://github.com/o/r/pull/1","log_excerpt":"...ok"}
                 """));
 
@@ -463,7 +540,7 @@ class JiraAutofixQueueServiceTest {
         JiraAutofixJob job = dispatchedJob("QASA-92");
 
         service.handleCallback(BOARD_ID, payload("""
-                {"issue_key":"QASA-92","result":"failed",
+                {"job_key":"QASA-92","result":"failed",
                  "failure_reason":"컴파일 실패: CS1002","log_excerpt":"Assets/Foo.cs(12,9): error CS1002"}
                 """));
 
@@ -494,7 +571,7 @@ class JiraAutofixQueueServiceTest {
                 """));
 
         assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.SUCCEEDED);
-        verify(jobRepository, never()).findDispatchedByIssueKey(any(), any());
+        verify(jobRepository, never()).findDispatchedByJobKey(any(), any());
     }
 
     @Test
@@ -502,9 +579,8 @@ class JiraAutofixQueueServiceTest {
     void callbackRejectsOtherBoardsJob() throws Exception {
         Board other = mock(Board.class);
         when(other.getId()).thenReturn("board-2");
-        JiraAutofixJob job = JiraAutofixJob.builder()
-                .board(other).jiraIssueKey("QASA-92").status(AutofixJobStatus.DISPATCHED)
-                .queuedAt(LocalDateTime.now()).build();
+        JiraAutofixJob job = JiraAutofixJob.forJiraIssue(other, "QASA-92", null, 0.9);
+        job.markClaimed("mac-01");
         when(jobRepository.findById("job-9")).thenReturn(Optional.of(job));
 
         service.handleCallback(BOARD_ID, payload("{\"job_id\":\"job-9\",\"result\":\"pr\"}"));
@@ -518,7 +594,7 @@ class JiraAutofixQueueServiceTest {
         JiraAutofixJob job = dispatchedJob("QASA-92");
 
         service.handleCallback(BOARD_ID, payload("""
-                {"issue_key":"QASA-92","result":"pr","pr_url":"https://github.com/o/r/pull/1"}
+                {"job_key":"QASA-92","result":"pr","pr_url":"https://github.com/o/r/pull/1"}
                 """));
         // 두 번째는 DISPATCHED 조회에서 안 잡히지만, 잡히더라도 complete()가 막는다
         assertThat(job.complete(AutofixJobStatus.FAILED, null, "덮어쓰기 시도", null)).isFalse();
@@ -529,8 +605,218 @@ class JiraAutofixQueueServiceTest {
     @DisplayName("식별자 없는 회신은 조용히 무시한다")
     void callbackWithoutIdentifiers() throws Exception {
         service.handleCallback(BOARD_ID, payload("{\"result\":\"pr\"}"));
-        verify(jobRepository, never()).findDispatchedByIssueKey(any(), any());
+        verify(jobRepository, never()).findDispatchedByJobKey(any(), any());
         verify(jobRepository, never()).findById(any());
+    }
+
+    // ── 사람이 직접 맡기기 ──────────────────────────
+
+    private static final String TASK_ID = "task-99";
+
+    private Task givenDelegatableTask() {
+        Task task = mock(Task.class);
+        com.kanban.domain.block.Block block = mock(com.kanban.domain.block.Block.class);
+        lenient().when(block.getBoard()).thenReturn(board);
+        lenient().when(task.getId()).thenReturn(TASK_ID);
+        lenient().when(task.getBlock()).thenReturn(block);
+        lenient().when(task.getTitle()).thenReturn("프리셋 관리 팝업 개선");
+        lenient().when(task.getDescription()).thenReturn("저장 흐름 전반을 손본다");
+        lenient().when(taskRepository.findById(TASK_ID)).thenReturn(Optional.of(task));
+        return task;
+    }
+
+    private ChecklistItem givenItem(String id, String title) {
+        ChecklistItem item = mock(ChecklistItem.class);
+        lenient().when(item.getId()).thenReturn(id);
+        lenient().when(item.getTitle()).thenReturn(title);
+        lenient().when(checklistItemRepository.findById(id)).thenReturn(Optional.of(item));
+        return item;
+    }
+
+    private JiraAutofixRequest.Delegate delegateRequest(String instruction, List<String> itemIds) {
+        JiraAutofixRequest.Delegate request = new JiraAutofixRequest.Delegate();
+        request.setTaskId(TASK_ID);
+        request.setInstruction(instruction);
+        request.setChecklistItemIds(itemIds);
+        return request;
+    }
+
+    @Test
+    @DisplayName("체크리스트 항목 3개를 고르면 job도 3개다 — 실패 단위가 섞이면 성공한 것까지 버려진다")
+    void delegatesOneJobPerChecklistItem() {
+        givenRepo("develop");
+        givenDelegatableTask();
+        // 중첩 stubbing이 되지 않게 항목을 먼저 만들어 둔다
+        List<ChecklistItem> items = List.of(
+                givenItem("item-1", "빈 이름일 때 저장 버튼 비활성화"),
+                givenItem("item-2", "중복 이름 검사 추가"),
+                givenItem("item-3", "삭제 확인 팝업"));
+        when(checklistItemRepository.findByTaskIdOrderByPositionAsc(TASK_ID)).thenReturn(items);
+
+        JiraAutofixResponse.DelegateResult result = service.delegate(BOARD_ID, USER_ID,
+                delegateRequest("공백 이름을 막아라", List.of("item-1", "item-2", "item-3")));
+
+        assertThat(result.getQueued()).isEqualTo(3);
+        ArgumentCaptor<List<JiraAutofixJob>> saved = ArgumentCaptor.forClass(List.class);
+        verify(jobRepository).saveAll(saved.capture());
+        assertThat(saved.getValue()).hasSize(3)
+                .allSatisfy(job -> {
+                    assertThat(job.getJobKind()).isEqualTo(AutofixJobKind.MANUAL);
+                    assertThat(job.getJobKey()).startsWith("CHK-");
+                    assertThat(job.getTaskId()).isEqualTo(TASK_ID);   // 맥락은 항상 부모 태스크에서 온다
+                    assertThat(job.getConfidence()).isNull();          // 수동에는 점수가 없다
+                });
+        // 브랜치가 겹치면 두 번째 push부터 non-fast-forward로 실패한다
+        assertThat(saved.getValue()).extracting(JiraAutofixJob::getBranchName).doesNotHaveDuplicates();
+    }
+
+    @Test
+    @DisplayName("항목을 고르지 않으면 태스크 전체를 맡긴다")
+    void delegatesWholeTaskWhenNoItemsChosen() {
+        givenRepo("develop");
+        givenDelegatableTask();
+
+        JiraAutofixResponse.DelegateResult result =
+                service.delegate(BOARD_ID, USER_ID, delegateRequest("카드 전체를 손봐라", List.of()));
+
+        assertThat(result.getQueued()).isEqualTo(1);
+        ArgumentCaptor<List<JiraAutofixJob>> saved = ArgumentCaptor.forClass(List.class);
+        verify(jobRepository).saveAll(saved.capture());
+        assertThat(saved.getValue()).singleElement().satisfies(job -> {
+            assertThat(job.getJobKey()).startsWith("TASK-");
+            assertThat(job.getChecklistItemId()).isNull();
+        });
+    }
+
+    @Test
+    @DisplayName("다른 태스크의 체크리스트 항목은 거부한다 — 맥락 조립이 엉뚱한 설명을 붙인다")
+    void rejectsChecklistItemFromAnotherTask() {
+        givenRepo("develop");
+        givenDelegatableTask();
+        List<ChecklistItem> items = List.of(givenItem("item-1", "이 태스크의 항목"));
+        when(checklistItemRepository.findByTaskIdOrderByPositionAsc(TASK_ID)).thenReturn(items);
+
+        assertThatThrownBy(() -> service.delegate(BOARD_ID, USER_ID,
+                delegateRequest("고쳐라", List.of("item-from-other-task"))))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.JIRA_AUTOFIX_INVALID_CHECKLIST_ITEM);
+    }
+
+    @Test
+    @DisplayName("이미 맡긴 항목은 건너뛰고 나머지는 담는다")
+    void skipsAlreadyDelegatedItems() {
+        givenRepo("develop");
+        givenDelegatableTask();
+        List<ChecklistItem> items = List.of(
+                givenItem("item-1", "이미 진행 중"), givenItem("item-2", "아직 안 맡김"));
+        when(checklistItemRepository.findByTaskIdOrderByPositionAsc(TASK_ID)).thenReturn(items);
+        when(jobRepository.existsPendingForChecklistItem(BOARD_ID, "item-1")).thenReturn(true);
+
+        JiraAutofixResponse.DelegateResult result = service.delegate(BOARD_ID, USER_ID,
+                delegateRequest("고쳐라", List.of("item-1", "item-2")));
+
+        assertThat(result.getQueued()).isEqualTo(1);
+        assertThat(result.getSkippedAlreadyDelegated()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("지시문이 비면 담지 않는다")
+    void requiresInstruction() {
+        assertThatThrownBy(() -> service.delegate(BOARD_ID, USER_ID, delegateRequest("   ", List.of())))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.JIRA_AUTOFIX_INSTRUCTION_REQUIRED);
+    }
+
+    @Test
+    @DisplayName("검증 클론이 없다고 러너가 보고했으면 담지 않는다 — 40분 뒤 PR 직전에 실패한다")
+    void refusesWhenRunnerVerifyNotReady() {
+        JiraIntegrationConfig config = mock(JiraIntegrationConfig.class);
+        when(config.getAutofixRunnerStatus()).thenReturn("{\"verify_ready\":false}");
+        when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(config));
+        givenDelegatableTask();
+
+        assertThatThrownBy(() -> service.delegate(BOARD_ID, USER_ID, delegateRequest("고쳐라", List.of())))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.JIRA_AUTOFIX_RUNNER_NOT_READY);
+    }
+
+    @Test
+    @DisplayName("러너 상태를 모르면 막지 않는다 — 모르는 것을 문제로 취급하면 멀쩡한 맥을 세운다")
+    void unknownRunnerStatusDoesNotBlock() {
+        givenRepo("develop");
+        givenDelegatableTask();
+        JiraIntegrationConfig config = mock(JiraIntegrationConfig.class);
+        when(config.getAutofixRunnerStatus()).thenReturn("{\"disk_free_gb\":45}");
+        when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(config));
+
+        assertThat(service.delegate(BOARD_ID, USER_ID, delegateRequest("고쳐라", List.of()))
+                .getQueued()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("수동 작업은 큐에서 QA 후보보다 앞에 선다 — 사람이 지금 기다리고 있다")
+    void manualJobsSortAheadOfJiraJobs() {
+        // 정렬은 리포지토리 쿼리가 책임진다. 여기서는 claim이 그 순서를 그대로 따르는지만 본다.
+        properties.setDispatchEnabled(true);
+        givenDelegatableTask();
+        JiraAutofixJob manual = JiraAutofixJob.forManualTask(board, TASK_ID, "고쳐라", USER_ID);
+        manual.assignTarget("inst-1", REPO, "develop");
+        givenNextQueued(manual);
+
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null);
+
+        assertThat(result.getReason()).isEqualTo("CLAIMED");
+        assertThat(result.getJob().getJobKind()).isEqualTo("MANUAL");
+    }
+
+    @Test
+    @DisplayName("체크리스트 위임 명세 — 맥락은 부모 태스크, 범위는 항목 하나")
+    void checklistInstructionCarriesParentContextAndScope() {
+        properties.setDispatchEnabled(true);
+        givenDelegatableTask();
+        givenItem("item-1", "빈 이름일 때 저장 버튼 비활성화");
+        JiraAutofixJob job = JiraAutofixJob.forManualChecklistItem(
+                board, TASK_ID, "item-1", "공백 이름을 막아라", USER_ID);
+        job.assignTarget("inst-1", REPO, "develop");
+        givenNextQueued(job);
+
+        JiraAutofixResponse.RunnerJob handed = service.claim(BOARD_ID, "mac-01", null).getJob();
+
+        // PR 제목은 항목 제목이다 — 태스크 제목이면 리뷰어가 카드 전체 변경을 기대한다
+        assertThat(handed.getTitle()).isEqualTo("빈 이름일 때 저장 버튼 비활성화");
+        assertThat(handed.getInstruction())
+                .contains("프리셋 관리 팝업 개선")          // 맥락: 부모 태스크 제목
+                .contains("저장 흐름 전반을 손본다")        // 맥락: 부모 태스크 설명
+                .contains("빈 이름일 때 저장 버튼 비활성화") // 대상: 항목 제목
+                .contains("다른 항목은 건드리지 않는다")     // 범위 제한 — 이게 없으면 카드 전체를 고친다
+                .contains("공백 이름을 막아라");            // 지시: 사람이 쓴 문장
+    }
+
+    @Test
+    @DisplayName("수동 작업 결과는 JIRA가 아니라 맡긴 카드에 남는다")
+    void manualResultGoesToTaskComment() throws Exception {
+        givenDelegatableTask();
+        givenItem("item-1", "빈 이름일 때 저장 버튼 비활성화");
+        JiraAutofixJob job = JiraAutofixJob.forManualChecklistItem(
+                board, TASK_ID, "item-1", "공백 이름을 막아라", USER_ID);
+        job.assignTarget("inst-1", REPO, "develop");
+        job.markClaimed("mac-01");
+        when(jobRepository.findById("job-m")).thenReturn(Optional.of(job));
+
+        service.handleCallback(BOARD_ID, payload("""
+                {"job_id":"job-m","result":"pr","pr_url":"https://github.com/o/r/pull/9"}
+                """));
+
+        ArgumentCaptor<Comment> comment = ArgumentCaptor.forClass(Comment.class);
+        verify(commentRepository).save(comment.capture());
+        assertThat(comment.getValue().getContent())
+                .contains("체크리스트: 빈 이름일 때 저장 버튼 비활성화")
+                .contains("https://github.com/o/r/pull/9")
+                .contains("항목 체크는 켜지 않았습니다");   // PR은 머지가 아니다
+        verifyNoInteractions(jiraApiClient);
     }
 
     // ── 토큰 검증 ─────────────────────────────────
@@ -584,7 +870,7 @@ class JiraAutofixQueueServiceTest {
                 JiraIntegrationConfig.builder().board(board).baseUrl("https://acme.atlassian.net").build()));
 
         service.handleCallback(BOARD_ID, payload("""
-                {"issue_key":"QASA-92","result":"pr","pr_url":"https://github.com/o/r/pull/1"}
+                {"job_key":"QASA-92","result":"pr","pr_url":"https://github.com/o/r/pull/1"}
                 """));
 
         verify(slackPublisher).publish(board, job, "[문구] 프리셋 이름 오탈자", "https://acme.atlassian.net");
@@ -609,7 +895,7 @@ class JiraAutofixQueueServiceTest {
         dispatchedJob("QASA-92");
 
         service.handleCallback(BOARD_ID, payload("""
-                {"issue_key":"QASA-92","result":"no_change"}
+                {"job_key":"QASA-92","result":"no_change"}
                 """));
 
         verifyNoInteractions(slackPublisher);
@@ -677,9 +963,7 @@ class JiraAutofixQueueServiceTest {
     void cannotCancelOtherBoardsJob() {
         Board other = mock(Board.class);
         when(other.getId()).thenReturn("board-2");
-        JiraAutofixJob job = JiraAutofixJob.builder()
-                .board(other).jiraIssueKey("X-1").status(AutofixJobStatus.QUEUED)
-                .queuedAt(LocalDateTime.now()).build();
+        JiraAutofixJob job = JiraAutofixJob.forJiraIssue(other, "X-1", null, 0.9);
         when(jobRepository.findById("job-1")).thenReturn(Optional.of(job));
 
         assertThatThrownBy(() -> service.cancelJob(BOARD_ID, USER_ID, "job-1", false))

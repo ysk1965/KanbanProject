@@ -2,8 +2,10 @@ package com.kanban.domain.integration.jira.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.integration.jira.*;
 import com.kanban.domain.integration.jira.dto.JiraAutofixResponse;
 import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
@@ -52,6 +54,8 @@ class JiraAutofixTriageServiceTest {
     private JiraAutofixTriageRepository triageRepository;
     private AiUsageLogRepository aiUsageLogRepository;
     private AiCreditService aiCreditService;
+    private ChecklistItemRepository checklistItemRepository;
+    private BoardMemberRepository boardMemberRepository;
     private JiraAutofixTriageService service;
 
     private Board board;
@@ -67,11 +71,14 @@ class JiraAutofixTriageServiceTest {
         triageRepository = mock(JiraAutofixTriageRepository.class);
         aiUsageLogRepository = mock(AiUsageLogRepository.class);
         aiCreditService = mock(AiCreditService.class);
+        checklistItemRepository = mock(ChecklistItemRepository.class);
+        boardMemberRepository = mock(BoardMemberRepository.class);
 
         service = new JiraAutofixTriageService(
                 claudeAIProvider, new ObjectMapper(), boardRepository, boardService,
                 taskRepository, issueLinkRepository, configRepository, triageRepository,
-                aiUsageLogRepository, aiCreditService);
+                aiUsageLogRepository, aiCreditService,
+                checklistItemRepository, boardMemberRepository);
         ReflectionTestUtils.setField(service, "model", MODEL);
 
         board = mock(Board.class);
@@ -262,6 +269,66 @@ class JiraAutofixTriageServiceTest {
         assertThat(run.getSkipped()).isZero();
         assertThat(run.getTriaged()).isEqualTo(1);
         verify(claudeAIProvider).chatStructured(any(), any(), any(), anyInt(), any());
+    }
+
+    @Test
+    @DisplayName("이슈를 지정하면 그것만 판정한다 — 나머지는 스캔 대상에서 아예 빠진다")
+    void scopedTriageOnlyTouchesGivenIssues() {
+        givenIssues("QASA-1", "QASA-2", "QASA-3");
+        stubClaude(resultJson("QASA-2", "CANDIDATE", "TEXT", "0.9"), "end_turn");
+
+        JiraAutofixResponse.TriageRun run =
+                service.triageBoard(BOARD_ID, USER_ID, false, List.of("QASA-2"));
+
+        assertThat(run.getScanned()).isEqualTo(1);
+        assertThat(run.getTriaged()).isEqualTo(1);
+        assertThat(run.getSkipped()).isZero();
+    }
+
+    @Test
+    @DisplayName("지정한 이슈는 안 바뀌었어도 다시 판정한다 — 안 그러면 버튼이 아무 일도 안 한다")
+    void scopedTriageIgnoresStalenessCheck() {
+        LocalDateTime updated = LocalDateTime.of(2026, 8, 1, 0, 0);
+        givenIssues("QASA-92");
+
+        // JIRA 갱신 시각이 그대로인 상태(= 평소 기준이면 건너뛴다). 카드가 BRIDGE 안에서만 움직인 경우다
+        JiraAutofixTriage prior = JiraAutofixTriage.builder()
+                .board(board).jiraIssueKey("QASA-92").taskId("task-QASA-92")
+                .verdict(AutofixVerdict.CANDIDATE).category(AutofixCategory.TEXT)
+                .confidence(0.9).jiraUpdatedAt(updated).model(MODEL)
+                .build();
+        when(triageRepository.findByBoardId(BOARD_ID)).thenReturn(List.of(prior));
+        stubClaude(resultJson("QASA-92", "EXCLUDED", "DESIGN_INTENT", "0.4"), "end_turn");
+
+        JiraAutofixResponse.TriageRun run =
+                service.triageBoard(BOARD_ID, USER_ID, false, List.of("QASA-92"));
+
+        assertThat(run.getSkipped()).isZero();
+        assertThat(run.getTriaged()).isEqualTo(1);
+        verify(claudeAIProvider).chatStructured(any(), any(), any(), anyInt(), any());
+    }
+
+    @Test
+    @DisplayName("연동에 없는 이슈만 지정하면 판정할 게 없다고 알린다")
+    void scopedTriageWithUnknownKeysFails() {
+        givenIssues("QASA-1");
+
+        assertThatThrownBy(() ->
+                service.triageBoard(BOARD_ID, USER_ID, false, List.of("QASA-999")))
+                .isInstanceOf(BusinessException.class);
+        verify(claudeAIProvider, never()).chatStructured(any(), any(), any(), anyInt(), any());
+    }
+
+    @Test
+    @DisplayName("빈 목록은 범위 지정이 아니다 — 보드 전체 판정으로 간다")
+    void emptyScopeFallsBackToWholeBoard() {
+        givenIssues("QASA-1", "QASA-2");
+        stubClaude("{\"results\":[]}", "end_turn");
+
+        JiraAutofixResponse.TriageRun run =
+                service.triageBoard(BOARD_ID, USER_ID, false, List.of());
+
+        assertThat(run.getScanned()).isEqualTo(2);
     }
 
     @Test

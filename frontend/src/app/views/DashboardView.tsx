@@ -21,6 +21,8 @@ interface DashboardViewProps {
   organizationId?: string;
   userId: string | undefined;
   milestones: Milestone[];
+  /** 보드에서 고른 마일스톤 ("all" · "none" 포함) — 백로그 승격 모달의 기본 필터 */
+  selectedMilestoneId?: string | null;
   /** 임베드된 타임블록·워크로드에 그대로 넘기는 보드 컨텍스트 */
   boardMembersData: ShareBoardMember[];
   memberColorMap: Record<string, string | null>;
@@ -62,6 +64,7 @@ export function DashboardView({
   organizationId,
   userId,
   milestones,
+  selectedMilestoneId,
   boardMembersData,
   memberColorMap,
   taskMilestoneMap,
@@ -208,6 +211,8 @@ export function DashboardView({
                 boardId={boardId}
                 userId={userId}
                 features={allFeatures}
+                milestones={milestones}
+                selectedMilestoneId={selectedMilestoneId}
                 onPromoted={onRefreshAfterPromote}
               />
             </div>

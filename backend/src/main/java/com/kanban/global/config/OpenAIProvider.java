@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.LinkedHashMap;
@@ -87,6 +88,12 @@ public class OpenAIProvider implements AIProvider {
 
         } catch (BusinessException e) {
             throw e;
+        } catch (HttpStatusCodeException e) {
+            // Claude 경로와 같은 이유로 원인별 분류. OpenAI는 쿼터 소진을 429 insufficient_quota로 준다.
+            ErrorCode code = AiProviderErrors.classify(e, ErrorCode.AI_REPORT_GENERATION_FAILED);
+            log.error("OpenAI API returned {} [{}] — {}",
+                    e.getStatusCode().value(), code.getCode(), AiProviderErrors.describe(e));
+            throw new BusinessException(code);
         } catch (Exception e) {
             log.error("Failed to call OpenAI API: {}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.AI_REPORT_GENERATION_FAILED);

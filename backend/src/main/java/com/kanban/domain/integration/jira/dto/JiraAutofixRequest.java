@@ -15,6 +15,34 @@ public class JiraAutofixRequest {
         private List<String> issueKeys;
     }
 
+    /**
+     * 사람이 직접 맡기는 작업.
+     *
+     * <p>{@code checklistItemIds}가 비면 태스크 전체, 채우면 <b>항목마다 job 하나씩</b> 만든다.
+     * 하나로 묶지 않는 이유는 실패 단위가 섞이기 때문이다 — 3개 중 1개만 실패해도 PR 전체가
+     * 실패로 남고 성공한 2개까지 버려진다.
+     *
+     * <p>지시문은 고른 항목 전체에 같은 문장이 들어간다. 항목마다 다른 지시가 필요하면 따로 맡긴다 —
+     * 한 모달에서 항목마다 입력칸을 주면 3개를 고른 순간 화면이 폼 더미가 된다.
+     */
+    @Getter @Setter @NoArgsConstructor
+    public static class Delegate {
+        private String taskId;
+        private List<String> checklistItemIds;
+        private String instruction;
+    }
+
+    /**
+     * 트리아지 실행 범위. 비우면 보드 전체(변경된 건만).
+     *
+     * <p>지정하면 그 이슈들만 무조건 다시 판정한다 — 전건 재판정은 AI 호출 비용이 커서
+     * 아무도 누르지 않고, 결국 낡은 판정이 그대로 남는다.
+     */
+    @Getter @Setter @NoArgsConstructor
+    public static class Triage {
+        private List<String> issueKeys;
+    }
+
     /** 러너가 claim·heartbeat에 실어 보내는 자기 소개. */
     @Getter @Setter @NoArgsConstructor
     public static class RunnerHello {

@@ -3148,6 +3148,7 @@ export function KanbanBoardPage() {
             organizationId={board?.organization_id}
             userId={currentUser?.id}
             milestones={milestones}
+            selectedMilestoneId={kanbanSelectedMilestoneId}
             boardMembersData={boardMembersData}
             memberColorMap={memberColorMap}
             taskMilestoneMap={taskMilestoneMap}

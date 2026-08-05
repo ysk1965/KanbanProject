@@ -241,6 +241,10 @@ public enum ErrorCode {
     JIRA_AUTOFIX_AMBIGUOUS_REPO(HttpStatus.BAD_REQUEST, "JI014", "연결된 저장소가 여러 개입니다. 자동수정 대상 저장소를 하나만 남겨주세요"),
     JIRA_AUTOFIX_JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "JI016", "자동수정 작업을 찾을 수 없습니다"),
     JIRA_AUTOFIX_JOB_NOT_CANCELLABLE(HttpStatus.CONFLICT, "JI017", "이미 러너로 넘어간 작업은 취소할 수 없습니다"),
+    JIRA_AUTOFIX_INSTRUCTION_REQUIRED(HttpStatus.BAD_REQUEST, "JI018", "무엇을 시킬지 지시문을 입력해주세요"),
+    JIRA_AUTOFIX_RUNNER_NOT_READY(HttpStatus.CONFLICT, "JI019", "맥이 준비되지 않아 지금은 맡길 수 없습니다"),
+    JIRA_AUTOFIX_ALREADY_DELEGATED(HttpStatus.CONFLICT, "JI020", "이미 맥에 맡긴 작업입니다. 끝난 뒤에 다시 맡겨주세요"),
+    JIRA_AUTOFIX_INVALID_CHECKLIST_ITEM(HttpStatus.BAD_REQUEST, "JI021", "이 태스크의 체크리스트 항목이 아닙니다"),
 
     // System
     ANNOUNCEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "SY001", "공지사항을 찾을 수 없습니다"),
@@ -257,7 +261,14 @@ public enum ErrorCode {
 
     // AI 프로바이더 호출 (상태별 구분이 필요한 경로에서 사용)
     AI_PROVIDER_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "AP001", "AI 프로바이더 호출 한도를 초과했습니다. 잠시 후 다시 시도해주세요"),
+    /** 원인을 특정하지 못한 프로바이더 실패. 아래 AP003~AP005에 걸리지 않을 때만 쓴다. */
     AI_PROVIDER_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "AP002", "AI 프로바이더 호출에 실패했습니다"),
+    AI_PROVIDER_CREDIT_EXHAUSTED(HttpStatus.BAD_GATEWAY, "AP003",
+            "AI 프로바이더 크레딧이 소진되었습니다 — 프로바이더 콘솔에서 잔액과 사용 중인 키의 조직을 확인해주세요"),
+    AI_PROVIDER_KEY_REJECTED(HttpStatus.BAD_GATEWAY, "AP004",
+            "AI 프로바이더가 API 키를 거부했습니다 — 키가 만료·삭제되었는지 확인해주세요"),
+    AI_PROVIDER_REQUEST_REJECTED(HttpStatus.BAD_GATEWAY, "AP005",
+            "AI 프로바이더가 요청을 거부했습니다 — 모델 ID와 요청 형식을 확인해주세요"),
 
     // 커밋 플랜 (MILKYWAY Unity 에디터 툴)
     COMMIT_PLAN_GROUPS_REQUIRED(HttpStatus.BAD_REQUEST, "CP001", "변경 파일 그룹(groups)이 필요합니다"),

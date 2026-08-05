@@ -4,6 +4,7 @@ import com.kanban.domain.integration.FrontendOriginResolver;
 import com.kanban.domain.personal.dto.PersonalTaskRequest;
 import com.kanban.domain.personal.dto.PersonalTaskResponse;
 import com.kanban.domain.personal.service.PersonalTaskService;
+import com.kanban.domain.personal.service.PromoteSuggestionService;
 import com.kanban.global.security.UserPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -22,6 +23,7 @@ import java.util.Map;
 public class PersonalTaskController {
 
     private final PersonalTaskService personalTaskService;
+    private final PromoteSuggestionService promoteSuggestionService;
 
     /**
      * boardId가 오면 그 보드의 백로그 레일 목록, 없으면 기존 마이스페이스 전체 목록.
@@ -96,6 +98,21 @@ public class PersonalTaskController {
                 origin, httpRequest.getHeader("X-Forwarded-Host"), null);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(personalTaskService.promote(principal.getUserId(), taskId, request, resolvedOrigin));
+    }
+
+    /**
+     * 붙일 곳 후보 추천 — 규칙 점수(무료) 또는 AI 선별(크레딧 1).
+     *
+     * <p>크레딧이 없거나 AI가 실패해도 402로 끊지 않고 규칙 추천을 돌려준다.
+     * 추천이 안 된다고 승격 자체를 막을 이유가 없다.
+     */
+    @PostMapping("/{taskId}/promote-suggestions")
+    public ResponseEntity<PersonalTaskResponse.PromoteSuggestions> promoteSuggestions(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String taskId,
+            @Valid @RequestBody PersonalTaskRequest.Suggest request) {
+        return ResponseEntity.ok(
+                promoteSuggestionService.suggest(principal.getUserId(), taskId, request));
     }
 
     /** 승격 되돌리기 — 만들어진 대상은 그대로 두고 백로그 항목만 대기로 되돌린다 */

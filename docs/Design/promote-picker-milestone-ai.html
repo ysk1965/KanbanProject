@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>백로그 승격 모달 — 마일스톤 필터 + AI 추천 개선안</title>
+<style>
+  :root {
+    --bridge-dark: #191f2d;
+    --bridge-obsidian: #151B28;
+    --bridge-accent: #6366F1;
+    --bridge-secondary: #2DD4BF;
+    --bridge-surface: #1e2a42;
+    --fg: rgba(248, 250, 252, 0.98);
+    --slate-400: #94a3b8;
+    --slate-500: #64748b;
+    --slate-600: #475569;
+    --line: rgba(248,250,252,0.08);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d1117;
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Noto Sans KR", sans-serif;
+    padding: 40px 20px 80px;
+    display: flex; flex-direction: column; align-items: center; gap: 28px;
+  }
+  .wrap { width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 28px; }
+
+  /* ─── 섹션 헤더 ─── */
+  .sec-title { display: flex; align-items: baseline; gap: 10px; margin-top: 12px; }
+  .sec-title h2 { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+  .sec-title span { font-size: 12px; color: var(--slate-500); }
+
+  /* ─── 노트 배너 ─── */
+  .note {
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 16px; padding: 20px 24px;
+  }
+  .note.warn { background: rgba(245,158,11,0.07); border-color: rgba(245,158,11,0.3); }
+  .note h1 { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+  .note h1 span { color: var(--bridge-accent); }
+  .note h3 { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+  .note ol, .note ul { margin-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+  .note li { font-size: 13px; color: var(--slate-400); line-height: 1.65; }
+  .note li b { color: var(--fg); font-weight: 700; }
+  .note li code, code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px; background: rgba(248,250,252,0.07);
+    padding: 1px 5px; border-radius: 5px; color: #c7d2fe;
+  }
+
+  /* ─── 비교 레이아웃 ─── */
+  .compare { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+  .col { flex: 1 1 380px; min-width: 340px; display: flex; flex-direction: column; gap: 10px; }
+  .col-label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+  .col-label .tag {
+    font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px;
+  }
+  .tag.before { background: rgba(244,63,94,0.15); color: #fda4af; }
+  .tag.after  { background: rgba(45,212,191,0.15); color: #5eead4; }
+
+  /* ─── 모달 프레임 ─── */
+  .modal {
+    background: var(--bridge-obsidian);
+    border: 1px solid var(--line);
+    border-radius: 20px; overflow: hidden;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.55);
+    display: flex; flex-direction: column;
+  }
+  .accent-line { height: 2px; background: linear-gradient(to right, rgba(99,102,241,0.6), rgba(45,212,191,0.4), transparent); }
+  .m-head { padding: 16px 20px 12px; border-bottom: 1px solid var(--line); }
+  .m-head h2 { font-size: 14px; font-weight: 700; }
+  .m-head p { font-size: 12px; color: var(--slate-500); margin-top: 3px; }
+
+  .tabs { display: flex; gap: 4px; padding: 12px 20px 10px; }
+  .tab {
+    padding: 6px 12px; border-radius: 10px; font-size: 12px; font-weight: 700;
+    color: var(--slate-400); background: none; border: none; cursor: default;
+  }
+  .tab.on { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+
+  .toolbar { padding: 0 20px 12px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--line); }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .search {
+    flex: 1; display: flex; align-items: center; gap: 8px;
+    background: rgba(248,250,252,0.03); border: 1px solid rgba(248,250,252,0.1);
+    border-radius: 12px; padding: 8px 12px; font-size: 13px; color: var(--slate-500);
+  }
+  .search.focus { border-color: rgba(99,102,241,0.55); box-shadow: 0 0 0 3px rgba(99,102,241,0.18); }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+    padding: 4px 10px; border-radius: 999px; font-size: 12px;
+    color: var(--slate-400); border: 1px solid rgba(248,250,252,0.1); background: none;
+  }
+  .chip.on { background: rgba(99,102,241,0.15); color: #a5b4fc; border-color: transparent; font-weight: 700; }
+  .chip .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .chip .cnt { font-size: 12px; color: var(--slate-600); font-variant-numeric: tabular-nums; }
+  .chip.on .cnt { color: rgba(165,180,252,0.7); }
+  .chiprow { display: flex; gap: 6px; overflow: hidden; }
+  .chiprow.fade { position: relative; }
+  .chiprow.fade::after {
+    content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 40px;
+    background: linear-gradient(to right, transparent, var(--bridge-obsidian));
+  }
+
+  /* ─── 마일스톤 셀렉터 ─── */
+  .ms-select {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    background: rgba(248,250,252,0.03); border: 1px solid rgba(248,250,252,0.1);
+    border-radius: 12px; padding: 8px 12px; font-size: 13px;
+  }
+  .ms-select .bar { flex: 1; height: 3px; border-radius: 999px; background: rgba(248,250,252,0.1); overflow: hidden; max-width: 70px; }
+  .ms-select .bar i { display: block; height: 100%; border-radius: 999px; }
+  .ms-select .caret { color: var(--slate-500); font-size: 11px; }
+  .ms-name { font-weight: 700; display: flex; align-items: center; gap: 7px; }
+  .ms-meta { font-size: 12px; color: var(--slate-500); font-variant-numeric: tabular-nums; }
+
+  .dropdown {
+    margin-top: 6px; background: var(--bridge-surface);
+    border: 1px solid rgba(248,250,252,0.12); border-radius: 14px;
+    padding: 6px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  }
+  .dd-item {
+    display: flex; align-items: center; gap: 9px; padding: 8px 10px;
+    border-radius: 10px; font-size: 13px;
+  }
+  .dd-item.on { background: rgba(99,102,241,0.16); }
+  .dd-item .spacer { flex: 1; }
+  .dd-sep { height: 1px; background: rgba(248,250,252,0.08); margin: 5px 8px; }
+
+  /* ─── 리스트 ─── */
+  .list { padding: 8px 12px; display: flex; flex-direction: column; }
+  .grp {
+    display: flex; align-items: center; gap: 8px; padding: 10px 10px 6px;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--slate-500);
+  }
+  .grp .n { letter-spacing: 0; color: var(--slate-600); font-variant-numeric: tabular-nums; }
+  .grp .line { flex: 1; height: 1px; background: rgba(248,250,252,0.06); }
+  .grp .dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  .item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px 10px; border-radius: 10px; border: 1px solid transparent;
+  }
+  .item.sel { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.5); }
+  .item.cursor { background: rgba(99,102,241,0.09); border-color: rgba(99,102,241,0.25); }
+  .item > .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .item .body { flex: 1; min-width: 0; }
+  .item .ttl { font-size: 13px; font-weight: 500; }
+  .item.sel .ttl { font-weight: 700; }
+  .item .ttl.clip { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .meta {
+    display: flex; align-items: center; gap: 7px; margin-top: 4px;
+    font-size: 12px; color: var(--slate-500); flex-wrap: wrap;
+  }
+  .item .tail { display: flex; align-items: center; gap: 7px; flex-shrink: 0; margin-top: 2px; }
+  .key { font-size: 12px; color: var(--slate-600); font-variant-numeric: tabular-nums; }
+  .pill { font-size: 12px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: rgba(248,250,252,0.06); color: var(--slate-400); }
+  .av {
+    width: 16px; height: 16px; border-radius: 50%; display: inline-flex;
+    align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff;
+  }
+  .prog { display: inline-flex; align-items: center; gap: 5px; }
+  .prog .bar { width: 26px; height: 3px; border-radius: 999px; background: rgba(248,250,252,0.12); overflow: hidden; }
+  .prog .bar i { display: block; height: 100%; background: var(--bridge-secondary); }
+
+  /* ─── AI 추천 ─── */
+  .ai {
+    margin: 10px 12px 2px; padding: 12px;
+    background: linear-gradient(160deg, rgba(99,102,241,0.12), rgba(45,212,191,0.04) 70%);
+    border: 1px solid rgba(99,102,241,0.32); border-radius: 16px;
+  }
+  .ai-head { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+  .ai-head .t { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #a5b4fc; }
+  .ai-head .spacer { flex: 1; }
+  .ai-head .mini {
+    font-size: 12px; color: var(--slate-500); display: inline-flex; align-items: center; gap: 5px;
+  }
+  .cand {
+    display: flex; align-items: flex-start; gap: 9px; padding: 8px 9px;
+    border-radius: 11px; border: 1px solid rgba(248,250,252,0.07);
+    background: rgba(21,27,40,0.55); margin-bottom: 6px;
+  }
+  .cand:last-child { margin-bottom: 0; }
+  .cand.top { border-color: rgba(99,102,241,0.45); }
+  .cand .rank {
+    width: 18px; height: 18px; border-radius: 6px; flex-shrink: 0;
+    background: rgba(99,102,241,0.2); color: #a5b4fc;
+    font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+  .cand .why { font-size: 12px; color: #7dd3c0; margin-top: 3px; display: flex; align-items: center; gap: 5px; }
+  .cand .why .b { color: var(--slate-500); }
+  .srcbadge { font-size: 12px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: rgba(45,212,191,0.15); color: #5eead4; }
+  .srcbadge.rule { background: rgba(148,163,184,0.15); color: var(--slate-400); }
+
+  .m-foot {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 11px 20px; border-top: 1px solid var(--line);
+  }
+  .m-foot .hint { font-size: 12px; color: var(--slate-500); }
+  .btn { padding: 6px 15px; border-radius: 10px; font-size: 12px; font-weight: 700; border: none; }
+  .btn.ghost { background: none; color: var(--slate-400); }
+  .btn.primary { background: var(--bridge-accent); color: #fff; }
+
+  /* ─── 표 ─── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--slate-500); font-weight: 700; }
+  td { color: var(--slate-400); line-height: 1.6; }
+  td b { color: var(--fg); font-weight: 700; }
+  .box { background: var(--bridge-obsidian); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+
+  pre {
+    background: #0b0f17; border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px 18px; overflow-x: auto; font-size: 12px; line-height: 1.65;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #cbd5e1;
+  }
+  pre .k { color: #a5b4fc; }
+  pre .s { color: #7dd3c0; }
+  pre .c { color: var(--slate-600); }
+
+  .steps { display: flex; gap: 14px; flex-wrap: wrap; }
+  .step { flex: 1 1 300px; background: var(--bridge-obsidian); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+  .step .n { font-size: 12px; font-weight: 700; color: var(--bridge-accent); letter-spacing: 0.1em; }
+  .step h4 { font-size: 14px; font-weight: 700; margin: 6px 0 8px; }
+  .step p { font-size: 12px; color: var(--slate-400); line-height: 1.7; }
+  .step .cost { margin-top: 10px; font-size: 12px; color: var(--slate-500); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="note">
+    <h1>백로그 승격 모달 — <span>마일스톤 필터 + AI 후보 추천</span></h1>
+    <ol>
+      <li><b>지금 문제</b>는 "필터가 없다"가 아니라 <b>1차 필터가 피처뿐</b>이라는 것. 피처는 20~30개라 칩 줄이 가로로 흐르고, 눌러 보기 전엔 결과 크기를 모른다. 정작 사람이 머릿속에 갖고 있는 단위는 <b>"이번 스프린트"</b>다.</li>
+      <li><b>목록 20개를 다 읽게 만든다.</b> "내 태스크 20"은 정렬이 아니라 그냥 덩어리다. 백로그 항목 제목("[네트워크] 연결 실패 팝업")이 이미 답을 알려주는데 시스템은 아무 힌트도 주지 않는다.</li>
+      <li><b>행의 정보 우선순위가 뒤집혔다.</b> 제목은 잘리는데 메타(피처·블록·담당·체크수)는 다 보인다. 고르는 기준은 제목인데.</li>
+      <li>→ 개선 축 3개: <b>① 마일스톤 1차 필터</b> · <b>② AI 추천 후보 3개</b> · <b>③ 행 압축</b></li>
+    </ol>
+  </div>
+
+  <!-- ══════════════ 1. Before / After ══════════════ -->
+  <div class="sec-title"><h2>1. 현재 vs 개선안</h2><span>체크리스트 탭 기준 · 실제 데이터로 재현</span></div>
+
+  <div class="compare">
+    <!-- ─── BEFORE ─── -->
+    <div class="col">
+      <div class="col-label"><span class="tag before">현재</span> 피처 칩 한 줄 + 20개 덩어리</div>
+      <div class="modal">
+        <div class="m-head">
+          <h2>체크리스트로 승격</h2>
+          <p>[네트워크] 연결 실패 팝업 미노출 재발</p>
+        </div>
+        <div class="tabs">
+          <button class="tab">타임블록</button>
+          <button class="tab on">체크리스트</button>
+          <button class="tab">태스크</button>
+        </div>
+        <div class="toolbar">
+          <div class="row">
+            <div class="search focus">🔍 제목 · 피처 · 키로 검색</div>
+            <span class="chip">완료 포함</span>
+          </div>
+          <div class="chiprow fade">
+            <span class="chip"><i class="dot" style="background:#f59e0b"></i>FGT버전에서 미비된 부분 수정</span>
+            <span class="chip"><i class="dot" style="background:#8b5cf6"></i>전투 개편</span>
+            <span class="chip"><i class="dot" style="background:#22c55e"></i>가챠 개편</span>
+            <span class="chip"><i class="dot" style="background:#ef4444"></i>1차 캐릭</span>
+          </div>
+        </div>
+        <div class="list">
+          <div class="grp">내 태스크 <span class="n">20</span><span class="line"></span></div>
+          <div class="item cursor">
+            <i class="dot" style="background:#64748b"></i>
+            <div class="body">
+              <div class="ttl clip">[네트워크] 네트워크 연결 실패 팝업 미노출</div>
+              <div class="meta">[QA] 스텔라나이츠 <span class="pill">할 일</span>
+                <span class="av" style="background:#8b5cf6">유</span> 유상건 <span>체크 0/1</span></div>
+            </div>
+            <div class="tail"><span class="key">TBRP-336</span></div>
+          </div>
+          <div class="item">
+            <i class="dot" style="background:#64748b"></i>
+            <div class="body">
+              <div class="ttl clip">[전투] 캐릭터 미배치 상태로 전투 시도 시 스태미나 차감</div>
+              <div class="meta">[QA] 스텔라나이츠 <span class="pill">작업 완료</span>
+                <span class="av" style="background:#8b5cf6">유</span> 유상건 <span>체크 1/1</span></div>
+            </div>
+            <div class="tail"><span class="key">TBRP-299</span></div>
+          </div>
+          <div class="item">
+            <i class="dot" style="background:#64748b"></i>
+            <div class="body">
+              <div class="ttl clip">[실행] 게스트 로그인 버튼 터치 후 팝업 출력까지 지연 있음(1~2…</div>
+              <div class="meta">[QA] 스텔라나이츠 <span class="pill">작업 완료</span>
+                <span class="av" style="background:#8b5cf6">유</span> 유상건 <span>체크 1/1</span></div>
+            </div>
+            <div class="tail"><span class="key">TBRP-244</span></div>
+          </div>
+          <div class="item">
+            <i class="dot" style="background:#64748b"></i>
+            <div class="body">
+              <div class="ttl clip">[튜토리얼] 초반 튜토리얼 중 화자와 대사가 일치하지 않음(필리…</div>
+              <div class="meta">[QA] 스텔라나이츠 <span class="pill">할 일</span>
+                <span class="av" style="background:#8b5cf6">유</span> 유상건 <span>체크 0/1</span></div>
+            </div>
+            <div class="tail"><span class="key">TBRP-353</span></div>
+          </div>
+          <div class="item">
+            <i class="dot" style="background:#64748b"></i>
+            <div class="body">
+              <div class="ttl clip">[그래픽] 캐릭터 도트 애니메이션 전반에서 자글자글한 깜빡거림 …</div>
+              <div class="meta">[QA] 스텔라나이츠 <span class="pill">작업 완료</span>
+                <span class="av" style="background:#8b5cf6">유</span> 유상건 <span>체크 1/1</span></div>
+            </div>
+            <div class="tail"><span class="key">TBRP-270</span></div>
+          </div>
+          <div class="item" style="opacity:.45">
+            <i class="dot" style="background:#64748b"></i>
+            <div class="body">
+              <div class="ttl clip">[스토리] 추천 편성 버튼 상시 노출 건의</div>
+              <div class="meta">[QA] 스텔라나이츠 <span class="pill">할 일</span> … 15개 더</div>
+            </div>
+            <div class="tail"><span class="key">TBRP-359</span></div>
+          </div>
+        </div>
+        <div class="m-foot">
+          <span class="hint">붙일 곳을 고르세요 · ↑↓ 이동 · Enter 선택</span>
+          <div><button class="btn ghost">취소</button><button class="btn primary">승격</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── AFTER ─── -->
+    <div class="col">
+      <div class="col-label"><span class="tag after">개선안</span> 마일스톤 1차 → AI 추천 → 좁혀진 목록</div>
+      <div class="modal">
+        <div class="accent-line"></div>
+        <div class="m-head">
+          <h2>체크리스트로 승격</h2>
+          <p>[네트워크] 연결 실패 팝업 미노출 재발</p>
+        </div>
+        <div class="tabs">
+          <button class="tab">타임블록</button>
+          <button class="tab on">체크리스트</button>
+          <button class="tab">태스크</button>
+        </div>
+        <div class="toolbar">
+          <!-- ① 마일스톤 = 1차 필터 -->
+          <div class="ms-select">
+            <span class="ms-name"><i class="dot" style="width:7px;height:7px;border-radius:50%;background:#6366F1;display:inline-block"></i>2월 CBT 빌드</span>
+            <span class="ms-meta">D-12</span>
+            <span class="bar"><i style="width:62%;background:#6366F1"></i></span>
+            <span class="spacer" style="flex:1"></span>
+            <span class="ms-meta">태스크 34</span>
+            <span class="caret">▾</span>
+          </div>
+          <div class="row">
+            <div class="search focus">🔍 제목 · 피처 · 키로 검색</div>
+            <span class="chip">완료 포함</span>
+          </div>
+          <!-- ② 피처 칩은 선택된 마일스톤 소속만 + 개수 -->
+          <div class="chiprow">
+            <span class="chip"><i class="dot" style="background:#f59e0b"></i>FGT 미비 수정 <span class="cnt">7</span></span>
+            <span class="chip on"><i class="dot" style="background:#22d3ee"></i>[QA] 스텔라나이츠 <span class="cnt">20</span></span>
+            <span class="chip"><i class="dot" style="background:#8b5cf6"></i>전투 개편 <span class="cnt">4</span></span>
+          </div>
+        </div>
+
+        <!-- ③ AI 추천 -->
+        <div class="ai">
+          <div class="ai-head">
+            <span class="t">✨ 여기가 맞을 것 같아요</span>
+            <span class="srcbadge">AI</span>
+            <span class="spacer"></span>
+            <span class="mini">다시 추천 ↻ · 크레딧 1</span>
+          </div>
+          <div class="cand top">
+            <span class="rank">1</span>
+            <div class="body" style="flex:1;min-width:0">
+              <div class="ttl" style="font-size:13px;font-weight:700">[네트워크] 네트워크 연결 실패 팝업 미노출</div>
+              <div class="why">제목 키워드 "네트워크 · 연결 실패" 일치 <span class="b">· 내 담당 · 진행 중</span></div>
+            </div>
+            <span class="key">TBRP-336</span>
+          </div>
+          <div class="cand">
+            <span class="rank">2</span>
+            <div class="body" style="flex:1;min-width:0">
+              <div class="ttl" style="font-size:13px;font-weight:500">서버 전환 작업</div>
+              <div class="why">같은 네트워크 영역 <span class="b">· 최근에 붙인 곳 · 체크 8/9</span></div>
+            </div>
+            <span class="key">TBRP-49</span>
+          </div>
+          <div class="cand">
+            <span class="rank">3</span>
+            <div class="body" style="flex:1;min-width:0">
+              <div class="ttl" style="font-size:13px;font-weight:500">[실행] 게스트 로그인 팝업 지연</div>
+              <div class="why">로그인 · 팝업 흐름이 겹침 <span class="b">· 내 담당</span></div>
+            </div>
+            <span class="key">TBRP-244</span>
+          </div>
+        </div>
+
+        <!-- ④ 압축된 목록 -->
+        <div class="list">
+          <div class="grp"><i class="dot" style="background:#22d3ee"></i>[QA] 스텔라나이츠 <span class="n">20</span><span class="line"></span></div>
+          <div class="item sel">
+            <i class="dot" style="background:#22d3ee"></i>
+            <div class="body">
+              <div class="ttl">[네트워크] 네트워크 연결 실패 팝업 미노출</div>
+              <div class="meta"><span class="av" style="background:#8b5cf6">유</span>유상건
+                <span class="prog"><span class="bar"><i style="width:0%"></i></span>0/1</span>
+                <span class="pill">할 일</span></div>
+            </div>
+            <div class="tail"><span class="key">TBRP-336</span> <span style="color:#a5b4fc">✓</span></div>
+          </div>
+          <div class="item cursor">
+            <i class="dot" style="background:#22d3ee"></i>
+            <div class="body">
+              <div class="ttl">[튜토리얼] 초반 튜토리얼 중 화자와 대사가 일치하지 않음</div>
+              <div class="meta"><span class="av" style="background:#8b5cf6">유</span>유상건
+                <span class="prog"><span class="bar"><i style="width:0%"></i></span>0/1</span>
+                <span class="pill">할 일</span></div>
+            </div>
+            <div class="tail"><span class="key">TBRP-353</span></div>
+          </div>
+          <div class="item">
+            <i class="dot" style="background:#22d3ee"></i>
+            <div class="body">
+              <div class="ttl">[스토리] 목록에서 테크런칭 스펙이 아닌 챕터5, 6이 어색하게 노출</div>
+              <div class="meta"><span class="av" style="background:#8b5cf6">유</span>유상건
+                <span class="prog"><span class="bar"><i style="width:0%"></i></span>0/1</span>
+                <span class="pill">할 일</span></div>
+            </div>
+            <div class="tail"><span class="key">TBRP-361</span></div>
+          </div>
+          <div class="item">
+            <i class="dot" style="background:#14b8a6"></i>
+            <div class="body">
+              <div class="ttl">서버 전환 작업</div>
+              <div class="meta"><span class="av" style="background:#14b8a6">김</span>김경종 +4
+                <span class="prog"><span class="bar"><i style="width:89%"></i></span>8/9</span>
+                <span style="color:#fbbf24;font-weight:700">D-3</span></div>
+            </div>
+            <div class="tail"><span class="key">TBRP-49</span></div>
+          </div>
+        </div>
+
+        <div class="m-foot">
+          <span class="hint"><b style="color:var(--fg)">[네트워크] …팝업 미노출</b>의 체크리스트로</span>
+          <div><button class="btn ghost">취소</button><button class="btn primary">승격</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ 2. 마일스톤 필터 상세 ══════════════ -->
+  <div class="sec-title"><h2>2. 마일스톤 필터</h2><span>백엔드 변경 0 · 추가 API 호출 0</span></div>
+
+  <div class="compare">
+    <div class="col" style="flex:0 0 340px">
+      <div class="col-label">드롭다운 펼침</div>
+      <div class="modal" style="padding:14px">
+        <div class="ms-select">
+          <span class="ms-name"><i class="dot" style="width:7px;height:7px;border-radius:50%;background:#6366F1;display:inline-block"></i>2월 CBT 빌드</span>
+          <span class="ms-meta">D-12</span>
+          <span class="spacer" style="flex:1"></span>
+          <span class="caret">▴</span>
+        </div>
+        <div class="dropdown">
+          <div class="dd-item"><span>전체 마일스톤</span><span class="spacer"></span><span class="ms-meta">128</span></div>
+          <div class="dd-sep"></div>
+          <div class="dd-item on">
+            <i class="dot" style="width:7px;height:7px;border-radius:50%;background:#6366F1"></i>
+            <span style="font-weight:700">2월 CBT 빌드</span>
+            <span class="ms-meta">D-12</span>
+            <span class="spacer"></span>
+            <span class="bar" style="width:44px;height:3px;border-radius:999px;background:rgba(248,250,252,0.12);overflow:hidden"><i style="display:block;height:100%;width:62%;background:#6366F1"></i></span>
+            <span class="ms-meta">34</span>
+          </div>
+          <div class="dd-item">
+            <i class="dot" style="width:7px;height:7px;border-radius:50%;background:#22c55e"></i>
+            <span>1차 캐릭터 제작</span>
+            <span class="ms-meta">종료</span>
+            <span class="spacer"></span>
+            <span class="bar" style="width:44px;height:3px;border-radius:999px;background:rgba(248,250,252,0.12);overflow:hidden"><i style="display:block;height:100%;width:100%;background:#22c55e"></i></span>
+            <span class="ms-meta">61</span>
+          </div>
+          <div class="dd-item">
+            <i class="dot" style="width:7px;height:7px;border-radius:50%;background:#f59e0b"></i>
+            <span>3월 정식 런칭</span>
+            <span class="ms-meta">D-48</span>
+            <span class="spacer"></span>
+            <span class="bar" style="width:44px;height:3px;border-radius:999px;background:rgba(248,250,252,0.12);overflow:hidden"><i style="display:block;height:100%;width:8%;background:#f59e0b"></i></span>
+            <span class="ms-meta">19</span>
+          </div>
+          <div class="dd-sep"></div>
+          <div class="dd-item"><span style="color:var(--slate-400)">마일스톤 없음</span><span class="spacer"></span><span class="ms-meta">14</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="col-label">설계 근거</div>
+      <div class="box">
+        <table>
+          <tr><th style="width:34%">결정</th><th>이유</th></tr>
+          <tr><td><b>칩이 아니라 셀렉트</b></td><td>마일스톤은 보통 2~6개고 <b>피처보다 상위</b>다. 칩 두 줄을 쌓으면 목록 높이가 줄어든다. 상위 축은 1줄 셀렉트, 하위 축(피처)만 칩.</td></tr>
+          <tr><td><b>기본값 = 보드의 선택 마일스톤</b></td><td><code>BoardDetail.selected_milestone_id</code>를 그대로 초기값으로 쓴다. 보드에서 보고 있던 스프린트 = 승격하려는 맥락. 없으면 <b>오늘이 기간에 든 마일스톤</b>, 그것도 없으면 전체.</td></tr>
+          <tr><td><b>피처 칩이 종속된다</b></td><td>마일스톤을 고르면 그 마일스톤 태스크가 실제로 존재하는 피처만 칩으로 남는다. 20~30개 칩이 3~5개로 줄어 가로 스크롤이 사라진다.</td></tr>
+          <tr><td><b>칩·옵션에 개수 표기</b></td><td>눌러 보기 전에 결과 크기를 안다. 0건 칩은 아예 렌더하지 않는다(빈 결과로 가는 클릭을 없앤다).</td></tr>
+          <tr><td><b>"마일스톤 없음" 옵션</b></td><td>백로그 정리 중 가장 자주 찾게 되는 묶음. 서버도 <code>milestoneId=none</code>을 이미 지원한다(<code>TaskService.java:110</code>).</td></tr>
+          <tr><td><b>검색은 필터를 뚫는다</b></td><td>검색어를 치면 마일스톤/피처 필터를 무시하고 보드 전체에서 찾되, 필터 밖 결과에는 <code>다른 마일스톤</code> 뱃지를 붙인다. "필터 때문에 안 나오는" 상황을 만들지 않는다.</td></tr>
+        </table>
+      </div>
+
+      <div class="note" style="margin-top:4px">
+        <h3>구현 비용이 거의 0인 이유</h3>
+        <ul>
+          <li><b>서버는 이미 내려주고 있다.</b> <code>TaskResponse.java:27,54</code>가 <code>milestoneId</code>를 담아 응답한다 → JSON <code>milestone_id</code>. FE 인터페이스에 <code>milestone_id?: string | null</code> 한 줄만 추가하면 <b>이미 불러온 목록을 클라이언트에서 즉시 필터</b>할 수 있다. 마일스톤을 바꿔도 재요청이 없다.</li>
+          <li><b>마일스톤 목록도 이미 있다.</b> <code>DashboardView</code>가 <code>milestones: Milestone[]</code>를 들고 있고 <code>buildMilestoneColorMap</code>으로 색까지 만든다. <code>BacklogRail</code> → <code>PromoteBacklogModal</code>로 prop 하나 더 내리면 끝. <b>추가 네트워크 호출 없음.</b></li>
+          <li>색은 <code>resolveMilestoneColor(id, map)</code>를 그대로 써서 보드/간트와 같은 색을 유지한다.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ 3. AI 추천 ══════════════ -->
+  <div class="sec-title"><h2>3. AI 후보 추천</h2><span>규칙으로 좁히고 AI가 고른다</span></div>
+
+  <div class="compare">
+    <div class="col">
+      <div class="col-label">동작</div>
+      <div class="box">
+        <table>
+          <tr><th style="width:30%">항목</th><th>내용</th></tr>
+          <tr><td><b>노출 위치</b></td><td>목록 최상단 고정 섹션. 접기 가능하고 접힘 상태는 <code>localStorage</code>에 기억(이미 <code>promoteRecent</code>에서 쓰는 방식).</td></tr>
+          <tr><td><b>호출 시점</b></td><td>모달 열림 <b>즉시 자동 호출하지 않는다.</b> 규칙 기반 3개를 먼저 0원으로 보여주고, <code>✨ AI로 다시 추천</code>을 누를 때만 크레딧 1을 쓴다. 열기만 해도 크레딧이 빠지는 건 백로그 정리처럼 반복 작업에서 최악이다.</td></tr>
+          <tr><td><b>후보 수</b></td><td>3개. 4개 이상은 "고르는 일"이 또 생긴다.</td></tr>
+          <tr><td><b>이유 한 줄</b></td><td>추천은 근거가 없으면 신뢰받지 못한다. 30자 이내로 <b>왜</b>를 붙인다(키워드 일치 / 같은 담당 / 최근에 붙인 곳 / 같은 마일스톤).</td></tr>
+          <tr><td><b>선택 동작</b></td><td>클릭 = 아래 목록에서 선택된 것과 동일한 상태. 목록에서도 해당 행이 하이라이트되어 <b>어디에 붙는지 위치를 확인</b>할 수 있다.</td></tr>
+          <tr><td><b>캐시</b></td><td>(백로그 항목 id + 대상 + 마일스톤) 해시로 24h 캐시. 같은 조합 재호출은 <b>크레딧 0</b>. 모달을 닫았다 다시 열어도 재과금되지 않는다.</td></tr>
+          <tr><td><b>실패·크레딧 소진</b></td><td>402면 전역 <code>ai-credits-exhausted</code> 모달을 띄우지 <b>않는다</b>. 승격이라는 본 작업을 가로막기 때문. 인라인으로 <code>규칙 추천</code> 뱃지로 되돌리고 안내 한 줄만 남긴다.</td></tr>
+          <tr><td><b>마일스톤 연동</b></td><td>현재 선택된 마일스톤이 있으면 후보 풀을 그 안으로 제한한다. 사용자가 이미 좁혀 놓은 맥락을 AI가 무시하면 추천이 튄다.</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="col-label">랭킹 파이프라인</div>
+      <div class="box" style="padding:16px 18px">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--bridge-accent);letter-spacing:.08em">STEP 1 · 규칙 프리스코어 (서버, 무료)</div>
+            <p style="font-size:12px;color:var(--slate-400);line-height:1.7;margin-top:5px">
+              후보 태스크 전체에 가중합 점수를 매겨 <b>상위 25개</b>만 남긴다.<br>
+              제목 토큰 겹침(자카드) ×3 · 대괄호 태그 일치(<code>[네트워크]</code>) ×2.5 · 내가 담당 ×1.5 ·
+              최근에 붙인 곳 ×1.5 · 같은 마일스톤 ×1 · 미완료 ×1 · 최근 수정 ×0.5
+            </p>
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--bridge-secondary);letter-spacing:.08em">STEP 2 · LLM 선별 (크레딧 1)</div>
+            <p style="font-size:12px;color:var(--slate-400);line-height:1.7;margin-top:5px">
+              25개의 <b>요약만</b> 넣는다(id·제목·피처·담당·진행률). 설명 본문은 넣지 않는다 — 토큰이 튀고 정확도는 안 오른다.<br>
+              출력은 <code>{ ref_id, reason }</code> 3개 JSON. 자유 서술 금지.
+            </p>
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--slate-400);letter-spacing:.08em">STEP 3 · 폴백</div>
+            <p style="font-size:12px;color:var(--slate-400);line-height:1.7;margin-top:5px">
+              LLM 실패·타임아웃(3s)·크레딧 부족이면 STEP 1의 상위 3개를 <code>source: "RULE"</code>로 반환.
+              <b>추천 섹션은 어떤 경우에도 비지 않는다.</b>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <pre><span class="c">// 신규 엔드포인트 1개. 마이그레이션 없음.</span>
+<span class="c">// 백로그 항목은 개인 데이터라 보드가 아니라 /personal/tasks 아래에 붙는다</span>
+<span class="c">// (보드는 항목이 들고 있는 board_id로 서버가 찾는다).</span>
+<span class="k">POST</span> /api/v1/personal/tasks/{taskId}/promote-suggestions
+
+<span class="c">// request</span>
+{ <span class="s">"target"</span>: <span class="s">"CHECKLIST_ITEM"</span>,      <span class="c">// | "TASK" (TIMEBLOCK은 400)</span>
+  <span class="s">"milestone_id"</span>: <span class="s">"ms_2월CBT"</span>,      <span class="c">// null = 전체, "none" = 미배정</span>
+  <span class="s">"include_done"</span>: false,           <span class="c">// 모달의 "완료 포함"과 같은 값</span>
+  <span class="s">"use_ai"</span>: true,                   <span class="c">// false면 규칙만, 크레딧 0</span>
+  <span class="s">"recent_ref_ids"</span>: [<span class="s">"tsk_..."</span>],    <span class="c">// 최근에 붙인 곳 (localStorage)</span>
+  <span class="s">"language"</span>: <span class="s">"ko"</span> }               <span class="c">// AI가 이유를 쓸 언어</span>
+
+<span class="c">// response — 실패해도 402가 아니라 source: "RULE"로 내려온다</span>
+{ <span class="s">"source"</span>: <span class="s">"AI"</span>,                   <span class="c">// | "RULE"</span>
+  <span class="s">"credits_used"</span>: 1,                <span class="c">// 캐시 히트면 0</span>
+  <span class="s">"credits_exhausted"</span>: false,       <span class="c">// true면 크레딧이 없어 규칙으로 내려온 것</span>
+  <span class="s">"suggestions"</span>: [
+    { <span class="s">"ref_id"</span>: <span class="s">"tsk_..."</span>,
+      <span class="s">"ref_type"</span>: <span class="s">"TASK"</span>,          <span class="c">// | "FEATURE"</span>
+      <span class="s">"score"</span>: 6.42,
+      <span class="s">"reason_code"</span>: <span class="s">"TITLE_MATCH"</span>,  <span class="c">// 규칙 추천 — 문구는 프런트가 i18n으로</span>
+      <span class="s">"reason_tokens"</span>: [<span class="s">"네트워크"</span>, <span class="s">"연결"</span>, <span class="s">"팝업"</span>],
+      <span class="s">"reason"</span>: <span class="s">null</span> },             <span class="c">// AI 추천이면 여기에 문장이 온다</span>
+    ...
+  ] }
+
+<span class="c">// 크레딧 — 기존 시그니처 그대로. AI가 실패하면 같은 요청 안에서 환불한다.</span>
+aiCreditService.consumeCredit(boardId, userId, <span class="s">"PROMOTE_SUGGEST"</span>, 1);
+aiCreditService.refundCredit(boardId, userId, <span class="s">"PROMOTE_SUGGEST"</span>, 1);</pre>
+    </div>
+  </div>
+
+  <!-- ══════════════ 4. 행 압축 ══════════════ -->
+  <div class="sec-title"><h2>4. 행 압축</h2><span>제목이 먼저 보이게</span></div>
+
+  <div class="box">
+    <table>
+      <tr><th style="width:26%">현재</th><th style="width:37%">문제</th><th>개선</th></tr>
+      <tr>
+        <td><b>제목 1줄 truncate</b></td>
+        <td>고르는 기준인 제목이 잘리는데 메타는 다 보인다. QA 티켓처럼 <code>[태그] 긴 문장</code> 형태면 잘린 뒤쪽에 핵심이 있다.</td>
+        <td>제목 <b>최대 2줄까지 wrap</b>(<code>line-clamp-2</code>), 나머지 메타를 줄여 확보한 높이로 상쇄.</td>
+      </tr>
+      <tr>
+        <td><b>메타 5종 나열</b><br><span style="font-size:12px">피처 · 블록 · 담당 · D-day · 체크수</span></td>
+        <td>모두 같은 크기·같은 색이라 눈이 멈출 곳이 없다. 피처는 이미 섹션 헤더에 있는데 행마다 반복된다.</td>
+        <td>섹션이 피처별로 묶여 있으면 <b>행에서 피처명 제거</b>(중복). 블록 뱃지는 <code>할 일 / 작업 완료</code>처럼 상태가 다를 때만.</td>
+      </tr>
+      <tr>
+        <td><b>체크 0/1 텍스트</b></td>
+        <td>"이 태스크에 얼마나 붙어 있나"가 승격 판단에 중요한데 숫자만 있어 한눈에 안 들어온다.</td>
+        <td><b>미니 진행 바 + 숫자</b>. 8/9처럼 거의 찬 태스크는 바로 보인다.</td>
+      </tr>
+      <tr>
+        <td><b>"내 태스크 20" 단일 덩어리</b></td>
+        <td>정렬이 아니라 그냥 통. 20개를 다 읽어야 한다.</td>
+        <td>마일스톤 필터로 실질 개수를 줄이고, 그 안에서 <b>피처별 섹션</b>으로 나눈다. 기존 <code>최근에 붙인 곳</code> 섹션은 그대로 최상단 유지.</td>
+      </tr>
+      <tr>
+        <td><b>정렬 고정</b></td>
+        <td>마감 임박 순으로 보고 싶을 때가 있다.</td>
+        <td>정렬 토글 3종: <b>관련도(기본) · 마감 임박 · 최근 수정</b>. 검색 중에는 관련도 고정.</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ══════════════ 5. 단계 ══════════════ -->
+  <div class="sec-title"><h2>5. 단계별 실행</h2><span>1단계만으로도 체감이 바뀐다</span></div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="n">STEP 1 · FE ONLY</div>
+      <h4>마일스톤 필터 + 행 압축</h4>
+      <p>
+        · <code>api.ts</code> <code>TaskResponse</code>에 <code>milestone_id</code> 선언 추가<br>
+        · <code>DashboardView</code> → <code>BacklogRail</code> → <code>PromoteBacklogModal</code>로 <code>milestones</code> prop 전달<br>
+        · 모달에 마일스톤 셀렉트 + 종속 피처 칩(개수 포함) + 행 레이아웃 교체<br>
+        · i18n 키 추가(ko 외 9개 로케일)
+      </p>
+      <div class="cost">백엔드 변경 0 · 마이그레이션 0 · 추가 API 호출 0</div>
+    </div>
+    <div class="step">
+      <div class="n">STEP 2 · BE + FE</div>
+      <h4>규칙 기반 추천 (무료)</h4>
+      <p>
+        · <code>PromoteSuggestionService</code> — STEP 1 프리스코어만 구현<br>
+        · 엔드포인트 1개(<code>use_ai: false</code> 경로)<br>
+        · 모달 상단 추천 섹션 UI 완성<br>
+        AI 없이도 추천이 동작하므로, 3단계가 밀려도 개선은 남는다.
+      </p>
+      <div class="cost">크레딧 0 · 마이그레이션 0</div>
+    </div>
+    <div class="step">
+      <div class="n">STEP 3 · AI</div>
+      <h4>AI 선별 + 이유</h4>
+      <p>
+        · 같은 엔드포인트에 LLM 경로 추가<br>
+        · <code>aiCreditService.consumeCredit(..., "PROMOTE_SUGGEST", 1)</code><br>
+        · 24h 캐시 · 3초 타임아웃 · 402/실패 시 규칙 폴백<br>
+        · <code>✨ AI로 다시 추천</code> 버튼(명시적 소비)
+      </p>
+      <div class="cost">크레딧 1/회 · 캐시 히트는 0</div>
+    </div>
+  </div>
+
+  <!-- ══════════════ 6. 엣지 ══════════════ -->
+  <div class="sec-title"><h2>6. 엣지 케이스 · 접근성</h2></div>
+  <div class="box">
+    <table>
+      <tr><th style="width:30%">상황</th><th>처리</th></tr>
+      <tr><td>마일스톤이 0~1개인 보드</td><td>셀렉트를 <b>렌더하지 않는다</b>. 지금과 동일한 화면 → 회귀 없음. (피처 칩도 <code>features.length &gt; 1</code>일 때만 뜨는 기존 규칙과 같은 결)</td></tr>
+      <tr><td>선택 마일스톤에 태스크 0건</td><td>"이 마일스톤에 태스크가 없습니다 · <b>전체 보기</b>" 버튼 — 빈 화면에서 탈출로를 준다.</td></tr>
+      <tr><td>태스크 탭(피처 고르기)</td><td>같은 마일스톤 필터를 피처 목록에도 적용. <code>Milestone.features</code>에 소속 피처가 이미 들어 있어 추가 호출 불필요.</td></tr>
+      <tr><td>AI 추천이 이미 선택된 것과 같음</td><td>중복 표시 대신 추천 카드에 <code>선택됨</code> 표기.</td></tr>
+      <tr><td>추천 후보가 완료 태스크</td><td>기본 제외. <code>완료 포함</code>이 켜져 있을 때만 후보 풀에 넣는다.</td></tr>
+      <tr><td>키보드</td><td>↑↓ 커서는 <b>추천 3개 → 목록</b> 순서로 이어진다(<code>flatIds</code>에 추천을 앞에 붙임). Enter 선택 · Esc 닫기 유지. 마일스톤 셀렉트는 <code>role="combobox"</code>.</td></tr>
+      <tr><td>접근성</td><td>추천 섹션 <code>role="group" aria-label="추천 후보"</code>, 이유 문구는 스크린리더로 읽히도록 시각 전용 처리 금지. 칩은 <code>aria-pressed</code> 유지.</td></tr>
+      <tr><td>디자인 토큰</td><td>텍스트 최소 <code>text-xs</code>, 웨이트 3종, 뱃지 배경 <code>/15</code>, 스크롤바 <code>custom-scrollbar</code>, 로딩 <code>Loader2</code> — 기존 규칙 그대로.</td></tr>
+    </table>
+  </div>
+
+  <div class="note warn">
+    <h3>확정된 결정 (구현 반영됨)</h3>
+    <ul>
+      <li><b>AI 자동 호출 안 함</b> — 열자마자는 규칙 추천(무료)만 뜨고, <code>✨ AI로 추천 · 크레딧 1</code> 버튼을 눌러야 크레딧을 씁니다. 백로그 10개를 정리할 때 크레딧 10이 나가는 걸 막기 위해서입니다. 같은 (항목·대상·마일스톤·완료포함) 조합은 24h 캐시라 다시 열어도 0입니다.</li>
+      <li><b>기본 마일스톤 = 보드의 선택 마일스톤</b> — <code>kanbanSelectedMilestoneId</code>를 그대로 물려받습니다("all"은 전체로 변환). 승격도 보드를 보던 맥락에서 일어나기 때문입니다.</li>
+      <li><b>추천은 두 탭 모두</b> — 같은 엔드포인트가 <code>target</code>에 따라 태스크/피처 후보를 돌려주므로 분기 비용이 없었습니다. 대신 <b>정렬 토글은 태스크 탭에만</b> 뒀습니다(피처는 몇 개 되지 않아 정렬할 것이 없습니다).</li>
+    </ul>
+  </div>
+
+  <div class="note">
+    <h3>구현 결과와 제안서의 차이</h3>
+    <ul>
+      <li><b>엔드포인트 경로</b> — 백로그 항목은 개인 데이터라 보드 하위가 아니라 <code>POST /api/v1/personal/tasks/{taskId}/promote-suggestions</code>에 붙였습니다(기존 <code>/promote</code>와 같은 자리). 보드는 항목의 <code>board_id</code>로 서버가 찾습니다.</li>
+      <li><b>추천 이유의 언어</b> — 규칙 추천은 서버가 문구를 만들지 않고 <code>reason_code</code>만 내려주고, 프런트가 i18n으로 그립니다. 서버가 한국어 문장을 박으면 10개 로케일에서 그대로 샙니다. AI 추천만 문장을 그대로 씁니다.</li>
+      <li><b>피처의 마일스톤 소속</b> — 보드 칸반과 같은 규칙을 그대로 씁니다: 태스크가 배정된 마일스톤이 우선이고, 태스크 배정이 하나도 없는 피처만 마일스톤 멤버십으로 폴백합니다. 그래서 모달이 두 탭 모두에서 태스크 목록을 한 번 읽습니다(요청 1건, 기존과 동일).</li>
+      <li><b>검색은 필터를 뚫습니다</b> — 검색 중에는 마일스톤·피처 필터를 무시하고 보드 전체에서 찾되, 필터 밖 결과에 <code>다른 마일스톤</code> 뱃지를 붙입니다.</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>

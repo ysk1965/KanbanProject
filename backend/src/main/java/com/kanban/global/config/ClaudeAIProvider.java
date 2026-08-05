@@ -96,9 +96,12 @@ public class ClaudeAIProvider implements AIProvider {
             log.warn("Claude API rate limited");
             throw new BusinessException(ErrorCode.AI_PROVIDER_RATE_LIMITED);
         } catch (HttpStatusCodeException e) {
-            // 응답 본문에 프롬프트 일부가 실릴 수 있어 상태코드만 남긴다
-            log.error("Claude API returned {} (structured)", e.getStatusCode().value());
-            throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
+            // 사유까지 남긴다 — 상태코드만으로는 "크레딧 소진"과 "요청 형식 오류"가 구분되지 않아
+            // 장애를 로그만 보고 진단할 수 없었다. 길이 제한은 AiProviderErrors 참고.
+            ErrorCode code = AiProviderErrors.classify(e, ErrorCode.AI_PROVIDER_UNAVAILABLE);
+            log.error("Claude API returned {} (structured) [{}] — {}",
+                    e.getStatusCode().value(), code.getCode(), AiProviderErrors.describe(e));
+            throw new BusinessException(code);
         } catch (Exception e) {
             log.error("Failed to call Claude API (structured): {}", e.getMessage());
             throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
@@ -199,6 +202,12 @@ public class ClaudeAIProvider implements AIProvider {
 
         } catch (BusinessException e) {
             throw e;
+        } catch (HttpStatusCodeException e) {
+            // 원인이 특정되는 실패(크레딧·키·한도)는 그대로 드러낸다. 나머지는 기존 계약 유지.
+            ErrorCode code = AiProviderErrors.classify(e, ErrorCode.AI_REPORT_GENERATION_FAILED);
+            log.error("Claude API returned {} [{}] — {}",
+                    e.getStatusCode().value(), code.getCode(), AiProviderErrors.describe(e));
+            throw new BusinessException(code);
         } catch (Exception e) {
             log.error("Failed to call Claude API: {}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.AI_REPORT_GENERATION_FAILED);

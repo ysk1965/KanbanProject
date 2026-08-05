@@ -2,9 +2,15 @@ package com.kanban.domain.integration.jira.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kanban.domain.block.Block;
 import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardMember;
+import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.checklist.ChecklistItem;
+import com.kanban.domain.checklist.ChecklistItemRepository;
+import com.kanban.domain.contractor.entity.BoardContractor;
 import com.kanban.domain.integration.jira.*;
 import com.kanban.domain.integration.jira.dto.JiraAutofixResponse;
 import com.kanban.domain.monitoring.entity.AiUsageLog;
@@ -12,6 +18,7 @@ import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
 import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
+import com.kanban.domain.user.User;
 import com.kanban.global.config.ClaudeAIProvider;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
@@ -23,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 자동수정 트리아지 — JIRA 연동 이슈가 <b>자동 검증 가능한지</b> 판정한다.
@@ -60,6 +68,9 @@ public class JiraAutofixTriageService {
     private final JiraAutofixTriageRepository triageRepository;
     private final AiUsageLogRepository aiUsageLogRepository;
     private final AiCreditService aiCreditService;
+    /** 목록에 붙일 담당자·색을 위한 조회 전용 의존성. 판정 자체에는 쓰이지 않는다. */
+    private final ChecklistItemRepository checklistItemRepository;
+    private final BoardMemberRepository boardMemberRepository;
 
     @Value("${ai.claude.model.jira-triage:claude-sonnet-5}")
     private String model;
@@ -173,14 +184,31 @@ public class JiraAutofixTriageService {
      * @param force true면 이슈가 안 바뀌었어도 전건 재판정
      */
     public JiraAutofixResponse.TriageRun triageBoard(String boardId, String userId, boolean force) {
+        return triageBoard(boardId, userId, force, null);
+    }
+
+    /**
+     * 범위를 좁힌 트리아지.
+     *
+     * @param issueKeys 지정하면 그 이슈들만, 그리고 <b>반드시</b> 다시 판정한다. 화면에서 "판정 후
+     *                  변경된 건만 다시" 누르는 경로다 — 카드가 BRIDGE 안에서만 움직였을 때는
+     *                  JIRA 갱신 시각이 그대로라 평소 기준으로는 전부 건너뛰어 버튼이 아무 일도 안 한다.
+     *                  비우면 {@link #triageBoard(String, String, boolean)}과 같다.
+     */
+    public JiraAutofixResponse.TriageRun triageBoard(String boardId, String userId,
+                                                     boolean force, List<String> issueKeys) {
         boardService.checkAdminOrAbove(boardId, userId);
 
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
+        boolean scoped = issueKeys != null && !issueKeys.isEmpty();
+        Set<String> wanted = scoped ? new HashSet<>(issueKeys) : Set.of();
+
         List<JiraIssueLink> links = issueLinkRepository
                 .findByBoardIdAndTargetType(boardId, JiraLinkTargetType.TASK).stream()
                 .filter(link -> !link.isJiraDeleted())
+                .filter(link -> !scoped || wanted.contains(link.getJiraIssueKey()))
                 .toList();
 
         if (links.isEmpty()) {
@@ -194,7 +222,7 @@ public class JiraAutofixTriageService {
 
         List<JiraIssueLink> targets = links.stream()
                 .filter(link -> {
-                    if (force) return true;
+                    if (force || scoped) return true;
                     JiraAutofixTriage prior = existing.get(link.getJiraIssueKey());
                     return prior == null || prior.isStaleAgainst(link.getJiraUpdatedAt());
                 })
@@ -208,8 +236,8 @@ public class JiraAutofixTriageService {
                 .orElse(TestInfraLevel.NONE);
         String systemPrompt = buildSystemPrompt(testInfra);
 
-        log.info("JIRA autofix triage: board={} scanned={} targets={} skipped={} testInfra={}",
-                boardId, links.size(), targets.size(), skipped, testInfra);
+        log.info("JIRA autofix triage: board={} scanned={} targets={} skipped={} scoped={} testInfra={}",
+                boardId, links.size(), targets.size(), skipped, scoped, testInfra);
 
         Map<String, Task> tasks = loadTasks(targets);
 
@@ -371,7 +399,13 @@ public class JiraAutofixTriageService {
         return resolved.name();
     }
 
-    /** 판정별 목록. verdict가 null이면 전건. */
+    /**
+     * 판정별 목록. verdict가 null이면 전건.
+     *
+     * <p>판정 결과만으로는 목록이 읽히지 않는다 — 무슨 버그인지(제목), 지금 어디에 있는지(블록·QA),
+     * 누가 물고 있는지(체크리스트 담당자)가 함께 와야 화면이 걸러낼 수 있다. 그래서 태스크·체크리스트·
+     * 멤버색을 <b>세 번의 일괄 조회</b>로 붙인다(행마다 조회하면 수백 건에서 N+1이 터진다).
+     */
     @Transactional(readOnly = true)
     public List<JiraAutofixResponse.TriageItem> getItems(String boardId, String userId, String verdict) {
         boardService.checkMemberOrAbove(boardId, userId);
@@ -383,20 +417,112 @@ public class JiraAutofixTriageService {
             rows = triageRepository.findByBoardIdAndVerdict(boardId, parseVerdict(verdict));
         }
 
+        List<String> taskIds = rows.stream()
+                .map(JiraAutofixTriage::getTaskId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        Map<String, Task> taskById = taskIds.isEmpty() ? Map.of()
+                : taskRepository.findByIdInWithBlockAndFeature(taskIds).stream()
+                        .collect(Collectors.toMap(Task::getId, t -> t, (a, b) -> a));
+
+        Map<String, List<JiraAutofixResponse.Assignee>> assigneesByTask =
+                loadChecklistAssignees(boardId, taskIds);
+
         return rows.stream()
                 .sorted(Comparator.comparingDouble(
                         (JiraAutofixTriage t) -> t.getConfidence() == null ? 0.0 : t.getConfidence()).reversed())
-                .map(t -> JiraAutofixResponse.TriageItem.builder()
-                        .jiraIssueKey(t.getJiraIssueKey())
-                        .taskId(t.getTaskId())
-                        .verdict(t.getVerdict().name())
-                        .category(t.getCategory().name())
-                        .confidence(t.getConfidence())
-                        .verification(t.getVerification())
-                        .reason(t.getReason())
-                        .triagedAt(t.getUpdatedAt() != null ? t.getUpdatedAt().toString() : null)
-                        .build())
+                .map(t -> {
+                    Task task = t.getTaskId() != null ? taskById.get(t.getTaskId()) : null;
+                    return JiraAutofixResponse.TriageItem.builder()
+                            .jiraIssueKey(t.getJiraIssueKey())
+                            .taskId(t.getTaskId())
+                            .verdict(t.getVerdict().name())
+                            .category(t.getCategory().name())
+                            .confidence(t.getConfidence())
+                            .verification(t.getVerification())
+                            .reason(t.getReason())
+                            .triagedAt(t.getUpdatedAt() != null ? t.getUpdatedAt().toString() : null)
+                            .taskTitle(task != null ? task.getTitle() : null)
+                            .taskState(toTaskState(task))
+                            .assignees(assigneesByTask.getOrDefault(
+                                    t.getTaskId(), List.of()))
+                            .staleTriage(isStale(t, task))
+                            .build();
+                })
                 .toList();
+    }
+
+    /** 태스크가 판정 이후 수정됐는지. 둘 중 하나라도 시각이 없으면 낡았다고 단정하지 않는다. */
+    private boolean isStale(JiraAutofixTriage triage, Task task) {
+        if (task == null || task.getUpdatedAt() == null || triage.getUpdatedAt() == null) return false;
+        return task.getUpdatedAt().isAfter(triage.getUpdatedAt());
+    }
+
+    private JiraAutofixResponse.TaskState toTaskState(Task task) {
+        if (task == null) return null;
+        Block block = task.getBlock();
+        return JiraAutofixResponse.TaskState.builder()
+                .blockId(block != null ? block.getId() : null)
+                .blockName(block != null ? block.getName() : null)
+                .blockPosition(block != null ? block.getPosition() : null)
+                .blockFixedType(block != null && block.getFixedType() != null
+                        ? block.getFixedType().name() : null)
+                .qaState(task.getQaState() != null ? task.getQaState().name() : null)
+                .completed(Boolean.TRUE.equals(task.getIsCompleted()))
+                .alreadyDone(AutofixTaskStage.isAlreadyDone(task))
+                .build();
+    }
+
+    /**
+     * 태스크별 체크리스트 담당자. 사람은 보드 멤버 색을, 외주는 계약자 색을 쓴다 —
+     * 색이 카드와 어긋나면 같은 사람이 두 색으로 보인다.
+     *
+     * <p>같은 사람이 여러 체크리스트를 맡고 있어도 한 번만 넣는다.
+     */
+    private Map<String, List<JiraAutofixResponse.Assignee>> loadChecklistAssignees(
+            String boardId, List<String> taskIds) {
+        if (taskIds.isEmpty()) return Map.of();
+
+        Map<String, String> colorByUserId = boardMemberRepository.findByBoardId(boardId).stream()
+                .filter(m -> m.getUser() != null && m.getAssigneeColor() != null)
+                .collect(Collectors.toMap(m -> m.getUser().getId(),
+                        BoardMember::getAssigneeColor, (a, b) -> a));
+
+        Map<String, List<JiraAutofixResponse.Assignee>> byTask = new LinkedHashMap<>();
+        Map<String, Set<String>> seenByTask = new HashMap<>();
+
+        for (ChecklistItem item : checklistItemRepository.findByTaskIdInWithAssignee(taskIds)) {
+            String taskId = item.getTask().getId();
+            Set<String> seen = seenByTask.computeIfAbsent(taskId, k -> new HashSet<>());
+
+            if (item.getAssignee() != null) {
+                User user = item.getAssignee();
+                if (seen.add("u:" + user.getId())) {
+                    byTask.computeIfAbsent(taskId, k -> new ArrayList<>())
+                            .add(JiraAutofixResponse.Assignee.builder()
+                                    .id(user.getId())
+                                    .name(user.getName())
+                                    .color(colorByUserId.get(user.getId()))
+                                    .external(false)
+                                    .build());
+                }
+            }
+            if (item.getContractor() != null) {
+                BoardContractor c = item.getContractor();
+                if (seen.add("c:" + c.getId())) {
+                    byTask.computeIfAbsent(taskId, k -> new ArrayList<>())
+                            .add(JiraAutofixResponse.Assignee.builder()
+                                    .id(c.getId())
+                                    .name(c.getName())
+                                    .color(c.getColor())
+                                    .external(true)
+                                    .build());
+                }
+            }
+        }
+        return byTask;
     }
 
     private JiraAutofixResponse.Summary buildSummary(String boardId) {

@@ -182,10 +182,29 @@ claim 요청에는 러너 자가진단이 같이 실린다 — 같은 이유로,
 | `DISPATCH_DISABLED` | 서버에서 자동수정 실행이 꺼져 있다 (`autofix.dispatch-enabled`) |
 | `NO_TARGET` | 대상 저장소가 없는 작업이라 실패 처리했다 |
 
+claim이 내주는 작업 명세:
+
+```json
+{ "job_id": "...", "job_key": "CHK-7f0e21b9", "job_kind": "MANUAL",
+  "title": "빈 이름일 때 저장 버튼 비활성화",
+  "instruction": "…서버가 조립한 프롬프트 본문(맥락+대상+지시)…",
+  "repo_full_name": "org/repo", "base_ref": "develop",
+  "branch": "autofix/CHK-7f0e21b9-9f2e17", "timeout_minutes": 60 }
+```
+
+**러너는 작업의 출처를 모른다.** JIRA 이슈든, 사람이 맡긴 태스크든, 체크리스트 항목이든
+`instruction` 한 덩어리로 온다. 맥락(부모 태스크 설명)과 범위 제한("다른 항목은 건드리지 않는다")을
+문장으로 만드는 것은 전부 서버의 일이다 — 러너에 출처별 분기가 생기면 프롬프트를 고칠 때마다
+맥에 재배포해야 하고, 안전장치도 두 벌이 된다.
+
+`job_key` 접두사가 위임 범위를 말한다: `QASA-40`(JIRA 이슈) / `TASK-…`(태스크 전체) / `CHK-…`(항목).
+브랜치 이름에 job id가 섞이는 이유는 재시도다 — 실패한 작업의 지시문을 고쳐 다시 맡기는 것이
+정상 흐름인데, 브랜치가 같으면 remote에 남은 이전 브랜치와 non-fast-forward로 부딪힌다.
+
 결과 회신 페이로드:
 
 ```json
-{ "job_id": "...", "issue_key": "QASA-40",
+{ "job_id": "...", "job_key": "CHK-7f0e21b9",
   "result": "pr | no_change | failed",
   "pr_url": "...", "failure_reason": "...", "log_excerpt": "…에이전트 로그 꼬리" }
 ```
@@ -206,10 +225,11 @@ claim 요청에는 러너 자가진단이 같이 실린다 — 같은 이유로,
 ```bash
 cd ~/bridge-autofix
 NO_REPORT=1 ./autofix-once.sh ~/bridge-autofix/runner.conf <<'EOF'
-{"job_id":"","jira_issue_key":"QASA-40","issue_title":"프리셋 이름 변경 팝업 문자열",
- "issue_body":"...","verification":"문자열 정적 대조","test_infra":"NONE",
+{"job_id":"","job_key":"QASA-40","job_kind":"JIRA",
+ "title":"프리셋 이름 변경 팝업 문자열",
+ "instruction":"이슈 본문과 검증 수단을 여기에 그대로 넣는다",
  "repo_full_name":"cookapps-devops/GWBM013-auto-battle-project",
- "base_ref":"develop","branch":"autofix/QASA-40","timeout_minutes":60}
+ "base_ref":"develop","branch":"autofix/QASA-40-manual","timeout_minutes":60}
 EOF
 ```
 
@@ -219,6 +239,7 @@ EOF
 2. 에이전트가 관련 없는 파일을 건드리지 않았는가
 3. 컴파일 검증이 실제로 동작하는가 — 일부러 깨진 코드로 한 번 실패시켜 볼 것
 4. 정리 단계 후 작업 트리가 깨끗한가 (다음 실행이 이걸로 막힌다)
+5. `.github/` 가드가 도는가 — 워크플로 파일을 일부러 건드리게 시켜 PR 직전에 막히는지 확인
 
 그다음 BRIDGE에서 `autofix.dispatch-enabled`를 켜고(`AUTOFIX_DISPATCH_ENABLED=true`)
 데몬을 올린다. 도크의 셋업 체크리스트가 3줄 모두 초록이어야 큐가 흐른다.

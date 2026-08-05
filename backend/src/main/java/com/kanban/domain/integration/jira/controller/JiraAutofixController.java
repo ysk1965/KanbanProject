@@ -47,6 +47,20 @@ public class JiraAutofixController {
                 queueService.enqueueCandidates(boardId, principal.getUserId(), limit, issueKeys));
     }
 
+    /**
+     * 사람이 태스크나 체크리스트 항목을 직접 맡긴다. 트리아지를 거치지 않는다.
+     *
+     * <p>{@code checklist_item_ids}를 비우면 태스크 전체, 채우면 항목마다 job 하나씩 만든다 —
+     * 실패 단위가 섞이지 않아야 3개 중 1개가 실패해도 나머지 2개는 PR까지 간다.
+     */
+    @PostMapping("/api/v1/boards/{boardId}/jira/autofix/manual")
+    public ResponseEntity<JiraAutofixResponse.DelegateResult> delegate(
+            @PathVariable String boardId,
+            @RequestBody JiraAutofixRequest.Delegate request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(queueService.delegate(boardId, principal.getUserId(), request));
+    }
+
     /** 큐 준비 상태 + 현황. 셋업 체크리스트와 배너가 이 값으로 그려진다. */
     @GetMapping("/api/v1/boards/{boardId}/jira/autofix/queue-status")
     public ResponseEntity<JiraAutofixResponse.QueueStatus> queueStatus(
@@ -55,12 +69,19 @@ public class JiraAutofixController {
         return ResponseEntity.ok(queueService.getQueueStatus(boardId, principal.getUserId()));
     }
 
+    /**
+     * 작업 목록. {@code task_id}를 주면 그 태스크 건만 — 카드가 자기 체크리스트 항목의 상태 칩을
+     * 그리는 경로다. 전체를 받아 화면에서 거르면 카드 하나 열 때마다 큐 전체가 넘어온다.
+     */
     @GetMapping("/api/v1/boards/{boardId}/jira/autofix/jobs")
     public ResponseEntity<List<JiraAutofixResponse.JobItem>> jobs(
             @PathVariable String boardId,
             @RequestParam(value = "limit", defaultValue = "50") int limit,
+            @RequestParam(value = "task_id", required = false) String taskId,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(queueService.getJobs(boardId, principal.getUserId(), limit));
+        return ResponseEntity.ok(taskId != null && !taskId.isBlank()
+                ? queueService.getJobsForTask(boardId, principal.getUserId(), taskId)
+                : queueService.getJobs(boardId, principal.getUserId(), limit));
     }
 
     /**
@@ -92,14 +113,18 @@ public class JiraAutofixController {
      * 트리아지 실행. 이슈가 바뀌지 않은 건은 건너뛴다(재실행 비용 방지).
      * AI를 호출하므로 관리자 이상만 실행할 수 있다.
      *
-     * @param force true면 전건 재판정
+     * @param force   true면 전건 재판정
+     * @param request {@code issue_keys}를 주면 그 이슈들만 무조건 다시 판정한다. 본문은 없어도 된다.
      */
     @PostMapping("/api/v1/boards/{boardId}/jira/autofix/triage")
     public ResponseEntity<JiraAutofixResponse.TriageRun> runTriage(
             @PathVariable String boardId,
             @RequestParam(value = "force", defaultValue = "false") boolean force,
+            @RequestBody(required = false) JiraAutofixRequest.Triage request,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(triageService.triageBoard(boardId, principal.getUserId(), force));
+        return ResponseEntity.ok(triageService.triageBoard(
+                boardId, principal.getUserId(), force,
+                request != null ? request.getIssueKeys() : null));
     }
 
     /**

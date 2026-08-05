@@ -5,6 +5,7 @@ import {
   ArrowRightLeft,
   Copy,
   MoreHorizontal,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import { Button } from "./ui/button";
@@ -16,6 +17,12 @@ interface TaskHeaderActionsMenuProps {
   onMoveToBoard: () => void;
   onCopyToBoard: () => void;
   onDelete: () => void;
+  /** 이 카드를 맥에 맡긴다. 자동수정을 쓸 수 없는 보드에서는 undefined다. */
+  onDelegate?: () => void;
+  /** 러너가 지금 받을 수 있는 상태인가. false면 항목을 감추지 않고 사유와 함께 비활성으로 남긴다. */
+  delegateReady?: boolean;
+  /** 맡길 수 없을 때 항목 밑에 띄울 한 줄. */
+  delegateHint?: string | null;
 }
 
 export function TaskHeaderActionsMenu({
@@ -25,6 +32,9 @@ export function TaskHeaderActionsMenu({
   onMoveToBoard,
   onCopyToBoard,
   onDelete,
+  onDelegate,
+  delegateReady = true,
+  delegateHint,
 }: TaskHeaderActionsMenuProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -65,6 +75,30 @@ export function TaskHeaderActionsMenu({
       </Button>
       {open && (
         <div className="absolute right-0 top-full mt-1.5 z-50 min-w-[200px] bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl p-1">
+          {onDelegate && (
+            <>
+              <button
+                onClick={() => { if (delegateReady) { onDelegate(); setOpen(false); } }}
+                disabled={!delegateReady}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-lg hover:bg-foreground/5 outline-none disabled:opacity-50 disabled:cursor-default"
+              >
+                <Sparkles className="h-4 w-4 text-bridge-accent" />
+                <span className="text-bridge-accent font-bold">
+                  {t("autofix.delegateTask", "맥에 맡기기")}
+                </span>
+              </button>
+              {/*
+                맡길 수 없어도 항목을 감추지 않는다. 사라지면 기능이 없는 것처럼 보이고,
+                사용자는 왜 안 되는지 물어볼 자리를 잃는다.
+              */}
+              {delegateHint && (
+                <p className="px-3 pb-1.5 text-xs text-slate-500 leading-relaxed">
+                  {delegateHint}
+                </p>
+              )}
+              <div className="my-1 h-px bg-foreground/[0.08]" />
+            </>
+          )}
           {items.map(({ icon: Icon, label, onClick }) => (
             <button
               key={label}

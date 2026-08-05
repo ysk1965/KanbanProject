@@ -10,6 +10,7 @@ import lombok.Getter;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 public class PersonalTaskRequest {
 
@@ -84,5 +85,33 @@ public class PersonalTaskRequest {
         /** target=TASK — 간트 날짜 칸에 떨궜을 때 그 날짜로 배치한다 */
         private LocalDate startDate;
         private LocalDate dueDate;
+    }
+
+    /**
+     * 붙일 곳 추천 요청.
+     *
+     * <p>규칙 추천은 무료라 모달을 열 때 바로 부르고, useAi=true는 사용자가 버튼을 눌렀을 때만 온다.
+     * 열자마자 AI를 돌리면 백로그 열 개 정리에 크레딧 열 개가 나간다.
+     */
+    @Getter
+    public static class Suggest {
+        /** TASK(붙일 피처 추천) 또는 CHECKLIST_ITEM(붙일 태스크 추천). TIMEBLOCK은 추천 대상이 아니다. */
+        @NotNull(message = "추천 대상은 필수입니다")
+        private PersonalTaskPromotionType target;
+
+        /** 모달에서 고른 마일스톤. null이면 전체, "none"이면 마일스톤 미배정만. */
+        private String milestoneId;
+
+        /** 완료된 것도 후보에 넣을지 — 모달의 "완료 포함" 토글과 같은 값 */
+        private boolean includeDone;
+
+        /** true면 크레딧 1을 쓰고 AI가 고른다. false면 규칙 결과만 돌려준다. */
+        private boolean useAi;
+
+        /** 최근에 붙인 곳 — 프런트가 localStorage에 들고 있는 값이라 서버가 알 수 없다 */
+        private List<String> recentRefIds;
+
+        /** AI가 이유를 쓸 언어 (i18n 코드). 규칙 추천에는 쓰이지 않는다. */
+        private String language;
     }
 }

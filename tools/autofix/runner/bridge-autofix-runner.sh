@@ -122,11 +122,13 @@ while true; do
   fi
 
   last_reason=""
-  issue_key=$(echo "$response" | jq -r '.job.jira_issue_key')
+  job_key=$(echo "$response" | jq -r '.job.job_key')
   job_id=$(echo "$response" | jq -r '.job.job_id')
-  job_log="$LOG_DIR/${issue_key}-${job_id}.log"
+  # 로그 파일 이름에 그대로 들어가므로 경로 구분자가 섞이면 엉뚱한 곳에 쓴다.
+  safe_key=$(echo "$job_key" | tr -c 'A-Za-z0-9._-' '_')
+  job_log="$LOG_DIR/${safe_key}-${job_id}.log"
 
-  log "작업 수령: $issue_key (job=$job_id) → $job_log"
+  log "작업 수령: $job_key (job=$job_id) → $job_log"
   echo "$response" | jq '.job' | "$HERE/autofix-once.sh" "$CONF" 2>&1 | tee "$job_log"
-  log "작업 종료: $issue_key"
+  log "작업 종료: $job_key"
 done

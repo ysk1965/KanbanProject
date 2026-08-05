@@ -18,6 +18,7 @@ import {
   scheduleAPI,
   ScheduleBlockDetailResponse,
   trashAPI,
+  JiraAutofixJob,
 } from "../utils/api";
 import { toast } from "sonner";
 import { BoardMember } from "./ShareBoardModal";
@@ -80,6 +81,9 @@ import {
   Search,
 } from "lucide-react";
 import { TaskMoveModal } from "./TaskMoveModal";
+import { AutofixDelegateModal } from "./AutofixDelegateModal";
+import { useAutofixTaskJobs } from "../hooks/useAutofixTaskJobs";
+import { useAutofixRunnerStatus } from "../hooks/useAutofixRunnerStatus";
 import { TaskAIChecklistModal } from "./TaskAIChecklistModal";
 import { ChecklistHistoryModal } from "./ChecklistHistoryModal";
 import { TaskHeaderActionsMenu } from "./TaskHeaderActionsMenu";
@@ -97,7 +101,7 @@ import { Progress } from "./ui/progress";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
-import { getTodayDateString } from "../utils/dateUtils";
+import { getTodayDateString, parseUTCDate } from "../utils/dateUtils";
 import { useReducedMotion } from "../hooks/useReducedMotion";
 import {
   DndContext,
@@ -873,6 +877,31 @@ export function TaskDetailModal({
     });
   }, [showMoveChecklistDialog, moveTargetFeatures, task?.feature_id]);
 
+  /*
+   * 자동수정 위임 — 훅은 전부 early return 위에 둔다(React #310).
+   *
+   * 러너 상태는 "메뉴 항목을 보여줄지"를 정하고, 항목별 작업은 상태 칩을 그린다.
+   * 둘 다 자동수정을 쓸 수 없는 보드에서는 조회 자체가 돌지 않아야 한다 — 그래서 enabled를 건다.
+   */
+  const [delegateItemId, setDelegateItemId] = useState<string | null>(null);
+  const [delegateOpen, setDelegateOpen] = useState(false);
+
+  const autofixEnabled = !!boardId && !isPersonal && !!canEdit;
+  const autofixRunner = useAutofixRunnerStatus(boardId, autofixEnabled);
+  const autofixJobs = useAutofixTaskJobs(
+    boardId,
+    task?.id,
+    autofixEnabled && autofixRunner.status !== null,
+  );
+
+  const openDelegate = useCallback((itemId: string | null) => {
+    setDelegateItemId(itemId);
+    setDelegateOpen(true);
+  }, []);
+
+  // 러너가 한 번도 붙은 적 없는 보드에는 메뉴를 만들지 않는다 — 쓸 수 없는 항목이 늘어날 뿐이다.
+  const canDelegate = autofixEnabled && autofixRunner.status !== null;
+
   if (!task || !editedTask) return null;
 
   const handleClose = () => {
@@ -1613,6 +1642,16 @@ export function TaskDetailModal({
                       onMoveToBoard={() => setMoveCopyMode("move")}
                       onCopyToBoard={() => setMoveCopyMode("copy")}
                       onDelete={() => setShowDeleteDialog(true)}
+                      onDelegate={
+                        canDelegate ? () => openDelegate(null) : undefined
+                      }
+                      delegateReady={autofixRunner.canDelegate}
+                      delegateHint={
+                        autofixRunner.blockedReason ??
+                        (autofixRunner.status?.runner_name
+                          ? `항목 고르기 · ${autofixRunner.status.runner_name}`
+                          : null)
+                      }
                     />
                   </div>
                 </div>
@@ -2165,6 +2204,14 @@ export function TaskDetailModal({
                                   ? () => openMergeChecklistDialog(item.id)
                                   : undefined
                               }
+                              onDelegate={
+                                canDelegate
+                                  ? () => openDelegate(item.id)
+                                  : undefined
+                              }
+                              autofixJob={autofixJobs.byChecklistItem.get(
+                                item.id,
+                              )}
                               siblingItems={checklistItems
                                 .filter((ci) => ci.id !== item.id)
                                 .map((ci) => ({
@@ -3341,6 +3388,29 @@ export function TaskDetailModal({
         />
       )}
 
+      {/*
+        맥에 맡기기 — 진입점은 둘(항목 메뉴 / 헤더 메뉴)이지만 모달은 하나다.
+        진입점이 넘기는 것은 초기 선택 상태(delegateItemId)뿐이다.
+      */}
+      {delegateOpen && boardId && task && (
+        <AutofixDelegateModal
+          open={delegateOpen}
+          onClose={() => setDelegateOpen(false)}
+          boardId={boardId}
+          taskId={task.id}
+          taskTitle={task.title}
+          checklistItems={checklistItems}
+          initialItemId={delegateItemId}
+          pendingByChecklistItem={autofixJobs.byChecklistItem}
+          onDelegated={(queued) => {
+            toast.success(
+              queued > 1 ? `${queued}건을 맥에 맡겼습니다` : "맥에 맡겼습니다",
+            );
+            void autofixJobs.refresh();
+          }}
+        />
+      )}
+
       {/* AI Checklist Confirm Modal */}
       {showAIConfirm &&
         task &&
@@ -3517,6 +3587,10 @@ function SortableChecklistItemRow(props: {
   onDelete: () => void;
   onMoveToTask?: () => void;
   onMerge?: () => void;
+  /** 이 항목을 맥에 맡긴다. 자동수정을 쓸 수 없는 보드에서는 undefined다. */
+  onDelegate?: () => void;
+  /** 이 항목의 가장 최근 자동수정 작업. 없으면 맡긴 적이 없는 항목이다. */
+  autofixJob?: JiraAutofixJob;
   siblingItems?: { id: string; title: string; completed: boolean }[];
   onReassignBlock?: (blockId: string, targetItemId: string) => void;
   boardMembers: BoardMember[];
@@ -3572,6 +3646,88 @@ function SortableChecklistItemRow(props: {
   );
 }
 
+/**
+ * 체크리스트 항목의 자동수정 상태 칩.
+ *
+ * 상태를 보여주는 곳이 곧 그 상태에서 할 일을 하는 곳이어야 한다 — PR이면 PR로,
+ * 실패면 로그로 간다. 진행 중은 도크를 연다(강제 회수가 거기 있다).
+ *
+ * NO_CHANGE에 실패색을 쓰지 않는다. "고칠 수 없다고 판단함"은 고장이 아니다.
+ */
+function AutofixItemChip({ job }: { job: JiraAutofixJob }) {
+  const style: Record<string, { cls: string; label: string }> = {
+    QUEUED: { cls: "bg-foreground/10 text-slate-400", label: "맥 대기" },
+    DISPATCHED: {
+      cls: "bg-bridge-accent/15 text-bridge-accent",
+      label: "맥 작업 중",
+    },
+    SUCCEEDED: {
+      cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+      label: "PR 열림",
+    },
+    NO_CHANGE: { cls: "bg-foreground/10 text-slate-400", label: "변경 없음" },
+    FAILED: {
+      cls: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+      label: "실패",
+    },
+    TIMED_OUT: {
+      cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+      label: "응답 없음",
+    },
+    CANCELLED: { cls: "bg-foreground/10 text-slate-400", label: "취소됨" },
+  };
+
+  const tone = style[job.status];
+  if (!tone) return null;
+
+  const elapsed =
+    job.status === "DISPATCHED" && job.dispatched_at
+      ? Math.max(
+          0,
+          Math.round(
+            (Date.now() - (parseUTCDate(job.dispatched_at)?.getTime() ?? 0)) /
+              60000,
+          ),
+        )
+      : null;
+
+  const label =
+    job.status === "SUCCEEDED" && job.pr_url
+      ? `PR #${job.pr_url.split("/").pop()}`
+      : elapsed !== null
+        ? `${tone.label} · ${elapsed}분`
+        : tone.label;
+
+  const chip = (
+    <span
+      className={`text-xs font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${tone.cls}`}
+    >
+      {label}
+    </span>
+  );
+
+  // 맡긴 사람과 담당자가 다를 때만 위임자를 표기한다. 같으면 아무 말도 하지 않는다 —
+  // 자기가 맡긴 것을 "당신이 맡겼습니다"라고 알려주는 화면은 소음이다.
+  const body =
+    job.status === "SUCCEEDED" && job.pr_url ? (
+      <a
+        href={job.pr_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        title={job.title ?? undefined}
+      >
+        {chip}
+      </a>
+    ) : (
+      <span title={job.failure_reason ?? job.instruction ?? undefined}>
+        {chip}
+      </span>
+    );
+
+  return <span className="flex items-center shrink-0">{body}</span>;
+}
+
 // 체크리스트 항목 컴포넌트
 function ChecklistItemRow({
   item,
@@ -3580,6 +3736,8 @@ function ChecklistItemRow({
   onDelete,
   onMoveToTask,
   onMerge,
+  onDelegate,
+  autofixJob,
   siblingItems = [],
   onReassignBlock,
   boardMembers,
@@ -3597,6 +3755,10 @@ function ChecklistItemRow({
   onDelete: () => void;
   onMoveToTask?: () => void;
   onMerge?: () => void;
+  /** 이 항목을 맥에 맡긴다. 자동수정을 쓸 수 없는 보드에서는 undefined다. */
+  onDelegate?: () => void;
+  /** 이 항목의 가장 최근 자동수정 작업. 없으면 맡긴 적이 없는 항목이다. */
+  autofixJob?: JiraAutofixJob;
   siblingItems?: { id: string; title: string; completed: boolean }[];
   onReassignBlock?: (blockId: string, targetItemId: string) => void;
   boardMembers: BoardMember[];
@@ -4174,6 +4336,13 @@ function ChecklistItemRow({
             ))}
         </div>
 
+        {/*
+          자동수정 상태 칩 — 맡긴 사람이 자기 항목에서 진행 상황을 본다.
+          맡긴 적이 없는 항목에는 아무것도 두지 않는다. 대부분의 항목은 평생 맡겨지지 않는데
+          그 사실을 매 줄마다 말하면 체크리스트가 자동수정 화면이 된다.
+        */}
+        {autofixJob && <AutofixItemChip job={autofixJob} />}
+
         {/* 타임블록 총합 시간 + 토글 버튼 */}
         {totalTimeMinutes > 0 && (
           <span className="text-xs text-bridge-accent font-medium whitespace-nowrap">
@@ -4222,6 +4391,18 @@ function ChecklistItemRow({
                 align="end"
                 className="bg-bridge-surface border-bridge-border"
               >
+                {onDelegate && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={onDelegate}
+                      className="text-bridge-accent hover:bg-bridge-surface-hover hover:text-bridge-accent focus:text-bridge-accent text-xs font-bold"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 mr-2" />
+                      {t("autofix.delegateItem", "맥에 맡기기")}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="bg-bridge-border" />
+                  </>
+                )}
                 {boardId && (
                   <>
                     <DropdownMenuItem

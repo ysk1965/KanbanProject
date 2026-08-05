@@ -5,6 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.checklist.ChecklistItem;
+import com.kanban.domain.checklist.ChecklistItemRepository;
+import com.kanban.domain.comment.Comment;
+import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.integration.github.BoardGithubRepo;
 import com.kanban.domain.integration.github.BoardGithubRepoRepository;
 import com.kanban.domain.integration.jira.*;
@@ -13,6 +17,8 @@ import com.kanban.domain.integration.jira.dto.JiraAutofixRequest;
 import com.kanban.domain.integration.jira.dto.JiraAutofixResponse;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
+import com.kanban.domain.user.User;
+import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +32,10 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 자동수정 작업 큐 — 트리아지 후보를 담고, 러너가 가져가게 하고, 콜백을 받아 마무리한다.
@@ -54,6 +63,9 @@ public class JiraAutofixQueueService {
     private final JiraAutofixJobRepository jobRepository;
     private final JiraIntegrationConfigRepository configRepository;
     private final TaskRepository taskRepository;
+    private final ChecklistItemRepository checklistItemRepository;
+    private final CommentRepository commentRepository;
+    private final UserRepository userRepository;
     private final BoardGithubRepoRepository boardGithubRepoRepository;
     private final JiraApiClient jiraApiClient;
     private final JiraOAuthService oauthService;
@@ -61,6 +73,9 @@ public class JiraAutofixQueueService {
 
     /** 러너가 보낸 로그 꼬리 상한. 실패 원인을 보기엔 충분하고, 행이 비대해지진 않는 크기. */
     private static final int MAX_LOG_EXCERPT = 8000;
+
+    /** 사람이 쓰는 지시문 상한. 이보다 길면 지시가 아니라 명세서다. */
+    private static final int MAX_INSTRUCTION = 4000;
 
     // ── 큐에 담기 ──────────────────────────────────
 
@@ -97,9 +112,24 @@ public class JiraAutofixQueueService {
                     .toList();
         }
 
+        /*
+         * 원본 태스크를 한 번에 읽어 둔다. 판정은 스냅샷이라 그 뒤 완료/QA로 넘어간 이슈가
+         * 후보에 그대로 남는데, 그걸 담으면 이미 고쳐진 것을 다시 고치려 들고 이슈당 1회
+         * 가드레일 때문에 그 후보가 영구히 타버린다.
+         */
+        List<String> candidateTaskIds = candidates.stream()
+                .map(JiraAutofixTriage::getTaskId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<String, Task> taskById = candidateTaskIds.isEmpty() ? Map.of()
+                : taskRepository.findByIdInWithBlockAndFeature(candidateTaskIds).stream()
+                        .collect(Collectors.toMap(Task::getId, t -> t, (a, b) -> a));
+
         int queued = 0;
         int skippedLowConfidence = 0;
         int skippedAlreadyQueued = 0;
+        int skippedAlreadyDone = 0;
         List<JiraAutofixJob> toSave = new ArrayList<>();
 
         for (JiraAutofixTriage triage : candidates) {
@@ -114,30 +144,148 @@ public class JiraAutofixQueueService {
                 skippedAlreadyQueued++;
                 continue;
             }
+            if (triage.getTaskId() != null
+                    && AutofixTaskStage.isAlreadyDone(taskById.get(triage.getTaskId()))) {
+                skippedAlreadyDone++;
+                continue;
+            }
 
-            JiraAutofixJob job = JiraAutofixJob.builder()
-                    .board(board)
-                    .jiraIssueKey(triage.getJiraIssueKey())
-                    .taskId(triage.getTaskId())
-                    .confidence(confidence)
-                    .status(AutofixJobStatus.QUEUED)
-                    .build();
+            JiraAutofixJob job = JiraAutofixJob.forJiraIssue(
+                    board, triage.getJiraIssueKey(), triage.getTaskId(), confidence);
             job.assignTarget(target.installationId(), target.repoFullName(), target.baseRef());
             toSave.add(job);
             queued++;
         }
 
         jobRepository.saveAll(toSave);
-        log.info("Autofix enqueue: board={} queued={} lowConfidence={} alreadyQueued={}",
-                boardId, queued, skippedLowConfidence, skippedAlreadyQueued);
+        log.info("Autofix enqueue: board={} queued={} lowConfidence={} alreadyQueued={} alreadyDone={}",
+                boardId, queued, skippedLowConfidence, skippedAlreadyQueued, skippedAlreadyDone);
 
         return JiraAutofixResponse.EnqueueResult.builder()
                 .queued(queued)
                 .skippedLowConfidence(skippedLowConfidence)
                 .skippedAlreadyQueued(skippedAlreadyQueued)
+                .skippedAlreadyDone(skippedAlreadyDone)
                 .repoFullName(target.repoFullName())
                 .baseRef(target.baseRef())
                 .build();
+    }
+
+    // ── 사람이 직접 맡기기 ──────────────────────────
+
+    /**
+     * 태스크나 체크리스트 항목을 사람이 직접 맡긴다. 트리아지를 거치지 않고, 지시문을 사람이 쓴다.
+     *
+     * <p><b>항목을 여럿 고르면 job도 여럿이다.</b> 하나로 묶지 않는 이유는 실패 단위가 섞이기
+     * 때문이다 — 3개 중 1개만 실패해도 PR 전체가 실패로 남고 성공한 2개까지 버려진다.
+     * 맥은 어차피 직렬이라 묶든 나누든 총 소요는 같다.
+     *
+     * <p>확신도 임계값은 적용하지 않는다(점수가 없다). "이슈당 1회"도 적용하지 않는다 — 실패한
+     * 작업의 지시문을 고쳐 다시 맡기는 것이 정상 흐름이라, 대신 <b>동시에 하나</b>만 막는다.
+     */
+    @Transactional
+    public JiraAutofixResponse.DelegateResult delegate(String boardId, String userId,
+                                                       JiraAutofixRequest.Delegate request) {
+        boardService.checkAdminOrAbove(boardId, userId);
+
+        String instruction = request != null ? trimToNull(request.getInstruction()) : null;
+        if (instruction == null) {
+            throw new BusinessException(ErrorCode.JIRA_AUTOFIX_INSTRUCTION_REQUIRED);
+        }
+        if (instruction.length() > MAX_INSTRUCTION) {
+            instruction = instruction.substring(0, MAX_INSTRUCTION);
+        }
+
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        Task task = taskRepository.findById(nullToEmpty(request.getTaskId()))
+                .filter(t -> t.getBlock() != null && t.getBlock().getBoard() != null
+                        && boardId.equals(t.getBlock().getBoard().getId()))
+                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+
+        /*
+         * 맥이 준비되지 않았으면 담지 않는다. 검증 클론이 없으면 코드를 다 고친 뒤 PR 직전에
+         * 실패하는데, 그 40분은 큐 전체가 멈춰 있는 시간이다. 도크가 QA 후보 담기를 막는 것과
+         * 같은 판단이다. (러너가 아직 아무것도 안 보냈으면 "모름"이므로 막지 않는다.)
+         */
+        if (isRunnerVerifyNotReady(boardId)) {
+            throw new BusinessException(ErrorCode.JIRA_AUTOFIX_RUNNER_NOT_READY);
+        }
+
+        DispatchTarget target = resolveTarget(boardId);
+
+        List<String> itemIds = request.getChecklistItemIds() != null
+                ? request.getChecklistItemIds().stream().filter(Objects::nonNull).distinct().toList()
+                : List.of();
+
+        List<JiraAutofixJob> created = new ArrayList<>();
+        int skipped = 0;
+
+        if (itemIds.isEmpty()) {
+            // 태스크 전체 위임
+            if (jobRepository.existsPendingForTask(boardId, task.getId())) {
+                throw new BusinessException(ErrorCode.JIRA_AUTOFIX_ALREADY_DELEGATED);
+            }
+            created.add(JiraAutofixJob.forManualTask(board, task.getId(), instruction, userId));
+        } else {
+            /*
+             * 고른 항목이 전부 이 태스크의 것인지 확인한다. 다른 태스크의 항목 id가 섞이면
+             * 맥락 조립이 엉뚱한 태스크 설명을 붙여 보낸다 — 에이전트는 그걸 사실로 읽는다.
+             */
+            Map<String, ChecklistItem> itemById =
+                    checklistItemRepository.findByTaskIdOrderByPositionAsc(task.getId()).stream()
+                            .collect(Collectors.toMap(ChecklistItem::getId, i -> i, (a, b) -> a));
+
+            for (String itemId : itemIds) {
+                if (!itemById.containsKey(itemId)) {
+                    throw new BusinessException(ErrorCode.JIRA_AUTOFIX_INVALID_CHECKLIST_ITEM);
+                }
+            }
+            if (itemIds.size() > properties.getMaxEnqueuePerRequest()) {
+                itemIds = itemIds.subList(0, properties.getMaxEnqueuePerRequest());
+            }
+
+            for (String itemId : itemIds) {
+                if (jobRepository.existsPendingForChecklistItem(boardId, itemId)) {
+                    skipped++;   // 이미 맡긴 항목은 조용히 건너뛴다 — 나머지까지 막을 이유가 없다
+                    continue;
+                }
+                created.add(JiraAutofixJob.forManualChecklistItem(
+                        board, task.getId(), itemId, instruction, userId));
+            }
+            if (created.isEmpty()) {
+                throw new BusinessException(ErrorCode.JIRA_AUTOFIX_ALREADY_DELEGATED);
+            }
+        }
+
+        created.forEach(job ->
+                job.assignTarget(target.installationId(), target.repoFullName(), target.baseRef()));
+        jobRepository.saveAll(created);
+
+        log.info("Autofix delegate: board={} task={} items={} queued={} skipped={} by={}",
+                boardId, task.getId(), itemIds.size(), created.size(), skipped, userId);
+
+        return JiraAutofixResponse.DelegateResult.builder()
+                .queued(created.size())
+                .skippedAlreadyDelegated(skipped)
+                .repoFullName(target.repoFullName())
+                .baseRef(target.baseRef())
+                .jobs(created.stream().map(this::toItem).toList())
+                .build();
+    }
+
+    /**
+     * 러너가 "검증 클론이 준비되지 않았다"고 명시적으로 보고했는가.
+     *
+     * <p>모르는 것(구버전 러너·진단 실패)은 막지 않는다. 알 수 없는 상태를 문제로 취급하면
+     * 멀쩡한 맥을 세우게 된다 — 이건 러너 자가진단 전반에 걸친 규칙이다.
+     */
+    private boolean isRunnerVerifyNotReady(String boardId) {
+        JsonNode status = parseRunnerStatus(configRepository.findByBoardId(boardId).orElse(null));
+        if (status == null) return false;
+        JsonNode verifyReady = status.get("verify_ready");
+        return verifyReady != null && verifyReady.isBoolean() && !verifyReady.asBoolean();
     }
 
     // ── claim (러너가 가져간다) ──────────────────────
@@ -181,7 +329,7 @@ public class JiraAutofixQueueService {
 
         job.markClaimed(runnerName);
         log.info("Autofix claimed: board={} issue={} repo={} runner={}",
-                boardId, job.getJiraIssueKey(), job.getRepoFullName(), runnerName);
+                boardId, job.getJobKey(), job.getRepoFullName(), runnerName);
         return JiraAutofixResponse.ClaimResult.of(buildRunnerJob(job), "CLAIMED");
     }
 
@@ -217,43 +365,112 @@ public class JiraAutofixQueueService {
      * <p>이슈 본문은 JIRA를 다시 부르지 않고 가져온 Task에서 읽는다 — import 시점에 이미 평문으로
      * 변환해 저장해 뒀고, 매번 JIRA를 때리면 레이트 리밋만 소모한다.
      *
-     * <p>브랜치 이름은 서버가 정한다. 러너가 정하면 재실행·수동 실행마다 규칙이 흔들린다.
+     * <p>브랜치 이름은 큐에 담을 때 확정해 뒀다. 러너가 정하면 재실행·수동 실행마다 규칙이 흔들리고,
+     * 여기서 매번 조립하면 러너가 실제로 push한 브랜치와 화면이 어긋난다.
      */
     private JiraAutofixResponse.RunnerJob buildRunnerJob(JiraAutofixJob job) {
-        String title = job.getJiraIssueKey();
-        String body = "";
+        Task task = job.getTaskId() != null
+                ? taskRepository.findById(job.getTaskId()).orElse(null) : null;
 
-        if (job.getTaskId() != null) {
-            Task task = taskRepository.findById(job.getTaskId()).orElse(null);
-            if (task != null) {
-                title = task.getTitle() != null ? task.getTitle() : title;
-                body = nullToEmpty(task.getDescription());
-            }
-        }
+        ChecklistItem item = job.getChecklistItemId() != null
+                ? checklistItemRepository.findById(job.getChecklistItemId()).orElse(null) : null;
 
-        String verification = triageRepository
-                .findByBoardIdAndJiraIssueKey(job.getBoard().getId(), job.getJiraIssueKey())
-                .map(JiraAutofixTriage::getVerification)
-                .orElse("");
-
-        String testInfra = configRepository.findByBoardId(job.getBoard().getId())
-                .map(JiraIntegrationConfig::resolveAutofixTestInfra)
-                .orElse(TestInfraLevel.NONE)
-                .name();
+        String title = resolveJobTitle(job, task, item);
+        String instruction = job.getJobKind().isManual()
+                ? buildManualInstruction(job, task, item)
+                : buildJiraInstruction(job, task);
 
         return JiraAutofixResponse.RunnerJob.builder()
                 .jobId(job.getId())
-                .jiraIssueKey(job.getJiraIssueKey())
-                .issueTitle(clip(title, 200))
-                .issueBody(clip(body, 8000))
-                .verification(clip(verification, 500))
-                .testInfra(testInfra)
+                .jobKey(job.getJobKey())
+                .jobKind(job.getJobKind().name())
+                .title(clip(title, 200))
+                .instruction(clip(instruction, 12000))
                 .repoFullName(job.getRepoFullName())
                 .baseRef(nullToEmpty(job.getBaseRef()))
-                .branch("autofix/" + job.getJiraIssueKey())
+                .branch(defaultIfBlank(job.getBranchName(), "autofix/" + job.getJobKey()))
                 .timeoutMinutes(Math.min(properties.getRunnerTimeoutMinutes(),
                         properties.getDispatchTimeoutMinutes()))
                 .build();
+    }
+
+    /**
+     * PR 제목이 되는 값.
+     *
+     * <p>체크리스트 위임이면 <b>항목 제목</b>이다. 태스크 제목을 쓰면 리뷰어가 카드 전체 변경을
+     * 기대하고 PR을 여는데, 실제로 담긴 것은 항목 하나짜리 수정이다.
+     */
+    private String resolveJobTitle(JiraAutofixJob job, Task task, ChecklistItem item) {
+        if (item != null && item.getTitle() != null && !item.getTitle().isBlank()) {
+            return item.getTitle();
+        }
+        if (task != null && task.getTitle() != null && !task.getTitle().isBlank()) {
+            return task.getTitle();
+        }
+        return job.getJobKey();
+    }
+
+    /** 트리아지가 고른 JIRA 이슈 — 기존 문구를 그대로 조립한다. 러너 입장에서는 차이가 없다. */
+    private String buildJiraInstruction(JiraAutofixJob job, Task task) {
+        String verification = triageRepository
+                .findByBoardIdAndJiraIssueKey(job.getBoard().getId(), job.getJobKey())
+                .map(JiraAutofixTriage::getVerification)
+                .orElse("");
+
+        TestInfraLevel testInfra = configRepository.findByBoardId(job.getBoard().getId())
+                .map(JiraIntegrationConfig::resolveAutofixTestInfra)
+                .orElse(TestInfraLevel.NONE);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("아래 QA 이슈를 고쳐라.\n\n");
+        sb.append("이슈 ").append(job.getJobKey());
+        if (task != null && task.getTitle() != null) sb.append(": ").append(task.getTitle());
+        sb.append("\n\n");
+        if (task != null) sb.append(clip(nullToEmpty(task.getDescription()), 8000)).append("\n\n");
+        if (!verification.isBlank()) {
+            sb.append("트리아지가 본 검증 수단: ").append(clip(verification, 500)).append("\n");
+        }
+        if (testInfra == TestInfraLevel.NONE) {
+            sb.append("이 저장소에는 테스트가 없다. 테스트를 새로 만들지 말고 코드 수정만 한다.\n");
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 사람이 맡긴 작업 — 맥락 · 대상 · 지시 세 부분으로 조립한다.
+     *
+     * <p><b>체크리스트 항목에는 설명 필드가 없다.</b> {@code title} 200자가 전부라 그대로 보내면
+     * 에이전트가 받는 지시는 "저장 버튼 비활성화" 한 줄이고, 그걸로는 아무것도 못 한다. 그래서 부모
+     * 태스크의 제목·설명이 <b>항상</b> 맥락으로 함께 나간다.
+     *
+     * <p>그리고 맥락을 붙이면 곧바로 반대 문제가 생긴다 — 에이전트가 태스크 설명 전체를 보고 범위를
+     * 넓힌다. <b>"다른 항목은 건드리지 않는다"가 그래서 필수 문장이다.</b> 이게 없으면 항목 하나짜리
+     * PR을 기대한 리뷰어가 카드 전체 변경을 받는다.
+     */
+    private String buildManualInstruction(JiraAutofixJob job, Task task, ChecklistItem item) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("[맥락] 이 작업이 속한 태스크");
+        if (task != null) {
+            sb.append(": ").append(nullToEmpty(task.getTitle())).append("\n");
+            String description = clip(nullToEmpty(task.getDescription()), 8000);
+            if (!description.isBlank()) sb.append(description).append("\n");
+        } else {
+            sb.append(": (원본 태스크를 찾을 수 없다)\n");
+        }
+        sb.append("\n");
+
+        if (job.isChecklistScoped()) {
+            String itemTitle = item != null ? nullToEmpty(item.getTitle()) : "";
+            sb.append("[대상] 위 태스크의 체크리스트 항목 하나만 처리한다: \"")
+              .append(itemTitle.isBlank() ? job.getJobKey() : itemTitle).append("\"\n");
+            sb.append("태스크 설명에 있는 다른 항목은 건드리지 않는다.\n\n");
+        } else {
+            sb.append("[대상] 위 태스크를 처리한다.\n\n");
+        }
+
+        sb.append("[지시]\n").append(nullToEmpty(job.getInstruction()));
+        return sb.toString();
     }
 
     // ── 콜백 ──────────────────────────────────────
@@ -292,29 +509,41 @@ public class JiraAutofixQueueService {
                 blankToNull(clip(text(payload, "log_excerpt"), MAX_LOG_EXCERPT)));
         if (!applied) return;
 
-        log.info("Autofix result: board={} issue={} result={} pr={}",
-                boardId, job.getJiraIssueKey(), result, prUrl);
-        postJiraComment(boardId, job, result);
+        log.info("Autofix result: board={} job={} result={} pr={}",
+                boardId, job.getJobKey(), result, prUrl);
+
+        // 출처에 따라 결과가 돌아가는 자리가 다르다. MANUAL은 JIRA 이슈가 아예 없다.
+        if (job.getJobKind().isManual()) {
+            postTaskComment(job, result);
+        } else {
+            postJiraComment(boardId, job, result);
+        }
         notifySlack(job);
     }
 
-    /** 진행 중인 작업만 찾는다. 없으면 타임아웃 회수됐거나 중복 콜백이다 — 오류가 아니다. */
+    /**
+     * 진행 중인 작업만 찾는다. 없으면 타임아웃 회수됐거나 중복 콜백이다 — 오류가 아니다.
+     *
+     * <p>{@code issue_key}도 계속 받아준다. 구버전 러너가 붙어 있을 수 있고, 사람이 손으로 한 건을
+     * 돌려볼 때 job id 없이 회신하는 경로도 그대로다.
+     */
     private JiraAutofixJob findCallbackTarget(String boardId, JsonNode payload) {
         String jobId = blankToNull(text(payload, "job_id"));
-        String issueKey = blankToNull(text(payload, "issue_key"));
+        String jobKey = blankToNull(text(payload, "job_key"));
+        if (jobKey == null) jobKey = blankToNull(text(payload, "issue_key"));
 
         JiraAutofixJob job = jobId != null
                 ? jobRepository.findById(jobId)
                         .filter(j -> j.getBoard().getId().equals(boardId))
                         .filter(j -> j.getStatus() == AutofixJobStatus.DISPATCHED)
                         .orElse(null)
-                : issueKey != null
-                        ? jobRepository.findDispatchedByIssueKey(boardId, issueKey).orElse(null)
+                : jobKey != null
+                        ? jobRepository.findDispatchedByJobKey(boardId, jobKey).orElse(null)
                         : null;
 
         if (job == null) {
-            log.info("Autofix callback for unknown/settled job: board={} job={} issue={}",
-                    boardId, jobId, issueKey);
+            log.info("Autofix callback for unknown/settled job: board={} job={} key={}",
+                    boardId, jobId, jobKey);
         }
         return job;
     }
@@ -344,10 +573,57 @@ public class JiraAutofixQueueService {
 
         try {
             String token = oauthService.resolveToken(config);
-            jiraApiClient.addComment(JiraAuthContext.of(config, token), job.getJiraIssueKey(),
+            jiraApiClient.addComment(JiraAuthContext.of(config, token), job.getJobKey(),
                     JiraAdfConverter.toAdf(objectMapper, message));
         } catch (Exception e) {
-            log.warn("Autofix: JIRA 결과 댓글 실패 issue={}: {}", job.getJiraIssueKey(), e.getMessage());
+            log.warn("Autofix: JIRA 결과 댓글 실패 issue={}: {}", job.getJobKey(), e.getMessage());
+        }
+    }
+
+    /**
+     * 사람이 맡긴 작업의 결과를 <b>맡긴 카드</b>에 남긴다.
+     *
+     * <p>위임한 사람이 도크를 계속 열어둘 이유는 없다. 카드에 남아야 나중에 맥락이 이어진다.
+     * 체크리스트 항목에는 댓글 기능이 없으므로 부모 태스크에 달고, 어느 항목이었는지는 본문이 밝힌다.
+     *
+     * <p>알림 이벤트를 태우지 않고 리포지토리에 바로 저장한다 — 맡긴 사람이 작성자라 알림이
+     * 자기 자신에게 가고, 자동수정 결과는 이미 도크·슬랙·카드 세 곳에 남는다.
+     *
+     * <p>실패해도 삼킨다. 이 시점에 작업 상태는 확정됐고, 댓글이 안 달렸다고 되돌릴 것이 없다.
+     */
+    private void postTaskComment(JiraAutofixJob job, AutofixJobStatus result) {
+        if (job.getTaskId() == null) return;
+
+        try {
+            Task task = taskRepository.findById(job.getTaskId()).orElse(null);
+            if (task == null) return;
+
+            StringBuilder body = new StringBuilder();
+            if (job.isChecklistScoped()) {
+                String itemTitle = checklistItemRepository.findById(job.getChecklistItemId())
+                        .map(ChecklistItem::getTitle).orElse(null);
+                body.append("체크리스트: ").append(defaultIfBlank(itemTitle, job.getJobKey())).append("\n");
+            }
+            body.append(switch (result) {
+                case SUCCEEDED -> "맥에서 수정을 마치고 PR을 열었습니다.\n" + job.getPrUrl()
+                        + "\n컴파일 검증 통과 · 동작은 확인되지 않았습니다. 머지 전 검토가 필요하며,"
+                        + " 항목 체크는 켜지 않았습니다.";
+                case NO_CHANGE -> "맥이 이 작업을 자동으로 처리할 수 없다고 판단해 변경 없이 끝났습니다.";
+                default -> "맥에서 작업이 실패해 PR을 만들지 않았습니다."
+                        + (job.getFailureReason() != null ? "\n사유: " + job.getFailureReason() : "");
+            });
+
+            User author = job.getCreatedBy() != null
+                    ? userRepository.findById(job.getCreatedBy()).orElse(null) : null;
+
+            commentRepository.save(Comment.builder()
+                    .task(task)
+                    .board(job.getBoard())
+                    .author(author)
+                    .content(clip(body.toString(), 4000))
+                    .build());
+        } catch (Exception e) {
+            log.warn("Autofix: 태스크 결과 댓글 실패 job={}: {}", job.getJobKey(), e.getMessage());
         }
     }
 
@@ -424,8 +700,21 @@ public class JiraAutofixQueueService {
 
         List<JiraAutofixTriage> candidates =
                 triageRepository.findByBoardIdAndVerdict(boardId, AutofixVerdict.CANDIDATE);
+
+        // 담기와 같은 기준으로 센다 — 여기 숫자와 실제로 담기는 수가 다르면 화면이 거짓말을 한다
+        List<String> candidateTaskIds = candidates.stream()
+                .map(JiraAutofixTriage::getTaskId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<String, Task> statusTaskById = candidateTaskIds.isEmpty() ? Map.of()
+                : taskRepository.findByIdInWithBlockAndFeature(candidateTaskIds).stream()
+                        .collect(Collectors.toMap(Task::getId, t -> t, (a, b) -> a));
+
         int eligible = (int) candidates.stream()
                 .filter(t -> t.getConfidence() != null && t.getConfidence() >= properties.getMinConfidence())
+                .filter(t -> t.getTaskId() == null
+                        || !AutofixTaskStage.isAlreadyDone(statusTaskById.get(t.getTaskId())))
                 .filter(t -> !jobRepository.existsActiveForIssue(boardId, t.getJiraIssueKey()))
                 .count();
 
@@ -445,6 +734,7 @@ public class JiraAutofixQueueService {
                 .dispatchEnabled(properties.isDispatchEnabled())
                 .inFlight((int) jobRepository.countInFlight(boardId))
                 .queued((int) jobRepository.countQueued(boardId))
+                .queuedManual((int) jobRepository.countQueuedManual(boardId))
                 .dispatchedToday((int) jobRepository.countDispatchedSince(boardId, dayAgo))
                 .dailyLimit(properties.getDailyLimit())
                 .minConfidence(properties.getMinConfidence())
@@ -457,6 +747,20 @@ public class JiraAutofixQueueService {
     public List<JiraAutofixResponse.JobItem> getJobs(String boardId, String userId, int limit) {
         boardService.checkMemberOrAbove(boardId, userId);
         return jobRepository.findByBoardId(boardId, PageRequest.of(0, Math.min(limit, 200))).stream()
+                .map(this::toItem)
+                .toList();
+    }
+
+    /**
+     * 태스크 하나의 작업만. 카드가 자기 체크리스트 항목들의 상태 칩을 그리는 경로다.
+     *
+     * <p>전체 목록을 받아 화면에서 거르지 않는 이유는 단순하다 — 카드 하나 열 때마다
+     * 보드의 큐 전체가 넘어온다.
+     */
+    @Transactional(readOnly = true)
+    public List<JiraAutofixResponse.JobItem> getJobsForTask(String boardId, String userId, String taskId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+        return jobRepository.findByBoardIdAndTaskId(boardId, taskId).stream()
                 .map(this::toItem)
                 .toList();
     }
@@ -481,7 +785,7 @@ public class JiraAutofixQueueService {
             throw new BusinessException(ErrorCode.JIRA_AUTOFIX_JOB_NOT_CANCELLABLE);
         }
         if (force) {
-            log.warn("Autofix job force-released: board={} issue={}", boardId, job.getJiraIssueKey());
+            log.warn("Autofix job force-released: board={} issue={}", boardId, job.getJobKey());
         }
     }
 
@@ -494,14 +798,43 @@ public class JiraAutofixQueueService {
         return config.ensureAutofixCallbackToken();
     }
 
+    /**
+     * 화면이 쓰는 형태로 옮긴다.
+     *
+     * <p>제목을 둘로 나눠 싣는 이유: 체크리스트 위임은 <b>항목 제목</b>이 본문이고
+     * <b>부모 태스크 제목</b>이 보조 줄이다. "중복 이름 검사 추가"만으로는 어느 카드 일인지
+     * 알 수 없고, 반대로 태스크 제목만 보이면 무엇을 맡겼는지 알 수 없다.
+     */
     private JiraAutofixResponse.JobItem toItem(JiraAutofixJob job) {
+        Task task = job.getTaskId() != null
+                ? taskRepository.findById(job.getTaskId()).orElse(null) : null;
+        ChecklistItem item = job.getChecklistItemId() != null
+                ? checklistItemRepository.findById(job.getChecklistItemId()).orElse(null) : null;
+
+        String parentTitle = task != null ? task.getTitle() : null;
+        String title = item != null ? item.getTitle()
+                : (parentTitle != null ? parentTitle : job.getJobKey());
+
+        String createdByName = job.getCreatedBy() != null
+                ? userRepository.findById(job.getCreatedBy()).map(User::getName).orElse(null)
+                : null;
+
         return JiraAutofixResponse.JobItem.builder()
                 .id(job.getId())
-                .jiraIssueKey(job.getJiraIssueKey())
+                .jobKey(job.getJobKey())
+                .jobKind(job.getJobKind().name())
                 .taskId(job.getTaskId())
+                .checklistItemId(job.getChecklistItemId())
+                // 체크리스트 위임일 때만 보조 줄이 필요하다. 태스크 위임은 title이 곧 카드 제목이다.
+                .parentTaskTitle(item != null ? parentTitle : null)
+                .title(clip(title, 200))
+                .instruction(clip(nullToEmpty(job.getInstruction()), 500))
+                .createdBy(job.getCreatedBy())
+                .createdByName(createdByName)
                 .status(job.getStatus().name())
                 .confidence(job.getConfidence())
                 .repoFullName(job.getRepoFullName())
+                .branchName(job.getBranchName())
                 .runnerName(job.getRunnerName())
                 .prUrl(job.getPrUrl())
                 .failureReason(job.getFailureReason())
@@ -555,6 +888,12 @@ public class JiraAutofixQueueService {
 
     private static String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     /** 저장해 둔 러너 자가진단을 그대로 내려준다. 깨진 값이면 조용히 null — 화면이 멈출 이유는 아니다. */

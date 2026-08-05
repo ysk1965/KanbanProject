@@ -669,6 +669,8 @@ export interface TaskResponse {
   feature_color: string;
   block_id: string;
   block_name?: string;
+  /** 태스크에 직접 배정된 마일스톤 (미배정이면 null) */
+  milestone_id?: string | null;
   task_number?: number | null;
   task_key?: string | null;
   title: string;
@@ -6121,6 +6123,32 @@ export interface JiraAutofixTriageRun {
   summary: JiraAutofixSummary;
 }
 
+/** 체크리스트 담당자 한 명. external이면 외주(BoardContractor)다. */
+export interface JiraAutofixAssignee {
+  id: string;
+  name: string;
+  /** 보드에서 지정한 색. null이면 화면이 이름 해시로 정한다. */
+  color: string | null;
+  external: boolean;
+}
+
+/**
+ * 원본 태스크의 현재 위치. 트리아지는 판정 시점 스냅샷이라, 이 값이 없으면
+ * 이미 끝난 이슈가 후보에 그대로 남아 보인다.
+ */
+export interface JiraAutofixTaskState {
+  block_id: string | null;
+  block_name: string | null;
+  block_position: number | null;
+  /** FEATURE / TASK / DONE — 고정 블록이 아니면 null. */
+  block_fixed_type: string | null;
+  /** JIRA에서 pull된 QA 상태. null이면 QA 흐름 밖. */
+  qa_state: "REVIEW" | "VERIFIED" | "REJECTED" | null;
+  completed: boolean;
+  /** 개발 단계를 이미 지났는지(완료 체크 / Done 블록 / QA가 물고 있음). 서버의 담기 가드레일과 같은 기준. */
+  already_done: boolean;
+}
+
 export interface JiraAutofixItem {
   jira_issue_key: string;
   task_id: string | null;
@@ -6130,6 +6158,12 @@ export interface JiraAutofixItem {
   verification: string | null;
   reason: string | null;
   triaged_at: string | null;
+  /** 목록 첫 줄에 쓰는 원본 이슈 제목. 연동이 끊긴 건은 null. */
+  task_title: string | null;
+  task_state: JiraAutofixTaskState | null;
+  assignees: JiraAutofixAssignee[];
+  /** 판정 이후 태스크가 수정됨 — 판정이 낡았을 수 있다는 신호. */
+  stale_triage: boolean;
 }
 
 /** 연결된 저장소의 자동 검증 기반 수준. 판정 기준을 통째로 바꾼다. */
@@ -6175,6 +6209,8 @@ export interface JiraAutofixQueueStatus {
   dispatch_enabled: boolean;
   in_flight: number;
   queued: number;
+  /** 그중 사람이 맡긴 작업 수. 큐 앞자리를 차지하므로 따로 보인다. */
+  queued_manual: number;
   dispatched_today: number;
   daily_limit: number;
   min_confidence: number;
@@ -6182,14 +6218,30 @@ export interface JiraAutofixQueueStatus {
   total_candidates: number;
 }
 
+/** JIRA = 트리아지가 고른 이슈, MANUAL = 사람이 직접 맡긴 태스크·체크리스트 항목. */
+export type JiraAutofixJobKind = "JIRA" | "MANUAL";
+
 export interface JiraAutofixJob {
   id: string;
-  jira_issue_key: string;
-  /** 원본 BRIDGE 태스크. 이슈 키를 눌러 카드를 열기 위한 값 — 연동이 끊긴 건은 null. */
+  /** 사람이 읽는 식별자. 접두사가 범위를 말한다 — QASA-40 / TASK-… / CHK-… */
+  job_key: string;
+  job_kind: JiraAutofixJobKind;
+  /** 원본 BRIDGE 태스크. 키를 눌러 카드를 열기 위한 값 — 연동이 끊긴 건은 null. */
   task_id: string | null;
+  /** 위임 범위. null이면 태스크 전체, 값이 있으면 그 체크리스트 항목만. */
+  checklist_item_id: string | null;
+  /** 체크리스트 위임일 때만 채워진다. 항목 제목만으로는 어느 카드 일인지 알 수 없다. */
+  parent_task_title: string | null;
+  /** 위임 대상의 제목(항목 제목 또는 태스크 제목). 목록의 첫 줄. */
+  title: string | null;
+  /** 사람이 쓴 지시문(앞 500자). 진행 중인 행에서만 펼쳐 보인다. */
+  instruction: string | null;
+  created_by: string | null;
+  created_by_name: string | null;
   status: JiraAutofixJobStatus;
   confidence: number | null;
   repo_full_name: string | null;
+  branch_name: string | null;
   runner_name: string | null;
   pr_url: string | null;
   failure_reason: string | null;
@@ -6200,10 +6252,27 @@ export interface JiraAutofixJob {
   completed_at: string | null;
 }
 
+/** 위임 요청. checklist_item_ids를 비우면 태스크 전체, 채우면 항목마다 job 하나씩. */
+export interface JiraAutofixDelegateRequest {
+  task_id: string;
+  checklist_item_ids?: string[];
+  instruction: string;
+}
+
+export interface JiraAutofixDelegateResult {
+  queued: number;
+  skipped_already_delegated: number;
+  repo_full_name: string | null;
+  base_ref: string | null;
+  jobs: JiraAutofixJob[];
+}
+
 export interface JiraAutofixEnqueueResult {
   queued: number;
   skipped_low_confidence: number;
   skipped_already_queued: number;
+  /** 원본 태스크가 이미 개발 단계를 지나 제외된 수. */
+  skipped_already_done: number;
   repo_full_name: string | null;
   base_ref: string | null;
 }
@@ -6218,6 +6287,27 @@ export const jiraAutofixAPI = {
   getJobs: async (boardId: string, limit = 50) => {
     return apiClient.get<JiraAutofixJob[]>(
       `/boards/${boardId}/jira/autofix/jobs?limit=${limit}`,
+    );
+  },
+
+  /**
+   * 태스크 하나의 작업만. 카드가 자기 체크리스트 항목의 상태 칩을 그리는 경로다 —
+   * 전체 목록을 받아 화면에서 거르면 카드를 열 때마다 큐 전체가 넘어온다.
+   */
+  getJobsForTask: async (boardId: string, taskId: string) => {
+    return apiClient.get<JiraAutofixJob[]>(
+      `/boards/${boardId}/jira/autofix/jobs?task_id=${encodeURIComponent(taskId)}`,
+    );
+  },
+
+  /**
+   * 사람이 직접 맡긴다. 항목을 여럿 고르면 job도 여럿이다 — 실패 단위가 섞이지 않아야
+   * 3개 중 1개가 실패해도 나머지는 PR까지 간다.
+   */
+  delegate: async (boardId: string, request: JiraAutofixDelegateRequest) => {
+    return apiClient.post<JiraAutofixDelegateResult>(
+      `/boards/${boardId}/jira/autofix/manual`,
+      request,
     );
   },
 
@@ -6267,10 +6357,16 @@ export const jiraAutofixAPI = {
     );
   },
 
-  /** 트리아지 실행 (관리자 이상). force=true면 안 바뀐 이슈도 재판정. */
-  runTriage: async (boardId: string, force = false) => {
+  /**
+   * 트리아지 실행 (관리자 이상). force=true면 안 바뀐 이슈도 재판정.
+   *
+   * issueKeys를 주면 그 이슈들만 무조건 다시 판정한다 — 판정 후 카드가 움직인 건만 골라
+   * 다시 보는 경로다. 전건 재판정은 AI 호출 비용이 커서 사실상 아무도 누르지 않는다.
+   */
+  runTriage: async (boardId: string, force = false, issueKeys?: string[]) => {
     return apiClient.post<JiraAutofixTriageRun>(
       `/boards/${boardId}/jira/autofix/triage?force=${force}`,
+      issueKeys?.length ? { issue_keys: issueKeys } : {},
     );
   },
 
@@ -7763,6 +7859,27 @@ export const taskDependencyAPI = {
 
 // ─── Personal Task API (v9.0) ───
 
+/** 승격할 곳 추천 한 건 — 규칙 추천이면 reason_code, AI 추천이면 reason이 온다 */
+export interface PromoteSuggestion {
+  ref_id: string;
+  ref_type: "TASK" | "FEATURE";
+  score: number;
+  /** TITLE_MATCH · TAG_MATCH · MINE · RECENT · SAME_MILESTONE · RELATED */
+  reason_code: string | null;
+  /** 근거로 쓰인 낱말 (TITLE_MATCH일 때) */
+  reason_tokens: string[] | null;
+  /** AI가 쓴 이유 문장 */
+  reason: string | null;
+}
+
+export interface PromoteSuggestionsResponse {
+  source: "AI" | "RULE";
+  credits_used: number;
+  /** AI를 요청했지만 크레딧이 없어 규칙으로 내려온 경우 */
+  credits_exhausted: boolean;
+  suggestions: PromoteSuggestion[];
+}
+
 export const personalTaskAPI = {
   getAll: async (): Promise<import("../types").PersonalTask[]> => {
     return apiClient.get("/personal/tasks");
@@ -7812,6 +7929,25 @@ export const personalTaskAPI = {
     },
   ): Promise<import("../types").PersonalTask> => {
     return apiClient.post(`/personal/tasks/${taskId}/promote`, data);
+  },
+
+  /**
+   * 붙일 곳 후보 추천.
+   * use_ai=false면 규칙 점수만(무료), true면 AI가 고르고 크레딧 1을 쓴다.
+   * 크레딧이 없거나 AI가 실패해도 402가 아니라 source="RULE"로 내려온다.
+   */
+  promoteSuggestions: async (
+    taskId: string,
+    data: {
+      target: import("../types").PersonalTaskPromotionType;
+      milestone_id?: string | null;
+      include_done?: boolean;
+      use_ai?: boolean;
+      recent_ref_ids?: string[];
+      language?: string;
+    },
+  ): Promise<PromoteSuggestionsResponse> => {
+    return apiClient.post(`/personal/tasks/${taskId}/promote-suggestions`, data);
   },
 
   /** 승격 되돌리기 — 만들어진 대상은 그대로 두고 항목만 대기로 되돌린다 */

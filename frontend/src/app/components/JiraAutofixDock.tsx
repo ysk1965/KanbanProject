@@ -7,10 +7,10 @@ import {
   X,
   ChevronUp,
   ChevronDown,
-  ChevronRight,
   ExternalLink,
   PauseCircle,
   PowerOff,
+  Search,
   Settings2,
   Sparkles,
 } from "lucide-react";
@@ -20,12 +20,15 @@ import {
   JiraAutofixJob,
   JiraAutofixJobStatus,
   JiraAutofixItem,
+  JiraAutofixAssignee,
+  JiraAutofixTaskState,
   JiraAutofixVerdict,
   JiraAutofixCategory,
   JiraAutofixTestInfra,
   JiraAutofixRunnerStatus,
 } from "../utils/api";
 import { parseUTCDate, formatRelativeTime } from "../utils/dateUtils";
+import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
 
 interface JiraAutofixDockProps {
   boardId: string;
@@ -115,6 +118,15 @@ const VERDICT_TABS: { value: JiraAutofixVerdict; label: string }[] = [
   { value: "EXCLUDED", label: "제외" },
 ];
 
+/** 큐 묶음. 다 끝난 PR이 쌓여 지금 돌고 있는 한 건을 화면 밖으로 밀어내지 않게 나눈다. */
+type QueueGroup = "live" | "pr" | "settled";
+
+const QUEUE_GROUPS: { value: QueueGroup; label: string; i18nKey: string }[] = [
+  { value: "live", label: "진행·대기", i18nKey: "autofixDock.groupLive" },
+  { value: "pr", label: "PR", i18nKey: "autofixDock.groupPr" },
+  { value: "settled", label: "그 외", i18nKey: "autofixDock.groupSettled" },
+];
+
 const chipCls = (status: JiraAutofixJobStatus) =>
   `text-xs font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${STATUS_STYLE[status].chip}`;
 
@@ -129,6 +141,190 @@ const minutesSince = (iso: string | null): number | null => {
 };
 
 const storageKey = (boardId: string) => `bridge-autofix-dock:${boardId}`;
+/**
+ * 필터 조합은 보드별로 기억한다. 보드마다 컬럼 구성도, 사람도, "여기까지 오면 손대지 않는다"는
+ * 선도 달라서 서버가 정해줄 수 없다 — 한 번 고르면 계속 유지되는 것이 유일하게 쓸 만한 방식이다.
+ *
+ * <p>검색어는 넣지 않는다. 다음에 도크를 열었을 때 예전 검색어가 목록을 잘라 놓고 있으면
+ * 항목이 사라진 것처럼 보인다.
+ */
+const filtersKey = (boardId: string) => `bridge-autofix-filters:${boardId}`;
+
+/** 블록이 없는 항목(연동이 끊긴 건)도 필터 축에 있어야 한다 — 조용히 새는 칸이 생기면 안 된다. */
+export const NO_BLOCK = "__none__";
+/** 담당자 없음도 고를 수 있어야 한다. 미배정만 모아 보는 것이 실제로 가장 자주 하는 일이다. */
+export const NO_ASSIGNEE = "__none__";
+
+/** 사람과 외주는 id가 겹칠 수 있으므로 종류를 접두어로 붙여 가른다. */
+const assigneeKey = (a: JiraAutofixAssignee) =>
+  `${a.external ? "c" : "u"}:${a.id}`;
+
+/**
+ * 도크 필터. 저장 대상이라 순수 데이터로만 둔다(Set이 아니라 배열) — JSON으로 오가야 한다.
+ *
+ * @property hiddenBlocks null이면 사람이 아직 고른 적이 없다는 뜻이고, 그때만 자동 판단을 쓴다
+ * @property minConfidence null이면 확신도 제한 없음. 서버 임계값과는 별개의 추가 조건이다
+ * @property eligibleOnly 지금 담을 수 있는 것만. 후보 탭에서만 의미가 있다
+ */
+export interface DockFilters {
+  hiddenBlocks: string[] | null;
+  assignees: string[];
+  categories: string[];
+  minConfidence: number | null;
+  eligibleOnly: boolean;
+}
+
+export const DEFAULT_FILTERS: DockFilters = {
+  hiddenBlocks: null,
+  assignees: [],
+  categories: [],
+  minConfidence: null,
+  eligibleOnly: true,
+};
+
+/**
+ * 저장된 값을 읽는다. 형태가 조금이라도 어긋나면 통째로 기본값으로 간다 —
+ * 반쯤 복원된 필터는 "왜 이것만 보이지"의 원인이 되고, 사용자가 추적할 방법이 없다.
+ */
+function readFilters(boardId: string): DockFilters {
+  try {
+    const raw = localStorage.getItem(filtersKey(boardId));
+    if (!raw) return DEFAULT_FILTERS;
+    const p = JSON.parse(raw) as Partial<DockFilters>;
+    const strings = (v: unknown): string[] =>
+      Array.isArray(v) ? v.map(String) : [];
+    return {
+      hiddenBlocks: Array.isArray(p.hiddenBlocks)
+        ? p.hiddenBlocks.map(String)
+        : null,
+      assignees: strings(p.assignees),
+      categories: strings(p.categories),
+      minConfidence:
+        typeof p.minConfidence === "number" && Number.isFinite(p.minConfidence)
+          ? p.minConfidence
+          : null,
+      eligibleOnly: p.eligibleOnly !== false,
+    };
+  } catch {
+    return DEFAULT_FILTERS;
+  }
+}
+
+/** 필터가 걸러낼 대상. 컴포넌트가 만든 행에서 판정에 쓰이는 부분만 추린 모양. */
+export interface FilterableRow {
+  item: JiraAutofixItem;
+  /** 지금 담을 수 있는지. "담을 수 있는 것만" 축이 이 값을 본다. */
+  canSelect: boolean;
+}
+
+/**
+ * 필터 판정 — 어느 축이든 걸리면 목록에서 빠진다.
+ *
+ * <p>"담을 수 있는 것만"은 <b>후보 탭에서만</b> 적용한다. 조건부·제외 탭의 항목은 애초에 담을 수
+ * 없으므로, 그대로 걸면 목록이 통째로 비어 필터가 고장난 것처럼 보인다.
+ *
+ * <p>담당자 축은 <b>OR</b>다 — 두 사람을 고르면 "둘 중 아무나 물고 있는 것"이 나온다.
+ * 한 태스크에 담당자가 여럿인 게 흔해서 AND로 걸면 거의 항상 0건이 된다.
+ *
+ * @param hiddenBlocks 감출 블록 키. 블록이 없는 항목은 {@link NO_BLOCK}으로 묶인다
+ */
+export function passesDockFilters(
+  row: FilterableRow,
+  opts: {
+    filters: DockFilters;
+    hiddenBlocks: Set<string>;
+    query: string;
+    verdict: JiraAutofixVerdict;
+  },
+): boolean {
+  const { item } = row;
+  const { filters, hiddenBlocks, query, verdict } = opts;
+
+  if (hiddenBlocks.has(item.task_state?.block_id ?? NO_BLOCK)) return false;
+
+  if (filters.eligibleOnly && verdict === "CANDIDATE" && !row.canSelect) {
+    return false;
+  }
+
+  if (filters.assignees.length > 0) {
+    const keys = (item.assignees ?? []).map(assigneeKey);
+    const hit = filters.assignees.some((f) =>
+      f === NO_ASSIGNEE ? keys.length === 0 : keys.includes(f),
+    );
+    if (!hit) return false;
+  }
+
+  if (
+    filters.categories.length > 0 &&
+    !filters.categories.includes(item.category)
+  ) {
+    return false;
+  }
+
+  if (
+    filters.minConfidence != null &&
+    (item.confidence ?? 0) < filters.minConfidence
+  ) {
+    return false;
+  }
+
+  if (query.trim()) {
+    const needle = query.trim().toLowerCase();
+    const hay = [
+      item.jira_issue_key,
+      item.task_title ?? "",
+      item.verification ?? "",
+    ]
+      .join(" ")
+      .toLowerCase();
+    if (!hay.includes(needle)) return false;
+  }
+
+  return true;
+}
+
+/**
+ * 사람이 직접 건 필터의 수. 자동 판단으로 감춘 블록은 세지 않는다 —
+ * 아무것도 안 건드렸는데 "필터 3개 적용 중"이라고 하면 사용자가 자기가 뭘 했는지 의심하게 된다.
+ */
+export function activeFilterCount(f: DockFilters): number {
+  let n = 0;
+  if (f.hiddenBlocks !== null && f.hiddenBlocks.length > 0) n += 1;
+  if (f.assignees.length) n += 1;
+  if (f.categories.length) n += 1;
+  if (f.minConfidence != null) n += 1;
+  if (!f.eligibleOnly) n += 1;
+  return n;
+}
+
+/**
+ * 태스크 상태 → 뱃지. 블록 이름은 보드마다 다르므로 서버가 준 이름을 그대로 쓰고,
+ * 색만 "이미 끝났는가"로 가른다 — 목록에서 걸러야 할 행이 색으로 먼저 보여야 한다.
+ */
+function stateBadge(s: JiraAutofixTaskState): { label: string; cls: string } {
+  if (s.qa_state === "REVIEW" || s.qa_state === "VERIFIED") {
+    return {
+      label: s.qa_state === "REVIEW" ? "QA 검토중" : "QA 완료",
+      cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+    };
+  }
+  if (s.completed || s.block_fixed_type === "DONE") {
+    return {
+      label: s.block_name ?? "완료",
+      cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+    };
+  }
+  if (s.qa_state === "REJECTED") {
+    return {
+      label: "QA 반려",
+      cls: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+    };
+  }
+  return {
+    label: s.block_name ?? "위치 없음",
+    cls: "bg-foreground/10 text-slate-400",
+  };
+}
 
 /** 디스크가 이보다 적으면 경고. Library 재빌드가 반복되므로 여유가 곧 처리량이다. */
 const LOW_DISK_GB = 20;
@@ -186,6 +382,20 @@ function runnerProblems(
 }
 
 /**
+ * 사람이 맡긴 작업 표시.
+ *
+ * 접두사(CHK-/TASK-)가 범위를 말하고 이 뱃지가 출처를 말한다. 둘 다 필요한 이유는
+ * QA 후보와 수동 위임이 같은 큐에 섞이고, 우선순위가 다르기 때문이다(수동이 앞).
+ */
+function ManualBadge() {
+  return (
+    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary whitespace-nowrap">
+      수동
+    </span>
+  );
+}
+
+/**
  * 자동수정 하단 도크 — 접으면 한 줄, 펼치면 화면 하단 40%.
  *
  * <p>보드를 보면서 조작하는 것이 이 배치의 목적이다. 후보를 담을 때 원본 QASA 카드가
@@ -208,7 +418,15 @@ export function JiraAutofixDock({
 
   const [expanded, setExpanded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showSettled, setShowSettled] = useState(false);
+  /** 큐에서 펼쳐 둘 묶음. 끝난 건은 기본으로 접어 둔다 — 돌고 있는 한 건이 맨 위에 있어야 한다. */
+  const [queueGroups, setQueueGroups] = useState<Set<QueueGroup>>(
+    () => new Set<QueueGroup>(["live", "pr"]),
+  );
+  const [filters, setFilters] = useState<DockFilters>(DEFAULT_FILTERS);
+  /** 검색어는 저장하지 않는다 — 다음에 열었을 때 목록이 잘려 있으면 항목이 사라진 줄 안다. */
+  const [query, setQuery] = useState("");
+  /** 판정 근거를 편 행. 근거는 행마다 두 줄이라 기본으로 펴 두면 목록이 스캔되지 않는다. */
+  const [openReasons, setOpenReasons] = useState<Set<string>>(new Set());
   /** 강제 회수는 두 번 눌러야 나간다 — 실제로 돌고 있는 러너를 실수로 놓칠 수 있다. */
   const [armedRelease, setArmedRelease] = useState<string | null>(null);
 
@@ -222,12 +440,40 @@ export function JiraAutofixDock({
 
   // 펼침 여부는 보드별로 기억한다 — 운영 중인 사람은 계속 열어둔다
   useEffect(() => {
+    // 보드가 바뀌면 검색어는 따라가지 않는다 — 다른 보드의 검색 결과를 보고 있게 된다
+    setQuery("");
+    setFilters(readFilters(boardId));
     try {
       setExpanded(localStorage.getItem(storageKey(boardId)) === "1");
     } catch {
       setExpanded(false);
     }
   }, [boardId]);
+
+  /** 필터 변경의 유일한 통로. 여기서만 저장하므로 저장을 빠뜨린 경로가 생기지 않는다. */
+  const updateFilters = useCallback(
+    (patch: Partial<DockFilters>) => {
+      setFilters((prev) => {
+        const next = { ...prev, ...patch };
+        try {
+          localStorage.setItem(filtersKey(boardId), JSON.stringify(next));
+        } catch {
+          /* 저장 실패는 무시 — 이번 세션에서는 그대로 동작한다 */
+        }
+        return next;
+      });
+    },
+    [boardId],
+  );
+
+  const resetFilters = () => {
+    setQuery("");
+    updateFilters(DEFAULT_FILTERS);
+  };
+
+  /** 목록형 필터(담당자·유형) 한 칸을 켜고 끈다. */
+  const toggleIn = (list: string[], value: string): string[] =>
+    list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 
   const toggleExpanded = () => {
     const next = !expanded;
@@ -278,16 +524,29 @@ export function JiraAutofixDock({
 
   // 접혀 있어도 폴링한다 — 바에 뜨는 경과 시간이 멈춰 있으면 안 된다.
   // 대기 건만 있을 때도 돌려야 한다 — 스케줄러가 집어가는 순간(대기 → 진행)이 화면에 나타나야 한다.
+  //
+  // 펼쳐져 있으면 목록도 같이 받는다. 목록에 실린 태스크 상태는 서버 스냅샷이라, 그동안 누가
+  // 카드를 완료로 옮겨도 화면은 계속 "담을 수 있음"이라고 말한다 — 담기가 서버에서 조용히 걸린다.
   useEffect(() => {
     if (!enabled || (!status?.in_flight && !status?.queued)) return;
     const tick = () => {
-      if (document.visibilityState === "visible") load();
+      if (document.visibilityState !== "visible") return;
+      load();
+      if (expanded) loadItems(verdict);
     };
     timerRef.current = window.setInterval(tick, POLL_INTERVAL_MS);
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
     };
-  }, [enabled, status?.in_flight, status?.queued, load]);
+  }, [
+    enabled,
+    status?.in_flight,
+    status?.queued,
+    load,
+    expanded,
+    verdict,
+    loadItems,
+  ]);
 
   // 뷰 전환 버튼이 도크 위로 비켜 서도록 높이를 알린다
   useEffect(() => {
@@ -319,6 +578,19 @@ export function JiraAutofixDock({
       await Promise.all([load(), loadItems(verdict)]);
     });
 
+  /**
+   * 판정 후 태스크가 바뀐 건만 다시 판정한다.
+   *
+   * <p>전건 재판정은 AI 호출 비용이 커서 아무도 누르지 않고, 그러면 낡은 판정이 그대로 남는다.
+   * 바뀐 것만 좁혀 돌리면 누를 만한 비용이 된다.
+   */
+  const handleRetriageStale = (issueKeys: string[]) =>
+    run("retriage", async () => {
+      const result = await jiraAutofixAPI.runTriage(boardId, false, issueKeys);
+      setNotice(`${result.triaged}건 다시 판정했습니다`);
+      await Promise.all([load(), loadItems(verdict)]);
+    });
+
   const handleEnqueue = (issueKeys?: string[]) =>
     run("enqueue", async () => {
       const result = await jiraAutofixAPI.enqueue(boardId, { issueKeys });
@@ -328,6 +600,9 @@ export function JiraAutofixDock({
       }
       if (result.skipped_already_queued > 0) {
         parts.push(`이미 처리한 이슈 ${result.skipped_already_queued}건 제외`);
+      }
+      if (result.skipped_already_done > 0) {
+        parts.push(`이미 끝난 태스크 ${result.skipped_already_done}건 제외`);
       }
       setNotice(parts.join(" · "));
       setSelected(new Set());
@@ -415,29 +690,153 @@ export function JiraAutofixDock({
   /** 이슈별 최근 작업. jobs는 담긴 순서 역순이라 먼저 나온 것이 최신이다. */
   const latestJobByIssue = new Map<string, JiraAutofixJob>();
   for (const job of jobs) {
-    if (!latestJobByIssue.has(job.jira_issue_key)) {
-      latestJobByIssue.set(job.jira_issue_key, job);
+    // 수동 위임은 이슈 키가 없다. 트리아지 목록과 짝지을 대상이 아니다.
+    if (job.job_kind !== "JIRA") continue;
+    if (!latestJobByIssue.has(job.job_key)) {
+      latestJobByIssue.set(job.job_key, job);
     }
   }
 
   /**
    * 서버가 조용히 걸러낼 항목을 화면에서 미리 가른다 — 골라서 담았는데 "0건 담김"만 돌아오면
    * 무엇이 잘못됐는지 알 수 없다. 기준은 서버 가드레일과 같다(취소된 건만 다시 담을 수 있고,
-   * 임계값 미만은 담기지 않는다).
+   * 임계값 미만·이미 끝난 태스크는 담기지 않는다).
    */
   const decorated = items.map((item) => {
     const latest = latestJobByIssue.get(item.jira_issue_key) ?? null;
     const held = latest && latest.status !== "CANCELLED" ? latest : null;
     const belowThreshold =
       item.confidence != null && item.confidence < status.min_confidence;
+    const alreadyDone = item.task_state?.already_done === true;
     return {
       item,
       held,
       belowThreshold,
-      canSelect: item.verdict === "CANDIDATE" && !held && !belowThreshold,
+      alreadyDone,
+      canSelect:
+        item.verdict === "CANDIDATE" &&
+        !held &&
+        !belowThreshold &&
+        !alreadyDone,
     };
   });
-  const selectableCount = decorated.filter((d) => d.canSelect).length;
+
+  /*
+   * 블록별 집계 — 필터 칩의 재료이자 기본값의 근거. 판정은 스냅샷이라 그 뒤 완료·QA로 넘어간
+   * 이슈가 후보에 그대로 남는데, 그것들이 섞여 있으면 무엇을 봐야 하는지 알 수 없다.
+   */
+  const blockStats = new Map<
+    string,
+    { key: string; name: string; position: number; total: number; done: number }
+  >();
+  for (const d of decorated) {
+    const st = d.item.task_state;
+    const key = st?.block_id ?? NO_BLOCK;
+    const entry = blockStats.get(key) ?? {
+      key,
+      name: st?.block_name ?? "위치 없음",
+      // 위치가 없는 칸은 항상 끝으로 민다
+      position: st?.block_position ?? Number.MAX_SAFE_INTEGER,
+      total: 0,
+      done: 0,
+    };
+    entry.total += 1;
+    if (d.alreadyDone) entry.done += 1;
+    blockStats.set(key, entry);
+  }
+  const blockList = [...blockStats.values()].sort(
+    (a, b) => a.position - b.position,
+  );
+
+  /*
+   * 사람이 고른 적이 없으면 "전부 끝난 블록"만 감춘다(완료·QA 검토중 등). 이름을 추측하지 않으므로
+   * "작업 완료" 같은 중간 블록은 켜진 채 뜬다 — 그건 칩을 한 번 눌러 끄면 보드별로 기억된다.
+   */
+  const autoHiddenBlocks = blockList
+    .filter((b) => b.total > 0 && b.done === b.total)
+    .map((b) => b.key);
+  const effectiveHidden = new Set(filters.hiddenBlocks ?? autoHiddenBlocks);
+
+  /** 담당자 축 — 목록에 실제로 등장하는 사람만. 보드 전체 멤버를 늘어놓으면 고를 수가 없다. */
+  const assigneeStats = new Map<
+    string,
+    { key: string; name: string; color: string | null; count: number }
+  >();
+  let unassignedCount = 0;
+  for (const d of decorated) {
+    if (d.item.assignees.length === 0) {
+      unassignedCount += 1;
+      continue;
+    }
+    for (const a of d.item.assignees) {
+      const key = assigneeKey(a);
+      const entry = assigneeStats.get(key) ?? {
+        key,
+        name: a.name,
+        color: a.color,
+        count: 0,
+      };
+      entry.count += 1;
+      assigneeStats.set(key, entry);
+    }
+  }
+  const assigneeList = [...assigneeStats.values()].sort(
+    (a, b) => b.count - a.count,
+  );
+
+  /** 유형 축 — 등장하는 카테고리만, 많은 순으로. */
+  const categoryStats = new Map<JiraAutofixCategory, number>();
+  for (const d of decorated) {
+    categoryStats.set(
+      d.item.category,
+      (categoryStats.get(d.item.category) ?? 0) + 1,
+    );
+  }
+  const categoryList = [...categoryStats.entries()].sort((a, b) => b[1] - a[1]);
+
+  const visible = decorated.filter((d) =>
+    passesDockFilters(d, {
+      filters,
+      hiddenBlocks: effectiveHidden,
+      query,
+      verdict,
+    }),
+  );
+  const hiddenCount = decorated.length - visible.length;
+  const selectableCount = visible.filter((d) => d.canSelect).length;
+  const activeFilters = activeFilterCount(filters);
+
+  /*
+   * 고른 뒤에 태스크가 완료되거나 다른 사람이 같은 이슈를 담으면 선택은 그대로 남는데 담기지 않는다.
+   * 실제로 담길 것만 세어 버튼에 쓴다 — "선택 5건 담기"를 눌렀는데 2건만 담기면 화면이 거짓말한 것이다.
+   */
+  const enqueueTargets = visible
+    .filter((d) => d.canSelect && selected.has(d.item.jira_issue_key))
+    .map((d) => d.item.jira_issue_key);
+
+  /** "보이는 것 전부"의 대상. 필터 밖은 절대 포함하지 않는다. */
+  const visibleSelectableKeys = visible
+    .filter((d) => d.canSelect)
+    .map((d) => d.item.jira_issue_key);
+
+  /**
+   * 판정 후 태스크가 바뀐 건. 판정이 낡았을 수 있다는 신호라 다시 돌릴 후보다.
+   * 감춰 둔 칸의 항목은 뺀다 — 안 보는 칸을 재판정에 태우면 AI 호출만 늘어난다.
+   */
+  const staleKeys = visible
+    .filter((d) => d.item.stale_triage)
+    .map((d) => d.item.jira_issue_key);
+
+  const showLive = queueGroups.has("live");
+
+  const toggleReason = (key: string) => {
+    setOpenReasons((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   return (
     <div
@@ -465,6 +864,12 @@ export function JiraAutofixDock({
             대기 {waiting.length}
           </span>
         )}
+        {/* 수동 작업은 큐 앞자리를 차지하므로 몇 건인지 따로 보인다 */}
+        {status.queued_manual > 0 && (
+          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
+            수동 {status.queued_manual}
+          </span>
+        )}
         {succeeded.length > 0 && (
           <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
             PR {succeeded.length}
@@ -480,7 +885,7 @@ export function JiraAutofixDock({
           <>
             <span className="text-foreground/15 text-xs">·</span>
             <span className="text-xs text-slate-500 tabular-nums">
-              {active.jira_issue_key}
+              {active.job_key}
               {elapsed !== null && ` · ${elapsed}분`}
             </span>
           </>
@@ -678,12 +1083,12 @@ export function JiraAutofixDock({
                   </span>
                   <span className="ml-auto text-xs text-slate-500 tabular-nums">
                     {verdict === "CANDIDATE"
-                      ? `선택 ${selected.size} · 담을 수 있음 ${selectableCount} / ${items.length}건`
-                      : `${items.length}건`}
+                      ? `선택 ${selected.size} · 담을 수 있음 ${selectableCount} / ${visible.length}건`
+                      : `${visible.length}건`}
                   </span>
                 </div>
 
-                <div className="flex gap-1 px-2.5 pt-2">
+                <div className="flex items-center gap-1 px-2.5 pt-2 flex-wrap">
                   {VERDICT_TABS.map((tab) => (
                     <button
                       key={tab.value}
@@ -700,21 +1105,230 @@ export function JiraAutofixDock({
                       {tab.label}
                     </button>
                   ))}
+
+                  {hiddenCount > 0 && (
+                    <span className="ml-auto text-xs text-slate-500 tabular-nums">
+                      {t("autofixDock.hiddenCount", "숨김")} {hiddenCount}
+                    </span>
+                  )}
+                </div>
+
+                {/*
+                  필터 바 — 이 화면의 본체다. 축이 판정 3탭뿐이면 수십 건을 눈으로 훑는 수밖에 없다.
+                  전부 클라이언트 필터라 칩 반응이 즉시고, 고른 조합은 보드별로 기억한다.
+                */}
+                <div className="px-2.5 pt-2 space-y-1.5">
+                  {/* 검색 + 담을 수 있는 것만 */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="relative flex-1 min-w-[10rem]">
+                      <Search
+                        size={12}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
+                      />
+                      <input
+                        type="search"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder={t(
+                          "autofixDock.searchPlaceholder",
+                          "이슈 키 또는 제목",
+                        )}
+                        aria-label={t("autofixDock.searchLabel", "후보 검색")}
+                        className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg
+                          py-1 pl-7 pr-2 text-xs text-foreground placeholder-slate-500
+                          focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                      />
+                    </div>
+
+                    {verdict === "CANDIDATE" && (
+                      <FilterChip
+                        on={filters.eligibleOnly}
+                        onClick={() =>
+                          updateFilters({ eligibleOnly: !filters.eligibleOnly })
+                        }
+                        label={t(
+                          "autofixDock.eligibleOnly",
+                          "담을 수 있는 것만",
+                        )}
+                      />
+                    )}
+
+                    {(activeFilters > 0 || query) && (
+                      <button
+                        onClick={resetFilters}
+                        className="text-xs text-slate-500 hover:text-foreground underline underline-offset-2 transition-colors"
+                      >
+                        {t("autofixDock.resetFilters", "필터 초기화")}
+                      </button>
+                    )}
+                  </div>
+
+                  {/*
+                    판정 후 카드가 움직인 건 = 판정이 낡았을 수 있는 건. 여기서만 좁혀 다시 돌린다 —
+                    전건 재판정은 AI 호출 비용 때문에 아무도 안 눌러서, 낡은 판정이 그대로 남는다.
+                  */}
+                  {staleKeys.length > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs text-slate-500">
+                        {t("autofixDock.staleNotice", "판정 후 변경됨")}{" "}
+                        <span className="tabular-nums text-foreground">
+                          {staleKeys.length}
+                        </span>
+                        {t("autofixDock.countUnit", "건")}
+                      </span>
+                      <button
+                        onClick={() => handleRetriageStale(staleKeys)}
+                        disabled={busy === "retriage"}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs
+                          bg-bridge-accent/15 text-bridge-accent font-bold
+                          hover:bg-bridge-accent/25 transition-colors disabled:opacity-50"
+                      >
+                        {busy === "retriage" ? (
+                          <Loader2 size={11} className="animate-spin" />
+                        ) : (
+                          <Sparkles size={11} />
+                        )}
+                        {t("autofixDock.retriageStale", "이것만 다시 판정")}
+                      </button>
+                    </div>
+                  )}
+
+                  {/*
+                    위치 — 판정 목록은 스냅샷이라 "이미 저 칸으로 넘어간 건"이 후보에 그대로 남는데,
+                    어느 칸까지를 끝으로 볼지는 보드마다 다르다. 서버가 이름으로 추측하지 않고 여기서 고른다.
+                  */}
+                  {blockList.length > 1 && (
+                    <FilterRow label={t("autofixDock.blockFilter", "위치")}>
+                      {blockList.map((b) => (
+                        <FilterChip
+                          key={b.key}
+                          on={!effectiveHidden.has(b.key)}
+                          strikeWhenOff
+                          count={b.total}
+                          label={b.name}
+                          onClick={() => {
+                            const base =
+                              filters.hiddenBlocks ?? autoHiddenBlocks;
+                            updateFilters({
+                              hiddenBlocks: toggleIn(base, b.key),
+                            });
+                          }}
+                        />
+                      ))}
+                    </FilterRow>
+                  )}
+
+                  {(assigneeList.length > 0 || unassignedCount > 0) && (
+                    <FilterRow label={t("autofixDock.assigneeFilter", "담당")}>
+                      {assigneeList.map((a) => (
+                        <FilterChip
+                          key={a.key}
+                          on={filters.assignees.includes(a.key)}
+                          count={a.count}
+                          label={a.name}
+                          swatch={getAssigneeHex(a.name, a.color)}
+                          onClick={() =>
+                            updateFilters({
+                              assignees: toggleIn(filters.assignees, a.key),
+                            })
+                          }
+                        />
+                      ))}
+                      {unassignedCount > 0 && (
+                        <FilterChip
+                          on={filters.assignees.includes(NO_ASSIGNEE)}
+                          count={unassignedCount}
+                          label={t("autofixDock.noAssignee", "담당자 없음")}
+                          onClick={() =>
+                            updateFilters({
+                              assignees: toggleIn(
+                                filters.assignees,
+                                NO_ASSIGNEE,
+                              ),
+                            })
+                          }
+                        />
+                      )}
+                    </FilterRow>
+                  )}
+
+                  {categoryList.length > 1 && (
+                    <FilterRow label={t("autofixDock.categoryFilter", "유형")}>
+                      {categoryList.map(([cat, count]) => (
+                        <FilterChip
+                          key={cat}
+                          on={filters.categories.includes(cat)}
+                          count={count}
+                          label={CATEGORY_LABEL[cat] ?? cat}
+                          onClick={() =>
+                            updateFilters({
+                              categories: toggleIn(filters.categories, cat),
+                            })
+                          }
+                        />
+                      ))}
+                    </FilterRow>
+                  )}
+
+                  <FilterRow
+                    label={t("autofixDock.confidenceFilter", "확신도")}
+                  >
+                    <input
+                      type="range"
+                      min={0.5}
+                      max={0.95}
+                      step={0.05}
+                      value={filters.minConfidence ?? 0.5}
+                      onChange={(e) => {
+                        const v = parseFloat(e.target.value);
+                        // 최소값으로 되돌리면 조건 자체를 없앤다 — "0.50 이상"은 필터가 아니다
+                        updateFilters({ minConfidence: v <= 0.5 ? null : v });
+                      }}
+                      aria-label={t("autofixDock.minConfidence", "최소 확신도")}
+                      className="w-24 accent-bridge-accent"
+                    />
+                    <span className="text-xs text-slate-500 tabular-nums">
+                      {filters.minConfidence == null
+                        ? t("autofixDock.confidenceAll", "전체")
+                        : `${filters.minConfidence.toFixed(2)} 이상`}
+                    </span>
+                    <span className="text-xs text-slate-600">
+                      {t("autofixDock.thresholdHint", "담기 임계값")}{" "}
+                      <span className="tabular-nums">
+                        {status.min_confidence.toFixed(2)}
+                      </span>
+                    </span>
+                  </FilterRow>
                 </div>
 
                 <div className="p-2 space-y-1">
-                  {items.length === 0 ? (
+                  {visible.length === 0 ? (
                     <div className="text-xs text-slate-500 px-0.5 py-2 leading-relaxed">
-                      {t(
-                        "autofixDock.noItems",
-                        "판정 결과가 없습니다. 판정을 눌러 이슈를 분류하세요.",
-                      )}
+                      {hiddenCount > 0
+                        ? t(
+                            "autofixDock.allHidden",
+                            "조건에 맞는 후보가 없습니다. 필터를 풀거나 초기화하세요.",
+                          ) + ` (${hiddenCount}건 숨김)`
+                        : t(
+                            "autofixDock.noItems",
+                            "판정 결과가 없습니다. 판정을 눌러 이슈를 분류하세요.",
+                          )}
                     </div>
                   ) : (
-                    decorated.map(
-                      ({ item, held, belowThreshold, canSelect }) => {
+                    visible.map(
+                      ({
+                        item,
+                        held,
+                        belowThreshold,
+                        alreadyDone,
+                        canSelect,
+                      }) => {
                         const on = selected.has(item.jira_issue_key);
                         const toggle = () => toggleSelect(item.jira_issue_key);
+                        const reasonOpen = openReasons.has(item.jira_issue_key);
+                        const badge = item.task_state
+                          ? stateBadge(item.task_state)
+                          : null;
                         return (
                           // 행 어디를 눌러도 선택된다 — 체크박스만 눌리면 골랐다고 생각하고
                           // 담기를 눌렀는데 아무 일도 일어나지 않는다
@@ -724,7 +1338,7 @@ export function JiraAutofixDock({
                               ? {
                                   role: "checkbox" as const,
                                   "aria-checked": on,
-                                  "aria-label": `${item.jira_issue_key} 선택`,
+                                  "aria-label": `${item.jira_issue_key} ${item.task_title ?? ""} 선택`,
                                   tabIndex: 0,
                                   onClick: toggle,
                                   onKeyDown: (e: React.KeyboardEvent) => {
@@ -742,7 +1356,7 @@ export function JiraAutofixDock({
                             } ${
                               canSelect
                                 ? "cursor-pointer hover:border-bridge-accent/30 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-                                : held
+                                : held || alreadyDone
                                   ? "opacity-60"
                                   : ""
                             }`}
@@ -766,13 +1380,53 @@ export function JiraAutofixDock({
                               </span>
                             )}
                             <div className="min-w-0 flex-1 space-y-0.5">
-                              <div className="flex items-center gap-1.5 flex-wrap">
+                              {/* 1줄 — 무슨 버그인지. 판정 근거가 아니라 제목이 먼저 온다 */}
+                              <div className="flex items-center gap-1.5">
                                 <IssueKey
                                   issueKey={item.jira_issue_key}
                                   taskId={item.task_id}
                                   onOpenTask={onOpenTask}
                                 />
-                                <span className="text-xs px-1.5 py-0.5 rounded-full bg-foreground/10 text-slate-400">
+                                <span
+                                  className="min-w-0 flex-1 text-xs text-foreground truncate"
+                                  title={item.task_title ?? undefined}
+                                >
+                                  {item.task_title ??
+                                    t(
+                                      "autofixDock.noTitle",
+                                      "연동이 끊긴 이슈",
+                                    )}
+                                </span>
+                                {item.confidence != null && (
+                                  <span className="shrink-0 flex items-center gap-1 text-xs text-slate-500 tabular-nums">
+                                    <span className="w-8 h-[3px] rounded-full bg-foreground/10 overflow-hidden">
+                                      <span
+                                        className={`block h-full ${
+                                          belowThreshold
+                                            ? "bg-slate-500"
+                                            : "bg-bridge-accent"
+                                        }`}
+                                        style={{
+                                          width: `${Math.round(item.confidence * 100)}%`,
+                                        }}
+                                      />
+                                    </span>
+                                    {item.confidence.toFixed(2)}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* 2줄 — 지금 어디에 있고 누가 물고 있는지 */}
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {badge && (
+                                  <span
+                                    className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${badge.cls}`}
+                                  >
+                                    {badge.label}
+                                  </span>
+                                )}
+                                <AssigneeChips assignees={item.assignees} />
+                                <span className="text-xs text-slate-500">
                                   {CATEGORY_LABEL[item.category] ??
                                     item.category}
                                 </span>
@@ -790,20 +1444,44 @@ export function JiraAutofixDock({
                                     )}
                                   </span>
                                 )}
-                                {item.confidence != null && (
-                                  <span className="ml-auto text-xs text-slate-500 tabular-nums">
-                                    {item.confidence.toFixed(2)}
+                                {/* 판정 이후 태스크가 바뀌었다 — 이동일 수도, 내용 수정일 수도 있다 */}
+                                {item.stale_triage && (
+                                  <span className="text-xs text-slate-500">
+                                    {t(
+                                      "autofixDock.staleTriage",
+                                      "판정 후 변경됨",
+                                    )}
                                   </span>
                                 )}
+                                {(item.verification || item.reason) && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleReason(item.jira_issue_key);
+                                    }}
+                                    onKeyDown={(e) => e.stopPropagation()}
+                                    aria-expanded={reasonOpen}
+                                    className="ml-auto text-xs text-slate-500 hover:text-bridge-accent transition-colors"
+                                  >
+                                    {reasonOpen
+                                      ? t("autofixDock.hideReason", "근거 접기")
+                                      : t("autofixDock.showReason", "근거")}
+                                  </button>
+                                )}
                               </div>
-                              {item.verification && (
-                                <div className="text-xs text-slate-400 leading-relaxed">
-                                  {item.verification}
-                                </div>
-                              )}
-                              {item.reason && (
-                                <div className="text-xs text-slate-500 leading-relaxed">
-                                  {item.reason}
+
+                              {reasonOpen && (
+                                <div className="mt-1 px-2 py-1.5 rounded-lg bg-foreground/[0.04] space-y-0.5">
+                                  {item.verification && (
+                                    <div className="text-xs text-slate-400 leading-relaxed">
+                                      {item.verification}
+                                    </div>
+                                  )}
+                                  {item.reason && (
+                                    <div className="text-xs text-slate-500 leading-relaxed">
+                                      {item.reason}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -816,9 +1494,9 @@ export function JiraAutofixDock({
                   {verdict === "CANDIDATE" && selectableCount > 0 && (
                     <div className="flex flex-wrap items-center gap-1.5 pt-1">
                       <button
-                        onClick={() => handleEnqueue([...selected])}
+                        onClick={() => handleEnqueue(enqueueTargets)}
                         disabled={
-                          selected.size === 0 ||
+                          enqueueTargets.length === 0 ||
                           !setupDone ||
                           busy === "enqueue"
                         }
@@ -828,16 +1506,28 @@ export function JiraAutofixDock({
                           <Loader2 size={12} className="animate-spin" />
                         )}
                         {t("autofixDock.enqueueSelected", "선택")}{" "}
-                        {selected.size}
+                        {enqueueTargets.length}
                         {t("autofixDock.countUnit", "건")}{" "}
                         {t("autofixDock.enqueue", "담기")}
                       </button>
+                      {/*
+                        필터가 걸린 목록에서 "전부"는 반드시 '보이는 것 전부'여야 한다.
+                        걸러 놓고 눌렀는데 화면 밖의 건까지 담기면, 되돌릴 수 없는 방향으로 배신당한다
+                        (이슈당 1회라 잘못 담긴 건은 취소해도 후보로 돌아오지 않는다).
+                      */}
                       <button
-                        onClick={() => handleEnqueue()}
-                        disabled={!setupDone || busy === "enqueue"}
+                        onClick={() => handleEnqueue(visibleSelectableKeys)}
+                        disabled={
+                          !setupDone ||
+                          busy === "enqueue" ||
+                          visibleSelectableKeys.length === 0
+                        }
                         className="px-2.5 py-1.5 text-xs text-slate-400 bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-all disabled:opacity-50"
                       >
-                        {t("autofixDock.enqueueAll", "조건 만족 전부")}
+                        {t("autofixDock.enqueueVisible", "보이는 것 전부")}{" "}
+                        <span className="tabular-nums">
+                          {visibleSelectableKeys.length}
+                        </span>
                       </button>
                       {/* 버튼이 왜 안 눌리는지 화면이 말해줘야 한다 — 눌러도 아무 일이 없으면 고장으로 읽힌다 */}
                       {!setupDone ? (
@@ -848,11 +1538,11 @@ export function JiraAutofixDock({
                           )}
                         </span>
                       ) : (
-                        selected.size === 0 && (
+                        enqueueTargets.length === 0 && (
                           <span className="text-xs text-slate-500">
                             {t(
                               "autofixDock.selectHint",
-                              "항목을 눌러 고르거나, 조건 만족 전부를 누르세요",
+                              "항목을 눌러 고르거나, 보이는 것 전부를 누르세요",
                             )}
                           </span>
                         )
@@ -873,6 +1563,46 @@ export function JiraAutofixDock({
                   </span>
                 </div>
 
+                {/*
+                  세 갈래로 나눈다. 다 끝난 PR이 쌓이면 지금 돌고 있는 한 건을 화면 밖으로 밀어내는데,
+                  이 pane에서 제일 급한 정보는 언제나 "지금 무엇이 돌고 있고 언제부터인가"다.
+                */}
+                {jobs.length > 0 && (
+                  <div className="flex items-center gap-1 px-2.5 pt-2 flex-wrap">
+                    {QUEUE_GROUPS.map((g) => {
+                      const count =
+                        g.value === "live"
+                          ? (active ? 1 : 0) + waiting.length
+                          : g.value === "pr"
+                            ? succeeded.length
+                            : settled.length;
+                      if (count === 0) return null;
+                      return (
+                        <FilterChip
+                          key={g.value}
+                          on={queueGroups.has(g.value)}
+                          count={count}
+                          label={t(g.i18nKey, g.label)}
+                          onClick={() =>
+                            setQueueGroups((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(g.value)) next.delete(g.value);
+                              else next.add(g.value);
+                              return next;
+                            })
+                          }
+                        />
+                      );
+                    })}
+                    {/* 접혀 있어도 사람이 봐야 할 것이 있다는 사실은 새어 나와야 한다 */}
+                    {needsAttention && !queueGroups.has("settled") && (
+                      <span className="ml-auto text-xs font-bold text-amber-600 dark:text-amber-400">
+                        {t("autofixDock.attention", "확인 필요")}
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 <div className="p-2 space-y-1">
                   {jobs.length === 0 && (
                     <div className="text-xs text-slate-500 px-0.5 py-2 leading-relaxed">
@@ -883,14 +1613,30 @@ export function JiraAutofixDock({
                     </div>
                   )}
 
-                  {active && (
+                  {/* 다 접어 놓고 빈 화면을 보면 큐가 비었다고 읽는다 */}
+                  {jobs.length > 0 && queueGroups.size === 0 && (
+                    <div className="text-xs text-slate-500 px-0.5 py-2 leading-relaxed">
+                      {t(
+                        "autofixDock.allGroupsCollapsed",
+                        "묶음을 모두 접었습니다. 위 칩을 눌러 펼치세요.",
+                      )}
+                    </div>
+                  )}
+
+                  {showLive && active && (
                     <div className="px-2 py-1.5 rounded-lg border border-bridge-accent/40 bg-bridge-accent/[0.07] space-y-0.5">
                       <div className="flex items-center gap-1.5">
+                        {active.job_kind === "MANUAL" && <ManualBadge />}
                         <IssueKey
-                          issueKey={active.jira_issue_key}
+                          issueKey={active.job_key}
                           taskId={active.task_id}
                           onOpenTask={onOpenTask}
                         />
+                        {active.title && (
+                          <span className="text-xs text-foreground truncate">
+                            {active.title}
+                          </span>
+                        )}
                         <span className={chipCls(active.status)}>
                           {STATUS_STYLE[active.status].label}
                         </span>
@@ -900,10 +1646,29 @@ export function JiraAutofixDock({
                           </span>
                         )}
                       </div>
-                      {active.runner_name && (
-                        <div className="text-xs text-slate-500">
-                          {t("autofixDock.runningOn", "실행 중")} ·{" "}
-                          {active.runner_name}
+                      {/*
+                        항목 제목만으로는 어느 카드 일인지 알 수 없다.
+                        같은 태스크에서 나온 항목들은 이 줄을 공유해 큐에서 한 덩어리로 읽힌다.
+                      */}
+                      {(active.parent_task_title ||
+                        active.runner_name ||
+                        active.created_by_name) && (
+                        <div className="text-xs text-slate-500 truncate">
+                          {[
+                            active.parent_task_title,
+                            active.runner_name,
+                            active.created_by_name
+                              ? `위임 ${active.created_by_name}`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                      )}
+                      {/* 지시문은 진행 중인 행에서만 펼친다 — 대기 행까지 펼치면 큐가 문단 더미가 된다 */}
+                      {active.instruction && (
+                        <div className="text-xs text-slate-400 leading-relaxed bg-foreground/[0.03] rounded-lg px-2 py-1.5 border-l-2 border-bridge-accent/40">
+                          {active.instruction}
                         </div>
                       )}
                       {/* 한 건이 오래 물고 있으면 뒤의 대기 건이 전부 멈춘다 — 러너를 확인하거나 회수해야 한다 */}
@@ -948,7 +1713,7 @@ export function JiraAutofixDock({
                   )}
 
                   {/* 대기 건이 왜 그대로인지 설명 — 직렬 실행이라 앞 건이 끝나야 나간다 */}
-                  {active && waiting.length > 0 && (
+                  {showLive && active && waiting.length > 0 && (
                     <div className="text-xs text-slate-500 px-0.5 leading-relaxed">
                       {t(
                         "autofixDock.serialHint",
@@ -957,16 +1722,25 @@ export function JiraAutofixDock({
                     </div>
                   )}
 
-                  {waiting.map((job) => (
+                  {(showLive ? waiting : []).map((job) => (
                     <div
                       key={job.id}
                       className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-foreground/[0.08]"
                     >
+                      {job.job_kind === "MANUAL" && <ManualBadge />}
                       <IssueKey
-                        issueKey={job.jira_issue_key}
+                        issueKey={job.job_key}
                         taskId={job.task_id}
                         onOpenTask={onOpenTask}
                       />
+                      {job.title && (
+                        <span
+                          className="text-xs text-foreground truncate"
+                          title={job.parent_task_title ?? undefined}
+                        >
+                          {job.title}
+                        </span>
+                      )}
                       <span className={chipCls(job.status)}>
                         {STATUS_STYLE[job.status].label}
                       </span>
@@ -978,7 +1752,7 @@ export function JiraAutofixDock({
                       <button
                         onClick={() => handleCancel(job.id)}
                         disabled={busy === `cancel:${job.id}`}
-                        aria-label={`${job.jira_issue_key} 취소`}
+                        aria-label={`${job.job_key} 취소`}
                         className="text-slate-500 hover:text-rose-500 transition-colors disabled:opacity-50"
                       >
                         {busy === `cancel:${job.id}` ? (
@@ -990,14 +1764,14 @@ export function JiraAutofixDock({
                     </div>
                   ))}
 
-                  {succeeded.map((job) => (
+                  {(queueGroups.has("pr") ? succeeded : []).map((job) => (
                     <div
                       key={job.id}
                       className="px-2 py-1.5 rounded-lg border border-foreground/[0.08] space-y-0.5"
                     >
                       <div className="flex items-center gap-1.5">
                         <IssueKey
-                          issueKey={job.jira_issue_key}
+                          issueKey={job.job_key}
                           taskId={job.task_id}
                           onOpenTask={onOpenTask}
                         />
@@ -1025,69 +1799,50 @@ export function JiraAutofixDock({
                     </div>
                   ))}
 
-                  {settled.length > 0 && (
+                  {queueGroups.has("settled") && settled.length > 0 && (
                     <div className="rounded-lg border border-foreground/[0.08] overflow-hidden">
-                      <button
-                        onClick={() => setShowSettled(!showSettled)}
-                        aria-expanded={showSettled}
-                        className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs text-slate-400 bg-foreground/[0.04] hover:bg-foreground/[0.06] transition-colors"
-                      >
-                        {showSettled ? (
-                          <ChevronDown size={12} />
-                        ) : (
-                          <ChevronRight size={12} />
-                        )}
-                        {t("autofixDock.settled", "그 외")} · {settled.length}
-                        {t("autofixDock.countUnit", "건")}
-                        {needsAttention && (
-                          <span className="ml-auto font-bold text-amber-600 dark:text-amber-400">
-                            {t("autofixDock.attention", "확인 필요")}
-                          </span>
-                        )}
-                      </button>
-                      {showSettled &&
-                        settled.map((job) => (
-                          <div
-                            key={job.id}
-                            className="px-2 py-1.5 border-t border-foreground/[0.06] space-y-0.5"
-                          >
-                            <div className="flex items-center gap-1.5">
-                              <IssueKey
-                                issueKey={job.jira_issue_key}
-                                taskId={job.task_id}
-                                onOpenTask={onOpenTask}
-                              />
-                              <span className={chipCls(job.status)}>
-                                {STATUS_STYLE[job.status].label}
-                              </span>
-                            </div>
-                            {job.status === "TIMED_OUT" ? (
-                              <div className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">
-                                {t(
-                                  "autofixDock.timedOutHint",
-                                  "러너가 회신하지 않았습니다. 맥 상태를 확인하세요",
-                                )}
-                              </div>
-                            ) : (
-                              job.failure_reason && (
-                                <div className="text-xs text-slate-500 leading-relaxed">
-                                  {job.failure_reason}
-                                </div>
-                              )
-                            )}
-                            {/* Actions 실행 로그 링크가 없으므로, 원인을 볼 수 있는 곳은 여기뿐이다 */}
-                            {job.log_excerpt && (
-                              <details className="text-xs text-slate-500">
-                                <summary className="cursor-pointer hover:text-foreground transition-colors">
-                                  {t("autofixDock.agentLog", "에이전트 로그")}
-                                </summary>
-                                <pre className="mt-1 p-2 rounded-lg bg-foreground/[0.04] overflow-x-auto custom-scrollbar text-xs text-slate-400 whitespace-pre-wrap break-all max-h-48">
-                                  {job.log_excerpt}
-                                </pre>
-                              </details>
-                            )}
+                      {settled.map((job) => (
+                        <div
+                          key={job.id}
+                          className="px-2 py-1.5 border-t border-foreground/[0.06] first:border-t-0 space-y-0.5"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <IssueKey
+                              issueKey={job.job_key}
+                              taskId={job.task_id}
+                              onOpenTask={onOpenTask}
+                            />
+                            <span className={chipCls(job.status)}>
+                              {STATUS_STYLE[job.status].label}
+                            </span>
                           </div>
-                        ))}
+                          {job.status === "TIMED_OUT" ? (
+                            <div className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">
+                              {t(
+                                "autofixDock.timedOutHint",
+                                "러너가 회신하지 않았습니다. 맥 상태를 확인하세요",
+                              )}
+                            </div>
+                          ) : (
+                            job.failure_reason && (
+                              <div className="text-xs text-slate-500 leading-relaxed">
+                                {job.failure_reason}
+                              </div>
+                            )
+                          )}
+                          {/* Actions 실행 로그 링크가 없으므로, 원인을 볼 수 있는 곳은 여기뿐이다 */}
+                          {job.log_excerpt && (
+                            <details className="text-xs text-slate-500">
+                              <summary className="cursor-pointer hover:text-foreground transition-colors">
+                                {t("autofixDock.agentLog", "에이전트 로그")}
+                              </summary>
+                              <pre className="mt-1 p-2 rounded-lg bg-foreground/[0.04] overflow-x-auto custom-scrollbar text-xs text-slate-400 whitespace-pre-wrap break-all max-h-48">
+                                {job.log_excerpt}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -1138,6 +1893,123 @@ function IssueKey({
     >
       {issueKey}
     </button>
+  );
+}
+
+/** 필터 한 줄. 라벨 폭을 고정해 축들이 세로로 정렬된다 — 들쭉날쭉하면 훑어지지 않는다. */
+function FilterRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <span className="w-9 shrink-0 text-xs text-slate-500">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * 필터 칩. 두 가지 방식이 섞여 있어 표현을 나눈다 —
+ * 담당자·유형은 <b>고른 것만 보기</b>(켜면 강조), 위치는 <b>끈 것을 감추기</b>(끄면 취소선)다.
+ * 같은 모양으로 그리면 위치 칩이 전부 꺼져 있는 것처럼 읽힌다.
+ */
+function FilterChip({
+  on,
+  label,
+  count,
+  swatch,
+  strikeWhenOff,
+  onClick,
+}: {
+  on: boolean;
+  label: string;
+  count?: number;
+  swatch?: string;
+  strikeWhenOff?: boolean;
+  onClick: () => void;
+}) {
+  const base =
+    "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors " +
+    "focus:outline-none focus:ring-2 focus:ring-bridge-accent/50";
+  const tone = on
+    ? strikeWhenOff
+      ? "text-slate-400 bg-foreground/[0.06] hover:bg-foreground/10"
+      : "bg-bridge-accent/15 text-bridge-accent font-bold"
+    : strikeWhenOff
+      ? "text-slate-500 bg-foreground/[0.03] line-through"
+      : "text-slate-400 bg-foreground/[0.06] hover:bg-foreground/10";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={`${base} ${tone}`}
+    >
+      {swatch && (
+        <span
+          aria-hidden
+          className="w-2 h-2 rounded-full shrink-0"
+          style={{ backgroundColor: swatch }}
+        />
+      )}
+      {label}
+      {count != null && (
+        <span className="tabular-nums opacity-70 font-normal">{count}</span>
+      )}
+    </button>
+  );
+}
+
+/**
+ * 체크리스트 담당자. 자동수정이 건드릴 코드를 지금 누가 만지고 있는지 알아야
+ * "이건 내가 하고 있는 건데"를 판단할 수 있다.
+ *
+ * <p>미배정을 빈칸으로 두지 않는다 — 담당자 열이 비면 데이터가 없는 건지 아무도 안 맡은 건지
+ * 구분되지 않는다.
+ *
+ * <p>아바타는 두 명까지. 셋 이상이면 첫 두 명 + 남은 수로 줄인다.
+ */
+function AssigneeChips({ assignees }: { assignees: JiraAutofixAssignee[] }) {
+  const { t } = useTranslation();
+
+  if (!assignees || assignees.length === 0) {
+    return (
+      <span className="text-xs text-amber-600 dark:text-amber-400">
+        {t("autofixDock.noAssignee", "담당자 없음")}
+      </span>
+    );
+  }
+
+  const shown = assignees.slice(0, 2);
+  const rest = assignees.length - shown.length;
+  const label =
+    rest > 0
+      ? `${assignees[0].name} 외 ${assignees.length - 1}`
+      : assignees.map((a) => a.name).join(", ");
+
+  return (
+    <span
+      className="flex items-center gap-1 text-xs text-slate-400"
+      title={assignees.map((a) => a.name).join(", ")}
+    >
+      {shown.map((a) => (
+        <span
+          key={`${a.external ? "c" : "u"}:${a.id}`}
+          aria-hidden
+          className="w-[18px] h-[18px] shrink-0 rounded-full grid place-items-center
+            text-xs font-bold leading-none text-white"
+          style={{ backgroundColor: getAssigneeHex(a.name, a.color) }}
+        >
+          {getInitials(a.name).slice(0, 1)}
+        </span>
+      ))}
+      <span className="truncate max-w-[7rem]">{label}</span>
+    </span>
   );
 }
 

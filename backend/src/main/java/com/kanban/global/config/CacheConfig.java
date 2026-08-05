@@ -89,6 +89,9 @@ public class CacheConfig {
         // System Config 캐시: 5분 (MONETIZATION_ENABLED 등 전역 설정 — 변경 시 @CacheEvict로 즉시 무효화)
         cacheConfigurations.put("systemConfig", defaultConfig.entryTtl(Duration.ofMinutes(5)));
 
+        // 백로그 승격 AI 추천: 24시간 (같은 항목을 다시 열어도 크레딧이 또 빠지지 않게 한다)
+        cacheConfigurations.put("promoteSuggestions", defaultConfig.entryTtl(Duration.ofHours(24)));
+
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)
                 .withInitialCacheConfigurations(cacheConfigurations)

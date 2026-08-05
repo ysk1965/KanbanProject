@@ -1,6 +1,7 @@
 package com.kanban.domain.integration.jira.service;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.integration.jira.AutofixJobKind;
 import com.kanban.domain.integration.jira.AutofixJobStatus;
 import com.kanban.domain.integration.jira.JiraAutofixJob;
 import com.kanban.domain.integration.slack.SlackInstallation;
@@ -67,12 +68,12 @@ public class JiraAutofixSlackPublisher {
             slackApiClient.postMessage(botToken, channelId,
                     buildBlocks(board, job, issueTitle, jiraBaseUrl));
             log.info("Autofix Slack: board={} issue={} status={} → #{}",
-                    board.getId(), job.getJiraIssueKey(), job.getStatus(),
+                    board.getId(), job.getJobKey(), job.getStatus(),
                     installation.getDefaultChannelName());
         } catch (Exception e) {
             // 대표 사유: 채널에 봇(MILKYWAY)이 초대되지 않음(not_in_channel), 토큰 만료.
             log.warn("Autofix Slack 게시 실패 board={} issue={}: {}",
-                    board.getId(), job.getJiraIssueKey(), e.getMessage());
+                    board.getId(), job.getJobKey(), e.getMessage());
         }
     }
 
@@ -84,7 +85,7 @@ public class JiraAutofixSlackPublisher {
 
         blocks.add(Map.of("type", "header",
                 "text", Map.of("type", "plain_text",
-                        "text", clip(headline(job.getStatus()) + " " + job.getJiraIssueKey(), 150),
+                        "text", clip(headline(job.getStatus()) + " " + job.getJobKey(), 150),
                         "emoji", true)));
 
         if (issueTitle != null && !issueTitle.isBlank()) {
@@ -150,9 +151,12 @@ public class JiraAutofixSlackPublisher {
         if (job.getPrUrl() != null && !job.getPrUrl().isBlank()) {
             actions.add(linkButton("PR 열기", job.getPrUrl(), true));
         }
-        if (jiraBaseUrl != null && !jiraBaseUrl.isBlank()) {
+        // JIRA 이슈 링크는 트리아지가 고른 작업에만 있다. 사람이 맡긴 작업의 job_key를
+        // /browse/ 뒤에 붙이면 존재하지 않는 이슈로 가는 버튼이 생긴다.
+        if (job.getJobKind() == AutofixJobKind.JIRA
+                && jiraBaseUrl != null && !jiraBaseUrl.isBlank()) {
             actions.add(linkButton("JIRA 이슈",
-                    trimSlash(jiraBaseUrl) + "/browse/" + job.getJiraIssueKey(), false));
+                    trimSlash(jiraBaseUrl) + "/browse/" + job.getJobKey(), false));
         }
         actions.add(linkButton("자동수정 도크", frontendUrl + "/boards/" + board.getId(), false));
         return actions;
