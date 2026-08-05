@@ -498,6 +498,7 @@ public class JiraAutofixQueueService {
         return JiraAutofixResponse.JobItem.builder()
                 .id(job.getId())
                 .jiraIssueKey(job.getJiraIssueKey())
+                .taskId(job.getTaskId())
                 .status(job.getStatus().name())
                 .confidence(job.getConfidence())
                 .repoFullName(job.getRepoFullName())

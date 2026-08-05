@@ -941,7 +941,8 @@
       "zoom": "확대/축소",
       "highlight": "하이라이트",
       "unhighlight": "하이라이트 해제",
-      "clearSchedule": "일정에서 제거"
+      "clearSchedule": "일정에서 제거",
+      "demoteToBacklog": "백로그로 내리기"
     },
     "workloadCreate": {
       "title": "새 업무 추가",
@@ -5031,7 +5032,7 @@
     "chip": "백로그",
     "promotedTab": "승격됨",
     "tabsLabel": "백로그 목록",
-    "hint": "b 로 적기 · 간트 날짜 칸에 끌어 놓으면 태스크로 승격 · 나만 보입니다",
+    "hint": "b 로 적기 · 위로 끌어 올리면 승격 · 나만 보입니다",
     "placeholder": "떠오른 걸 한 줄로…",
     "enterHint": "Enter 로 추가",
     "addAria": "백로그 적기",
@@ -5064,7 +5065,12 @@
     "task": "붙일 태스크",
     "noFeature": "피처가 없습니다",
     "noTask": "태스크가 없습니다",
-    "taskLoadFailed": "태스크 목록을 불러오지 못했습니다."
+    "taskLoadFailed": "태스크 목록을 불러오지 못했습니다.",
+    "dropHint": "여기에 놓으면 일정·담당을 해제하고 나만 보이는 메모로 내려갑니다",
+    "demoteFailed": "백로그로 내리지 못했습니다.",
+    "demotedNotice": "「{{title}}」 백로그로 내렸습니다 · 일정과 담당이 해제되고 나만 보입니다",
+    "undoFailed": "되돌리지 못했습니다.",
+    "demotedNoticeUnplaced": "「{{title}}」 백로그로 내렸습니다 · 태스크에서 빠지고 나만 보입니다"
   },
   "boardDashboard": {
     "scopePrefix": "대시보드",
@@ -5134,6 +5140,10 @@
     "mentionsTitle": "나를 부른 것들",
     "mentionsEmpty": "새로운 알림이 없습니다.",
     "markAllRead": "모두 읽음",
-    "notBoardMember": "이 보드의 멤버로 등록되어 있지 않습니다."
+    "notBoardMember": "이 보드의 멤버로 등록되어 있지 않습니다.",
+    "railDropHint": "여기에 놓으면 일정 없이 카드로 돌아옵니다",
+    "railToBacklog": "백로그",
+    "unscheduleFailed": "일정을 해제하지 못했습니다.",
+    "unscheduledNotice": "「{{title}}」 일정 해제됨 · 담당자와 체크리스트는 그대로입니다"
   }
 }

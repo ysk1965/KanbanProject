@@ -814,7 +814,8 @@
       "more": "thêm",
       "highlight": "Đánh dấu",
       "unhighlight": "Bỏ đánh dấu",
-      "clearSchedule": "Xóa khỏi lịch"
+      "clearSchedule": "Xóa khỏi lịch",
+      "demoteToBacklog": "Chuyển xuống backlog"
     },
     "panel": {
       "filterMilestoneShort": "Mốc",

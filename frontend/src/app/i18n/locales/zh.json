@@ -814,7 +814,8 @@
       "more": "更多",
       "highlight": "高亮",
       "unhighlight": "取消高亮",
-      "clearSchedule": "从排期中移除"
+      "clearSchedule": "从排期中移除",
+      "demoteToBacklog": "降到待办清单"
     },
     "panel": {
       "filterMilestoneShort": "里程碑",

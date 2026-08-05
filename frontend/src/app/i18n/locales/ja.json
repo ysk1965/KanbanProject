@@ -814,7 +814,8 @@
       "more": "もっと見る",
       "highlight": "ハイライト",
       "unhighlight": "ハイライト解除",
-      "clearSchedule": "スケジュールから削除"
+      "clearSchedule": "スケジュールから削除",
+      "demoteToBacklog": "バックログに下げる"
     },
     "panel": {
       "filterMilestoneShort": "マイルストーン",

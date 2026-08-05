@@ -940,7 +940,8 @@
       "zoom": "Zoom",
       "highlight": "Highlight",
       "unhighlight": "Remove highlight",
-      "clearSchedule": "Remove from schedule"
+      "clearSchedule": "Remove from schedule",
+      "demoteToBacklog": "Move down to backlog"
     },
     "workloadCreate": {
       "title": "Add new work",
@@ -5009,7 +5010,7 @@
     "chip": "Backlog",
     "promotedTab": "Promoted",
     "tabsLabel": "Backlog lists",
-    "hint": "Press b to jot · drop on a gantt date cell to promote to a task · only you can see this",
+    "hint": "Press b to jot · drag upward to promote · only you can see this",
     "placeholder": "Jot it down in one line…",
     "enterHint": "Enter to add",
     "addAria": "Add to backlog",
@@ -5042,7 +5043,12 @@
     "task": "Task",
     "noFeature": "No features yet",
     "noTask": "No tasks yet",
-    "taskLoadFailed": "Couldn't load tasks."
+    "taskLoadFailed": "Couldn't load tasks.",
+    "dropHint": "Drop here to clear its dates and owner and keep it as a private note",
+    "demoteFailed": "Could not move it to the backlog.",
+    "demotedNotice": "“{{title}}” moved down to the backlog · dates and owner cleared, only you can see it",
+    "undoFailed": "Could not undo that.",
+    "demotedNoticeUnplaced": "“{{title}}” moved down to the backlog · removed from its task, only you can see it"
   },
   "boardDashboard": {
     "scopePrefix": "Dashboard",
@@ -5112,6 +5118,10 @@
     "mentionsTitle": "Mentions & alerts",
     "mentionsEmpty": "No new notifications.",
     "markAllRead": "Mark all read",
-    "notBoardMember": "You are not a member of this board."
+    "notBoardMember": "You are not a member of this board.",
+    "railDropHint": "Drop here to clear its dates and send it back to a card",
+    "railToBacklog": "Backlog",
+    "unscheduleFailed": "Could not clear the schedule.",
+    "unscheduledNotice": "“{{title}}” schedule cleared · assignee and checklist are unchanged"
   }
 }

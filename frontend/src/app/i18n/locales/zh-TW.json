@@ -805,7 +805,8 @@
       "more": "更多",
       "highlight": "醒目標示",
       "unhighlight": "取消醒目標示",
-      "clearSchedule": "從排程中移除"
+      "clearSchedule": "從排程中移除",
+      "demoteToBacklog": "降至待辦清單"
     },
     "panel": {
       "filterMilestoneShort": "里程碑",

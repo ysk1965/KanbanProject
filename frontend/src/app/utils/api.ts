@@ -6185,6 +6185,8 @@ export interface JiraAutofixQueueStatus {
 export interface JiraAutofixJob {
   id: string;
   jira_issue_key: string;
+  /** 원본 BRIDGE 태스크. 이슈 키를 눌러 카드를 열기 위한 값 — 연동이 끊긴 건은 null. */
+  task_id: string | null;
   status: JiraAutofixJobStatus;
   confidence: number | null;
   repo_full_name: string | null;

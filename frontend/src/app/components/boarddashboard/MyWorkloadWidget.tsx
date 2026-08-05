@@ -17,6 +17,7 @@ import type { BoardMember as ShareBoardMember } from "../ShareBoardModal";
 import { DashboardEmpty } from "./DashboardCard";
 import { DASHBOARD_ROW_HEIGHT } from "./dashboardUtils";
 import { PlacementRail } from "./PlacementRail";
+import { useAxisRefresh, useAxisTransfer } from "../../utils/axisTransfer";
 
 const ScheduleResourceView = lazyWithRetry(
   () =>
@@ -31,12 +32,15 @@ const NOTICE_TTL = 8000;
 
 const CONTRACTOR_PREFIX = "contractor:";
 
-/** 배치 직후 되돌리기용으로 붙잡아 두는 이전 값 */
+/** 이동 직후 되돌리기용으로 붙잡아 두는 이전 값 */
 interface PlacementNotice {
+  /** placed = 날짜가 잡혔다 / unscheduled = 일정이 풀려 미배치로 내려갔다 */
+  kind: "placed" | "unscheduled";
   itemId: string;
   taskId: string;
   title: string;
-  targetDate: string;
+  /** placed일 때만 — 어느 날에 놓였는지 */
+  targetDate?: string;
   prevStartDate: string | null;
   prevDueDate: string | null;
 }
@@ -193,6 +197,7 @@ export function MyWorkloadWidget({
         });
         setError(null);
         showNotice({
+          kind: "placed",
           itemId: item.id,
           taskId: item.task_id,
           title: item.title ?? "",
@@ -211,6 +216,66 @@ export function MyWorkloadWidget({
     },
     [boardId, bumpRefresh, showNotice, t],
   );
+
+  /**
+   * 간트 바를 배치 레일로 끌어내렸을 때 — 시작·마감만 비운다.
+   *
+   * 담당자·마일스톤·체크리스트는 건드리지 않는다(PATCH라 미전송 필드는 보존된다).
+   * "일정만 취소하고 싶다"가 이 동작의 전부이므로 확인 모달 없이 바로 하고
+   * 되돌리기를 띄운다 — 잃는 건 날짜 두 개뿐이라 복구가 정확하다.
+   */
+  const unscheduleItem = useCallback(
+    async (item: {
+      id: string;
+      task_id: string;
+      title?: string;
+      start_date?: string | null;
+      due_date?: string | null;
+    }) => {
+      try {
+        await checklistAPI.patchItem(boardId, item.task_id, item.id, {
+          start_date: null,
+          due_date: null,
+        });
+        setError(null);
+        showNotice({
+          kind: "unscheduled",
+          itemId: item.id,
+          taskId: item.task_id,
+          title: item.title ?? "",
+          prevStartDate: item.start_date ?? null,
+          prevDueDate: item.due_date ?? null,
+        });
+      } catch (err) {
+        console.warn("MyWorkloadWidget: failed to unschedule item", err);
+        setNotice(null);
+        setError(
+          t("boardDashboard.unscheduleFailed", "일정을 해제하지 못했습니다."),
+        );
+      } finally {
+        bumpRefresh();
+      }
+    },
+    [boardId, bumpRefresh, showNotice, t],
+  );
+
+  // 축 이동 수신 — 워크로드에서 나가는 건만 여기서 처리한다.
+  // (백로그로 내리는 건 백로그 레일이 자기 목록까지 고쳐야 해서 그쪽이 받는다)
+  useAxisTransfer((detail) => {
+    if (!canEdit) return;
+    if (detail.from !== "workload" || detail.to !== "placement") return;
+    if (!detail.item.task_id) return;
+    void unscheduleItem({
+      id: detail.item.id,
+      task_id: detail.item.task_id,
+      title: detail.item.title,
+      start_date: detail.item.start_date,
+      due_date: detail.item.due_date,
+    });
+  });
+
+  // 다른 존이 내 항목을 가져갔으면(예: 백로그로 강등) 간트·레일을 다시 읽는다
+  useAxisRefresh(bumpRefresh);
 
   const handleUndo = useCallback(async () => {
     if (!notice) return;
@@ -308,12 +373,21 @@ export function MyWorkloadWidget({
           ) : (
             <>
               <p className="text-xs text-slate-400 truncate">
-                {t("boardDashboard.placedNotice", {
-                  title: notice!.title,
-                  // 로컬 Date로 넘긴다 — 문자열은 UTC로 해석돼 하루 어긋날 수 있다
-                  date: formatDate(parseDate(notice!.targetDate), "PPP"),
-                  defaultValue: "「{{title}}」 {{date}}에 배치됨",
-                })}
+                {notice!.kind === "unscheduled"
+                  ? t("boardDashboard.unscheduledNotice", {
+                      title: notice!.title,
+                      defaultValue:
+                        "「{{title}}」 일정 해제됨 · 담당자와 체크리스트는 그대로입니다",
+                    })
+                  : t("boardDashboard.placedNotice", {
+                      title: notice!.title,
+                      // 로컬 Date로 넘긴다 — 문자열은 UTC로 해석돼 하루 어긋날 수 있다
+                      date: formatDate(
+                        parseDate(notice!.targetDate ?? ""),
+                        "PPP",
+                      ),
+                      defaultValue: "「{{title}}」 {{date}}에 배치됨",
+                    })}
               </p>
               <button
                 type="button"
