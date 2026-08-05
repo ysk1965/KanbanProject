@@ -29,9 +29,55 @@ set -a; source "$CONF"; set +a
 RUNNER_NAME="${RUNNER_NAME:-$(hostname -s)}"
 POLL_SECONDS="${POLL_SECONDS:-20}"
 LOG_DIR="${LOG_DIR:-$HOME/bridge-autofix/logs}"
-mkdir -p "$LOG_DIR"
+SPOOL_DIR="${SPOOL_DIR:-$HOME/bridge-autofix/spool}"
+mkdir -p "$LOG_DIR" "$SPOOL_DIR"
+
+if [ -d "$PROJECT_DIR/.git" ]; then
+  LOCK_DIR="${LOCK_DIR:-$PROJECT_DIR/.git/bridge-autofix.lock}"
+else
+  LOCK_DIR="${LOCK_DIR:-${TMPDIR:-/tmp}/bridge-autofix-$(printf '%s' "$PROJECT_DIR" | shasum | cut -c1-12).lock}"
+fi
 
 log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"; }
+
+# ── 유실된 회신 재전송 ──────────────────────────
+#
+# autofix-once.sh 가 세 번 시도하고도 회신하지 못하면 결과를 스풀에 남긴다. 여기서 계속
+# 다시 보낸다 — 회신 한 번을 잃으면 서버는 그 건을 TIMED_OUT으로 회수하고, 그 이슈는 사람이
+# 취소하기 전까지 다시 큐에 담기지 않는다(existsActiveForIssue가 종료 상태까지 센다).
+#
+# 서버는 회수된 뒤 도착한 회신도 받아 결과를 바로잡으므로, 늦은 재전송도 값이 있다.
+drain_spool() {
+  local file sent=0
+  for file in "$SPOOL_DIR"/*.json; do
+    [ -e "$file" ] || return 0
+    # --fail 필수: 502·401을 받고도 exit 0 이면 스풀 파일을 지워 결과를 영영 잃는다.
+    if curl -sS --fail -m 30 -o /dev/null -X POST \
+        "$BRIDGE_URL/api/v1/jira/autofix/callback/$BRIDGE_BOARD_ID" \
+        -H "Authorization: Bearer $BRIDGE_TOKEN" \
+        -H "Content-Type: application/json" \
+        --data-binary "@$file"; then
+      rm -f "$file"
+      sent=$((sent + 1))
+    else
+      # 아직 서버가 안 돌아왔다. 남겨 두고 다음 주기에 다시 시도한다.
+      return 0
+    fi
+  done
+  [ "$sent" -gt 0 ] && log "보관해 둔 회신 ${sent}건을 재전송했다"
+  return 0
+}
+
+# 락을 쥔 실행이 있는지 — 있으면 claim하지 않는다.
+#
+# claim 해 놓고 락에 막혀 실패하면 그 작업은 FAILED로 확정되고, existsActiveForIssue 때문에
+# 그 이슈는 다시 큐에 담기지 않는다. 애초에 가져오지 않는 편이 낫다.
+locked_by_other() {
+  local holder
+  [ -d "$LOCK_DIR" ] || return 1
+  holder=$(cat "$LOCK_DIR/pid" 2>/dev/null)
+  [ -n "$holder" ] && kill -0 "$holder" 2>/dev/null
+}
 
 # 러너 자가진단 — claim에 실어 보낸다.
 #
@@ -87,18 +133,52 @@ log "러너 시작 — runner=$RUNNER_NAME board=$BRIDGE_BOARD_ID project=$PROJE
 last_reason=""
 
 while true; do
-  response=$(curl -sS -m 30 -X POST \
+  drain_spool
+
+  if locked_by_other; then
+    if [ "$last_reason" != "LOCKED" ]; then
+      log "다른 실행이 저장소를 쓰고 있다(손으로 돌린 건일 것). 끝날 때까지 claim하지 않는다."
+      last_reason="LOCKED"
+    fi
+    sleep "$POLL_SECONDS"
+    continue
+  fi
+
+  # HTTP 코드를 본문과 함께 받는다. 코드가 없으면 "토큰이 만료됐다"(401)와 "배포 중이라
+  # 잠깐 죽었다"(502)가 로그에서 똑같이 보인다 — 전자는 사람이 손대야 낫고 후자는 1분이면
+  # 저절로 낫는데, 구분이 안 되면 고칠 수 있는 고장을 기다리기만 하게 된다.
+  raw=$(curl -sS -m 30 -w '\n%{http_code}' -X POST \
     "$BRIDGE_URL/api/v1/jira/autofix/runner/$BRIDGE_BOARD_ID/claim" \
     -H "Authorization: Bearer $BRIDGE_TOKEN" \
     -H "Content-Type: application/json" \
     -d "$(jq -n --arg n "$RUNNER_NAME" --argjson s "$(runner_status_json)" \
           '{runner_name:$n, status:$s}')" 2>&1)
   rc=$?
+  http_code="${raw##*$'\n'}"
+  response="${raw%$'\n'*}"
+  case "$http_code" in [0-9][0-9][0-9]) ;; *) http_code="000" ;; esac
 
-  if [ $rc -ne 0 ] || ! echo "$response" | jq -e . >/dev/null 2>&1; then
+  if [ $rc -ne 0 ] || [ "$http_code" -ge 400 ] || ! echo "$response" | jq -e . >/dev/null 2>&1; then
     # BRIDGE가 잠깐 죽어도 러너는 죽지 않는다. 다음 주기에 다시 묻는다.
-    [ "$last_reason" != "UNREACHABLE" ] && log "BRIDGE에 닿지 못했다: $(echo "$response" | head -c 200)"
-    last_reason="UNREACHABLE"
+    if [ $rc -ne 0 ]; then
+      fail_reason="UNREACHABLE"
+    elif [ "$http_code" -ge 400 ]; then
+      case "$http_code" in 401|403) fail_reason="AUTH" ;; *) fail_reason="HTTP_$http_code" ;; esac
+    else
+      fail_reason="BAD_BODY"
+    fi
+
+    # 502 본문은 nginx HTML 5줄이다. 그대로 찍으면 한 줄에 한 사건인 로그가 무너진다.
+    excerpt=$(printf '%s' "$response" | tr -d '\r' | tr '\n' ' ' | head -c 200)
+    if [ "$fail_reason" != "$last_reason" ]; then
+      case "$fail_reason" in
+        UNREACHABLE) log "BRIDGE에 닿지 못했다: $excerpt" ;;
+        AUTH)        log "BRIDGE가 인증을 거부했다(HTTP $http_code). 기다려도 낫지 않는다 — 독에서 러너 토큰을 다시 발급해 BRIDGE_TOKEN을 갱신할 것." ;;
+        BAD_BODY)    log "BRIDGE 응답을 JSON으로 읽지 못했다(HTTP $http_code): $excerpt" ;;
+        *)           log "BRIDGE 응답이 정상이 아니다(HTTP $http_code): $excerpt" ;;
+      esac
+      last_reason="$fail_reason"
+    fi
     sleep "$POLL_SECONDS"
     continue
   fi

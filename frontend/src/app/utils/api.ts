@@ -29,18 +29,24 @@ const S3_DIRECT_URL_RE = /^https:\/\/[\w.-]+\.s3\.[\w.-]+\.amazonaws\.com\//;
  */
 export const resolveFileUrl = (url: string | null | undefined): string => {
   if (!url) return "";
+  const u = url.trim();
   if (
-    url.startsWith("http://") ||
-    url.startsWith("https://") ||
-    url.startsWith("blob:") ||
-    url.startsWith("data:")
+    u.startsWith("http://") ||
+    u.startsWith("https://") ||
+    u.startsWith("blob:") ||
+    u.startsWith("data:")
   ) {
-    if (CLOUDFRONT_DOMAIN && S3_DIRECT_URL_RE.test(url)) {
-      return url.replace(S3_DIRECT_URL_RE, `https://${CLOUDFRONT_DOMAIN}/`);
+    if (CLOUDFRONT_DOMAIN && S3_DIRECT_URL_RE.test(u)) {
+      return u.replace(S3_DIRECT_URL_RE, `https://${CLOUDFRONT_DOMAIN}/`);
     }
-    return url;
+    return u;
   }
-  return `${BACKEND_ORIGIN}${url}`;
+  // 상대 경로는 백엔드 origin과 슬래시 하나로만 결합한다. 선행 슬래시가 없는
+  // 맨이름(예: 외부 붙여넣기로 들어온 "image.png")이 origin에 그대로 붙어
+  // "https://api.bridgespots.comimage.png" 같은 비정상 호스트명
+  // (ERR_NAME_NOT_RESOLVED)이 되던 버그를 방지한다.
+  const path = u.startsWith("/") ? u : `/${u}`;
+  return `${BACKEND_ORIGIN}${path}`;
 };
 
 // 토큰 관리
@@ -6216,6 +6222,11 @@ export interface JiraAutofixQueueStatus {
   min_confidence: number;
   eligible_candidates: number;
   total_candidates: number;
+  /** 결과를 게시할 전용 채널. null이면 슬랙 설치의 기본 채널로 나간다. */
+  slack_channel_id: string | null;
+  slack_channel_name: string | null;
+  /** 서버에서 자동수정 슬랙 알림 자체가 꺼져 있으면 채널을 골라도 나가지 않는다. */
+  slack_notify_enabled: boolean;
 }
 
 /** JIRA = 트리아지가 고른 이슈, MANUAL = 사람이 직접 맡긴 태스크·체크리스트 항목. */
@@ -6340,6 +6351,21 @@ export const jiraAutofixAPI = {
   issueCallbackToken: async (boardId: string) => {
     return apiClient.post<{ callback_token: string }>(
       `/boards/${boardId}/jira/autofix/callback-token`,
+    );
+  },
+
+  /**
+   * 결과를 게시할 슬랙 채널 지정. channelId를 null로 주면 해제되고 설치 기본 채널로
+   * 떨어진다 — 알림을 끄는 스위치가 아니다.
+   */
+  updateSlackChannel: async (
+    boardId: string,
+    channelId: string | null,
+    channelName?: string | null,
+  ) => {
+    return apiClient.put<void>(
+      `/boards/${boardId}/jira/autofix/slack-channel`,
+      { slack_channel_id: channelId, slack_channel_name: channelName ?? null },
     );
   },
 

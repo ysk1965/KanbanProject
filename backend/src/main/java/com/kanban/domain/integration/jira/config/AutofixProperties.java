@@ -28,6 +28,18 @@ public class AutofixProperties {
     private int maxEnqueuePerRequest = 50;
 
     /**
+     * 작업 명세에 실어 보낼 댓글 수 상한(최신순). 오래 끈 이슈는 댓글이 수십 개가 되는데,
+     * 전부 보내면 프롬프트가 이슈 본문보다 잡담으로 채워진다.
+     */
+    private int maxJobComments = 20;
+
+    /**
+     * 작업 명세에 실어 보낼 자료(스크린샷·영상) 수 상한. 러너가 실제로 내려받는 양은
+     * 러너 쪽에서 한 번 더 줄인다 — 서버는 목록의 크기만 책임진다.
+     */
+    private int maxJobMaterials = 12;
+
+    /**
      * 이 시간이 지나도록 콜백이 없으면 회수한다. 이슈 1건에 10~40분이 걸리므로
      * 넉넉히 잡되, 무한정 두면 DISPATCHED 하나가 큐 전체를 영구히 막는다.
      */
@@ -58,4 +70,13 @@ public class AutofixProperties {
      * 러너 폴링 주기(기본 20초)보다 넉넉해야 잠깐의 네트워크 끊김이 "오프라인"으로 보이지 않는다.
      */
     private int runnerOnlineWindowMinutes = 3;
+
+    /**
+     * 러너가 이 시간 넘게 조용하면 슬랙으로 알린다.
+     *
+     * <p>화면 판정({@link #runnerOnlineWindowMinutes})보다 훨씬 길게 잡는다 — 도크의 점은
+     * 보고 있는 사람에게 지금을 말하는 값이라 예민해도 되지만, 알림은 사람을 부르는 행위라
+     * 맥 재부팅이나 네트워크 끊김 같은 자연 회복 구간에 울리면 다음부터 무시당한다.
+     */
+    private int runnerOfflineAlertMinutes = 20;
 }

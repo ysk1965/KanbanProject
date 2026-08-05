@@ -10,6 +10,9 @@ import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
+import com.kanban.domain.comment.Comment;
+import com.kanban.domain.comment.CommentAttachmentRepository;
+import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.contractor.entity.BoardContractor;
 import com.kanban.domain.integration.jira.*;
 import com.kanban.domain.integration.jira.dto.JiraAutofixResponse;
@@ -56,6 +59,24 @@ public class JiraAutofixTriageService {
     private static final int TITLE_CLIP = 200;
     private static final int DESC_CLIP = 1500;
 
+    /**
+     * 이슈당 프롬프트에 넣을 댓글 수와 길이.
+     *
+     * <p>최신 쪽을 남긴다 — 재현 절차는 앞에 있지만 "기획 의도였다", "재현 안 됨", "중복"처럼
+     * 판정을 뒤집는 말은 대개 뒤에 온다.
+     */
+    private static final int COMMENT_COUNT = 5;
+    private static final int COMMENT_CLIP = 300;
+
+    /**
+     * 실적을 프롬프트에 넣기 위한 최소 표본.
+     *
+     * <p>1~2건으로 만든 "성공률"은 노이즈이고, 모델은 그 숫자를 근거처럼 받아들인다.
+     * 근거가 없을 때는 아무 말도 하지 않는 편이 낫다.
+     */
+    private static final int OUTCOME_MIN_TOTAL = 5;
+    private static final int OUTCOME_MIN_PER_CATEGORY = 2;
+
     private static final String FEATURE_TYPE = "JIRA_AUTOFIX_TRIAGE";
 
     private final ClaudeAIProvider claudeAIProvider;
@@ -68,6 +89,8 @@ public class JiraAutofixTriageService {
     private final JiraAutofixTriageRepository triageRepository;
     private final AiUsageLogRepository aiUsageLogRepository;
     private final AiCreditService aiCreditService;
+    private final CommentRepository commentRepository;
+    private final CommentAttachmentRepository commentAttachmentRepository;
     /** 목록에 붙일 담당자·색을 위한 조회 전용 의존성. 판정 자체에는 쓰이지 않는다. */
     private final ChecklistItemRepository checklistItemRepository;
     private final BoardMemberRepository boardMemberRepository;
@@ -151,10 +174,20 @@ public class JiraAutofixTriageService {
             %s
 
             <verdict>
-            - CANDIDATE: 이슈 본문만으로 기대 동작이 확정되고, 위 검증 수단 중 하나를 바로 쓸 수 있다
-            - CONDITIONAL: 재현 절차나 기대 사양이 이슈에 추가되면 검증 가능해진다
+            - CANDIDATE: 본문과 댓글을 합쳐 기대 동작이 확정되고, 위 검증 수단 중 하나를 바로 쓸 수 있다
+            - CONDITIONAL: 재현 절차나 기대 사양이 아직 없고, 그것이 채워지면 검증 가능해진다
             - EXCLUDED: 시각 확인이나 기획 의도 판단이 필요해 자동 검증이 원리적으로 불가능하다
             </verdict>
+
+            <댓글>
+            댓글은 본문과 같은 무게로 읽는다. 본문에 없던 재현 절차나 확정된 사양이 댓글에
+            들어와 있으면 그 이슈는 이미 조건이 채워진 것이므로 CONDITIONAL이 아니라 CANDIDATE다
+            — "추가되면"의 그 추가가 댓글로 이미 일어난 상태다.
+
+            반대로 판정을 뒤집는 말도 대개 댓글에 있다. "재현 안 됨", "기획 의도였음", "다른
+            이슈와 중복", "이미 수정됨" 같은 결론이 달려 있으면 본문이 아무리 명확해도 EXCLUDED다.
+            가장 최근 댓글이 이슈의 현재 상태다.
+            </댓글>
 
             <category>
             TEXT(문구·오탈자·표현 혼용) / NULL_GUARD(널 체크 누락·예외) / CONSTANT(하드코딩 상수·밸런스)
@@ -170,6 +203,8 @@ public class JiraAutofixTriageService {
             - reason은 판정 근거 한 줄. 이슈 내용을 요약하지 말고 판정 이유를 쓴다
             - verification과 reason은 한국어로 쓴다
             </rules>
+
+            %s
             """;
 
     // ── 실행 ──────────────────────────────────────
@@ -234,7 +269,7 @@ public class JiraAutofixTriageService {
         TestInfraLevel testInfra = configRepository.findByBoardId(boardId)
                 .map(JiraIntegrationConfig::resolveAutofixTestInfra)
                 .orElse(TestInfraLevel.NONE);
-        String systemPrompt = buildSystemPrompt(testInfra);
+        String systemPrompt = buildSystemPrompt(testInfra, boardId);
 
         log.info("JIRA autofix triage: board={} scanned={} targets={} skipped={} scoped={} testInfra={}",
                 boardId, links.size(), targets.size(), skipped, scoped, testInfra);
@@ -265,10 +300,66 @@ public class JiraAutofixTriageService {
                 .build();
     }
 
-    /** 저장소 검증 기반 수준을 프롬프트에 박아 넣는다. */
-    private String buildSystemPrompt(TestInfraLevel level) {
+    /** 저장소 검증 기반 수준과 이 보드의 실적을 프롬프트에 박아 넣는다. */
+    private String buildSystemPrompt(TestInfraLevel level, String boardId) {
         return SYSTEM_PROMPT_TEMPLATE.formatted(
-                TEST_INFRA_PROMPT.getOrDefault(level, TEST_INFRA_PROMPT.get(TestInfraLevel.NONE)));
+                TEST_INFRA_PROMPT.getOrDefault(level, TEST_INFRA_PROMPT.get(TestInfraLevel.NONE)),
+                buildOutcomeBlock(boardId));
+    }
+
+    /**
+     * 이 보드에서 유형별로 실제 어떻게 끝났는지.
+     *
+     * <p>confidence가 지금까지는 순수한 감이었다. 판정이 맞았는지는 판정으로 알 수 없고 그 뒤에
+     * 벌어진 일로만 아는데, 그 결과가 다음 판정으로 돌아오지 않으니 같은 유형에서 같은 실수를
+     * 반복해도 교정될 길이 없었다.
+     *
+     * <p>표본이 얇으면 아무 말도 하지 않는다 — 2건 중 1건 성공을 "50%"라고 적어 주면 모델은
+     * 그것을 근거로 받아들인다. 없는 근거보다 나쁜 것이 가짜 근거다.
+     */
+    private String buildOutcomeBlock(String boardId) {
+        List<Object[]> rows = triageRepository.countOutcomesByCategory(boardId);
+
+        Map<AutofixCategory, int[]> tally = new EnumMap<>(AutofixCategory.class);
+        int total = 0;
+        for (Object[] row : rows) {
+            AutofixCategory category = (AutofixCategory) row[0];
+            AutofixJobStatus status = (AutofixJobStatus) row[1];
+            int count = ((Number) row[2]).intValue();
+            if (category == null || status == null) continue;
+
+            int[] slot = tally.computeIfAbsent(category, k -> new int[3]);
+            switch (status) {
+                case SUCCEEDED -> slot[0] += count;
+                case NO_CHANGE -> slot[1] += count;
+                case FAILED -> slot[2] += count;
+                default -> { }
+            }
+            total += count;
+        }
+
+        if (total < OUTCOME_MIN_TOTAL) return "";
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("<실적>\n");
+        sb.append("이 보드에서 실제로 자동수정을 태워 본 결과다. 유형별로 정말 통했는지를 보고\n");
+        sb.append("confidence를 조정하라. 아래에 없는 유형은 근거가 없다는 뜻이니 보수적으로 잡는다.\n");
+        boolean any = false;
+        for (Map.Entry<AutofixCategory, int[]> e : tally.entrySet()) {
+            int[] v = e.getValue();
+            int sum = v[0] + v[1] + v[2];
+            if (sum < OUTCOME_MIN_PER_CATEGORY) continue;
+            any = true;
+            sb.append("- ").append(e.getKey().name())
+              .append(": ").append(sum).append("건 중 PR ").append(v[0])
+              .append(" / 변경없음 ").append(v[1])
+              .append(" / 실패 ").append(v[2]).append('\n');
+        }
+        if (!any) return "";
+        sb.append("변경없음은 에이전트가 고칠 수 없다고 판단한 것이다 — 그 유형을 후보로 본 판정이\n");
+        sb.append("틀렸다는 신호이므로, 같은 유형이 또 오면 confidence를 낮춘다.\n");
+        sb.append("</실적>");
+        return sb.toString();
     }
 
     /** 배치 1건 판정 + 저장. 반환값은 실제로 반영된 건수. */
@@ -593,9 +684,56 @@ public class JiraAutofixTriageService {
             sb.append("본문: ")
               .append(description == null || description.isBlank()
                       ? "(없음)" : clip(description, DESC_CLIP))
-              .append("\n\n");
+              .append('\n');
+
+            appendComments(sb, task.getId());
+            appendMaterialNote(sb, task.getId());
+            sb.append('\n');
         }
         return sb.toString();
+    }
+
+    /** 댓글 — 오래된 순으로 보이되, 넘치면 최신 쪽을 남긴다. */
+    private void appendComments(StringBuilder sb, String taskId) {
+        List<Comment> all = commentRepository.findByTaskIdWithAuthor(taskId).stream()
+                .sorted(Comparator.comparing(Comment::getCreatedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+        if (all.isEmpty()) return;
+
+        List<Comment> shown = all.size() > COMMENT_COUNT
+                ? all.subList(all.size() - COMMENT_COUNT, all.size())
+                : all;
+
+        sb.append("댓글 ").append(all.size()).append("건");
+        if (shown.size() < all.size()) sb.append(" (최근 ").append(shown.size()).append("건만)");
+        sb.append(":\n");
+        for (Comment c : shown) {
+            sb.append("  - ")
+              .append(c.getAuthor() != null ? c.getAuthor().getName() : "?")
+              .append(": ")
+              .append(c.getContent() == null ? "" : clip(c.getContent(), COMMENT_CLIP))
+              .append('\n');
+        }
+    }
+
+    /**
+     * 스크린샷·영상은 <b>있다는 사실만</b> 알린다.
+     *
+     * <p>그림 자체를 넣으면 판정 정확도는 오르지만 이슈당 토큰이 몇 배가 된다. 반면 "재현
+     * 화면이 첨부돼 있다"는 사실 한 줄은 거의 공짜이면서, 수정 에이전트가 눈으로 확인할 수단을
+     * 쥐고 시작한다는 뜻이라 판정에 실제로 쓸모가 있다.
+     */
+    private void appendMaterialNote(StringBuilder sb, String taskId) {
+        long images = commentAttachmentRepository.findByTaskId(taskId).stream()
+                .filter(a -> a.getContentType() != null
+                        && (a.getContentType().startsWith("image/")
+                            || a.getContentType().startsWith("video/")))
+                .count();
+        if (images > 0) {
+            sb.append("첨부: 재현 화면 ").append(images)
+              .append("건 있음 (수정 담당 에이전트는 이 그림을 직접 본다)\n");
+        }
     }
 
     private AutofixVerdict parseVerdict(String value) {

@@ -65,7 +65,7 @@ export function VideoLightbox({ url, onClose }: VideoLightboxProps) {
       </button>
 
       <div
-        className="w-full max-w-[90vw] max-h-[90vh] plyr-bridge-theme"
+        className="plyr-bridge-theme flex items-center justify-center max-w-[90vw] max-h-[90vh]"
         style={{ touchAction: 'manipulation' }}
       >
         <Plyr source={plyrSource} options={plyrOptions} />

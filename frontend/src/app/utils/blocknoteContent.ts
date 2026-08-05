@@ -70,6 +70,100 @@ export function stripEmptyParagraphs(html: string): string {
   return doc.body.innerHTML;
 }
 
+// ── Pasted-image handling ───────────────────────────────────────────────────
+// External rich-text paste (Word / web / Notion / Google Docs) brings in <img>
+// tags whose src may be a relative reference ("image.png") with no loadable
+// bytes, a data: URI, or a blob: URL. Left untouched these become permanently
+// broken image blocks — and a bare relative src is turned by resolveFileUrl into
+// an unresolvable host (https://api.bridgespots.comimage.png → ERR_NAME_NOT_RESOLVED).
+// We rewrite them so only loadable images survive: recoverable bytes (data:/blob:)
+// are uploaded to our storage, absolute http(s) URLs are kept, everything else is
+// dropped.
+
+/** True if `html` contains any <img> we must rewrite (data:/blob:/relative/empty src). */
+export function needsImageRewrite(html: string): boolean {
+  if (!html || html.indexOf("<img") === -1) return false;
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return Array.from(doc.querySelectorAll("img")).some((img) => {
+    const src = img.getAttribute("src") || "";
+    if (!src) return true; // empty src → drop
+    if (src.startsWith("data:") || src.startsWith("blob:")) return true;
+    return !src.startsWith("http://") && !src.startsWith("https://");
+  });
+}
+
+/** Decode a `data:[mime][;base64],…` URI into a File. Returns null on any failure. */
+function dataUriToFile(dataUri: string, fallbackName: string): File | null {
+  try {
+    const match = /^data:([^;,]+)?(;base64)?,([\s\S]*)$/.exec(dataUri);
+    if (!match) return null;
+    const mime = match[1] || "image/png";
+    const isBase64 = !!match[2];
+    const data = match[3];
+    let bytes: Uint8Array;
+    if (isBase64) {
+      const bin = atob(data);
+      bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    } else {
+      bytes = new TextEncoder().encode(decodeURIComponent(data));
+    }
+    const ext = (mime.split("/")[1] || "png").split("+")[0];
+    return new File([bytes], `${fallbackName}.${ext}`, { type: mime });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Rewrite <img> tags in pasted HTML so the note keeps only loadable images.
+ *  - data: URI         → upload bytes via uploadFn, replace src with returned URL
+ *  - blob: URL         → fetch bytes, upload, replace (drop on failure)
+ *  - http(s) absolute  → keep as-is
+ *  - else (relative / bare / file: / empty) → remove the <img>
+ * Uploads run in parallel; a failed upload drops that one image rather than
+ * aborting the whole paste.
+ */
+export async function resolvePastedImages(
+  html: string,
+  uploadFn: (file: File) => Promise<string>,
+): Promise<string> {
+  if (!html) return html;
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const imgs = Array.from(doc.querySelectorAll("img"));
+
+  await Promise.all(
+    imgs.map(async (img, i) => {
+      const src = img.getAttribute("src") || "";
+      try {
+        if (src.startsWith("http://") || src.startsWith("https://")) {
+          return; // already loadable
+        }
+        let file: File | null = null;
+        if (src.startsWith("data:")) {
+          file = dataUriToFile(src, `pasted-${i}`);
+        } else if (src.startsWith("blob:")) {
+          const blob = await fetch(src).then((r) => r.blob());
+          const ext = (blob.type.split("/")[1] || "png").split("+")[0];
+          file = new File([blob], `pasted-${i}.${ext}`, {
+            type: blob.type || "image/png",
+          });
+        }
+        if (file) {
+          const url = await uploadFn(file);
+          img.setAttribute("src", url);
+          return;
+        }
+      } catch {
+        /* fall through to removal */
+      }
+      img.remove(); // unrecoverable (relative / bare / file: / failed upload)
+    }),
+  );
+
+  return doc.body.innerHTML;
+}
+
 // Plain-text paste goes through BlockNote's default handler, which turns every
 // line into a paragraph block — list markers ("- ", "* ", "• ", "1. ") are kept
 // as literal text. Detect those markers and build list HTML so pasted plain

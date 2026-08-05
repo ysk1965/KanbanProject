@@ -195,6 +195,29 @@ public class JiraIntegrationConfig {
     @Column(name = "autofix_runner_status", length = 500)
     private String autofixRunnerStatus;
 
+    /**
+     * 자동수정 결과를 게시할 슬랙 채널. 비어 있으면 슬랙 알림을 보내지 않는다.
+     *
+     * <p>주간보고서 발송 채널({@code report_delivery_channels})을 재사용하지 않는 이유: 보고서는
+     * 사람이 읽는 요약이고 자동수정 알림은 봇이 만든 작업 로그다. 같은 채널에 섞으면 둘 중 하나가
+     * 반드시 소음이 된다. 채널을 나눌 수 있어야 알림을 끄지 않고도 볼 것만 볼 수 있다.
+     */
+    @Column(name = "autofix_slack_channel_id", length = 40)
+    private String autofixSlackChannelId;
+
+    /** 화면 표기용 채널명. 슬랙에서 이름이 바뀌어도 게시는 ID로 하므로 표시만 낡을 뿐 깨지지 않는다. */
+    @Column(name = "autofix_slack_channel_name", length = 100)
+    private String autofixSlackChannelName;
+
+    /**
+     * 러너 사망을 마지막으로 알린 시각. 같은 오프라인 구간에 대해 두 번 알리지 않기 위한 표식이다.
+     *
+     * <p>{@code autofixRunnerSeenAt}보다 이르면 러너가 그 뒤에 한 번 살아 돌아왔다는 뜻이므로,
+     * 다시 죽으면 새 구간으로 보고 한 번 더 알린다. 별도의 "복구됨" 플래그가 필요 없는 이유다.
+     */
+    @Column(name = "autofix_runner_offline_alerted_at")
+    private LocalDateTime autofixRunnerOfflineAlertedAt;
+
     // ④ 진행상태
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -347,6 +370,21 @@ public class JiraIntegrationConfig {
         this.autofixTestInfra = level != null ? level : TestInfraLevel.NONE;
     }
 
+    /**
+     * 자동수정 알림 채널을 지정하거나 해제한다. 채널 ID가 비면 이름도 같이 지운다 —
+     * 채널명만 남으면 화면에는 설정된 것처럼 보이는데 실제로는 아무데도 안 나간다.
+     */
+    public void updateAutofixSlackChannel(String channelId, String channelName) {
+        if (channelId == null || channelId.isBlank()) {
+            this.autofixSlackChannelId = null;
+            this.autofixSlackChannelName = null;
+            return;
+        }
+        this.autofixSlackChannelId = channelId.length() > 40 ? channelId.substring(0, 40) : channelId;
+        this.autofixSlackChannelName = channelName == null || channelName.isBlank() ? null
+                : (channelName.length() > 100 ? channelName.substring(0, 100) : channelName);
+    }
+
     /** 기존 행은 컬럼이 null이라 방어한다. */
     public TestInfraLevel resolveAutofixTestInfra() {
         return this.autofixTestInfra != null ? this.autofixTestInfra : TestInfraLevel.NONE;
@@ -367,6 +405,16 @@ public class JiraIntegrationConfig {
         if (statusJson != null && statusJson.length() <= 500) {
             this.autofixRunnerStatus = statusJson;
         }
+    }
+
+    /**
+     * 러너 사망을 알렸다고 기록한다.
+     *
+     * <p>지우지 않고 덮어쓰기만 한다 — 러너가 살아 돌아오면 {@code seenAt}이 이 값을 앞지르므로
+     * 다음 사망은 자연히 새 구간이 된다. {@link #touchAutofixRunner}가 이 값을 건드릴 필요가 없다.
+     */
+    public void markRunnerOfflineAlerted() {
+        this.autofixRunnerOfflineAlertedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     public void markSynced() {

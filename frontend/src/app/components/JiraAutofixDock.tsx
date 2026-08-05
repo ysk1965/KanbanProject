@@ -26,6 +26,8 @@ import {
   JiraAutofixCategory,
   JiraAutofixTestInfra,
   JiraAutofixRunnerStatus,
+  slackAppAPI,
+  SlackChannel,
 } from "../utils/api";
 import { parseUTCDate, formatRelativeTime } from "../utils/dateUtils";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
@@ -436,6 +438,10 @@ export function JiraAutofixDock({
   const [notice, setNotice] = useState<string | null>(null);
   const [testInfra, setTestInfra] = useState<JiraAutofixTestInfra>("NONE");
 
+  /** 슬랙 채널 목록은 설정을 열고 고르려 할 때만 불러온다 — 도크 폴링마다 부를 값이 아니다. */
+  const [channels, setChannels] = useState<SlackChannel[] | null>(null);
+  const [showChannelPicker, setShowChannelPicker] = useState(false);
+
   const timerRef = useRef<number | null>(null);
 
   // 펼침 여부는 보드별로 기억한다 — 운영 중인 사람은 계속 열어둔다
@@ -625,6 +631,44 @@ export function JiraAutofixDock({
       setArmedRelease(null);
       setNotice("진행 중이던 작업을 회수했습니다. 다음 대기 건이 곧 나갑니다.");
       await Promise.all([load(), loadItems(verdict)]);
+    });
+
+  /**
+   * 채널 목록은 한 번 받아두고 다시 열 때는 재사용한다. 슬랙 워크스페이스 채널 수가 많으면
+   * 커서 페이징이 여러 번 도는데, 설정을 여닫을 때마다 그걸 반복할 이유가 없다.
+   */
+  const toggleChannelPicker = () => {
+    if (channels) {
+      setShowChannelPicker((v) => !v);
+      return;
+    }
+    return run("channels", async () => {
+      const all: SlackChannel[] = [];
+      let cursor: string | undefined;
+      do {
+        const data = await slackAppAPI.listChannels(boardId, cursor);
+        all.push(...data.channels);
+        cursor = data.next_cursor ?? undefined;
+      } while (cursor);
+      setChannels(all.filter((c) => !c.is_archived));
+      setShowChannelPicker(true);
+    });
+  };
+
+  const handleChannelSelect = (channel: SlackChannel | null) =>
+    run("channel", async () => {
+      await jiraAutofixAPI.updateSlackChannel(
+        boardId,
+        channel?.id ?? null,
+        channel?.name ?? null,
+      );
+      setShowChannelPicker(false);
+      setNotice(
+        channel
+          ? `결과를 #${channel.name}에 게시합니다. 그 채널에 MILKYWAY(봇)를 초대해야 실제로 나갑니다.`
+          : "전용 채널을 해제했습니다. 슬랙 기본 채널로 나갑니다.",
+      );
+      await load();
     });
 
   const handleInfraChange = (level: JiraAutofixTestInfra) => {
@@ -983,6 +1027,66 @@ export function JiraAutofixDock({
                       TEST_INFRA_OPTIONS.find((o) => o.value === testInfra)
                         ?.hint
                     }
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-foreground/[0.08]">
+                  <div className="text-xs text-slate-400 mb-1.5">
+                    {t("autofixDock.slackChannel", "결과 게시 채널")}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-foreground">
+                      {status.slack_channel_id
+                        ? `#${status.slack_channel_name ?? status.slack_channel_id}`
+                        : t("autofixDock.slackDefault", "슬랙 기본 채널")}
+                    </span>
+                    <button
+                      onClick={toggleChannelPicker}
+                      disabled={busy === "channels" || busy === "channel"}
+                      className="text-xs text-bridge-accent hover:underline disabled:opacity-50"
+                    >
+                      {busy === "channels" ? (
+                        <Loader2 className="w-3 h-3 animate-spin inline" />
+                      ) : (
+                        t("autofixDock.changeChannel", "변경")
+                      )}
+                    </button>
+                    {status.slack_channel_id && (
+                      <button
+                        onClick={() => handleChannelSelect(null)}
+                        disabled={busy === "channel"}
+                        className="text-xs text-slate-500 hover:text-foreground disabled:opacity-50"
+                      >
+                        {t("autofixDock.clearChannel", "해제")}
+                      </button>
+                    )}
+                  </div>
+                  {showChannelPicker && channels && (
+                    <div className="mt-1.5 max-h-40 overflow-y-auto custom-scrollbar rounded-lg border border-foreground/10">
+                      {channels.length === 0 ? (
+                        <div className="px-2 py-1.5 text-xs text-slate-500">
+                          채널을 찾지 못했습니다. 슬랙 연결을 확인하세요.
+                        </div>
+                      ) : (
+                        channels.map((c) => (
+                          <button
+                            key={c.id}
+                            onClick={() => handleChannelSelect(c)}
+                            disabled={busy === "channel"}
+                            className="w-full text-left px-2 py-1.5 text-xs text-slate-400 hover:bg-foreground/5 hover:text-foreground transition-colors disabled:opacity-50"
+                          >
+                            #{c.name}
+                            {c.is_private && (
+                              <span className="ml-1 text-slate-600">비공개</span>
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                  <div className="text-xs text-slate-500 leading-relaxed mt-1">
+                    {!status.slack_notify_enabled
+                      ? "서버에서 자동수정 슬랙 알림이 꺼져 있어 채널을 골라도 나가지 않습니다."
+                      : "PR 생성 · 변경 없음 · 실패 · 시간 초과 회수를 게시합니다. 취소는 보내지 않습니다."}
                   </div>
                 </div>
                 {!status.callback_token_set && (

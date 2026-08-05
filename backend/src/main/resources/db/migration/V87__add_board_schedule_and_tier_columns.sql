@@ -1,0 +1,9 @@
+-- V87: Add schedule settings and tier columns to boards
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS work_hours_per_day INTEGER DEFAULT 10;
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS work_start_time TIME DEFAULT '09:00';
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS schedule_display_mode VARCHAR(10) DEFAULT 'TIME';
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS break_start_time TIME;
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS break_end_time TIME;
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS selected_milestone_id VARCHAR(36);
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS tier VARCHAR(20) DEFAULT 'TRIAL';
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP;

@@ -74,6 +74,8 @@ import {
   unwrapListItemParagraphs,
   stripEmptyParagraphs,
   collapseInterBlockWhitespace,
+  resolvePastedImages,
+  needsImageRewrite,
   plainTextListToHtml,
 } from "../../utils/blocknoteContent";
 import DOMPurify from "dompurify";
@@ -430,6 +432,23 @@ function CollabNoteEditor({
     note.ai_content_snapshot,
   );
 
+  // Shared upload handler for both BlockNote's uploadFile config and the paste
+  // handler's image rewriting. Returns an absolute URL from the backend.
+  const uploadNoteFile = useCallback(
+    async (file: File): Promise<string> => {
+      const result = await fileAPI.uploadNote(
+        file,
+        personal
+          ? ({ personal: true } as const)
+          : boardId
+          ? { boardId }
+          : { organizationId: orgId! },
+      );
+      return result.url;
+    },
+    [boardId, orgId, personal],
+  );
+
   // Create BlockNote editor with Yjs collaboration
   const editor = useCreateBlockNote(
     {
@@ -448,17 +467,7 @@ function CollabNoteEditor({
           color: currentUserColor,
         },
       },
-      uploadFile: async (file: File) => {
-        const result = await fileAPI.uploadNote(
-          file,
-          personal
-            ? ({ personal: true } as const)
-            : boardId
-              ? { boardId }
-              : { organizationId: orgId! },
-        );
-        return result.url;
-      },
+      uploadFile: uploadNoteFile,
       tables: {
         cellBackgroundColor: true,
         cellTextColor: true,
@@ -532,8 +541,21 @@ function CollabNoteEditor({
           return defaultPasteHandler();
         }
         const cleaned = cleanHtml(html);
-        if (cleaned === html) return defaultPasteHandler();
-        e.pasteHTML(cleaned);
+        // Nothing to clean AND no images to rewrite → delegate to the default
+        // pipeline (avoids the blank-line regression e5f4628 fixed).
+        if (cleaned === html && !needsImageRewrite(cleaned)) {
+          return defaultPasteHandler();
+        }
+        // Rewrite <img> tags so only loadable images survive — data:/blob: get
+        // uploaded to our storage, absolute URLs are kept, dead relative refs
+        // (e.g. "image.png" from Word/web) are dropped. pasteHTML can be called
+        // after the async uploads resolve; return true now to claim the paste.
+        void (async () => {
+          const finalHtml = needsImageRewrite(cleaned)
+            ? await resolvePastedImages(cleaned, uploadNoteFile)
+            : cleaned;
+          e.pasteHTML(finalHtml);
+        })();
         return true;
       },
     } as any,

@@ -8,6 +8,7 @@ import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.Comment;
+import com.kanban.domain.comment.CommentAttachmentRepository;
 import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.integration.github.BoardGithubRepo;
 import com.kanban.domain.integration.github.BoardGithubRepoRepository;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.HashSet;
 import java.util.Map;
@@ -65,6 +67,7 @@ public class JiraAutofixQueueService {
     private final TaskRepository taskRepository;
     private final ChecklistItemRepository checklistItemRepository;
     private final CommentRepository commentRepository;
+    private final CommentAttachmentRepository commentAttachmentRepository;
     private final UserRepository userRepository;
     private final BoardGithubRepoRepository boardGithubRepoRepository;
     private final JiraApiClient jiraApiClient;
@@ -391,6 +394,8 @@ public class JiraAutofixQueueService {
                 .branch(defaultIfBlank(job.getBranchName(), "autofix/" + job.getJobKey()))
                 .timeoutMinutes(Math.min(properties.getRunnerTimeoutMinutes(),
                         properties.getDispatchTimeoutMinutes()))
+                .comments(collectComments(job.getTaskId()))
+                .materials(collectMaterials(job.getTaskId()))
                 .build();
     }
 
@@ -473,6 +478,59 @@ public class JiraAutofixQueueService {
         return sb.toString();
     }
 
+    /**
+     * 이슈 댓글 — 오래된 것부터 상한까지.
+     *
+     * <p>최신순이 아니라 오래된 순인 이유: 재현 절차는 시간 순서대로 읽어야 말이 된다.
+     * 상한을 넘으면 뒤(최신)를 남긴다 — 뒤로 갈수록 확정된 정보다.
+     */
+    private List<JiraAutofixResponse.IssueComment> collectComments(String taskId) {
+        if (taskId == null) return List.of();
+
+        List<Comment> comments = commentRepository.findByTaskIdWithAuthor(taskId);
+        if (comments.isEmpty()) return List.of();
+
+        List<Comment> ordered = comments.stream()
+                .sorted(Comparator.comparing(Comment::getCreatedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+
+        int cap = properties.getMaxJobComments();
+        List<Comment> capped = ordered.size() > cap
+                ? ordered.subList(ordered.size() - cap, ordered.size())
+                : ordered;
+
+        return capped.stream()
+                .map(c -> JiraAutofixResponse.IssueComment.builder()
+                        .author(c.getAuthor() != null ? c.getAuthor().getName() : "알 수 없음")
+                        .createdAt(c.getCreatedAt() != null ? c.getCreatedAt().toString() : "")
+                        .body(clip(nullToEmpty(c.getContent()), 2000))
+                        .build())
+                .toList();
+    }
+
+    /**
+     * 스크린샷·영상 목록.
+     *
+     * <p>지라 첨부는 import 시점에 이미 내려받아 S3에 올라가 있다({@code importAttachmentAsComment}).
+     * 그래서 여기서 지라를 다시 부르지 않는다 — 부르면 claim마다 API를 때리고, 지라 자격증명이
+     * 러너까지 내려가야 하는 설계로 밀린다.
+     */
+    private List<JiraAutofixResponse.Material> collectMaterials(String taskId) {
+        if (taskId == null) return List.of();
+
+        return commentAttachmentRepository.findByTaskId(taskId).stream()
+                .filter(a -> a.getUrl() != null && !a.getUrl().isBlank())
+                .limit(properties.getMaxJobMaterials())
+                .map(a -> JiraAutofixResponse.Material.builder()
+                        .filename(nullToEmpty(a.getOriginalFileName()))
+                        .mimeType(nullToEmpty(a.getContentType()))
+                        .size(a.getFileSize())
+                        .url(a.getUrl())
+                        .build())
+                .toList();
+    }
+
     // ── 콜백 ──────────────────────────────────────
 
     /** 러너 콜백 토큰 검증. JIRA 웹훅 토큰과 별개다 — 하나를 회전해도 다른 쪽이 죽지 않아야 한다. */
@@ -505,12 +563,21 @@ public class JiraAutofixQueueService {
                 ? clip(defaultIfBlank(text(payload, "failure_reason"), "러너가 실패를 보고했습니다"), 1000)
                 : null;
 
-        boolean applied = job.complete(result, prUrl, failureReason,
-                blankToNull(clip(text(payload, "log_excerpt"), MAX_LOG_EXCERPT)));
+        String excerpt = blankToNull(clip(text(payload, "log_excerpt"), MAX_LOG_EXCERPT));
+        boolean corrected = job.getStatus() == AutofixJobStatus.TIMED_OUT;
+
+        boolean applied = corrected
+                ? job.reconcileAfterTimeout(result, prUrl, failureReason, excerpt)
+                : job.complete(result, prUrl, failureReason, excerpt);
         if (!applied) return;
 
-        log.info("Autofix result: board={} job={} result={} pr={}",
-                boardId, job.getJobKey(), result, prUrl);
+        if (corrected) {
+            log.warn("Autofix late callback: board={} job={} TIMED_OUT → {} pr={}",
+                    boardId, job.getJobKey(), result, prUrl);
+        } else {
+            log.info("Autofix result: board={} job={} result={} pr={}",
+                    boardId, job.getJobKey(), result, prUrl);
+        }
 
         // 출처에 따라 결과가 돌아가는 자리가 다르다. MANUAL은 JIRA 이슈가 아예 없다.
         if (job.getJobKind().isManual()) {
@@ -518,11 +585,15 @@ public class JiraAutofixQueueService {
         } else {
             postJiraComment(boardId, job, result);
         }
-        notifySlack(job);
+        notifySlack(job, corrected);
     }
 
     /**
-     * 진행 중인 작업만 찾는다. 없으면 타임아웃 회수됐거나 중복 콜백이다 — 오류가 아니다.
+     * 회신을 반영할 작업을 찾는다.
+     *
+     * <p>{@code DISPATCHED}가 정상 경로이고, {@code TIMED_OUT}은 회수된 뒤 늦게 도착한 회신이다 —
+     * 러너가 회신에 실패하면 스풀에 쌓았다가 다시 보내므로 서버가 먼저 회수한 뒤에 올 수 있다.
+     * 그 늦은 회신을 버리면 실제로는 PR이 열렸는데 보드는 실패라고 말하는 상태가 굳는다.
      *
      * <p>{@code issue_key}도 계속 받아준다. 구버전 러너가 붙어 있을 수 있고, 사람이 손으로 한 건을
      * 돌려볼 때 job id 없이 회신하는 경로도 그대로다.
@@ -535,10 +606,12 @@ public class JiraAutofixQueueService {
         JiraAutofixJob job = jobId != null
                 ? jobRepository.findById(jobId)
                         .filter(j -> j.getBoard().getId().equals(boardId))
-                        .filter(j -> j.getStatus() == AutofixJobStatus.DISPATCHED)
+                        .filter(j -> j.getStatus() == AutofixJobStatus.DISPATCHED
+                                || j.getStatus() == AutofixJobStatus.TIMED_OUT)
                         .orElse(null)
                 : jobKey != null
-                        ? jobRepository.findDispatchedByJobKey(boardId, jobKey).orElse(null)
+                        ? jobRepository.findCallbackTargetsByJobKey(boardId, jobKey)
+                                .stream().findFirst().orElse(null)
                         : null;
 
         if (job == null) {
@@ -635,24 +708,66 @@ public class JiraAutofixQueueService {
      * 않아야 나중에 비동기로 빼도 그대로 동작한다.
      */
     private void notifySlack(JiraAutofixJob job) {
+        notifySlack(job, false);
+    }
+
+    /** @param corrected 회수 뒤 늦은 회신으로 결과가 뒤집힌 경우. 채널에 앞선 메시지가 이미 있다. */
+    private void notifySlack(JiraAutofixJob job, boolean corrected) {
         if (!properties.isSlackNotifyEnabled()) return;
 
         String boardId = job.getBoard().getId();
         String title = job.getTaskId() != null
                 ? taskRepository.findById(job.getTaskId()).map(Task::getTitle).orElse(null)
                 : null;
-        String jiraBaseUrl = configRepository.findByBoardId(boardId)
-                .map(JiraIntegrationConfig::getBaseUrl)
-                .orElse(null);
+        JiraIntegrationConfig config = configRepository.findByBoardId(boardId).orElse(null);
+        String jiraBaseUrl = config != null ? config.getBaseUrl() : null;
 
-        slackPublisher.publish(job.getBoard(), job, title, jiraBaseUrl);
+        slackPublisher.publish(job.getBoard(), job, title, jiraBaseUrl,
+                config != null ? config.getAutofixSlackChannelId() : null, corrected);
     }
 
     // ── 회수 ──────────────────────────────────────
 
     /**
+     * 소식이 끊긴 러너를 슬랙으로 알린다.
+     *
+     * <p>이게 없으면 러너의 죽음은 아무 신호도 내지 않는다 — {@code autofixRunnerSeenAt}을 읽는
+     * 곳이 화면 조회 하나뿐이라 도크를 열어본 사람만 알고, 그때까지 파이프라인은 그냥 꺼져 있다.
+     * {@link #sweepStaleDispatches}가 알리는 것은 <b>물고 있던 작업</b>이지 러너 자체가 아니므로,
+     * 큐가 빈 채로 러너가 죽으면 그쪽은 영원히 조용하다.
+     *
+     * <p><b>대기 중인 작업이 있을 때만 알린다.</b> 시킬 일이 없는데 러너가 꺼져 있는 것은 사고가
+     * 아니라 상태다. 손해가 없는 시점에 사람을 부르면 정작 필요할 때 무시당한다.
+     */
+    @Transactional
+    public int alertOfflineRunners() {
+        LocalDateTime deadline = LocalDateTime.now(ZoneOffset.UTC)
+                .minusMinutes(properties.getRunnerOfflineAlertMinutes());
+
+        int alerted = 0;
+        for (JiraIntegrationConfig config : configRepository.findRunnersGoneSilent(deadline)) {
+            String boardId = config.getBoard().getId();
+            long queued = jobRepository.countQueued(boardId);
+            if (queued == 0) continue;
+
+            config.markRunnerOfflineAlerted();
+            alerted++;
+            log.warn("Autofix: 러너 무응답 board={} runner={} seen={} queued={}",
+                    boardId, config.getAutofixRunnerName(), config.getAutofixRunnerSeenAt(), queued);
+
+            if (!properties.isSlackNotifyEnabled()) continue;
+            slackPublisher.publishRunnerOffline(config.getBoard(), config.getAutofixRunnerName(),
+                    config.getAutofixRunnerSeenAt(), (int) queued, config.getAutofixSlackChannelId());
+        }
+        return alerted;
+    }
+
+    /**
      * 회신이 끝내 오지 않은 작업을 회수한다. 맥이 죽거나 잠들거나 네트워크가 끊기면 발생하며,
      * 이게 없으면 DISPATCHED 하나가 그 보드의 큐를 영구히 막는다.
+     *
+     * <p>회수는 <b>추정</b>이다. 러너가 살아서 PR까지 만들고 회신만 유실했을 수 있으므로,
+     * 늦게 도착한 회신은 {@link JiraAutofixJob#reconcileAfterTimeout}로 이 판정을 뒤집는다.
      *
      * @return 회수한 건수
      */
@@ -740,7 +855,22 @@ public class JiraAutofixQueueService {
                 .minConfidence(properties.getMinConfidence())
                 .eligibleCandidates(eligible)
                 .totalCandidates(candidates.size())
+                .slackChannelId(config != null ? config.getAutofixSlackChannelId() : null)
+                .slackChannelName(config != null ? config.getAutofixSlackChannelName() : null)
+                .slackNotifyEnabled(properties.isSlackNotifyEnabled())
                 .build();
+    }
+
+    /**
+     * 결과를 게시할 슬랙 채널을 지정하거나 해제한다. 채널 ID를 비우면 해제이고, 그때는 설치
+     * 기본 채널로 떨어진다 — 알림을 완전히 끄는 스위치가 아니다.
+     */
+    @Transactional
+    public void updateSlackChannel(String boardId, String userId, String channelId, String channelName) {
+        boardService.checkAdminOrAbove(boardId, userId);
+        JiraIntegrationConfig config = configRepository.findByBoardId(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
+        config.updateAutofixSlackChannel(channelId, channelName);
     }
 
     @Transactional(readOnly = true)

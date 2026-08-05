@@ -141,6 +141,20 @@ public class JiraAutofixController {
         return ResponseEntity.ok(Map.of("test_infra", level));
     }
 
+    /**
+     * 결과를 게시할 슬랙 채널 지정. {@code slack_channel_id}가 비면 해제되고 설치 기본 채널로
+     * 떨어진다 — 알림을 끄는 스위치가 아니다.
+     */
+    @PutMapping("/api/v1/boards/{boardId}/jira/autofix/slack-channel")
+    public ResponseEntity<Void> updateSlackChannel(
+            @PathVariable String boardId,
+            @RequestBody Map<String, String> request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        queueService.updateSlackChannel(boardId, principal.getUserId(),
+                request.get("slack_channel_id"), request.get("slack_channel_name"));
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/api/v1/boards/{boardId}/jira/autofix/test-infra")
     public ResponseEntity<Map<String, String>> getTestInfra(
             @PathVariable String boardId,

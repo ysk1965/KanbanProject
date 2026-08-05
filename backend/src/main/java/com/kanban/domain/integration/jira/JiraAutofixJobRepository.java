@@ -8,7 +8,6 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 public interface JiraAutofixJobRepository extends JpaRepository<JiraAutofixJob, String> {
 
@@ -85,11 +84,20 @@ public interface JiraAutofixJobRepository extends JpaRepository<JiraAutofixJob, 
     @Query("SELECT j FROM JiraAutofixJob j WHERE j.status = 'DISPATCHED' AND j.dispatchedAt < :deadline")
     List<JiraAutofixJob> findStaleDispatched(@Param("deadline") LocalDateTime deadline);
 
-    /** 콜백 매칭 폴백 — job id 없이 작업 키만으로 회신하는 수동 실행 경로가 있다. */
+    /**
+     * 콜백 매칭 폴백 — job id 없이 작업 키만으로 회신하는 수동 실행 경로가 있다.
+     *
+     * <p>{@code TIMED_OUT}까지 받는 이유: 러너가 회신에 실패하면 스풀에 쌓아 두었다가 나중에
+     * 다시 보내는데, 그 사이 서버가 먼저 회수했을 수 있다. 그 늦은 회신이야말로 잘못된
+     * {@code TIMED_OUT}을 바로잡을 유일한 정보다.
+     *
+     * <p>대상당 활성 작업은 하나뿐이므로(중복 큐잉 가드) 두 건이 걸릴 일은 없지만, 순서를 못 박아
+     * 두면 나중에 가드가 느슨해져도 최신 건이 잡힌다.
+     */
     @Query("SELECT j FROM JiraAutofixJob j WHERE j.board.id = :boardId AND j.jobKey = :key "
-        + "AND j.status = 'DISPATCHED'")
-    Optional<JiraAutofixJob> findDispatchedByJobKey(@Param("boardId") String boardId,
-                                                    @Param("key") String key);
+        + "AND j.status IN ('DISPATCHED', 'TIMED_OUT') ORDER BY j.dispatchedAt DESC")
+    List<JiraAutofixJob> findCallbackTargetsByJobKey(@Param("boardId") String boardId,
+                                                     @Param("key") String key);
 
     @Modifying
     @Query("DELETE FROM JiraAutofixJob j WHERE j.board.id = :boardId")

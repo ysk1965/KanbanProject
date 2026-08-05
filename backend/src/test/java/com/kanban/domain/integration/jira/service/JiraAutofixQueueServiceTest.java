@@ -7,6 +7,8 @@ import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.Comment;
+import com.kanban.domain.comment.CommentAttachment;
+import com.kanban.domain.comment.CommentAttachmentRepository;
 import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.integration.github.BoardGithubRepo;
 import com.kanban.domain.integration.github.BoardGithubRepoRepository;
@@ -17,6 +19,7 @@ import com.kanban.domain.integration.jira.dto.JiraAutofixRequest;
 import com.kanban.domain.integration.jira.dto.JiraAutofixResponse;
 import com.kanban.domain.task.QaState;
 import com.kanban.domain.task.Task;
+import com.kanban.domain.user.User;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
@@ -66,6 +69,7 @@ class JiraAutofixQueueServiceTest {
     private BoardGithubRepoRepository boardGithubRepoRepository;
     private JiraApiClient jiraApiClient;
     private JiraOAuthService oauthService;
+    private CommentAttachmentRepository commentAttachmentRepository;
     private JiraAutofixSlackPublisher slackPublisher;
     private JiraAutofixQueueService service;
 
@@ -86,12 +90,14 @@ class JiraAutofixQueueServiceTest {
         boardGithubRepoRepository = mock(BoardGithubRepoRepository.class);
         jiraApiClient = mock(JiraApiClient.class);
         oauthService = mock(JiraOAuthService.class);
+        commentAttachmentRepository = mock(CommentAttachmentRepository.class);
         slackPublisher = mock(JiraAutofixSlackPublisher.class);
 
         service = new JiraAutofixQueueService(
                 properties, new ObjectMapper(), boardRepository, boardService,
                 triageRepository, jobRepository, configRepository, taskRepository,
-                checklistItemRepository, commentRepository, userRepository,
+                checklistItemRepository, commentRepository, commentAttachmentRepository,
+                userRepository,
                 boardGithubRepoRepository, jiraApiClient, oauthService, slackPublisher);
 
         board = mock(Board.class);
@@ -103,6 +109,8 @@ class JiraAutofixQueueServiceTest {
                 .thenAnswer(inv -> new ArrayList<>(inv.getArgument(0, Collection.class)));
         lenient().when(triageRepository.findByBoardIdAndJiraIssueKey(any(), any()))
                 .thenReturn(Optional.empty());
+        lenient().when(commentRepository.findByTaskIdWithAuthor(any())).thenReturn(List.of());
+        lenient().when(commentAttachmentRepository.findByTaskId(any())).thenReturn(List.of());
     }
 
     // ── 픽스처 ────────────────────────────────────
@@ -487,7 +495,7 @@ class JiraAutofixQueueServiceTest {
     private JiraAutofixJob dispatchedJob(String key) {
         JiraAutofixJob job = queuedJob(key);
         job.markClaimed("mac-01");
-        when(jobRepository.findDispatchedByJobKey(BOARD_ID, key)).thenReturn(Optional.of(job));
+        when(jobRepository.findCallbackTargetsByJobKey(BOARD_ID, key)).thenReturn(List.of(job));
         return job;
     }
 
@@ -571,7 +579,7 @@ class JiraAutofixQueueServiceTest {
                 """));
 
         assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.SUCCEEDED);
-        verify(jobRepository, never()).findDispatchedByJobKey(any(), any());
+        verify(jobRepository, never()).findCallbackTargetsByJobKey(any(), any());
     }
 
     @Test
@@ -605,7 +613,7 @@ class JiraAutofixQueueServiceTest {
     @DisplayName("식별자 없는 회신은 조용히 무시한다")
     void callbackWithoutIdentifiers() throws Exception {
         service.handleCallback(BOARD_ID, payload("{\"result\":\"pr\"}"));
-        verify(jobRepository, never()).findDispatchedByJobKey(any(), any());
+        verify(jobRepository, never()).findCallbackTargetsByJobKey(any(), any());
         verify(jobRepository, never()).findById(any());
     }
 
@@ -873,7 +881,25 @@ class JiraAutofixQueueServiceTest {
                 {"job_key":"QASA-92","result":"pr","pr_url":"https://github.com/o/r/pull/1"}
                 """));
 
-        verify(slackPublisher).publish(board, job, "[문구] 프리셋 이름 오탈자", "https://acme.atlassian.net");
+        verify(slackPublisher).publish(board, job, "[문구] 프리셋 이름 오탈자",
+                "https://acme.atlassian.net", null, false);
+    }
+
+    @Test
+    @DisplayName("전용 채널을 지정했으면 그 채널로 넘긴다 — 기본 채널로 새지 않아야 한다")
+    void notifiesSlackToConfiguredChannel() throws Exception {
+        JiraAutofixJob job = dispatchedJob("QASA-93");
+        JiraIntegrationConfig config = JiraIntegrationConfig.builder()
+                .board(board).baseUrl("https://acme.atlassian.net").build();
+        config.updateAutofixSlackChannel("C0AUTOFIX", "qa-autofix");
+        when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(config));
+
+        service.handleCallback(BOARD_ID, payload("""
+                {"issue_key":"QASA-93","result":"no_change"}
+                """));
+
+        verify(slackPublisher).publish(eq(board), eq(job), any(),
+                eq("https://acme.atlassian.net"), eq("C0AUTOFIX"), eq(false));
     }
 
     @Test
@@ -885,7 +911,7 @@ class JiraAutofixQueueServiceTest {
 
         service.sweepStaleDispatches();
 
-        verify(slackPublisher).publish(eq(board), eq(stale), any(), any());
+        verify(slackPublisher).publish(eq(board), eq(stale), any(), any(), any(), eq(false));
     }
 
     @Test
@@ -899,6 +925,100 @@ class JiraAutofixQueueServiceTest {
                 """));
 
         verifyNoInteractions(slackPublisher);
+    }
+
+    // ── 늦은 회신 (회수 정정) ───────────────────────
+
+    @Test
+    @DisplayName("회수된 뒤 도착한 회신이 결과를 바로잡는다 — TIMED_OUT은 추정이지 사실이 아니다")
+    void lateCallbackCorrectsTimedOut() throws Exception {
+        JiraAutofixJob job = queuedJob("QASA-95");
+        job.markClaimed("mac-01");
+        job.markTimedOut();
+        when(jobRepository.findById("job-95")).thenReturn(Optional.of(job));
+
+        service.handleCallback(BOARD_ID, payload("""
+                {"job_id":"job-95","result":"pr","pr_url":"https://github.com/o/r/pull/9"}
+                """));
+
+        assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.SUCCEEDED);
+        assertThat(job.getPrUrl()).isEqualTo("https://github.com/o/r/pull/9");
+        // 채널에 이미 "시간 초과 회수"가 올라가 있으므로 정정임을 밝혀야 한다
+        verify(slackPublisher).publish(eq(board), eq(job), any(), any(), any(), eq(true));
+    }
+
+    @Test
+    @DisplayName("사람이 취소한 건은 늦은 회신으로 되살아나지 않는다")
+    void lateCallbackDoesNotRevivedCancelled() throws Exception {
+        JiraAutofixJob job = queuedJob("QASA-96");
+        job.markClaimed("mac-01");
+        job.complete(AutofixJobStatus.CANCELLED, null, null, null);
+        when(jobRepository.findById("job-96")).thenReturn(Optional.of(job));
+
+        service.handleCallback(BOARD_ID, payload("""
+                {"job_id":"job-96","result":"pr","pr_url":"https://github.com/o/r/pull/9"}
+                """));
+
+        assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.CANCELLED);
+        verifyNoInteractions(slackPublisher);
+    }
+
+    @Test
+    @DisplayName("확정된 결과는 늦은 회신으로 뒤집히지 않는다 — 정정 대상은 TIMED_OUT 하나뿐")
+    void lateCallbackDoesNotOverwriteSettledResult() throws Exception {
+        JiraAutofixJob job = queuedJob("QASA-97");
+        job.markClaimed("mac-01");
+        job.complete(AutofixJobStatus.NO_CHANGE, null, null, null);
+
+        assertThat(job.reconcileAfterTimeout(AutofixJobStatus.SUCCEEDED, "https://x/1", null, null))
+                .isFalse();
+        assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.NO_CHANGE);
+    }
+
+    // ── 러너 무응답 알림 ────────────────────────────
+
+    private JiraIntegrationConfig silentRunnerConfig(int minutesAgo) {
+        JiraIntegrationConfig config = JiraIntegrationConfig.builder().board(board).build();
+        config.touchAutofixRunner("mac-01", null);
+        // seenAt은 touch가 현재 시각으로 넣으므로, 과거로 보이도록 조회 자체를 스텁한다
+        when(configRepository.findRunnersGoneSilent(any())).thenReturn(List.of(config));
+        return config;
+    }
+
+    @Test
+    @DisplayName("러너가 조용하고 대기 건이 있으면 알린다 — 이게 없으면 죽은 러너는 아무 신호도 내지 않는다")
+    void alertsWhenRunnerGoesSilentWithWork() {
+        JiraIntegrationConfig config = silentRunnerConfig(30);
+        when(jobRepository.countQueued(BOARD_ID)).thenReturn(3L);
+
+        assertThat(service.alertOfflineRunners()).isEqualTo(1);
+
+        verify(slackPublisher).publishRunnerOffline(eq(board), eq("mac-01"), any(), eq(3), any());
+        assertThat(config.getAutofixRunnerOfflineAlertedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("시킬 일이 없으면 알리지 않는다 — 손해 없는 시점에 부르면 정작 필요할 때 무시당한다")
+    void doesNotAlertWhenQueueIsEmpty() {
+        silentRunnerConfig(30);
+        when(jobRepository.countQueued(BOARD_ID)).thenReturn(0L);
+
+        assertThat(service.alertOfflineRunners()).isZero();
+
+        verifyNoInteractions(slackPublisher);
+    }
+
+    @Test
+    @DisplayName("알림을 껐으면 표식만 남기고 게시하지 않는다")
+    void marksButDoesNotPostWhenSlackDisabled() {
+        properties.setSlackNotifyEnabled(false);
+        JiraIntegrationConfig config = silentRunnerConfig(30);
+        when(jobRepository.countQueued(BOARD_ID)).thenReturn(2L);
+
+        assertThat(service.alertOfflineRunners()).isEqualTo(1);
+
+        verifyNoInteractions(slackPublisher);
+        assertThat(config.getAutofixRunnerOfflineAlertedAt()).isNotNull();
     }
 
     // ── 취소 ──────────────────────────────────────
@@ -970,5 +1090,81 @@ class JiraAutofixQueueServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.JIRA_AUTOFIX_JOB_NOT_FOUND);
+    }
+
+    // ── 자료 전달 (스크린샷·댓글) ────────────────────
+
+    private Comment commentAt(String author, String body, int minute) {
+        User user = mock(User.class);
+        lenient().when(user.getName()).thenReturn(author);
+        Comment c = mock(Comment.class);
+        lenient().when(c.getAuthor()).thenReturn(user);
+        lenient().when(c.getContent()).thenReturn(body);
+        lenient().when(c.getCreatedAt()).thenReturn(LocalDateTime.of(2026, 8, 5, 10, minute));
+        return c;
+    }
+
+    private CommentAttachment material(String name, String mime, String url) {
+        CommentAttachment a = mock(CommentAttachment.class);
+        lenient().when(a.getOriginalFileName()).thenReturn(name);
+        lenient().when(a.getContentType()).thenReturn(mime);
+        lenient().when(a.getUrl()).thenReturn(url);
+        lenient().when(a.getFileSize()).thenReturn(1024L);
+        return a;
+    }
+
+    @Test
+    @DisplayName("댓글과 스크린샷이 작업 명세에 함께 실린다 — 제목·본문만으로는 절반만 보고 판단하게 된다")
+    void handsOverCommentsAndMaterials() {
+        properties.setDispatchEnabled(true);
+        givenNextQueued(queuedJob("QASA-92"));
+        List<Comment> comments = List.of(commentAt("QA", "3층에서만 재현됩니다", 10));
+        List<CommentAttachment> materials = List.of(material("bug.png", "image/png", "https://cdn/bug.png"));
+        when(commentRepository.findByTaskIdWithAuthor("task-QASA-92")).thenReturn(comments);
+        when(commentAttachmentRepository.findByTaskId("task-QASA-92")).thenReturn(materials);
+
+        JiraAutofixResponse.RunnerJob handed = service.claim(BOARD_ID, "mac-01", null).getJob();
+
+        assertThat(handed.getComments()).hasSize(1);
+        assertThat(handed.getComments().get(0).getAuthor()).isEqualTo("QA");
+        assertThat(handed.getComments().get(0).getBody()).isEqualTo("3층에서만 재현됩니다");
+        assertThat(handed.getMaterials()).hasSize(1);
+        assertThat(handed.getMaterials().get(0).getUrl()).isEqualTo("https://cdn/bug.png");
+        assertThat(handed.getMaterials().get(0).getMimeType()).isEqualTo("image/png");
+    }
+
+    @Test
+    @DisplayName("댓글은 오래된 순으로 나가고, 상한을 넘으면 최신 쪽을 남긴다 — 재현 절차는 순서가 의미다")
+    void ordersCommentsOldestFirstAndKeepsLatestWhenCapped() {
+        properties.setDispatchEnabled(true);
+        properties.setMaxJobComments(2);
+        givenNextQueued(queuedJob("QASA-92"));
+        // 일부러 뒤섞어 넣는다 — 저장소 반환 순서에 기대지 않는다는 것을 보이기 위해
+        List<Comment> shuffled = List.of(
+                commentAt("C", "셋째", 30),
+                commentAt("A", "첫째", 10),
+                commentAt("B", "둘째", 20));
+        when(commentRepository.findByTaskIdWithAuthor("task-QASA-92")).thenReturn(shuffled);
+
+        JiraAutofixResponse.RunnerJob handed = service.claim(BOARD_ID, "mac-01", null).getJob();
+
+        assertThat(handed.getComments()).extracting(c -> c.getBody())
+                .containsExactly("둘째", "셋째");
+    }
+
+    @Test
+    @DisplayName("URL 없는 첨부는 넘기지 않는다 — 러너가 받을 수 없는 항목은 목록만 늘린다")
+    void skipsMaterialsWithoutUrl() {
+        properties.setDispatchEnabled(true);
+        givenNextQueued(queuedJob("QASA-92"));
+        List<CommentAttachment> mixed = List.of(
+                material("ok.png", "image/png", "https://cdn/ok.png"),
+                material("broken.png", "image/png", null),
+                material("blank.png", "image/png", "  "));
+        when(commentAttachmentRepository.findByTaskId("task-QASA-92")).thenReturn(mixed);
+
+        JiraAutofixResponse.RunnerJob handed = service.claim(BOARD_ID, "mac-01", null).getJob();
+
+        assertThat(handed.getMaterials()).extracting(m -> m.getFilename()).containsExactly("ok.png");
     }
 }

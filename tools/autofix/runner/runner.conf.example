@@ -38,5 +38,9 @@ POLL_SECONDS=20
 # 로그 보관 위치
 LOG_DIR=/Users/you/bridge-autofix/logs
 
+# 회신하지 못한 결과를 쌓아 두는 곳. 폴링 루프가 매 주기 재전송하고 성공하면 지운다.
+# 비워 두면 이 경로를 쓴다. 이 디렉터리에 파일이 계속 남아 있으면 BRIDGE에 못 닿고 있는 것이다.
+SPOOL_DIR=/Users/you/bridge-autofix/spool
+
 # Claude Code 헤드리스 실행용 키
 ANTHROPIC_API_KEY=
