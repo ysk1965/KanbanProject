@@ -33,6 +33,11 @@ interface JiraAutofixDockProps {
   boardId: string;
   /** JIRA 연동 보드에서만 렌더한다. 쓸 수 없는 기능이 화면 하단을 차지하지 않게. */
   enabled: boolean;
+  /**
+   * 이슈 키를 눌렀을 때 원본 태스크 상세를 연다. 없으면 키는 그냥 텍스트로 남는다.
+   * 도크에 뜨는 건 판정 근거 한 줄뿐이라, 이게 왜 후보인지 보려면 결국 카드를 봐야 한다.
+   */
+  onOpenTask?: (taskId: string) => void;
 }
 
 const POLL_INTERVAL_MS = 10_000;
@@ -42,7 +47,7 @@ const POLL_INTERVAL_MS = 10_000;
  */
 const STALE_HINT_MINUTES = 30;
 /** 펼침 높이. 드래그 리사이즈는 넣지 않는다 — 담을 내용이 그만큼 가변적이지 않다. */
-const DOCK_HEIGHT = "min(40vh, 420px)";
+const DOCK_HEIGHT = "min(75vh, 800px)";
 
 /**
  * NO_CHANGE에 실패색을 쓰지 않는다 — 테스트 없는 저장소에서는 이게 다수가 되는데,
@@ -190,7 +195,11 @@ function runnerProblems(
  *
  * <p>z-30을 쓴다 — 뷰 전환 버튼과 모바일 내비(z-40)가 계속 위에 떠야 한다.
  */
-export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
+export function JiraAutofixDock({
+  boardId,
+  enabled,
+  onOpenTask,
+}: JiraAutofixDockProps) {
   const { t } = useTranslation();
 
   const [status, setStatus] = useState<JiraAutofixQueueStatus | null>(null);
@@ -862,9 +871,11 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
                             )}
                             <div className="min-w-0 flex-1 space-y-0.5">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-xs font-bold text-bridge-accent">
-                                  {item.jira_issue_key}
-                                </span>
+                                <IssueKey
+                                  issueKey={item.jira_issue_key}
+                                  taskId={item.task_id}
+                                  onOpenTask={onOpenTask}
+                                />
                                 <span className="text-xs px-1.5 py-0.5 rounded-full bg-foreground/10 text-slate-400">
                                   {CATEGORY_LABEL[item.category] ??
                                     item.category}
@@ -979,9 +990,11 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
                   {active && (
                     <div className="px-2 py-1.5 rounded-lg border border-bridge-accent/40 bg-bridge-accent/[0.07] space-y-0.5">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-bridge-accent">
-                          {active.jira_issue_key}
-                        </span>
+                        <IssueKey
+                          issueKey={active.jira_issue_key}
+                          taskId={active.task_id}
+                          onOpenTask={onOpenTask}
+                        />
                         <span className={chipCls(active.status)}>
                           {STATUS_STYLE[active.status].label}
                         </span>
@@ -1053,9 +1066,11 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
                       key={job.id}
                       className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-foreground/[0.08]"
                     >
-                      <span className="text-xs font-bold text-bridge-accent">
-                        {job.jira_issue_key}
-                      </span>
+                      <IssueKey
+                        issueKey={job.jira_issue_key}
+                        taskId={job.task_id}
+                        onOpenTask={onOpenTask}
+                      />
                       <span className={chipCls(job.status)}>
                         {STATUS_STYLE[job.status].label}
                       </span>
@@ -1085,9 +1100,11 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
                       className="px-2 py-1.5 rounded-lg border border-foreground/[0.08] space-y-0.5"
                     >
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-bridge-accent">
-                          {job.jira_issue_key}
-                        </span>
+                        <IssueKey
+                          issueKey={job.jira_issue_key}
+                          taskId={job.task_id}
+                          onOpenTask={onOpenTask}
+                        />
                         <span className={chipCls(job.status)}>
                           {STATUS_STYLE[job.status].label}
                         </span>
@@ -1139,9 +1156,11 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
                             className="px-2 py-1.5 border-t border-foreground/[0.06] space-y-0.5"
                           >
                             <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-bold text-bridge-accent">
-                                {job.jira_issue_key}
-                              </span>
+                              <IssueKey
+                                issueKey={job.jira_issue_key}
+                                taskId={job.task_id}
+                                onOpenTask={onOpenTask}
+                              />
                               <span className={chipCls(job.status)}>
                                 {STATUS_STYLE[job.status].label}
                               </span>
@@ -1182,6 +1201,47 @@ export function JiraAutofixDock({ boardId, enabled }: JiraAutofixDockProps) {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * 이슈 키 = 원본 태스크로 가는 문. 도크가 보여주는 건 판정 근거 한 줄이 전부라, 왜 이게
+ * 후보인지 / 왜 실패했는지 판단하려면 결국 원본 카드를 봐야 한다 — 보드에서 눈으로 찾게 두지 않는다.
+ *
+ * <p>점선 밑줄로 상시 표시한다. 호버해야 눌린다는 걸 알 수 있으면 아무도 누르지 않는다.
+ *
+ * <p>트리아지 행은 행 전체가 선택 토글이므로 클릭/키다운을 반드시 여기서 멈춘다 —
+ * 카드를 열려고 눌렀는데 선택까지 바뀌면 담기 대상이 조용히 어긋난다.
+ */
+function IssueKey({
+  issueKey,
+  taskId,
+  onOpenTask,
+}: {
+  issueKey: string;
+  taskId?: string | null;
+  onOpenTask?: (taskId: string) => void;
+}) {
+  if (!taskId || !onOpenTask) {
+    return (
+      <span className="text-xs font-bold text-bridge-accent">{issueKey}</span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpenTask(taskId);
+      }}
+      onKeyDown={(e) => e.stopPropagation()}
+      title={`${issueKey} 태스크 열기`}
+      className="text-xs font-bold text-bridge-accent underline decoration-dotted
+        decoration-bridge-accent/40 underline-offset-2 rounded
+        hover:decoration-solid focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+    >
+      {issueKey}
+    </button>
   );
 }
 

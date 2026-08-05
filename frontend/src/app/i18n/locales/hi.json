@@ -814,7 +814,8 @@
       "more": "और",
       "highlight": "हाइलाइट करें",
       "unhighlight": "हाइलाइट हटाएं",
-      "clearSchedule": "शेड्यूल से हटाएं"
+      "clearSchedule": "शेड्यूल से हटाएं",
+      "demoteToBacklog": "बैकलॉग में भेजें"
     },
     "panel": {
       "filterMilestoneShort": "माइलस्टोन",

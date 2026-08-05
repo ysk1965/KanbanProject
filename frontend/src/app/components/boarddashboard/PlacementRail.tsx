@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  ArrowDownToLine,
   ChevronDown,
   ChevronUp,
   ExternalLink,
@@ -23,9 +24,19 @@ import {
   withAlpha,
 } from "../../utils/milestoneColor";
 import { addDaysToDate } from "../../utils/workloadBar";
+import {
+  dispatchAxisDrop,
+  endAxisDrag,
+  setAxisDragData,
+  useAxisDropZone,
+  type AxisZone,
+} from "../../utils/axisTransfer";
 
 /** 드래그 페이로드 MIME — ScheduleResourceView.handleDrop이 읽는 키와 같아야 한다 */
 export const PLACEMENT_DRAG_TYPE = "application/checklist-item";
+
+/** 이 레일이 받아 주는 출발지 — 위(간트 바)와 아래(백로그) 양쪽 */
+const ACCEPTS: AxisZone[] = ["workload", "backlog"];
 
 type RailTab = "unplaced" | "overdue";
 
@@ -105,6 +116,18 @@ export function PlacementRail({
   });
   const trackRef = useRef<HTMLDivElement | null>(null);
 
+  // 위(간트 바)·아래(백로그)에서 내려오거나 올라오는 항목을 받는다.
+  // 실제 변경은 그 항목을 들고 있는 쪽(MyWorkloadWidget / BacklogRail)이 한다.
+  const {
+    active: dropActive,
+    over: dropOver,
+    zoneProps,
+  } = useAxisDropZone({
+    zone: "placement",
+    accepts: ACCEPTS,
+    disabled: !canEdit,
+  });
+
   // 마일스톤 id → 색 (배열 순서 기준 — 간트·마인드맵과 같은 색이 나온다)
   const milestoneColorMap = useMemo(
     () => buildMilestoneColorMap(milestones),
@@ -143,6 +166,12 @@ export function PlacementRail({
     });
   }, [storageKey]);
 
+  // 접혀 있으면 떨굴 자리가 없다 — 받을 수 있는 드래그가 시작되면 펼쳐 준다.
+  // 사용자가 접어 둔 상태를 저장값까지 바꾸진 않는다(드래그가 끝나면 그대로 남는다).
+  useEffect(() => {
+    if (dropActive) setOpen(true);
+  }, [dropActive]);
+
   useEffect(() => {
     if (!boardId || !userId) return;
     let cancelled = false;
@@ -174,9 +203,7 @@ export function PlacementRail({
   }, [boardId, userId, refreshTrigger, t]);
 
   const { unplaced, overdue } = useMemo(() => {
-    const openItems = items.filter(
-      (i) => !i.completed && !hiddenIds.has(i.id),
-    );
+    const openItems = items.filter((i) => !i.completed && !hiddenIds.has(i.id));
 
     // 마일스톤 순(가까운 것 먼저) → 같은 마일스톤 안에서는 기존대로 태스크 제목순.
     // 먼 마일스톤에 미리 등록된 항목이 레일 앞을 차지하지 않게 하는 것이 목적이다.
@@ -257,7 +284,16 @@ export function PlacementRail({
   ];
 
   return (
-    <div className="flex-none border-t border-foreground/[0.08]">
+    <div
+      {...zoneProps}
+      className={`flex-none border-t transition-colors ${
+        dropOver
+          ? "border-bridge-accent bg-bridge-accent/[0.12]"
+          : dropActive
+            ? "border-bridge-accent/40 bg-bridge-accent/[0.05]"
+            : "border-foreground/[0.08]"
+      }`}
+    >
       <div
         className="flex items-center gap-1 px-3 py-2"
         role="tablist"
@@ -313,10 +349,22 @@ export function PlacementRail({
           </button>
         )}
 
-        <p className="ml-auto hidden md:block text-xs text-slate-600 truncate">
-          {canEdit
-            ? t("boardDashboard.railHint", "끌어서 내 행의 날짜에 놓으면 배치됩니다")
-            : t("boardDashboard.railReadOnly", "읽기 전용")}
+        <p
+          className={`ml-auto hidden md:block text-xs truncate ${
+            dropActive ? "font-bold text-bridge-accent" : "text-slate-600"
+          }`}
+        >
+          {!canEdit
+            ? t("boardDashboard.railReadOnly", "읽기 전용")
+            : dropActive
+              ? t(
+                  "boardDashboard.railDropHint",
+                  "여기에 놓으면 일정 없이 카드로 돌아옵니다",
+                )
+              : t(
+                  "boardDashboard.railHint",
+                  "끌어서 내 행의 날짜에 놓으면 배치됩니다",
+                )}
         </p>
 
         <button
@@ -399,8 +447,17 @@ export function PlacementRail({
                         title: item.title,
                       }),
                     );
-                    e.dataTransfer.effectAllowed = "move";
+                    // 축 이동용 페이로드도 함께 싣는다 — 간트는 위의 기존 키를,
+                    // 백로그 레일은 이 키를 읽는다
+                    setAxisDragData(e.dataTransfer, "placement", {
+                      id: item.id,
+                      task_id: taskId,
+                      title: item.title,
+                      start_date: item.start_date,
+                      due_date: item.due_date,
+                    });
                   }}
+                  onDragEnd={endAxisDrag}
                   className={`group flex-none w-[236px] snap-start bg-bridge-dark rounded-xl border border-foreground/[0.08] hover:border-foreground/[0.12] p-2.5 flex flex-col gap-1 transition-colors ${
                     draggable ? "cursor-grab active:cursor-grabbing" : ""
                   }`}
@@ -501,6 +558,30 @@ export function PlacementRail({
                       >
                         {t("boardDashboard.railTomorrow", "내일")}
                       </button>
+                      {/* 드래그를 못 쓰는 환경(터치·키보드)의 하향 경로.
+                          드래그와 같은 이벤트를 쏘므로 처리도 한 곳에서 끝난다 */}
+                      {taskId && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            dispatchAxisDrop({
+                              from: "placement",
+                              to: "backlog",
+                              item: {
+                                id: item.id,
+                                task_id: taskId,
+                                title: item.title,
+                                start_date: item.start_date,
+                                due_date: item.due_date,
+                              },
+                            })
+                          }
+                          className="ml-auto flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        >
+                          <ArrowDownToLine size={11} aria-hidden="true" />
+                          {t("boardDashboard.railToBacklog", "백로그")}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

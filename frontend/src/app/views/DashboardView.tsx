@@ -206,6 +206,7 @@ export function DashboardView({
             <div className="sticky bottom-0 z-10 pb-1 shadow-[0_-10px_26px_rgba(0,0,0,0.14)] rounded-2xl">
               <BacklogRail
                 boardId={boardId}
+                userId={userId}
                 features={allFeatures}
                 onPromoted={onRefreshAfterPromote}
               />

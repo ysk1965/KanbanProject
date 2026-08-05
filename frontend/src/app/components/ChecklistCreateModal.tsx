@@ -345,13 +345,16 @@ export function ChecklistCreateModal({
     [todayChecklists],
   );
 
-  // 오늘/지연이 모두 비어 있으면 곧바로 "다른 항목"을 펼쳐준다.
+  // 초기 세그먼트: 지연이 있으면 지연을 먼저 보여준다(놓친 일이 가장 급하다).
+  // 지연이 없고 오늘도 비었으면 "다른 항목"을 펼쳐준다.
   // (빈 목록만 보여주고 사용자가 탭을 찾아 누르게 만들지 않는다)
   useEffect(() => {
     if (isLoadingToday || didAutoSelectSegment.current) return;
     didAutoSelectSegment.current = true;
-    if (todayItems.length === 0) {
-      setSegment(overdueItems.length > 0 ? "overdue" : "others");
+    if (overdueItems.length > 0) {
+      setSegment("overdue");
+    } else if (todayItems.length === 0) {
+      setSegment("others");
     }
   }, [isLoadingToday, todayItems.length, overdueItems.length]);
 
@@ -370,6 +373,34 @@ export function ChecklistCreateModal({
         return a.due_date.localeCompare(b.due_date);
       });
   }, [boardItems, todayChecklists]);
+
+  // 세그먼트 칩 — 지연이 있으면 맨 앞에 둔다(가장 급한 목록이 먼저 눈에 들어오게).
+  const segmentChips = useMemo(() => {
+    const today = {
+      id: "today" as const,
+      label: t("dailySchedule.segmentToday", { date: dateLabel }),
+      count: todayItems.length,
+    };
+    const overdue = {
+      id: "overdue" as const,
+      label: t("dailySchedule.segmentOverdue"),
+      count: overdueItems.length,
+    };
+    const others = {
+      id: "others" as const,
+      label: t("dailySchedule.segmentOthers"),
+      count: filteredBoardItems.length,
+    };
+    return overdue.count > 0
+      ? [overdue, today, others]
+      : [today, overdue, others];
+  }, [
+    t,
+    dateLabel,
+    todayItems.length,
+    overdueItems.length,
+    filteredBoardItems.length,
+  ]);
 
   // 기존 항목: 마일스톤별 그룹 (C2) — 기간 없는 항목도 각 마일스톤 아래 그대로 노출
   const NO_MILESTONE_KEY = "__none__";
@@ -545,7 +576,7 @@ export function ChecklistCreateModal({
     <MotionModal
       open
       onClose={onClose}
-      className="sm:w-[560px] sm:max-w-[calc(100%-2rem)] max-h-[85dvh] flex flex-col p-0 overflow-hidden bg-bridge-dark"
+      className="sm:w-[720px] sm:max-w-[calc(100%-2rem)] max-h-[92dvh] flex flex-col p-0 overflow-hidden bg-bridge-dark"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
@@ -647,7 +678,7 @@ export function ChecklistCreateModal({
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5 min-h-[320px]">
+      <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-5">
         {/* Checklist Tab */}
         {activeTab === "checklist" && (
           <>
@@ -656,31 +687,19 @@ export function ChecklistCreateModal({
                 하나의 목록을 세그먼트로 나눠 보여준다. */}
             <div>
               <div className="flex gap-1.5 mb-2">
-                {[
-                  {
-                    id: "today" as const,
-                    label: t("dailySchedule.segmentToday", { date: dateLabel }),
-                    count: todayItems.length,
-                  },
-                  {
-                    id: "overdue" as const,
-                    label: t("dailySchedule.segmentOverdue"),
-                    count: overdueItems.length,
-                  },
-                  {
-                    id: "others" as const,
-                    label: t("dailySchedule.segmentOthers"),
-                    count: filteredBoardItems.length,
-                  },
-                ].map((seg) => (
+                {segmentChips.map((seg) => (
                   <button
                     key={seg.id}
                     type="button"
                     onClick={() => setSegment(seg.id)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border ${
                       segment === seg.id
-                        ? "bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30"
-                        : "bg-foreground/[0.03] text-slate-400 border-transparent hover:bg-foreground/5"
+                        ? seg.id === "overdue" && seg.count > 0
+                          ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30"
+                          : "bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30"
+                        : seg.id === "overdue" && seg.count > 0
+                          ? "bg-rose-500/[0.08] text-rose-600 dark:text-rose-400 border-transparent hover:bg-rose-500/15"
+                          : "bg-foreground/[0.03] text-slate-400 border-transparent hover:bg-foreground/5"
                     }`}
                   >
                     {seg.id === "overdue" && seg.count > 0 && (
@@ -692,7 +711,7 @@ export function ChecklistCreateModal({
                 ))}
               </div>
 
-              <div className="border border-foreground/10 rounded-xl max-h-[420px] overflow-y-auto bg-bridge-surface">
+              <div className="border border-foreground/10 rounded-xl h-[48dvh] min-h-[300px] max-h-[560px] overflow-y-auto custom-scrollbar bg-bridge-surface">
                 {(segment === "others" ? isLoadingBoardItems : isLoadingToday) ? (
                   <div className="px-4 py-6 text-slate-400 flex items-center justify-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin text-bridge-accent" />
@@ -1026,7 +1045,7 @@ export function ChecklistCreateModal({
                 <FileText className="inline h-4 w-4 mr-1 text-purple-400" />
                 {t("meeting.selectMeeting", { date: dateLabel })}
               </label>
-              <div className="border border-foreground/10 rounded-xl max-h-48 overflow-y-auto bg-bridge-surface">
+              <div className="border border-foreground/10 rounded-xl h-[36dvh] min-h-[200px] max-h-[440px] overflow-y-auto custom-scrollbar bg-bridge-surface">
                 {isLoadingMeetings ? (
                   <div className="px-4 py-4 text-slate-400 flex items-center justify-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />

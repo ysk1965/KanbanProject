@@ -814,7 +814,8 @@
       "more": "mais",
       "highlight": "Destacar",
       "unhighlight": "Remover destaque",
-      "clearSchedule": "Remover do cronograma"
+      "clearSchedule": "Remover do cronograma",
+      "demoteToBacklog": "Mover para o backlog"
     },
     "panel": {
       "filterMilestoneShort": "Marco",

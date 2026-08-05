@@ -814,7 +814,8 @@
       "more": "más",
       "highlight": "Resaltar",
       "unhighlight": "Quitar resaltado",
-      "clearSchedule": "Quitar de la programación"
+      "clearSchedule": "Quitar de la programación",
+      "demoteToBacklog": "Bajar al backlog"
     },
     "panel": {
       "filterMilestoneShort": "Hito",

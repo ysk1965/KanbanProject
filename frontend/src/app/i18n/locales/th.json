@@ -814,7 +814,8 @@
       "more": "เพิ่มเติม",
       "highlight": "ไฮไลต์",
       "unhighlight": "ยกเลิกไฮไลต์",
-      "clearSchedule": "นำออกจากกำหนดการ"
+      "clearSchedule": "นำออกจากกำหนดการ",
+      "demoteToBacklog": "ย้ายลงไปที่แบ็กล็อก"
     },
     "panel": {
       "filterMilestoneShort": "หมุดหมาย",

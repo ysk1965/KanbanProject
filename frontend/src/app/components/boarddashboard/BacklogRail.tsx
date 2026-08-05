@@ -18,7 +18,7 @@ import {
   RotateCcw,
   TriangleAlert,
 } from "lucide-react";
-import { personalTaskAPI } from "../../utils/api";
+import { checklistAPI, personalTaskAPI } from "../../utils/api";
 import type { Feature, PersonalTask } from "../../types";
 import { formatRelativeTime } from "../../utils/dateUtils";
 import {
@@ -26,6 +26,15 @@ import {
   BACKLOG_DROP_EVENT,
   type BacklogDropDetail,
 } from "../../utils/backlogDrag";
+import {
+  endAxisDrag,
+  requestAxisRefresh,
+  setAxisDragData,
+  useAxisDropZone,
+  useAxisTransfer,
+  type AxisItem,
+  type AxisZone,
+} from "../../utils/axisTransfer";
 import { PromoteBacklogModal, type PromoteTarget } from "./PromoteBacklogModal";
 
 /** 백로그 제목 최대 길이 — 백엔드 @Size(max = 200)과 같은 값 */
@@ -44,10 +53,26 @@ interface PendingItem {
 
 interface BacklogRailProps {
   boardId: string;
+  /** 나 — 강등을 되돌릴 때 체크리스트 항목의 담당자로 되돌려 놓는다 */
+  userId?: string;
   /** 보드의 피처 목록 — 태스크 승격 시 붙일 곳을 고른다 */
   features: Feature[];
   /** 승격 후 보드 데이터를 다시 읽게 한다 */
   onPromoted?: () => void;
+}
+
+/** 이 레일이 받아 주는 출발지 — 위쪽 두 존에서 내려오는 것만 */
+const ACCEPTS: AxisZone[] = ["workload", "placement"];
+
+/** 강등 안내를 띄워 두는 시간 (ms) — 되돌릴 수 있는 창 */
+const DEMOTE_NOTICE_TTL = 9000;
+
+/** 강등 직후 되돌리기용 스냅샷 — 지운 체크리스트 항목을 같은 태스크에 되살린다 */
+interface DemoteNotice {
+  /** 새로 만들어진 백로그 항목 — 되돌릴 때 지운다 */
+  backlogId: string;
+  source: AxisZone;
+  item: AxisItem;
 }
 
 const draftKey = (boardId: string) => `bridge.backlog.draft.${boardId}`;
@@ -62,7 +87,12 @@ const collapseKey = (boardId: string) => `bridge.backlog.collapsed.${boardId}`;
  * 카드를 위로 끌어 놓는 자리가 곧 승격 대상이 된다. 드래그를 못 쓰는 환경을 위해
  * 카드마다 빠른 승격 버튼을 함께 둔다(배치 레일의 "오늘/내일"과 같은 패턴).
  */
-export function BacklogRail({ boardId, features, onPromoted }: BacklogRailProps) {
+export function BacklogRail({
+  boardId,
+  userId,
+  features,
+  onPromoted,
+}: BacklogRailProps) {
   const { t } = useTranslation();
 
   const [items, setItems] = useState<PersonalTask[]>([]);
@@ -84,8 +114,19 @@ export function BacklogRail({ boardId, features, onPromoted }: BacklogRailProps)
     presetDate?: string;
   } | null>(null);
 
+  // 위 두 존에서 내려온 항목 — 강등 결과와 되돌리기용 스냅샷
+  const [demoted, setDemoted] = useState<DemoteNotice | null>(null);
+  const [transferError, setTransferError] = useState<string | null>(null);
+
   const trackRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const demoteTimerRef = useRef<number | null>(null);
+
+  const {
+    active: dropActive,
+    over: dropOver,
+    zoneProps,
+  } = useAxisDropZone({ zone: "backlog", accepts: ACCEPTS });
 
   /* ── 초기 상태 복구 (보드별) ── */
   useEffect(() => {
@@ -179,6 +220,9 @@ export function BacklogRail({ boardId, features, onPromoted }: BacklogRailProps)
 
   const handleAddKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== "Enter") return;
+    // 한글 IME 조합 중 Enter는 조합 확정용이다 — 막지 않으면 확정 전 값과
+    // 확정 후 남은 글자로 카드가 두 장 만들어진다
+    if (e.nativeEvent.isComposing || e.repeat) return;
     const value = draft.trim();
     if (!value) return;
     setDraft("");
@@ -196,7 +240,12 @@ export function BacklogRail({ boardId, features, onPromoted }: BacklogRailProps)
     if (lines.length < 2) return; // 한 줄이면 평소대로 붙여넣는다
     e.preventDefault();
     setPastedLines(lines);
-    setPastedRaw(text.replace(/\s*\r?\n\s*/g, " ").trim().slice(0, TITLE_MAX));
+    setPastedRaw(
+      text
+        .replace(/\s*\r?\n\s*/g, " ")
+        .trim()
+        .slice(0, TITLE_MAX),
+    );
   };
 
   /* ── 접기 / 진입점 ── */
@@ -251,8 +300,9 @@ export function BacklogRail({ boardId, features, onPromoted }: BacklogRailProps)
       if (!detail?.id) return;
       const item = items.find((i) => i.id === detail.id && !i.promoted_type);
       if (!item) return;
-      // 놓은 자리가 날짜를 정했으니 피처만 고르면 된다
-      setPromoting({ item, target: "TASK", presetDate: detail.date });
+      // 놓은 자리가 날짜를 정했으니 붙일 곳만 고르면 된다.
+      // 간트 바는 체크리스트 항목이므로 CHECKLIST_ITEM으로 승격해야 그 날짜에 바가 생긴다.
+      setPromoting({ item, target: "CHECKLIST_ITEM", presetDate: detail.date });
     };
     window.addEventListener(BACKLOG_DROP_EVENT, onDrop);
     return () => window.removeEventListener(BACKLOG_DROP_EVENT, onDrop);
@@ -261,11 +311,11 @@ export function BacklogRail({ boardId, features, onPromoted }: BacklogRailProps)
   /* ── 승격 ── */
   const handlePromoted = useCallback(
     (updated: PersonalTask) => {
-      setItems((prev) =>
-        prev.map((i) => (i.id === updated.id ? updated : i)),
-      );
+      setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
       setPromoting(null);
       onPromoted?.();
+      // 승격 결과(체크리스트 항목)가 위 두 존에 나타나야 한다
+      requestAxisRefresh();
     },
     [onPromoted],
   );
@@ -291,6 +341,126 @@ export function BacklogRail({ boardId, features, onPromoted }: BacklogRailProps)
     [load],
   );
 
+  /* ── 위 존에서 내려온 항목 (강등) ── */
+
+  const showDemoted = useCallback((next: DemoteNotice) => {
+    setDemoted(next);
+    if (demoteTimerRef.current) window.clearTimeout(demoteTimerRef.current);
+    demoteTimerRef.current = window.setTimeout(
+      () => setDemoted(null),
+      DEMOTE_NOTICE_TTL,
+    );
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (demoteTimerRef.current) window.clearTimeout(demoteTimerRef.current);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!transferError) return;
+    const timer = window.setTimeout(
+      () => setTransferError(null),
+      DEMOTE_NOTICE_TTL,
+    );
+    return () => window.clearTimeout(timer);
+  }, [transferError]);
+
+  // 받을 수 있는 드래그가 시작되면 펼친다 — 접혀 있으면 떨굴 자리가 없다.
+  // 저장된 접힘 값은 건드리지 않아 드래그가 끝나도 사용자의 선택이 남는다.
+  useEffect(() => {
+    if (dropActive) setCollapsed(false);
+  }, [dropActive]);
+
+  /**
+   * 체크리스트 항목을 백로그로 내린다.
+   *
+   * 백로그(개인 메모)와 체크리스트(팀 보드 데이터)는 타입이 다르므로 이동이 아니라
+   * 「새로 적고 원본을 지우기」다. 순서가 중요하다 — 백로그에 먼저 자리를 만들고
+   * 그게 성공했을 때만 원본을 지운다. 반대로 하면 실패 시 적어둔 게 사라진다.
+   */
+  const demote = useCallback(
+    async (source: AxisZone, item: AxisItem) => {
+      if (!item.task_id) return;
+      setTransferError(null);
+
+      let created: PersonalTask;
+      try {
+        created = await personalTaskAPI.create({
+          title: item.title.trim().slice(0, TITLE_MAX),
+          priority: "NONE",
+          board_id: boardId,
+        });
+      } catch {
+        setTransferError(
+          t("backlog.demoteFailed", "백로그로 내리지 못했습니다."),
+        );
+        return;
+      }
+
+      try {
+        await checklistAPI.deleteItem(boardId, item.task_id, item.id);
+      } catch {
+        // 원본이 남았는데 백로그에도 생기면 같은 일이 두 곳에 존재한다 — 되돌린다
+        await personalTaskAPI.delete(created.id).catch(() => {});
+        setTransferError(
+          t("backlog.demoteFailed", "백로그로 내리지 못했습니다."),
+        );
+        return;
+      }
+
+      setItems((prev) => [created, ...prev]);
+      setTab("open");
+      showDemoted({ backlogId: created.id, source, item });
+      // 간트·배치 레일에서 원본이 빠진 걸 반영시킨다
+      requestAxisRefresh();
+    },
+    [boardId, showDemoted, t],
+  );
+
+  /** 강등 되돌리기 — 지운 체크리스트 항목을 같은 태스크에 되살리고 백로그 쪽을 지운다 */
+  const handleUndoDemote = useCallback(async () => {
+    const snapshot = demoted;
+    if (!snapshot?.item.task_id) return;
+    setDemoted(null);
+
+    try {
+      await checklistAPI.addItem(boardId, snapshot.item.task_id, {
+        title: snapshot.item.title,
+        assignee_id: snapshot.item.assignee_id ?? userId ?? null,
+        // 워크로드에서 내려온 항목만 날짜를 갖는다 — 있을 때만 되돌린다
+        ...(snapshot.item.start_date
+          ? { start_date: snapshot.item.start_date }
+          : {}),
+        ...(snapshot.item.due_date ? { due_date: snapshot.item.due_date } : {}),
+      });
+      await personalTaskAPI.delete(snapshot.backlogId).catch(() => {});
+      setItems((prev) => prev.filter((i) => i.id !== snapshot.backlogId));
+      requestAxisRefresh();
+    } catch {
+      setTransferError(t("backlog.undoFailed", "되돌리지 못했습니다."));
+      void load();
+    }
+  }, [boardId, demoted, userId, load, t]);
+
+  useAxisTransfer((detail) => {
+    // 아래로 내려온 것 — 내가 목록을 갖고 있으므로 여기서 처리한다
+    if (detail.to === "backlog" && detail.from !== "backlog") {
+      void demote(detail.from, detail.item);
+      return;
+    }
+    // 백로그 → 미배치. 날짜 없이 태스크에만 붙이면 되므로 붙일 곳만 고른다.
+    // (간트 바·배치 카드는 체크리스트 항목이라 CHECKLIST_ITEM으로 승격해야 그 줄에 나타난다)
+    if (detail.from === "backlog" && detail.to === "placement") {
+      const target = items.find(
+        (i) => i.id === detail.item.id && !i.promoted_type,
+      );
+      if (target) setPromoting({ item: target, target: "CHECKLIST_ITEM" });
+    }
+  });
+
   const promotedLabel = (item: PersonalTask) => {
     const kind =
       item.promoted_type === "TASK"
@@ -306,11 +476,56 @@ export function BacklogRail({ boardId, features, onPromoted }: BacklogRailProps)
 
   return (
     <section
-      className="flex-none bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden"
+      {...zoneProps}
+      className={`flex-none bg-bridge-obsidian rounded-2xl border overflow-hidden transition-colors ${
+        dropOver
+          ? "border-bridge-accent bg-bridge-accent/[0.12]"
+          : dropActive
+            ? "border-bridge-accent/40"
+            : "border-foreground/[0.08]"
+      }`}
       aria-label={t("backlog.title", "내 백로그")}
     >
       {/* Top Accent Line — 다른 레일과 구분되는 유일한 장식 */}
       <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
+
+      {(demoted || transferError) && (
+        <div
+          role="status"
+          className="flex items-center gap-2 px-3 py-2 border-b border-foreground/[0.08] bg-foreground/[0.03]"
+        >
+          {transferError ? (
+            <p className="text-xs text-rose-600 dark:text-rose-400">
+              {transferError}
+            </p>
+          ) : (
+            <>
+              <p className="text-xs text-slate-400 truncate">
+                {/* 잃은 것을 그대로 쓴다 — 워크로드에서 왔을 때만 일정이 사라진다 */}
+                {demoted!.source === "workload"
+                  ? t("backlog.demotedNotice", {
+                      title: demoted!.item.title,
+                      defaultValue:
+                        "「{{title}}」 백로그로 내렸습니다 · 일정과 담당이 해제되고 나만 보입니다",
+                    })
+                  : t("backlog.demotedNoticeUnplaced", {
+                      title: demoted!.item.title,
+                      defaultValue:
+                        "「{{title}}」 백로그로 내렸습니다 · 태스크에서 빠지고 나만 보입니다",
+                    })}
+              </p>
+              <button
+                type="button"
+                onClick={() => void handleUndoDemote()}
+                className="ml-auto flex-none flex items-center gap-1 text-xs font-bold text-bridge-accent hover:underline"
+              >
+                <RotateCcw size={12} aria-hidden="true" />
+                {t("backlog.undo", "되돌리기")}
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       <div
         className="flex items-center gap-1 px-3 py-2"
@@ -331,7 +546,12 @@ export function BacklogRail({ boardId, features, onPromoted }: BacklogRailProps)
               count: promotedItems.length,
               dot: "bg-bridge-secondary",
             },
-          ] satisfies { key: RailTab; label: string; count: number; dot: string }[]
+          ] satisfies {
+            key: RailTab;
+            label: string;
+            count: number;
+            dot: string;
+          }[]
         ).map((item) => {
           const active = tab === item.key;
           return (
@@ -361,11 +581,20 @@ export function BacklogRail({ boardId, features, onPromoted }: BacklogRailProps)
           );
         })}
 
-        <p className="ml-auto hidden md:block text-xs text-slate-600 truncate">
-          {t(
-            "backlog.hint",
-            "b 로 적기 · 간트 날짜 칸에 끌어 놓으면 태스크로 승격 · 나만 보입니다",
-          )}
+        <p
+          className={`ml-auto hidden md:block text-xs truncate ${
+            dropActive ? "font-bold text-bridge-accent" : "text-slate-600"
+          }`}
+        >
+          {dropActive
+            ? t(
+                "backlog.dropHint",
+                "여기에 놓으면 일정·담당을 해제하고 나만 보이는 메모로 내려갑니다",
+              )
+            : t(
+                "backlog.hint",
+                "b 로 적기 · 위로 끌어 올리면 승격 · 나만 보입니다",
+              )}
         </p>
 
         {collapsed && (
@@ -520,7 +749,10 @@ export function BacklogRail({ boardId, features, onPromoted }: BacklogRailProps)
                   ) : (
                     <>
                       <p className="text-xs text-slate-500">
-                        {t("backlog.savedLocally", "저장 안 됨 · 로컬에 보관됨")}
+                        {t(
+                          "backlog.savedLocally",
+                          "저장 안 됨 · 로컬에 보관됨",
+                        )}
                       </p>
                       <div className="flex items-center gap-1 mt-auto">
                         <TriangleAlert
@@ -584,10 +816,17 @@ export function BacklogRail({ boardId, features, onPromoted }: BacklogRailProps)
                       BACKLOG_DRAG_TYPE,
                       JSON.stringify({ id: item.id, title: item.title }),
                     );
-                    e.dataTransfer.effectAllowed = "move";
+                    // 배치 레일은 축 페이로드를, 간트는 위의 기존 키를 읽는다
+                    setAxisDragData(e.dataTransfer, "backlog", {
+                      id: item.id,
+                      title: item.title,
+                    });
                   }}
+                  onDragEnd={endAxisDrag}
                   className={`group ${cardBase} border-foreground/[0.08] hover:border-foreground/[0.12] ${
-                    draggable ? "cursor-grab active:cursor-grabbing" : "opacity-75"
+                    draggable
+                      ? "cursor-grab active:cursor-grabbing"
+                      : "opacity-75"
                   }`}
                 >
                   <div className="flex items-start gap-1.5">
@@ -680,6 +919,7 @@ export function BacklogRail({ boardId, features, onPromoted }: BacklogRailProps)
           target={promoting.target}
           presetDate={promoting.presetDate}
           features={features}
+          userId={userId}
           onClose={() => setPromoting(null)}
           onPromoted={handlePromoted}
         />

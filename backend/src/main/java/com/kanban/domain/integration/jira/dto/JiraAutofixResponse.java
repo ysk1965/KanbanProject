@@ -104,6 +104,8 @@ public class JiraAutofixResponse {
     public static class JobItem {
         private String id;
         private String jiraIssueKey;
+        /** 원본 BRIDGE 태스크. 화면에서 이슈 키를 눌러 카드를 열기 위한 값이다. */
+        private String taskId;
         private String status;
         private Double confidence;
         private String repoFullName;

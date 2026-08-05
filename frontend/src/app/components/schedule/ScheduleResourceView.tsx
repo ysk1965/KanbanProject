@@ -16,6 +16,7 @@ import {
   ChevronUp,
   Briefcase,
   CalendarX,
+  ArrowDownToLine,
   ArrowRightLeft,
   Highlighter,
   ZoomIn,
@@ -25,10 +26,14 @@ import {
 } from "lucide-react";
 import { BoardMember } from "../ShareBoardModal";
 import { BoardContractor, Feature, JobRole, Milestone } from "../../types";
+import { BACKLOG_DRAG_TYPE, BACKLOG_DROP_EVENT } from "../../utils/backlogDrag";
 import {
-  BACKLOG_DRAG_TYPE,
-  BACKLOG_DROP_EVENT,
-} from "../../utils/backlogDrag";
+  dispatchAxisDrop,
+  endAxisDrag,
+  findAxisZoneAt,
+  updateAxisDragOver,
+  type AxisZone,
+} from "../../utils/axisTransfer";
 import {
   boardChecklistAPI,
   checklistAPI,
@@ -80,6 +85,8 @@ const BAND_BAR_HEIGHT = 26;
 const BAND_BAR_GAP = 4;
 /** 클릭과 "그리기"를 구분하기 위한 최소 드래그 픽셀 거리 */
 const DRAW_DRAG_THRESHOLD = 6;
+/** 클릭 흔들림과 바 드래그를 구분하는 거리 — 이 안쪽 움직임은 축 이동으로 보지 않는다 */
+const DRAG_SLOP = 6;
 
 /** 외부 카드를 끌 때 타임라인을 자동으로 밀어 주는 가장자리 폭(px)과 한 번에 미는 양 */
 const EDGE_SCROLL_ZONE = 48;
@@ -452,6 +459,11 @@ export function ScheduleResourceView({
   const dragStateRef = useRef<DragState | null>(null);
   // 드래그/리사이즈 후 click 이벤트 방지용 ref
   const wasDraggedRef = useRef(false);
+  // ─── 바를 타임라인 밖(배치 레일·백로그 레일)으로 끌어냈을 때 ───
+  // 커서 아래 존. null이면 평소대로 날짜 이동으로 처리한다.
+  const axisZoneRef = useRef<AxisZone | null>(null);
+  // 존들에게 "드래그 시작"을 알렸는지 — 단순 클릭에는 알리지 않는다
+  const axisNotifiedRef = useRef(false);
 
   // ─── 업무 생성 바 그리기 상태 ───
   const [drawState, setDrawState] = useState<DrawState | null>(null);
@@ -491,6 +503,8 @@ export function ScheduleResourceView({
     x: number;
     y: number;
     item: AssigneeItemResponse;
+    /** 화면에 백로그 레일이 있는지 — 일정 탭에는 없으므로 메뉴에서 감춘다 */
+    hasBacklogZone: boolean;
   } | null>(null);
 
   // ─── Timeline range: wide fixed range (12 weeks before + 40 weeks after today) ───
@@ -1346,6 +1360,12 @@ export function ScheduleResourceView({
       document.body.style.userSelect = "none";
       document.body.style.cursor = type === "move" ? "grabbing" : "ew-resize";
 
+      // 축 이동 판정 기준점 — 여기서 DRAG_SLOP 이상 벗어나야 드래그로 본다
+      const originX = e.clientX;
+      const originY = e.clientY;
+      axisZoneRef.current = null;
+      axisNotifiedRef.current = false;
+
       const handleMouseMove = (moveEvent: MouseEvent) => {
         const ds = dragStateRef.current;
         if (!ds) return;
@@ -1362,6 +1382,25 @@ export function ScheduleResourceView({
         // Y-axis: detect target row for cross-row reassignment (move only)
         let newTargetRowIndex = ds.targetRowIndex;
         let newTargetAssigneeId = ds.targetAssigneeId;
+
+        // 타임라인 밖으로 끌어냈는지 — 배치 레일·백로그 레일 위면 날짜 이동이 아니라
+        // 확정도 축 이동이 된다. 아래로 내릴 때는 x가 그대로라 deltaDays가 0이므로
+        // 아래 hasChanged 분기와 별개로 매번 확인해야 한다.
+        const movedFar =
+          Math.abs(moveEvent.clientX - originX) > DRAG_SLOP ||
+          Math.abs(moveEvent.clientY - originY) > DRAG_SLOP;
+
+        if (ds.dragType === "move" && item.task && movedFar) {
+          const hovered = findAxisZoneAt(moveEvent.clientX, moveEvent.clientY);
+          const zone = hovered && hovered !== "workload" ? hovered : null;
+          if (zone !== axisZoneRef.current || !axisNotifiedRef.current) {
+            axisZoneRef.current = zone;
+            axisNotifiedRef.current = true;
+            // 레일 위로 끌어냈다면 이건 확실히 드래그다 — 뒤따르는 click을 막는다
+            if (zone) wasDraggedRef.current = true;
+            updateAxisDragOver("workload", zone);
+          }
+        }
 
         if (ds.dragType === "move") {
           const el = document.elementFromPoint(
@@ -1409,6 +1448,32 @@ export function ScheduleResourceView({
         document.removeEventListener("mouseup", handleMouseUp);
         document.body.style.userSelect = "";
         document.body.style.cursor = "";
+
+        // 타임라인 밖 레일 위에서 놓았다면 날짜 이동이 아니라 축 이동이다.
+        // 실제 변경은 그 존을 소유한 컴포넌트가 한다 — 여기선 알리기만 하고
+        // 목록은 refreshTrigger로 다시 읽힌다.
+        const axisZone = axisZoneRef.current;
+        axisZoneRef.current = null;
+        if (axisNotifiedRef.current) {
+          axisNotifiedRef.current = false;
+          endAxisDrag();
+        }
+        if (axisZone && item.task) {
+          dispatchAxisDrop({
+            from: "workload",
+            to: axisZone,
+            item: {
+              id: item.id,
+              task_id: item.task.id,
+              title: item.title,
+              start_date: item.start_date ?? null,
+              due_date: item.due_date ?? null,
+            },
+          });
+          setDragState(null);
+          dragStateRef.current = null;
+          return;
+        }
 
         const ds = dragStateRef.current;
         const isCrossRow = ds ? ds.targetRowIndex !== ds.originRowIndex : false;
@@ -3122,6 +3187,9 @@ export function ScheduleResourceView({
                                 x: e.clientX,
                                 y: e.clientY,
                                 item,
+                                hasBacklogZone: !!document.querySelector(
+                                  '[data-axis-zone="backlog"]',
+                                ),
                               });
                             }}
                             onMouseDown={(e) => {
@@ -3540,6 +3608,33 @@ export function ScheduleResourceView({
               <CalendarX className="w-4 h-4 shrink-0" />
               {t("schedule.resource.clearSchedule", "일정에서 제거")}
             </button>
+            {/* 드래그를 못 쓰는 환경의 하향 경로. 듣는 백로그 레일이 있을 때만 보인다
+                — 일정 탭에는 백로그가 없어 여기서만 노출된다 */}
+            {barContextMenu.item.task && barContextMenu.hasBacklogZone && (
+              <button
+                type="button"
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-foreground hover:bg-foreground/5 transition-colors"
+                onClick={() => {
+                  const item = barContextMenu.item;
+                  setBarContextMenu(null);
+                  if (!item.task) return;
+                  dispatchAxisDrop({
+                    from: "workload",
+                    to: "backlog",
+                    item: {
+                      id: item.id,
+                      task_id: item.task.id,
+                      title: item.title,
+                      start_date: item.start_date ?? null,
+                      due_date: item.due_date ?? null,
+                    },
+                  });
+                }}
+              >
+                <ArrowDownToLine className="w-3.5 h-3.5 shrink-0" />
+                {t("schedule.resource.demoteToBacklog", "백로그로 내리기")}
+              </button>
+            )}
           </div>
         </>
       )}
