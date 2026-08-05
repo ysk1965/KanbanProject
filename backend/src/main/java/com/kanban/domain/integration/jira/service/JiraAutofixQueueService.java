@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.comment.Comment;
+import com.kanban.domain.comment.CommentAttachmentRepository;
+import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.integration.github.BoardGithubRepo;
 import com.kanban.domain.integration.github.BoardGithubRepoRepository;
 import com.kanban.domain.integration.jira.*;
@@ -24,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.HashSet;
 import java.util.Set;
@@ -54,6 +58,8 @@ public class JiraAutofixQueueService {
     private final JiraAutofixJobRepository jobRepository;
     private final JiraIntegrationConfigRepository configRepository;
     private final TaskRepository taskRepository;
+    private final CommentRepository commentRepository;
+    private final CommentAttachmentRepository commentAttachmentRepository;
     private final BoardGithubRepoRepository boardGithubRepoRepository;
     private final JiraApiClient jiraApiClient;
     private final JiraOAuthService oauthService;
@@ -253,7 +259,62 @@ public class JiraAutofixQueueService {
                 .branch("autofix/" + job.getJiraIssueKey())
                 .timeoutMinutes(Math.min(properties.getRunnerTimeoutMinutes(),
                         properties.getDispatchTimeoutMinutes()))
+                .comments(collectComments(job.getTaskId()))
+                .materials(collectMaterials(job.getTaskId()))
                 .build();
+    }
+
+    /**
+     * 이슈 댓글 — 오래된 것부터 상한까지.
+     *
+     * <p>최신순이 아니라 오래된 순인 이유: 재현 절차는 시간 순서대로 읽어야 말이 된다.
+     * 상한을 넘으면 뒤(최신)를 남긴다 — 뒤로 갈수록 확정된 정보다.
+     */
+    private List<JiraAutofixResponse.IssueComment> collectComments(String taskId) {
+        if (taskId == null) return List.of();
+
+        List<Comment> comments = commentRepository.findByTaskIdWithAuthor(taskId);
+        if (comments.isEmpty()) return List.of();
+
+        List<Comment> ordered = comments.stream()
+                .sorted(Comparator.comparing(Comment::getCreatedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+
+        int cap = properties.getMaxJobComments();
+        List<Comment> capped = ordered.size() > cap
+                ? ordered.subList(ordered.size() - cap, ordered.size())
+                : ordered;
+
+        return capped.stream()
+                .map(c -> JiraAutofixResponse.IssueComment.builder()
+                        .author(c.getAuthor() != null ? c.getAuthor().getName() : "알 수 없음")
+                        .createdAt(c.getCreatedAt() != null ? c.getCreatedAt().toString() : "")
+                        .body(clip(nullToEmpty(c.getContent()), 2000))
+                        .build())
+                .toList();
+    }
+
+    /**
+     * 스크린샷·영상 목록.
+     *
+     * <p>지라 첨부는 import 시점에 이미 내려받아 S3에 올라가 있다({@code importAttachmentAsComment}).
+     * 그래서 여기서 지라를 다시 부르지 않는다 — 부르면 claim마다 API를 때리고, 지라 자격증명이
+     * 러너까지 내려가야 하는 설계로 밀린다.
+     */
+    private List<JiraAutofixResponse.Material> collectMaterials(String taskId) {
+        if (taskId == null) return List.of();
+
+        return commentAttachmentRepository.findByTaskId(taskId).stream()
+                .filter(a -> a.getUrl() != null && !a.getUrl().isBlank())
+                .limit(properties.getMaxJobMaterials())
+                .map(a -> JiraAutofixResponse.Material.builder()
+                        .filename(nullToEmpty(a.getOriginalFileName()))
+                        .mimeType(nullToEmpty(a.getContentType()))
+                        .size(a.getFileSize())
+                        .url(a.getUrl())
+                        .build())
+                .toList();
     }
 
     // ── 콜백 ──────────────────────────────────────

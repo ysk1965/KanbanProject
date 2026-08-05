@@ -55,6 +55,15 @@ else
   LOCK_DIR="${LOCK_DIR:-${TMPDIR:-/tmp}/bridge-autofix-$(printf '%s' "$PROJECT_DIR" | shasum | cut -c1-12).lock}"
 fi
 
+# 스크린샷·영상을 내려받아 둘 곳. 에이전트는 로컬 경로로만 파일을 읽을 수 있다.
+MATERIALS_DIR=$(mktemp -d -t autofix-materials)
+MATERIALS_NOTE=""
+
+# 상한 — 자료가 많은 이슈에서 다운로드와 프롬프트가 같이 부푸는 것을 막는다.
+MAX_IMAGES="${MAX_IMAGES:-8}"
+MAX_MATERIAL_MB="${MAX_MATERIAL_MB:-8}"
+VIDEO_FRAMES="${VIDEO_FRAMES:-4}"
+
 AGENT_LOG=$(mktemp -t autofix-agent)
 EXCERPT_FILE="$AGENT_LOG"
 RESULT="failed"
@@ -133,6 +142,8 @@ cleanup() {
   local code=$?
   [ -n "$HB_PID" ] && kill "$HB_PID" 2>/dev/null
   [ "$code" -ne 0 ] && [ "$RESULT" = "failed" ] && log "종료 코드 $code"
+
+  rm -rf "$MATERIALS_DIR" 2>/dev/null
 
   if [ "$HAVE_LOCK" = "1" ]; then
     if [ -d "$PROJECT_DIR/.git" ]; then
@@ -217,6 +228,119 @@ revert_editor_churn() {
   done < <(git status --porcelain -z)
 }
 
+# ── 자료(스크린샷·영상) 내려받기 ────────────────
+#
+# QA 이슈는 글보다 그림이 정확하다. "토큰값이 노출됨" 같은 본문은 어느 화면 어느 위치인지
+# 말해주지 않지만 스크린샷 한 장은 말해준다.
+#
+# URL은 BRIDGE가 S3에 올려 둔 공개 주소다(지라 첨부를 import 시점에 이미 받아 뒀다).
+# 지라 자격증명이 맥까지 내려오지 않는다 — 러너가 들고 있는 비밀은 콜백 토큰 하나뿐이다.
+#
+# 실패는 전부 무시하고 넘어간다. 자료를 못 받은 것이 작업을 세울 이유는 못 된다.
+safe_name() {
+  printf '%s' "$1" | tr -c 'A-Za-z0-9._-' '_' | cut -c1-60
+}
+
+# --fail 없이 -o 를 쓰면 curl은 404를 받고도 exit 0 이고, 에러 페이지 HTML이 파일로 남는다.
+# 그걸 "스크린샷"이라며 넘기면 에이전트는 그림 대신 HTML을 읽고 한 턴을 버린다.
+# 내려받은 뒤 실제 형식도 확인한다 — 200으로 온 에러 페이지까지 걸러야 한다.
+fetch_image() {
+  local url="$1" target="$2" limit="$3" timeout="$4" kind
+  curl -sS --fail -L --max-filesize "$limit" -m "$timeout" -o "$target" "$url" 2>/dev/null || {
+    rm -f "$target"; return 1; }
+
+  kind=$(file -b --mime-type "$target" 2>/dev/null)
+  case "$kind" in
+    image/*|video/*) return 0 ;;
+    *) log "받은 파일이 이미지·영상이 아니다($kind) — 버린다"; rm -f "$target"; return 1 ;;
+  esac
+}
+
+# 영상은 Claude가 볼 수 없다. 프레임을 뽑아 이미지로 바꿔 준다 —
+# 재현 영상은 "언제 깨지는가"를 담고 있어서 버리기 아깝다.
+extract_frames() {
+  local video="$1" stem="$2" duration interval
+  command -v ffmpeg >/dev/null || { log "ffmpeg가 없어 영상 프레임을 뽑지 못했다: $stem"; return 1; }
+
+  duration=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$video" 2>/dev/null | cut -d. -f1)
+  case "$duration" in ''|*[!0-9]*) duration=20 ;; esac
+  [ "$duration" -lt 1 ] && duration=1
+
+  # 균등 간격으로 VIDEO_FRAMES장. 짧은 영상이면 간격이 1초 아래로 내려가지 않게 막는다.
+  interval=$((duration / VIDEO_FRAMES))
+  [ "$interval" -lt 1 ] && interval=1
+
+  ffmpeg -nostdin -loglevel error -y -i "$video" \
+    -vf "fps=1/$interval" -frames:v "$VIDEO_FRAMES" \
+    "$MATERIALS_DIR/${stem}_frame%02d.png" 2>/dev/null || return 1
+
+  local n
+  n=$(find "$MATERIALS_DIR" -name "${stem}_frame*.png" | wc -l | tr -d ' ')
+  [ "$n" -gt 0 ] || return 1
+  echo "$n"
+}
+
+fetch_materials() {
+  local count total image_count
+  count=$(echo "$JOB" | jq '(.materials // []) | length')
+  [ "$count" -gt 0 ] 2>/dev/null || return 0
+
+  # ${count}건 — 중괄호를 빼면 UTF-8 로케일의 bash가 뒤따르는 한글을 변수명으로 삼아
+  # set -u 아래에서 죽는다. launchd(C 로케일)에서는 우연히 통과해 더 늦게 발견된다.
+  log "자료 ${count}건 확인 — 내려받는다 (이미지 최대 ${MAX_IMAGES}장, 건당 ${MAX_MATERIAL_MB}MB)"
+  total=$((MAX_MATERIAL_MB * 1024 * 1024))
+  image_count=0
+
+  local i filename mime url stem target frames fr
+  for i in $(seq 0 $((count - 1))); do
+    filename=$(echo "$JOB" | jq -r ".materials[$i].filename // \"\"")
+    mime=$(echo "$JOB" | jq -r ".materials[$i].mime_type // \"\"")
+    url=$(echo "$JOB" | jq -r ".materials[$i].url // \"\"")
+    [ -n "$url" ] || continue
+
+    if [ "$image_count" -ge "$MAX_IMAGES" ]; then
+      MATERIALS_NOTE="${MATERIALS_NOTE}- (상한 초과로 생략) $filename"$'\n'
+      continue
+    fi
+
+    stem="$(printf '%02d' "$i")_$(safe_name "$filename")"
+
+    case "$mime" in
+      image/*)
+        target="$MATERIALS_DIR/$stem"
+        if fetch_image "$url" "$target" "$total" 60; then
+          MATERIALS_NOTE="${MATERIALS_NOTE}- 스크린샷 \`$target\` (원본: $filename)"$'\n'
+          image_count=$((image_count + 1))
+        else
+          log "자료 내려받기 실패(무시): $filename"
+        fi
+        ;;
+      video/*)
+        target="$MATERIALS_DIR/raw_$stem"
+        if fetch_image "$url" "$target" "$total" 120; then
+          if frames=$(extract_frames "$target" "$stem"); then
+            # glob이 아니라 실제 경로를 하나씩 준다 — 에이전트는 Read에 정확한 경로가 필요하다.
+            MATERIALS_NOTE="${MATERIALS_NOTE}- 영상 $filename → 프레임 ${frames}장 (시간 순):"$'\n'
+            for fr in "$MATERIALS_DIR/${stem}"_frame*.png; do
+              [ -e "$fr" ] || continue
+              MATERIALS_NOTE="${MATERIALS_NOTE}    \`$fr\`"$'\n'
+            done
+            image_count=$((image_count + 1))
+          else
+            MATERIALS_NOTE="${MATERIALS_NOTE}- 영상 $filename (프레임 추출 실패 — 사람이 봐야 한다)"$'\n'
+          fi
+          rm -f "$target"
+        else
+          log "영상 내려받기 실패(무시): $filename"
+        fi
+        ;;
+      *)
+        MATERIALS_NOTE="${MATERIALS_NOTE}- 첨부 $filename ($mime — 열어보지 않았다)"$'\n'
+        ;;
+    esac
+  done
+}
+
 # macOS에는 GNU timeout이 없다. 백그라운드로 띄우고 직접 감시한다.
 run_with_timeout() {
   local minutes=$1; shift
@@ -289,6 +413,8 @@ git checkout -B "$BRANCH" "origin/$BASE_REF" --quiet || fail "브랜치 $BRANCH 
 # 에이전트에게는 Bash가 없어 변환 도구를 쓸 수도 없다. ASCII인 키와 ID를 징검다리로 삼는
 # 이 경로만 Read·Grep으로 끝까지 간다.
 
+fetch_materials
+
 PROMPT_FILE=$(mktemp -t autofix-prompt)
 {
   cat <<'PROMPT'
@@ -320,15 +446,37 @@ PROMPT
   echo "이슈 $ISSUE_KEY: $ISSUE_TITLE"
   echo ""
   echo "$ISSUE_BODY"
+
+  # 댓글 — 재현 절차와 추가 조건이 본문이 아니라 여기 이어지는 경우가 많다.
+  if [ "$(echo "$JOB" | jq '(.comments // []) | length')" -gt 0 ] 2>/dev/null; then
+    echo ""
+    echo "--- 댓글 (오래된 순) ---"
+    echo "$JOB" | jq -r '(.comments // [])[] | "[\(.created_at // "" | .[0:16])] \(.author // "?"): \(.body // "")"'
+  fi
+
+  if [ -n "$MATERIALS_NOTE" ]; then
+    echo ""
+    echo "--- 첨부 자료 ---"
+    printf '%s' "$MATERIALS_NOTE"
+    echo ""
+    echo "위 이미지 파일을 Read로 먼저 열어 증상을 눈으로 확인한 뒤 코드를 보라. 어느 화면 어느"
+    echo "위치인지는 글보다 그림이 정확하다. 영상 프레임은 시간 순서이므로 언제 증상이 나타나는지"
+    echo "판단하는 데 쓴다. 이미지에서 읽은 근거는 무엇을 보고 그렇게 판단했는지 함께 보고하라."
+    echo "열어보지 못한 첨부가 있으면 그 사실을 보고에 남긴다 — 사람이 그 부분을 확인해야 한다."
+  fi
+
   echo ""
   echo "트리아지가 본 검증 수단: $VERIFICATION"
   [ "$TEST_INFRA" = "NONE" ] && echo "이 저장소에는 테스트가 없다. 테스트를 새로 만들지 말고 코드 수정만 한다."
 } > "$PROMPT_FILE"
 
 log "에이전트 실행"
+# --add-dir: 자료는 작업 트리 밖(임시 폴더)에 있다. 안에 두면 git status가 더러워져 사전 점검이
+# 막히고 git add -A가 스크린샷을 PR에 담는다. 대신 그 폴더만 명시적으로 열어 준다.
 run_with_timeout "$TIMEOUT_MINUTES" \
   claude -p "$(cat "$PROMPT_FILE")" \
     --allowedTools "Read,Grep,Glob,Edit,mcp__unity" \
+    --add-dir "$MATERIALS_DIR" \
     --permission-mode acceptEdits > "$AGENT_LOG" 2>&1
 agent_rc=$?
 rm -f "$PROMPT_FILE"
