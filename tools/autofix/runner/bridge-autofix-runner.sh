@@ -40,6 +40,16 @@ fi
 
 log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"; }
 
+# 작업 명세 계약 버전. 서버(AutofixRunnerContract.VERSION)와 같아야 작업을 받는다.
+#
+# 이 숫자가 있는 이유: 서버가 명세 필드를 바꿔 배포하면 구버전 러너는 값을 "빈 문자열"로 읽는다.
+# 그러면 매 건이 실패하는데, 그 실패는 큐를 90분씩 막고 대상을 하나씩 태운다.
+# 버전을 실어 보내면 서버가 **작업을 내주기 전에** 거절하므로 아무것도 타지 않고,
+# 로그·도크·슬랙에 "러너 스크립트가 낡았다"는 원인이 그대로 뜬다.
+#
+# 명세 필드를 바꿀 때는 서버 상수와 이 값을 **함께** 올린다.
+RUNNER_CONTRACT=3
+
 # ── 유실된 회신 재전송 ──────────────────────────
 #
 # autofix-once.sh 가 세 번 시도하고도 회신하지 못하면 결과를 스풀에 남긴다. 여기서 계속
@@ -66,6 +76,34 @@ drain_spool() {
   done
   [ "$sent" -gt 0 ] && log "보관해 둔 회신 ${sent}건을 재전송했다"
   return 0
+}
+
+# ── 회신 안전망 ────────────────────────────────
+#
+# autofix-once.sh 는 EXIT 트랩으로 반드시 회신한다. 하지만 트랩이 돌지 못하는 경우가 있다 —
+# SIGKILL, 스크립트를 갈아끼우다 생긴 문법 오류, 인터프리터가 뜨지도 못한 경우.
+# 그때 서버는 그 건을 90분 붙들고, 그동안 이 보드의 큐 전체가 멈춘다.
+#
+# 그래서 자식이 "결과를 살려 뒀다"는 표식(회신 성공 또는 스풀 보관)을 남기지 않고 죽으면
+# 루프가 대신 failed를 보낸다. 표식을 보고 판단하는 이유는, 자식이 스풀에 넣어 둔 진짜 결과를
+# 여기서 보낸 generic failed 가 밀어내면 안 되기 때문이다(서버는 먼저 도착한 종료 회신만 반영한다).
+report_orphan() {
+  local job_id="$1" job_key="$2" code="$3"
+  local payload
+  payload=$(jq -n --arg job "$job_id" --arg key "$job_key" --arg code "$code" \
+    '{job_id:$job, job_key:$key, result:"failed", pr_url:"",
+      failure_reason:("러너가 회신 없이 종료했습니다 (exit " + $code + "). 맥의 러너 로그를 확인하세요"),
+      log_excerpt:""}')
+
+  if curl -sS --fail -m 30 -o /dev/null -X POST \
+      "$BRIDGE_URL/api/v1/jira/autofix/callback/$BRIDGE_BOARD_ID" \
+      -H "Authorization: Bearer $BRIDGE_TOKEN" \
+      -H "Content-Type: application/json" \
+      --data-binary "$payload"; then
+    log "자식이 회신하지 못해 루프가 대신 실패를 알렸다 (job=$job_id)"
+  else
+    log "자식이 회신하지 못했고 루프의 대리 회신도 실패했다 (job=$job_id) — 서버가 회수할 때까지 큐가 막힌다"
+  fi
 }
 
 # 락을 쥔 실행이 있는지 — 있으면 claim하지 않는다.
@@ -152,7 +190,8 @@ while true; do
     -H "Authorization: Bearer $BRIDGE_TOKEN" \
     -H "Content-Type: application/json" \
     -d "$(jq -n --arg n "$RUNNER_NAME" --argjson s "$(runner_status_json)" \
-          '{runner_name:$n, status:$s}')" 2>&1)
+          --argjson c "$RUNNER_CONTRACT" \
+          '{runner_name:$n, contract_version:$c, status:$s}')" 2>&1)
   rc=$?
   http_code="${raw##*$'\n'}"
   response="${raw%$'\n'*}"
@@ -193,6 +232,14 @@ while true; do
         IN_FLIGHT)         log "서버는 아직 이전 건이 진행 중이라고 본다 — 회신이 유실됐을 수 있다." ;;
         DAILY_LIMIT)       log "오늘 상한에 도달했다. 자정(UTC) 이후 재개된다." ;;
         NO_TARGET)         log "대상 저장소가 없는 작업이 있어 실패 처리됐다." ;;
+        CONTRACT_MISMATCH)
+          server_contract=$(echo "$response" | jq -r '.contract_version // "?"')
+          log "작업 명세 계약이 어긋나 서버가 작업을 내주지 않는다 (서버 v$server_contract / 러너 v$RUNNER_CONTRACT)."
+          log "  → 기다려도 낫지 않는다. tools/autofix/runner/ 의 스크립트를 이 맥에 다시 배포할 것:"
+          log "     git show origin/develop:tools/autofix/runner/autofix-once.sh > $HERE/autofix-once.sh"
+          log "     git show origin/develop:tools/autofix/runner/bridge-autofix-runner.sh > $HERE/bridge-autofix-runner.sh"
+          log "     launchctl kickstart -k gui/\$(id -u)/com.bridge.autofix"
+          ;;
         *)                 log "claim 응답: $reason" ;;
       esac
       last_reason="$reason"
@@ -209,6 +256,18 @@ while true; do
   job_log="$LOG_DIR/${safe_key}-${job_id}.log"
 
   log "작업 수령: $job_key (job=$job_id) → $job_log"
-  echo "$response" | jq '.job' | "$HERE/autofix-once.sh" "$CONF" 2>&1 | tee "$job_log"
-  log "작업 종료: $job_key"
+
+  marker="$LOG_DIR/.reported-$job_id"
+  rm -f "$marker"
+  echo "$response" | jq '.job' \
+    | AUTOFIX_REPORT_MARKER="$marker" "$HERE/autofix-once.sh" "$CONF" 2>&1 \
+    | tee "$job_log"
+  once_rc=${PIPESTATUS[2]}
+
+  if [ ! -e "$marker" ]; then
+    report_orphan "$job_id" "$job_key" "$once_rc"
+  fi
+  rm -f "$marker"
+
+  log "작업 종료: $job_key (exit $once_rc)"
 done

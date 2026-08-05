@@ -196,6 +196,18 @@ public class JiraIntegrationConfig {
     private String autofixRunnerStatus;
 
     /**
+     * 러너가 마지막 claim에서 밝힌 작업 명세 계약 버전({@link AutofixRunnerContract}).
+     *
+     * <p>저장해 두는 이유는 화면 때문이다. 불일치일 때 서버는 작업을 내주지 않는데, 그 사실이
+     * 어디에도 남지 않으면 도크는 "러너 연결됨 · 대기 N건"을 띄운 채 아무 일도 일어나지 않는
+     * 상태가 된다 — 가장 나쁜 종류의 침묵이다.
+     *
+     * <p>버전을 보내지 않는 구버전 러너가 붙으면 null로 남고, 그것도 "낡았다"는 정보다.
+     */
+    @Column(name = "autofix_runner_contract")
+    private Integer autofixRunnerContract;
+
+    /**
      * 자동수정 결과를 게시할 슬랙 채널. 비어 있으면 슬랙 알림을 보내지 않는다.
      *
      * <p>주간보고서 발송 채널({@code report_delivery_channels})을 재사용하지 않는 이유: 보고서는
@@ -397,7 +409,7 @@ public class JiraIntegrationConfig {
      *                   진단 실패가 "정상"으로 보이면 안 되지만, 마지막으로 알던 것까지
      *                   잃으면 화면이 더 말할 게 없어진다.
      */
-    public void touchAutofixRunner(String runnerName, String statusJson) {
+    public void touchAutofixRunner(String runnerName, String statusJson, Integer contractVersion) {
         this.autofixRunnerSeenAt = LocalDateTime.now(ZoneOffset.UTC);
         if (runnerName != null && !runnerName.isBlank()) {
             this.autofixRunnerName = runnerName.length() > 100 ? runnerName.substring(0, 100) : runnerName;
@@ -405,6 +417,9 @@ public class JiraIntegrationConfig {
         if (statusJson != null && statusJson.length() <= 500) {
             this.autofixRunnerStatus = statusJson;
         }
+        // null도 그대로 반영한다. 러너를 구버전으로 되돌렸는데 화면이 예전 숫자를 계속 보여주면,
+        // 고쳐야 할 쪽을 정확히 반대로 가리킨다.
+        this.autofixRunnerContract = contractVersion;
     }
 
     /**

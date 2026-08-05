@@ -343,9 +343,28 @@ const LOW_DISK_GB = 20;
 function runnerProblems(
   s: JiraAutofixRunnerStatus | null,
   inFlight: number,
+  contract?: { runner: number | null; server: number },
 ): { text: string; blocking: boolean }[] {
-  if (!s) return [];
   const out: { text: string; blocking: boolean }[] = [];
+
+  /*
+   * 계약 불일치를 맨 위에, 자가진단보다 먼저 본다.
+   *
+   * 이 상태에서는 서버가 작업을 아예 내주지 않아 나머지 진단이 전부 초록불이어도 큐가 돌지
+   * 않는다. 화면이 이걸 말하지 않으면 "러너 연결됨 · 대기 N건"만 보이고 아무 일도 일어나지
+   * 않는, 가장 나쁜 종류의 침묵이 된다. 러너가 한 번도 말을 걸지 않았으면(runner === null이고
+   * 자가진단도 없으면) 아직 판단할 근거가 없으므로 조용히 넘어간다.
+   */
+  if (contract && (s || contract.runner !== null) && contract.runner !== contract.server) {
+    out.push({
+      text:
+        `맥의 러너 스크립트가 낡았습니다 (러너 v${contract.runner ?? "?"} / 서버 v${contract.server}) — ` +
+        "서버가 작업을 내주지 않습니다. tools/autofix/runner/ 를 맥에 다시 배포하세요",
+      blocking: true,
+    });
+  }
+
+  if (!s) return out;
 
   if (s.verify_ready === false) {
     out.push({
@@ -634,6 +653,23 @@ export function JiraAutofixDock({
     });
 
   /**
+   * 실패로 끝난 작업 비우기 — 같은 대상을 다시 담을 수 있게 한다.
+   *
+   * <p>"이슈당 1회" 가드는 CANCELLED 외의 모든 상태를 "이미 처리함"으로 세므로, 러너 쪽 사고로
+   * 한 번 실패하면 그 대상은 이 버튼 없이는 자동수정에서 영구히 빠진다. 러너를 고친 뒤
+   * 태워먹은 건들을 다시 태우는 유일한 경로다.
+   *
+   * <p>돌고 있는 작업을 놓는 강제 회수와 달리 두 번 누르게 하지 않는다 — 이미 끝난 건이라
+   * 잘못 눌러도 잃을 것이 없다.
+   */
+  const handleDiscard = (jobId: string) =>
+    run(`discard:${jobId}`, async () => {
+      await jiraAutofixAPI.cancelJob(boardId, jobId, true);
+      setNotice("실패한 작업을 비웠습니다. 이제 같은 대상을 다시 담을 수 있습니다.");
+      await Promise.all([load(), loadItems(verdict)]);
+    });
+
+  /**
    * 채널 목록은 한 번 받아두고 다시 열 때는 재사용한다. 슬랙 워크스페이스 채널 수가 많으면
    * 커서 페이징이 여러 번 도는데, 설정을 여닫을 때마다 그걸 반복할 이유가 없다.
    */
@@ -717,7 +753,10 @@ export function JiraAutofixDock({
     status.runner_online &&
     status.runner_status?.verify_ready !== false;
 
-  const problems = runnerProblems(status.runner_status, status.in_flight);
+  const problems = runnerProblems(status.runner_status, status.in_flight, {
+    runner: status.runner_contract_version,
+    server: status.server_contract_version,
+  });
 
   const active = jobs.find((j) => j.status === "DISPATCHED") ?? null;
   const waiting = jobs.filter((j) => j.status === "QUEUED");
@@ -1919,6 +1958,31 @@ export function JiraAutofixDock({
                             <span className={chipCls(job.status)}>
                               {STATUS_STYLE[job.status].label}
                             </span>
+                            {/*
+                              실패로 끝난 건만 비울 수 있다. NO_CHANGE는 에이전트가 판단을 마친
+                              정상 종료라 다시 태울 이유가 없다.
+                            */}
+                            {(job.status === "FAILED" ||
+                              job.status === "TIMED_OUT") && (
+                              <button
+                                onClick={() => handleDiscard(job.id)}
+                                disabled={busy === `discard:${job.id}`}
+                                className="ml-auto text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 px-1.5 py-0.5 rounded-lg transition-colors disabled:opacity-50"
+                                title={t(
+                                  "autofixDock.discardHint",
+                                  "이 작업을 비워 같은 대상을 다시 담을 수 있게 합니다",
+                                )}
+                              >
+                                {busy === `discard:${job.id}` ? (
+                                  <Loader2
+                                    size={12}
+                                    className="animate-spin text-bridge-accent"
+                                  />
+                                ) : (
+                                  t("autofixDock.discard", "다시 담기 허용")
+                                )}
+                              </button>
+                            )}
                           </div>
                           {job.status === "TIMED_OUT" ? (
                             <div className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">

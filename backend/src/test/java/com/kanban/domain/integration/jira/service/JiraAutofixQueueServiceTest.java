@@ -327,12 +327,39 @@ class JiraAutofixQueueServiceTest {
     // ── claim 가드레일 ────────────────────────────
 
     @Test
+    @DisplayName("계약이 낡은 러너에게는 작업을 내주지 않는다 — 큐는 그대로 남는다")
+    void rejectsOutdatedRunnerContract() {
+        properties.setDispatchEnabled(true);
+        givenNextQueued(queuedJob("QASA-1"));
+
+        JiraAutofixResponse.ClaimResult result =
+                service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION - 1, null);
+
+        assertThat(result.getJob()).isNull();
+        assertThat(result.getReason()).isEqualTo("CONTRACT_MISMATCH");
+        // 서버 버전을 함께 알려줘야 러너 로그가 두 숫자를 나란히 찍을 수 있다.
+        assertThat(result.getContractVersion()).isEqualTo(AutofixRunnerContract.VERSION);
+        // 핵심: 작업을 꺼내지도 않았다. 낡은 러너에 내주면 그 건은 실패로 타버린다.
+        verify(jobRepository, never()).findByBoardIdAndStatus(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("계약 버전을 아예 보내지 않는 러너도 불일치로 본다")
+    void rejectsRunnerWithoutContractVersion() {
+        properties.setDispatchEnabled(true);
+
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null, null);
+
+        assertThat(result.getReason()).isEqualTo("CONTRACT_MISMATCH");
+    }
+
+    @Test
     @DisplayName("진행 중인 작업이 있으면 내주지 않는다 — 직렬 보장")
     void doesNotHandOutWhileInFlight() {
         properties.setDispatchEnabled(true);
         when(jobRepository.countInFlight(BOARD_ID)).thenReturn(1L);
 
-        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null);
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null);
 
         assertThat(result.getJob()).isNull();
         assertThat(result.getReason()).isEqualTo("IN_FLIGHT");
@@ -347,7 +374,7 @@ class JiraAutofixQueueServiceTest {
         when(jobRepository.countInFlight(BOARD_ID)).thenReturn(0L);
         when(jobRepository.countDispatchedSince(eq(BOARD_ID), any())).thenReturn(5L);
 
-        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null);
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null);
 
         assertThat(result.getJob()).isNull();
         assertThat(result.getReason()).isEqualTo("DAILY_LIMIT");
@@ -359,7 +386,7 @@ class JiraAutofixQueueServiceTest {
         properties.setDispatchEnabled(false);
         givenNextQueued(queuedJob("QASA-1"));
 
-        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null);
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null);
 
         assertThat(result.getJob()).isNull();
         assertThat(result.getReason()).isEqualTo("DISPATCH_DISABLED");
@@ -372,7 +399,7 @@ class JiraAutofixQueueServiceTest {
         when(jobRepository.findByBoardIdAndStatus(eq(BOARD_ID), eq(AutofixJobStatus.QUEUED), any(Pageable.class)))
                 .thenReturn(List.of());
 
-        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null);
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null);
 
         assertThat(result.getJob()).isNull();
         assertThat(result.getReason()).isEqualTo("EMPTY");
@@ -386,7 +413,7 @@ class JiraAutofixQueueServiceTest {
         givenNextQueued(job);
         when(taskRepository.findById("task-QASA-92")).thenReturn(Optional.empty());
 
-        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null);
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null);
 
         assertThat(result.getReason()).isEqualTo("CLAIMED");
         assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.DISPATCHED);
@@ -411,7 +438,7 @@ class JiraAutofixQueueServiceTest {
         properties.setRunnerTimeoutMinutes(60);
         givenNextQueued(queuedJob("QASA-92"));
 
-        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null);
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null);
 
         assertThat(result.getJob().getTimeoutMinutes()).isEqualTo(30);
     }
@@ -424,7 +451,7 @@ class JiraAutofixQueueServiceTest {
         JiraAutofixJob job = JiraAutofixJob.forJiraIssue(board, "QASA-1", null, 0.9);
         givenNextQueued(job);
 
-        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null);
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null);
 
         assertThat(result.getJob()).isNull();
         assertThat(result.getReason()).isEqualTo("NO_TARGET");
@@ -440,7 +467,7 @@ class JiraAutofixQueueServiceTest {
         when(jobRepository.findByBoardIdAndStatus(eq(BOARD_ID), eq(AutofixJobStatus.QUEUED), any(Pageable.class)))
                 .thenReturn(List.of());
 
-        service.claim(BOARD_ID, "mac-01", null);
+        service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null);
 
         assertThat(config.getAutofixRunnerSeenAt()).isNotNull();
         assertThat(config.getAutofixRunnerName()).isEqualTo("mac-01");
@@ -452,7 +479,7 @@ class JiraAutofixQueueServiceTest {
         JiraIntegrationConfig config = JiraIntegrationConfig.builder().board(board).build();
         when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(config));
 
-        service.heartbeat(BOARD_ID, "mac-01", null);
+        service.heartbeat(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null);
 
         assertThat(config.getAutofixRunnerSeenAt()).isNotNull();
         verify(jobRepository, never()).findByBoardIdAndStatus(any(), any(), any());
@@ -469,7 +496,7 @@ class JiraAutofixQueueServiceTest {
         status.setUnityRunning(true);
         status.setVerifyReady(false);
 
-        service.heartbeat(BOARD_ID, "mac-01", status);
+        service.heartbeat(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, status);
 
         assertThat(config.getAutofixRunnerStatus())
                 .contains("\"disk_free_gb\":41.5")
@@ -484,8 +511,8 @@ class JiraAutofixQueueServiceTest {
 
         JiraAutofixRequest.RunnerStatus status = new JiraAutofixRequest.RunnerStatus();
         status.setVerifyReady(true);
-        service.heartbeat(BOARD_ID, "mac-01", status);
-        service.heartbeat(BOARD_ID, "mac-01", null);
+        service.heartbeat(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, status);
+        service.heartbeat(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null);
 
         assertThat(config.getAutofixRunnerStatus()).contains("\"verify_ready\":true");
     }
@@ -774,7 +801,7 @@ class JiraAutofixQueueServiceTest {
         manual.assignTarget("inst-1", REPO, "develop");
         givenNextQueued(manual);
 
-        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", null);
+        JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null);
 
         assertThat(result.getReason()).isEqualTo("CLAIMED");
         assertThat(result.getJob().getJobKind()).isEqualTo("MANUAL");
@@ -791,7 +818,7 @@ class JiraAutofixQueueServiceTest {
         job.assignTarget("inst-1", REPO, "develop");
         givenNextQueued(job);
 
-        JiraAutofixResponse.RunnerJob handed = service.claim(BOARD_ID, "mac-01", null).getJob();
+        JiraAutofixResponse.RunnerJob handed = service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null).getJob();
 
         // PR 제목은 항목 제목이다 — 태스크 제목이면 리뷰어가 카드 전체 변경을 기대한다
         assertThat(handed.getTitle()).isEqualTo("빈 이름일 때 저장 버튼 비활성화");
@@ -979,7 +1006,7 @@ class JiraAutofixQueueServiceTest {
 
     private JiraIntegrationConfig silentRunnerConfig(int minutesAgo) {
         JiraIntegrationConfig config = JiraIntegrationConfig.builder().board(board).build();
-        config.touchAutofixRunner("mac-01", null);
+        config.touchAutofixRunner("mac-01", null, AutofixRunnerContract.VERSION);
         // seenAt은 touch가 현재 시각으로 넣으므로, 과거로 보이도록 조회 자체를 스텁한다
         when(configRepository.findRunnersGoneSilent(any())).thenReturn(List.of(config));
         return config;
@@ -1064,7 +1091,35 @@ class JiraAutofixQueueServiceTest {
     }
 
     @Test
-    @DisplayName("force여도 이미 끝난 작업은 되살리지 않는다")
+    @DisplayName("force면 회수된 작업(TIMED_OUT)을 비워 다시 담을 수 있게 한다")
+    void forceDiscardsTimedOutJobForRetry() {
+        JiraAutofixJob job = queuedJob("QASA-1");
+        job.markClaimed("mac-01");
+        job.markTimedOut();
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(job));
+
+        service.cancelJob(BOARD_ID, USER_ID, "job-1", true);
+
+        // 회수는 "러너가 죽었다는 추정"일 뿐이다. 이 경로가 없으면 그 추정 하나로 대상이 영구히 빠진다.
+        assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.CANCELLED);
+        assertThat(job.getFailureReason()).contains("다시 담을 수 있습니다");
+    }
+
+    @Test
+    @DisplayName("force면 실패한 작업도 비워 다시 담을 수 있게 한다")
+    void forceDiscardsFailedJobForRetry() {
+        JiraAutofixJob job = queuedJob("QASA-1");
+        job.markClaimed("mac-01");
+        job.complete(AutofixJobStatus.FAILED, null, "러너 스크립트가 낡았습니다", null);
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(job));
+
+        service.cancelJob(BOARD_ID, USER_ID, "job-1", true);
+
+        assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.CANCELLED);
+    }
+
+    @Test
+    @DisplayName("force여도 PR이 열린 작업은 되살리지 않는다 — 같은 대상에 PR이 둘 생긴다")
     void forceDoesNotTouchTerminalJob() {
         JiraAutofixJob job = queuedJob("QASA-1");
         job.markClaimed("mac-01");
@@ -1123,7 +1178,7 @@ class JiraAutofixQueueServiceTest {
         when(commentRepository.findByTaskIdWithAuthor("task-QASA-92")).thenReturn(comments);
         when(commentAttachmentRepository.findByTaskId("task-QASA-92")).thenReturn(materials);
 
-        JiraAutofixResponse.RunnerJob handed = service.claim(BOARD_ID, "mac-01", null).getJob();
+        JiraAutofixResponse.RunnerJob handed = service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null).getJob();
 
         assertThat(handed.getComments()).hasSize(1);
         assertThat(handed.getComments().get(0).getAuthor()).isEqualTo("QA");
@@ -1146,7 +1201,7 @@ class JiraAutofixQueueServiceTest {
                 commentAt("B", "둘째", 20));
         when(commentRepository.findByTaskIdWithAuthor("task-QASA-92")).thenReturn(shuffled);
 
-        JiraAutofixResponse.RunnerJob handed = service.claim(BOARD_ID, "mac-01", null).getJob();
+        JiraAutofixResponse.RunnerJob handed = service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null).getJob();
 
         assertThat(handed.getComments()).extracting(c -> c.getBody())
                 .containsExactly("둘째", "셋째");
@@ -1163,7 +1218,7 @@ class JiraAutofixQueueServiceTest {
                 material("blank.png", "image/png", "  "));
         when(commentAttachmentRepository.findByTaskId("task-QASA-92")).thenReturn(mixed);
 
-        JiraAutofixResponse.RunnerJob handed = service.claim(BOARD_ID, "mac-01", null).getJob();
+        JiraAutofixResponse.RunnerJob handed = service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null).getJob();
 
         assertThat(handed.getMaterials()).extracting(m -> m.getFilename()).containsExactly("ok.png");
     }

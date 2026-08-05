@@ -16,7 +16,9 @@
 # 여기에 출처별 분기가 생기면 프롬프트를 고칠 때마다 맥에 재배포해야 한다.
 #
 # 어떤 경로로 끝나든 BRIDGE에 결과를 회신한다(EXIT 트랩). 회신이 없으면 그 한 건이 서버의
-# 회수 시각까지 보드의 큐 전체를 막는다.
+# 회수 시각까지 보드의 큐 전체를 막는다. 그래서 트랩은 **가능한 한 앞에서** 설치하고,
+# 명세 검증을 포함한 모든 실패 판정은 그 뒤에 둔다 — 트랩 앞의 코드는 저 약속 밖이다.
+# 폴링 루프도 이 스크립트가 회신 없이 죽는 경우(문법 오류·SIGKILL)를 대비해 한 번 더 받쳐준다.
 
 set -uo pipefail
 
@@ -42,9 +44,8 @@ BASE_REF=$(field base_ref)
 BRANCH=$(field branch)
 TIMEOUT_MINUTES=$(echo "$JOB" | jq -r '.timeout_minutes // 60')
 
-[ -n "$JOB_KEY" ] || { echo "작업 명세에 job_key가 없다"; exit 1; }
-[ -n "$INSTRUCTION" ] || { echo "작업 명세에 instruction이 없다"; exit 1; }
-[ -n "$BRANCH" ] || BRANCH="autofix/$JOB_KEY"
+# 명세 검증은 회신 트랩을 설치한 **뒤에** 한다(아래 "작업 명세 검증" 절). 기본값만 여기서 채운다.
+[ -n "$BRANCH" ] || BRANCH="autofix/${JOB_KEY:-unknown}"
 [ -n "$BASE_REF" ] || BASE_REF="develop"
 
 SPOOL_DIR="${SPOOL_DIR:-$HOME/bridge-autofix/spool}"
@@ -106,8 +107,16 @@ post_callback() {
 # "이미 처리함"으로 세기 때문에 그 이슈는 사람이 작업을 취소하기 전까지 다시 큐에 담기지 않는다.
 # 즉 회신 한 번을 놓치면 PR은 열려 있는데 보드는 실패라 말하고, 그 이슈는 영구히 빠진다.
 # 그래서 세 번 시도하고, 그래도 안 되면 스풀에 남겨 폴링 루프가 계속 재전송한다.
+# 결과가 어떤 형태로든 살아남았음을 폴링 루프에 알리는 표식(회신 성공 또는 스풀 보관).
+# 이게 없으면 루프가 대신 failed를 보낸다 — 이 함수 자체가 실행되지 못한 경우(SIGKILL,
+# 문법 오류)를 덮기 위한 것이라 성공 경로에서도 반드시 남겨야 한다.
+mark_reported() {
+  [ -n "${AUTOFIX_REPORT_MARKER:-}" ] && : > "$AUTOFIX_REPORT_MARKER" 2>/dev/null
+  return 0
+}
+
 report() {
-  [ "$NO_REPORT" = "1" ] && { log "NO_REPORT=1 — 회신 생략 (result=$RESULT)"; return; }
+  [ "$NO_REPORT" = "1" ] && { log "NO_REPORT=1 — 회신 생략 (result=$RESULT)"; mark_reported; return; }
   [ -n "${BRIDGE_URL:-}" ] && [ -n "${BRIDGE_BOARD_ID:-}" ] && [ -n "${BRIDGE_TOKEN:-}" ] || {
     log "BRIDGE 설정이 없어 회신하지 못한다 (result=$RESULT)"; return; }
 
@@ -119,6 +128,7 @@ report() {
     [ "$delay" -gt 0 ] && sleep "$delay"
     if post_callback "$payload"; then
       [ "$delay" -gt 0 ] && log "회신 성공 (재시도 후)"
+      mark_reported
       return 0
     fi
     log "회신 실패 — 재시도"
@@ -126,9 +136,14 @@ report() {
 
   # 여기까지 왔으면 BRIDGE가 죽었거나 네트워크가 끊긴 것이다. 결과를 버리지 않고 남긴다.
   mkdir -p "$SPOOL_DIR" 2>/dev/null
-  local spooled="$SPOOL_DIR/$(date -u +%Y%m%dT%H%M%S)-${JOB_KEY}.json"
+  # 키가 비어 있을 수 있다(명세를 못 읽은 실패도 여기로 온다). 파일명에 그대로 넣지 않는다.
+  local safe_key
+  safe_key=$(printf '%s' "${JOB_KEY:-unknown}" | tr -c 'A-Za-z0-9._-' '_')
+  local spooled="$SPOOL_DIR/$(date -u +%Y%m%dT%H%M%S)-${safe_key}.json"
   if printf '%s' "$payload" > "$spooled" 2>/dev/null; then
     log "회신 실패 — 스풀에 보관했다: $spooled (폴링 루프가 재전송한다)"
+    # 결과는 살아 있다. 루프가 덮어쓰는 generic failed를 보내면 이 결과가 밀려나므로 표식을 남긴다.
+    mark_reported
   else
     log "회신 실패 — 스풀 기록도 실패했다. 서버는 이 건을 타임아웃으로 회수하게 된다"
   fi
@@ -162,6 +177,19 @@ cleanup() {
   exit "$code"
 }
 trap cleanup EXIT
+
+# ── 작업 명세 검증 ──────────────────────────────
+#
+# 이 검증이 트랩 **뒤에** 있는 것이 중요하다. 앞에 두고 `exit 1` 하면 회신이 나가지 않고,
+# 그러면 서버는 이 건을 90분(dispatch-timeout) 동안 DISPATCHED로 붙들고 있으며 그동안
+# 보드의 큐 전체가 IN_FLIGHT로 막힌다. 회수된 뒤에는 그 대상이 다시 큐에 담기지도 않는다.
+#
+# 실제로 2026-08-05에 그렇게 멈췄다. 서버가 jira_issue_key → job_key 로 리네임된 버전으로
+# 배포됐는데 맥의 스크립트가 구버전이라 키를 못 읽었고, 검증이 트랩 앞에 있어 아무 신호도
+# 남기지 못한 채 큐가 한 시간 넘게 정지했다. 명세를 못 읽는 것은 정상적인 실패 경로다 —
+# 조용히 죽는 경로가 아니라 **failed로 회신하는 경로**여야 한다.
+[ -n "$JOB_KEY" ] || fail "작업 명세에 job_key가 없습니다 — 서버 계약이 러너보다 새 버전입니다. tools/autofix/runner/ 를 갱신하세요"
+[ -n "$INSTRUCTION" ] || fail "작업 명세에 instruction이 없습니다 — 서버 계약이 러너보다 새 버전입니다. tools/autofix/runner/ 를 갱신하세요"
 
 # ── 단독 실행 보장 ──────────────────────────────
 #

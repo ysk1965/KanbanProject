@@ -1,5 +1,6 @@
 package com.kanban.domain.integration.jira.dto;
 
+import com.kanban.domain.integration.jira.AutofixRunnerContract;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -64,6 +65,15 @@ public class JiraAutofixResponse {
          * 서버가 아는 필드만 걸러 두었다.
          */
         private com.fasterxml.jackson.databind.JsonNode runnerStatus;
+        /**
+         * 러너가 마지막 claim에서 밝힌 작업 명세 계약 버전. 아직 못 받았으면 null.
+         *
+         * <p>{@code serverContractVersion}과 다르면 러너 스크립트가 낡은 것이고, 그 상태에서는
+         * 서버가 작업을 아예 내주지 않는다. 화면이 "러너는 연결됐는데 왜 아무것도 안 도는지"를
+         * 스스로 설명할 수 있어야 해서 두 값을 함께 내려준다.
+         */
+        private Integer runnerContractVersion;
+        private int serverContractVersion;
         private boolean callbackTokenSet;
         /** 작업을 내줄지 여부. false면 큐에 담아도 러너가 가져가지 못한다. */
         private boolean dispatchEnabled;
@@ -162,11 +172,24 @@ public class JiraAutofixResponse {
     public static class ClaimResult {
         /** 가져갈 작업. 없으면 null. */
         private RunnerJob job;
-        /** CLAIMED / EMPTY / IN_FLIGHT / DAILY_LIMIT / DISPATCH_DISABLED / NO_TARGET */
+        /**
+         * CLAIMED / EMPTY / IN_FLIGHT / DAILY_LIMIT / DISPATCH_DISABLED / NO_TARGET
+         * / CONTRACT_MISMATCH
+         */
         private String reason;
+        /**
+         * 서버가 말하는 작업 명세 계약 버전. 작업을 내주든 말든 <b>항상</b> 실어 보낸다 —
+         * 러너가 자기 버전과 대조해 로그에 두 숫자를 나란히 찍을 수 있어야, 맥 앞에 앉지 않고도
+         * "스크립트가 낡았다"를 안다.
+         */
+        private int contractVersion;
 
         public static ClaimResult of(RunnerJob job, String reason) {
-            return ClaimResult.builder().job(job).reason(reason).build();
+            return ClaimResult.builder()
+                    .job(job)
+                    .reason(reason)
+                    .contractVersion(AutofixRunnerContract.VERSION)
+                    .build();
         }
     }
 

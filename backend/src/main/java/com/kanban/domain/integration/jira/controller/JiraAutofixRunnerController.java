@@ -41,7 +41,8 @@ public class JiraAutofixRunnerController {
         if (!authorized(boardId, authorization)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        return ResponseEntity.ok(queueService.claim(boardId, runnerName(body), status(body)));
+        return ResponseEntity.ok(
+                queueService.claim(boardId, runnerName(body), contractVersion(body), status(body)));
     }
 
     /**
@@ -57,7 +58,7 @@ public class JiraAutofixRunnerController {
         if (!authorized(boardId, authorization)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        queueService.heartbeat(boardId, runnerName(body), status(body));
+        queueService.heartbeat(boardId, runnerName(body), contractVersion(body), status(body));
         return ResponseEntity.ok().build();
     }
 
@@ -79,5 +80,10 @@ public class JiraAutofixRunnerController {
 
     private JiraAutofixRequest.RunnerStatus status(JiraAutofixRequest.RunnerHello body) {
         return body != null ? body.getStatus() : null;
+    }
+
+    /** 러너가 아는 작업 명세 계약 버전. 안 보내면 null이고, 서버는 그것을 "낡음"으로 본다. */
+    private Integer contractVersion(JiraAutofixRequest.RunnerHello body) {
+        return body != null ? body.getContractVersion() : null;
     }
 }

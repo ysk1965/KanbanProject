@@ -6210,6 +6210,14 @@ export interface JiraAutofixQueueStatus {
   runner_seen_at: string | null;
   /** 러너 자가진단. 아직 한 번도 안 보냈으면 null. */
   runner_status: JiraAutofixRunnerStatus | null;
+  /**
+   * 러너가 밝힌 작업 명세 계약 버전. 아직 못 받았거나 버전을 안 보내는 구버전이면 null.
+   *
+   * <p>server_contract_version과 다르면 서버가 작업을 아예 내주지 않는다 — 러너는 연결돼
+   * 있는데 큐가 조용한 상태가 되므로 화면이 그 이유를 말해야 한다.
+   */
+  runner_contract_version: number | null;
+  server_contract_version: number;
   callback_token_set: boolean;
   /** false면 큐에 담아도 러너가 가져가지 못한다. */
   dispatch_enabled: boolean;

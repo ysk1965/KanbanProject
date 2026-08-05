@@ -295,6 +295,29 @@ public class JiraAutofixJob {
     }
 
     /**
+     * 실패로 끝난 작업을 <b>다시 담을 수 있게</b> 비운다.
+     *
+     * <p>필요한 이유는 "이슈당 1회" 가드({@code existsActiveForIssue})가 {@code CANCELLED} 외의
+     * 모든 상태를 "이미 처리함"으로 세기 때문이다. 그래서 러너 쪽 사고로 한 번 실패하면
+     * — 스크립트가 낡았든 맥이 잠들었든 — 그 대상은 사람이 손쓸 방법 없이 자동수정에서 영구히
+     * 빠진다. {@code TIMED_OUT}은 특히 "러너가 죽었다고 <b>추정</b>했다"는 뜻일 뿐인데,
+     * 추정 하나가 되돌릴 수 없는 결과를 만든다.
+     *
+     * <p>대상은 실패 계열 둘뿐이다. {@code SUCCEEDED}는 PR이 실제로 열려 있어 다시 담으면
+     * 같은 대상에 PR이 두 개 생기고, {@code NO_CHANGE}는 에이전트가 판단을 마친 정상 종료다 —
+     * 둘 다 사고가 아니므로 잠가 둔다.
+     */
+    public boolean discardForRetry() {
+        if (this.status != AutofixJobStatus.TIMED_OUT && this.status != AutofixJobStatus.FAILED) {
+            return false;
+        }
+        this.status = AutofixJobStatus.CANCELLED;
+        this.failureReason = "실패한 작업을 비웠습니다 (다시 담을 수 있습니다)";
+        this.completedAt = LocalDateTime.now(ZoneOffset.UTC);
+        return true;
+    }
+
+    /**
      * 대상 저장소와 브랜치를 확정한다.
      *
      * <p>브랜치에 job id를 섞는 이유는 재시도 때문이다 — 실패한 작업의 지시문을 고쳐 다시 맡기는

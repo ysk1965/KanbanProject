@@ -47,6 +47,14 @@ public class JiraAutofixRequest {
     @Getter @Setter @NoArgsConstructor
     public static class RunnerHello {
         private String runnerName;
+        /**
+         * 러너가 아는 작업 명세 계약 버전
+         * ({@link com.kanban.domain.integration.jira.AutofixRunnerContract}).
+         *
+         * <p>nullable이다 — 이 필드가 생기기 전의 러너가 붙어 있을 수 있고, 그것 자체가
+         * "낡았다"는 신호다. 없으면 불일치로 본다.
+         */
+        private Integer contractVersion;
         private RunnerStatus status;
     }
 

@@ -301,8 +301,18 @@ public class JiraAutofixQueueService {
      */
     @Transactional
     public JiraAutofixResponse.ClaimResult claim(String boardId, String runnerName,
+                                                 Integer contractVersion,
                                                  JiraAutofixRequest.RunnerStatus status) {
-        touchRunner(boardId, runnerName, status);
+        touchRunner(boardId, runnerName, contractVersion, status);
+
+        // 계약 검사는 다른 어떤 판정보다 앞에 온다. 낡은 러너에게 작업을 내주면 그 건은 반드시
+        // 실패하고, 실패 한 건이 회수 시각까지 큐 전체를 막은 뒤 그 대상을 영구히 태운다.
+        // 여기서 막으면 작업은 QUEUED로 그대로 남아, 스크립트를 갱신하는 즉시 이어서 돈다.
+        if (!AutofixRunnerContract.matches(contractVersion)) {
+            log.warn("Autofix claim rejected — 계약 불일치: board={} runner={} runnerContract={} serverContract={}",
+                    boardId, runnerName, contractVersion, AutofixRunnerContract.VERSION);
+            return JiraAutofixResponse.ClaimResult.of(null, "CONTRACT_MISMATCH");
+        }
 
         if (!properties.isDispatchEnabled()) {
             return JiraAutofixResponse.ClaimResult.of(null, "DISPATCH_DISABLED");
@@ -338,8 +348,9 @@ public class JiraAutofixQueueService {
 
     /** 러너가 살아 있다는 신호만 받는다 — 긴 작업 중에는 claim을 부르지 않기 때문이다. */
     @Transactional
-    public void heartbeat(String boardId, String runnerName, JiraAutofixRequest.RunnerStatus status) {
-        touchRunner(boardId, runnerName, status);
+    public void heartbeat(String boardId, String runnerName, Integer contractVersion,
+                          JiraAutofixRequest.RunnerStatus status) {
+        touchRunner(boardId, runnerName, contractVersion, status);
     }
 
     /**
@@ -348,7 +359,8 @@ public class JiraAutofixQueueService {
      * <p>러너가 보낸 값을 그대로 저장하지 않고 서버가 아는 필드만 뽑아 다시 직렬화한다 —
      * 이 엔드포인트는 보드 토큰만으로 열려 있어서, 임의의 문자열이 DB에 들어가는 통로가 되면 안 된다.
      */
-    private void touchRunner(String boardId, String runnerName, JiraAutofixRequest.RunnerStatus status) {
+    private void touchRunner(String boardId, String runnerName, Integer contractVersion,
+                             JiraAutofixRequest.RunnerStatus status) {
         String statusJson = null;
         if (status != null) {
             try {
@@ -359,7 +371,7 @@ public class JiraAutofixQueueService {
         }
         String json = statusJson;
         configRepository.findByBoardId(boardId)
-                .ifPresent(config -> config.touchAutofixRunner(runnerName, json));
+                .ifPresent(config -> config.touchAutofixRunner(runnerName, json, contractVersion));
     }
 
     /**
@@ -845,6 +857,8 @@ public class JiraAutofixQueueService {
                 .runnerName(config != null ? config.getAutofixRunnerName() : null)
                 .runnerSeenAt(toIso(runnerSeenAt))
                 .runnerStatus(parseRunnerStatus(config))
+                .runnerContractVersion(config != null ? config.getAutofixRunnerContract() : null)
+                .serverContractVersion(AutofixRunnerContract.VERSION)
                 .callbackTokenSet(tokenSet)
                 .dispatchEnabled(properties.isDispatchEnabled())
                 .inFlight((int) jobRepository.countInFlight(boardId))
@@ -898,9 +912,16 @@ public class JiraAutofixQueueService {
     /**
      * 작업 취소. 기본은 아직 나가지 않은 QUEUED만이다.
      *
-     * @param force true면 러너가 물고 있는 DISPATCHED도 강제 회수한다. 러너가 죽어 콜백이 오지
-     *              않으면 그 한 건이 타임아웃까지 보드의 큐 전체를 막으므로, 사람이 즉시 풀 수 있는
-     *              길을 남긴다. 실제 Actions 실행이 멈추지는 않는다.
+     * <p>{@code force}는 두 가지를 겸한다. 러너가 물고 있는 {@code DISPATCHED}를 놓아주는 것과,
+     * 이미 끝나버린 {@code TIMED_OUT}·{@code FAILED}를 <b>다시 담을 수 있게 비우는</b> 것이다.
+     * 후자가 없으면 러너 쪽 사고 한 번에 그 대상이 영구히 자동수정에서 빠진다 —
+     * "이슈당 1회" 가드({@code existsActiveForIssue})가 {@code CANCELLED} 외의 모든 상태를
+     * "이미 처리함"으로 세기 때문이다. 그 가드의 목적은 <b>중복 PR 방지</b>이지 사고 시 영구 배제가
+     * 아니므로, 산출물이 실제로 나온 {@code SUCCEEDED}만 잠가 두면 충분하다.
+     *
+     * @param force true면 DISPATCHED 강제 회수 + 종료된 실패 건(TIMED_OUT/FAILED) 재시도 허용.
+     *              맥에서 돌고 있는 실제 작업이 멈추지는 않는다. 늦게 도착한 회신은 이미
+     *              CANCELLED가 된 작업을 덮지 못해 무시된다.
      */
     @Transactional
     public void cancelJob(String boardId, String userId, String jobId, boolean force) {
@@ -910,12 +931,14 @@ public class JiraAutofixQueueService {
         if (!job.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.JIRA_AUTOFIX_JOB_NOT_FOUND);
         }
-        boolean applied = job.cancel() || (force && job.release());
+        AutofixJobStatus before = job.getStatus();
+        boolean applied = job.cancel() || (force && (job.release() || job.discardForRetry()));
         if (!applied) {
             throw new BusinessException(ErrorCode.JIRA_AUTOFIX_JOB_NOT_CANCELLABLE);
         }
         if (force) {
-            log.warn("Autofix job force-released: board={} issue={}", boardId, job.getJobKey());
+            log.warn("Autofix job force-released: board={} key={} {} → CANCELLED",
+                    boardId, job.getJobKey(), before);
         }
     }
 
