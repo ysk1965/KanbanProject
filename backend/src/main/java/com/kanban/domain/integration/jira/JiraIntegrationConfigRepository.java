@@ -54,6 +54,27 @@ public interface JiraIntegrationConfigRepository extends JpaRepository<JiraInteg
         """)
     List<JiraIntegrationConfig> findRunnersGoneSilent(@Param("deadline") LocalDateTime deadline);
 
+    /**
+     * 살아 있는데 계약이 어긋난 러너 — 조용한 정지 알림 대상.
+     *
+     * <p>{@code seenAt >= deadline}이 무응답 쿼리와 정반대인 것이 핵심이다. 이 고장은 러너가
+     * 죽어서 나는 게 아니라, 살아서 20초마다 말을 걸어오는데 서버가 계약이 달라 아무것도
+     * 내주지 않아서 난다. 무응답 쪽 조건으로는 영원히 걸리지 않는다.
+     *
+     * <p>{@code alertedAt IS NULL}만 본다. 시각 비교로 재무장하면 seenAt이 계속 앞서 나가
+     * 5분마다 울린다 — 해소 시점에 {@code touchAutofixRunner}가 비우는 쪽으로 나눴다.
+     */
+    @Query("""
+        SELECT c FROM JiraIntegrationConfig c
+        WHERE c.active = true
+          AND c.autofixRunnerSeenAt IS NOT NULL
+          AND c.autofixRunnerSeenAt >= :deadline
+          AND (c.autofixRunnerContract IS NULL OR c.autofixRunnerContract <> :serverContract)
+          AND c.autofixContractAlertedAt IS NULL
+        """)
+    List<JiraIntegrationConfig> findRunnersOnContractDrift(@Param("deadline") LocalDateTime deadline,
+                                                           @Param("serverContract") int serverContract);
+
     @Modifying
     @Query("DELETE FROM JiraIntegrationConfig c WHERE c.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);

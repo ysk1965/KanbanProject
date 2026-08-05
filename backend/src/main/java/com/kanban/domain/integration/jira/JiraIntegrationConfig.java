@@ -230,6 +230,19 @@ public class JiraIntegrationConfig {
     @Column(name = "autofix_runner_offline_alerted_at")
     private LocalDateTime autofixRunnerOfflineAlertedAt;
 
+    /**
+     * 계약 불일치를 마지막으로 알린 시각.
+     *
+     * <p>무응답 알림과 재무장 규칙이 다르다. 저쪽은 {@code seenAt}보다 이르면 새 구간으로 보는데,
+     * 계약 드리프트는 <b>러너가 살아 있는 채로</b> 생기는 고장이라 {@code seenAt}이 20초마다
+     * 앞서 나간다 — 같은 규칙을 쓰면 5분마다 같은 알림이 나가고, 그런 알림은 곧 무시당한다.
+     *
+     * <p>그래서 시각 비교로 재무장하지 않고, 계약이 맞는 러너가 붙는 순간 이 값을 비운다
+     * ({@link #touchAutofixRunner}). 한 드리프트 구간에 정확히 한 번 울린다.
+     */
+    @Column(name = "autofix_contract_alerted_at")
+    private LocalDateTime autofixContractAlertedAt;
+
     // ④ 진행상태
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -420,6 +433,17 @@ public class JiraIntegrationConfig {
         // null도 그대로 반영한다. 러너를 구버전으로 되돌렸는데 화면이 예전 숫자를 계속 보여주면,
         // 고쳐야 할 쪽을 정확히 반대로 가리킨다.
         this.autofixRunnerContract = contractVersion;
+
+        // 계약이 맞는 러너가 붙었으면 드리프트 구간이 끝난 것이다. 여기서 비워야 다음 드리프트에
+        // 다시 울린다 — 알림 쪽에서 "해소됐나"를 따로 검사하면 그 판단이 두 군데로 갈린다.
+        if (AutofixRunnerContract.matches(contractVersion)) {
+            this.autofixContractAlertedAt = null;
+        }
+    }
+
+    /** 계약 불일치를 알렸다고 기록한다. 해소될 때까지 다시 울리지 않는다. */
+    public void markContractAlerted() {
+        this.autofixContractAlertedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     /**

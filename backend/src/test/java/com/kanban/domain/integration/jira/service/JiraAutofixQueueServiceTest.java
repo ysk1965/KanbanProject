@@ -1222,4 +1222,75 @@ class JiraAutofixQueueServiceTest {
 
         assertThat(handed.getMaterials()).extracting(m -> m.getFilename()).containsExactly("ok.png");
     }
+
+    // ── 계약 불일치 알림 ────────────────────────────
+
+    private JiraIntegrationConfig driftedRunnerConfig(Integer runnerContract) {
+        JiraIntegrationConfig config = JiraIntegrationConfig.builder().board(board).build();
+        config.touchAutofixRunner("mac-01", null, runnerContract);
+        when(configRepository.findRunnersOnContractDrift(any(), anyInt()))
+                .thenReturn(List.of(config));
+        return config;
+    }
+
+    @Test
+    @DisplayName("살아 있는데 계약이 어긋나면 알린다 — 무응답 알림은 이 고장을 영원히 잡지 못한다")
+    void alertsWhenLiveRunnerDriftsFromContract() {
+        JiraIntegrationConfig config = driftedRunnerConfig(AutofixRunnerContract.VERSION - 1);
+        when(jobRepository.countQueued(BOARD_ID)).thenReturn(4L);
+
+        assertThat(service.alertContractDrift()).isEqualTo(1);
+
+        verify(slackPublisher).publishContractDrift(eq(board), eq("mac-01"),
+                eq(AutofixRunnerContract.VERSION - 1), eq(AutofixRunnerContract.VERSION), eq(4), any());
+        assertThat(config.getAutofixContractAlertedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("계약 버전을 아예 안 보내는 구버전 러너도 같은 고장이다")
+    void alertsWhenRunnerSendsNoContractVersion() {
+        driftedRunnerConfig(null);
+        when(jobRepository.countQueued(BOARD_ID)).thenReturn(1L);
+
+        assertThat(service.alertContractDrift()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("시킬 일이 없으면 알리지 않는다 — 스크립트가 낡은 것만으로는 아직 손해가 없다")
+    void doesNotAlertContractDriftWhenQueueEmpty() {
+        driftedRunnerConfig(1);
+        when(jobRepository.countQueued(BOARD_ID)).thenReturn(0L);
+
+        assertThat(service.alertContractDrift()).isZero();
+        verifyNoInteractions(slackPublisher);
+    }
+
+    @Test
+    @DisplayName("한 번 알리면 표식이 남아 5분마다 반복되지 않는다 — 러너가 살아 있어 seenAt은 계속 앞서 나간다")
+    void alertsOncePerDriftEpisode() {
+        JiraIntegrationConfig config = driftedRunnerConfig(1);
+        when(jobRepository.countQueued(BOARD_ID)).thenReturn(2L);
+        service.alertContractDrift();
+        assertThat(config.getAutofixContractAlertedAt()).isNotNull();
+
+        // 두 번째 주기: 표식이 남은 행은 조회 자체에서 빠진다(alertedAt IS NULL 조건)
+        when(configRepository.findRunnersOnContractDrift(any(), anyInt())).thenReturn(List.of());
+
+        assertThat(service.alertContractDrift()).isZero();
+        verify(slackPublisher, times(1)).publishContractDrift(any(), any(), any(), anyInt(), anyInt(), any());
+    }
+
+    @Test
+    @DisplayName("계약이 맞는 러너가 붙으면 표식이 풀려 다음 드리프트에 다시 울린다")
+    void rearmsWhenContractMatchesAgain() {
+        JiraIntegrationConfig config = driftedRunnerConfig(1);
+        when(jobRepository.countQueued(BOARD_ID)).thenReturn(2L);
+        service.alertContractDrift();
+        assertThat(config.getAutofixContractAlertedAt()).isNotNull();
+
+        // 스크립트를 갱신해 올바른 버전으로 붙어 왔다
+        config.touchAutofixRunner("mac-01", null, AutofixRunnerContract.VERSION);
+
+        assertThat(config.getAutofixContractAlertedAt()).isNull();
+    }
 }

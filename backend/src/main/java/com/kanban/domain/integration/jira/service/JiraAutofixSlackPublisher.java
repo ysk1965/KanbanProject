@@ -105,6 +105,32 @@ public class JiraAutofixSlackPublisher {
         }
     }
 
+    /**
+     * 러너는 살아 있는데 계약이 어긋나 아무것도 못 하고 있음을 알린다.
+     *
+     * <p>무응답 알림과 문구를 나눈 이유: 저쪽의 "확인 순서"(맥이 깨어 있는지, 데몬이 살아
+     * 있는지)를 그대로 보내면 전부 정상으로 나와 사람을 30분쯤 헛돌게 한다. 고장난 것은
+     * 환경이 아니라 스크립트 버전이므로, 할 일은 재배포 한 줄이다.
+     */
+    public void publishContractDrift(Board board, String runnerName, Integer runnerContract,
+                                     int serverContract, int queued, String configuredChannelId) {
+        if (board == null) return;
+
+        try {
+            String channelId = resolveChannel(board, configuredChannelId);
+            if (channelId == null) return;
+
+            String botToken = slackOAuthService.decryptBotToken(
+                    slackOAuthService.findActiveInstallation(board).orElseThrow());
+            slackApiClient.postMessage(botToken, channelId,
+                    buildContractDriftBlocks(board, runnerName, runnerContract, serverContract, queued));
+            log.info("Autofix Slack: 계약 불일치 알림 board={} runner={} v{}≠v{} → {}",
+                    board.getId(), runnerName, runnerContract, serverContract, channelId);
+        } catch (Exception e) {
+            log.warn("Autofix Slack 계약 알림 실패 board={}: {}", board.getId(), e.getMessage());
+        }
+    }
+
     /** 전용 채널 → 설치 기본 채널 순. 둘 다 없으면 어디로 보낼지 고를 수 없으므로 보내지 않는다. */
     private String resolveChannel(Board board, String configuredChannelId) {
         SlackInstallation installation = slackOAuthService.findActiveInstallation(board).orElse(null);
@@ -184,6 +210,38 @@ public class JiraAutofixSlackPublisher {
                 + "1. 맥이 깨어 있는지 (잠들면 러너도 멈춥니다)\n"
                 + "2. `launchctl list | grep bridge.autofix` — 데몬이 살아 있는지\n"
                 + "3. `~/bridge-autofix/logs/runner.log` — 마지막 오류"));
+
+        blocks.add(Map.of("type", "actions", "elements",
+                List.of(linkButton("자동수정 도크", frontendUrl + "/boards/" + board.getId(), true))));
+
+        return blocks;
+    }
+
+    private List<Map<String, Object>> buildContractDriftBlocks(Board board, String runnerName,
+                                                               Integer runnerContract,
+                                                               int serverContract, int queued) {
+        List<Map<String, Object>> blocks = new ArrayList<>();
+
+        blocks.add(Map.of("type", "header",
+                "text", Map.of("type", "plain_text",
+                        "text", clip("⚠️ 자동수정 러너 스크립트가 낡았습니다"
+                                + (runnerName != null ? " · " + runnerName : ""), 150),
+                        "emoji", true)));
+
+        // 러너가 정상으로 보인다는 사실을 먼저 말한다. 이 문장이 없으면 받는 사람은 무응답
+        // 알림과 같은 것으로 읽고 맥부터 확인하러 간다.
+        blocks.add(section("러너는 정상 동작 중이지만 서버와 작업 명세 계약이 달라 "
+                + "*" + queued + "건*이 큐에 그대로 있습니다.\n"
+                + "러너 `v" + (runnerContract != null ? runnerContract : "미상")
+                + "` ≠ 서버 `v" + serverContract + "`"));
+
+        blocks.add(section("*조치* — 맥에서 러너 스크립트를 갱신하고 재시작하세요.\n"
+                + "```\n"
+                + "cd ~/orca/KanbanProject && git pull\n"
+                + "cp tools/autofix/runner/*.sh ~/bridge-autofix/\n"
+                + "launchctl kickstart -k gui/$(id -u)/com.bridge.autofix\n"
+                + "```\n"
+                + "작업은 큐에 남아 있으므로 갱신 즉시 이어서 처리됩니다."));
 
         blocks.add(Map.of("type", "actions", "elements",
                 List.of(linkButton("자동수정 도크", frontendUrl + "/boards/" + board.getId(), true))));

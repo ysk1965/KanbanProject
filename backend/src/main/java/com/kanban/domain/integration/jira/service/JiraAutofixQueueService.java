@@ -775,6 +775,42 @@ public class JiraAutofixQueueService {
     }
 
     /**
+     * 살아 있는데 계약이 어긋나 아무것도 못 하는 러너를 알린다.
+     *
+     * <p>{@link #alertOfflineRunners}가 이 고장을 잡지 못한다. 러너는 20초마다 말을 걸어오고
+     * 자가진단도 전부 초록이라 그쪽 조건({@code seenAt < deadline})에 영원히 걸리지 않는다.
+     * 실제로 2026-08-05에 한 시간 넘게 아무 신호도 나가지 않았다 — 도크를 열어본 사람만 알았다.
+     *
+     * <p>대기 중인 작업이 있을 때만 알린다. 시킬 일이 없는데 러너 스크립트가 낡은 것은 사고가
+     * 아니라 상태다 — 무응답 알림과 같은 기준이다.
+     */
+    @Transactional
+    public int alertContractDrift() {
+        LocalDateTime deadline = LocalDateTime.now(ZoneOffset.UTC)
+                .minusMinutes(properties.getRunnerOnlineWindowMinutes());
+
+        int alerted = 0;
+        for (JiraIntegrationConfig config : configRepository.findRunnersOnContractDrift(
+                deadline, AutofixRunnerContract.VERSION)) {
+            String boardId = config.getBoard().getId();
+            long queued = jobRepository.countQueued(boardId);
+            if (queued == 0) continue;
+
+            config.markContractAlerted();
+            alerted++;
+            log.warn("Autofix: 러너 계약 불일치 board={} runner={} runnerContract={} serverContract={} queued={}",
+                    boardId, config.getAutofixRunnerName(), config.getAutofixRunnerContract(),
+                    AutofixRunnerContract.VERSION, queued);
+
+            if (!properties.isSlackNotifyEnabled()) continue;
+            slackPublisher.publishContractDrift(config.getBoard(), config.getAutofixRunnerName(),
+                    config.getAutofixRunnerContract(), AutofixRunnerContract.VERSION,
+                    (int) queued, config.getAutofixSlackChannelId());
+        }
+        return alerted;
+    }
+
+    /**
      * 회신이 끝내 오지 않은 작업을 회수한다. 맥이 죽거나 잠들거나 네트워크가 끊기면 발생하며,
      * 이게 없으면 DISPATCHED 하나가 그 보드의 큐를 영구히 막는다.
      *

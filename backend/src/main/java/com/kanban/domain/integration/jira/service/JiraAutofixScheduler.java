@@ -50,4 +50,22 @@ public class JiraAutofixScheduler {
             log.warn("Autofix runner offline alert failed: {}", e.getMessage());
         }
     }
+
+    /**
+     * 매 5분 — 살아 있는데 계약이 어긋난 러너를 알린다.
+     *
+     * <p>{@link #alertOfflineRunners}와 분리한 이유는 이 고장이 정확히 그 반대 조건이기 때문이다.
+     * 저쪽은 <b>말이 끊긴</b> 러너를 찾고, 이쪽은 <b>말은 걸어오는데 아무것도 못 받는</b> 러너를
+     * 찾는다. 한 메서드에 넣으면 조건이 서로를 배제해 한쪽이 반드시 침묵한다.
+     *
+     * <p>시각을 45초로 어긋나게 둔 것은 앞의 둘과 트랜잭션이 겹치지 않게 하기 위해서다.
+     */
+    @Scheduled(cron = "45 */5 * * * *")
+    public void alertContractDrift() {
+        try {
+            queueService.alertContractDrift();
+        } catch (Exception e) {
+            log.warn("Autofix contract drift alert failed: {}", e.getMessage());
+        }
+    }
 }
