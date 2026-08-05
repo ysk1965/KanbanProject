@@ -144,18 +144,41 @@ while true; do
     continue
   fi
 
-  response=$(curl -sS -m 30 -X POST \
+  # HTTP 코드를 본문과 함께 받는다. 코드가 없으면 "토큰이 만료됐다"(401)와 "배포 중이라
+  # 잠깐 죽었다"(502)가 로그에서 똑같이 보인다 — 전자는 사람이 손대야 낫고 후자는 1분이면
+  # 저절로 낫는데, 구분이 안 되면 고칠 수 있는 고장을 기다리기만 하게 된다.
+  raw=$(curl -sS -m 30 -w '\n%{http_code}' -X POST \
     "$BRIDGE_URL/api/v1/jira/autofix/runner/$BRIDGE_BOARD_ID/claim" \
     -H "Authorization: Bearer $BRIDGE_TOKEN" \
     -H "Content-Type: application/json" \
     -d "$(jq -n --arg n "$RUNNER_NAME" --argjson s "$(runner_status_json)" \
           '{runner_name:$n, status:$s}')" 2>&1)
   rc=$?
+  http_code="${raw##*$'\n'}"
+  response="${raw%$'\n'*}"
+  case "$http_code" in [0-9][0-9][0-9]) ;; *) http_code="000" ;; esac
 
-  if [ $rc -ne 0 ] || ! echo "$response" | jq -e . >/dev/null 2>&1; then
+  if [ $rc -ne 0 ] || [ "$http_code" -ge 400 ] || ! echo "$response" | jq -e . >/dev/null 2>&1; then
     # BRIDGE가 잠깐 죽어도 러너는 죽지 않는다. 다음 주기에 다시 묻는다.
-    [ "$last_reason" != "UNREACHABLE" ] && log "BRIDGE에 닿지 못했다: $(echo "$response" | head -c 200)"
-    last_reason="UNREACHABLE"
+    if [ $rc -ne 0 ]; then
+      fail_reason="UNREACHABLE"
+    elif [ "$http_code" -ge 400 ]; then
+      case "$http_code" in 401|403) fail_reason="AUTH" ;; *) fail_reason="HTTP_$http_code" ;; esac
+    else
+      fail_reason="BAD_BODY"
+    fi
+
+    # 502 본문은 nginx HTML 5줄이다. 그대로 찍으면 한 줄에 한 사건인 로그가 무너진다.
+    excerpt=$(printf '%s' "$response" | tr -d '\r' | tr '\n' ' ' | head -c 200)
+    if [ "$fail_reason" != "$last_reason" ]; then
+      case "$fail_reason" in
+        UNREACHABLE) log "BRIDGE에 닿지 못했다: $excerpt" ;;
+        AUTH)        log "BRIDGE가 인증을 거부했다(HTTP $http_code). 기다려도 낫지 않는다 — 독에서 러너 토큰을 다시 발급해 BRIDGE_TOKEN을 갱신할 것." ;;
+        BAD_BODY)    log "BRIDGE 응답을 JSON으로 읽지 못했다(HTTP $http_code): $excerpt" ;;
+        *)           log "BRIDGE 응답이 정상이 아니다(HTTP $http_code): $excerpt" ;;
+      esac
+      last_reason="$fail_reason"
+    fi
     sleep "$POLL_SECONDS"
     continue
   fi
