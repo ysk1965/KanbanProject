@@ -152,6 +152,39 @@ public class JiraAutofixResponse {
         private String branch;
         /** 러너가 한 건에 쓸 수 있는 시간. 서버의 회수 시각보다 반드시 짧다. */
         private int timeoutMinutes;
+        /**
+         * 이슈 댓글. QA 이슈는 재현 절차와 추가 조건이 본문이 아니라 댓글에 이어지는 경우가 많다 —
+         * 제목과 본문만 주면 에이전트가 절반만 보고 판단하게 된다.
+         */
+        private List<IssueComment> comments;
+        /**
+         * 스크린샷·영상. 파일은 싣지 않고 URL만 준다 — 스크린샷 몇 장이면 작업 명세 JSON이
+         * 수 MB가 되고, 그 JSON은 로그에도 남는다. 러너가 필요한 것만 직접 받는다.
+         */
+        private List<Material> materials;
+    }
+
+    /** 러너에게 넘기는 댓글 한 줄. */
+    @Getter @Builder @AllArgsConstructor
+    public static class IssueComment {
+        private String author;
+        private String createdAt;
+        private String body;
+    }
+
+    /**
+     * 에이전트가 볼 자료 한 건.
+     *
+     * <p>URL은 BRIDGE가 이미 S3에 올려 둔 공개 주소다. 지라에서 다시 받아오지 않는 이유는,
+     * 그러려면 지라 자격증명이 맥까지 내려가야 하기 때문이다 — 러너가 들고 있어야 할 비밀은
+     * 콜백 토큰 하나로 끝나야 한다.
+     */
+    @Getter @Builder @AllArgsConstructor
+    public static class Material {
+        private String filename;
+        private String mimeType;
+        private Long size;
+        private String url;
     }
 
     @Getter @Builder @AllArgsConstructor

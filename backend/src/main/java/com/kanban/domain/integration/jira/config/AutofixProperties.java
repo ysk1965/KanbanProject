@@ -28,6 +28,18 @@ public class AutofixProperties {
     private int maxEnqueuePerRequest = 50;
 
     /**
+     * 작업 명세에 실어 보낼 댓글 수 상한(최신순). 오래 끈 이슈는 댓글이 수십 개가 되는데,
+     * 전부 보내면 프롬프트가 이슈 본문보다 잡담으로 채워진다.
+     */
+    private int maxJobComments = 20;
+
+    /**
+     * 작업 명세에 실어 보낼 자료(스크린샷·영상) 수 상한. 러너가 실제로 내려받는 양은
+     * 러너 쪽에서 한 번 더 줄인다 — 서버는 목록의 크기만 책임진다.
+     */
+    private int maxJobMaterials = 12;
+
+    /**
      * 이 시간이 지나도록 콜백이 없으면 회수한다. 이슈 1건에 10~40분이 걸리므로
      * 넉넉히 잡되, 무한정 두면 DISPATCHED 하나가 큐 전체를 영구히 막는다.
      */

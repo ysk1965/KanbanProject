@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.comment.Comment;
+import com.kanban.domain.comment.CommentAttachment;
+import com.kanban.domain.comment.CommentAttachmentRepository;
+import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.integration.github.BoardGithubRepo;
 import com.kanban.domain.integration.github.BoardGithubRepoRepository;
 import com.kanban.domain.integration.github.GithubInstallation;
@@ -12,6 +16,7 @@ import com.kanban.domain.integration.jira.config.AutofixProperties;
 import com.kanban.domain.integration.jira.dto.JiraAutofixRequest;
 import com.kanban.domain.integration.jira.dto.JiraAutofixResponse;
 import com.kanban.domain.task.Task;
+import com.kanban.domain.user.User;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
@@ -57,6 +62,8 @@ class JiraAutofixQueueServiceTest {
     private BoardGithubRepoRepository boardGithubRepoRepository;
     private JiraApiClient jiraApiClient;
     private JiraOAuthService oauthService;
+    private CommentRepository commentRepository;
+    private CommentAttachmentRepository commentAttachmentRepository;
     private JiraAutofixSlackPublisher slackPublisher;
     private JiraAutofixQueueService service;
 
@@ -74,11 +81,14 @@ class JiraAutofixQueueServiceTest {
         boardGithubRepoRepository = mock(BoardGithubRepoRepository.class);
         jiraApiClient = mock(JiraApiClient.class);
         oauthService = mock(JiraOAuthService.class);
+        commentRepository = mock(CommentRepository.class);
+        commentAttachmentRepository = mock(CommentAttachmentRepository.class);
         slackPublisher = mock(JiraAutofixSlackPublisher.class);
 
         service = new JiraAutofixQueueService(
                 properties, new ObjectMapper(), boardRepository, boardService,
                 triageRepository, jobRepository, configRepository, taskRepository,
+                commentRepository, commentAttachmentRepository,
                 boardGithubRepoRepository, jiraApiClient, oauthService, slackPublisher);
 
         board = mock(Board.class);
@@ -90,6 +100,8 @@ class JiraAutofixQueueServiceTest {
                 .thenAnswer(inv -> new ArrayList<>(inv.getArgument(0, Collection.class)));
         lenient().when(triageRepository.findByBoardIdAndJiraIssueKey(any(), any()))
                 .thenReturn(Optional.empty());
+        lenient().when(commentRepository.findByTaskIdWithAuthor(any())).thenReturn(List.of());
+        lenient().when(commentAttachmentRepository.findByTaskId(any())).thenReturn(List.of());
     }
 
     // ── 픽스처 ────────────────────────────────────
@@ -798,5 +810,81 @@ class JiraAutofixQueueServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.JIRA_AUTOFIX_JOB_NOT_FOUND);
+    }
+
+    // ── 자료 전달 (스크린샷·댓글) ────────────────────
+
+    private Comment commentAt(String author, String body, int minute) {
+        User user = mock(User.class);
+        lenient().when(user.getName()).thenReturn(author);
+        Comment c = mock(Comment.class);
+        lenient().when(c.getAuthor()).thenReturn(user);
+        lenient().when(c.getContent()).thenReturn(body);
+        lenient().when(c.getCreatedAt()).thenReturn(LocalDateTime.of(2026, 8, 5, 10, minute));
+        return c;
+    }
+
+    private CommentAttachment material(String name, String mime, String url) {
+        CommentAttachment a = mock(CommentAttachment.class);
+        lenient().when(a.getOriginalFileName()).thenReturn(name);
+        lenient().when(a.getContentType()).thenReturn(mime);
+        lenient().when(a.getUrl()).thenReturn(url);
+        lenient().when(a.getFileSize()).thenReturn(1024L);
+        return a;
+    }
+
+    @Test
+    @DisplayName("댓글과 스크린샷이 작업 명세에 함께 실린다 — 제목·본문만으로는 절반만 보고 판단하게 된다")
+    void handsOverCommentsAndMaterials() {
+        properties.setDispatchEnabled(true);
+        givenNextQueued(queuedJob("QASA-92"));
+        List<Comment> comments = List.of(commentAt("QA", "3층에서만 재현됩니다", 10));
+        List<CommentAttachment> materials = List.of(material("bug.png", "image/png", "https://cdn/bug.png"));
+        when(commentRepository.findByTaskIdWithAuthor("task-QASA-92")).thenReturn(comments);
+        when(commentAttachmentRepository.findByTaskId("task-QASA-92")).thenReturn(materials);
+
+        JiraAutofixResponse.RunnerJob handed = service.claim(BOARD_ID, "mac-01", null).getJob();
+
+        assertThat(handed.getComments()).hasSize(1);
+        assertThat(handed.getComments().get(0).getAuthor()).isEqualTo("QA");
+        assertThat(handed.getComments().get(0).getBody()).isEqualTo("3층에서만 재현됩니다");
+        assertThat(handed.getMaterials()).hasSize(1);
+        assertThat(handed.getMaterials().get(0).getUrl()).isEqualTo("https://cdn/bug.png");
+        assertThat(handed.getMaterials().get(0).getMimeType()).isEqualTo("image/png");
+    }
+
+    @Test
+    @DisplayName("댓글은 오래된 순으로 나가고, 상한을 넘으면 최신 쪽을 남긴다 — 재현 절차는 순서가 의미다")
+    void ordersCommentsOldestFirstAndKeepsLatestWhenCapped() {
+        properties.setDispatchEnabled(true);
+        properties.setMaxJobComments(2);
+        givenNextQueued(queuedJob("QASA-92"));
+        // 일부러 뒤섞어 넣는다 — 저장소 반환 순서에 기대지 않는다는 것을 보이기 위해
+        List<Comment> shuffled = List.of(
+                commentAt("C", "셋째", 30),
+                commentAt("A", "첫째", 10),
+                commentAt("B", "둘째", 20));
+        when(commentRepository.findByTaskIdWithAuthor("task-QASA-92")).thenReturn(shuffled);
+
+        JiraAutofixResponse.RunnerJob handed = service.claim(BOARD_ID, "mac-01", null).getJob();
+
+        assertThat(handed.getComments()).extracting(c -> c.getBody())
+                .containsExactly("둘째", "셋째");
+    }
+
+    @Test
+    @DisplayName("URL 없는 첨부는 넘기지 않는다 — 러너가 받을 수 없는 항목은 목록만 늘린다")
+    void skipsMaterialsWithoutUrl() {
+        properties.setDispatchEnabled(true);
+        givenNextQueued(queuedJob("QASA-92"));
+        List<CommentAttachment> mixed = List.of(
+                material("ok.png", "image/png", "https://cdn/ok.png"),
+                material("broken.png", "image/png", null),
+                material("blank.png", "image/png", "  "));
+        when(commentAttachmentRepository.findByTaskId("task-QASA-92")).thenReturn(mixed);
+
+        JiraAutofixResponse.RunnerJob handed = service.claim(BOARD_ID, "mac-01", null).getJob();
+
+        assertThat(handed.getMaterials()).extracting(m -> m.getFilename()).containsExactly("ok.png");
     }
 }

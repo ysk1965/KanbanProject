@@ -202,6 +202,11 @@ public class JiraImportService {
                         log.info("JIRA reconcile board {}: {} 재등장 → 연동 복구", boardId, issue.key());
                     }
                     updateTaskFromIssue(existingTask, board, importer, issue, blockMap, mirror, statusToBlock, taskBlock, ctx, taskLink);
+
+                    // 첨부는 신규 생성 때만 가져오고 있었다. QA가 이슈를 올린 뒤 댓글로 스크린샷을
+                    // 덧붙이는 것이 오히려 흔한데, 그 그림들이 BRIDGE에 영영 들어오지 않았다.
+                    // 이슈가 바뀐 주기에만 본다 — 첨부가 늘면 updated도 함께 움직인다.
+                    if (stale) reconcileAttachments(board, importer, existingTask, issue, ctx, c);
                     taskLink.touchImport(JiraLinkTargetType.TASK, existingTask.getId(),
                         hold ? taskLink.getJiraUpdatedAt() : issue.updated());
                     c.updated++;
@@ -713,6 +718,35 @@ public class JiraImportService {
             .position(0)
             .build();
         checklistItemRepository.save(item);
+    }
+
+    /**
+     * 이미 있는 태스크에 새로 붙은 첨부만 가져온다.
+     *
+     * <p>같은 것을 다시 받지 않는 기준은 파일명+크기다. JIRA 첨부 id를 저장해 두지 않아서인데,
+     * 같은 이슈에 같은 이름·같은 크기로 다른 그림이 올라오는 경우는 실질적으로 없다.
+     *
+     * <p>개별 실패는 삼킨다 — 그림 하나 못 받은 것이 이슈 동기화 전체를 세울 이유는 못 된다.
+     */
+    private void reconcileAttachments(Board board, User importer, Task task,
+                                      ParsedJiraIssue issue, JiraAuthContext ctx, Counters c) {
+        if (issue.attachments().isEmpty()) return;
+
+        Set<String> existing = commentAttachmentRepository.findByTaskId(task.getId()).stream()
+            .map(a -> a.getOriginalFileName() + " " + (a.getFileSize() != null ? a.getFileSize() : 0L))
+            .collect(Collectors.toSet());
+
+        for (ParsedJiraIssue.Attachment att : issue.attachments()) {
+            if (existing.contains(att.filename() + " " + att.size())) continue;
+            try {
+                importAttachmentAsComment(board, importer, task, att, ctx);
+                c.comments++;
+                log.info("JIRA reconcile: {} 첨부 추가 수집 — {}", issue.key(), att.filename());
+            } catch (Exception ex) {
+                log.warn("JIRA attachment reconcile failed ({} / {}): {}",
+                    issue.key(), att.filename(), ex.getMessage());
+            }
+        }
     }
 
     private void importAttachmentAsComment(Board board, User importer, Task task,

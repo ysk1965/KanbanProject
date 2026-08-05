@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.comment.Comment;
+import com.kanban.domain.comment.CommentAttachment;
+import com.kanban.domain.comment.CommentAttachmentRepository;
+import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.integration.jira.*;
 import com.kanban.domain.integration.jira.dto.JiraAutofixResponse;
 import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
@@ -52,6 +56,8 @@ class JiraAutofixTriageServiceTest {
     private JiraAutofixTriageRepository triageRepository;
     private AiUsageLogRepository aiUsageLogRepository;
     private AiCreditService aiCreditService;
+    private CommentRepository commentRepository;
+    private CommentAttachmentRepository commentAttachmentRepository;
     private JiraAutofixTriageService service;
 
     private Board board;
@@ -67,11 +73,14 @@ class JiraAutofixTriageServiceTest {
         triageRepository = mock(JiraAutofixTriageRepository.class);
         aiUsageLogRepository = mock(AiUsageLogRepository.class);
         aiCreditService = mock(AiCreditService.class);
+        commentRepository = mock(CommentRepository.class);
+        commentAttachmentRepository = mock(CommentAttachmentRepository.class);
 
         service = new JiraAutofixTriageService(
                 claudeAIProvider, new ObjectMapper(), boardRepository, boardService,
                 taskRepository, issueLinkRepository, configRepository, triageRepository,
-                aiUsageLogRepository, aiCreditService);
+                aiUsageLogRepository, aiCreditService,
+                commentRepository, commentAttachmentRepository);
         ReflectionTestUtils.setField(service, "model", MODEL);
 
         board = mock(Board.class);
@@ -80,6 +89,9 @@ class JiraAutofixTriageServiceTest {
 
         // 기본값: 판정 이력 없음, 집계 비어 있음, 연동 설정 없음(→ 검증 기반 NONE)
         lenient().when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.empty());
+        lenient().when(commentRepository.findByTaskIdWithAuthor(any())).thenReturn(List.of());
+        lenient().when(commentAttachmentRepository.findByTaskId(any())).thenReturn(List.of());
+        lenient().when(triageRepository.countOutcomesByCategory(any())).thenReturn(List.of());
         lenient().when(triageRepository.findByBoardId(BOARD_ID)).thenReturn(List.of());
         lenient().when(triageRepository.countByVerdictAndCategory(BOARD_ID)).thenReturn(List.of());
         lenient().when(triageRepository.saveAll(anyList()))
@@ -526,5 +538,105 @@ class JiraAutofixTriageServiceTest {
         Map<String, Object> verdict = (Map<String, Object>) itemProps.get("verdict");
         assertThat((List<String>) verdict.get("enum"))
                 .containsExactly("CANDIDATE", "CONDITIONAL", "EXCLUDED");
+    }
+
+    // ── 개편: 댓글·첨부·실적 되먹임 ────────────────
+
+    private Comment comment(String author, String body, int minute) {
+        com.kanban.domain.user.User u = mock(com.kanban.domain.user.User.class);
+        lenient().when(u.getName()).thenReturn(author);
+        Comment c = mock(Comment.class);
+        lenient().when(c.getAuthor()).thenReturn(u);
+        lenient().when(c.getContent()).thenReturn(body);
+        lenient().when(c.getCreatedAt()).thenReturn(LocalDateTime.of(2026, 8, 5, 10, minute));
+        return c;
+    }
+
+    private String capturedUserPrompt() {
+        ArgumentCaptor<String> user = ArgumentCaptor.forClass(String.class);
+        verify(claudeAIProvider).chatStructured(any(), user.capture(), any(), anyInt(), any());
+        return user.getValue();
+    }
+
+    private String capturedSystemPrompt() {
+        ArgumentCaptor<String> system = ArgumentCaptor.forClass(String.class);
+        verify(claudeAIProvider).chatStructured(system.capture(), any(), any(), anyInt(), any());
+        return system.getValue();
+    }
+
+    @Test
+    @DisplayName("댓글이 판정 근거에 들어간다 — 재현 절차가 본문이 아니라 댓글에 오는 이슈가 많다")
+    void includesCommentsInPrompt() {
+        givenIssues("QASA-1");
+        List<Comment> comments = List.of(comment("QA", "3층 진입 시에만 재현됩니다", 10));
+        when(commentRepository.findByTaskIdWithAuthor("task-QASA-1")).thenReturn(comments);
+        stubClaude(resultJson("QASA-1", "CANDIDATE", "TEXT", "0.8"), "end_turn");
+
+        service.triageBoard(BOARD_ID, USER_ID, false);
+
+        assertThat(capturedUserPrompt())
+                .contains("댓글 1건")
+                .contains("QA: 3층 진입 시에만 재현됩니다");
+    }
+
+    @Test
+    @DisplayName("댓글이 많으면 최신 쪽을 남긴다 — 판정을 뒤집는 결론은 대개 뒤에 온다")
+    void keepsLatestCommentsWhenOverflowing() {
+        givenIssues("QASA-1");
+        List<Comment> many = List.of(
+                comment("A", "첫째", 1), comment("B", "둘째", 2), comment("C", "셋째", 3),
+                comment("D", "넷째", 4), comment("E", "다섯째", 5), comment("F", "여섯째", 6));
+        when(commentRepository.findByTaskIdWithAuthor("task-QASA-1")).thenReturn(many);
+        stubClaude(resultJson("QASA-1", "CANDIDATE", "TEXT", "0.8"), "end_turn");
+
+        service.triageBoard(BOARD_ID, USER_ID, false);
+
+        String prompt = capturedUserPrompt();
+        assertThat(prompt).contains("댓글 6건 (최근 5건만)").contains("여섯째").doesNotContain("첫째");
+    }
+
+    @Test
+    @DisplayName("재현 화면은 있다는 사실만 알린다 — 그림 자체를 넣으면 이슈당 토큰이 몇 배가 된다")
+    void mentionsMaterialsWithoutEmbeddingThem() {
+        givenIssues("QASA-1");
+        CommentAttachment shot = mock(CommentAttachment.class);
+        lenient().when(shot.getContentType()).thenReturn("image/png");
+        when(commentAttachmentRepository.findByTaskId("task-QASA-1")).thenReturn(List.of(shot));
+        stubClaude(resultJson("QASA-1", "CANDIDATE", "TEXT", "0.8"), "end_turn");
+
+        service.triageBoard(BOARD_ID, USER_ID, false);
+
+        assertThat(capturedUserPrompt()).contains("재현 화면 1건 있음");
+    }
+
+    @Test
+    @DisplayName("표본이 얇으면 실적을 말하지 않는다 — 가짜 근거는 없는 근거보다 나쁘다")
+    void omitsOutcomeBlockWhenSampleTooSmall() {
+        givenIssues("QASA-1");
+        when(triageRepository.countOutcomesByCategory(BOARD_ID)).thenReturn(List.<Object[]>of(
+                new Object[]{AutofixCategory.TEXT, AutofixJobStatus.SUCCEEDED, 2L}));
+        stubClaude(resultJson("QASA-1", "CANDIDATE", "TEXT", "0.8"), "end_turn");
+
+        service.triageBoard(BOARD_ID, USER_ID, false);
+
+        assertThat(capturedSystemPrompt()).doesNotContain("<실적>");
+    }
+
+    @Test
+    @DisplayName("표본이 쌓이면 유형별 실적을 근거로 준다 — confidence가 감이 아니라 경험이 된다")
+    void feedsOutcomesBackIntoPrompt() {
+        givenIssues("QASA-1");
+        when(triageRepository.countOutcomesByCategory(BOARD_ID)).thenReturn(List.<Object[]>of(
+                new Object[]{AutofixCategory.TEXT, AutofixJobStatus.SUCCEEDED, 4L},
+                new Object[]{AutofixCategory.TEXT, AutofixJobStatus.NO_CHANGE, 1L},
+                new Object[]{AutofixCategory.ASSET, AutofixJobStatus.FAILED, 3L}));
+        stubClaude(resultJson("QASA-1", "CANDIDATE", "TEXT", "0.8"), "end_turn");
+
+        service.triageBoard(BOARD_ID, USER_ID, false);
+
+        assertThat(capturedSystemPrompt())
+                .contains("<실적>")
+                .contains("TEXT: 5건 중 PR 4 / 변경없음 1 / 실패 0")
+                .contains("ASSET: 3건 중 PR 0 / 변경없음 0 / 실패 3");
     }
 }
