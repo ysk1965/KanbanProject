@@ -77,6 +77,20 @@ Unity MCP는 **실행 중인 Editor**에 IPC로 붙는다. 에디터가 꺼져 �
 caffeinate -dimsu &
 ```
 
+MCP 서버 자체도 **터미널 창이 아니라 launchd로 띄운다.** 에디터의 MCP 창은 이 서버를
+`Library/MCPForUnity/TerminalScripts/mcp-terminal.command`로 터미널에서 실행하는데, 그 창을 닫으면
+서버가 죽고 `RunState`의 pidfile만 남아 **떠 있는 것처럼 보인다.** 그 상태에서 파이프라인은
+멈추지 않고 조용히 진단 품질만 떨어진다(에이전트가 콘솔을 못 읽고 소스만 본다).
+
+```bash
+cp runner/com.bridge.unity-mcp.plist ~/Library/LaunchAgents/   # USERNAME·프로젝트 경로 치환
+launchctl load ~/Library/LaunchAgents/com.bridge.unity-mcp.plist
+launchctl list | grep bridge.unity-mcp     # 2번째 열이 0이어야 산 것이다
+```
+
+살아 있는지는 프로젝트 디렉터리에서 `claude mcp list`로 확인한다 — pidfile이 아니라 이쪽이 정본이다.
+`unity: ... ✔ Connected`이어야 한다.
+
 - 에디터 모달이 뜨면 MCP 진단이 멈춘다. 첫 실행 전에 라이선스·패키지 임포트·API 업데이터
   팝업을 모두 정리해 둘 것. 다만 **게이트는 Editor와 무관하므로**(4번) Editor가 죽어도
   파이프라인은 계속 돈다 — 진단 품질만 떨어지고, 러너가 경고를 로그에 남긴다.
@@ -240,7 +254,8 @@ EOF
 
 | 항목 | 상태 |
 |------|------|
-| 러너 스크립트 전체 | 실제 맥 미실행 |
-| `verify-compile.sh` | 작성됨 · 실제 프로젝트에서 미검증 |
-| Unity MCP 서버 | [CoplayDev/unity-mcp](https://github.com/CoplayDev/unity-mcp) 선정 (진단 전용, 게이트 아님) — 설치 전 |
-| 재임포트 실측치 | 미측정 (probe 5번 항목) |
+| 러너 스크립트 전체 | cookappsui-Macmini에서 launchd 가동 · claim→처리 경로 확인 (2026-08-05) |
+| `verify-compile.sh` | **검증됨** — 통과 exit 0 / 일부러 깨뜨린 `CS0029` 잡고 exit 1 (2026-08-05) |
+| Unity MCP 서버 | [CoplayDev/unity-mcp](https://github.com/CoplayDev/unity-mcp) 설치·launchd 상시 기동 (진단 전용, 게이트 아님) |
+| 재임포트 실측치 | warm Library 복사 후 검증 1회 **약 8분** (GWBM013, M-series Mac mini) |
+| 러너 도는 중 에디터의 작업 트리 개입 | **미해결 위험** — 브랜치 전환 직후 에디터가 자동 리프레시로 `.asset`을 재직렬화하는 것을 관측했다(곧 원복됐다). `git add -A`가 그걸 쓸어담으면 PR에 섞인다. 재발하면 에디터 Auto Refresh를 끄거나 커밋 대상을 코드 경로로 좁힐 것 |

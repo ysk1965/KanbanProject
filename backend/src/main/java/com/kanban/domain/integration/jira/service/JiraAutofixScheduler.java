@@ -32,4 +32,22 @@ public class JiraAutofixScheduler {
             log.warn("Autofix stale sweep failed: {}", e.getMessage());
         }
     }
+
+    /**
+     * 매 5분 — 소식이 끊긴 러너를 알린다.
+     *
+     * <p>{@link #sweepStale}과 분리한 이유: 회수는 <b>물고 있던 작업</b>을 풀어주는 일이고 이쪽은
+     * <b>러너가 죽었다</b>는 사실을 알리는 일이다. 큐가 빈 채로 러너가 죽으면 회수는 아무것도
+     * 하지 않으므로, 같은 메서드에 넣으면 정확히 그 경우에 침묵한다.
+     *
+     * <p>한쪽이 예외로 죽어도 다른 쪽은 돌아야 하므로 try도 따로 잡는다.
+     */
+    @Scheduled(cron = "30 */5 * * * *")
+    public void alertOfflineRunners() {
+        try {
+            queueService.alertOfflineRunners();
+        } catch (Exception e) {
+            log.warn("Autofix runner offline alert failed: {}", e.getMessage());
+        }
+    }
 }

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MCP for Unity — HTTP 서버 상시 기동.
+
+  ~/Library/LaunchAgents/com.bridge.unity-mcp.plist 로 복사하고 USERNAME과 프로젝트 경로를 바꾼다.
+
+    launchctl load ~/Library/LaunchAgents/com.bridge.unity-mcp.plist
+    launchctl list | grep bridge.unity-mcp        # 2번째 열이 0이어야 산 것이다
+
+  왜 필요한가: 에디터의 MCP 창은 이 서버를 터미널 창에서 띄운다(mcp-terminal.command).
+  터미널을 닫으면 서버가 죽고, RunState의 pidfile만 남아 "떠 있는 것처럼" 보인다.
+  그 상태에서 에이전트는 콘솔을 못 읽고 소스만 보고 고치게 된다 — 조용히 진단 품질만 떨어진다.
+
+  에디터가 만들어 두는 .command를 그대로 실행한다. 인스턴스 토큰과 포트가 그 안에 박혀 있고
+  파일은 에디터가 갱신하므로, 인자를 여기로 복사하지 않는다 — 복사해 두면 에디터가 인스턴스를
+  새로 만든 순간 조용히 어긋난다.
+
+  이 서버는 진단 전용이다. 죽어도 컴파일 게이트(별도 클론 batchmode)는 영향받지 않는다.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.bridge.unity-mcp</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/USERNAME/PROJECT/Library/MCPForUnity/TerminalScripts/mcp-terminal.command</string>
+    </array>
+
+    <key>KeepAlive</key>
+    <true/>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/USERNAME/bridge-autofix/logs/unity-mcp.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/USERNAME/bridge-autofix/logs/unity-mcp.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <!-- uvx가 여기 있다. launchd는 로그인 셸 PATH를 물려받지 않는다. -->
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <!-- .command 첫 줄이 `clear`인데 TERM이 없으면 실패하고, 스크립트의 set -e가 즉시 죽인다.
+             launchd에는 터미널이 없으므로 여기서 넣어 준다. 없으면 30초마다 재시작만 반복한다. -->
+        <key>TERM</key>
+        <string>xterm</string>
+    </dict>
+</dict>
+</plist>

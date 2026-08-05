@@ -58,4 +58,13 @@ public class AutofixProperties {
      * 러너 폴링 주기(기본 20초)보다 넉넉해야 잠깐의 네트워크 끊김이 "오프라인"으로 보이지 않는다.
      */
     private int runnerOnlineWindowMinutes = 3;
+
+    /**
+     * 러너가 이 시간 넘게 조용하면 슬랙으로 알린다.
+     *
+     * <p>화면 판정({@link #runnerOnlineWindowMinutes})보다 훨씬 길게 잡는다 — 도크의 점은
+     * 보고 있는 사람에게 지금을 말하는 값이라 예민해도 되지만, 알림은 사람을 부르는 행위라
+     * 맥 재부팅이나 네트워크 끊김 같은 자연 회복 구간에 울리면 다음부터 무시당한다.
+     */
+    private int runnerOfflineAlertMinutes = 20;
 }
