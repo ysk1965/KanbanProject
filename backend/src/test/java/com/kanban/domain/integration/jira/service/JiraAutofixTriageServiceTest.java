@@ -23,9 +23,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -56,6 +58,8 @@ class JiraAutofixTriageServiceTest {
     private JiraIssueLinkRepository issueLinkRepository;
     private JiraIntegrationConfigRepository configRepository;
     private JiraAutofixTriageRepository triageRepository;
+    private JiraAutofixTriageRunRepository runRepository;
+    private ApplicationEventPublisher eventPublisher;
     private AiUsageLogRepository aiUsageLogRepository;
     private AiCreditService aiCreditService;
     private CommentRepository commentRepository;
@@ -75,6 +79,8 @@ class JiraAutofixTriageServiceTest {
         issueLinkRepository = mock(JiraIssueLinkRepository.class);
         configRepository = mock(JiraIntegrationConfigRepository.class);
         triageRepository = mock(JiraAutofixTriageRepository.class);
+        runRepository = mock(JiraAutofixTriageRunRepository.class);
+        eventPublisher = mock(ApplicationEventPublisher.class);
         aiUsageLogRepository = mock(AiUsageLogRepository.class);
         aiCreditService = mock(AiCreditService.class);
         commentRepository = mock(CommentRepository.class);
@@ -85,7 +91,7 @@ class JiraAutofixTriageServiceTest {
         service = new JiraAutofixTriageService(
                 claudeAIProvider, new ObjectMapper(), boardRepository, boardService,
                 taskRepository, issueLinkRepository, configRepository, triageRepository,
-                aiUsageLogRepository, aiCreditService,
+                runRepository, eventPublisher, aiUsageLogRepository, aiCreditService,
                 commentRepository, commentAttachmentRepository,
                 checklistItemRepository, boardMemberRepository);
         ReflectionTestUtils.setField(service, "model", MODEL);
@@ -103,6 +109,8 @@ class JiraAutofixTriageServiceTest {
         lenient().when(triageRepository.countByVerdictAndCategory(BOARD_ID)).thenReturn(List.of());
         lenient().when(triageRepository.saveAll(anyList()))
                 .thenAnswer(inv -> new ArrayList<>(inv.getArgument(0, Collection.class)));
+        lenient().when(runRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(runRepository.findLatest(BOARD_ID)).thenReturn(Optional.empty());
     }
 
     // ── 픽스처 ────────────────────────────────────
@@ -705,5 +713,161 @@ class JiraAutofixTriageServiceTest {
                 .contains("<실적>")
                 .contains("TEXT: 5건 중 PR 4 / 변경없음 1 / 실패 0")
                 .contains("ASSET: 3건 중 PR 0 / 변경없음 0 / 실패 3");
+    }
+
+    // ── 백그라운드 실행 ────────────────────────────
+    //
+    // 판정은 요청 스레드에서 끝나지 않는다. 이슈 15건마다 AI 호출 한 번이라 응답을 붙들면
+    // ALB idle timeout(90s)에 걸려 504가 나고, 서버는 그동안 판정을 계속하므로 화면만 실패로
+    // 보인다. 아래 테스트는 "시작이 절대 기다리지 않는다"는 계약을 고정한다.
+
+    @Test
+    @DisplayName("시작은 판정을 기다리지 않는다 — RUNNING만 돌려주고 AI는 아직 부르지 않는다")
+    void startTriageDoesNotWaitForVerdicts() {
+        givenIssues("QASA-1", "QASA-2");
+
+        JiraAutofixResponse.TriageRun run = service.startTriage(BOARD_ID, USER_ID, false, null);
+
+        assertThat(run.getStatus()).isEqualTo("RUNNING");
+        assertThat(run.getTotal()).isEqualTo(2);
+        assertThat(run.getTriaged()).isZero();
+        verify(claudeAIProvider, never()).chatStructured(any(), any(), any(), anyInt(), any());
+        verify(eventPublisher).publishEvent(any(JiraAutofixTriageRequestedEvent.class));
+    }
+
+    @Test
+    @DisplayName("판정할 대상이 없으면 백그라운드로 보내지 않고 그 자리에서 끝낸다")
+    void startTriageFinishesInlineWhenNothingToDo() {
+        LocalDateTime updated = LocalDateTime.of(2026, 8, 1, 0, 0);
+        givenIssues("QASA-92");
+        when(triageRepository.findByBoardId(BOARD_ID)).thenReturn(List.of(
+                JiraAutofixTriage.builder()
+                        .board(board).jiraIssueKey("QASA-92").taskId("task-QASA-92")
+                        .verdict(AutofixVerdict.EXCLUDED).category(AutofixCategory.ASSET)
+                        .confidence(0.7).jiraUpdatedAt(updated).model(MODEL)
+                        .build()));
+
+        JiraAutofixResponse.TriageRun run = service.startTriage(BOARD_ID, USER_ID, false, null);
+
+        assertThat(run.getStatus()).isEqualTo("SUCCEEDED");
+        assertThat(run.getSkipped()).isEqualTo(1);
+        verify(eventPublisher, never()).publishEvent(any(JiraAutofixTriageRequestedEvent.class));
+    }
+
+    @Test
+    @DisplayName("이미 도는 실행이 있으면 또 시작하지 않는다 — 두 번 눌러도 AI 호출은 한 번이다")
+    void startTriageIsIdempotentWhileRunning() {
+        givenIssues("QASA-1");
+        JiraAutofixTriageRun running = JiraAutofixTriageRun.start(board, USER_ID, 1, 1, 0, false);
+        when(runRepository.findLatest(BOARD_ID)).thenReturn(Optional.of(running));
+
+        JiraAutofixResponse.TriageRun run = service.startTriage(BOARD_ID, USER_ID, false, null);
+
+        assertThat(run.getStatus()).isEqualTo("RUNNING");
+        verify(eventPublisher, never()).publishEvent(any(JiraAutofixTriageRequestedEvent.class));
+        verify(runRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("심장박동이 멎은 실행은 치우고 새로 시작한다 — 배포로 스레드가 날아가면 영영 막힌다")
+    void startTriageReclaimsStaleRun() {
+        givenIssues("QASA-1");
+        JiraAutofixTriageRun dead = JiraAutofixTriageRun.start(board, USER_ID, 1, 1, 0, false);
+        ReflectionTestUtils.setField(dead, "updatedAt",
+                LocalDateTime.now(ZoneOffset.UTC).minusHours(2));
+        when(runRepository.findLatest(BOARD_ID)).thenReturn(Optional.of(dead));
+
+        JiraAutofixResponse.TriageRun run = service.startTriage(BOARD_ID, USER_ID, false, null);
+
+        assertThat(dead.getStatus()).isEqualTo(AutofixTriageRunStatus.FAILED);
+        assertThat(run.getStatus()).isEqualTo("RUNNING");
+        verify(eventPublisher).publishEvent(any(JiraAutofixTriageRequestedEvent.class));
+    }
+
+    @Test
+    @DisplayName("실행이 배치마다 진행률을 남긴다 — 화면이 진척을 보는 유일한 통로다")
+    void executeRunRecordsProgressPerBatch() {
+        givenIssues("QASA-1");
+        JiraAutofixTriageRun run = JiraAutofixTriageRun.start(board, USER_ID, 1, 1, 0, false);
+        when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+        stubClaude(resultJson("QASA-1", "CANDIDATE", "TEXT", "0.8"), "end_turn");
+
+        service.executeRun("run-1", BOARD_ID, USER_ID, false, null);
+
+        assertThat(run.getTriaged()).isEqualTo(1);
+        assertThat(run.getFailedBatches()).isZero();
+        assertThat(run.getStatus()).isEqualTo(AutofixTriageRunStatus.SUCCEEDED);
+        assertThat(run.getFinishedAt()).isNotNull();
+        // 배치 완료 시점과 종료 시점 — 진행률이 끝나서야 한 번 저장되면 화면은 0/N에 멈춰 있다
+        verify(runRepository, times(2)).save(run);
+    }
+
+    @Test
+    @DisplayName("배치가 죽어도 실행은 끝까지 간다 — 실패 수만 남기고 SUCCEEDED다")
+    void executeRunSurvivesFailedBatch() {
+        givenIssues("QASA-1");
+        JiraAutofixTriageRun run = JiraAutofixTriageRun.start(board, USER_ID, 1, 1, 0, false);
+        when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+        stubClaude(null, "end_turn");   // 응답이 비면 그 배치만 실패한다
+
+        service.executeRun("run-1", BOARD_ID, USER_ID, false, null);
+
+        assertThat(run.getFailedBatches()).isEqualTo(1);
+        assertThat(run.getTriaged()).isZero();
+        assertThat(run.getStatus()).isEqualTo(AutofixTriageRunStatus.SUCCEEDED);
+    }
+
+    @Test
+    @DisplayName("크레딧이 바닥나면 남은 배치를 돌지 않는다 — 진짜 이유가 화면에 남아야 한다")
+    void executeRunStopsWhenCreditsExhausted() {
+        givenIssues("QASA-1");
+        JiraAutofixTriageRun run = JiraAutofixTriageRun.start(board, USER_ID, 1, 1, 0, false);
+        when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+        doThrow(new BusinessException(ErrorCode.AI_CREDITS_EXHAUSTED))
+                .when(aiCreditService).consumeCredit(any(), any(), any(), anyInt());
+
+        service.executeRun("run-1", BOARD_ID, USER_ID, false, null);
+
+        assertThat(run.getStatus()).isEqualTo(AutofixTriageRunStatus.FAILED);
+        assertThat(run.getErrorMessage()).contains("크레딧");
+        assertThat(run.getFailedBatches()).isZero();
+        verify(claudeAIProvider, never()).chatStructured(any(), any(), any(), anyInt(), any());
+    }
+
+    @Test
+    @DisplayName("실행이 통째로 엎어지면 FAILED로 적힌다 — 화면이 영원히 '판정 중'이면 안 된다")
+    void executeRunMarksFailure() {
+        JiraAutofixTriageRun run = JiraAutofixTriageRun.start(board, USER_ID, 1, 1, 0, false);
+        when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+        when(issueLinkRepository.findByBoardIdAndTargetType(BOARD_ID, JiraLinkTargetType.TASK))
+                .thenThrow(new IllegalStateException("DB 끊김"));
+
+        service.executeRun("run-1", BOARD_ID, USER_ID, false, null);
+
+        assertThat(run.getStatus()).isEqualTo(AutofixTriageRunStatus.FAILED);
+        assertThat(run.getErrorMessage()).contains("DB 끊김");
+    }
+
+    @Test
+    @DisplayName("조회가 유령 실행을 정리한다 — 폴링만 하고 있어도 화면이 풀린다")
+    void getRunStatusReclaimsStaleRun() {
+        JiraAutofixTriageRun dead = JiraAutofixTriageRun.start(board, USER_ID, 3, 3, 0, false);
+        ReflectionTestUtils.setField(dead, "updatedAt",
+                LocalDateTime.now(ZoneOffset.UTC).minusHours(2));
+        when(runRepository.findLatest(BOARD_ID)).thenReturn(Optional.of(dead));
+
+        JiraAutofixResponse.TriageRun run = service.getRunStatus(BOARD_ID, USER_ID);
+
+        assertThat(run.getStatus()).isEqualTo("FAILED");
+        verify(runRepository).save(dead);
+    }
+
+    @Test
+    @DisplayName("한 번도 안 돌린 보드는 상태가 비어 온다 — 화면은 그걸 '실행 중 아님'으로 읽는다")
+    void getRunStatusWithoutHistory() {
+        JiraAutofixResponse.TriageRun run = service.getRunStatus(BOARD_ID, USER_ID);
+
+        assertThat(run.getStatus()).isNull();
+        assertThat(run.getSummary()).isNotNull();
     }
 }

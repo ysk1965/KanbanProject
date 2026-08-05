@@ -9,17 +9,33 @@ import java.util.List;
 
 public class JiraAutofixResponse {
 
-    /** 트리아지 실행 결과. Step 1의 목적은 이 숫자를 얻는 것이다. */
+    /**
+     * 트리아지 실행 상태. 시작 응답과 폴링 응답이 같은 모양이다.
+     *
+     * <p>판정은 백그라운드에서 돈다 — 요청 스레드에서 끝까지 기다리면 ALB idle timeout(90s)에
+     * 걸려 504가 나기 때문이다. 그래서 시작 요청은 {@code status=RUNNING}에 {@code triaged=0}인
+     * 이 값을 즉시 돌려주고, 화면은 같은 모양을 폴링해 진행률을 그린다.
+     */
     @Getter @Builder @AllArgsConstructor
     public static class TriageRun {
+        /** RUNNING / SUCCEEDED / FAILED. 실행 기록이 아예 없으면 null. */
+        private String status;
         /** 보드에서 발견한 JIRA 연동 태스크 총 수. */
         private int scanned;
-        /** 이번 실행에서 실제로 AI 판정을 돌린 건수. */
+        /** 이번 실행에서 판정할 대상 수 — 진행률의 분모. */
+        private int total;
+        /** 지금까지 반영된 판정 건수 — 진행률의 분자. */
         private int triaged;
         /** 직전 판정 이후 이슈가 안 바뀌어 건너뛴 건수. */
         private int skipped;
         /** 실패한 배치 수. 0이 아니면 summary가 부분 결과다. */
         private int failedBatches;
+        /** 이슈키를 지정해 좁혀 돌린 실행인지. */
+        private boolean scoped;
+        /** FAILED일 때 사람에게 보일 한 줄. */
+        private String errorMessage;
+        private java.time.LocalDateTime startedAt;
+        private java.time.LocalDateTime finishedAt;
         private Summary summary;
     }
 

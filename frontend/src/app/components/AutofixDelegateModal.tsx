@@ -1,7 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, Loader2, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent, ClipboardEvent } from "react";
+import {
+  AlertTriangle,
+  Check,
+  FileVideo,
+  ImagePlus,
+  Loader2,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { MotionModal } from "./ui/MotionModal";
-import { jiraAutofixAPI, JiraAutofixJob } from "../utils/api";
+import { fileAPI, jiraAutofixAPI, JiraAutofixJob } from "../utils/api";
 import { ChecklistItem } from "../types";
 import { useAutofixRunnerStatus } from "../hooks/useAutofixRunnerStatus";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
@@ -35,6 +44,26 @@ interface AutofixDelegateModalProps {
 /** 아직 결과가 정해지지 않은 상태 = 지금 맡길 수 없는 항목. */
 const LIVE_STATUSES = new Set(["QUEUED", "DISPATCHED"]);
 
+/**
+ * 함께 보낼 자료의 상한. 서버(autofix.max-delegate-*)와 같은 값을 둔다 —
+ * 여기서 막지 않으면 사용자는 10MB짜리를 다 올린 뒤 제출 단계에서 거절당한다.
+ */
+const MAX_FILES = 3;
+const MAX_FILE_MB = 10;
+
+/** 첨부 한 건의 화면 상태. tempKey가 있어야 제출에 실을 수 있다. */
+interface DelegateAttachment {
+  /** 화면 전용 키 — 같은 파일을 두 번 골라도 행이 섞이지 않게 한다. */
+  localId: string;
+  name: string;
+  isVideo: boolean;
+  /** 로컬 미리보기(ObjectURL). 닫을 때 반드시 회수한다. */
+  previewUrl: string;
+  tempKey: string | null;
+  uploading: boolean;
+  failed: boolean;
+}
+
 export function AutofixDelegateModal({
   open,
   onClose,
@@ -50,6 +79,14 @@ export function AutofixDelegateModal({
   const [instruction, setInstruction] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<DelegateAttachment[]>([]);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  /** 미리보기 URL 회수와 개수 검사에 필요하다 — 둘 다 setState 콜백 밖에서 일어난다. */
+  const attachmentsRef = useRef<DelegateAttachment[]>([]);
+  useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
 
   const runner = useAutofixRunnerStatus(boardId, open);
 
@@ -59,10 +96,19 @@ export function AutofixDelegateModal({
     setSelected(new Set(initialItemId ? [initialItemId] : []));
     setInstruction("");
     setError(null);
+    attachmentsRef.current.forEach((a) => URL.revokeObjectURL(a.previewUrl));
+    setAttachments([]);
     void runner.refresh();
     // runner.refresh는 매 렌더 새로 만들어지므로 의존성에서 뺀다 — 넣으면 무한 루프가 된다
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialItemId]);
+
+  // 언마운트될 때도 회수한다. 카드를 여러 번 여닫으면 ObjectURL이 탭이 살아 있는 내내 쌓인다.
+  useEffect(() => {
+    return () => {
+      attachmentsRef.current.forEach((a) => URL.revokeObjectURL(a.previewUrl));
+    };
+  }, []);
 
   const lockedIds = useMemo(() => {
     const locked = new Set<string>();
@@ -85,19 +131,143 @@ export function AutofixDelegateModal({
     [lockedIds],
   );
 
+  /**
+   * 고른 파일을 곧바로 임시 저장소로 올린다.
+   *
+   * <p>제출 순간에 몰아서 올리지 않는 이유 — 영상 한 편이 10MB면 버튼을 누른 뒤 수 초간
+   * 아무 일도 일어나지 않는 것처럼 보이고, 그 사이 실패하면 지시문을 다 쓴 화면에서 막힌다.
+   */
+  const addFiles = useCallback((picked: File[]) => {
+    if (picked.length === 0) return;
+
+    const room = MAX_FILES - attachmentsRef.current.length;
+    if (room <= 0) {
+      setError(`첨부는 ${MAX_FILES}개까지만 올릴 수 있습니다`);
+      return;
+    }
+
+    const accepted: { att: DelegateAttachment; file: File }[] = [];
+    let tooLarge = false;
+    let notMedia = false;
+
+    for (const file of picked) {
+      if (accepted.length >= room) break;
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+      if (!isImage && !isVideo) {
+        notMedia = true;
+        continue;
+      }
+      if (file.size > MAX_FILE_MB * 1024 * 1024) {
+        tooLarge = true;
+        continue;
+      }
+      accepted.push({
+        att: {
+          localId: `${file.name}-${file.lastModified}-${accepted.length}-${performance.now()}`,
+          name: file.name,
+          isVideo,
+          previewUrl: URL.createObjectURL(file),
+          tempKey: null,
+          uploading: true,
+          failed: false,
+        },
+        file,
+      });
+    }
+
+    // 무엇이 빠졌는지 말해준다. 조용히 버리면 사용자는 첨부가 나갔다고 믿는다.
+    setError(
+      tooLarge
+        ? `${MAX_FILE_MB}MB가 넘는 파일은 빼고 올렸습니다`
+        : notMedia
+          ? "이미지나 영상만 올릴 수 있습니다"
+          : picked.length > room
+            ? `${MAX_FILES}개까지만 올릴 수 있어 나머지는 뺐습니다`
+            : null,
+    );
+
+    if (accepted.length === 0) return;
+    setAttachments((prev) => [...prev, ...accepted.map((a) => a.att)]);
+
+    for (const { att, file } of accepted) {
+      fileAPI
+        .smartUpload(file)
+        .then(({ tempKey }) =>
+          setAttachments((prev) =>
+            prev.map((a) =>
+              a.localId === att.localId
+                ? { ...a, tempKey, uploading: false }
+                : a,
+            ),
+          ),
+        )
+        .catch(() =>
+          setAttachments((prev) =>
+            prev.map((a) =>
+              a.localId === att.localId
+                ? { ...a, uploading: false, failed: true }
+                : a,
+            ),
+          ),
+        );
+    }
+  }, []);
+
+  const handlePick = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      addFiles(Array.from(e.target.files ?? []));
+      // 같은 파일을 지웠다가 다시 고를 수 있어야 한다 — 비우지 않으면 change가 안 뜬다.
+      e.target.value = "";
+    },
+    [addFiles],
+  );
+
+  /** 스크린샷은 대개 클립보드에 있다. 지시문 칸에 그대로 붙여넣는 것이 가장 짧은 동선이다. */
+  const handlePaste = useCallback(
+    (e: ClipboardEvent<HTMLTextAreaElement>) => {
+      const files = Array.from(e.clipboardData.files);
+      if (files.length === 0) return;
+      e.preventDefault();
+      addFiles(files);
+    },
+    [addFiles],
+  );
+
+  const removeAttachment = useCallback((localId: string) => {
+    const target = attachmentsRef.current.find((a) => a.localId === localId);
+    if (target) URL.revokeObjectURL(target.previewUrl);
+    setAttachments((prev) => prev.filter((a) => a.localId !== localId));
+  }, []);
+
   const wholeTask = selected.size === 0;
+  const uploadingFiles = attachments.some((a) => a.uploading);
+  const failedFiles = attachments.some((a) => a.failed);
+  /*
+   * 올리다 실패한 첨부가 하나라도 있으면 보내지 않는다. 그냥 빼고 보내면 사용자는 "이 화면을
+   * 보고 고쳐 달라"고 써 놓고 그림 없이 나간 것을 모른다.
+   */
   const canSubmit =
-    runner.canDelegate && instruction.trim().length > 0 && !submitting;
+    runner.canDelegate &&
+    instruction.trim().length > 0 &&
+    !submitting &&
+    !uploadingFiles &&
+    !failedFiles;
 
   const handleSubmit = useCallback(async () => {
     if (!canSubmit) return;
     setSubmitting(true);
     setError(null);
     try {
+      const fileKeys = attachments
+        .map((a) => a.tempKey)
+        .filter((k): k is string => !!k);
+
       const result = await jiraAutofixAPI.delegate(boardId, {
         task_id: taskId,
         checklist_item_ids: wholeTask ? [] : Array.from(selected),
         instruction: instruction.trim(),
+        file_keys: fileKeys.length > 0 ? fileKeys : undefined,
       });
       onDelegated?.(result.queued);
       onClose();
@@ -113,6 +283,7 @@ export function AutofixDelegateModal({
     wholeTask,
     selected,
     instruction,
+    attachments,
     onDelegated,
     onClose,
   ]);
@@ -262,6 +433,7 @@ export function AutofixDelegateModal({
           <textarea
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
+            onPaste={handlePaste}
             disabled={!runner.canDelegate}
             maxLength={4000}
             rows={4}
@@ -274,13 +446,113 @@ export function AutofixDelegateModal({
           <div className="flex items-center justify-between mt-1.5">
             <p className="text-xs text-slate-500 leading-relaxed">
               {selected.size > 1
-                ? `선택한 ${selected.size}개 항목에 같은 지시가 전달됩니다.`
+                ? `선택한 ${selected.size}개 항목에 같은 지시${
+                    attachments.length > 0 ? "와 자료가" : "가"
+                  } 전달됩니다.`
                 : ""}
             </p>
             <span className="text-xs text-slate-500 tabular-nums">
               {instruction.length} / 4000
             </span>
           </div>
+        </div>
+
+        {/*
+          자료를 지시문 바로 아래 둔다 — "이 화면을 보고 고쳐 달라"는 문장과 그 화면은 한 덩어리라,
+          제약 안내 뒤로 밀면 지시문을 다 쓰고 나서야 첨부할 수 있다는 걸 알게 된다.
+        */}
+        <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              무엇을 보여줄까요
+            </p>
+            <span className="ml-auto text-xs text-slate-500 tabular-nums">
+              {attachments.length} / {MAX_FILES}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {attachments.map((att) => (
+              <div
+                key={att.localId}
+                className={`relative w-20 h-20 rounded-xl overflow-hidden border ${
+                  att.failed ? "border-rose-500/50" : "border-foreground/10"
+                } bg-foreground/[0.03]`}
+              >
+                {att.isVideo ? (
+                  <div className="w-full h-full grid place-items-center text-slate-400">
+                    <FileVideo className="w-6 h-6" />
+                  </div>
+                ) : (
+                  <img
+                    src={att.previewUrl}
+                    alt={att.name}
+                    className="w-full h-full object-cover"
+                  />
+                )}
+
+                {/* 올라가는 중과 실패를 타일 위에 덮는다. 목록 밖에 적으면 어느 파일인지 알 수 없다. */}
+                {att.uploading && (
+                  <div className="absolute inset-0 grid place-items-center bg-bridge-obsidian/70">
+                    <Loader2 className="w-4 h-4 animate-spin text-bridge-accent" />
+                  </div>
+                )}
+                {att.failed && (
+                  <div className="absolute inset-0 grid place-items-center bg-bridge-obsidian/75">
+                    <span className="text-xs font-bold text-rose-500">실패</span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(att.localId)}
+                  aria-label={`${att.name} 첨부 빼기`}
+                  className="absolute top-1 right-1 w-5 h-5 grid place-items-center rounded-full
+                    bg-bridge-obsidian/80 text-slate-400 hover:text-foreground transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+
+                <span
+                  className="absolute bottom-0 inset-x-0 px-1.5 py-0.5 text-xs text-slate-400
+                    bg-bridge-obsidian/85 truncate"
+                  title={att.name}
+                >
+                  {att.name}
+                </span>
+              </div>
+            ))}
+
+            {attachments.length < MAX_FILES && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!runner.canDelegate}
+                aria-label="이미지나 영상 첨부"
+                className="w-20 h-20 rounded-xl border border-dashed border-foreground/[0.18]
+                  grid place-items-center text-slate-500 hover:text-bridge-accent
+                  hover:border-bridge-accent/40 hover:bg-foreground/5 transition-colors
+                  disabled:opacity-45 disabled:cursor-not-allowed"
+              >
+                <ImagePlus className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*"
+            multiple
+            onChange={handlePick}
+            className="hidden"
+          />
+
+          <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+            {failedFiles
+              ? "올리지 못한 첨부가 있습니다. 빼거나 다시 올려주세요."
+              : `스크린샷은 지시문 칸에 붙여넣어도 됩니다. 영상은 장면을 뽑아 함께 봅니다 (파일당 ${MAX_FILE_MB}MB).`}
+          </p>
         </div>
 
         {/*
@@ -323,7 +595,10 @@ export function AutofixDelegateModal({
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
         <span className="text-xs text-slate-600">Esc 닫기</span>
         <div className="flex items-center gap-2.5">
-          <span className="text-xs text-slate-600">PR까지만 만듭니다</span>
+          {/* 버튼이 꺼져 있는 이유를 옆에 둔다 — 이유 없이 눌리지 않는 버튼은 고장으로 읽힌다. */}
+          <span className="text-xs text-slate-600">
+            {uploadingFiles ? "첨부 올리는 중" : "PR까지만 만듭니다"}
+          </span>
           <button
             type="button"
             onClick={handleSubmit}

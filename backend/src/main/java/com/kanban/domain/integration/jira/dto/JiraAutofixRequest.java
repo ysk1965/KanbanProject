@@ -30,6 +30,13 @@ public class JiraAutofixRequest {
         private String taskId;
         private List<String> checklistItemIds;
         private String instruction;
+        /**
+         * 사람이 방금 올린 스크린샷·재현 영상의 임시 키. 지시문과 함께 러너로 나가 에이전트가 직접 본다.
+         *
+         * <p>항목 여럿을 한 번에 맡겨도 파일은 <b>한 번만</b> 올린다 — 고른 항목 전부에 같은 자료가 붙는다.
+         * 지시문을 항목마다 나누지 않는 것과 같은 이유다.
+         */
+        private List<String> fileKeys;
     }
 
     /**

@@ -6120,12 +6120,31 @@ export interface JiraAutofixSummary {
   categories: JiraAutofixCategoryCount[];
 }
 
+export type JiraAutofixTriageRunStatus = "RUNNING" | "SUCCEEDED" | "FAILED";
+
+/**
+ * 트리아지 실행 상태. 시작 응답과 폴링 응답이 같은 모양이다.
+ *
+ * <p>판정은 서버 백그라운드에서 돈다 — 이슈 15건마다 AI 호출 한 번이라 응답을 기다리면
+ * 게이트웨이 타임아웃(504)에 걸린다. 시작은 즉시 RUNNING으로 돌아오고, 진행률은 폴링해서 본다.
+ */
 export interface JiraAutofixTriageRun {
+  /** 실행 이력이 아예 없으면 null. */
+  status: JiraAutofixTriageRunStatus | null;
   scanned: number;
+  /** 이번 실행이 판정할 대상 수 — 진행률의 분모. */
+  total: number;
+  /** 지금까지 반영된 판정 수 — 진행률의 분자. */
   triaged: number;
   skipped: number;
   /** 0이 아니면 summary가 부분 결과다. */
   failed_batches: number;
+  /** 이슈키를 지정해 좁혀 돌린 실행인지. */
+  scoped: boolean;
+  /** FAILED일 때 사람에게 보일 한 줄. */
+  error_message: string | null;
+  started_at: string | null;
+  finished_at: string | null;
   summary: JiraAutofixSummary;
 }
 
@@ -6276,6 +6295,11 @@ export interface JiraAutofixDelegateRequest {
   task_id: string;
   checklist_item_ids?: string[];
   instruction: string;
+  /**
+   * 함께 보낼 스크린샷·재현 영상의 임시 키(fileAPI.smartUpload 결과).
+   * 항목을 여럿 골라도 파일은 한 번만 올리고, 고른 항목 전부에 같은 자료가 붙는다.
+   */
+  file_keys?: string[];
 }
 
 export interface JiraAutofixDelegateResult {
@@ -6392,15 +6416,26 @@ export const jiraAutofixAPI = {
   },
 
   /**
-   * 트리아지 실행 (관리자 이상). force=true면 안 바뀐 이슈도 재판정.
+   * 트리아지 시작 (관리자 이상). force=true면 안 바뀐 이슈도 재판정.
    *
    * issueKeys를 주면 그 이슈들만 무조건 다시 판정한다 — 판정 후 카드가 움직인 건만 골라
    * 다시 보는 경로다. 전건 재판정은 AI 호출 비용이 커서 사실상 아무도 누르지 않는다.
+   *
+   * ⚠️ 판정이 끝나기를 기다리지 않는다. 즉시 RUNNING 상태가 돌아오고, 실제 완료는
+   * {@link getTriageStatus} 폴링으로 확인해야 한다 — 이슈 100건이면 수 분이 걸려
+   * 응답을 붙들면 게이트웨이가 504로 끊는다.
    */
   runTriage: async (boardId: string, force = false, issueKeys?: string[]) => {
     return apiClient.post<JiraAutofixTriageRun>(
       `/boards/${boardId}/jira/autofix/triage?force=${force}`,
       issueKeys?.length ? { issue_keys: issueKeys } : {},
+    );
+  },
+
+  /** 트리아지 진행률. status가 RUNNING이 아니면 끝난 것이다. */
+  getTriageStatus: async (boardId: string) => {
+    return apiClient.get<JiraAutofixTriageRun>(
+      `/boards/${boardId}/jira/autofix/triage/status`,
     );
   },
 

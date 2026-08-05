@@ -28,6 +28,7 @@ import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -87,6 +88,9 @@ public class JiraAutofixTriageService {
     private final JiraIssueLinkRepository issueLinkRepository;
     private final JiraIntegrationConfigRepository configRepository;
     private final JiraAutofixTriageRepository triageRepository;
+    /** 실행 진행률 원장. 판정이 백그라운드로 도는 동안 화면이 보는 유일한 상태다. */
+    private final JiraAutofixTriageRunRepository runRepository;
+    private final ApplicationEventPublisher eventPublisher;
     private final AiUsageLogRepository aiUsageLogRepository;
     private final AiCreditService aiCreditService;
     private final CommentRepository commentRepository;
@@ -210,26 +214,124 @@ public class JiraAutofixTriageService {
     // ── 실행 ──────────────────────────────────────
 
     /**
-     * 보드의 JIRA 연동 이슈를 트리아지한다.
+     * 트리아지를 시작한다. <b>여기서 기다리지 않는다</b> — 실행 상태만 즉시 돌려주고, 판정은
+     * 백그라운드에서 돈다.
+     *
+     * <p>이슈 15건마다 AI 호출 한 번이라 100건이면 수 분이 걸린다. 요청 스레드에서 끝까지 돌면
+     * ALB idle timeout(90s)에 걸려 504가 나는데, 그동안 서버는 멀쩡히 판정을 계속하므로
+     * 화면만 실패로 보인다 — 사람이 다시 누르면 AI 호출이 두 배가 된다.
+     *
+     * <p>이미 도는 실행이 있으면 새로 시작하지 않고 그 상태를 돌려준다. 같은 이유다.
+     *
+     * @param force     true면 이슈가 안 바뀌었어도 전건 재판정
+     * @param issueKeys 지정하면 그 이슈들만, 그리고 <b>반드시</b> 다시 판정한다. 화면에서 "판정 후
+     *                  변경된 건만 다시" 누르는 경로다 — 카드가 BRIDGE 안에서만 움직였을 때는
+     *                  JIRA 갱신 시각이 그대로라 평소 기준으로는 전부 건너뛰어 버튼이 아무 일도 안 한다.
+     */
+    public JiraAutofixResponse.TriageRun startTriage(String boardId, String userId,
+                                                     boolean force, List<String> issueKeys) {
+        boardService.checkAdminOrAbove(boardId, userId);
+
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        JiraAutofixTriageRun previous = runRepository.findLatest(boardId).orElse(null);
+        if (previous != null && previous.isRunning()) {
+            if (!previous.isStale()) return toRunResponse(previous, boardId);
+            // 배포·인스턴스 교체로 스레드가 사라진 유령 실행. 치우지 않으면 이 보드는 다시 못 돈다
+            previous.fail("실행이 응답 없이 끊겼습니다");
+            runRepository.save(previous);
+            log.warn("JIRA autofix triage: reclaimed stale run (board={}, run={})", boardId, previous.getId());
+        }
+
+        Scope scope = resolveScope(boardId, force, issueKeys);
+        if (scope.links().isEmpty()) {
+            throw new BusinessException(ErrorCode.JIRA_AUTOFIX_NO_LINKED_ISSUES);
+        }
+
+        JiraAutofixTriageRun run = runRepository.save(JiraAutofixTriageRun.start(
+                board, userId, scope.links().size(), scope.targets().size(),
+                scope.links().size() - scope.targets().size(), scope.scoped()));
+
+        // 판정할 게 없으면 백그라운드로 보낼 이유가 없다 — 화면이 폴링만 한 바퀴 헛돈다
+        if (scope.targets().isEmpty()) {
+            run.succeed();
+            return toRunResponse(runRepository.save(run), boardId);
+        }
+
+        eventPublisher.publishEvent(
+                new JiraAutofixTriageRequestedEvent(run.getId(), boardId, userId, force, issueKeys));
+
+        return toRunResponse(run, boardId);
+    }
+
+    /** 마지막 실행 상태. 화면은 RUNNING인 동안 이걸 폴링해 진행률을 그린다. */
+    public JiraAutofixResponse.TriageRun getRunStatus(String boardId, String userId) {
+        boardService.checkAdminOrAbove(boardId, userId);
+
+        JiraAutofixTriageRun run = runRepository.findLatest(boardId).orElse(null);
+        if (run == null) {
+            // 한 번도 안 돌린 보드. 화면은 status=null을 "실행 중 아님"으로 읽는다
+            return JiraAutofixResponse.TriageRun.builder()
+                    .summary(buildSummary(boardId))
+                    .build();
+        }
+
+        if (run.isStale()) {
+            run.fail("실행이 응답 없이 끊겼습니다");
+            runRepository.save(run);
+        }
+
+        return toRunResponse(run, boardId);
+    }
+
+    /**
+     * 백그라운드 실행 본체. {@link JiraAutofixTriageListener}만 부른다.
      *
      * <p>클래스 전체에 트랜잭션을 걸지 않는다 — 배치마다 수 초짜리 HTTP 호출이 있어 커넥션을
      * 잡고 있으면 안 된다. 저장은 배치 단위로 {@code saveAll}이 각자의 트랜잭션에서 처리한다.
      * 중간에 실패해도 거기까지의 판정은 남는다.
+     */
+    public void executeRun(String runId, String boardId, String userId,
+                           boolean force, List<String> issueKeys) {
+        JiraAutofixTriageRun run = runRepository.findById(runId).orElse(null);
+        if (run == null) {
+            log.warn("JIRA autofix triage: run not found ({})", runId);
+            return;
+        }
+
+        try {
+            Board board = boardRepository.findById(boardId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+            // 시작 때와 같은 기준으로 다시 뽑는다 — 대상 목록은 스레드를 건너 넘기지 않는다
+            Scope scope = resolveScope(boardId, force, issueKeys);
+
+            runBatches(board, userId, scope, (triagedDelta, batchFailed) -> {
+                run.progress(triagedDelta, batchFailed);
+                runRepository.save(run);
+            });
+
+            run.succeed();
+            runRepository.save(run);
+        } catch (Exception e) {
+            log.error("JIRA autofix triage run failed (board={}, run={}): {}",
+                    boardId, runId, e.getMessage(), e);
+            run.fail(e.getMessage() != null ? e.getMessage() : "트리아지 실행에 실패했습니다");
+            runRepository.save(run);
+        }
+    }
+
+    /**
+     * 동기 실행. 진행률을 남기지 않고 끝까지 돈다 — 화면 경로는 {@link #startTriage}다.
      *
-     * @param force true면 이슈가 안 바뀌었어도 전건 재판정
+     * <p>배치 루프의 동작(건너뛰기·부분 실패·집계)을 검증하는 통로로 남겨 둔다.
      */
     public JiraAutofixResponse.TriageRun triageBoard(String boardId, String userId, boolean force) {
         return triageBoard(boardId, userId, force, null);
     }
 
-    /**
-     * 범위를 좁힌 트리아지.
-     *
-     * @param issueKeys 지정하면 그 이슈들만, 그리고 <b>반드시</b> 다시 판정한다. 화면에서 "판정 후
-     *                  변경된 건만 다시" 누르는 경로다 — 카드가 BRIDGE 안에서만 움직였을 때는
-     *                  JIRA 갱신 시각이 그대로라 평소 기준으로는 전부 건너뛰어 버튼이 아무 일도 안 한다.
-     *                  비우면 {@link #triageBoard(String, String, boolean)}과 같다.
-     */
+    /** 범위를 좁힌 동기 실행. {@link #triageBoard(String, String, boolean)} 참고. */
     public JiraAutofixResponse.TriageRun triageBoard(String boardId, String userId,
                                                      boolean force, List<String> issueKeys) {
         boardService.checkAdminOrAbove(boardId, userId);
@@ -237,6 +339,36 @@ public class JiraAutofixTriageService {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
+        Scope scope = resolveScope(boardId, force, issueKeys);
+        if (scope.links().isEmpty()) {
+            throw new BusinessException(ErrorCode.JIRA_AUTOFIX_NO_LINKED_ISSUES);
+        }
+
+        int[] result = runBatches(board, userId, scope, (triagedDelta, batchFailed) -> { });
+
+        return JiraAutofixResponse.TriageRun.builder()
+                .status(AutofixTriageRunStatus.SUCCEEDED.name())
+                .scanned(scope.links().size())
+                .total(scope.targets().size())
+                .triaged(result[0])
+                .skipped(scope.links().size() - scope.targets().size())
+                .failedBatches(result[1])
+                .scoped(scope.scoped())
+                .summary(buildSummary(boardId))
+                .build();
+    }
+
+    /** 배치 하나가 끝날 때마다 불린다. 화면이 진척을 보는 유일한 통로. */
+    @FunctionalInterface
+    private interface BatchProgress {
+        void accept(int triagedDelta, boolean batchFailed);
+    }
+
+    /** 판정 대상 산출 결과. 시작과 실행이 같은 기준을 봐야 진행률의 분모가 맞는다. */
+    private record Scope(List<JiraIssueLink> links, List<JiraIssueLink> targets,
+                         Map<String, JiraAutofixTriage> existing, boolean scoped) { }
+
+    private Scope resolveScope(String boardId, boolean force, List<String> issueKeys) {
         boolean scoped = issueKeys != null && !issueKeys.isEmpty();
         Set<String> wanted = scoped ? new HashSet<>(issueKeys) : Set.of();
 
@@ -245,10 +377,6 @@ public class JiraAutofixTriageService {
                 .filter(link -> !link.isJiraDeleted())
                 .filter(link -> !scoped || wanted.contains(link.getJiraIssueKey()))
                 .toList();
-
-        if (links.isEmpty()) {
-            throw new BusinessException(ErrorCode.JIRA_AUTOFIX_NO_LINKED_ISSUES);
-        }
 
         Map<String, JiraAutofixTriage> existing = new HashMap<>();
         for (JiraAutofixTriage triage : triageRepository.findByBoardId(boardId)) {
@@ -263,7 +391,13 @@ public class JiraAutofixTriageService {
                 })
                 .toList();
 
-        int skipped = links.size() - targets.size();
+        return new Scope(links, targets, existing, scoped);
+    }
+
+    /** 배치 루프. 반환값은 {@code [반영된 판정 수, 실패한 배치 수]}. */
+    private int[] runBatches(Board board, String userId, Scope scope, BatchProgress progress) {
+        String boardId = board.getId();
+        List<JiraIssueLink> targets = scope.targets();
 
         // 저장소에 어떤 검증 수단이 실제로 있는지가 판정을 좌우한다 — 없는 테스트를 전제하면 후보가 부푼다
         TestInfraLevel testInfra = configRepository.findByBoardId(boardId)
@@ -272,7 +406,8 @@ public class JiraAutofixTriageService {
         String systemPrompt = buildSystemPrompt(testInfra, boardId);
 
         log.info("JIRA autofix triage: board={} scanned={} targets={} skipped={} scoped={} testInfra={}",
-                boardId, links.size(), targets.size(), skipped, scoped, testInfra);
+                boardId, scope.links().size(), targets.size(),
+                scope.links().size() - targets.size(), scope.scoped(), testInfra);
 
         Map<String, Task> tasks = loadTasks(targets);
 
@@ -282,20 +417,41 @@ public class JiraAutofixTriageService {
         for (int from = 0; from < targets.size(); from += BATCH_SIZE) {
             List<JiraIssueLink> batch = targets.subList(from, Math.min(from + BATCH_SIZE, targets.size()));
             try {
-                triaged += triageBatch(board, userId, batch, tasks, existing, systemPrompt);
+                int done = triageBatch(board, userId, batch, tasks, scope.existing(), systemPrompt);
+                triaged += done;
+                progress.accept(done, false);
+            } catch (BusinessException e) {
+                // 크레딧이 바닥난 것은 배치의 사정이 아니다 — 남은 배치도 전부 같은 이유로 죽는다.
+                // 계속 돌면 "묶음 8개 실패"만 남고 진짜 이유는 어디에도 안 뜬다
+                if (e.getErrorCode() == ErrorCode.AI_CREDITS_EXHAUSTED) throw e;
+                failedBatches++;
+                progress.accept(0, true);
+                log.warn("JIRA autofix triage batch failed (board={}, from={}): {}",
+                        boardId, from, e.getMessage());
             } catch (Exception e) {
                 // 한 배치가 죽어도 나머지는 계속 간다 — 100건 중 15건 때문에 전부 날리지 않는다
                 failedBatches++;
+                progress.accept(0, true);
                 log.warn("JIRA autofix triage batch failed (board={}, from={}): {}",
                         boardId, from, e.getMessage());
             }
         }
 
+        return new int[] { triaged, failedBatches };
+    }
+
+    private JiraAutofixResponse.TriageRun toRunResponse(JiraAutofixTriageRun run, String boardId) {
         return JiraAutofixResponse.TriageRun.builder()
-                .scanned(links.size())
-                .triaged(triaged)
-                .skipped(skipped)
-                .failedBatches(failedBatches)
+                .status(run.getStatus().name())
+                .scanned(run.getScanned())
+                .total(run.getTotal())
+                .triaged(run.getTriaged())
+                .skipped(run.getSkipped())
+                .failedBatches(run.getFailedBatches())
+                .scoped(run.isScoped())
+                .errorMessage(run.getErrorMessage())
+                .startedAt(run.getStartedAt())
+                .finishedAt(run.getFinishedAt())
                 .summary(buildSummary(boardId))
                 .build();
     }

@@ -40,6 +40,15 @@ public class AutofixProperties {
     private int maxJobMaterials = 12;
 
     /**
+     * 한 번 위임할 때 사람이 직접 올릴 수 있는 자료 수. 댓글 첨부와 달리 이 파일들은
+     * 지시문을 이해시키려고 올리는 것이라, 많이 붙일수록 "무엇을 보라는 것인지"가 흐려진다.
+     */
+    private int maxDelegateMaterials = 3;
+
+    /** 위임 첨부 1건의 용량 상한(MB). 재현 영상 한 편이 들어갈 만큼은 되고, 맥이 받는 데 오래 걸리진 않는 크기. */
+    private int maxDelegateMaterialMb = 10;
+
+    /**
      * 이 시간이 지나도록 콜백이 없으면 회수한다. 이슈 1건에 10~40분이 걸리므로
      * 넉넉히 잡되, 무한정 두면 DISPATCHED 하나가 큐 전체를 영구히 막는다.
      */

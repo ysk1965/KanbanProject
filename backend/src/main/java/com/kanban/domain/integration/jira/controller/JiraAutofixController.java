@@ -110,8 +110,13 @@ public class JiraAutofixController {
     // ── 트리아지 ───────────────────────────────────
 
     /**
-     * 트리아지 실행. 이슈가 바뀌지 않은 건은 건너뛴다(재실행 비용 방지).
+     * 트리아지 시작. 이슈가 바뀌지 않은 건은 건너뛴다(재실행 비용 방지).
      * AI를 호출하므로 관리자 이상만 실행할 수 있다.
+     *
+     * <p><b>판정을 기다리지 않고 즉시 응답한다.</b> 이슈 15건마다 AI 호출 한 번이라 100건이면
+     * 수 분이 걸리는데, 그동안 요청을 붙들면 ALB idle timeout(90s)에 걸려 504가 난다. 서버는
+     * 그 뒤로도 판정을 계속하므로 화면만 실패로 보이고, 다시 누르면 AI 호출이 두 배가 된다.
+     * 진행률은 {@code GET .../triage/status}로 폴링한다.
      *
      * @param force   true면 전건 재판정
      * @param request {@code issue_keys}를 주면 그 이슈들만 무조건 다시 판정한다. 본문은 없어도 된다.
@@ -122,9 +127,17 @@ public class JiraAutofixController {
             @RequestParam(value = "force", defaultValue = "false") boolean force,
             @RequestBody(required = false) JiraAutofixRequest.Triage request,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(triageService.triageBoard(
+        return ResponseEntity.accepted().body(triageService.startTriage(
                 boardId, principal.getUserId(), force,
                 request != null ? request.getIssueKeys() : null));
+    }
+
+    /** 트리아지 진행률. 시작 응답과 같은 모양이며, 실행 이력이 없으면 {@code status}가 비어 온다. */
+    @GetMapping("/api/v1/boards/{boardId}/jira/autofix/triage/status")
+    public ResponseEntity<JiraAutofixResponse.TriageRun> triageStatus(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(triageService.getRunStatus(boardId, principal.getUserId()));
     }
 
     /**

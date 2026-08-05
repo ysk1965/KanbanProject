@@ -26,6 +26,7 @@ import {
   JiraAutofixCategory,
   JiraAutofixTestInfra,
   JiraAutofixRunnerStatus,
+  JiraAutofixTriageRun,
   slackAppAPI,
   SlackChannel,
 } from "../utils/api";
@@ -45,12 +46,35 @@ interface JiraAutofixDockProps {
 
 const POLL_INTERVAL_MS = 10_000;
 /**
+ * 판정 진행률 폴링 간격. 큐 폴링(10초)보다 짧다 — 배치 하나가 수십 초라 진행 숫자가
+ * 그보다 느리게 움직이면 사람은 멈춘 줄 안다.
+ */
+const TRIAGE_POLL_INTERVAL_MS = 4_000;
+/**
  * 이 시간을 넘게 물고 있으면 러너를 의심해야 한다. 서버의 자동 회수(90분)보다 훨씬 짧게 잡는다 —
  * 막힌 큐를 90분 동안 아무 설명 없이 두면 화면이 고장난 것처럼 보인다.
  */
 const STALE_HINT_MINUTES = 30;
 /** 펼침 높이. 드래그 리사이즈는 넣지 않는다 — 담을 내용이 그만큼 가변적이지 않다. */
 const DOCK_HEIGHT = "min(75vh, 800px)";
+
+/**
+ * 끝난 판정 실행을 한 줄로. 화면이 결과를 볼 수 있는 유일한 순간이라 — 실행 자체는
+ * 서버 백그라운드에서 돌고 응답은 시작 시점에 이미 끝났다 — 여기서 다 말해야 한다.
+ */
+const describeTriageRun = (run: JiraAutofixTriageRun): string => {
+  if (run.status === "FAILED") {
+    return run.error_message || "판정에 실패했습니다";
+  }
+  if (run.triaged === 0 && !run.scoped) {
+    return `변경된 이슈가 없어 ${run.skipped}건 모두 건너뜀`;
+  }
+  const parts = [`${run.triaged}건 판정`];
+  if (!run.scoped && run.skipped > 0) parts.push(`${run.skipped}건 변경 없음`);
+  // 배치 실패는 조용히 넘기면 안 된다 — 판정 결과가 부분이라는 뜻이다
+  if (run.failed_batches > 0) parts.push(`${run.failed_batches}개 묶음 실패`);
+  return parts.join(" · ");
+};
 
 /**
  * NO_CHANGE에 실패색을 쓰지 않는다 — 테스트 없는 저장소에서는 이게 다수가 되는데,
@@ -456,6 +480,12 @@ export function JiraAutofixDock({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [testInfra, setTestInfra] = useState<JiraAutofixTestInfra>("NONE");
+  /**
+   * 서버에서 도는 판정의 진행 상태. 판정은 요청 스레드에서 끝나지 않는다(이슈 15건마다 AI 호출
+   * 한 번이라 응답을 기다리면 게이트웨이가 504로 끊는다) — 그래서 상태는 서버에 있고 화면은
+   * 그것을 폴링한다. 새로고침하거나 도크를 닫았다 열어도 이어서 보이는 이유다.
+   */
+  const [triageRun, setTriageRun] = useState<JiraAutofixTriageRun | null>(null);
 
   /** 슬랙 채널 목록은 설정을 열고 고르려 할 때만 불러온다 — 도크 폴링마다 부를 값이 아니다. */
   const [channels, setChannels] = useState<SlackChannel[] | null>(null);
@@ -543,6 +573,68 @@ export function JiraAutofixDock({
     if (enabled) load();
   }, [enabled, load]);
 
+  // 돌고 있는 판정을 새로고침 뒤에도 이어서 본다 — 진행 상태는 화면이 아니라 서버에 있다
+  useEffect(() => {
+    if (!enabled) return;
+    let alive = true;
+    jiraAutofixAPI
+      .getTriageStatus(boardId)
+      .then((run) => {
+        if (alive) setTriageRun(run);
+      })
+      .catch(() => {
+        // JIRA 미연동이면 조회 실패가 정상이다
+      });
+    return () => {
+      alive = false;
+    };
+  }, [enabled, boardId]);
+
+  const triageRunning = triageRun?.status === "RUNNING";
+
+  /**
+   * 끝난 실행을 화면에 알린다. 실패는 빨간 배너로 간다 — 판정이 통째로 엎어진 것을
+   * 회색 안내문으로 흘리면 사람은 성공한 줄 알고 큐에 담는다.
+   */
+  const reportTriageResult = useCallback((finished: JiraAutofixTriageRun) => {
+    if (finished.status === "FAILED") {
+      setError(describeTriageRun(finished));
+      return;
+    }
+    setNotice(describeTriageRun(finished));
+  }, []);
+
+  /**
+   * 판정 진행률 폴링. 판정은 서버 백그라운드에서 도니까, 끝나는 순간은 화면이 스스로 알아내야 한다.
+   * 끝나면 결과 한 줄을 띄우고 목록을 다시 받는다 — 판정이 바뀌었는데 화면이 그대로면
+   * 방금 돌린 게 아무 일도 안 한 것처럼 보인다.
+   */
+  useEffect(() => {
+    if (!enabled || !triageRunning) return;
+    const tick = async () => {
+      try {
+        const latest = await jiraAutofixAPI.getTriageStatus(boardId);
+        setTriageRun(latest);
+        if (latest.status !== "RUNNING") {
+          reportTriageResult(latest);
+          await Promise.all([load(), loadItems(verdict)]);
+        }
+      } catch {
+        // 한 번의 조회 실패로 폴링을 끊지 않는다 — 다음 틱에서 만회한다
+      }
+    };
+    const id = window.setInterval(tick, TRIAGE_POLL_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [
+    enabled,
+    triageRunning,
+    boardId,
+    load,
+    loadItems,
+    verdict,
+    reportTriageResult,
+  ]);
+
   useEffect(() => {
     if (expanded) loadItems(verdict);
   }, [expanded, verdict, loadItems]);
@@ -592,15 +684,33 @@ export function JiraAutofixDock({
     }
   };
 
+  /**
+   * 시작 응답 처리. 대개는 RUNNING이라 문구만 띄우고 물러난다 — 완료는 진행률 폴링이 잡는다.
+   * 판정할 게 없어 그 자리에서 끝난 경우만 여기서 마무리한다.
+   */
+  const finishTriageIfDone = async (
+    started: JiraAutofixTriageRun,
+    runningNotice: string,
+  ) => {
+    if (started.status === "RUNNING") {
+      setNotice(runningNotice);
+      return;
+    }
+    reportTriageResult(started);
+    await Promise.all([load(), loadItems(verdict)]);
+  };
+
+  /**
+   * 시작만 하고 끝을 기다리지 않는다.
+   *
+   * <p>여기서 await로 붙들면 이슈가 몇십 건만 돼도 게이트웨이가 504로 끊는다. 그때도 서버는
+   * 판정을 멀쩡히 계속하므로 화면만 실패로 보이고, 사람이 다시 누르면 AI 호출이 두 배가 된다.
+   */
   const handleTriage = () =>
     run("triage", async () => {
-      const result = await jiraAutofixAPI.runTriage(boardId, false);
-      setNotice(
-        result.triaged > 0
-          ? `${result.triaged}건 판정 · ${result.skipped}건 변경 없음`
-          : `변경된 이슈가 없어 ${result.skipped}건 모두 건너뜀`,
-      );
-      await Promise.all([load(), loadItems(verdict)]);
+      const started = await jiraAutofixAPI.runTriage(boardId, false);
+      setTriageRun(started);
+      await finishTriageIfDone(started, `${started.total}건 판정 중`);
     });
 
   /**
@@ -611,9 +721,9 @@ export function JiraAutofixDock({
    */
   const handleRetriageStale = (issueKeys: string[]) =>
     run("retriage", async () => {
-      const result = await jiraAutofixAPI.runTriage(boardId, false, issueKeys);
-      setNotice(`${result.triaged}건 다시 판정했습니다`);
-      await Promise.all([load(), loadItems(verdict)]);
+      const started = await jiraAutofixAPI.runTriage(boardId, false, issueKeys);
+      setTriageRun(started);
+      await finishTriageIfDone(started, `${started.total}건 다시 판정 중`);
     });
 
   const handleEnqueue = (issueKeys?: string[]) =>
@@ -1012,15 +1122,23 @@ export function JiraAutofixDock({
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={handleTriage}
-                disabled={busy === "triage"}
+                disabled={busy === "triage" || triageRunning}
                 className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
               >
-                {busy === "triage" ? (
+                {busy === "triage" || triageRunning ? (
                   <Loader2 size={12} className="animate-spin" />
                 ) : (
                   <Sparkles size={12} />
                 )}
-                {t("autofixDock.triage", "판정")}
+                {/* 진행 숫자를 버튼에 박는다 — 수 분짜리 작업이라 도는 중인지 멈춘 건지 보여야 한다 */}
+                {triageRunning ? (
+                  <span className="tabular-nums">
+                    {t("autofixDock.triaging", "판정 중")}{" "}
+                    {triageRun?.triaged ?? 0}/{triageRun?.total ?? 0}
+                  </span>
+                ) : (
+                  t("autofixDock.triage", "판정")
+                )}
               </button>
               <span className="text-xs text-slate-500">
                 {t("autofixDock.threshold", "임계값")}{" "}
@@ -1115,7 +1233,9 @@ export function JiraAutofixDock({
                           >
                             #{c.name}
                             {c.is_private && (
-                              <span className="ml-1 text-slate-600">비공개</span>
+                              <span className="ml-1 text-slate-600">
+                                비공개
+                              </span>
                             )}
                           </button>
                         ))
@@ -1321,12 +1441,12 @@ export function JiraAutofixDock({
                       </span>
                       <button
                         onClick={() => handleRetriageStale(staleKeys)}
-                        disabled={busy === "retriage"}
+                        disabled={busy === "retriage" || triageRunning}
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs
                           bg-bridge-accent/15 text-bridge-accent font-bold
                           hover:bg-bridge-accent/25 transition-colors disabled:opacity-50"
                       >
-                        {busy === "retriage" ? (
+                        {busy === "retriage" || triageRunning ? (
                           <Loader2 size={11} className="animate-spin" />
                         ) : (
                           <Sparkles size={11} />

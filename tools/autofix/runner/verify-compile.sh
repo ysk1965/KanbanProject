@@ -79,6 +79,24 @@ if [ -n "$ERRORS" ]; then
   exit 1
 fi
 
+# 코드가 아닌 파일(로케일 테이블 등)을 고친 실행에서는 error CS 만으로 부족하다 — YAML이
+# 깨져도 컴파일 에러는 나오지 않고 임포트만 실패한다. 호출자가 파일 목록을 준 경우에만
+# 그 파일들에 대해서 임포트 실패를 추가로 본다. 로그 전체를 훑지 않는 이유는, 이 저장소에
+# 이미 존재하는 무관한 임포트 경고까지 게이트로 승격시키면 안 되기 때문이다.
+if [ -n "${AUTOFIX_WATCH_ASSETS:-}" ]; then
+  while IFS= read -r watched; do
+    [ -n "$watched" ] || continue
+    HITS=$(grep -F "$(basename "$watched")" "$UNITY_LOG" \
+           | grep -iE "error|exception|could not|unable to|failed to" | sort -u | head -10)
+    if [ -n "$HITS" ]; then
+      log "에셋 임포트 실패: $watched"
+      echo "$HITS"
+      rm -f "$UNITY_LOG"
+      exit 1
+    fi
+  done <<< "$AUTOFIX_WATCH_ASSETS"
+fi
+
 if [ "$UNITY_RC" -ne 0 ]; then
   # 에러 라인은 없는데 비정상 종료 — 라이선스 만료·에디터 크래시 등. 통과시키면 안 된다.
   log "Unity가 비정상 종료했다 (exit $UNITY_RC). 컴파일 에러는 아니지만 검증이 성립하지 않았다."

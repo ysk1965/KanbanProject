@@ -22,6 +22,7 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.service.FileUploadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -63,6 +64,8 @@ public class JiraAutofixQueueService {
     private final BoardService boardService;
     private final JiraAutofixTriageRepository triageRepository;
     private final JiraAutofixJobRepository jobRepository;
+    private final JiraAutofixJobMaterialRepository jobMaterialRepository;
+    private final FileUploadService fileUploadService;
     private final JiraIntegrationConfigRepository configRepository;
     private final TaskRepository taskRepository;
     private final ChecklistItemRepository checklistItemRepository;
@@ -266,8 +269,11 @@ public class JiraAutofixQueueService {
                 job.assignTarget(target.installationId(), target.repoFullName(), target.baseRef()));
         jobRepository.saveAll(created);
 
-        log.info("Autofix delegate: board={} task={} items={} queued={} skipped={} by={}",
-                boardId, task.getId(), itemIds.size(), created.size(), skipped, userId);
+        attachDelegateMaterials(boardId, task.getId(), request.getFileKeys(), created);
+
+        log.info("Autofix delegate: board={} task={} items={} queued={} skipped={} files={} by={}",
+                boardId, task.getId(), itemIds.size(), created.size(), skipped,
+                request.getFileKeys() != null ? request.getFileKeys().size() : 0, userId);
 
         return JiraAutofixResponse.DelegateResult.builder()
                 .queued(created.size())
@@ -276,6 +282,84 @@ public class JiraAutofixQueueService {
                 .baseRef(target.baseRef())
                 .jobs(created.stream().map(this::toItem).toList())
                 .build();
+    }
+
+    /**
+     * 위임 화면에서 올린 스크린샷·재현 영상을 작업에 붙인다.
+     *
+     * <p>파일은 <b>한 번만</b> 영구 저장소로 옮기고, 만들어진 작업 전부가 같은 URL을 가리킨다.
+     * 항목마다 복사하면 같은 그림이 용량만 N배로 남는다.
+     *
+     * <p>실패하면 이미 옮긴 것을 되돌린다 — 트랜잭션이 롤백돼도 S3는 함께 돌아가지 않아서,
+     * 정리하지 않으면 아무 행도 가리키지 않는 객체가 버킷에 남는다. (댓글 첨부와 같은 처리다.)
+     */
+    private void attachDelegateMaterials(String boardId, String taskId, List<String> fileKeys,
+                                         List<JiraAutofixJob> jobs) {
+        if (fileKeys == null || jobs.isEmpty()) return;
+
+        List<String> keys = fileKeys.stream()
+                .filter(k -> k != null && !k.isBlank())
+                .distinct()
+                .toList();
+        if (keys.isEmpty()) return;
+        if (keys.size() > properties.getMaxDelegateMaterials()) {
+            throw new BusinessException(ErrorCode.JIRA_AUTOFIX_TOO_MANY_MATERIALS);
+        }
+
+        long maxBytes = (long) properties.getMaxDelegateMaterialMb() * 1024L * 1024L;
+        List<String> movedKeys = new ArrayList<>();
+        List<JiraAutofixJobMaterial> rows = new ArrayList<>();
+
+        try {
+            for (String tempKey : keys) {
+                if (!fileUploadService.tempFileExists(tempKey)) {
+                    throw new BusinessException(ErrorCode.TEMP_FILE_NOT_FOUND);
+                }
+                /*
+                 * 옮기기 전에 크기를 본다. 옮긴 뒤에 재면 상한을 넘은 파일을 이미 복사한 뒤이고,
+                 * 영상은 그 복사 자체가 비싸다. (크기를 모르는 구현은 -1을 주므로 아래에서 다시 잰다.)
+                 */
+                long probed = fileUploadService.probeObjectSize(tempKey);
+                if (probed > 0 && probed > maxBytes) {
+                    throw new BusinessException(ErrorCode.JIRA_AUTOFIX_MATERIAL_TOO_LARGE);
+                }
+
+                FileUploadService.PermanentResult moved =
+                        fileUploadService.moveToPermanent(tempKey, boardId, taskId);
+                movedKeys.add(moved.getS3Key());
+
+                if (moved.getFileSize() > maxBytes) {
+                    throw new BusinessException(ErrorCode.JIRA_AUTOFIX_MATERIAL_TOO_LARGE);
+                }
+                /*
+                 * 이미지·영상만 받는다. 업로드 단계에서도 매직바이트로 거르지만, 여기서 한 번 더 보는
+                 * 이유는 러너가 아닌 것을 받으면 조용히 버리기 때문이다 — 사람은 첨부가 나갔다고 믿는다.
+                 */
+                String contentType = nullToEmpty(moved.getContentType());
+                if (!contentType.startsWith("image/") && !contentType.startsWith("video/")) {
+                    throw new BusinessException(ErrorCode.JIRA_AUTOFIX_MATERIAL_NOT_MEDIA);
+                }
+
+                String filename = tempKey.contains("/")
+                        ? tempKey.substring(tempKey.lastIndexOf("/") + 1)
+                        : tempKey;
+
+                for (JiraAutofixJob job : jobs) {
+                    rows.add(JiraAutofixJobMaterial.of(job.getId(), filename, moved.getS3Key(),
+                            moved.getUrl(), moved.getContentType(), moved.getFileSize()));
+                }
+            }
+            jobMaterialRepository.saveAll(rows);
+        } catch (RuntimeException e) {
+            for (String key : movedKeys) {
+                try {
+                    fileUploadService.delete(key);
+                } catch (Exception ignored) {
+                    log.warn("Autofix delegate material cleanup failed: {}", key);
+                }
+            }
+            throw e;
+        }
     }
 
     /**
@@ -407,7 +491,7 @@ public class JiraAutofixQueueService {
                 .timeoutMinutes(Math.min(properties.getRunnerTimeoutMinutes(),
                         properties.getDispatchTimeoutMinutes()))
                 .comments(collectComments(job.getTaskId()))
-                .materials(collectMaterials(job.getTaskId()))
+                .materials(collectMaterials(job))
                 .build();
     }
 
@@ -527,20 +611,42 @@ public class JiraAutofixQueueService {
      * <p>지라 첨부는 import 시점에 이미 내려받아 S3에 올라가 있다({@code importAttachmentAsComment}).
      * 그래서 여기서 지라를 다시 부르지 않는다 — 부르면 claim마다 API를 때리고, 지라 자격증명이
      * 러너까지 내려가야 하는 설계로 밀린다.
+     *
+     * <p><b>맡길 때 올린 자료를 앞에 둔다.</b> 러너는 상한을 넘긴 자료를 뒤에서부터 버리는데,
+     * 댓글 첨부가 먼저 오면 "이걸 보고 고쳐 달라"며 방금 올린 그림이 잘려 나간다. 사람이 이번
+     * 위임을 위해 고른 파일이 태스크에 쌓여 온 첨부보다 언제나 지시문에 가깝다.
      */
-    private List<JiraAutofixResponse.Material> collectMaterials(String taskId) {
-        if (taskId == null) return List.of();
+    private List<JiraAutofixResponse.Material> collectMaterials(JiraAutofixJob job) {
+        List<JiraAutofixResponse.Material> materials = new ArrayList<>();
+        Set<String> seenUrls = new HashSet<>();
 
-        return commentAttachmentRepository.findByTaskId(taskId).stream()
-                .filter(a -> a.getUrl() != null && !a.getUrl().isBlank())
-                .limit(properties.getMaxJobMaterials())
-                .map(a -> JiraAutofixResponse.Material.builder()
+        for (JiraAutofixJobMaterial m : jobMaterialRepository.findByJobIdOrderByCreatedAtAsc(job.getId())) {
+            if (m.getUrl() == null || m.getUrl().isBlank()) continue;
+            if (!seenUrls.add(m.getUrl())) continue;
+            materials.add(JiraAutofixResponse.Material.builder()
+                    .filename(nullToEmpty(m.getOriginalFileName()))
+                    .mimeType(nullToEmpty(m.getContentType()))
+                    .size(m.getFileSize())
+                    .url(m.getUrl())
+                    .build());
+        }
+
+        if (job.getTaskId() != null) {
+            for (var a : commentAttachmentRepository.findByTaskId(job.getTaskId())) {
+                if (a.getUrl() == null || a.getUrl().isBlank()) continue;
+                if (!seenUrls.add(a.getUrl())) continue;
+                materials.add(JiraAutofixResponse.Material.builder()
                         .filename(nullToEmpty(a.getOriginalFileName()))
                         .mimeType(nullToEmpty(a.getContentType()))
                         .size(a.getFileSize())
                         .url(a.getUrl())
-                        .build())
-                .toList();
+                        .build());
+            }
+        }
+
+        return materials.size() > properties.getMaxJobMaterials()
+                ? materials.subList(0, properties.getMaxJobMaterials())
+                : materials;
     }
 
     // ── 콜백 ──────────────────────────────────────

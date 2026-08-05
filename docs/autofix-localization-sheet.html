@@ -1,0 +1,1170 @@
+<title>자동수정을 로컬라이즈 시트까지 잇기 — 준비 보고서</title>
+
+<style>
+  :root {
+    --ground:      #fffcf8;
+    --surface:     #f6efe4;
+    --surface-2:   #efe6d8;
+    --ink:         #34281c;
+    --ink-soft:    #6b5d4c;
+    --ink-faint:   #98897a;
+    --rule:        rgba(52, 40, 28, 0.14);
+    --rule-soft:   rgba(52, 40, 28, 0.07);
+    --accent:      #5257e0;
+    --accent-soft: rgba(99, 102, 241, 0.10);
+    --ok:          #0f9384;
+    --ok-soft:     rgba(20, 184, 166, 0.11);
+    --warn:        #b8730a;
+    --warn-soft:   rgba(217, 119, 6, 0.11);
+    --stop:        #d8431a;
+    --stop-soft:   rgba(247, 93, 50, 0.11);
+
+    --sans: 'Pretendard Variable', Pretendard, 'Apple SD Gothic Neo', -apple-system,
+            BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', system-ui, sans-serif;
+    --mono: ui-monospace, 'SF Mono', SFMono-Regular, 'JetBrains Mono', Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:      #191f2d;
+      --surface:     #151b28;
+      --surface-2:   #1e2a42;
+      --ink:         #e7eaf2;
+      --ink-soft:    #a3adc2;
+      --ink-faint:   #6f7c94;
+      --rule:        rgba(231, 234, 242, 0.16);
+      --rule-soft:   rgba(231, 234, 242, 0.08);
+      --accent:      #8b8dff;
+      --accent-soft: rgba(99, 102, 241, 0.18);
+      --ok:          #2dd4bf;
+      --ok-soft:     rgba(45, 212, 191, 0.14);
+      --warn:        #f0a836;
+      --warn-soft:   rgba(245, 158, 11, 0.14);
+      --stop:        #ff7a52;
+      --stop-soft:   rgba(247, 93, 50, 0.16);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #191f2d;
+    --surface:     #151b28;
+    --surface-2:   #1e2a42;
+    --ink:         #e7eaf2;
+    --ink-soft:    #a3adc2;
+    --ink-faint:   #6f7c94;
+    --rule:        rgba(231, 234, 242, 0.16);
+    --rule-soft:   rgba(231, 234, 242, 0.08);
+    --accent:      #8b8dff;
+    --accent-soft: rgba(99, 102, 241, 0.18);
+    --ok:          #2dd4bf;
+    --ok-soft:     rgba(45, 212, 191, 0.14);
+    --warn:        #f0a836;
+    --warn-soft:   rgba(245, 158, 11, 0.14);
+    --stop:        #ff7a52;
+    --stop-soft:   rgba(247, 93, 50, 0.16);
+  }
+
+  :root[data-theme="light"] {
+    --ground:      #fffcf8;
+    --surface:     #f6efe4;
+    --surface-2:   #efe6d8;
+    --ink:         #34281c;
+    --ink-soft:    #6b5d4c;
+    --ink-faint:   #98897a;
+    --rule:        rgba(52, 40, 28, 0.14);
+    --rule-soft:   rgba(52, 40, 28, 0.07);
+    --accent:      #5257e0;
+    --accent-soft: rgba(99, 102, 241, 0.10);
+    --ok:          #0f9384;
+    --ok-soft:     rgba(20, 184, 166, 0.11);
+    --warn:        #b8730a;
+    --warn-soft:   rgba(217, 119, 6, 0.11);
+    --stop:        #d8431a;
+    --stop-soft:   rgba(247, 93, 50, 0.11);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 62rem;
+    margin: 0 auto;
+    padding: 0 1.5rem 6rem;
+  }
+
+  /* ── 표지 ───────────────────────────────── */
+
+  .cover {
+    padding: 4.5rem 0 3rem;
+    background-image:
+      linear-gradient(to right, var(--rule-soft) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--rule-soft) 1px, transparent 1px);
+    background-size: 88px 34px;
+    background-position: center top;
+    border-bottom: 1px solid var(--rule);
+  }
+  .cover-inner { max-width: 62rem; margin: 0 auto; padding: 0 1.5rem; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1rem;
+  }
+
+  h1 {
+    font-size: clamp(1.9rem, 5vw, 3rem);
+    line-height: 1.22;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+    margin: 0 0 1.25rem;
+    max-width: 22ch;
+  }
+
+  .standfirst {
+    font-size: 1.0625rem;
+    color: var(--ink-soft);
+    max-width: 58ch;
+    margin: 0 0 2rem;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 2rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--ink-faint);
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--rule);
+  }
+  .meta b { color: var(--ink-soft); font-weight: 500; }
+
+  /* ── 섹션 ───────────────────────────────── */
+
+  section { padding-top: 3.5rem; }
+
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.35;
+    margin: 0 0 0.5rem;
+    text-wrap: balance;
+  }
+  .sec-num {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    color: var(--ink-faint);
+    display: block;
+    margin-bottom: 0.6rem;
+  }
+  .sec-head {
+    border-top: 2px solid var(--ink);
+    padding-top: 1rem;
+    margin-bottom: 1.75rem;
+  }
+  .sec-head p { color: var(--ink-soft); margin: 0.5rem 0 0; max-width: 62ch; }
+
+  h3 {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 2.5rem 0 0.75rem;
+  }
+
+  p { margin: 0 0 1.15rem; max-width: 66ch; }
+  ul, ol { max-width: 66ch; padding-left: 1.2rem; margin: 0 0 1.15rem; }
+  li { margin-bottom: 0.5rem; }
+  li::marker { color: var(--ink-faint); }
+
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.855em;
+    background: var(--surface-2);
+    padding: 0.1em 0.38em;
+    border-radius: 3px;
+    word-break: break-word;
+  }
+
+  strong { font-weight: 700; }
+
+  /* ── 핵심 요약 ──────────────────────────── */
+
+  .keys {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin: 0 0 1.5rem;
+  }
+  .key {
+    background: var(--ground);
+    padding: 1.25rem 1.35rem 1.4rem;
+  }
+  .key .k {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    display: block;
+    margin-bottom: 0.55rem;
+  }
+  .key .v {
+    font-weight: 700;
+    font-size: 1.0625rem;
+    letter-spacing: -0.01em;
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+  .key p { font-size: 0.9375rem; color: var(--ink-soft); margin: 0; line-height: 1.65; }
+  .key.stop .v { color: var(--stop); }
+  .key.warn .v { color: var(--warn); }
+  .key.ok   .v { color: var(--ok); }
+
+  /* ── 파이프라인 도해 ────────────────────── */
+
+  .figure { margin: 0 0 1.75rem; }
+  .figure-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--rule);
+    background: var(--surface);
+    padding: 2rem 1.75rem 1.5rem;
+  }
+  .flow {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(8.5rem, 1fr));
+    column-gap: 2.5rem;
+    row-gap: 0.85rem;
+    min-width: 54rem;
+    position: relative;
+  }
+  .node {
+    grid-row: 1;
+    background: var(--ground);
+    border: 1px solid var(--rule);
+    padding: 0.85rem 0.9rem;
+    position: relative;
+  }
+  .node .nt {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    display: block;
+    margin-bottom: 0.3rem;
+  }
+  .node .nb { font-size: 0.9375rem; font-weight: 700; line-height: 1.4; display: block; }
+  .node .ns { font-size: 0.8125rem; color: var(--ink-soft); display: block; margin-top: 0.25rem; }
+  .node::after {
+    content: "→";
+    position: absolute;
+    right: -1.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ink-faint);
+    font-size: 1.05rem;
+  }
+  .node:last-of-type::after { content: none; }
+  .node.origin { border-color: var(--accent); border-width: 2px; }
+
+  .bracket {
+    grid-row: 2;
+    border-top: 2px solid currentColor;
+    padding-top: 0.4rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+  }
+  .bracket.b-read  { grid-column: 3 / 5; grid-row: 2; color: var(--ok); }
+  .bracket.b-write { grid-column: 4 / 5; grid-row: 3; color: var(--warn); }
+  .bracket.b-none  { grid-column: 1 / 2; grid-row: 2; color: var(--stop); }
+  .bracket.b-over  { grid-column: 1 / 5; grid-row: 4; color: var(--ink-faint); border-top-style: dashed; }
+
+  figcaption {
+    font-size: 0.875rem;
+    color: var(--ink-soft);
+    margin-top: 0.85rem;
+    max-width: 66ch;
+    line-height: 1.6;
+  }
+
+  /* ── 표 (시트 모양) ─────────────────────── */
+
+  .tablewrap {
+    overflow-x: auto;
+    border: 1px solid var(--rule);
+    margin: 0 0 1.5rem;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 42rem;
+    font-size: 0.9375rem;
+  }
+  thead th {
+    background: var(--surface-2);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 500;
+    text-align: left;
+    padding: 0.7rem 0.9rem;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 0.8rem 0.9rem;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+    line-height: 1.6;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(even) { background: var(--surface); }
+  td.num {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+    width: 2.6rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    background: var(--surface-2);
+    border-right: 1px solid var(--rule);
+  }
+  th.num { width: 2.6rem; text-align: right; }
+  td.who {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  td strong { display: block; margin-bottom: 0.2rem; }
+
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .pill.stop { background: var(--stop-soft); color: var(--stop); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.ok   { background: var(--ok-soft);   color: var(--ok); }
+  .pill.neu  { background: var(--surface-2); color: var(--ink-soft); }
+
+  /* ── 콜아웃 ─────────────────────────────── */
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 1.1rem 1.25rem;
+    margin: 0 0 1.5rem;
+    max-width: 68ch;
+  }
+  .callout.stop { border-color: var(--stop); background: var(--stop-soft); }
+  .callout.warn { border-color: var(--warn); background: var(--warn-soft); }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .ct {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--ink-soft);
+  }
+
+  /* ── 단계 ───────────────────────────────── */
+
+  .phases { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .phase { background: var(--ground); padding: 1.4rem 1.5rem; display: grid; gap: 0.35rem; }
+  .phase-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.75rem; }
+  .phase-n {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+  }
+  .phase-t { font-weight: 700; font-size: 1.0625rem; letter-spacing: -0.01em; }
+  .phase dl { display: grid; grid-template-columns: 5.5rem 1fr; gap: 0.35rem 1rem; margin: 0.6rem 0 0; font-size: 0.9375rem; }
+  .phase dt { font-family: var(--mono); font-size: 0.72rem; color: var(--ink-faint); letter-spacing: 0.08em; padding-top: 0.28rem; }
+  .phase dd { margin: 0; color: var(--ink-soft); line-height: 1.65; }
+
+  /* ── 질문 목록 ──────────────────────────── */
+
+  .asks { list-style: none; padding: 0; margin: 0; max-width: 68ch; }
+  .asks li {
+    border-top: 1px solid var(--rule);
+    padding: 1rem 0 1rem 0;
+    display: grid;
+    grid-template-columns: 2.5rem 1fr;
+    gap: 0.85rem;
+    margin: 0;
+  }
+  .asks li:last-child { border-bottom: 1px solid var(--rule); }
+  .asks .q { font-family: var(--mono); font-size: 0.72rem; color: var(--ink-faint); padding-top: 0.35rem; }
+  .asks .a { margin: 0; }
+  .asks .a b { display: block; font-weight: 700; margin-bottom: 0.15rem; }
+  .asks .a span { color: var(--ink-soft); font-size: 0.9375rem; }
+
+  footer {
+    margin-top: 4.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--ink-faint);
+    line-height: 1.9;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<header class="cover">
+  <div class="cover-inner">
+    <p class="eyebrow">BRIDGE 자동수정 · 준비 보고서</p>
+    <h1>자동수정을 로컬라이즈 시트까지 잇기</h1>
+    <p class="standfirst">
+      문구 이슈는 대부분 코드가 아니라 <strong>시트의 값</strong>이 틀린 건이다. 지금 자동수정은
+      그 시트에 닿지 못하고, 저장소의 테이블을 고쳐봐야 다음 익스포트에 덮어쓰인다.
+      시트까지 열려면 무엇을 준비해야 하는지 — 그리고 무엇을 열지 <em>않는</em> 편이 나은지 — 정리한다.
+    </p>
+    <div class="meta">
+      <span><b>작성</b> 2026-08-05 · 1단계 코드 적용 반영</span>
+      <span><b>대상</b> GWBM013-auto-battle-project</span>
+      <span><b>러너</b> cookappsui-Macmini</span>
+      <span><b>시트</b> 17Yyg7…lZlpw · gid 1469350934</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section id="summary">
+    <div class="sec-head">
+      <span class="sec-num">요약</span>
+      <h2>준비할 것은 세 덩어리다. 이 중 셋째가 비어 있다.</h2>
+      <p>
+        접근(권한·자격증명)과 계약(시트 구조 고정)은 돈과 시간으로 해결되는 문제다.
+        검증은 그렇지 않다 — 문구가 맞는지는 원리적으로 자동 판정이 안 된다.
+        준비의 대부분은 “자동으로 고치기”가 아니라 “자동으로 어디까지 확인했는지 남기기”에 들어간다.
+      </p>
+    </div>
+
+    <div class="keys">
+      <div class="key ok">
+        <span class="k">1 · 읽기</span>
+        <span class="v">이미 반쯤 뚫려 있다</span>
+        <p>
+          <code>Assets/OriginalSpecLanguage.json</code>이 저장소에 커밋돼 있고 한글이 이스케이프 없이
+          들어 있다. 에이전트가 Read·Grep만으로 문구↔키를 역추적할 수 있다. 추가 준비물 없음.
+        </p>
+      </div>
+      <div class="key stop">
+        <span class="k">2 · 쓰기</span>
+        <span class="v">완전히 막혀 있다</span>
+        <p>
+          러너에는 시트 자격증명이 없고, 에이전트에게 허용된 도구는
+          <code>Read,Grep,Glob,Edit,mcp__unity</code>뿐이다. Bash도 네트워크 도구도 없다.
+          여는 데 필요한 건 서비스 계정 1개와 도구 표면 설계다.
+        </p>
+      </div>
+      <div class="key warn">
+        <span class="k">3 · 검증</span>
+        <span class="v">여기가 진짜 숙제다</span>
+        <p>
+          컴파일 게이트는 문구의 옳고 그름을 전혀 보지 못한다. 시트를 고쳐도 마찬가지다.
+          자동으로 답할 수 있는 건 “요구한 문구와 글자 단위로 같은가”, “태그·플레이스홀더가 보존됐는가”
+          같은 <em>일관성</em>뿐이다.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="break">
+    <div class="sec-head">
+      <span class="sec-num">1</span>
+      <h2>지금 어디서 끊기는가</h2>
+      <p>
+        로컬라이즈는 시트에서 출발해 네 단계를 거쳐 게임에 도달한다. 자동수정 러너가 서 있는 자리는
+        그 사슬의 <strong>뒤쪽 두 칸</strong>이고, 정본은 맨 앞 칸에 있다.
+      </p>
+    </div>
+
+    <figure class="figure">
+      <div class="figure-scroll">
+        <div class="flow">
+          <div class="node origin">
+            <span class="nt">정본</span>
+            <span class="nb">구글 시트</span>
+            <span class="ns">기획이 편집</span>
+          </div>
+          <div class="node">
+            <span class="nt">서버</span>
+            <span class="nb">스펙 API</span>
+            <span class="ns">/spec/language</span>
+          </div>
+          <div class="node">
+            <span class="nt">git</span>
+            <span class="nb">OriginalSpecLanguage.json</span>
+            <span class="ns">한글 날것 · grep 가능</span>
+          </div>
+          <div class="node">
+            <span class="nt">git</span>
+            <span class="nb">Default_{ko,en}.asset</span>
+            <span class="ns">\uXXXX 이스케이프</span>
+          </div>
+          <div class="node">
+            <span class="nt">런타임</span>
+            <span class="nb">게임 화면</span>
+            <span class="ns">QA가 보는 곳</span>
+          </div>
+
+          <div class="bracket b-none">자동수정이 닿지 못하는 곳 — 그런데 여기가 정본이다</div>
+          <div class="bracket b-read">에이전트가 읽을 수 있는 범위 (저장소 클론)</div>
+          <div class="bracket b-write">쓸 수 있는 범위 — <code>LOCALE_ASSET_PATHS</code>를 켰을 때만</div>
+          <div class="bracket b-over">↑ 다음 익스포트가 이 방향으로 덮어쓴다. 저장소 쪽 수정은 조용히 되돌아간다</div>
+        </div>
+      </div>
+      <figcaption>
+        LocalizationImporter가 JSON을 <code>.asset</code>으로 변환한다. 러너가 고칠 수 있는 가장 앞선 지점은
+        3번 칸이지만, 그것조차 시트가 다시 내려오면 덮어쓰인다.
+      </figcaption>
+    </figure>
+
+    <h3>현재 코드가 실제로 하는 일</h3>
+    <p>
+      러너에는 이 함정을 대비한 장치가 이미 들어 있다. <code>LOCALE_SOURCE_URL</code>을 채우면
+      시트 주소가 에이전트 프롬프트와 PR 본문 양쪽에 실리고, 에이전트는 “시트에서 고쳐야 할 키와 문구”를
+      보고에 남기도록 지시받는다. 다만 한 가지 함정이 남아 있다.
+    </p>
+
+    <div class="callout">
+      <span class="ct">발견한 구멍 → 적용 완료 · 2026-08-05</span>
+      <p>
+        <code>emit_locale_exception()</code>은 첫 줄에서 <code>LOCALE_ASSET_PATHS</code>가 비어 있으면
+        곧바로 반환했다. 즉 <strong><code>.asset</code> 수정 예외를 켜지 않으면 <code>LOCALE_SOURCE_URL</code>이
+        프롬프트에 실리지 않았다.</strong> “시트가 정본이니 <code>.asset</code>은 아예 열지 말자”는
+        가장 안전한 선택을 하는 순간, 시트 주소를 알려주는 기능까지 같이 꺼진 것이다.
+        에이전트 입장에서는 테이블은 금지고 원본은 모르니, 값이 틀린 건에서 남는 선택지가
+        코드를 억지로 고치는 것뿐이었다.
+      </p>
+      <p>
+        시트 안내를 <code>emit_locale_source()</code>로 분리해 <strong><code>LOCALE_SOURCE_URL</code>만으로
+        독립 동작</strong>하게 고쳤다. 예외가 꺼진 상태에서는 “아무것도 고치지 말고 원본 수정 보고만
+        남기고 끝내라 — 변경 없이 끝나는 것이 이 경우의 정답이다”가 프롬프트에 실린다.
+        예외가 켜져 있으면 종전대로 값을 고치고 보고를 <em>함께</em> 남긴다.
+        둘 다 꺼진 저장소의 프롬프트는 한 글자도 바뀌지 않는다.
+      </p>
+    </div>
+
+    <h3>보고 형식을 고정했다</h3>
+    <p>
+      보고가 사람이 시트에서 바로 찾을 수 있는 모양이 아니면 아무 소용이 없다. 그래서 프롬프트가
+      형식을 지정하고, 이 블록은 결과 회신의 <code>log_excerpt</code>에 실려 도크의
+      <strong>에이전트 로그</strong>에 그대로 뜬다.
+    </p>
+    <div class="figure">
+      <div class="figure-scroll">
+<pre style="margin:0; font-family:var(--mono); font-size:0.82rem; line-height:1.75; white-space:pre;">[로컬라이즈 원본 수정 필요]
+- 항목: MSG_NOT_ENOUGH_AP (#id 4)
+- 언어: kr
+- 현재: 행동력이 부족합니다.
+- 변경: 스테미너가 부족합니다.
+- 근거: QASA-116 본문 — 상점 표기가 '스테미너'로 확정됨</pre>
+      </div>
+      <figcaption>
+        키를 못 찾았으면 지어내지 말고 “키 못 찾음”과 함께 어디까지 찾았는지를 남기도록 명시했다.
+        확신 없는 값을 그럴듯하게 채우는 것이 이 보고에서 가장 나쁜 결과다 — 사람이 그걸 검증 없이
+        시트에 옮겨 적기 때문이다.
+      </figcaption>
+    </div>
+
+    <h3>키 지목 정확도를 위한 지름길 — <code>LOCALE_SOURCE_MIRROR</code></h3>
+    <p>
+      이 경로의 성패는 <strong>에이전트가 시트의 올바른 키를 짚는가</strong> 하나로 갈린다.
+      그런데 로케일 <code>.asset</code>은 값이 <code>\uXXXX</code>라 증상에 나온 한글로 grep하면 0건이라,
+      에이전트는 키와 <code>m_Id</code>를 징검다리 삼아 돌아가야 했다. 거기서 틀리면 그럴듯하지만
+      틀린 키가 보고에 실린다.
+    </p>
+    <p>
+      그래서 설정 키를 하나 더 넣었다. 이스케이프되지 않은 익스포트 원문이 저장소에 커밋돼 있으면
+      그 경로를 적어 두고, 에이전트에게 <strong>읽기 전용 지름길</strong>로 안내한다.
+      GWBM013은 <code>Assets/OriginalSpecLanguage.json</code>이 여기 해당하고, 컬럼이
+      <code>#id, #분류값, #서브 분류, key, kr, en, …</code>이라 보고 항목을 그대로 옮겨 적을 수 있다.
+      경로에 파일이 없으면 안내를 생략하고 러너 로그에 경고를 남긴다 — 설정해 두고 파일이 옮겨진
+      상태가 가장 나쁘다.
+    </p>
+  </section>
+
+  <section id="options">
+    <div class="sec-head">
+      <span class="sec-num">2</span>
+      <h2>먼저 정할 것 — 어디까지 자동으로 할 것인가</h2>
+      <p>
+        “시트에 접근한다”는 한 가지가 아니라 세 가지다. 준비물의 90%가 이 선택에서 갈리므로
+        기술 검토보다 이 결정이 먼저다.
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>안</th>
+            <th>자동수정이 하는 일</th>
+            <th>준비물</th>
+            <th>남는 위험</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>A · 보고만</strong><span class="pill neu">현행 + 수정 1건</span></td>
+            <td>시트에서 고칠 <code>#id</code>·<code>key</code>·before·after를 근거와 함께 보고. 시트는 사람이 고친다.</td>
+            <td>러너 스크립트 한 곳 수정. 구글 쪽 준비물 <strong>없음</strong>.</td>
+            <td>보고가 어디에도 쌓이지 않는다. 사람이 옮겨 적지 않으면 그대로 증발.</td>
+          </tr>
+          <tr>
+            <td><strong>B · 제안 시트 적재</strong><span class="pill ok">권장 다음 단계</span></td>
+            <td>제안 전용 스프레드시트에 한 행씩 append. 원본은 읽기만 하거나 아예 안 읽는다.</td>
+            <td>서비스 계정 1개 + 제안용 시트 1개 + 러너에 좁은 도구 1개.</td>
+            <td>낮다. 반영은 여전히 사람 몫이지만, 제안 품질이 데이터로 쌓인다.</td>
+          </tr>
+          <tr>
+            <td><strong>C · 원본 직접 수정</strong><span class="pill stop">검증 붙기 전엔 이르다</span></td>
+            <td>원본 시트의 <code>kr</code> 셀 값을 직접 교체.</td>
+            <td>B의 전부 + 원본 공유 권한 + 보호 범위 + 스냅샷/로그 + 되돌리기 경로.</td>
+            <td>높다. git이 없는 곳에 쓰는 것이고, 동시 편집·되돌리기·검증이 전부 미해결이다.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      권장은 <strong>A를 이번 주에 닫고, B를 목표로 두는 것</strong>이다. C는 B에서 “제안이 그대로 채택되는 비율”이
+      충분히 높다는 게 데이터로 나오고, 아래 5장의 검증 루프가 붙은 뒤에 판단해도 늦지 않다.
+      시트가 정본인 이상 <code>.asset</code>을 고치는 기존 예외(<code>LOCALE_ASSET_PATHS</code>)는
+      <strong>계속 꺼둔 채로 두는 편이 낫다</strong> — 익스포트가 수동이고 드물어서 PR이 실제 빌드에 반영되는
+      경우가 아니라면, 그 PR은 고쳤다고 믿게 만들고 실제로는 안 고친 결과만 남긴다.
+    </p>
+  </section>
+
+  <section id="checklist">
+    <div class="sec-head">
+      <span class="sec-num">3</span>
+      <h2>준비물 체크리스트</h2>
+      <p>
+        B안(제안 시트)까지를 기준으로 적는다. C안에만 필요한 항목은 따로 표시했다.
+        담당이 다르면 착수 시점도 다르므로 소유자별로 나눠 둔다.
+      </p>
+    </div>
+
+    <h3>구글 / 워크스페이스 — 관리자 협조가 필요한 것</h3>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th class="num">#</th><th>항목</th><th>내용</th><th class="who">비고</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="num">1</td>
+            <td><strong>GCP 프로젝트 + Sheets API</strong></td>
+            <td>기존 프로젝트 재사용 가능. <code>sheets.googleapis.com</code> 사용 설정만 하면 된다.</td>
+            <td class="who">10분</td>
+          </tr>
+          <tr>
+            <td class="num">2</td>
+            <td><strong>서비스 계정 1개</strong></td>
+            <td>
+              <code>bridge-autofix-locale@…</code> 같은 <strong>이 용도 전용</strong> 계정.
+              다른 자동화와 겸용하지 않는다 — 키가 새면 폭발 반경이 그 계정이 가진 시트 전부다.
+            </td>
+            <td class="who">10분</td>
+          </tr>
+          <tr>
+            <td class="num">3</td>
+            <td><strong>JSON 키 발급 → 맥에 배치</strong></td>
+            <td>
+              <code>~/bridge-autofix/</code> 아래, <code>chmod 600</code>. 러너 설정에 경로만 적는다.
+              <br>⚠️ Workspace가 <code>iam.disableServiceAccountKeyCreation</code>으로 키 생성을 막아둔
+              경우가 있다. 막혀 있으면 예외 요청이 필요하고, 그게 안 되면 사용자 계정 OAuth
+              리프레시 토큰 방식으로 우회해야 한다(수명이 짧아 운영이 번거롭다).
+            </td>
+            <td class="who">정책 확인 필요</td>
+          </tr>
+          <tr>
+            <td class="num">4</td>
+            <td><strong>제안용 스프레드시트 1개</strong></td>
+            <td>
+              원본과 <strong>별도 파일</strong>로 만든다. 구글 공유 권한은 탭이 아니라 파일 단위라,
+              파일을 분리해야 “서비스 계정은 제안 시트만 쓸 수 있다”가 성립한다.
+              열: <code>제안시각 / 이슈키 / 탭 / #id / key / 언어 / before / after / 근거 / 상태</code>.
+            </td>
+            <td class="who">30분</td>
+          </tr>
+          <tr>
+            <td class="num">5</td>
+            <td><strong>원본 시트 공유</strong> <span class="pill neu">읽기</span></td>
+            <td>
+              에이전트가 저장소 JSON만으로 판단하지 못하는 경우(최근 수정이 아직 익스포트 안 됨)를 위해
+              <em>뷰어</em> 권한을 주는 선택지. 필수는 아니다.
+            </td>
+            <td class="who">선택</td>
+          </tr>
+          <tr>
+            <td class="num">6</td>
+            <td><strong>보호 범위 설정</strong> <span class="pill stop">C안 필수</span></td>
+            <td>
+              <code>#id · #분류값 · #서브 분류 · key</code> 열과 헤더 3행을 보호하고 서비스 계정을
+              편집자에서 제외한다. 스크립트 가드는 우회 가능하지만 시트 보호는 그렇지 않다 —
+              가드레일은 가능하면 시트 쪽에 둔다.
+            </td>
+            <td class="who">C안 진입 시</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>기획 / 시트 소유자 — 규약으로 못박아야 하는 것</h3>
+    <p>
+      자동화는 시트의 <em>모양</em>에 의존한다. 사람에게는 열 하나 삽입이 사소한 일이지만
+      자동화에는 “이제부터 엉뚱한 셀을 고친다”는 뜻이다. 아래는 코드가 아니라 <strong>합의</strong>가
+      필요한 항목이다.
+    </p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th class="num">#</th><th>항목</th><th>내용</th><th class="who">상태</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="num">7</td>
+            <td><strong>탭 목록 고정</strong></td>
+            <td>로컬라이즈 데이터가 있는 탭이 어디어디인지. 지금 확인된 건 <code>gid=1469350934</code> 하나다.
+              탭마다 열 배치가 같은지도 확인해야 한다.</td>
+            <td class="who"><span class="pill warn">미확인</span></td>
+          </tr>
+          <tr>
+            <td class="num">8</td>
+            <td><strong>열 계약</strong></td>
+            <td>
+              현재: <code>A #id(int)</code> · <code>B #분류값</code> · <code>C #서브 분류</code> ·
+              <code>D key</code> · <code>E kr</code> · 이후 언어 열. 머리 3행(주석/이름/타입),
+              <strong>데이터는 4행부터</strong>.
+              <br>자동화는 열 위치를 하드코딩하지 말고 <strong>2행의 이름으로 열을 찾고, 못 찾으면 즉시 실패</strong>하게
+              만든다. 그래야 열이 삽입돼도 조용히 틀리는 대신 시끄럽게 멈춘다.
+            </td>
+            <td class="who"><span class="pill ok">확인됨</span></td>
+          </tr>
+          <tr>
+            <td class="num">9</td>
+            <td><strong>id 대역 규칙</strong></td>
+            <td>
+              시스템 1~9999 / 허들 10001~10100 / 길잡이 10101~10500 / 전투 11001~12000 /
+              퀘스트 12001~14000 / 캐릭터 14001~17000 / … / 이벤트 70001~80000.
+              발번은 분류 판단이 필요한 일이므로 <strong>자동화는 신규 키를 만들지 않는다</strong>로 못박는다.
+              키가 없으면 “없다 + 필요한 문구”를 보고하고 끝낸다(현재 프롬프트도 같은 규칙이다).
+            </td>
+            <td class="who"><span class="pill ok">확인됨</span></td>
+          </tr>
+          <tr>
+            <td class="num">10</td>
+            <td><strong>언어 정책</strong></td>
+            <td>
+              <code>kr</code>만 고치면 그 순간 <code>en</code> 이하가 어긋난다. 자동수정은 <code>kr</code>만 건드리고
+              나머지는 번역 프로세스로 넘기되, 제안 행에 “이 키는 다른 언어도 손봐야 함”을 표시하는 규칙이 필요하다.
+            </td>
+            <td class="who"><span class="pill warn">결정 필요</span></td>
+          </tr>
+          <tr>
+            <td class="num">11</td>
+            <td><strong>마크업·플레이스홀더 규약</strong></td>
+            <td>
+              값에 <code>&lt;color=#F75D32&gt;…&lt;/color&gt;</code>와 <code>{0}</code>이 섞여 있다.
+              값 교체 시 태그 쌍과 플레이스홀더의 <strong>개수·이름이 보존</strong>돼야 하고,
+              이건 가드로 강제한다(4장). 줄바꿈이 들어간 값도 있으므로 개행 처리도 규약에 포함한다.
+            </td>
+            <td class="who"><span class="pill ok">확인됨</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>스펙 서버 / 임포트 — 검증 루프의 길이를 결정하는 것</h3>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th class="num">#</th><th>항목</th><th>왜 중요한가</th><th class="who">상태</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="num">12</td>
+            <td><strong>시트→스펙서버 반영 시점</strong></td>
+            <td>
+              <code>game.bm.py.cookapps.com/autobattle/api/v1/spec/language</code>가 시트를 <em>언제</em>
+              다시 읽는가 — 요청 시마다? 캐시? 별도 publish 조작? 이 답이 “시트를 고친 뒤 몇 초 만에
+              결과를 확인할 수 있는가”를 결정하고, 그게 곧 자동 검증 가능 여부다.
+            </td>
+            <td class="who"><span class="pill warn">미확인</span></td>
+          </tr>
+          <tr>
+            <td class="num">13</td>
+            <td><strong>스펙 API 인증 여부</strong></td>
+            <td>
+              러너가 인증 없이(혹은 간단한 토큰으로) 읽을 수 있다면 <strong>유일하게 실현 가능한 자동 게이트</strong>가
+              생긴다: 수정 → 재조회 → 그 <code>#id</code>의 값이 의도한 문구로 바뀌었는지 스크립트가 대조.
+            </td>
+            <td class="who"><span class="pill warn">미확인</span></td>
+          </tr>
+          <tr>
+            <td class="num">14</td>
+            <td><strong>LocalizationImporter의 batchmode 호출</strong></td>
+            <td>
+              에디터 메뉴를 <code>-executeMethod</code>로 부를 수 있으면 시트→JSON→<code>.asset</code>→컴파일까지
+              한 줄로 이어진다. 이미 검증 전용 클론(<code>~/GWBM013-verify</code>)이 warm 상태로 있어
+              추가 인프라 없이 붙일 수 있다.
+            </td>
+            <td class="who"><span class="pill warn">미확인</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>BRIDGE / 러너 — 만들어야 하는 것</h3>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th class="num">#</th><th>항목</th><th>내용</th><th class="who">규모</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="num">15</td>
+            <td><strong>시트 안내를 자산 예외에서 분리</strong> <span class="pill ok">완료</span></td>
+            <td>
+              <code>emit_locale_source()</code> 분리 · 보고 형식 고정 ·
+              <code>LOCALE_SOURCE_MIRROR</code> 추가. 3가지 설정 조합으로 프롬프트 출력 확인함.
+              1장 참조.
+            </td>
+            <td class="who">S · 적용됨</td>
+          </tr>
+          <tr>
+            <td class="num">16</td>
+            <td><strong>에이전트에 좁은 도구 3개</strong></td>
+            <td>
+              Bash를 열지 않는다 — 도구 표면이 곧 권한 경계다. MCP로
+              <code>locale_lookup(문구|키)</code> / <code>locale_get(#id)</code> /
+              <code>locale_propose(#id, 언어, before, after, 근거)</code>만 노출한다.
+              쓰기 도구가 <em>제안</em>이라는 이름을 갖는 것 자체가 설계다.
+            </td>
+            <td class="who">M</td>
+          </tr>
+          <tr>
+            <td class="num">17</td>
+            <td><strong>runner.conf 신규 키</strong></td>
+            <td>
+              <code>LOCALE_SHEET_ID</code> · <code>LOCALE_SHEET_TABS</code> ·
+              <code>LOCALE_SHEET_CREDENTIALS</code> ·
+              <code>LOCALE_SHEET_MODE=report|propose|write</code> ·
+              <code>LOCALE_MAX_CHANGED_CELLS</code>. 비워두면 전부 꺼진 상태 —
+              기존 <code>LOCALE_ASSET_PATHS</code>와 같은 규칙이다.
+            </td>
+            <td class="who">S</td>
+          </tr>
+          <tr>
+            <td class="num">18</td>
+            <td><strong>시트판 가드</strong></td>
+            <td>쓰기 직전 dry-run 검사. 4장의 표가 명세다.</td>
+            <td class="who">M</td>
+          </tr>
+          <tr>
+            <td class="num">19</td>
+            <td><strong>결과 회신 계약 확장</strong></td>
+            <td>
+              현재 계약은 <code>pr | no_change | failed</code>이고 “<code>result=pr</code>인데
+              <code>pr_url</code>이 비면 실패로 기록”이다. <strong>시트만 고친 건은 PR이 없으므로 지금 그대로면
+              전부 실패로 남는다.</strong> <code>locale_proposal</code> 같은 결과 유형과 제안 행 링크를
+              추가하고, 도크의 “그 외” 목록이 이를 구분해 보여줘야 한다.
+            </td>
+            <td class="who">M</td>
+          </tr>
+          <tr>
+            <td class="num">20</td>
+            <td><strong>트리아지 카테고리 분리</strong></td>
+            <td>
+              지금 <code>TEXT</code>는 “코드가 틀린 키를 쓴다”와 “테이블 값이 틀리다”를 구분하지 않는다.
+              시트 경로가 열리면 후자의 판정 기준이 달라지므로(검증 수단이 생긴다)
+              <code>TEXT_CODE</code>/<code>TEXT_TABLE</code>로 나누고 <code>verification</code> 문구를 손봐야 한다.
+              현재 보드 기준 <strong>문구·오탈자 19건</strong>이 이 구분에 걸려 있다.
+            </td>
+            <td class="who">M</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="guardrails">
+    <div class="sec-head">
+      <span class="sec-num">4</span>
+      <h2>가드레일 — 시트에는 <code>git revert</code>가 없다</h2>
+      <p>
+        <code>.asset</code>을 고칠 때는 git이 마지막 방어선이었다. 시트에는 그게 없다.
+        구글의 버전 기록은 파일 단위라, 되돌리면 그 사이 다른 사람이 한 편집까지 함께 되돌아간다.
+        그래서 쓰기를 열 거라면 아래가 코드보다 먼저다.
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>검사</th><th>왜</th><th>위반 시</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>헤더를 이름으로 재확인</strong>하고 예상 위치와 다르면 즉시 중단</td>
+            <td>열 삽입 한 번이면 자동화가 엉뚱한 셀을 덮어쓴다. 이건 조용히 틀리는 부류라 제일 위험하다.</td>
+            <td><span class="pill stop">실패</span></td>
+          </tr>
+          <tr>
+            <td><code>#id</code>·<code>key</code> 열에는 절대 쓰지 않는다 (+ 시트 보호 범위로 이중 차단)</td>
+            <td>키가 바뀌면 코드 전체가 그 문구를 잃는다. 문구 하나 고치려다 화면이 토큰명으로 도배된다.</td>
+            <td><span class="pill stop">실패</span></td>
+          </tr>
+          <tr>
+            <td>행 추가·삭제·정렬 금지. <strong>기존 셀 값 교체만</strong></td>
+            <td><code>.asset</code> 예외와 같은 원칙이다. 신규 키는 분류·발번 판단이 필요해 사람의 몫이다.</td>
+            <td><span class="pill stop">실패</span></td>
+          </tr>
+          <tr>
+            <td>쓰기 전에 그 셀을 다시 읽어 <strong>기대한 before와 일치할 때만</strong> 쓴다</td>
+            <td>판단 시점과 쓰기 시점 사이에 사람이 고쳤을 수 있다. 시트는 여러 명이 동시에 만지는 곳이다.</td>
+            <td><span class="pill warn">중단 후 재판단</span></td>
+          </tr>
+          <tr>
+            <td>1회 변경 셀 수 상한 (기본 3, 최대 6)</td>
+            <td>용어 통일처럼 테이블을 훑어야 하는 건은 자동수정의 몫이 아니라는 선. 기존 <code>LOCALE_MAX_CHANGED_VALUES</code>와 같은 취지다.</td>
+            <td><span class="pill stop">실패</span></td>
+          </tr>
+          <tr>
+            <td>태그 쌍·플레이스홀더 개수와 이름 보존</td>
+            <td><code>&lt;color=…&gt;</code>가 짝을 잃거나 <code>{0}</code>이 사라지면 런타임 문자열이 무너진다. 컴파일도 임포트도 이걸 못 잡는다.</td>
+            <td><span class="pill stop">실패</span></td>
+          </tr>
+          <tr>
+            <td>변경 전 스냅샷 + 로그 탭에 <code>(시각, 이슈키, 탭, 셀, before, after, 근거)</code> append</td>
+            <td>되돌릴 근거는 여기서만 나온다. 구글 버전 기록은 남의 편집까지 끌고 오므로 롤백 수단으로 못 쓴다.</td>
+            <td><span class="pill warn">기록 실패 시 쓰기 취소</span></td>
+          </tr>
+          <tr>
+            <td>사람 승인 없이는 원본에 쓰지 않는다 <span class="pill neu">B안</span></td>
+            <td>검증이 없는 동안 유일하게 작동하는 방어선이다. 이걸 없애는 건 5장이 해결된 뒤의 이야기다.</td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <span class="ct">설계 원칙</span>
+      <p>
+        위반을 <strong>조용히 되돌리지 말고 실패로 끝낸다.</strong> 되돌리면 “변경 없음”으로 보고돼
+        사람이 원인을 영영 모른다 — <code>.asset</code> 예외에서 이미 채택한 원칙이고, 시트에서는
+        되돌리기 자체가 더 어려우므로 더 강하게 적용해야 한다.
+      </p>
+    </div>
+  </section>
+
+  <section id="verify">
+    <div class="sec-head">
+      <span class="sec-num">5</span>
+      <h2>검증 루프 — 정직하게 말하면, 여기가 비어 있다</h2>
+      <p>
+        트리아지의 판정 기준은 “사람 눈 없이 검증 가능한가” 하나다. 문구는 그 기준에서 원래 가장 약한
+        부류다. 시트를 고쳐도 “이게 맞는 문구인가”는 아무도 자동으로 답하지 못한다.
+        자동으로 답할 수 있는 건 <strong>일관성</strong>뿐이고, 그건 그것대로 값어치가 있다.
+      </p>
+    </div>
+
+    <h3>지금도 자동으로 확인 가능한 것</h3>
+    <ul>
+      <li>고친 값이 이슈가 요구한 문구와 <strong>문자 단위로 일치</strong>하는가 — 에이전트의 자기 보고가 아니라 스크립트가 대조한다.</li>
+      <li>같은 잘못된 용어가 <strong>다른 키에도 남아 있지</strong> 않은가 — 남아 있으면 “부분 수정”이라고 보고에 명시한다. (<code>OriginalSpecLanguage.json</code>은 한글 grep이 되므로 이 검사는 지금 당장 가능하다.)</li>
+      <li>태그·플레이스홀더 보존, 길이 급변 여부(UI가 깨질 만한 증가).</li>
+    </ul>
+
+    <h3>#12~14가 확인되면 붙는 것</h3>
+    <ul>
+      <li>시트 수정 → 스펙 API 재조회 → 그 <code>#id</code>의 값이 바뀌었는지 확인 <span class="pill neu">반영 자체의 증명</span></li>
+      <li>→ <code>OriginalSpecLanguage.json</code> 갱신 → diff가 <strong>의도한 키 하나만</strong> 바뀌었는지 확인</li>
+      <li>→ LocalizationImporter → <code>.asset</code> 재생성 → 기존 컴파일 게이트 통과 <span class="pill neu">warm 클론으로 약 8분</span></li>
+    </ul>
+
+    <div class="callout warn">
+      <span class="ct">기대치 조정</span>
+      <p>
+        문구 자동수정의 산출물은 <strong>“고쳤다”가 아니라 “여기까지 확인했고, 이것은 사람이 봐야 한다”</strong>여야 한다.
+        지금 PR 본문이 취하는 태도와 정확히 같다 — 자동 검증 범위를 먼저 밝히고, 리뷰가 유일한 확인임을 명시하는 것.
+        시트 경로가 열려도 이 태도는 바뀌지 않는다. 바뀌는 건 사람이 손으로 옮겨 적는 단계가 사라진다는 것뿐이고,
+        그것만으로도 충분히 큰 이득이다.
+      </p>
+    </div>
+  </section>
+
+  <section id="phases">
+    <div class="sec-head">
+      <span class="sec-num">6</span>
+      <h2>단계별 도입</h2>
+      <p>
+        순서가 중요하다. 각 단계는 다음 단계가 필요한지 판단할 <em>데이터</em>를 만들어낸다 —
+        특히 1단계는 “에이전트가 시트의 올바른 키를 정확히 짚는가”를 준비물 없이 측정한다.
+        그 정확도가 낮으면 2·3단계는 자동화할 가치가 없다.
+      </p>
+    </div>
+
+    <div class="phases">
+      <div class="phase">
+        <div class="phase-h">
+          <span class="phase-n">1단계</span>
+          <span class="phase-t">보고를 제대로 내보낸다</span>
+          <span class="pill ok">코드 적용됨 · 남은 건 맥에서 2줄</span>
+        </div>
+        <dl>
+          <dt>완료</dt>
+          <dd>
+            러너가 <code>LOCALE_ASSET_PATHS</code>와 무관하게 원본 안내·보고 형식을 싣는다.
+            <code>LOCALE_SOURCE_MIRROR</code>로 키 역추적 지름길도 안내한다.
+          </dd>
+          <dt>남은 일</dt>
+          <dd>
+            맥의 <code>~/bridge-autofix/runner.conf</code>에 두 줄을 넣고 러너를 재시작한다.
+            <code>LOCALE_ASSET_PATHS</code>는 <strong>계속 꺼둔다</strong>.
+            <br><code>LOCALE_SOURCE_URL=https://docs.google.com/spreadsheets/d/17Yyg7…/edit</code>
+            <br><code>LOCALE_SOURCE_MIRROR=Assets/OriginalSpecLanguage.json</code>
+          </dd>
+          <dt>얻는 것</dt>
+          <dd>
+            문구 이슈의 산출물이 “빈 PR”이나 “덮어쓰일 PR”이 아니라
+            <code>#id</code>·<code>key</code>·before·after가 적힌 보고가 된다.
+            결과는 <code>no_change</code>로 남고, 이 경우 그것이 정답이다.
+          </dd>
+          <dt>측정</dt>
+          <dd>
+            문구 이슈 5~10건을 돌려 <strong>키 지목 정확도</strong>를 센다 — 보고에 적힌
+            <code>#id</code>·<code>key</code>가 시트의 실제 항목과 맞는가. 이 숫자가 2단계의 근거다.
+          </dd>
+        </dl>
+      </div>
+
+      <div class="phase">
+        <div class="phase-h">
+          <span class="phase-n">2단계</span>
+          <span class="phase-t">제안 시트에 자동 적재</span>
+          <span class="pill warn">서비스 계정 1개 + 시트 1개</span>
+        </div>
+        <dl>
+          <dt>할 일</dt>
+          <dd>준비물 #1~4, #16~19. 에이전트에게 <code>locale_propose</code>만 쥐어준다. 원본은 건드리지 않는다.</dd>
+          <dt>얻는 것</dt>
+          <dd>
+            보고가 사람의 손을 거치지 않고 검토 대기열로 들어간다. 채택/반려가 상태 열에 쌓이면
+            3단계의 판단 근거가 생긴다.
+          </dd>
+          <dt>전제</dt>
+          <dd>1단계의 키 지목 정확도가 납득할 수준일 것. 아니면 제안 시트가 잡음만 쌓는다.</dd>
+        </dl>
+      </div>
+
+      <div class="phase">
+        <div class="phase-h">
+          <span class="phase-n">3단계</span>
+          <span class="phase-t">원본에 직접 쓴다</span>
+          <span class="pill stop">조건부 · 서두르지 않는다</span>
+        </div>
+        <dl>
+          <dt>전제</dt>
+          <dd>
+            2단계 채택률이 충분히 높고, #12~14가 확인돼 <strong>반영 확인까지 자동화</strong>되고,
+            보호 범위·스냅샷·로그가 갖춰졌을 것. 셋 중 하나라도 비면 2단계에 머무는 편이 낫다.
+          </dd>
+          <dt>범위</dt>
+          <dd><code>kr</code> 열, 이미 존재하는 행, 1회 3셀 이하. 그 밖은 전부 2단계로 떨어뜨린다.</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section id="asks">
+    <div class="sec-head">
+      <span class="sec-num">7</span>
+      <h2>답이 필요한 다섯 가지</h2>
+      <p>
+        아래는 이 보고서에서 확정하지 못한 것들이다. 1단계는 이 답들 없이 바로 시작할 수 있지만,
+        2·3단계의 설계는 여기서 갈린다.
+      </p>
+    </div>
+
+    <ul class="asks">
+      <li>
+        <span class="q">Q1</span>
+        <p class="a"><b>스펙 서버는 시트를 언제 다시 읽는가?</b>
+          <span>요청마다인지, 캐시가 있는지, 별도 publish 조작이 필요한지. 검증 루프의 존재 여부가 여기서 결정된다.</span></p>
+      </li>
+      <li>
+        <span class="q">Q2</span>
+        <p class="a"><b>로컬라이즈 탭은 몇 개이고 gid는 무엇인가?</b>
+          <span>지금 아는 건 <code>1469350934</code> 하나다. 탭마다 열 배치가 같은지도 함께 확인이 필요하다.</span></p>
+      </li>
+      <li>
+        <span class="q">Q3</span>
+        <p class="a"><b><code>kr</code> 외 언어 열은 누가 채우는가?</b>
+          <span>번역 외주라면 자동수정이 <code>kr</code>만 고치는 순간 불일치 기간이 생긴다. 그 기간을 어떻게 표시할지 규칙이 필요하다.</span></p>
+      </li>
+      <li>
+        <span class="q">Q4</span>
+        <p class="a"><b>Workspace가 서비스 계정 키 생성과 파일 공유를 허용하는가?</b>
+          <span>막혀 있으면 2단계 전체가 관리자 승인 대기에 걸린다. 가장 먼저 확인할 항목이다.</span></p>
+      </li>
+      <li>
+        <span class="q">Q5</span>
+        <p class="a"><b>LocalizationImporter를 batchmode에서 호출할 수 있는가?</b>
+          <span><code>-executeMethod</code>로 부를 수 있으면 기존 검증 클론에 그대로 얹어 end-to-end 게이트가 완성된다.</span></p>
+      </li>
+    </ul>
+  </section>
+
+  <footer>
+    근거 · <code>tools/autofix/runner/autofix-once.sh</code> (로케일 예외·프롬프트·PR 본문) ·
+    <code>tools/autofix/runner/runner.conf.example</code> ·
+    <code>tools/autofix/README.md</code> §4-1 ·
+    <code>JiraAutofixTriageService</code> (카테고리·판정 기준) ·
+    파이프라인 확인 2026-08-05
+  </footer>
+
+</div>

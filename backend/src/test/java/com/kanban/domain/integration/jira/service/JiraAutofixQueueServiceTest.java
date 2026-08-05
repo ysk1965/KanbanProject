@@ -24,6 +24,7 @@ import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.service.FileUploadService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,6 +62,8 @@ class JiraAutofixQueueServiceTest {
     private BoardService boardService;
     private JiraAutofixTriageRepository triageRepository;
     private JiraAutofixJobRepository jobRepository;
+    private JiraAutofixJobMaterialRepository jobMaterialRepository;
+    private FileUploadService fileUploadService;
     private JiraIntegrationConfigRepository configRepository;
     private TaskRepository taskRepository;
     private ChecklistItemRepository checklistItemRepository;
@@ -82,6 +85,8 @@ class JiraAutofixQueueServiceTest {
         boardService = mock(BoardService.class);
         triageRepository = mock(JiraAutofixTriageRepository.class);
         jobRepository = mock(JiraAutofixJobRepository.class);
+        jobMaterialRepository = mock(JiraAutofixJobMaterialRepository.class);
+        fileUploadService = mock(FileUploadService.class);
         configRepository = mock(JiraIntegrationConfigRepository.class);
         taskRepository = mock(TaskRepository.class);
         checklistItemRepository = mock(ChecklistItemRepository.class);
@@ -95,7 +100,8 @@ class JiraAutofixQueueServiceTest {
 
         service = new JiraAutofixQueueService(
                 properties, new ObjectMapper(), boardRepository, boardService,
-                triageRepository, jobRepository, configRepository, taskRepository,
+                triageRepository, jobRepository, jobMaterialRepository, fileUploadService,
+                configRepository, taskRepository,
                 checklistItemRepository, commentRepository, commentAttachmentRepository,
                 userRepository,
                 boardGithubRepoRepository, jiraApiClient, oauthService, slackPublisher);
@@ -1292,5 +1298,131 @@ class JiraAutofixQueueServiceTest {
         config.touchAutofixRunner("mac-01", null, AutofixRunnerContract.VERSION);
 
         assertThat(config.getAutofixContractAlertedAt()).isNull();
+    }
+
+    // ── 맡길 때 올린 자료 ───────────────────────────
+
+    private JiraAutofixRequest.Delegate delegateWithFiles(String instruction, List<String> itemIds,
+                                                          List<String> fileKeys) {
+        JiraAutofixRequest.Delegate request = delegateRequest(instruction, itemIds);
+        request.setFileKeys(fileKeys);
+        return request;
+    }
+
+    private void givenUploadedFile(String tempKey, String mime, long size) {
+        when(fileUploadService.tempFileExists(tempKey)).thenReturn(true);
+        lenient().when(fileUploadService.probeObjectSize(tempKey)).thenReturn(size);
+        lenient().when(fileUploadService.moveToPermanent(tempKey, BOARD_ID, TASK_ID))
+                .thenReturn(new FileUploadService.PermanentResult(
+                        "perm/" + tempKey, "https://cdn/" + tempKey, null, "", mime, size));
+    }
+
+    @Test
+    @DisplayName("올린 자료는 만들어진 job 전부에 붙고, 파일은 한 번만 옮긴다 — 항목마다 복사하면 용량만 N배가 된다")
+    void attachesUploadedMaterialsToEveryJob() {
+        givenRepo("develop");
+        givenDelegatableTask();
+        List<ChecklistItem> items = List.of(
+                givenItem("item-1", "빈 이름일 때 저장 버튼 비활성화"),
+                givenItem("item-2", "중복 이름 검사 추가"));
+        when(checklistItemRepository.findByTaskIdOrderByPositionAsc(TASK_ID)).thenReturn(items);
+        givenUploadedFile("temp/shot.png", "image/png", 1024L);
+
+        service.delegate(BOARD_ID, USER_ID, delegateWithFiles(
+                "이 화면을 보고 고쳐라", List.of("item-1", "item-2"), List.of("temp/shot.png")));
+
+        verify(fileUploadService, times(1)).moveToPermanent(any(), any(), any());
+        ArgumentCaptor<List<JiraAutofixJobMaterial>> saved = ArgumentCaptor.forClass(List.class);
+        verify(jobMaterialRepository).saveAll(saved.capture());
+        assertThat(saved.getValue()).hasSize(2)
+                .allSatisfy(m -> assertThat(m.getUrl()).isEqualTo("https://cdn/temp/shot.png"));
+        assertThat(saved.getValue()).extracting(JiraAutofixJobMaterial::getJobId).doesNotHaveDuplicates();
+    }
+
+    @Test
+    @DisplayName("첨부 개수 상한을 넘기면 한 건도 옮기지 않는다 — 옮긴 뒤에 막으면 주인 없는 객체가 남는다")
+    void rejectsTooManyMaterials() {
+        givenRepo("develop");
+        givenDelegatableTask();
+
+        assertThatThrownBy(() -> service.delegate(BOARD_ID, USER_ID,
+                delegateWithFiles("고쳐라", List.of(), List.of("a.png", "b.png", "c.png", "d.png"))))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.JIRA_AUTOFIX_TOO_MANY_MATERIALS);
+
+        verify(fileUploadService, never()).moveToPermanent(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("용량 상한을 넘는 파일은 복사 전에 막는다 — 영상은 복사 자체가 비싸다")
+    void rejectsOversizedMaterialBeforeCopy() {
+        givenRepo("develop");
+        givenDelegatableTask();
+        when(fileUploadService.tempFileExists("temp/big.mp4")).thenReturn(true);
+        when(fileUploadService.probeObjectSize("temp/big.mp4")).thenReturn(11L * 1024 * 1024);
+
+        assertThatThrownBy(() -> service.delegate(BOARD_ID, USER_ID,
+                delegateWithFiles("고쳐라", List.of(), List.of("temp/big.mp4"))))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.JIRA_AUTOFIX_MATERIAL_TOO_LARGE);
+
+        verify(fileUploadService, never()).moveToPermanent(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("이미지·영상이 아니면 붙이지 않는다 — 러너가 조용히 버리면 사람은 첨부가 나갔다고 믿는다")
+    void rejectsNonMediaMaterial() {
+        givenRepo("develop");
+        givenDelegatableTask();
+        givenUploadedFile("temp/spec.pdf", "application/pdf", 1024L);
+
+        assertThatThrownBy(() -> service.delegate(BOARD_ID, USER_ID,
+                delegateWithFiles("고쳐라", List.of(), List.of("temp/spec.pdf"))))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.JIRA_AUTOFIX_MATERIAL_NOT_MEDIA);
+
+        verify(fileUploadService).delete("perm/temp/spec.pdf");
+    }
+
+    @Test
+    @DisplayName("뒤엣 파일이 실패하면 이미 옮긴 것을 지운다 — 롤백은 S3까지 되돌려 주지 않는다")
+    void deletesMovedFilesWhenLaterOneFails() {
+        givenRepo("develop");
+        givenDelegatableTask();
+        givenUploadedFile("temp/ok.png", "image/png", 1024L);
+        when(fileUploadService.tempFileExists("temp/gone.png")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.delegate(BOARD_ID, USER_ID,
+                delegateWithFiles("고쳐라", List.of(), List.of("temp/ok.png", "temp/gone.png"))))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.TEMP_FILE_NOT_FOUND);
+
+        verify(fileUploadService).delete("perm/temp/ok.png");
+        verify(jobMaterialRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("맡길 때 올린 자료가 댓글 첨부보다 앞에 나간다 — 러너는 상한을 넘긴 뒤쪽을 버린다")
+    void putsDelegatedMaterialsBeforeCommentAttachments() {
+        properties.setDispatchEnabled(true);
+        JiraAutofixJob job = queuedJob("QASA-92");
+        givenNextQueued(job);
+        // 중첩 stubbing이 되지 않게 첨부를 먼저 만들어 둔다
+        CommentAttachment fromComment = material("old.png", "image/png", "https://cdn/old.png");
+        when(jobMaterialRepository.findByJobIdOrderByCreatedAtAsc(job.getId()))
+                .thenReturn(List.of(JiraAutofixJobMaterial.of(job.getId(), "shot.png",
+                        "perm/shot.png", "https://cdn/shot.png", "image/png", 2048L)));
+        when(commentAttachmentRepository.findByTaskId("task-QASA-92"))
+                .thenReturn(List.of(fromComment));
+
+        JiraAutofixResponse.RunnerJob handed =
+                service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null).getJob();
+
+        assertThat(handed.getMaterials()).extracting(m -> m.getFilename())
+                .containsExactly("shot.png", "old.png");
     }
 }

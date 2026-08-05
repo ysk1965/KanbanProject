@@ -35,6 +35,9 @@ class JiraAutofixRepositoryQueryTest {
     @Autowired
     private JiraAutofixTriageRepository triageRepository;
 
+    @Autowired
+    private JiraAutofixTriageRunRepository runRepository;
+
     @Test
     @DisplayName("작업 저장소의 모든 쿼리가 파싱된다")
     void jobQueriesParse() {
@@ -50,5 +53,12 @@ class JiraAutofixRepositoryQueryTest {
     void outcomeAggregationParses() {
         assertThat(triageRepository.countOutcomesByCategory(BOARD_ID)).isEmpty();
         assertThat(triageRepository.countByVerdictAndCategory(BOARD_ID)).isEmpty();
+    }
+
+    /** 진행률 원장 — 매핑이 깨지면 판정 버튼이 통째로 죽는다(시작조차 못 한다). */
+    @Test
+    @DisplayName("트리아지 실행 조회가 파싱된다")
+    void triageRunQueriesParse() {
+        assertThat(runRepository.findLatest(BOARD_ID)).isEmpty();
     }
 }
