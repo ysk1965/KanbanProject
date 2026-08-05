@@ -34,10 +34,16 @@ public interface JiraAutofixTriageRepository extends JpaRepository<JiraAutofixTr
      * 작업과 이어 붙여, 어떤 유형이 실제로 PR까지 갔고 어떤 유형이 헛돌았는지를 센다.
      *
      * <p>종료된 작업만 센다 — 아직 도는 건은 결과가 아니다.
+     *
+     * <p>작업 쪽 식별자는 {@code jobKey}다 — 큐가 JIRA 전용이 아니게 되면서 이름이 바뀌었다.
+     * {@code jobKind = JIRA}로 좁히는 이유: 사람이 맡긴 작업은 트리아지 판정을 거치지 않으므로
+     * 이 집계의 분모에 들어가면 안 된다. 키 접두사가 달라 실제로 이어 붙지는 않지만,
+     * 조건으로 못 박아 두지 않으면 나중에 키 규칙이 바뀔 때 조용히 섞인다.
      */
     @Query("SELECT t.category, j.status, COUNT(j) FROM JiraAutofixTriage t, JiraAutofixJob j "
         + "WHERE t.board.id = :boardId AND j.board.id = :boardId "
-        + "AND t.jiraIssueKey = j.jiraIssueKey "
+        + "AND t.jiraIssueKey = j.jobKey "
+        + "AND j.jobKind = com.kanban.domain.integration.jira.AutofixJobKind.JIRA "
         + "AND j.status IN ('SUCCEEDED', 'NO_CHANGE', 'FAILED') "
         + "GROUP BY t.category, j.status")
     List<Object[]> countOutcomesByCategory(@Param("boardId") String boardId);

@@ -1,0 +1,468 @@
+<title>서버 연결 불가 화면 개선안 — Milkyway</title>
+<style>
+  :root {
+    --ground:      #191f2d;
+    --panel:       #151B28;
+    --surface:     #1e2a42;
+    --hairline:    rgba(255,255,255,.08);
+    --hairline-2:  rgba(255,255,255,.14);
+    --text:        #E8EAF0;
+    --muted:       #94a3b8;
+    --dim:         #64748b;
+    --accent:      #6366F1;
+    --secondary:   #2DD4BF;
+    --warn:        #F59E0B;
+    --danger:      #F43F5E;
+    --ok:          #34D399;
+    --sans: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
+            "Plus Jakarta Sans", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground: #fffcf8; --panel: #efe6d8; --surface: #efe3d2;
+      --hairline: rgba(61,46,31,.10); --hairline-2: rgba(61,46,31,.18);
+      --text: #3D2E1F; --muted: #6b5b48; --dim: #8a7a66;
+      --secondary: #14B8A6;
+      color-scheme: light;
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #fffcf8; --panel: #efe6d8; --surface: #efe3d2;
+    --hairline: rgba(61,46,31,.10); --hairline-2: rgba(61,46,31,.18);
+    --text: #3D2E1F; --muted: #6b5b48; --dim: #8a7a66;
+    --secondary: #14B8A6;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --ground: #191f2d; --panel: #151B28; --surface: #1e2a42;
+    --hairline: rgba(255,255,255,.08); --hairline-2: rgba(255,255,255,.14);
+    --text: #E8EAF0; --muted: #94a3b8; --dim: #64748b;
+    --secondary: #2DD4BF;
+    color-scheme: dark;
+  }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 48px 24px 96px; display: flex; flex-direction: column; gap: 40px; }
+  h1, h2, h3 { text-wrap: balance; margin: 0; font-weight: 700; letter-spacing: -.02em; }
+  p { margin: 0; }
+  code { font-family: var(--mono); font-size: .88em; }
+
+  /* ---------- doc header ---------- */
+  .eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--dim);
+  }
+  .doc-head h1 { font-size: clamp(26px, 4vw, 38px); margin-top: 10px; }
+  .doc-head .lede { color: var(--muted); margin-top: 12px; max-width: 62ch; }
+
+  .cause {
+    display: grid; gap: 1px; background: var(--hairline);
+    border: 1px solid var(--hairline); border-radius: 16px; overflow: hidden;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+  .cause > div { background: var(--panel); padding: 18px 20px; display: flex; flex-direction: column; gap: 6px; }
+  .cause .k { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--danger); }
+  .cause .v { font-size: 14px; color: var(--muted); }
+  .cause .v b { color: var(--text); font-weight: 500; }
+
+  /* ---------- state switcher ---------- */
+  .switcher { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .switcher .lbl { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); margin-right: 6px; }
+  .tab {
+    font: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
+    padding: 7px 14px; border-radius: 999px;
+    background: transparent; color: var(--muted);
+    border: 1px solid var(--hairline);
+    transition: color .15s, border-color .15s, background .15s;
+  }
+  .tab:hover { color: var(--text); border-color: var(--hairline-2); }
+  .tab[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 16%, transparent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--text); }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- browser frame ---------- */
+  .frame {
+    border: 1px solid var(--hairline-2); border-radius: 18px; overflow: hidden;
+    box-shadow: 0 24px 60px -24px rgba(0,0,0,.55);
+    background: var(--panel);
+  }
+  .frame-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 11px 16px; border-bottom: 1px solid var(--hairline);
+    background: var(--panel);
+  }
+  .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .frame-url {
+    margin-left: 10px; font-family: var(--mono); font-size: 12px; color: var(--dim);
+  }
+
+  /* ---------- the proposed screen ---------- */
+  .screen {
+    position: relative; min-height: 520px; overflow: hidden;
+    background: var(--ground);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 56px 24px 0;
+  }
+  .starfield {
+    position: absolute; inset: 0; pointer-events: none; opacity: .5;
+    background-image:
+      radial-gradient(1px 1px at 12% 22%, var(--muted), transparent),
+      radial-gradient(1px 1px at 78% 14%, var(--muted), transparent),
+      radial-gradient(1px 1px at 33% 68%, var(--muted), transparent),
+      radial-gradient(1.5px 1.5px at 88% 62%, var(--accent), transparent),
+      radial-gradient(1px 1px at 58% 88%, var(--muted), transparent),
+      radial-gradient(1px 1px at 6% 76%, var(--secondary), transparent);
+    animation: drift 60s linear infinite;
+  }
+  @keyframes drift { to { transform: translate3d(-40px, -24px, 0); } }
+  .glow {
+    position: absolute; width: 520px; height: 520px; border-radius: 50%;
+    filter: blur(130px); pointer-events: none;
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+    top: 50%; left: 50%; transform: translate(-50%, -60%);
+    transition: background .5s;
+  }
+  .screen[data-state="offline"] .glow { background: color-mix(in srgb, var(--danger) 16%, transparent); }
+  .screen[data-state="retrying"] .glow { background: color-mix(in srgb, var(--warn) 15%, transparent); }
+
+  .stage { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 440px; }
+
+  /* orbital emblem — the ring's arc IS the backoff countdown */
+  .emblem { position: relative; width: 132px; height: 132px; margin-bottom: 30px; }
+  .emblem svg { width: 132px; height: 132px; transform: rotate(-90deg); }
+  .ring-track { fill: none; stroke: var(--hairline-2); stroke-width: 2; }
+  .ring-arc {
+    fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round;
+    transition: stroke-dashoffset .9s linear, stroke .4s;
+  }
+  .screen[data-state="retrying"] .ring-arc { stroke: var(--warn); }
+  .screen[data-state="offline"] .ring-arc { stroke: var(--danger); }
+  .emblem.indeterminate svg { animation: spin 1.4s cubic-bezier(.5,0,.5,1) infinite; }
+  .emblem.indeterminate .ring-arc { transition: none; }
+  @keyframes spin { to { transform: rotate(270deg); } }
+
+  .emblem-core {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 2px;
+  }
+  .core-num { font-family: var(--mono); font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  .core-unit { font-size: 12px; color: var(--dim); letter-spacing: .1em; text-transform: uppercase; }
+  .core-icon { width: 34px; height: 34px; stroke: var(--muted); fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transform: none; }
+
+  .satellite {
+    position: absolute; inset: 0; animation: orbit 3.4s linear infinite;
+  }
+  .satellite i {
+    position: absolute; top: -4px; left: 50%; margin-left: -4px;
+    width: 8px; height: 8px; border-radius: 50%; background: var(--secondary);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--secondary) 80%, transparent);
+    display: block;
+  }
+  @keyframes orbit { to { transform: rotate(360deg); } }
+  .screen[data-state="offline"] .satellite { animation-play-state: paused; opacity: .25; }
+
+  .screen h2 { font-size: 24px; margin-bottom: 10px; }
+  .screen .detail { color: var(--muted); font-size: 14px; max-width: 34ch; }
+  .screen .detail b { color: var(--text); font-weight: 500; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  .actions { display: flex; gap: 10px; margin-top: 26px; }
+  .btn {
+    font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+    padding: 11px 20px; border-radius: 12px; border: 1px solid transparent;
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: background .15s, border-color .15s, color .15s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
+  .btn-ghost { background: transparent; color: var(--muted); border-color: var(--hairline-2); }
+  .btn-ghost:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* diagnostic strip — the honest part: what we actually know */
+  .diag {
+    position: relative; z-index: 1; margin-top: auto; width: 100%;
+    border-top: 1px solid var(--hairline);
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 26px;
+    padding: 14px 24px; background: color-mix(in srgb, var(--panel) 70%, transparent);
+    backdrop-filter: blur(8px);
+  }
+  .diag span { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--dim); }
+  .diag .pip { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); flex: none; }
+  .diag .pip.bad { background: var(--danger); }
+  .diag .pip.wait { background: var(--warn); animation: blink 1.2s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity: .25; } }
+  .diag b { color: var(--muted); font-weight: 500; font-family: var(--mono); }
+
+  .caption { font-size: 13px; color: var(--dim); margin-top: -24px; }
+
+  /* ---------- implementation ---------- */
+  .steps { display: flex; flex-direction: column; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); border-radius: 16px; overflow: hidden; }
+  .step { background: var(--panel); padding: 20px 22px; display: grid; grid-template-columns: 28px 1fr; gap: 4px 16px; }
+  .step .n { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--accent); padding-top: 2px; }
+  .step h3 { font-size: 15px; grid-column: 2; }
+  .step .where { grid-column: 2; font-family: var(--mono); font-size: 12px; color: var(--dim); }
+  .step p { grid-column: 2; font-size: 14px; color: var(--muted); margin-top: 6px; }
+  .step .diffbox { grid-column: 2; margin-top: 12px; }
+
+  pre {
+    margin: 0; padding: 14px 16px; border-radius: 12px;
+    background: var(--ground); border: 1px solid var(--hairline);
+    overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.7;
+    color: var(--muted);
+  }
+  pre .del { color: var(--danger); }
+  pre .add { color: var(--ok); }
+  pre .cmt { color: var(--dim); }
+
+  .note { font-size: 13px; color: var(--dim); border-left: 2px solid var(--hairline-2); padding-left: 14px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+  @media (max-width: 640px) {
+    .screen { min-height: 460px; padding-top: 40px; }
+    .step { grid-template-columns: 1fr; }
+    .step h3, .step .where, .step p, .step .diffbox { grid-column: 1; }
+    .step .n { display: none; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="doc-head">
+    <div class="eyebrow">Milkyway · Frontend</div>
+    <h1>서버가 죽었을 때 보여줄 화면</h1>
+    <p class="lede">
+      지금은 백엔드가 죽으면 존재하지 않는 보드 3개(프로젝트 관리 · 마케팅 캠페인 · 제품 로드맵)가
+      멀쩡한 것처럼 뜹니다. 목업 데이터가 화면을 채우기 때문입니다.
+      아래는 그 자리를 대신할 <b>재연결 화면</b> 제안입니다.
+    </p>
+  </header>
+
+  <section class="cause">
+    <div>
+      <span class="k">원인 1 — 유령 데이터</span>
+      <span class="v"><b>services.ts:79</b> 의 <code>USE_MOCK_ON_ERROR = true</code> 가
+      모든 API 실패를 <code>mockBoards</code> 로 대체합니다. 프로덕션에서도 켜져 있습니다.</span>
+    </div>
+    <div>
+      <span class="k">원인 2 — 시간대 조건</span>
+      <span class="v"><b>App.tsx:784</b> <code>MaintenanceGuard</code> 는 서버 접속 실패 시
+      <b>KST 03:30–08:30</b> 에만 점검 페이지를 띄우고, 그 외 시간엔 그냥 통과시킵니다.</span>
+    </div>
+    <div>
+      <span class="k">결과</span>
+      <span class="v">낮에 서버가 내려가면 → 가드 통과 → 목업 렌더.
+      사용자는 서버가 죽은 줄 모르고 <b>가짜 보드를 클릭</b>합니다.</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="switcher" role="tablist" aria-label="화면 상태">
+      <span class="lbl">상태</span>
+      <button class="tab" role="tab" data-go="boot">부팅</button>
+      <button class="tab" role="tab" data-go="connecting" aria-selected="true">연결 확인 중</button>
+      <button class="tab" role="tab" data-go="retrying">재시도 대기</button>
+      <button class="tab" role="tab" data-go="offline">네트워크 끊김</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="frame">
+      <div class="frame-bar">
+        <span class="dot" style="background:#ff5f57"></span>
+        <span class="dot" style="background:#febc2e"></span>
+        <span class="dot" style="background:#28c840"></span>
+        <span class="frame-url">milkyway.pe.kr</span>
+      </div>
+
+      <div class="screen" id="screen" data-state="connecting">
+        <div class="starfield"></div>
+        <div class="glow"></div>
+
+        <div class="stage">
+          <div class="emblem" id="emblem">
+            <svg viewBox="0 0 132 132" aria-hidden="true">
+              <circle class="ring-track" cx="66" cy="66" r="60"></circle>
+              <circle class="ring-arc" id="arc" cx="66" cy="66" r="60"
+                      stroke-dasharray="377" stroke-dashoffset="94"></circle>
+            </svg>
+            <div class="satellite" id="satellite"><i></i></div>
+            <div class="emblem-core" id="core"></div>
+          </div>
+
+          <h2 id="title">서버에 연결하는 중</h2>
+          <p class="detail" id="detail">잠시만 기다려 주세요.</p>
+
+          <div class="actions" id="actions"></div>
+        </div>
+
+        <div class="diag" id="diag"></div>
+      </div>
+    </div>
+    <p class="caption" style="margin-top:14px">
+      상태 탭으로 4가지 화면을 전환해 보세요. 재시도 대기 상태의 링은 장식이 아니라
+      다음 시도까지 남은 시간을 그립니다.
+    </p>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:16px">
+    <h2 style="font-size:20px">붙이는 방법 — 3군데</h2>
+
+    <div class="steps">
+      <div class="step">
+        <span class="n">01</span>
+        <h3>목업 폴백을 개발 환경으로 가둔다</h3>
+        <span class="where">frontend/src/app/utils/services.ts:79</span>
+        <p>이 한 줄이 유령 보드의 직접 원인입니다. 프로덕션 번들에서 꺼지면
+           API 실패가 정상적으로 예외로 올라오고, 화면은 아래 02가 받습니다.</p>
+        <div class="diffbox">
+<pre><span class="cmt">// API 호출 실패 시 목업 데이터 사용</span>
+<span class="del">- const USE_MOCK_ON_ERROR = true;</span>
+<span class="add">+ const USE_MOCK_ON_ERROR = import.meta.env.DEV;</span></pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="n">02</span>
+        <h3>MaintenanceGuard 에 “연결 불가” 상태를 추가한다</h3>
+        <span class="where">frontend/src/app/App.tsx:768–830 · MaintenanceGuard</span>
+        <p><code>catch</code> 의 <code>else</code> 가지가 지금은 <code>setMaintenanceStatus(null)</code> 로
+           앱을 그냥 통과시킵니다. 여기서 <code>unreachable</code> 로 바꾸고,
+           지수 백오프(2s → 4s → 8s … 최대 30s)로 자동 재시도하게 합니다.</p>
+        <div class="diffbox">
+<pre>} <span class="cmt">// catch — 서버 응답 없음</span>
+  const kstMins = <span class="cmt">…</span>;
+  if (kstMins &gt;= 210 &amp;&amp; kstMins &lt; 510) {
+    setPhase(<span class="add">"night"</span>);          <span class="cmt">// 기존 NightShutdownPage</span>
+  } else {
+<span class="del">-   setMaintenanceStatus(null);   // ← 앱이 그대로 렌더된다</span>
+<span class="add">+   setPhase("unreachable");      // ← ConnectingPage 로</span>
+  }
+}</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="n">03</span>
+        <h3>ConnectingPage 컴포넌트를 만든다</h3>
+        <span class="where">frontend/src/app/components/ConnectingPage.tsx (신규)</span>
+        <p>위 목업이 그대로 이 컴포넌트입니다. 기존 <code>MaintenancePage</code>·
+           <code>NightShutdownPage</code> 와 같은 폴더·같은 토큰을 쓰고,
+           <code>attempt</code> / <code>nextRetryIn</code> / <code>navigator.onLine</code> 세 값만 props 로 받습니다.
+           <code>window.addEventListener('online')</code> 으로 복구 시 즉시 재시도합니다.</p>
+      </div>
+    </div>
+
+    <p class="note">
+      번외 — <code>index.html</code> 의 <code>#root</code> 안에 인라인 스플래시(위 “부팅” 상태)를 넣어두면
+      JS 번들이 뜨기 전 흰/검은 빈 화면 구간도 메워집니다. React 가 마운트되면 자동으로 덮어씁니다.
+      CSS·마크업 모두 인라인이라 추가 요청이 없습니다.
+    </p>
+  </section>
+</div>
+
+<script>
+  const ARC_LEN = 377;
+  const screen = document.getElementById('screen');
+  const emblem = document.getElementById('emblem');
+  const arc = document.getElementById('arc');
+  const core = document.getElementById('core');
+  const title = document.getElementById('title');
+  const detail = document.getElementById('detail');
+  const actions = document.getElementById('actions');
+  const diag = document.getElementById('diag');
+  const tabs = [...document.querySelectorAll('.tab')];
+
+  const ICON_PLUG = '<svg class="core-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20v-4"/><path d="M8 4v6a4 4 0 0 0 8 0V4"/><path d="M9 2v3"/><path d="M15 2v3"/></svg>';
+  const ICON_OFF  = '<svg class="core-icon" viewBox="0 0 24 24" aria-hidden="true" style="stroke:var(--danger)"><path d="M2 2l20 20"/><path d="M5 12.5a11 11 0 0 1 3.5-2.3"/><path d="M15.5 10.2A11 11 0 0 1 19 12.5"/><path d="M2 8.8a17 17 0 0 1 6-3.6"/><path d="M16 5.2a17 17 0 0 1 6 3.6"/><path d="M9 16.2a6 6 0 0 1 6 0"/><path d="M12 20h.01"/></svg>';
+
+  let timer = null, tick = 0, attempt = 3, remaining = 8;
+
+  function pip(cls, text) {
+    return '<span><i class="pip ' + cls + '"></i>' + text + '</span>';
+  }
+
+  function render(state) {
+    clearInterval(timer);
+    screen.dataset.state = state;
+    emblem.classList.toggle('indeterminate', state === 'connecting' || state === 'boot');
+    document.getElementById('satellite').style.display = state === 'boot' ? 'none' : '';
+
+    if (state === 'boot') {
+      arc.setAttribute('stroke-dashoffset', ARC_LEN * 0.72);
+      core.innerHTML = '<span class="core-unit" style="letter-spacing:.24em;font-weight:700">MW</span>';
+      title.textContent = 'Milkyway';
+      detail.innerHTML = '작업 공간을 불러오고 있습니다.';
+      actions.innerHTML = '';
+      diag.innerHTML = pip('wait', '앱 로딩 중');
+      return;
+    }
+
+    if (state === 'connecting') {
+      arc.setAttribute('stroke-dashoffset', ARC_LEN * 0.72);
+      core.innerHTML = ICON_PLUG;
+      title.textContent = '서버에 연결하는 중';
+      detail.innerHTML = '잠시만 기다려 주세요.';
+      actions.innerHTML = '';
+      diag.innerHTML = pip('', '네트워크 연결됨') + pip('wait', '서버 응답 대기');
+      timer = setTimeout(() => go('retrying'), 2600);
+      return;
+    }
+
+    if (state === 'offline') {
+      arc.setAttribute('stroke-dashoffset', 0);
+      core.innerHTML = ICON_OFF;
+      title.textContent = '인터넷에 연결되어 있지 않습니다';
+      detail.innerHTML = 'Wi-Fi 또는 네트워크 연결을 확인해 주세요. 연결되면 자동으로 이어집니다.';
+      actions.innerHTML = '<button class="btn btn-ghost"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>다시 시도</button>';
+      actions.querySelector('.btn').onclick = () => go('connecting');
+      diag.innerHTML = pip('bad', '네트워크 끊김') + pip('bad', '서버 확인 불가');
+      return;
+    }
+
+    // retrying — 링 arc 가 다음 시도까지 남은 시간을 그린다
+    remaining = 8; tick = 0;
+    core.innerHTML = '<span class="core-num" id="cnum">8</span><span class="core-unit">초 후</span>';
+    title.textContent = '서버에 연결할 수 없습니다';
+    actions.innerHTML =
+      '<button class="btn btn-primary"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>지금 다시 시도</button>' +
+      '<button class="btn btn-ghost">상태 페이지</button>';
+    actions.querySelector('.btn-primary').onclick = () => { attempt++; go('connecting'); };
+
+    const paint = () => {
+      arc.setAttribute('stroke-dashoffset', ARC_LEN * (1 - remaining / 8));
+      const n = document.getElementById('cnum');
+      if (n) n.textContent = remaining;
+      detail.innerHTML = '연결을 <b>' + attempt + '</b>회 시도했습니다. 자동으로 다시 연결합니다.';
+      diag.innerHTML =
+        pip('', '네트워크 연결됨') +
+        pip('bad', '서버 응답 없음') +
+        '<span><i class="pip wait"></i>마지막 시도 <b>' + (tick + 3) + '초 전</b></span>';
+    };
+    paint();
+    timer = setInterval(() => {
+      tick++; remaining--;
+      if (remaining <= 0) { attempt++; go('connecting'); return; }
+      paint();
+    }, 1000);
+  }
+
+  function go(state) {
+    tabs.forEach(t => t.setAttribute('aria-selected', String(t.dataset.go === state)));
+    render(state);
+  }
+
+  tabs.forEach(t => t.onclick = () => { attempt = 3; go(t.dataset.go); });
+  go('connecting');
+</script>
