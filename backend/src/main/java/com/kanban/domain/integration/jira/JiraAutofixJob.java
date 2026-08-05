@@ -138,6 +138,18 @@ public class JiraAutofixJob {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    /**
+     * 사람이 같은 대상을 다시 담아 이 시도가 대체된 시각. null이면 이 대상의 <b>마지막</b> 시도다.
+     *
+     * <p>상태를 {@code CANCELLED}로 덮지 않고 표시만 따로 두는 이유는, PR까지 간 시도를 취소로
+     * 바꾸면 그 PR 주소와 결과가 화면의 PR 묶음에서 사라지기 때문이다 — 다시 담기 전에 닫아야 할
+     * 이전 PR을 찾는 단서가 바로 그 행이다.
+     *
+     * <p>"이슈당 1회" 가드({@code existsActiveForIssue})는 이 표시가 없는 행만 센다.
+     */
+    @Column(name = "superseded_at")
+    private LocalDateTime supersededAt;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -208,6 +220,36 @@ public class JiraAutofixJob {
                 .checklistItemId(checklistItemId)
                 .instruction(instruction)
                 .createdBy(createdBy)
+                .status(AutofixJobStatus.QUEUED)
+                .build();
+    }
+
+    /**
+     * 끝난 시도를 같은 대상으로 다시 담는다. 원본은 그대로 두고 새 행을 만든다.
+     *
+     * <p>대상을 규정하는 값(작업 종류·키·태스크·항목·지시문)은 전부 그대로 옮긴다 — 다시 담는
+     * 것은 "같은 일을 한 번 더"이지 새 위임이 아니다. 반대로 실행에 딸린 값(대상 저장소·브랜치·
+     * 러너·결과)은 옮기지 않는다. 저장소 연결은 그사이 바뀌었을 수 있어 {@code assignTarget()}으로
+     * 다시 확정해야 하고, 브랜치는 새 id로 새로 만들어져야 remote에 남은 이전 브랜치와
+     * non-fast-forward로 부딪히지 않는다.
+     *
+     * <p>{@code confidence}도 그대로 둔다. 큐 우선순위의 근거는 여전히 그때의 판정이고,
+     * 사람이 고른 건이라고 해서 트리아지 점수가 달라지지는 않는다.
+     *
+     * @param requestedBy 다시 담은 사람. 원본 작성자로 두지 않는다 — 임의 지시문이 맥에서
+     *                    한 번 더 실행되므로, 그 실행을 시킨 사람이 감사 대상이다.
+     */
+    public static JiraAutofixJob forRequeue(JiraAutofixJob source, String requestedBy) {
+        return JiraAutofixJob.builder()
+                .id(UUID.randomUUID().toString())
+                .board(source.getBoard())
+                .jobKey(source.getJobKey())
+                .jobKind(source.getJobKind())
+                .taskId(source.getTaskId())
+                .checklistItemId(source.getChecklistItemId())
+                .instruction(source.getInstruction())
+                .confidence(source.getConfidence())
+                .createdBy(requestedBy)
                 .status(AutofixJobStatus.QUEUED)
                 .build();
     }
@@ -307,6 +349,25 @@ public class JiraAutofixJob {
      * 같은 대상에 PR이 두 개 생기고, {@code NO_CHANGE}는 에이전트가 판단을 마친 정상 종료다 —
      * 둘 다 사고가 아니므로 잠가 둔다.
      */
+    /**
+     * 이 시도를 "대체됨"으로 표시한다 — 같은 대상을 다시 담기 직전에 부른다.
+     *
+     * <p>{@code discardForRetry()}와 목적이 다르다. 그쪽은 <b>사고로 실패한</b> 건을 비워
+     * 후보 목록으로 되돌리는 길이고(그래서 대상이 실패 계열 둘뿐이다), 이쪽은 결과가 무엇이었든
+     * 사람이 "한 번 더 돌려라"라고 판단한 경우다. PR까지 간 건도 대상이 되는 대신, 상태와
+     * {@code prUrl}은 손대지 않는다 — 다시 담기 전에 닫아야 할 이전 PR이 어느 것인지는
+     * 그 행에만 남아 있다.
+     *
+     * <p>끝난 건만 대체할 수 있다. 큐에 있거나 러너가 물고 있는 작업을 대체하면 같은 대상에
+     * 두 건이 동시에 돌고, PR도 두 개 열린다.
+     */
+    public boolean supersede() {
+        if (!this.status.isTerminal()) return false;
+        if (this.supersededAt != null) return false;   // 이미 다시 담긴 건 — 두 번 담지 않는다
+        this.supersededAt = LocalDateTime.now(ZoneOffset.UTC);
+        return true;
+    }
+
     public boolean discardForRetry() {
         if (this.status != AutofixJobStatus.TIMED_OUT && this.status != AutofixJobStatus.FAILED) {
             return false;

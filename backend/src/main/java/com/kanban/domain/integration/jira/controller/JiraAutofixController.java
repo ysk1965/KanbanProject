@@ -98,6 +98,22 @@ public class JiraAutofixController {
         return ResponseEntity.ok(Map.of("message", force ? "진행 중이던 작업을 회수했습니다" : "작업을 취소했습니다"));
     }
 
+    /**
+     * 끝난 작업을 같은 대상으로 다시 담는다.
+     *
+     * <p>{@code DELETE ...?force=true}(비우기)와 나누어 둔다. 그쪽은 실패한 건을 후보 목록으로
+     * 되돌리는 길이라 confidence·"이미 끝난 태스크" 같은 담기 조건을 다시 통과해야 하는데,
+     * PR까지 간 이슈는 대개 그 조건에서 걸린다(태스크가 이미 QA로 넘어가 있다). 사람이 그 한 건을
+     * 지목한 경우에는 조건이 아니라 사람이 판단 주체이므로, 판정을 다시 묻지 않고 바로 담는다.
+     */
+    @PostMapping("/api/v1/boards/{boardId}/jira/autofix/jobs/{jobId}/requeue")
+    public ResponseEntity<JiraAutofixResponse.JobItem> requeueJob(
+            @PathVariable String boardId,
+            @PathVariable String jobId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(queueService.requeueJob(boardId, principal.getUserId(), jobId));
+    }
+
     /** 콜백 토큰 발급/조회(멱등). 러너 시크릿 BRIDGE_CALLBACK_TOKEN에 넣을 값. */
     @PostMapping("/api/v1/boards/{boardId}/jira/autofix/callback-token")
     public ResponseEntity<Map<String, String>> callbackToken(

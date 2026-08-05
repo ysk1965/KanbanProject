@@ -45,9 +45,13 @@ public interface JiraAutofixJobRepository extends JpaRepository<JiraAutofixJob, 
     /**
      * 이미 이 이슈로 작업을 만든 적이 있는지 — JIRA의 "이슈당 1회" 가드레일.
      * 취소된 건은 재시도 여지를 남긴다.
+     *
+     * <p>사람이 다시 담아 대체된 시도({@code supersededAt})도 세지 않는다. 그 행은 이력으로만
+     * 남기는 것이고, 그 대상의 현재 시도는 뒤에 만들어진 새 행이다. 세어 버리면 다시 담기가
+     * 자기 자신에 막힌다.
      */
     @Query("SELECT COUNT(j) > 0 FROM JiraAutofixJob j WHERE j.board.id = :boardId "
-        + "AND j.jobKey = :key AND j.status <> 'CANCELLED'")
+        + "AND j.jobKey = :key AND j.status <> 'CANCELLED' AND j.supersededAt IS NULL")
     boolean existsActiveForIssue(@Param("boardId") String boardId, @Param("key") String key);
 
     /**

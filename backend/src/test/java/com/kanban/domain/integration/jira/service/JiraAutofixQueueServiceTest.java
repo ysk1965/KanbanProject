@@ -35,6 +35,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -153,6 +154,22 @@ class JiraAutofixQueueServiceTest {
     private void givenNextQueued(JiraAutofixJob job) {
         when(jobRepository.findByBoardIdAndStatus(eq(BOARD_ID), eq(AutofixJobStatus.QUEUED), any(Pageable.class)))
                 .thenReturn(List.of(job));
+    }
+
+    /** PR까지 간 작업 하나. 다시 담기의 주 대상이다. */
+    private JiraAutofixJob succeededJob(String key) {
+        JiraAutofixJob job = queuedJob(key);
+        job.markClaimed("mac-01");
+        job.complete(AutofixJobStatus.SUCCEEDED, "https://github.com/o/r/pull/7", null, null);
+        when(jobRepository.findById(job.getId())).thenReturn(Optional.of(job));
+        return job;
+    }
+
+    /** 다시 담기가 저장한 새 작업. */
+    private JiraAutofixJob capturedRequeued() {
+        ArgumentCaptor<JiraAutofixJob> captor = ArgumentCaptor.forClass(JiraAutofixJob.class);
+        verify(jobRepository).save(captor.capture());
+        return captor.getValue();
     }
 
     // ── 큐 투입 가드레일 ───────────────────────────
@@ -898,6 +915,71 @@ class JiraAutofixQueueServiceTest {
         assertThat(stale.getCompletedAt()).isNotNull();
     }
 
+    // ── 변경 없음의 산출물 ────────────────────────
+
+    /**
+     * 로컬라이즈 정본이 저장소 밖일 때 올바른 결과는 PR이 아니라 보고다. 그 보고가 JIRA 댓글에만
+     * 남으면, 사람이 그 건을 보는 자리(BRIDGE 카드)에는 회색 "변경 없음" 칩 하나만 뜬다.
+     */
+    private static final String LOCALE_REPORT_LOG = """
+            저장소에서 고칠 것을 찾지 못했습니다.
+
+              [로컬라이즈 원본 수정 필요]
+              - 항목: #id `4`, key `MSG_NOT_ENOUGH_AP`
+              - 언어: kr
+              - 현재: 행동력이 부족합니다.
+              - 변경: 스테미너가 부족합니다.
+            """;
+
+    @Test
+    @DisplayName("변경 없음이어도 보고가 있으면 카드에도 남긴다 — 그 보고가 이 건의 산출물이다")
+    void noChangeWithReportAlsoGoesToCard() throws Exception {
+        dispatchedJob("QASA-116");
+        when(taskRepository.findById("task-QASA-116")).thenReturn(Optional.of(mock(Task.class)));
+
+        service.handleCallback(BOARD_ID, payload(new ObjectMapper().writeValueAsString(
+                Map.of("issue_key", "QASA-116", "result", "no_change",
+                        "log_excerpt", LOCALE_REPORT_LOG))));
+
+        ArgumentCaptor<Comment> comment = ArgumentCaptor.forClass(Comment.class);
+        verify(commentRepository).save(comment.capture());
+        assertThat(comment.getValue().getContent())
+                .contains("MSG_NOT_ENOUGH_AP")
+                .contains("스테미너가 부족합니다")
+                // 값을 그대로 옮겨 적게 두지 않는다 — 키가 맞는지 대조하라고 말해야 한다.
+                .contains("확인 후 반영");
+    }
+
+    @Test
+    @DisplayName("보고가 없으면 카드는 건드리지 않는다 — 결과 통보가 두 벌로 쌓이면 카드가 알림판이 된다")
+    void noChangeWithoutReportLeavesCardAlone() throws Exception {
+        dispatchedJob("QASA-92");
+
+        service.handleCallback(BOARD_ID, payload("""
+                {"issue_key":"QASA-92","result":"no_change","log_excerpt":"빌드 로그만 잔뜩"}
+                """));
+
+        verify(commentRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("JIRA 댓글도 보고를 싣는다 — 한 문장짜리 통보로 덮어쓰지 않는다")
+    void jiraCommentCarriesReport() throws Exception {
+        dispatchedJob("QASA-116");
+        when(taskRepository.findById("task-QASA-116")).thenReturn(Optional.of(mock(Task.class)));
+        when(configRepository.findActiveByBoardId(BOARD_ID)).thenReturn(Optional.of(
+                JiraIntegrationConfig.builder().board(board).baseUrl("https://acme.atlassian.net").build()));
+
+        service.handleCallback(BOARD_ID, payload(new ObjectMapper().writeValueAsString(
+                Map.of("issue_key", "QASA-116", "result", "no_change",
+                        "log_excerpt", LOCALE_REPORT_LOG))));
+
+        ArgumentCaptor<com.fasterxml.jackson.databind.JsonNode> adf =
+                ArgumentCaptor.forClass(com.fasterxml.jackson.databind.JsonNode.class);
+        verify(jiraApiClient).addComment(any(), eq("QASA-116"), adf.capture());
+        assertThat(adf.getValue().toString()).contains("MSG_NOT_ENOUGH_AP");
+    }
+
     // ── 슬랙 알림 ──────────────────────────────────
 
     @Test
@@ -1403,6 +1485,164 @@ class JiraAutofixQueueServiceTest {
 
         verify(fileUploadService).delete("perm/temp/ok.png");
         verify(jobMaterialRepository, never()).saveAll(anyList());
+    }
+
+    // ── 다시 담기 ─────────────────────────────────
+    //
+    // "이슈당 1회"는 중복 PR을 막으려는 가드이지 영구 배제가 아니다. 사람이 한 건을 지목해
+    // 다시 돌리는 경로가 여기다 — 목록에서 무더기로 담는 경로와 달리 판정을 다시 묻지 않는다.
+
+    @Test
+    @DisplayName("PR까지 간 작업을 같은 대상으로 다시 담는다")
+    void requeuesSucceededJob() {
+        givenRepo("develop");
+        JiraAutofixJob source = succeededJob("QASA-30");
+
+        JiraAutofixResponse.JobItem item = service.requeueJob(BOARD_ID, USER_ID, source.getId());
+
+        JiraAutofixJob requeued = capturedRequeued();
+        assertThat(requeued.getStatus()).isEqualTo(AutofixJobStatus.QUEUED);
+        assertThat(requeued.getJobKey()).isEqualTo("QASA-30");
+        assertThat(requeued.getTaskId()).isEqualTo("task-QASA-30");
+        assertThat(requeued.getRepoFullName()).isEqualTo(REPO);
+        assertThat(item.getStatus()).isEqualTo("QUEUED");
+        // 다시 담은 사람이 감사 대상이다 — 원본 JIRA 건에는 작성자가 없다
+        assertThat(requeued.getCreatedBy()).isEqualTo(USER_ID);
+    }
+
+    @Test
+    @DisplayName("원본은 상태를 그대로 둔 채 대체됨으로만 표시한다 — 이전 PR 주소가 화면에 남아야 한다")
+    void marksSourceSupersededWithoutTouchingResult() {
+        givenRepo("develop");
+        JiraAutofixJob source = succeededJob("QASA-31");
+
+        service.requeueJob(BOARD_ID, USER_ID, source.getId());
+
+        assertThat(source.getSupersededAt()).isNotNull();
+        assertThat(source.getStatus()).isEqualTo(AutofixJobStatus.SUCCEEDED);
+        assertThat(source.getPrUrl()).isEqualTo("https://github.com/o/r/pull/7");
+    }
+
+    @Test
+    @DisplayName("브랜치는 새로 만든다 — 이전 브랜치를 그대로 쓰면 push가 non-fast-forward로 막힌다")
+    void givesRequeuedJobItsOwnBranch() {
+        givenRepo("develop");
+        JiraAutofixJob source = succeededJob("QASA-32");
+
+        service.requeueJob(BOARD_ID, USER_ID, source.getId());
+
+        assertThat(capturedRequeued().getBranchName())
+                .startsWith("autofix/QASA-32-")
+                .isNotEqualTo(source.getBranchName());
+    }
+
+    @Test
+    @DisplayName("올렸던 자료는 새 작업에도 붙는다 — 그림 없이 나간 지시문은 엉뚱한 것을 고치게 한다")
+    void copiesMaterialsToRequeuedJob() {
+        givenRepo("develop");
+        JiraAutofixJob source = succeededJob("QASA-33");
+        when(jobMaterialRepository.findByJobIdOrderByCreatedAtAsc(source.getId()))
+                .thenReturn(List.of(JiraAutofixJobMaterial.of(source.getId(), "shot.png",
+                        "perm/shot.png", "https://cdn/shot.png", "image/png", 2048L)));
+
+        service.requeueJob(BOARD_ID, USER_ID, source.getId());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<JiraAutofixJobMaterial>> captor = ArgumentCaptor.forClass(List.class);
+        verify(jobMaterialRepository).saveAll(captor.capture());
+        assertThat(captor.getValue()).singleElement()
+                .satisfies(m -> {
+                    // S3 객체는 복사하지 않는다 — 같은 파일을 두 행이 가리킨다
+                    assertThat(m.getS3Key()).isEqualTo("perm/shot.png");
+                    assertThat(m.getJobId()).isEqualTo(capturedRequeued().getId());
+                });
+    }
+
+    @Test
+    @DisplayName("아직 끝나지 않은 작업은 다시 담지 않는다 — 같은 대상이 동시에 둘 돈다")
+    void refusesRequeueOfUnfinishedJob() {
+        JiraAutofixJob queued = queuedJob("QASA-34");
+        when(jobRepository.findById(queued.getId())).thenReturn(Optional.of(queued));
+
+        assertThatThrownBy(() -> service.requeueJob(BOARD_ID, USER_ID, queued.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.JIRA_AUTOFIX_JOB_NOT_REQUEUABLE);
+    }
+
+    @Test
+    @DisplayName("한 번 대체된 시도는 다시 담을 수 없다 — 같은 원본으로 두 건이 만들어진다")
+    void refusesSecondRequeueOfSameSource() {
+        givenRepo("develop");
+        JiraAutofixJob source = succeededJob("QASA-35");
+        service.requeueJob(BOARD_ID, USER_ID, source.getId());
+
+        assertThatThrownBy(() -> service.requeueJob(BOARD_ID, USER_ID, source.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.JIRA_AUTOFIX_JOB_NOT_REQUEUABLE);
+    }
+
+    @Test
+    @DisplayName("같은 이슈로 도는 작업이 이미 있으면 다시 담지 않는다")
+    void refusesRequeueWhenAnotherJobIsActiveForIssue() {
+        givenRepo("develop");
+        JiraAutofixJob source = succeededJob("QASA-36");
+        when(jobRepository.existsActiveForIssue(BOARD_ID, "QASA-36")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.requeueJob(BOARD_ID, USER_ID, source.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.JIRA_AUTOFIX_ALREADY_DELEGATED);
+        verify(jobRepository, never()).save(any(JiraAutofixJob.class));
+    }
+
+    @Test
+    @DisplayName("검증 클론이 없다고 러너가 보고했으면 다시 담지 않는다 — 위임과 같은 판단이다")
+    void refusesRequeueWhenRunnerVerifyNotReady() {
+        JiraAutofixJob source = succeededJob("QASA-37");
+        JiraIntegrationConfig config = mock(JiraIntegrationConfig.class);
+        when(config.getAutofixRunnerStatus()).thenReturn("{\"verify_ready\":false}");
+        when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(config));
+
+        assertThatThrownBy(() -> service.requeueJob(BOARD_ID, USER_ID, source.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.JIRA_AUTOFIX_RUNNER_NOT_READY);
+        assertThat(source.getSupersededAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("맡긴 작업은 지시문을 그대로 옮긴다 — 다시 담기는 새 위임이 아니라 같은 일 한 번 더다")
+    void carriesInstructionOnManualRequeue() {
+        givenRepo("develop");
+        JiraAutofixJob source = JiraAutofixJob.forManualTask(board, "task-9", "저장 버튼을 고쳐라", "user-9");
+        source.assignTarget("inst-1", REPO, "develop");
+        source.markClaimed("mac-01");
+        source.complete(AutofixJobStatus.FAILED, null, "컴파일 실패", null);
+        when(jobRepository.findById(source.getId())).thenReturn(Optional.of(source));
+
+        service.requeueJob(BOARD_ID, USER_ID, source.getId());
+
+        JiraAutofixJob requeued = capturedRequeued();
+        assertThat(requeued.getInstruction()).isEqualTo("저장 버튼을 고쳐라");
+        assertThat(requeued.getJobKind()).isEqualTo(AutofixJobKind.MANUAL);
+        assertThat(requeued.getJobKey()).isEqualTo(source.getJobKey());
+    }
+
+    @Test
+    @DisplayName("맡긴 대상이 이미 큐에 있으면 다시 담지 않는다")
+    void refusesManualRequeueWhilePendingForSameTask() {
+        JiraAutofixJob source = JiraAutofixJob.forManualTask(board, "task-9", "고쳐라", "user-9");
+        source.markClaimed("mac-01");
+        source.complete(AutofixJobStatus.FAILED, null, "컴파일 실패", null);
+        when(jobRepository.findById(source.getId())).thenReturn(Optional.of(source));
+        when(jobRepository.existsPendingForTask(BOARD_ID, "task-9")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.requeueJob(BOARD_ID, USER_ID, source.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.JIRA_AUTOFIX_ALREADY_DELEGATED);
     }
 
     @Test

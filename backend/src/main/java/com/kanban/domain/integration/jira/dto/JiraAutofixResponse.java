@@ -164,6 +164,21 @@ public class JiraAutofixResponse {
         private String failureReason;
         /** 에이전트 로그 꼬리. 실패 원인을 화면에서 볼 수 있는 유일한 경로다. */
         private String logExcerpt;
+        /**
+         * 로그에서 뽑아낸 "사람이 할 일" 보고. 주로 {@code NO_CHANGE}에 붙는다.
+         *
+         * <p>변경 없음이 정답인 경로(로컬라이즈 정본이 저장소 밖일 때)에서는 이것이 그 작업의
+         * 유일한 산출물이다. 이 값이 없으면 화면에는 "고칠 수 없다고 판단했습니다"만 남는다.
+         */
+        private String suggestion;
+        /**
+         * 사람이 같은 대상을 다시 담아 이 시도가 대체됐는지.
+         *
+         * <p>화면이 이 값을 봐야 하는 이유는 <b>같은 키의 행이 둘 이상 보이기</b> 때문이다.
+         * 표시가 없으면 PR 묶음에 같은 이슈가 두 줄 뜨고, 리뷰어는 어느 PR이 최신 시도인지
+         * 모른다. 다시 담기 버튼도 이 값으로 감춘다 — 한 번 대체된 시도는 다시 담을 수 없다.
+         */
+        private boolean superseded;
         private String queuedAt;
         private String dispatchedAt;
         private String completedAt;

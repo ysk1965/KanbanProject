@@ -6285,6 +6285,20 @@ export interface JiraAutofixJob {
   failure_reason: string | null;
   /** 에이전트 로그 꼬리. 실패 원인을 화면에서 볼 수 있는 유일한 경로다. */
   log_excerpt: string | null;
+  /**
+   * 로그에서 뽑아낸 "사람이 할 일" 보고. 주로 NO_CHANGE에 붙는다.
+   *
+   * 로컬라이즈 정본이 저장소 밖(구글 시트)이면 저장소에서 고칠 것이 없는 것이 정상이고,
+   * 이 보고가 그 작업의 유일한 산출물이다.
+   */
+  suggestion: string | null;
+  /**
+   * 사람이 같은 대상을 다시 담아 이 시도가 대체됐는지.
+   *
+   * 같은 키의 행이 둘 이상 보이게 되므로 화면이 어느 쪽이 최신 시도인지 말해야 한다.
+   * 다시 담기 버튼도 이 값으로 감춘다 — 한 번 대체된 시도는 다시 담을 수 없다.
+   */
+  superseded: boolean;
   queued_at: string | null;
   dispatched_at: string | null;
   completed_at: string | null;
@@ -6376,6 +6390,19 @@ export const jiraAutofixAPI = {
   cancelJob: async (boardId: string, jobId: string, force = false) => {
     return apiClient.delete<{ message: string }>(
       `/boards/${boardId}/jira/autofix/jobs/${jobId}${force ? "?force=true" : ""}`,
+    );
+  },
+
+  /**
+   * 끝난 작업을 같은 대상으로 다시 담는다. 원본은 이력으로 남고 새 작업이 큐에 들어간다.
+   *
+   * cancelJob(force)와 다르다 — 그쪽은 실패한 건을 후보 목록으로 되돌릴 뿐이라, PR까지 간
+   * 이슈는 "이미 끝난 태스크"로 걸려 다시 담기지 않는다. 이 경로는 사람이 한 건을 지목한
+   * 경우이므로 판정을 다시 묻지 않는다.
+   */
+  requeueJob: async (boardId: string, jobId: string) => {
+    return apiClient.post<JiraAutofixJob>(
+      `/boards/${boardId}/jira/autofix/jobs/${jobId}/requeue`,
     );
   },
 

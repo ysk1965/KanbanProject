@@ -83,11 +83,23 @@ LOCALE_MAX_CHANGED_VALUES=6
 #
 # LOCALE_SOURCE_URL=https://docs.google.com/spreadsheets/d/.../edit
 
-# 원본에서 내려받은 사본이 저장소에 커밋돼 있으면 그 경로(저장소 루트 기준).
+# 원본에서 내려받은 사본의 경로. 저장소 루트 기준 상대경로 또는 절대경로.
 #
 # 로케일 .asset은 값이 \uXXXX라 한글 문구로 grep하면 0건이다. 그래서 에이전트는 키와 m_Id를
 # 징검다리 삼아 돌아가야 하는데, 이스케이프되지 않은 사본이 있으면 증상 문구에서 키를 한 번에
 # 역추적할 수 있다 — 보고의 정확도가 여기서 갈린다. 에이전트에게 읽기 전용으로만 안내한다.
 # 경로에 파일이 없으면 안내를 생략하고 러너 로그에 경고를 남긴다.
 #
-# LOCALE_SOURCE_MIRROR=Assets/OriginalSpecLanguage.json
+# 두 가지 중 하나를 고른다:
+#
+#  (a) 저장소에 커밋된 익스포트 산출물 — 준비물이 없지만 익스포트 시점 스냅샷이라 시트보다 낡다.
+#      LOCALE_SOURCE_MIRROR=Assets/OriginalSpecLanguage.json
+#
+#  (b) 시트에서 직접 뜬 스냅샷 — 정본 최신값이고 탭 구분까지 들어간다. 만드는 법은
+#      build-locale-mirror.py 의 주석 참조(로그인된 크롬이 있는 대화형 세션에서 CSV를 받아
+#      이 스크립트로 합친다. 러너는 시트에 인증할 수 없어 스스로 갱신하지 못한다).
+#      LOCALE_SOURCE_MIRROR=/Users/<user>/bridge-autofix/locale/locale-sheet.tsv
+#
+# ⚠️ 절대경로를 쓸 때는 **전용 하위 폴더**에 둘 것. 러너가 그 파일의 상위 폴더를 통째로
+#    에이전트에게 열어주기 때문에(--add-dir), runner.conf 와 같은 폴더에 두면 BRIDGE_TOKEN이
+#    에이전트에게 노출된다. 러너가 이 경우를 감지하면 작업을 시작하지 않고 실패시킨다.

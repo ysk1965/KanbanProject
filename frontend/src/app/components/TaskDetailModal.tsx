@@ -3654,7 +3654,77 @@ function SortableChecklistItemRow(props: {
  *
  * NO_CHANGE에 실패색을 쓰지 않는다. "고칠 수 없다고 판단함"은 고장이 아니다.
  */
-function AutofixItemChip({ job }: { job: JiraAutofixJob }) {
+/**
+ * 자동수정이 "저장소에서 고칠 것이 없다"고 판단하며 남긴 보고.
+ *
+ * 로컬라이즈 정본이 저장소 밖(구글 시트)이면 .asset을 고쳐봐야 다음 익스포트에 덮어쓰인다 —
+ * 그 경로의 올바른 산출물은 PR이 아니라 "원본의 이 항목을 이렇게 바꿔라"는 보고다.
+ * 그러므로 이 화면은 실패를 설명하는 자리가 아니라 <b>결과물을 건네는 자리</b>다.
+ *
+ * 값을 다듬지 않고 원문 그대로 보여준다. 사람이 이걸 들고 원본을 찾아가므로 한 글자라도
+ * 손대면 대조가 어긋난다 — 그래서 복사도 화면에 보이는 그 문자열을 그대로 넘긴다.
+ */
+function AutofixSuggestionPanel({ suggestion }: { suggestion: string }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(suggestion);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = suggestion;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    toast.success(t("autofix.suggestionCopied", "보고를 복사했습니다"));
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="ml-6 mt-1 mb-2 rounded-xl border border-foreground/[0.08] bg-foreground/[0.03] overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-foreground/[0.08]">
+        <span className="text-xs font-bold text-foreground">
+          {t("autofix.suggestionTitle", "저장소 밖에서 고쳐야 합니다")}
+        </span>
+        <button
+          onClick={handleCopy}
+          className="ml-auto text-xs text-bridge-accent hover:underline"
+        >
+          {copied
+            ? t("common.copied", "복사됨")
+            : t("common.copy", "복사")}
+        </button>
+      </div>
+      <pre className="px-3 py-2 text-xs text-foreground whitespace-pre-wrap break-words font-normal max-h-64 overflow-y-auto custom-scrollbar">
+        {suggestion}
+      </pre>
+      <div className="px-3 pb-2 text-xs text-slate-500">
+        {t(
+          "autofix.suggestionHint",
+          "확인 후 반영해야 합니다 — 에이전트가 짚은 키가 맞는지 원본에서 대조하세요.",
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AutofixItemChip({
+  job,
+  expanded,
+  onToggle,
+}: {
+  job: JiraAutofixJob;
+  /** 보고 패널이 펼쳐져 있는가. 보고가 없는 작업에서는 의미가 없다. */
+  expanded?: boolean;
+  /** 보고가 있을 때만 넘어온다. 없으면 칩은 지금까지처럼 그냥 표시다. */
+  onToggle?: () => void;
+}) {
+  const { t } = useTranslation();
+
   const style: Record<string, { cls: string; label: string }> = {
     QUEUED: { cls: "bg-foreground/10 text-slate-400", label: "맥 대기" },
     DISPATCHED: {
@@ -3677,7 +3747,17 @@ function AutofixItemChip({ job }: { job: JiraAutofixJob }) {
     CANCELLED: { cls: "bg-foreground/10 text-slate-400", label: "취소됨" },
   };
 
-  const tone = style[job.status];
+  /*
+    보고가 딸린 변경 없음은 회색으로 두지 않는다. "변경 없음"은 아무 일도 없었다는 뜻으로
+    읽히는데 실제로는 그 건의 산출물이 나와 있다 — 색과 말이 사실과 어긋나면 아무도 안 누른다.
+  */
+  const tone =
+    job.status === "NO_CHANGE" && job.suggestion
+      ? {
+          cls: "bg-bridge-accent/15 text-bridge-accent",
+          label: t("autofix.suggestionChip", "고칠 내용 있음"),
+        }
+      : style[job.status];
   if (!tone) return null;
 
   const elapsed =
@@ -3719,6 +3799,22 @@ function AutofixItemChip({ job }: { job: JiraAutofixJob }) {
       >
         {chip}
       </a>
+    ) : onToggle ? (
+      /*
+        보고가 있는 건은 눌러서 펼친다. 회색 "변경 없음" 칩만 두면 에이전트가 알아낸 것이
+        화면에 있는데도 없는 것과 같다 — 누를 수 있다는 사실이 보여야 누른다.
+      */
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        aria-expanded={expanded}
+        title={t("autofix.hasSuggestion", "고칠 내용을 남겼습니다 — 눌러서 보기")}
+        className="hover:opacity-80 transition-opacity"
+      >
+        {chip}
+      </button>
     ) : (
       <span title={job.failure_reason ?? job.instruction ?? undefined}>
         {chip}
@@ -3777,6 +3873,8 @@ function ChecklistItemRow({
   const [showOptions, setShowOptions] = useState(false);
   const [showTimeBlocks, setShowTimeBlocks] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  /** 자동수정이 남긴 보고를 펼쳤는지. 보고가 없는 항목에서는 쓰이지 않는다. */
+  const [showSuggestion, setShowSuggestion] = useState(false);
 
   // 부모에서 벌크로 로드된 타임블록 사용 (최근 날짜·늦은 시간 순 정렬)
   const timeBlocks = [...(preloadedTimeBlocks || [])].sort((a, b) => {
@@ -4341,7 +4439,17 @@ function ChecklistItemRow({
           맡긴 적이 없는 항목에는 아무것도 두지 않는다. 대부분의 항목은 평생 맡겨지지 않는데
           그 사실을 매 줄마다 말하면 체크리스트가 자동수정 화면이 된다.
         */}
-        {autofixJob && <AutofixItemChip job={autofixJob} />}
+        {autofixJob && (
+          <AutofixItemChip
+            job={autofixJob}
+            expanded={showSuggestion}
+            onToggle={
+              autofixJob.suggestion
+                ? () => setShowSuggestion((v) => !v)
+                : undefined
+            }
+          />
+        )}
 
         {/* 타임블록 총합 시간 + 토글 버튼 */}
         {totalTimeMinutes > 0 && (
@@ -4458,6 +4566,11 @@ function ChecklistItemRow({
           itemId={item.id}
           itemTitle={item.title}
         />
+      )}
+
+      {/* 자동수정이 남긴 보고 — 저장소 밖에서 고쳐야 하는 건의 산출물 */}
+      {showSuggestion && autofixJob?.suggestion && (
+        <AutofixSuggestionPanel suggestion={autofixJob.suggestion} />
       )}
 
       {/* 타임블록 리스트 */}

@@ -474,6 +474,11 @@ export function JiraAutofixDock({
   const [openReasons, setOpenReasons] = useState<Set<string>>(new Set());
   /** 강제 회수는 두 번 눌러야 나간다 — 실제로 돌고 있는 러너를 실수로 놓칠 수 있다. */
   const [armedRelease, setArmedRelease] = useState<string | null>(null);
+  /**
+   * PR까지 간 건을 다시 돌릴 때도 두 번 누르게 한다. 서버는 이전 PR을 닫지 않으므로,
+   * 한 번에 나가면 같은 대상에 열린 PR이 둘이 되고 리뷰어는 어느 쪽이 최신인지 모른다.
+   */
+  const [armedRequeue, setArmedRequeue] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -776,6 +781,24 @@ export function JiraAutofixDock({
     run(`discard:${jobId}`, async () => {
       await jiraAutofixAPI.cancelJob(boardId, jobId, true);
       setNotice("실패한 작업을 비웠습니다. 이제 같은 대상을 다시 담을 수 있습니다.");
+      await Promise.all([load(), loadItems(verdict)]);
+    });
+
+  /**
+   * 끝난 작업을 같은 대상으로 다시 담는다 — 비우기와 달리 한 번에 큐까지 들어간다.
+   *
+   * <p>비우기는 후보 목록으로 되돌릴 뿐이라 PR까지 간 이슈에는 쓸모가 없다. 자동수정이
+   * 성공했으면 태스크는 이미 QA로 넘어가 있고, 담기는 그걸 "이미 끝난 태스크"로 걸러낸다.
+   *
+   * <p>이전 PR은 서버가 닫지 않는다. 눌러 놓고 잊는 일이 없게 결과 문구에서 한 번 더 말한다.
+   */
+  const handleRequeue = (jobId: string) =>
+    run(`requeue:${jobId}`, async () => {
+      const job = await jiraAutofixAPI.requeueJob(boardId, jobId);
+      setArmedRequeue(null);
+      setNotice(
+        `${job.job_key}을(를) 다시 담았습니다. 이전 PR은 직접 닫아주세요.`,
+      );
       await Promise.all([load(), loadItems(verdict)]);
     });
 
@@ -2041,6 +2064,27 @@ export function JiraAutofixDock({
                         <span className={chipCls(job.status)}>
                           {STATUS_STYLE[job.status].label}
                         </span>
+                        {/*
+                          대체된 시도는 같은 키의 새 행과 나란히 보인다. 표시가 없으면 리뷰어가
+                          어느 PR이 최신 시도의 것인지 알 수 없다.
+                        */}
+                        {job.superseded && (
+                          <span className="text-xs text-slate-500">
+                            {t("autofixDock.superseded", "다시 담김")}
+                          </span>
+                        )}
+                        {!job.superseded && (
+                          <RequeueButton
+                            /* PR이 열려 있는 건이라 두 번 눌러야 나간다 */
+                            needsConfirm
+                            armed={armedRequeue === job.id}
+                            busy={busy === `requeue:${job.id}`}
+                            onArm={() => setArmedRequeue(job.id)}
+                            onDisarm={() => setArmedRequeue(null)}
+                            onRequeue={() => handleRequeue(job.id)}
+                            t={t}
+                          />
+                        )}
                       </div>
                       {job.pr_url && (
                         <a
@@ -2054,10 +2098,15 @@ export function JiraAutofixDock({
                         </a>
                       )}
                       <div className="text-xs text-slate-600 leading-relaxed">
-                        {t(
-                          "autofixDock.reviewWarning",
-                          "컴파일 통과까지만 검증됨 · 리뷰 필요",
-                        )}
+                        {armedRequeue === job.id
+                          ? t(
+                              "autofixDock.requeueWarning",
+                              "이전 PR은 자동으로 닫히지 않습니다. 먼저 닫은 뒤 다시 돌리세요.",
+                            )
+                          : t(
+                              "autofixDock.reviewWarning",
+                              "컴파일 통과까지만 검증됨 · 리뷰 필요",
+                            )}
                       </div>
                     </div>
                   ))}
@@ -2078,16 +2127,35 @@ export function JiraAutofixDock({
                             <span className={chipCls(job.status)}>
                               {STATUS_STYLE[job.status].label}
                             </span>
+                            {job.superseded && (
+                              <span className="ml-auto text-xs text-slate-500">
+                                {t("autofixDock.superseded", "다시 담김")}
+                              </span>
+                            )}
                             {/*
-                              실패로 끝난 건만 비울 수 있다. NO_CHANGE는 에이전트가 판단을 마친
-                              정상 종료라 다시 태울 이유가 없다.
+                              끝난 건은 결과가 무엇이든 사람이 한 번 더 돌릴 수 있다. 여기서는
+                              PR이 열려 있지 않아(변경 없음·실패) 한 번에 나간다.
+                            */}
+                            {!job.superseded && (
+                              <span className="ml-auto">
+                                <RequeueButton
+                                  armed={false}
+                                  busy={busy === `requeue:${job.id}`}
+                                  onRequeue={() => handleRequeue(job.id)}
+                                  t={t}
+                                />
+                              </span>
+                            )}
+                            {/*
+                              비우기는 다시 담기와 목적이 다르다 — 후보 목록으로 되돌려
+                              트리아지를 다시 보고 담고 싶을 때의 길이라 실패 계열에만 남긴다.
                             */}
                             {(job.status === "FAILED" ||
                               job.status === "TIMED_OUT") && (
                               <button
                                 onClick={() => handleDiscard(job.id)}
                                 disabled={busy === `discard:${job.id}`}
-                                className="ml-auto text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 px-1.5 py-0.5 rounded-lg transition-colors disabled:opacity-50"
+                                className="text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 px-1.5 py-0.5 rounded-lg transition-colors disabled:opacity-50"
                                 title={t(
                                   "autofixDock.discardHint",
                                   "이 작업을 비워 같은 대상을 다시 담을 수 있게 합니다",
@@ -2140,6 +2208,65 @@ export function JiraAutofixDock({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * 끝난 작업을 같은 대상으로 다시 담는 버튼.
+ *
+ * <p>PR까지 간 건({@code needsConfirm})은 두 번 눌러야 나간다. 서버는 이전 PR을 닫지 않으므로
+ * 한 번에 나가면 같은 대상에 열린 PR이 둘이 되고, 그때부터 리뷰어는 어느 쪽이 최신 시도인지
+ * 모른다. 변경 없음·실패로 끝난 건은 닫을 PR이 없어 한 번에 나간다 — 잘못 눌러도 큐에 한 건이
+ * 더 들어갈 뿐이고, 그건 취소 버튼으로 바로 되돌릴 수 있다.
+ */
+function RequeueButton({
+  needsConfirm = false,
+  armed,
+  busy,
+  onArm,
+  onDisarm,
+  onRequeue,
+  t,
+}: {
+  needsConfirm?: boolean;
+  armed: boolean;
+  busy: boolean;
+  /** needsConfirm일 때만 쓴다 — 확인이 없는 자리에서는 첫 클릭이 곧 실행이다. */
+  onArm?: () => void;
+  onDisarm?: () => void;
+  onRequeue: () => void;
+  t: (key: string, fallback: string) => string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => (!needsConfirm || armed ? onRequeue() : onArm?.())}
+        disabled={busy}
+        title={t(
+          "autofixDock.requeueHint",
+          "같은 대상을 큐에 다시 담습니다. 이전 결과는 이력으로 남습니다",
+        )}
+        className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-foreground
+          hover:bg-foreground/5 px-1.5 py-0.5 rounded-lg transition-colors disabled:opacity-50"
+      >
+        {busy && (
+          <Loader2 size={11} className="animate-spin text-bridge-accent" />
+        )}
+        {armed
+          ? t("autofixDock.requeueConfirm", "정말 다시 돌릴까요?")
+          : t("autofixDock.requeue", "다시 돌리기")}
+      </button>
+      {armed && onDisarm && (
+        <button
+          type="button"
+          onClick={onDisarm}
+          className="text-xs text-slate-500 hover:text-foreground transition-colors"
+        >
+          {t("autofixDock.cancelAction", "취소")}
+        </button>
+      )}
+    </span>
   );
 }
 

@@ -207,6 +207,72 @@ tail -f ~/bridge-autofix/logs/runner.log
 
 ---
 
+## 부록 — 시트 스냅샷을 사본으로 쓰기 (2026-08-05 추가)
+
+`LOCALE_SOURCE_MIRROR`를 저장소의 `OriginalSpecLanguage.json` 대신 **시트에서 직접 뜬 스냅샷**으로
+바꿨다. 커밋된 익스포트는 익스포트 시점 스냅샷이라 시트가 그 뒤에 바뀌면 에이전트가 낡은 값을
+정본으로 보고한다 — 그 경우 사람이 시트에서 대조할 때 "현재" 값이 안 맞아 헛걸음한다.
+
+**러너는 이 파일을 스스로 갱신하지 못한다.** 시트가 링크 공개가 아니라 익명 요청은 401이고,
+러너의 `claude -p`에는 브라우저 도구가 없다(확인함). 갱신은 로그인된 크롬이 있는 대화형 세션의 몫이다.
+
+### 갱신 절차
+
+정본 탭 2개(`Default`, `Dialogue`)를 각각 주소로 직접 열어 받는다. 크롬이 `data.csv`로 저장한다:
+
+```
+https://docs.google.com/spreadsheets/d/17Yyg7-CfFxZEBFvIrGctFnTvZFpp0DaWVAMA_xlZlpw/gviz/tq?tqx=out:csv&headers=0&sheet=Default
+https://docs.google.com/spreadsheets/d/17Yyg7-CfFxZEBFvIrGctFnTvZFpp0DaWVAMA_xlZlpw/gviz/tq?tqx=out:csv&headers=0&sheet=Dialogue
+```
+
+받은 파일을 `locale-Default.csv` · `locale-Dialogue.csv`로 옮긴 뒤:
+
+```bash
+python3 ~/bridge-autofix/build-locale-mirror.py ~/Downloads ~/bridge-autofix/locale/locale-sheet.tsv
+```
+
+- 한 페이지 안에서 `fetch`+blob으로 연속 저장하면 **크롬이 2번째부터 자동 차단**한다. 주소로 직접
+  이동하는 편이 확실하다. (시트 앱 페이지는 CSP 때문에 `fetch` 자체가 막히니, `docs.google.com`의
+  다른 경로에서 같은 출처로 요청해야 한다.)
+- 스크립트는 결과를 `chmod 444`로 만든다. 에이전트는 `Edit`을 쥐고 `acceptEdits`로 도는데 이 파일은
+  작업 트리 밖이라 git이 변경을 잡지 못하기 때문이다.
+- 파일 첫 줄에 스냅샷 시각이 박히고 러너 로그에도 찍힌다. 값이 어긋났을 때 "에이전트가 틀렸다"와
+  "사본이 낡았다"를 구분하는 단서다.
+
+### 이번에 확인된 시트 구조 — 보고서 #7·#8·#9의 정정
+
+`docs/autofix-localization-sheet.html`이 "미확인"으로 남겨둔 항목의 실제 값이다. **2단계 설계 전에
+반드시 반영할 것.**
+
+| 탭 | 행 | 열 | 성격 |
+|----|----|----|------|
+| `Default` | 2,399 | 15 | 정본 |
+| `Dialogue` | 1,857 | 16 | **정본 — 보고서가 몰랐던 두 번째 테이블** |
+| `#Test` | 202 | 3 | 스크래치. 키가 전부 `Default`에 있다 |
+| `#Test2` | 74 | 3 | 스크래치. 키가 전부 `Default`에 있다 |
+
+2행(머리글) 실제 값:
+
+```
+Default  : (빈칸) #분류값 #서브 분류 key kr en #변경 여부 #es #ar #it #jp #fr #tr #id #ru
+Dialogue : (빈칸) #분류값 #서브 분류 key kr en #pt #de #es #ar #it #jp #fr #tr #id #ru
+```
+
+- ⚠️ **`#id`는 행 식별자가 아니라 인도네시아어 열이다.** 보고서 #8은 "A열 = `#id`(int)"라고 적고
+  자동화에 "2행의 이름으로 열을 찾아라"를 지시했는데, 그대로 만들면 `#id`를 찾다가 **인도네시아어
+  열을 잡는다.** 한국어 문구를 인도네시아어 칸에 쓰는, 컴파일도 임포트도 못 잡는 조용한 오염이다.
+- **행 식별자 열은 머리글이 비어 있어 이름으로 찾을 수 없다.** A열 고정이 유일한 방법이고, 그렇다면
+  "이름으로 찾고 못 찾으면 실패"라는 원칙이 이 열에는 성립하지 않는다는 것을 명시해야 한다.
+- **열 배치는 탭마다 다르다**(#7의 답: 같지 않다). `en` 다음이 `Default`는 `#변경 여부`,
+  `Dialogue`는 `#pt`·`#de`라 6번째부터 어긋난다. 위치 하드코딩은 두 탭 모두에서 쓸 수 없다.
+- **`Dialogue`의 id는 100001부터**라 보고서 #9의 대역 규칙(최대 70001~80000) 밖에 있다. 대역으로
+  기능을 역추정하는 검증은 `Default`에만 유효하다.
+- 스크래치 탭은 미러에서 제외했다. 키는 전부 `Default`에 있는데 **값이 어긋난 것이 29개**
+  있다(예: `SKILL_NAME_SK_ACT_MARIE_SOLITUDE` — `Default`는 `고독`, `#Test`는 `고덕`).
+  넣으면 에이전트가 스크래치 행을 정본으로 지목하는 경로가 열린다.
+
+---
+
 ## 참고
 
 - 러너 셋업 전반: [`README.md`](README.md) — 특히 §4-2(원본이 저장소 밖일 때)

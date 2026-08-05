@@ -45,6 +45,8 @@ class JiraAutofixRepositoryQueryTest {
         assertThat(jobRepository.countQueued(BOARD_ID)).isZero();
         assertThat(jobRepository.countQueuedManual(BOARD_ID)).isZero();
         assertThat(jobRepository.findCallbackTargetsByJobKey(BOARD_ID, "QASA-1")).isEmpty();
+        // 다시 담기가 대체 표시(superseded_at)를 이 가드에 끼워 넣었다 — 필드명이 어긋나면 기동이 죽는다
+        assertThat(jobRepository.existsActiveForIssue(BOARD_ID, "QASA-1")).isFalse();
     }
 
     /** 리네임이 실제로 깨뜨렸던 쿼리 — 트리아지와 작업을 이슈키로 이어 붙인다. */

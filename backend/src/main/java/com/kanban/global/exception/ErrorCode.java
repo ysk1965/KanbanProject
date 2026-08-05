@@ -248,6 +248,7 @@ public enum ErrorCode {
     JIRA_AUTOFIX_TOO_MANY_MATERIALS(HttpStatus.BAD_REQUEST, "JI022", "첨부는 최대 3개까지 올릴 수 있습니다"),
     JIRA_AUTOFIX_MATERIAL_TOO_LARGE(HttpStatus.BAD_REQUEST, "JI023", "첨부 파일이 너무 큽니다 (파일당 10MB까지)"),
     JIRA_AUTOFIX_MATERIAL_NOT_MEDIA(HttpStatus.BAD_REQUEST, "JI024", "첨부는 이미지나 영상만 올릴 수 있습니다"),
+    JIRA_AUTOFIX_JOB_NOT_REQUEUABLE(HttpStatus.CONFLICT, "JI025", "아직 끝나지 않았거나 이미 다시 담은 작업입니다"),
 
     // System
     ANNOUNCEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "SY001", "공지사항을 찾을 수 없습니다"),

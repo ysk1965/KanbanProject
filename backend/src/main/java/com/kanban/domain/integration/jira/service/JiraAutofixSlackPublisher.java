@@ -3,6 +3,7 @@ package com.kanban.domain.integration.jira.service;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.integration.jira.AutofixJobKind;
 import com.kanban.domain.integration.jira.AutofixJobStatus;
+import com.kanban.domain.integration.jira.AutofixSuggestionExtractor;
 import com.kanban.domain.integration.jira.JiraAutofixJob;
 import com.kanban.domain.integration.slack.SlackInstallation;
 import com.kanban.domain.integration.slack.service.SlackApiClient;
@@ -175,6 +176,16 @@ public class JiraAutofixSlackPublisher {
         if (job.getStatus() == AutofixJobStatus.FAILED && job.getLogExcerpt() != null) {
             blocks.add(section("```" + tail(job.getLogExcerpt(), LOG_TAIL) + "```"));
         }
+        /*
+         * 변경 없음으로 끝났어도 보고가 있으면 그것이 산출물이다. 채널에 "변경 없음"만 뜨면
+         * 읽는 사람은 헛돈 것으로 읽고 넘어가는데, 정작 그 건은 사람이 원본을 고치면 끝나는 건이다.
+         */
+        String suggestion = AutofixSuggestionExtractor.extract(job.getLogExcerpt());
+        if (job.getStatus() == AutofixJobStatus.NO_CHANGE && suggestion != null) {
+            blocks.add(section("*저장소 밖에서 고쳐야 합니다* — 아래는 확인 후 반영할 값입니다."));
+            blocks.add(section("```" + clip(suggestion, 2500) + "```"));
+        }
+
         if (job.getStatus() == AutofixJobStatus.TIMED_OUT) {
             blocks.add(section("러너가 회신하지 않아 서버가 회수했습니다. "
                     + "맥의 Unity에 모달이 떠 있는지, 러너 데몬이 살아 있는지 확인하세요."));

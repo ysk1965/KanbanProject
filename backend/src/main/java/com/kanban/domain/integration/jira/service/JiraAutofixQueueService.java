@@ -702,6 +702,19 @@ public class JiraAutofixQueueService {
             postTaskComment(job, result);
         } else {
             postJiraComment(boardId, job, result);
+            /*
+             * JIRA 건도 보고가 있으면 카드에 한 번 더 남긴다.
+             *
+             * 트리아지에서 담긴 건은 지금까지 JIRA 댓글만 받았다. 그런데 사람이 그 이슈를 보는
+             * 자리는 대개 BRIDGE 카드이고, 카드에는 회색 "변경 없음" 칩 하나만 떴다 — 에이전트가
+             * 알아낸 "원본의 이 항목을 이렇게 바꿔라"가 도크의 로그 더미에만 남아 사실상 사라졌다.
+             *
+             * 보고가 있을 때만 단다. 결과 통보 자체를 카드에도 복제하면 성공·실패마다 댓글이
+             * 두 벌씩 쌓여 카드가 알림판이 된다 — 여기서 옮길 값어치가 있는 것은 보고뿐이다.
+             */
+            if (AutofixSuggestionExtractor.extract(excerpt) != null) {
+                postTaskComment(job, result);
+            }
         }
         notifySlack(job, corrected);
     }
@@ -754,10 +767,20 @@ public class JiraAutofixQueueService {
         JiraIntegrationConfig config = configRepository.findActiveByBoardId(boardId).orElse(null);
         if (config == null) return;
 
+        String suggestion = AutofixSuggestionExtractor.extract(job.getLogExcerpt());
+
         String message = switch (result) {
             case SUCCEEDED -> "BRIDGE 자동수정이 PR을 생성했습니다: " + job.getPrUrl()
                     + "\n자동 검증은 컴파일 통과까지만입니다. 머지 전 검토가 필요합니다.";
-            case NO_CHANGE -> "BRIDGE 자동수정이 이 이슈를 자동으로 고칠 수 없다고 판단했습니다.";
+            /*
+             * 보고가 있으면 그것이 본문이고 "고칠 수 없었다"는 곁가지다. 순서를 뒤집지 않는다 —
+             * 읽는 사람이 첫 줄에서 "그래서 아무것도 안 했구나"로 닫고 나면 아래는 안 읽힌다.
+             */
+            case NO_CHANGE -> suggestion != null
+                    ? "BRIDGE 자동수정이 저장소에서 고칠 것이 없다고 판단했습니다. "
+                            + "대신 원본에서 고칠 내용을 남깁니다 — 아래 값은 사람이 확인한 뒤 반영해야 합니다.\n\n"
+                            + suggestion
+                    : "BRIDGE 자동수정이 이 이슈를 자동으로 고칠 수 없다고 판단했습니다.";
             default -> "BRIDGE 자동수정이 실패했습니다."
                     + (job.getFailureReason() != null ? " 사유: " + job.getFailureReason() : "");
         };
@@ -795,11 +818,17 @@ public class JiraAutofixQueueService {
                         .map(ChecklistItem::getTitle).orElse(null);
                 body.append("체크리스트: ").append(defaultIfBlank(itemTitle, job.getJobKey())).append("\n");
             }
+            String suggestion = AutofixSuggestionExtractor.extract(job.getLogExcerpt());
+
             body.append(switch (result) {
                 case SUCCEEDED -> "맥에서 수정을 마치고 PR을 열었습니다.\n" + job.getPrUrl()
                         + "\n컴파일 검증 통과 · 동작은 확인되지 않았습니다. 머지 전 검토가 필요하며,"
                         + " 항목 체크는 켜지 않았습니다.";
-                case NO_CHANGE -> "맥이 이 작업을 자동으로 처리할 수 없다고 판단해 변경 없이 끝났습니다.";
+                case NO_CHANGE -> suggestion != null
+                        ? "맥이 저장소에서 고칠 것이 없다고 판단했습니다. 대신 원본에서 고칠 내용을 남깁니다.\n"
+                                + "아래 값은 확인 후 반영해야 합니다 — 에이전트가 짚은 키가 맞는지 원본에서 대조하세요.\n\n"
+                                + suggestion
+                        : "맥이 이 작업을 자동으로 처리할 수 없다고 판단해 변경 없이 끝났습니다.";
                 default -> "맥에서 작업이 실패해 PR을 만들지 않았습니다."
                         + (job.getFailureReason() != null ? "\n사유: " + job.getFailureReason() : "");
             });
@@ -1084,6 +1113,101 @@ public class JiraAutofixQueueService {
         }
     }
 
+    /**
+     * 끝난 작업을 같은 대상으로 <b>다시 담는다</b>. 원본 행은 이력으로 남고, 새 행이 큐에 들어간다.
+     *
+     * <p>비우기({@code cancelJob(force=true)})와 나누어 둔 이유는 두 경로가 서로 다른 질문에
+     * 답하기 때문이다. 비우기는 "러너 사고로 태워먹은 건을 후보로 되돌린다"이고, 그래서 그 뒤에
+     * 다시 담기 조건(confidence 임계값, 이미 끝난 태스크 제외)을 처음부터 다시 통과해야 한다.
+     * 그런데 PR까지 간 이슈는 대개 그 조건에서 걸린다 — 자동수정이 성공했다면 태스크는 이미
+     * QA로 넘어가 있고, {@code AutofixTaskStage}는 그걸 "이미 개발 단계를 지났다"로 읽는다.
+     * 그 판정은 <b>목록에서 무더기로 담을 때</b> 사람이 모르는 사이 한도를 태우지 않으려는 것이지,
+     * 사람이 한 건을 지목한 경우까지 막으라는 뜻이 아니다. 그래서 이 경로는 판정을 다시 묻지 않는다.
+     *
+     * <p>대신 두 가지는 그대로 지킨다. <b>같은 대상이 지금 큐에 있거나 러너가 물고 있으면 담지
+     * 않는다</b>(같은 대상에 PR 두 개가 동시에 열리는 상황은 어느 경로로도 만들지 않는다), 그리고
+     * <b>맥이 준비되지 않았으면 담지 않는다</b> — 검증 클론이 없으면 코드를 다 고친 뒤 PR 직전에
+     * 실패하는데, 그 40분은 큐 전체가 멈춰 있는 시간이다(위임과 같은 판단이다).
+     *
+     * <p><b>이전 PR을 닫는 일은 하지 않는다.</b> 서버가 GitHub에 쓰기를 하는 유일한 경로는 러너의
+     * PR 생성뿐이고, 사람이 "다시 돌려라"라고 한 것이 "저 PR을 버려라"와 같은 뜻이라는 보장이 없다.
+     * 대신 화면에서 이전 PR 주소를 보여 준 채로 확인을 한 번 더 받는다.
+     */
+    @Transactional
+    public JiraAutofixResponse.JobItem requeueJob(String boardId, String userId, String jobId) {
+        boardService.checkAdminOrAbove(boardId, userId);
+
+        JiraAutofixJob source = jobRepository.findById(jobId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_AUTOFIX_JOB_NOT_FOUND));
+        if (!source.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.JIRA_AUTOFIX_JOB_NOT_FOUND);
+        }
+        if (!source.getStatus().isTerminal() || source.getSupersededAt() != null) {
+            throw new BusinessException(ErrorCode.JIRA_AUTOFIX_JOB_NOT_REQUEUABLE);
+        }
+
+        // 수동 위임은 대상이 태스크·항목이라 이 두 가드가 "동시에 하나"를 지킨다.
+        if (source.getChecklistItemId() != null) {
+            if (jobRepository.existsPendingForChecklistItem(boardId, source.getChecklistItemId())) {
+                throw new BusinessException(ErrorCode.JIRA_AUTOFIX_ALREADY_DELEGATED);
+            }
+        } else if (source.getJobKind().isManual() && source.getTaskId() != null) {
+            if (jobRepository.existsPendingForTask(boardId, source.getTaskId())) {
+                throw new BusinessException(ErrorCode.JIRA_AUTOFIX_ALREADY_DELEGATED);
+            }
+        }
+
+        if (isRunnerVerifyNotReady(boardId)) {
+            throw new BusinessException(ErrorCode.JIRA_AUTOFIX_RUNNER_NOT_READY);
+        }
+
+        /*
+         * JIRA 건은 "이슈당 1회" 가드가 원본 자신도 세므로, 대체 표시를 먼저 남기고(flush) 나서
+         * 물어야 한다. 그러고도 활성 건이 있다면 같은 이슈로 이미 다른 작업이 도는 중이다 —
+         * 예외를 던지면 트랜잭션이 롤백되어 방금 남긴 표시도 함께 사라진다.
+         */
+        source.supersede();
+        jobRepository.saveAndFlush(source);
+
+        if (!source.getJobKind().isManual()
+                && jobRepository.existsActiveForIssue(boardId, source.getJobKey())) {
+            throw new BusinessException(ErrorCode.JIRA_AUTOFIX_ALREADY_DELEGATED);
+        }
+
+        DispatchTarget target = resolveTarget(boardId);
+
+        JiraAutofixJob job = JiraAutofixJob.forRequeue(source, userId);
+        job.assignTarget(target.installationId(), target.repoFullName(), target.baseRef());
+        jobRepository.save(job);
+        copyMaterials(source.getId(), job.getId());
+
+        log.info("Autofix requeue: board={} key={} from={}({}) to={} by={}",
+                boardId, job.getJobKey(), source.getId(), source.getStatus(), job.getId(), userId);
+
+        return toItem(job);
+    }
+
+    /**
+     * 원본에 붙어 있던 자료(스크린샷·재현 영상)를 새 작업에도 붙인다.
+     *
+     * <p>S3 객체는 <b>복사하지 않는다</b>. 같은 파일을 여러 행이 가리키는 것은 이 표의 원래
+     * 설계이고(한 번의 위임이 항목 N건으로 갈라지면 이미 그렇게 된다), 다시 담을 때마다 영상을
+     * 복제하면 같은 그림이 용량만 배로 남는다. 개별 행을 지울 때 객체를 지우지 않는 것도 그래서다.
+     *
+     * <p>자료 없이 지시문만 다시 보내면 "이 스크린샷의 겹침"이라고 쓰인 지시가 그림 없이 나간다 —
+     * 에이전트는 그걸 사실로 읽고 엉뚱한 것을 고친다.
+     */
+    private void copyMaterials(String sourceJobId, String newJobId) {
+        List<JiraAutofixJobMaterial> sources =
+                jobMaterialRepository.findByJobIdOrderByCreatedAtAsc(sourceJobId);
+        if (sources.isEmpty()) return;
+
+        jobMaterialRepository.saveAll(sources.stream()
+                .map(m -> JiraAutofixJobMaterial.of(newJobId, m.getOriginalFileName(), m.getS3Key(),
+                        m.getUrl(), m.getContentType(), m.getFileSize()))
+                .toList());
+    }
+
     /** 콜백 URL을 조립해 반환. 없으면 생성한다(멱등). */
     @Transactional
     public String ensureCallbackToken(String boardId, String userId) {
@@ -1134,6 +1258,8 @@ public class JiraAutofixQueueService {
                 .prUrl(job.getPrUrl())
                 .failureReason(job.getFailureReason())
                 .logExcerpt(job.getLogExcerpt())
+                .suggestion(AutofixSuggestionExtractor.extract(job.getLogExcerpt()))
+                .superseded(job.getSupersededAt() != null)
                 .queuedAt(toIso(job.getQueuedAt()))
                 .dispatchedAt(toIso(job.getDispatchedAt()))
                 .completedAt(toIso(job.getCompletedAt()))
