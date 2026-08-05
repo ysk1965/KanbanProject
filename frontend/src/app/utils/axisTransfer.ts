@@ -97,6 +97,65 @@ export function setAxisDragData(
   startAxisDrag(from);
 }
 
+/** 드래그 잔상 칩의 크기 — 간트 하루 칸(줌 32~100px) 옆에 놓고 봐도 되는 폭 */
+const GHOST_WIDTH = 220;
+const GHOST_HEIGHT = 34;
+/** 커서를 칩 왼쪽 아래 모서리에 둔다 — 칩이 커서 위로 떠서 밑의 날짜 칸이 열린다 */
+const GHOST_CURSOR_X = 12;
+
+/**
+ * dragstart의 드래그 잔상을 직접 만들어 넘긴다.
+ *
+ * 지정하지 않으면 브라우저가 드래그를 시작한 엘리먼트를 그대로 비트맵으로 뜬다.
+ * 배치 레일의 행은 카드 가로폭을 전부 쓰는 한 줄이라(창이 넓으면 1500px가 넘는다)
+ * 정작 놓아야 할 하루 칸(32~100px)과 그 위의 드롭 하이라이트를 통째로 덮어 버린다.
+ * 그래서 "무엇을 들고 있는지"만 남긴 칩을 따로 그려 넘긴다.
+ *
+ * 색·글꼴은 프로젝트 클래스에 맡긴다 — CSS 변수 기반이라 라이트 모드가 저절로 따라온다.
+ * (클래스명이 문자열 리터럴로 남아 있어야 Tailwind 스캐너에 잡힌다)
+ *
+ * 주의: 잔상은 이 시점에 뜬 정적 비트맵이라 드래그 도중에는 바뀌지 않는다.
+ * "지금 며칠에 놓이는가" 같은 실시간 정보는 드롭 대상 쪽이 보여줘야 한다.
+ */
+export function setAxisDragGhost(
+  dataTransfer: DataTransfer,
+  source: HTMLElement,
+  { title, accentHex }: { title: string; accentHex?: string | null },
+) {
+  const doc = source.ownerDocument;
+  const ghost = doc.createElement("div");
+
+  ghost.className =
+    "flex items-center gap-2 px-3 py-2 rounded-xl " +
+    "bg-bridge-obsidian border border-foreground/10 shadow-2xl " +
+    "text-xs font-bold text-foreground";
+  // 화면 밖이라도 실제로 그려져 있어야 한다 — display:none이면 스냅샷이 안 떠진다
+  ghost.style.cssText =
+    `position:fixed;top:-1000px;left:-1000px;pointer-events:none;` +
+    `width:${GHOST_WIDTH}px;height:${GHOST_HEIGHT}px;box-sizing:border-box;`;
+
+  if (accentHex) {
+    const dot = doc.createElement("span");
+    dot.style.cssText =
+      `flex:none;width:6px;height:6px;border-radius:2px;` +
+      `background:${accentHex};`;
+    ghost.appendChild(dot);
+  }
+
+  const label = doc.createElement("span");
+  label.textContent = title;
+  label.style.cssText =
+    "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+  ghost.appendChild(label);
+
+  doc.body.appendChild(ghost);
+  // 이미지 밖 좌표는 브라우저가 가장자리로 잘라내므로 경계 안에서 잡는다
+  dataTransfer.setDragImage(ghost, GHOST_CURSOR_X, GHOST_HEIGHT);
+  // 스냅샷은 setDragImage 안에서 동기적으로 떠지므로 다음 프레임엔 지워도 된다.
+  // (드래그가 취소돼도 dragend를 기다리지 않으니 노드가 남지 않는다)
+  requestAnimationFrame(() => ghost.remove());
+}
+
 /** 이동이 끝나 다른 존이 목록을 다시 읽어야 할 때 */
 export function requestAxisRefresh() {
   window.dispatchEvent(new CustomEvent(REFRESH_EVENT));

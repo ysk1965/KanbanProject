@@ -26,6 +26,7 @@ import {
   dispatchAxisDrop,
   endAxisDrag,
   setAxisDragData,
+  setAxisDragGhost,
   useAxisDropZone,
   type AxisZone,
 } from "../../utils/axisTransfer";
@@ -385,6 +386,12 @@ export function PlacementRail({
                   draggable={draggable}
                   onDragStart={(e) => {
                     if (!draggable || !taskId) return;
+                    // 「오늘」·「내일」·「백로그」를 누르려다 행이 끌려가지 않게 한다.
+                    // 행 전체를 잡을 수 있어야 하므로(손잡이만 12px다) 버튼만 예외로 뺀다.
+                    if ((e.target as HTMLElement).closest("button")) {
+                      e.preventDefault();
+                      return;
+                    }
                     e.dataTransfer.setData(
                       PLACEMENT_DRAG_TYPE,
                       JSON.stringify({
@@ -403,6 +410,11 @@ export function PlacementRail({
                       title: item.title,
                       start_date: item.start_date,
                       due_date: item.due_date,
+                    });
+                    // 잔상을 지정하지 않으면 이 행이 통째로 떠서 간트의 날짜 칸을 덮는다
+                    setAxisDragGhost(e.dataTransfer, e.currentTarget, {
+                      title: item.title,
+                      accentHex: milestoneHex,
                     });
                   }}
                   onDragEnd={endAxisDrag}
