@@ -416,28 +416,50 @@ public class JiraIntegrationConfig {
     }
 
     /**
-     * 러너가 말을 걸어왔다 — claim이든 heartbeat든 살아 있다는 신호는 같다.
+     * 러너가 살아 있다는 신호만 기록한다(heartbeat). 계약 버전은 건드리지 않는다.
+     *
+     * <p><b>왜 나눠야 하는가.</b> 하트비트 페이로드에는 계약 버전이 없다. 그런데 claim과 같은
+     * 경로를 타면 그 null이 기록된 버전을 지운다 — 작업이 도는 동안에는 러너가 claim을 하지
+     * 않으므로(바쁘다) 아무도 복구하지 않고, 그 사이 도크는 "스크립트가 낡았습니다"를 띄우고
+     * 드리프트 알림이 슬랙으로 나간다. 정작 큐는 멀쩡히 돌고 있다 — 배분 게이트는 저장된 값이
+     * 아니라 claim이 실어 보낸 값을 보기 때문이다. 2026-08-05에 실제로 이렇게 나왔다.
+     *
+     * <p>계약을 claim에만 맡겨도 구버전 러너는 놓치지 않는다. 낡은 러너도 놀 때는
+     * {@code POLL_SECONDS}마다 claim하며 자기 버전(또는 null)을 실어 보낸다.
+     */
+    public void touchAutofixRunnerAlive(String runnerName, String statusJson) {
+        markRunnerSeen(runnerName, statusJson);
+    }
+
+    /**
+     * 러너가 계약 버전을 밝히며 말을 걸어왔다(claim).
      *
      * @param statusJson 자가진단 스냅샷. null이면 직전 값을 지우지 않는다 — 구버전 러너나
      *                   진단 실패가 "정상"으로 보이면 안 되지만, 마지막으로 알던 것까지
      *                   잃으면 화면이 더 말할 게 없어진다.
      */
     public void touchAutofixRunner(String runnerName, String statusJson, Integer contractVersion) {
-        this.autofixRunnerSeenAt = LocalDateTime.now(ZoneOffset.UTC);
-        if (runnerName != null && !runnerName.isBlank()) {
-            this.autofixRunnerName = runnerName.length() > 100 ? runnerName.substring(0, 100) : runnerName;
-        }
-        if (statusJson != null && statusJson.length() <= 500) {
-            this.autofixRunnerStatus = statusJson;
-        }
+        markRunnerSeen(runnerName, statusJson);
+
         // null도 그대로 반영한다. 러너를 구버전으로 되돌렸는데 화면이 예전 숫자를 계속 보여주면,
-        // 고쳐야 할 쪽을 정확히 반대로 가리킨다.
+        // 고쳐야 할 쪽을 정확히 반대로 가리킨다. (claim은 항상 버전을 실어 보내므로 여기서의
+        // null은 "안 보냈다"가 아니라 "계약 이전 세대"라는 뜻이다.)
         this.autofixRunnerContract = contractVersion;
 
         // 계약이 맞는 러너가 붙었으면 드리프트 구간이 끝난 것이다. 여기서 비워야 다음 드리프트에
         // 다시 울린다 — 알림 쪽에서 "해소됐나"를 따로 검사하면 그 판단이 두 군데로 갈린다.
         if (AutofixRunnerContract.matches(contractVersion)) {
             this.autofixContractAlertedAt = null;
+        }
+    }
+
+    private void markRunnerSeen(String runnerName, String statusJson) {
+        this.autofixRunnerSeenAt = LocalDateTime.now(ZoneOffset.UTC);
+        if (runnerName != null && !runnerName.isBlank()) {
+            this.autofixRunnerName = runnerName.length() > 100 ? runnerName.substring(0, 100) : runnerName;
+        }
+        if (statusJson != null && statusJson.length() <= 500) {
+            this.autofixRunnerStatus = statusJson;
         }
     }
 

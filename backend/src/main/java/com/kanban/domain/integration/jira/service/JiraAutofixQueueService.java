@@ -434,7 +434,20 @@ public class JiraAutofixQueueService {
     @Transactional
     public void heartbeat(String boardId, String runnerName, Integer contractVersion,
                           JiraAutofixRequest.RunnerStatus status) {
-        touchRunner(boardId, runnerName, contractVersion, status);
+        /*
+         * 계약 버전은 claim만 권위를 갖는다.
+         *
+         * 러너의 하트비트는 {runner_name}만 보낸다. 그 null을 기록에 반영하면 작업이 도는 동안
+         * (러너가 바빠 claim하지 않는 구간) 기록된 버전이 지워진 채로 남아, 도크가 "스크립트가
+         * 낡았습니다"를 띄우고 드리프트 알림이 슬랙으로 나간다. 정작 배분은 정상이다.
+         *
+         * 계약 버전을 실어 보내는 러너가 나오면 그때는 반영한다 — 그쪽이 claim만큼 확실하다.
+         */
+        if (contractVersion != null) {
+            touchRunner(boardId, runnerName, contractVersion, status);
+            return;
+        }
+        touchRunnerAlive(boardId, runnerName, status);
     }
 
     /**
@@ -445,17 +458,27 @@ public class JiraAutofixQueueService {
      */
     private void touchRunner(String boardId, String runnerName, Integer contractVersion,
                              JiraAutofixRequest.RunnerStatus status) {
-        String statusJson = null;
-        if (status != null) {
-            try {
-                statusJson = objectMapper.writeValueAsString(status);
-            } catch (Exception e) {
-                log.debug("Autofix: 러너 상태 직렬화 실패 board={}: {}", boardId, e.getMessage());
-            }
-        }
-        String json = statusJson;
+        String json = serializeRunnerStatus(boardId, status);
         configRepository.findByBoardId(boardId)
                 .ifPresent(config -> config.touchAutofixRunner(runnerName, json, contractVersion));
+    }
+
+    /** 생존 신호만 반영한다. 계약 버전을 밝히지 않은 호출(하트비트)의 경로다. */
+    private void touchRunnerAlive(String boardId, String runnerName,
+                                  JiraAutofixRequest.RunnerStatus status) {
+        String json = serializeRunnerStatus(boardId, status);
+        configRepository.findByBoardId(boardId)
+                .ifPresent(config -> config.touchAutofixRunnerAlive(runnerName, json));
+    }
+
+    private String serializeRunnerStatus(String boardId, JiraAutofixRequest.RunnerStatus status) {
+        if (status == null) return null;
+        try {
+            return objectMapper.writeValueAsString(status);
+        } catch (Exception e) {
+            log.debug("Autofix: 러너 상태 직렬화 실패 board={}: {}", boardId, e.getMessage());
+            return null;
+        }
     }
 
     /**

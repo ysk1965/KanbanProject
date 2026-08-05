@@ -230,6 +230,24 @@ acquire_lock() {
 
 acquire_lock || fail "다른 자동수정 실행이 이 저장소를 사용 중입니다 (락: $LOCK_DIR)"
 
+# 하트비트에도 계약 버전을 싣는다.
+#
+# 싣지 않으면 서버가 기록해 둔 버전이 지워진다. 작업이 도는 동안에는 러너가 claim을 하지 않아
+# (바쁘다) 아무도 복구하지 않고, 그 사이 도크는 "스크립트가 낡았습니다"를 띄우고 드리프트
+# 알림이 슬랙으로 나간다 — 정작 큐는 정상이다. 2026-08-05에 실제로 그렇게 나왔다.
+#
+# 부모(bridge-autofix-runner.sh)가 export한 값을 쓴다. 여기서 다시 선언하면 두 숫자가
+# 갈라지고, 갈라진 쪽이 조용히 틀린 말을 하게 된다. 손으로 단건을 돌릴 때는 비어 있을 수
+# 있으므로 그때는 필드를 빼고 보낸다 — 서버는 없는 값을 "안 밝힘"으로 보고 기록을 건드리지 않는다.
+heartbeat_payload() {
+  if [ -n "${RUNNER_CONTRACT:-}" ]; then
+    jq -n --arg n "$RUNNER_NAME" --argjson c "$RUNNER_CONTRACT" \
+      '{runner_name:$n, contract_version:$c}'
+  else
+    jq -n --arg n "$RUNNER_NAME" '{runner_name:$n}'
+  fi
+}
+
 heartbeat_loop() {
   while true; do
     sleep 60
@@ -237,7 +255,7 @@ heartbeat_loop() {
       "$BRIDGE_URL/api/v1/jira/autofix/runner/$BRIDGE_BOARD_ID/heartbeat" \
       -H "Authorization: Bearer $BRIDGE_TOKEN" \
       -H "Content-Type: application/json" \
-      -d "$(jq -n --arg n "$RUNNER_NAME" '{runner_name:$n}')" >/dev/null 2>&1 || true
+      -d "$(heartbeat_payload)" >/dev/null 2>&1 || true
   done
 }
 

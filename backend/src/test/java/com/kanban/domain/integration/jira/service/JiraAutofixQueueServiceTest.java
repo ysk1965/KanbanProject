@@ -508,6 +508,56 @@ class JiraAutofixQueueServiceTest {
         verify(jobRepository, never()).findByBoardIdAndStatus(any(), any(), any());
     }
 
+    /**
+     * 실제 러너의 하트비트 페이로드는 {@code {runner_name}}뿐이다 — 계약 버전이 없다.
+     *
+     * <p>그 null을 기록에 반영하면, 작업이 도는 동안(러너가 바빠 claim하지 않는 구간) 기록된
+     * 버전이 지워진 채 남아 도크가 "스크립트가 낡았습니다"를 띄우고 드리프트 알림이 슬랙으로
+     * 나간다. 정작 배분 게이트는 claim이 실어 보낸 값을 보므로 큐는 멀쩡히 돈다.
+     *
+     * <p>이 버그가 빠져나간 이유는 기존 하트비트 테스트가 전부 버전을 넘겨서다 — 실제 러너가
+     * 하지 않는 일을 테스트가 대신 해주고 있었다.
+     */
+    @Test
+    @DisplayName("하트비트는 기록된 계약 버전을 지우지 않는다 — 러너는 하트비트에 버전을 싣지 않는다")
+    void heartbeatWithoutContractKeepsRecordedVersion() {
+        JiraIntegrationConfig config = JiraIntegrationConfig.builder().board(board).build();
+        when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(config));
+
+        service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null);
+        assertThat(config.getAutofixRunnerContract()).isEqualTo(AutofixRunnerContract.VERSION);
+
+        service.heartbeat(BOARD_ID, "mac-01", null, null);
+
+        assertThat(config.getAutofixRunnerContract()).isEqualTo(AutofixRunnerContract.VERSION);
+        // 생존 신고 자체는 그대로 반영돼야 한다 — 안 그러면 무응답 알림이 잘못 울린다.
+        assertThat(config.getAutofixRunnerSeenAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("하트비트가 버전을 실어 보내면 그때는 반영한다 — 러너가 낡아진 것을 늦게 알 이유가 없다")
+    void heartbeatWithContractIsHonoured() {
+        JiraIntegrationConfig config = JiraIntegrationConfig.builder().board(board).build();
+        when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(config));
+
+        service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null);
+        service.heartbeat(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION - 1, null);
+
+        assertThat(config.getAutofixRunnerContract()).isEqualTo(AutofixRunnerContract.VERSION - 1);
+    }
+
+    @Test
+    @DisplayName("claim이 버전을 안 밝히면 그것은 기록에 남는다 — 구버전 러너를 화면이 가리켜야 한다")
+    void claimWithoutContractClearsRecordedVersion() {
+        JiraIntegrationConfig config = JiraIntegrationConfig.builder().board(board).build();
+        when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(config));
+
+        service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null);
+        service.claim(BOARD_ID, "mac-01", null, null);
+
+        assertThat(config.getAutofixRunnerContract()).isNull();
+    }
+
     @Test
     @DisplayName("러너 자가진단은 서버가 아는 필드만 뽑아 저장한다 — 임의 값이 들어오는 통로가 되면 안 된다")
     void storesKnownRunnerStatusFieldsOnly() {
