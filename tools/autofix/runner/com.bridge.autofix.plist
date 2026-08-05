@@ -43,9 +43,11 @@
     <key>EnvironmentVariables</key>
     <dict>
         <!-- launchd는 로그인 셸의 PATH를 물려받지 않는다. gh·claude·jq가 있는 경로를 직접 준다.
-             Apple Silicon은 /opt/homebrew/bin, Intel은 /usr/local/bin. -->
+             Apple Silicon은 /opt/homebrew/bin, Intel은 /usr/local/bin.
+             claude는 보통 ~/.local/bin에 깔린다 — 빠뜨리면 사전 점검에서 죽고 KeepAlive가
+             30초마다 재시작만 반복한다. `which claude`로 실제 경로를 확인해 넣을 것. -->
         <key>PATH</key>
-        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>/Users/USERNAME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     </dict>
 </dict>
 </plist>

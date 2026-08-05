@@ -141,6 +141,29 @@ public class JiraAutofixJob {
         this.completedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
+    /**
+     * 회수된 뒤 늦게 도착한 회신으로 결과를 바로잡는다.
+     *
+     * <p>{@code TIMED_OUT}은 "러너가 죽었다고 <b>추정</b>했다"는 뜻이지 사실 확인이 아니다.
+     * 러너가 살아서 PR까지 만들어 놓고 회신만 유실된 경우가 실제로 있고, 그대로 두면 보드는
+     * 실패라고 말하는데 GitHub에는 아무도 모르는 PR이 열려 있게 된다. 게다가
+     * {@code existsActiveForIssue}가 종료 상태까지 "이미 처리함"으로 세기 때문에 그 이슈는
+     * 사람이 작업을 취소하기 전까지 다시 큐에 담기지도 않는다 — 추정 하나로 이슈가 영구히 빠진다.
+     *
+     * <p>그래서 이 경로만은 터미널 상태를 되돌린다. 대상은 {@code TIMED_OUT} 하나뿐이다.
+     * 사람이 취소한 건이나 이미 확정된 결과는 늦은 회신으로 흔들리면 안 된다.
+     */
+    public boolean reconcileAfterTimeout(AutofixJobStatus result, String prUrl,
+                                         String failureReason, String logExcerpt) {
+        if (this.status != AutofixJobStatus.TIMED_OUT) return false;
+        this.status = result;
+        this.prUrl = prUrl;
+        this.failureReason = failureReason;
+        if (logExcerpt != null) this.logExcerpt = logExcerpt;
+        this.completedAt = LocalDateTime.now(ZoneOffset.UTC);
+        return true;
+    }
+
     public boolean cancel() {
         if (this.status != AutofixJobStatus.QUEUED) return false;   // 이미 나간 건 되돌릴 수 없다
         this.status = AutofixJobStatus.CANCELLED;

@@ -209,6 +209,15 @@ public class JiraIntegrationConfig {
     @Column(name = "autofix_slack_channel_name", length = 100)
     private String autofixSlackChannelName;
 
+    /**
+     * 러너 사망을 마지막으로 알린 시각. 같은 오프라인 구간에 대해 두 번 알리지 않기 위한 표식이다.
+     *
+     * <p>{@code autofixRunnerSeenAt}보다 이르면 러너가 그 뒤에 한 번 살아 돌아왔다는 뜻이므로,
+     * 다시 죽으면 새 구간으로 보고 한 번 더 알린다. 별도의 "복구됨" 플래그가 필요 없는 이유다.
+     */
+    @Column(name = "autofix_runner_offline_alerted_at")
+    private LocalDateTime autofixRunnerOfflineAlertedAt;
+
     // ④ 진행상태
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -396,6 +405,16 @@ public class JiraIntegrationConfig {
         if (statusJson != null && statusJson.length() <= 500) {
             this.autofixRunnerStatus = statusJson;
         }
+    }
+
+    /**
+     * 러너 사망을 알렸다고 기록한다.
+     *
+     * <p>지우지 않고 덮어쓰기만 한다 — 러너가 살아 돌아오면 {@code seenAt}이 이 값을 앞지르므로
+     * 다음 사망은 자연히 새 구간이 된다. {@link #touchAutofixRunner}가 이 값을 건드릴 필요가 없다.
+     */
+    public void markRunnerOfflineAlerted() {
+        this.autofixRunnerOfflineAlertedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     public void markSynced() {

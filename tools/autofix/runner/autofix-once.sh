@@ -44,49 +44,103 @@ TIMEOUT_MINUTES=$(echo "$JOB" | jq -r '.timeout_minutes // 60')
 [ -n "$BRANCH" ] || BRANCH="autofix/$ISSUE_KEY"
 [ -n "$BASE_REF" ] || BASE_REF="develop"
 
+SPOOL_DIR="${SPOOL_DIR:-$HOME/bridge-autofix/spool}"
+
+# 락은 워크트리 하나에 하나다. .git 안에 두면 git clean 이 건드리지 않고, 클론이 여러 개여도
+# 서로 막지 않는다. .git 이 없는 잘못된 설정에서는 락 실패가 "다른 실행 중"으로 오진되므로
+# 경로를 TMPDIR로 돌린다 — 진짜 원인(저장소 아님)은 뒤의 사전 점검이 말해준다.
+if [ -d "$PROJECT_DIR/.git" ]; then
+  LOCK_DIR="${LOCK_DIR:-$PROJECT_DIR/.git/bridge-autofix.lock}"
+else
+  LOCK_DIR="${LOCK_DIR:-${TMPDIR:-/tmp}/bridge-autofix-$(printf '%s' "$PROJECT_DIR" | shasum | cut -c1-12).lock}"
+fi
+
 AGENT_LOG=$(mktemp -t autofix-agent)
 EXCERPT_FILE="$AGENT_LOG"
 RESULT="failed"
 FAILURE_REASON="러너가 결과를 남기지 못한 채 종료했습니다"
 PR_URL=""
 HB_PID=""
+HAVE_LOCK=0
 
 log() { echo "[$(date -u +%H:%M:%S)] $*"; }
 fail() { FAILURE_REASON="$1"; log "실패: $1"; exit 1; }
 
 # ── BRIDGE 회신 ────────────────────────────────
 
+callback_payload() {
+  local excerpt=""
+  [ -f "$EXCERPT_FILE" ] && excerpt=$(tail -c 6000 "$EXCERPT_FILE")
+  jq -n \
+    --arg job "$JOB_ID" --arg key "$ISSUE_KEY" --arg result "$RESULT" \
+    --arg pr "$PR_URL" --arg reason "$FAILURE_REASON" --arg log "$excerpt" \
+    '{job_id:$job, issue_key:$key, result:$result, pr_url:$pr,
+      failure_reason:(if $result=="failed" then $reason else "" end), log_excerpt:$log}'
+}
+
+# --fail 이 없으면 curl 은 502나 401을 받고도 exit 0 이다. ALB가 잠깐 타깃을 잃는 구간이
+# 실제로 있었고, 그때 회신을 성공으로 착각하면 결과가 조용히 사라진다 — 재시도의 전제가 깨진다.
+post_callback() {
+  curl -sS --fail -m 30 -o /dev/null -X POST \
+    "$BRIDGE_URL/api/v1/jira/autofix/callback/$BRIDGE_BOARD_ID" \
+    -H "Authorization: Bearer $BRIDGE_TOKEN" \
+    -H "Content-Type: application/json" \
+    --data-binary "$1"
+}
+
+# 회신은 이 실행에서 유일하게 "잃어버리면 안 되는" 통신이다.
+#
+# 서버는 회신이 없으면 90분 뒤 TIMED_OUT으로 회수하는데, existsActiveForIssue가 종료 상태까지
+# "이미 처리함"으로 세기 때문에 그 이슈는 사람이 작업을 취소하기 전까지 다시 큐에 담기지 않는다.
+# 즉 회신 한 번을 놓치면 PR은 열려 있는데 보드는 실패라 말하고, 그 이슈는 영구히 빠진다.
+# 그래서 세 번 시도하고, 그래도 안 되면 스풀에 남겨 폴링 루프가 계속 재전송한다.
 report() {
   [ "$NO_REPORT" = "1" ] && { log "NO_REPORT=1 — 회신 생략 (result=$RESULT)"; return; }
   [ -n "${BRIDGE_URL:-}" ] && [ -n "${BRIDGE_BOARD_ID:-}" ] && [ -n "${BRIDGE_TOKEN:-}" ] || {
     log "BRIDGE 설정이 없어 회신하지 못한다 (result=$RESULT)"; return; }
 
-  local excerpt=""
-  [ -f "$EXCERPT_FILE" ] && excerpt=$(tail -c 6000 "$EXCERPT_FILE")
+  local payload
+  payload=$(callback_payload)
 
-  curl -sS -m 30 -X POST \
-    "$BRIDGE_URL/api/v1/jira/autofix/callback/$BRIDGE_BOARD_ID" \
-    -H "Authorization: Bearer $BRIDGE_TOKEN" \
-    -H "Content-Type: application/json" \
-    -d "$(jq -n \
-        --arg job "$JOB_ID" --arg key "$ISSUE_KEY" --arg result "$RESULT" \
-        --arg pr "$PR_URL" --arg reason "$FAILURE_REASON" --arg log "$excerpt" \
-        '{job_id:$job, issue_key:$key, result:$result, pr_url:$pr,
-          failure_reason:(if $result=="failed" then $reason else "" end), log_excerpt:$log}')" \
-    >/dev/null || log "회신 실패 — 서버는 이 건을 타임아웃으로 회수하게 된다"
+  local delay
+  for delay in 0 5 15; do
+    [ "$delay" -gt 0 ] && sleep "$delay"
+    if post_callback "$payload"; then
+      [ "$delay" -gt 0 ] && log "회신 성공 (재시도 후)"
+      return 0
+    fi
+    log "회신 실패 — 재시도"
+  done
+
+  # 여기까지 왔으면 BRIDGE가 죽었거나 네트워크가 끊긴 것이다. 결과를 버리지 않고 남긴다.
+  mkdir -p "$SPOOL_DIR" 2>/dev/null
+  local spooled="$SPOOL_DIR/$(date -u +%Y%m%dT%H%M%S)-${ISSUE_KEY}.json"
+  if printf '%s' "$payload" > "$spooled" 2>/dev/null; then
+    log "회신 실패 — 스풀에 보관했다: $spooled (폴링 루프가 재전송한다)"
+  else
+    log "회신 실패 — 스풀 기록도 실패했다. 서버는 이 건을 타임아웃으로 회수하게 된다"
+  fi
+  return 1
 }
 
 # 성공/실패/중단 어느 쪽이든 회신하고 작업 트리를 되돌린다.
 # 정리를 건너뛰면 다음 실행이 "작업 트리가 더럽다"로 막힌다.
+#
+# 워크트리를 되돌리는 것은 **락을 쥔 실행만** 한다. 락을 못 잡고 끝난 실행이 여기서 reset을
+# 돌리면, 지금 돌고 있는 다른 실행의 수정본을 통째로 날린다 — 막으려던 사고를 정리 코드가
+# 대신 저지르는 꼴이 된다.
 cleanup() {
   local code=$?
   [ -n "$HB_PID" ] && kill "$HB_PID" 2>/dev/null
   [ "$code" -ne 0 ] && [ "$RESULT" = "failed" ] && log "종료 코드 $code"
 
-  if [ -d "$PROJECT_DIR/.git" ]; then
-    git -C "$PROJECT_DIR" reset --hard >/dev/null 2>&1
-    git -C "$PROJECT_DIR" clean -fd -e Library -e Temp -e obj >/dev/null 2>&1
-    git -C "$PROJECT_DIR" checkout "$BASE_REF" >/dev/null 2>&1
+  if [ "$HAVE_LOCK" = "1" ]; then
+    if [ -d "$PROJECT_DIR/.git" ]; then
+      git -C "$PROJECT_DIR" reset --hard >/dev/null 2>&1
+      git -C "$PROJECT_DIR" clean -fd -e Library -e Temp -e obj >/dev/null 2>&1
+      git -C "$PROJECT_DIR" checkout "$BASE_REF" >/dev/null 2>&1
+    fi
+    rm -rf "$LOCK_DIR" 2>/dev/null
   fi
 
   report
@@ -94,6 +148,41 @@ cleanup() {
   exit "$code"
 }
 trap cleanup EXIT
+
+# ── 단독 실행 보장 ──────────────────────────────
+#
+# 폴링 루프는 한 건씩 동기로 돌지만, 손으로 돌리는 경로(이 파일 헤더가 안내한다)가 그 직렬화를
+# 우회한다. 두 실행이 같은 PROJECT_DIR을 공유하면 먼저 끝난 쪽의 cleanup이 상대의 작업물을
+# reset --hard 로 지우고, 타이밍이 나쁘면 git add 와 commit 사이에 트리가 비워진다.
+# Unity Editor가 디렉터리를 잠그고 있어 워크트리를 늘릴 수는 없으므로, 락으로 직렬화한다.
+#
+# mkdir 은 원자적이다. flock(1)은 macOS 기본 설치에 없다.
+acquire_lock() {
+  if mkdir "$LOCK_DIR" 2>/dev/null; then
+    echo $$ > "$LOCK_DIR/pid"
+    HAVE_LOCK=1
+    return 0
+  fi
+
+  # 남아 있는 락의 주인이 살아 있는지 본다. 죽었으면(맥 강제종료 등) 회수한다 —
+  # 아니면 사람이 손으로 지우기 전까지 러너가 영영 멈춘다.
+  local holder
+  holder=$(cat "$LOCK_DIR/pid" 2>/dev/null)
+  if [ -n "$holder" ] && kill -0 "$holder" 2>/dev/null; then
+    return 1
+  fi
+
+  log "주인 없는 락을 회수한다 (pid=${holder:-알 수 없음})"
+  rm -rf "$LOCK_DIR" 2>/dev/null
+  if mkdir "$LOCK_DIR" 2>/dev/null; then
+    echo $$ > "$LOCK_DIR/pid"
+    HAVE_LOCK=1
+    return 0
+  fi
+  return 1
+}
+
+acquire_lock || fail "다른 자동수정 실행이 이 저장소를 사용 중입니다 (락: $LOCK_DIR)"
 
 heartbeat_loop() {
   while true; do
@@ -104,6 +193,28 @@ heartbeat_loop() {
       -H "Content-Type: application/json" \
       -d "$(jq -n --arg n "$RUNNER_NAME" '{runner_name:$n}')" >/dev/null 2>&1 || true
   done
+}
+
+# 에디터가 열어둔 프로젝트에서 작업하므로, 러너가 도는 동안 Auto Refresh가 에셋을 재직렬화한다
+# (브랜치 전환 직후가 특히 그렇다). 사람이 만지지 않아도 작업 트리가 더러워진다는 뜻이다.
+#
+# 그대로 두면 두 군데가 조용히 망가진다:
+#   1. 사전 점검이 "이전 실행이 정리되지 않았다"로 막힌다 — 정리는 됐는데 에디터가 다시 더럽혔다.
+#   2. 에이전트가 아무것도 안 고쳤는데 트리가 더러워 "변경 없음" 판정이 뒤집히고,
+#      git add -A가 그 에셋을 담아 **내용이 없는 PR**이 열린다. (실제로 QASA-70에서 그랬다)
+#
+# 프롬프트가 에이전트에게 금지한 확장자이므로, 여기서 되돌려도 잃을 수정은 없다.
+revert_editor_churn() {
+  local entry path
+  while IFS= read -r -d '' entry; do
+    path="${entry:3}"
+    case "$path" in
+      *.unity|*.prefab|*.asset|*.unity.meta|*.prefab.meta|*.asset.meta) ;;
+      *) continue ;;
+    esac
+    if [ "${entry:0:2}" = "??" ]; then rm -f "$path"; else git checkout -- "$path" 2>/dev/null; fi
+    log "에디터가 만든 변경으로 보고 되돌렸다: $path"
+  done < <(git status --porcelain -z)
 }
 
 # macOS에는 GNU timeout이 없다. 백그라운드로 띄우고 직접 감시한다.
@@ -143,6 +254,7 @@ if ! pgrep -x Unity >/dev/null; then
 fi
 
 # 이전 실행이 남긴 변경이 있으면 이번 수정과 섞여 잘못된 PR이 나간다.
+revert_editor_churn
 if [ -n "$(git status --porcelain)" ]; then
   git status --porcelain | head -20
   fail "작업 트리가 더럽습니다. 이전 실행이 정리되지 않았습니다"
@@ -202,6 +314,9 @@ elif [ "$agent_rc" -ne 0 ]; then
   fail "에이전트가 오류로 종료했습니다 (exit $agent_rc)"
 fi
 
+# 판정 전에 에디터 몫을 걷어낸다 — 이 순서가 뒤바뀌면 빈 PR이 열린다.
+revert_editor_churn
+
 if [ -z "$(git status --porcelain)" ]; then
   log "변경 없음 — 에이전트가 고칠 수 없다고 판단했다"
   RESULT="no_change"
@@ -230,6 +345,8 @@ rm -f "$VERIFY_LOG"
 
 git config user.name  "bridge-autofix[bot]"
 git config user.email "bridge-autofix@users.noreply.github.com"
+# 검증에 몇 분이 걸리는 동안 에디터가 또 재직렬화했을 수 있다. add -A 직전에 한 번 더 걷어낸다.
+revert_editor_churn
 git add -A
 git commit -q -m "fix($ISSUE_KEY): $ISSUE_TITLE" || fail "커밋에 실패했습니다"
 git push -u origin "$BRANCH" --quiet || fail "브랜치 push에 실패했습니다"

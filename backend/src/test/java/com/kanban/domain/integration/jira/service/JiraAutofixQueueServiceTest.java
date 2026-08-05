@@ -410,7 +410,7 @@ class JiraAutofixQueueServiceTest {
     private JiraAutofixJob dispatchedJob(String key) {
         JiraAutofixJob job = queuedJob(key);
         job.markClaimed("mac-01");
-        when(jobRepository.findDispatchedByIssueKey(BOARD_ID, key)).thenReturn(Optional.of(job));
+        when(jobRepository.findCallbackTargetsByIssueKey(BOARD_ID, key)).thenReturn(List.of(job));
         return job;
     }
 
@@ -494,7 +494,7 @@ class JiraAutofixQueueServiceTest {
                 """));
 
         assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.SUCCEEDED);
-        verify(jobRepository, never()).findDispatchedByIssueKey(any(), any());
+        verify(jobRepository, never()).findCallbackTargetsByIssueKey(any(), any());
     }
 
     @Test
@@ -529,7 +529,7 @@ class JiraAutofixQueueServiceTest {
     @DisplayName("식별자 없는 회신은 조용히 무시한다")
     void callbackWithoutIdentifiers() throws Exception {
         service.handleCallback(BOARD_ID, payload("{\"result\":\"pr\"}"));
-        verify(jobRepository, never()).findDispatchedByIssueKey(any(), any());
+        verify(jobRepository, never()).findCallbackTargetsByIssueKey(any(), any());
         verify(jobRepository, never()).findById(any());
     }
 
@@ -588,7 +588,7 @@ class JiraAutofixQueueServiceTest {
                 """));
 
         verify(slackPublisher).publish(board, job, "[문구] 프리셋 이름 오탈자",
-                "https://acme.atlassian.net", null);
+                "https://acme.atlassian.net", null, false);
     }
 
     @Test
@@ -605,7 +605,7 @@ class JiraAutofixQueueServiceTest {
                 """));
 
         verify(slackPublisher).publish(eq(board), eq(job), any(),
-                eq("https://acme.atlassian.net"), eq("C0AUTOFIX"));
+                eq("https://acme.atlassian.net"), eq("C0AUTOFIX"), eq(false));
     }
 
     @Test
@@ -617,7 +617,7 @@ class JiraAutofixQueueServiceTest {
 
         service.sweepStaleDispatches();
 
-        verify(slackPublisher).publish(eq(board), eq(stale), any(), any(), any());
+        verify(slackPublisher).publish(eq(board), eq(stale), any(), any(), any(), eq(false));
     }
 
     @Test
@@ -631,6 +631,100 @@ class JiraAutofixQueueServiceTest {
                 """));
 
         verifyNoInteractions(slackPublisher);
+    }
+
+    // ── 늦은 회신 (회수 정정) ───────────────────────
+
+    @Test
+    @DisplayName("회수된 뒤 도착한 회신이 결과를 바로잡는다 — TIMED_OUT은 추정이지 사실이 아니다")
+    void lateCallbackCorrectsTimedOut() throws Exception {
+        JiraAutofixJob job = queuedJob("QASA-95");
+        job.markClaimed("mac-01");
+        job.markTimedOut();
+        when(jobRepository.findById("job-95")).thenReturn(Optional.of(job));
+
+        service.handleCallback(BOARD_ID, payload("""
+                {"job_id":"job-95","result":"pr","pr_url":"https://github.com/o/r/pull/9"}
+                """));
+
+        assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.SUCCEEDED);
+        assertThat(job.getPrUrl()).isEqualTo("https://github.com/o/r/pull/9");
+        // 채널에 이미 "시간 초과 회수"가 올라가 있으므로 정정임을 밝혀야 한다
+        verify(slackPublisher).publish(eq(board), eq(job), any(), any(), any(), eq(true));
+    }
+
+    @Test
+    @DisplayName("사람이 취소한 건은 늦은 회신으로 되살아나지 않는다")
+    void lateCallbackDoesNotRevivedCancelled() throws Exception {
+        JiraAutofixJob job = queuedJob("QASA-96");
+        job.markClaimed("mac-01");
+        job.complete(AutofixJobStatus.CANCELLED, null, null, null);
+        when(jobRepository.findById("job-96")).thenReturn(Optional.of(job));
+
+        service.handleCallback(BOARD_ID, payload("""
+                {"job_id":"job-96","result":"pr","pr_url":"https://github.com/o/r/pull/9"}
+                """));
+
+        assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.CANCELLED);
+        verifyNoInteractions(slackPublisher);
+    }
+
+    @Test
+    @DisplayName("확정된 결과는 늦은 회신으로 뒤집히지 않는다 — 정정 대상은 TIMED_OUT 하나뿐")
+    void lateCallbackDoesNotOverwriteSettledResult() throws Exception {
+        JiraAutofixJob job = queuedJob("QASA-97");
+        job.markClaimed("mac-01");
+        job.complete(AutofixJobStatus.NO_CHANGE, null, null, null);
+
+        assertThat(job.reconcileAfterTimeout(AutofixJobStatus.SUCCEEDED, "https://x/1", null, null))
+                .isFalse();
+        assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.NO_CHANGE);
+    }
+
+    // ── 러너 무응답 알림 ────────────────────────────
+
+    private JiraIntegrationConfig silentRunnerConfig(int minutesAgo) {
+        JiraIntegrationConfig config = JiraIntegrationConfig.builder().board(board).build();
+        config.touchAutofixRunner("mac-01", null);
+        // seenAt은 touch가 현재 시각으로 넣으므로, 과거로 보이도록 조회 자체를 스텁한다
+        when(configRepository.findRunnersGoneSilent(any())).thenReturn(List.of(config));
+        return config;
+    }
+
+    @Test
+    @DisplayName("러너가 조용하고 대기 건이 있으면 알린다 — 이게 없으면 죽은 러너는 아무 신호도 내지 않는다")
+    void alertsWhenRunnerGoesSilentWithWork() {
+        JiraIntegrationConfig config = silentRunnerConfig(30);
+        when(jobRepository.countQueued(BOARD_ID)).thenReturn(3L);
+
+        assertThat(service.alertOfflineRunners()).isEqualTo(1);
+
+        verify(slackPublisher).publishRunnerOffline(eq(board), eq("mac-01"), any(), eq(3), any());
+        assertThat(config.getAutofixRunnerOfflineAlertedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("시킬 일이 없으면 알리지 않는다 — 손해 없는 시점에 부르면 정작 필요할 때 무시당한다")
+    void doesNotAlertWhenQueueIsEmpty() {
+        silentRunnerConfig(30);
+        when(jobRepository.countQueued(BOARD_ID)).thenReturn(0L);
+
+        assertThat(service.alertOfflineRunners()).isZero();
+
+        verifyNoInteractions(slackPublisher);
+    }
+
+    @Test
+    @DisplayName("알림을 껐으면 표식만 남기고 게시하지 않는다")
+    void marksButDoesNotPostWhenSlackDisabled() {
+        properties.setSlackNotifyEnabled(false);
+        JiraIntegrationConfig config = silentRunnerConfig(30);
+        when(jobRepository.countQueued(BOARD_ID)).thenReturn(2L);
+
+        assertThat(service.alertOfflineRunners()).isEqualTo(1);
+
+        verifyNoInteractions(slackPublisher);
+        assertThat(config.getAutofixRunnerOfflineAlertedAt()).isNotNull();
     }
 
     // ── 취소 ──────────────────────────────────────

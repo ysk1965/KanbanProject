@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,6 +35,24 @@ public interface JiraIntegrationConfigRepository extends JpaRepository<JiraInteg
                    AND c.mirrorColumnsJson IS NOT NULL))
         """)
     List<JiraIntegrationConfig> findAllActivePollable();
+
+    /**
+     * 자동수정 러너가 소식이 끊긴 보드 — 사망 알림 대상 후보.
+     *
+     * <p>{@code seenAt IS NOT NULL} 조건이 핵심이다. 러너를 아직 한 번도 붙이지 않은 보드까지
+     * 알리면, 자동수정을 쓰지 않기로 한 팀에게 매번 소음이 간다. "붙었다가 끊긴" 것만 사고다.
+     *
+     * <p>{@code alertedAt < seenAt}은 러너가 그 뒤 한 번 살아 돌아왔다는 뜻이므로 새 구간으로 본다.
+     */
+    @Query("""
+        SELECT c FROM JiraIntegrationConfig c
+        WHERE c.active = true
+          AND c.autofixRunnerSeenAt IS NOT NULL
+          AND c.autofixRunnerSeenAt < :deadline
+          AND (c.autofixRunnerOfflineAlertedAt IS NULL
+               OR c.autofixRunnerOfflineAlertedAt < c.autofixRunnerSeenAt)
+        """)
+    List<JiraIntegrationConfig> findRunnersGoneSilent(@Param("deadline") LocalDateTime deadline);
 
     @Modifying
     @Query("DELETE FROM JiraIntegrationConfig c WHERE c.board.id = :boardId")

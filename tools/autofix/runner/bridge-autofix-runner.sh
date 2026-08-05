@@ -29,9 +29,55 @@ set -a; source "$CONF"; set +a
 RUNNER_NAME="${RUNNER_NAME:-$(hostname -s)}"
 POLL_SECONDS="${POLL_SECONDS:-20}"
 LOG_DIR="${LOG_DIR:-$HOME/bridge-autofix/logs}"
-mkdir -p "$LOG_DIR"
+SPOOL_DIR="${SPOOL_DIR:-$HOME/bridge-autofix/spool}"
+mkdir -p "$LOG_DIR" "$SPOOL_DIR"
+
+if [ -d "$PROJECT_DIR/.git" ]; then
+  LOCK_DIR="${LOCK_DIR:-$PROJECT_DIR/.git/bridge-autofix.lock}"
+else
+  LOCK_DIR="${LOCK_DIR:-${TMPDIR:-/tmp}/bridge-autofix-$(printf '%s' "$PROJECT_DIR" | shasum | cut -c1-12).lock}"
+fi
 
 log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"; }
+
+# ── 유실된 회신 재전송 ──────────────────────────
+#
+# autofix-once.sh 가 세 번 시도하고도 회신하지 못하면 결과를 스풀에 남긴다. 여기서 계속
+# 다시 보낸다 — 회신 한 번을 잃으면 서버는 그 건을 TIMED_OUT으로 회수하고, 그 이슈는 사람이
+# 취소하기 전까지 다시 큐에 담기지 않는다(existsActiveForIssue가 종료 상태까지 센다).
+#
+# 서버는 회수된 뒤 도착한 회신도 받아 결과를 바로잡으므로, 늦은 재전송도 값이 있다.
+drain_spool() {
+  local file sent=0
+  for file in "$SPOOL_DIR"/*.json; do
+    [ -e "$file" ] || return 0
+    # --fail 필수: 502·401을 받고도 exit 0 이면 스풀 파일을 지워 결과를 영영 잃는다.
+    if curl -sS --fail -m 30 -o /dev/null -X POST \
+        "$BRIDGE_URL/api/v1/jira/autofix/callback/$BRIDGE_BOARD_ID" \
+        -H "Authorization: Bearer $BRIDGE_TOKEN" \
+        -H "Content-Type: application/json" \
+        --data-binary "@$file"; then
+      rm -f "$file"
+      sent=$((sent + 1))
+    else
+      # 아직 서버가 안 돌아왔다. 남겨 두고 다음 주기에 다시 시도한다.
+      return 0
+    fi
+  done
+  [ "$sent" -gt 0 ] && log "보관해 둔 회신 ${sent}건을 재전송했다"
+  return 0
+}
+
+# 락을 쥔 실행이 있는지 — 있으면 claim하지 않는다.
+#
+# claim 해 놓고 락에 막혀 실패하면 그 작업은 FAILED로 확정되고, existsActiveForIssue 때문에
+# 그 이슈는 다시 큐에 담기지 않는다. 애초에 가져오지 않는 편이 낫다.
+locked_by_other() {
+  local holder
+  [ -d "$LOCK_DIR" ] || return 1
+  holder=$(cat "$LOCK_DIR/pid" 2>/dev/null)
+  [ -n "$holder" ] && kill -0 "$holder" 2>/dev/null
+}
 
 # 러너 자가진단 — claim에 실어 보낸다.
 #
@@ -87,6 +133,17 @@ log "러너 시작 — runner=$RUNNER_NAME board=$BRIDGE_BOARD_ID project=$PROJE
 last_reason=""
 
 while true; do
+  drain_spool
+
+  if locked_by_other; then
+    if [ "$last_reason" != "LOCKED" ]; then
+      log "다른 실행이 저장소를 쓰고 있다(손으로 돌린 건일 것). 끝날 때까지 claim하지 않는다."
+      last_reason="LOCKED"
+    fi
+    sleep "$POLL_SECONDS"
+    continue
+  fi
+
   response=$(curl -sS -m 30 -X POST \
     "$BRIDGE_URL/api/v1/jira/autofix/runner/$BRIDGE_BOARD_ID/claim" \
     -H "Authorization: Bearer $BRIDGE_TOKEN" \
