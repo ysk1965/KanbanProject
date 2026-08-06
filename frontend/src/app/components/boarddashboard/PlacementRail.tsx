@@ -25,6 +25,7 @@ import { addDaysToDate } from "../../utils/workloadBar";
 import {
   dispatchAxisDrop,
   endAxisDrag,
+  requestTimeblockPlacement,
   setAxisDragData,
   setAxisDragGhost,
   useAxisDropZone,
@@ -332,7 +333,7 @@ export function PlacementRail({
                 )
               : t(
                   "boardDashboard.railHint",
-                  "끌어서 내 행의 날짜에 놓으면 배치됩니다",
+                  "끌어서 날짜 칸에 놓으면 배치 · 타임블록에 놓으면 그 시각까지",
                 )}
         </p>
 
@@ -487,6 +488,30 @@ export function PlacementRail({
 
                   {canEdit && (
                     <span className="flex-none flex items-center gap-1">
+                      {/* 드래그를 못 쓰는 환경(터치·키보드)의 타임블록 경로.
+                          시각은 타임블록이 정하고, 실패하면 그쪽이 안내한다 */}
+                      {taskId && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            requestTimeblockPlacement({
+                              id: item.id,
+                              task_id: taskId,
+                              title: item.title,
+                              start_date: item.start_date,
+                              due_date: item.due_date,
+                              assignee_id: item.assignee?.id ?? null,
+                            })
+                          }
+                          title={t(
+                            "boardDashboard.railNowTitle",
+                            "지금 시각부터 타임블록에 넣기",
+                          )}
+                          className="px-2 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                        >
+                          {t("boardDashboard.railNow", "지금")}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleQuickPlace(item, today)}

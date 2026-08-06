@@ -691,6 +691,22 @@
       "changed": "변경했습니다"
     }
   },
+  "checklistDetail": {
+    "open": "디테일 열기",
+    "title": "항목 디테일",
+    "info": "항목 정보",
+    "gallery": "이미지 {{count}}",
+    "galleryHint": "댓글에 올라온 것",
+    "noImages": "댓글에 이미지를 올리면 여기 모입니다",
+    "comments": "댓글 {{count}}",
+    "placeholder": "이 항목에 댓글 남기기…",
+    "empty": "아직 대화가 없습니다",
+    "emptyHint": "첫 댓글을 남겨보세요",
+    "backToTask": "태스크 전체 보기",
+    "deletedBanner": "삭제된 항목입니다 · 읽기만 가능합니다",
+    "chip": "체크리스트 · {{title}}",
+    "unknownItem": "삭제된 항목"
+  },
   "milestone": {
     "onboardingTitle": "마일스톤으로 프로젝트를 관리하세요",
     "onboardingDesc": "Feature를 마일스톤으로 묶어 일정과 진행률을 한눈에 파악할 수 있어요.",
@@ -1027,7 +1043,10 @@
     "breakStart": "시작",
     "breakEnd": "종료",
     "excludingBreak": "(점심 {{hours}}시간 제외)",
-    "effectiveHours": "실 근무:"
+    "effectiveHours": "실 근무:",
+    "dropNoRoom": "그 시간에는 빈자리가 없습니다.",
+    "dropFailed": "타임블록에 넣지 못했습니다.",
+    "dropOnBreak": "점심시간에는 넣을 수 없습니다."
   },
   "dailySummary": {
     "summaryButton": "요약",
@@ -5126,7 +5145,7 @@
     "railNew": "NEW",
     "railNoMilestone": "마일스톤 없음",
     "railTodayCount": "오늘 {{count}}",
-    "railHint": "끌어서 내 행의 날짜에 놓으면 배치됩니다",
+    "railHint": "끌어서 날짜 칸에 놓으면 배치 · 타임블록에 놓으면 그 시각까지",
     "railReadOnly": "읽기 전용",
     "railCollapse": "배치 레일 접기",
     "railExpand": "배치 레일 펼치기",
@@ -5169,6 +5188,12 @@
     "railToBacklog": "백로그",
     "unscheduleFailed": "일정을 해제하지 못했습니다.",
     "unscheduledNotice": "「{{title}}」 일정 해제됨 · 담당자와 체크리스트는 그대로입니다",
-    "railToBacklogAria": "백로그로 내리기"
+    "railToBacklogAria": "백로그로 내리기",
+    "railNow": "지금",
+    "railNowTitle": "지금 시각부터 타임블록에 넣기",
+    "timeblockedNotice": "「{{title}}」 {{date}} 타임블록에 배치됨 · 되돌리면 날짜만 풀립니다",
+    "splitWorkloadQueue": "워크로드와 큐 높이 조절",
+    "splitColumns": "타임블록 열 폭 조절",
+    "splitHandleHint": "끌어서 조절 · 더블클릭 초기화"
   }
 }

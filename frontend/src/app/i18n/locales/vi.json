@@ -4755,5 +4755,21 @@
     "noSearchResults": "Không có kết quả tìm kiếm",
     "clearSearch": "Xóa tìm kiếm",
     "excludeFeature": "Xóa khỏi sơ đồ tư duy"
+  },
+  "checklistDetail": {
+    "open": "Mở chi tiết",
+    "title": "Chi tiết mục",
+    "info": "Thông tin mục",
+    "gallery": "Hình ảnh {{count}}",
+    "galleryHint": "Từ bình luận",
+    "noImages": "Ảnh đăng trong bình luận sẽ hiện ở đây",
+    "comments": "Bình luận {{count}}",
+    "placeholder": "Bình luận về mục này…",
+    "empty": "Chưa có trao đổi nào",
+    "emptyHint": "Hãy để lại bình luận đầu tiên",
+    "backToTask": "Xem toàn bộ bình luận của nhiệm vụ",
+    "deletedBanner": "Mục này đã bị xóa · chỉ đọc",
+    "chip": "Danh sách · {{title}}",
+    "unknownItem": "Mục đã xóa"
   }
 }

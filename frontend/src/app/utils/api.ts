@@ -716,6 +716,11 @@ export interface ChecklistItemResponse {
   position: number;
   created_at: string;
   completed_at: string | null;
+  /**
+   * 이 항목에 달린 댓글 수. 목록 조회에만 실려 오고, 단건 응답(생성·수정·토글)에는 없다.
+   * 없을 때는 기존 값을 유지해야 한다 — 0으로 덮으면 토글 한 번에 뱃지가 사라진다.
+   */
+  comment_count?: number | null;
 }
 
 export interface ChecklistResponse {
@@ -1942,6 +1947,10 @@ export interface CommentDetailResponse {
   mentions: string[];
   attachments: CommentAttachmentResponse[];
   reactions: CommentReactionResponse[];
+  /** 이 댓글이 달린 체크리스트 항목. null이면 태스크에 직접 단 댓글 */
+  checklist_item_id?: string | null;
+  checklist_item_title?: string | null;
+  checklist_item_deleted?: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -2128,6 +2137,8 @@ export const commentAPI = {
       mentions?: string[];
       fileKeys?: string[];
       parentId?: string;
+      /** 지정하면 그 체크리스트 항목의 댓글이 된다. 없으면 태스크 댓글 */
+      checklistItemId?: string | null;
     },
   ) => {
     return apiClient.post<CommentDetailResponse>(
@@ -2137,6 +2148,7 @@ export const commentAPI = {
         mentions: data.mentions,
         file_keys: data.fileKeys,
         parent_id: data.parentId,
+        checklist_item_id: data.checklistItemId,
       },
     );
   },
@@ -8043,7 +8055,10 @@ export const personalTaskAPI = {
       language?: string;
     },
   ): Promise<PromoteSuggestionsResponse> => {
-    return apiClient.post(`/personal/tasks/${taskId}/promote-suggestions`, data);
+    return apiClient.post(
+      `/personal/tasks/${taskId}/promote-suggestions`,
+      data,
+    );
   },
 
   /** 승격 되돌리기 — 만들어진 대상은 그대로 두고 항목만 대기로 되돌린다 */

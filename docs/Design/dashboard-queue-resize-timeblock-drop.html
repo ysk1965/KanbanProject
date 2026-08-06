@@ -1,0 +1,733 @@
+<title>대시보드 · 큐 높이 조절 + 미배치→타임블록 드롭</title>
+<style>
+  :root{
+    --dark:#191f2d; --obsidian:#151B28; --surface:#1e2a42; --edge:#384d6e;
+    --accent:#6366F1; --accent-soft:#a5b4fc; --secondary:#2DD4BF;
+    --emerald:#10b981; --amber:#f59e0b; --rose:#f43f5e; --violet:#8b5cf6;
+    --fg:#e9ecf3; --fg-2:#b6bdcc; --muted:#94a3b8; --muted-2:#64748b; --muted-3:#4b5566;
+    --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.05);
+    --card:#151B28; --ground:#131824; --hatch:rgba(255,255,255,.045);
+    --shadow:0 18px 50px rgba(0,0,0,.45);
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --dark:#fffcf8; --obsidian:#efe6d8; --surface:#efe3d2; --edge:#E4DFDA;
+      --secondary:#14B8A6;
+      --fg:#3D2E1F; --fg-2:#5c4a37; --muted:#7b6a58; --muted-2:#94836f; --muted-3:#b4a692;
+      --line:rgba(61,46,31,.10); --line-2:rgba(61,46,31,.06);
+      --card:#efe6d8; --ground:#f7f1e8; --hatch:rgba(61,46,31,.05);
+      --shadow:0 18px 50px rgba(61,46,31,.12);
+    }
+  }
+  :root[data-theme="dark"]{
+    --dark:#191f2d; --obsidian:#151B28; --surface:#1e2a42; --edge:#384d6e;
+    --secondary:#2DD4BF;
+    --fg:#e9ecf3; --fg-2:#b6bdcc; --muted:#94a3b8; --muted-2:#64748b; --muted-3:#4b5566;
+    --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.05);
+    --card:#151B28; --ground:#131824; --hatch:rgba(255,255,255,.045);
+    --shadow:0 18px 50px rgba(0,0,0,.45);
+  }
+  :root[data-theme="light"]{
+    --dark:#fffcf8; --obsidian:#efe6d8; --surface:#efe3d2; --edge:#E4DFDA;
+    --secondary:#14B8A6;
+    --fg:#3D2E1F; --fg-2:#5c4a37; --muted:#7b6a58; --muted-2:#94836f; --muted-3:#b4a692;
+    --line:rgba(61,46,31,.10); --line-2:rgba(61,46,31,.06);
+    --card:#efe6d8; --ground:#f7f1e8; --hatch:rgba(61,46,31,.05);
+    --shadow:0 18px 50px rgba(61,46,31,.12);
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--dark); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo","Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+    font-size:14px; line-height:1.65; letter-spacing:-.005em;
+    padding:0 20px 96px;
+  }
+  .wrap{max-width:1080px;margin:0 auto}
+  code,.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums}
+  code{background:var(--hatch);padding:1.5px 6px;border-radius:5px;font-size:.92em;color:var(--fg-2)}
+  a{color:var(--accent-soft)}
+  ::selection{background:rgba(99,102,241,.3)}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+  header.top{padding:56px 0 0}
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-2);margin:0 0 14px}
+  h1{font-size:clamp(26px,3.4vw,38px);font-weight:700;letter-spacing:-.03em;line-height:1.2;margin:0 0 12px;text-wrap:balance}
+  .lede{font-size:16px;color:var(--fg-2);margin:0;max-width:64ch;line-height:1.7}
+  .lede b{color:var(--fg);font-weight:700}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0 0}
+  .meta span{font-size:12px;font-weight:700;color:var(--muted);background:var(--hatch);border:1px solid var(--line);border-radius:999px;padding:4px 12px}
+
+  .rule{height:1px;background:var(--line);border:0;margin:44px 0}
+  h2{font-size:20px;font-weight:700;letter-spacing:-.02em;margin:0 0 6px;text-wrap:balance}
+  h2 .n{color:var(--muted-3);margin-right:10px;font-variant-numeric:tabular-nums}
+  h3{font-size:15px;font-weight:700;margin:26px 0 8px}
+  .sect-note{font-size:13.5px;color:var(--muted);margin:0 0 24px;max-width:66ch}
+  p{margin:0 0 10px}
+  ul{margin:0 0 10px;padding-left:18px}
+  li{margin:0 0 5px;font-size:13.5px;color:var(--fg-2)}
+  li b{color:var(--fg)}
+
+  /* 진단 */
+  .diag{display:grid;gap:10px;margin:0}
+  .d{display:grid;grid-template-columns:26px minmax(0,1fr);gap:14px;align-items:start;
+     background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+  .d-n{font-size:12px;font-weight:700;color:var(--rose);background:rgba(244,63,94,.14);
+       border-radius:8px;text-align:center;padding:3px 0;margin-top:1px;font-variant-numeric:tabular-nums}
+  .d-t{font-size:14.5px;font-weight:700;margin:0 0 4px}
+  .d-b{font-size:13.5px;color:var(--fg-2);margin:0;line-height:1.65}
+  .d-src{display:block;margin-top:8px;font-size:12px;color:var(--muted-2)}
+
+  /* 카드 */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin:14px 0 0}
+  .c{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px 17px}
+  .c h4{margin:0 0 6px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:7px}
+  .c p{margin:0;font-size:13px;color:var(--fg-2)}
+  .dot{width:7px;height:7px;border-radius:2px;flex:none}
+  .dot.ind{background:var(--accent)} .dot.teal{background:var(--secondary)}
+  .dot.am{background:var(--amber)} .dot.em{background:var(--emerald)} .dot.ro{background:var(--rose)}
+
+  /* 표 */
+  table{width:100%;border-collapse:collapse;margin:14px 0 0;font-size:13px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line-2);vertical-align:top}
+  th{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-2);border-bottom:1px solid var(--line)}
+  td{color:var(--fg-2)}
+  td b{color:var(--fg);font-weight:700}
+  .tw{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;padding:2px 4px 4px}
+
+  /* 코드 */
+  pre{background:var(--ground);border:1px solid var(--line);border-radius:14px;padding:16px 18px;overflow-x:auto;
+      font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;font-size:12.5px;line-height:1.65;color:var(--fg-2);margin:12px 0}
+  pre b{color:var(--accent-soft);font-weight:700}
+  pre i{color:var(--muted-2);font-style:normal}
+  pre em{color:var(--secondary);font-style:normal}
+  pre code{background:none;padding:0}
+
+  /* 목업 */
+  .frame{background:var(--ground);border:1px solid var(--line);border-radius:18px;padding:12px;box-shadow:var(--shadow);margin:16px 0 0}
+  .frame-cap{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;padding:11px 4px 2px;font-size:12.5px;color:var(--muted)}
+  .frame-cap b{color:var(--fg);font-size:13px;font-weight:700}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:760px){.split{grid-template-columns:1fr}}
+
+  .mock{background:var(--dark);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:0;height:330px;font-size:11.5px}
+  .mc{background:var(--obsidian);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+  .mc-h{display:flex;align-items:center;gap:7px;padding:7px 11px;border-bottom:1px solid var(--line);flex:none;font-size:11.5px;font-weight:700}
+  .mc-h .lnk{margin-left:auto;color:var(--muted-3);font-weight:500;font-size:10.5px}
+  .gantt{flex:1;min-height:0;display:flex;flex-direction:column;padding:7px 9px;gap:5px;overflow:hidden}
+  .g-row{display:flex;gap:3px;align-items:center}
+  .g-lbl{width:38px;flex:none;font-size:10px;color:var(--muted-3)}
+  .g-cell{flex:1;height:11px;border-radius:3px;background:var(--hatch)}
+  .g-bar{height:15px;border-radius:4px;background:rgba(45,212,191,.28);border-left:2px solid var(--secondary)}
+  .g-bar.v{background:rgba(139,92,246,.28);border-color:var(--violet)}
+  .q-tabs{display:flex;gap:5px;padding:6px 10px;border-bottom:1px solid var(--line);flex:none;align-items:center}
+  .q-tab{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:7px;color:var(--muted-2);display:flex;gap:5px;align-items:center}
+  .q-tab.on{background:var(--hatch);color:var(--fg)}
+  .q-tab em{width:5px;height:5px;border-radius:999px;background:var(--secondary);font-style:normal}
+  .q-tab.ro em{background:var(--rose)}
+  .qlist{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+  .qrow{display:flex;align-items:center;gap:6px;padding:5px 10px;border-bottom:1px solid var(--line-2);font-size:10.5px}
+  .qrow .ms{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:1px 7px 1px 5px;border-radius:999px;
+            background:rgba(139,92,246,.16);color:#c4b5fd;flex:none}
+  .qrow .ms i{width:5px;height:5px;border-radius:1.5px;background:var(--violet);font-style:normal}
+  .qrow .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg-2)}
+  .qrow .a{font-size:10px;font-weight:700;color:var(--muted-3);background:var(--hatch);padding:1px 6px;border-radius:5px}
+  .qrow.drag{background:rgba(99,102,241,.10);border-left:2px solid var(--accent)}
+
+  /* 리사이즈 핸들 목업 */
+  .handle{height:14px;flex:none;display:flex;align-items:center;justify-content:center;position:relative}
+  .handle b{display:block;width:38px;height:3px;border-radius:999px;background:rgba(255,255,255,.13)}
+  .handle.on b{background:var(--accent);width:56px;height:4px}
+  .handle.on::after{content:"344 → 236px";position:absolute;right:2px;top:-9px;font-size:9.5px;font-weight:700;
+    color:var(--accent-soft);background:rgba(99,102,241,.16);padding:1px 6px;border-radius:5px}
+  .cursor{position:absolute;left:50%;margin-left:34px;top:-1px;width:12px;height:16px;
+    border-left:2px solid var(--fg);border-bottom:2px solid var(--fg);transform:rotate(-45deg) scale(.72);opacity:.75}
+
+  /* 타임블록 목업 */
+  .tb{flex:1;min-height:0;display:flex;overflow:hidden}
+  .tb-ax{width:32px;flex:none;display:flex;flex-direction:column;border-right:1px solid var(--line-2)}
+  .tb-ax i{flex:1;font-style:normal;font-size:9.5px;color:var(--muted-3);padding:1px 4px 0;text-align:right;border-bottom:1px solid var(--line-2)}
+  .tb-body{flex:1;position:relative;display:flex;flex-direction:column}
+  .tb-body i{flex:1;border-bottom:1px solid var(--line-2)}
+  .tblk{position:absolute;left:5px;right:5px;border-radius:6px;padding:3px 6px;border-left:2.5px solid;font-size:10px;line-height:1.35;overflow:hidden}
+  .k-teal{background:rgba(45,212,191,.16);border-color:var(--secondary)}
+  .k-vio{background:rgba(139,92,246,.16);border-color:var(--violet)}
+  .k-ghost{background:rgba(99,102,241,.16);border:1.5px dashed var(--accent);border-left:2.5px solid var(--accent);color:var(--accent-soft)}
+  .chip{position:absolute;display:inline-flex;align-items:center;gap:5px;background:var(--obsidian);border:1px solid var(--line);
+        border-radius:8px;padding:3px 8px;font-size:10px;font-weight:700;box-shadow:0 8px 20px rgba(0,0,0,.4);z-index:3}
+  .chip i{width:5px;height:5px;border-radius:1.5px;background:var(--violet);font-style:normal}
+
+  /* 플로우 */
+  .flow{display:grid;gap:8px;margin:14px 0 0;counter-reset:f}
+  .f{display:grid;grid-template-columns:24px minmax(0,1fr);gap:13px;align-items:start;
+     background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 16px}
+  .f-n{counter-increment:f;font-size:11.5px;font-weight:700;color:var(--accent-soft);background:rgba(99,102,241,.14);
+       border-radius:7px;text-align:center;padding:2px 0;font-variant-numeric:tabular-nums}
+  .f-n::before{content:counter(f)}
+  .f-t{font-size:13.5px;font-weight:700;margin:0 0 3px}
+  .f-b{font-size:12.5px;color:var(--fg-2);margin:0;line-height:1.6}
+
+  .note{border-left:2px solid var(--amber);background:rgba(245,158,11,.07);border-radius:0 12px 12px 0;padding:12px 16px;margin:14px 0 0}
+  .note p{margin:0;font-size:13px;color:var(--fg-2)}
+  .note b{color:#fbbf24}
+  .ok{border-left-color:var(--emerald);background:rgba(16,185,129,.07)}
+  .ok b{color:#34d399}
+
+  .chk{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:7px}
+  .chk li{display:grid;grid-template-columns:16px minmax(0,1fr);gap:11px;align-items:start;font-size:13px;color:var(--fg-2);margin:0}
+  .chk li::before{content:"";width:14px;height:14px;border-radius:4px;border:1.5px solid var(--muted-3);margin-top:3px}
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">Board · Dashboard</p>
+  <h1>배분은 내가 정하고,<br>미배치는 타임블록에 바로 꽂는다</h1>
+  <p class="lede">
+    대시보드의 배분은 지금 <b>왼쪽 열 380px · 간트 344px</b>로 코드에 못 박혀 있다.
+    두 경계를 <b>손잡이로 만들어 조절하고 브라우저에 저장</b>한다. 그리고 미배치 행을 오른쪽 큐에서
+    <b>왼쪽 타임블록의 시간대로 끌어다 놓으면</b> 그 시각에 블록이 생기고, 같은 동작으로
+    그날 워크로드에도 배치된다 — 한 번의 드롭이 "언제 할지"와 "몇 시에 할지"를 동시에 정한다.
+  </p>
+  <div class="meta">
+    <span>Frontend only</span>
+    <span>API 변경 없음</span>
+    <span>제안 A · 스플리터 2개</span>
+    <span>제안 B · 크로스 존 드롭</span>
+    <span style="background:rgba(16,185,129,.14);border-color:transparent;color:#34d399">구현 완료</span>
+  </div>
+</header>
+
+<hr class="rule">
+
+<!-- ─────────────────────────── 진단 ─────────────────────────── -->
+<section>
+  <h2><span class="n">01</span>지금 무엇이 막혀 있나</h2>
+  <p class="sect-note">두 요청은 뿌리가 같다 — 대시보드의 세로 공간과 가로 이동이 둘 다 코드에 고정돼 있다.</p>
+
+  <div class="diag">
+    <div class="d">
+      <div class="d-n">1</div>
+      <div>
+        <p class="d-t">배분이 전부 상수다 — 세로도, 가로도</p>
+        <p class="d-b">
+          <code>WORKLOAD_CARD_HEIGHT = 344</code>는 "담당자 행 3레인까지는 안 잘리게",
+          왼쪽 열 <code>380px</code>는 "타임블록 카드가 두 줄을 안 자르게"라는 근거로 정한 값이다.
+          근거는 둘 다 타당하지만 <b>그날의 상황</b>은 반영하지 못한다. 바가 한 줄뿐인 날엔 간트가 빈 공간을 껴안고 있고,
+          미배치가 24건인 날엔 큐가 6~7행만 보여 준다(스크린샷의 상태다).
+          일정을 짜는 날엔 타임블록을 넓게, 배치를 도는 날엔 오른쪽을 넓게 보고 싶은데 그럴 방법이 없다.
+        </p>
+        <span class="d-src">
+          <code>components/boarddashboard/dashboardUtils.ts:20</code> ·
+          <code>MyWorkloadWidget.tsx:362-364</code>(<code>flex-none</code> + 고정 height) ·
+          <code>MyWorkloadWidget.tsx:469</code>(큐 <code>flex-1</code>) ·
+          <code>DashboardView.tsx:168</code>(<code>xl:grid-cols-[380px_minmax(0,1fr)]</code>)
+        </span>
+      </div>
+    </div>
+
+    <div class="d">
+      <div class="d-n">2</div>
+      <div>
+        <p class="d-t">레이아웃 취향을 담을 곳이 없다</p>
+        <p class="d-b">
+          테마(<code>theme</code>)·체크리스트 보기 모드(<code>checklistViewMode</code>)는 localStorage에 남지만,
+          대시보드 레이아웃은 저장 키 자체가 없다. 매 접속마다 344px에서 다시 시작한다.
+        </p>
+        <span class="d-src"><code>contexts/ThemeContext.tsx:46</code> · <code>components/TaskDetailModal.tsx:507</code> — 기존 저장 패턴</span>
+      </div>
+    </div>
+
+    <div class="d">
+      <div class="d-n">3</div>
+      <div>
+        <p class="d-t">미배치가 갈 수 있는 곳은 오른쪽뿐이다</p>
+        <p class="d-b">
+          지금 미배치 행이 이동할 수 있는 목적지는 <code>workload</code>(간트 날짜 칸)와 <code>backlog</code>(아래 독) 두 곳이다.
+          축 계약(<code>AxisZone</code>) 자체가 이 세 존으로 닫혀 있어 <b>왼쪽 타임블록은 드롭 대상이 아니다</b>.
+        </p>
+        <span class="d-src"><code>utils/axisTransfer.ts:26</code> · <code>PlacementRail.tsx:38</code></span>
+      </div>
+    </div>
+
+    <div class="d">
+      <div class="d-n">4</div>
+      <div>
+        <p class="d-t">타임블록에 넣으려면 반대편에서 다시 찾아야 한다</p>
+        <p class="d-b">
+          현재 경로는 <b>타임블록 빈 곳을 드래그 → 모달 → 보드 체크리스트에서 그 항목을 다시 검색</b>이다.
+          바로 옆에 그 항목이 행으로 떠 있는데도 그렇다. 게다가 이 경로는 블록만 만들고
+          <b>항목의 시작·마감은 건드리지 않아</b> 미배치 24는 그대로 24로 남는다 —
+          "오늘 몇 시에 한다"고 정해 놓고도 워크로드에서는 여전히 미배치인 모순이 생긴다.
+        </p>
+        <span class="d-src"><code>DailyScheduleView.tsx:817-851</code> <code>handleBoardChecklistItemSelect</code> — 데일리 체크리스트 추가 + 블록 생성만 한다</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ─────────────────────── 제안 A ─────────────────────── -->
+<section>
+  <h2><span class="n">02</span>제안 A · 배분을 손으로 정한다</h2>
+  <p class="sect-note">
+    두 경계를 모두 <b>스플리터</b>로 바꾼다. <b>세로</b> — 간트와 큐 사이를 위로 끌면 큐가 자란다.
+    <b>가로</b> — 타임블록과 워크로드 열 사이를 좌우로 끌면 그날 무엇을 크게 볼지 정해진다.
+    놓는 순간 각각 브라우저에 저장돼 다음 접속에도 그 배분이다.
+  </p>
+
+  <div class="frame">
+    <div class="split">
+      <div>
+        <div class="mock">
+          <div class="mc" style="height:118px">
+            <div class="mc-h">내 워크로드 <span class="lnk">리소스 뷰에서 열기</span></div>
+            <div class="gantt">
+              <div class="g-row"><span class="g-lbl">마일스톤</span><span class="g-bar v" style="flex:1"></span></div>
+              <div class="g-row"><span class="g-lbl">유상건</span><span class="g-bar" style="flex:.6"></span><span class="g-cell" style="flex:.4"></span></div>
+              <div class="g-row"><span class="g-lbl"></span><span class="g-cell"></span><span class="g-cell"></span><span class="g-cell"></span></div>
+            </div>
+          </div>
+          <div class="handle"><b></b></div>
+          <div class="mc" style="flex:1;min-height:0">
+            <div class="q-tabs">
+              <span class="q-tab on"><em></em>미배치 24</span>
+              <span class="q-tab ro"><em></em>지연 1</span>
+            </div>
+            <div class="qlist">
+              <div class="qrow"><span class="ms"><i></i>4.테스트런칭</span><span class="t">[가이드 미션] 택틱스 모드 오픈</span><span class="a">오늘</span></div>
+              <div class="qrow"><span class="ms"><i></i>4.테스트런칭</span><span class="t">[네트워크] 연결 실패 처리</span><span class="a">오늘</span></div>
+              <div class="qrow"><span class="ms"><i></i>4.테스트런칭</span><span class="t">[맞춤법] Default 시트 오탈자</span><span class="a">오늘</span></div>
+              <div class="qrow" style="opacity:.45"><span class="ms"><i></i>4.테스트런칭</span><span class="t">[스토리] 스테이지 팝업 미노출</span><span class="a">오늘</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="frame-cap"><b>지금</b> 간트 344px 고정 · 큐는 남는 것만</div>
+      </div>
+
+      <div>
+        <div class="mock">
+          <div class="mc" style="height:78px">
+            <div class="mc-h">내 워크로드 <span class="lnk">리소스 뷰에서 열기</span></div>
+            <div class="gantt">
+              <div class="g-row"><span class="g-lbl">유상건</span><span class="g-bar" style="flex:.6"></span><span class="g-cell" style="flex:.4"></span></div>
+            </div>
+          </div>
+          <div class="handle on"><b></b><span class="cursor"></span></div>
+          <div class="mc" style="flex:1;min-height:0">
+            <div class="q-tabs">
+              <span class="q-tab on"><em></em>미배치 24</span>
+              <span class="q-tab ro"><em></em>지연 1</span>
+            </div>
+            <div class="qlist">
+              <div class="qrow"><span class="ms"><i></i>4.테스트런칭</span><span class="t">[가이드 미션] 택틱스 모드 오픈</span><span class="a">오늘</span></div>
+              <div class="qrow"><span class="ms"><i></i>4.테스트런칭</span><span class="t">[네트워크] 연결 실패 처리</span><span class="a">오늘</span></div>
+              <div class="qrow"><span class="ms"><i></i>4.테스트런칭</span><span class="t">[맞춤법] Default 시트 오탈자</span><span class="a">오늘</span></div>
+              <div class="qrow"><span class="ms"><i></i>4.테스트런칭</span><span class="t">[맞춤법] Dialogue 시트 오탈자</span><span class="a">오늘</span></div>
+              <div class="qrow"><span class="ms"><i></i>4.테스트런칭</span><span class="t">[사운드] 캐릭터 초월/돌파</span><span class="a">오늘</span></div>
+              <div class="qrow"><span class="ms"><i></i>4.테스트런칭</span><span class="t">[설정] 닉네임 조건</span><span class="a">오늘</span></div>
+              <div class="qrow"><span class="ms"><i></i>4.테스트런칭</span><span class="t">[스토리] 목록에서 테크런칭</span><span class="a">오늘</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="frame-cap"><b>제안</b> 핸들을 위로 → 큐가 7행 · 저장됨</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>인터랙션 사양 (두 손잡이 공통)</h3>
+  <div class="tw">
+  <table>
+    <tr><th style="width:26%">동작</th><th>결과</th></tr>
+    <tr><td><b>포인터 드래그</b></td><td>핸들을 잡고 끈다. 앞 칸 크기 = <code>시작크기 + Δ</code>. 마우스·터치·펜 공통(<code>pointer</code> 이벤트 + <code>touch-none</code>).</td></tr>
+    <tr><td><b>드래그 중 표시</b></td><td>핸들 바가 <code>bridge-accent</code>로 굵어지고, 커서는 <code>row-resize</code> / <code>col-resize</code>. 픽셀 배지는 띄우지 않는다(숫자는 의미가 없다).</td></tr>
+    <tr><td><b>더블클릭</b></td><td>기본값으로 리셋 + 저장값 삭제.</td></tr>
+    <tr><td><b>키보드</b></td><td>핸들에 <code>tabIndex=0</code>, <code>role="separator"</code>. 세로는 ↑/↓·가로는 ←/→로 16px(Shift 48px), Home/End = 양 끝, Backspace = 리셋.</td></tr>
+    <tr><td><b>창 크기 변경</b></td><td><code>ResizeObserver</code>로 컨테이너를 보고 <b>매번 다시 클램프</b>한다. 저장값은 안 건드린다 — 큰 화면으로 돌아오면 원래 배분으로 복원된다.</td></tr>
+  </table>
+  </div>
+
+  <h3>축별 하한과 기본값</h3>
+  <div class="tw">
+  <table>
+    <tr><th style="width:16%">축</th><th style="width:16%">기본</th><th>하한 근거</th></tr>
+    <tr>
+      <td><b>세로</b><br><span style="color:var(--muted-2)">간트 │ 큐</span></td>
+      <td>간트 344px</td>
+      <td>간트 <b>236</b> = 헤더 45 + 타임라인 헤더 48 + 마일스톤 48 + 이벤트 48 + 담당자 1레인 47 ·
+          큐 <b>176</b> = 탭 줄 37 + 세 행 + 백로그 독</td>
+    </tr>
+    <tr>
+      <td><b>가로</b><br><span style="color:var(--muted-2)">타임블록 │ 워크로드</span></td>
+      <td>왼쪽 380px</td>
+      <td>타임블록 <b>260</b> = 시간 축 80 + 블록 제목 한 줄 ·
+          워크로드 열 <b>520</b> = 간트가 한 주를 그리고 레일 행이 접히지 않는 폭</td>
+    </tr>
+  </table>
+  </div>
+
+  <div class="note">
+    <p><b>가로 축은 폭이 부모에 적혀 있다.</b> 그리드 템플릿이 열 폭을 들고 있으므로 열 자신의 style을 고쳐도 소용없다.
+    <code>--dash-timeblock-w</code> CSS 변수를 그리드에 두고 드래그 중에는 그 변수만 갈아 끼운다 —
+    리렌더 없이 폭이 따라오고, <code>xl:</code> 브레이크포인트 아래의 "한 줄로 접힘"도 그대로 남는다
+    (인라인 <code>style</code>로 폭을 박으면 좁은 화면에서도 그 폭이 살아나 레이아웃이 깨진다).
+    xl 미만에서는 좌우가 없으므로 손잡이 자체를 <code>hidden</code>으로 뺀다.</p>
+  </div>
+
+  <h3>저장 규약</h3>
+  <div class="cards">
+    <div class="c"><h4><span class="dot ind"></span>키</h4><p><code>bridge:dashboard:workloadHeight:v1</code> · <code>bridge:dashboard:timeblockWidth:v1</code> — 보드·유저와 무관한 <b>이 브라우저의 취향</b>. 보드마다 다시 맞추게 하는 건 취향이 아니라 노동이다.</p></div>
+    <div class="c"><h4><span class="dot teal"></span>값</h4><p>앞 칸 크기(px) 정수 하나씩. 비율(%)이 아니라 px인 이유 — 하한이 픽셀로 정해져 있고 뒤 칸은 남는 만큼 늘어나면 되기 때문.</p></div>
+    <div class="c"><h4><span class="dot am"></span>쓰기 시점</h4><p><code>pointerup</code> / 키 조작 직후 한 번. 드래그 중에는 DOM에만 직접 쓰고 state·스토리지는 건드리지 않는다.</p></div>
+    <div class="c"><h4><span class="dot em"></span>실패 안전</h4><p>읽기·쓰기 모두 <code>try/catch</code>. 파싱 실패·범위 이탈·스토리지 차단(시크릿 모드) 시 조용히 기본값으로 간다.</p></div>
+  </div>
+
+  <div class="note">
+    <p><b>성능 주의.</b> 드래그 중 매 프레임 <code>setState</code>를 하면 간트(<code>ScheduleResourceView</code>)와
+    타임블록이 통째로 리렌더된다. 드래그 동안에는 DOM(높이 또는 CSS 변수)만 직접 쓰고,
+    손을 뗄 때 한 번 state에 커밋하며 그때 저장한다.</p>
+  </div>
+
+  <h3>코드 — 축 공용 훅 하나</h3>
+  <p style="font-size:13.5px;color:var(--fg-2);max-width:66ch">
+    두 손잡이는 축(<code>x</code>/<code>y</code>)과 상수만 다르고 나머지가 같다.
+    <code>usePersistentSplit</code> 하나로 두고 <code>dashboardSplit.ts</code>가 축별 상수를 입혀 내보낸다.
+  </p>
+  <pre><i>// components/boarddashboard/usePersistentSplit.ts (신규)</i>
+
+<b>export function</b> usePersistentSplit({
+  storageKey, axis, defaultSize, minSize, minOtherSize, handleSize,
+  applyDragSize,   <i>// 그리드처럼 크기가 부모에 적혀 있을 때 CSS 변수를 대신 쓴다</i>
+  containerRef,    <i>// 컨테이너를 밖에서 들고 있을 때 (가로 축 = 그리드 자신)</i>
+}: PersistentSplitOptions) {
+  <b>const</b> [stored, setStored] = useState(() =&gt; readStored(storageKey) ?? defaultSize);
+  <b>const</b> [maxSize, setMaxSize] = useState(Infinity);
+
+  <i>// 창이 줄면 상한도 줄어든다 — 저장값은 유지하고 화면에만 클램프를 건다</i>
+  useEffect(() =&gt; { <i>… ResizeObserver → setMaxSize(total - minOtherSize - handleSize) …</i> }, [...]);
+
+  <b>const</b> clamp = (v) =&gt; Math.round(Math.min(Math.max(v, minSize), maxSize));
+  <b>const</b> size  = clamp(stored);   <i>// 렌더에 쓰는 값 (저장값 ≠ 표시값일 수 있다)</i>
+
+  <b>const</b> onPointerDown = (e) =&gt; {
+    <b>const</b> start = axis === <em>"x"</em> ? e.clientX : e.clientY, startSize = size;
+    document.body.style.cursor = axis === <em>"x"</em> ? <em>"col-resize"</em> : <em>"row-resize"</em>;
+    <b>const</b> move = (ev) =&gt; {
+      <b>const</b> px = clamp(startSize + ((axis === <em>"x"</em> ? ev.clientX : ev.clientY) - start));
+      <i>// 드래그 중에는 DOM만 만진다 — 매 프레임 리렌더시키지 않는다</i>
+      <b>if</b> (applyDragSize) applyDragSize(px);
+      <b>else</b> paneRef.current.style[axis === <em>"x"</em> ? <em>"width"</em> : <em>"height"</em>] = `${px}px`;
+    };
+    <b>const</b> up = (ev) =&gt; { commit(…); <i>/* 여기서 한 번만 저장 */</i> };
+    <i>… window pointermove / pointerup / pointercancel …</i>
+  };
+
+  <b>return</b> { containerRef, paneRef, size, maxSize, onPointerDown, onKeyDown, reset };
+}</pre>
+
+  <pre><i>// MyWorkloadWidget.tsx — 세로 (gap-3을 없애고 손잡이가 그 간격을 대신한다)</i>
+
+&lt;<b>div</b> ref={splitContainerRef} className=<em>"h-full min-h-0 flex flex-col"</em>&gt;
+  &lt;<b>section</b> ref={workloadCardRef} style={{ height: workloadHeight }} …&gt; … 간트 … &lt;/<b>section</b>&gt;
+  &lt;<b>SplitHandle</b> orientation=<em>"horizontal"</em> className=<em>"flex"</em> … /&gt;
+  &lt;<b>section</b> className=<em>"flex-1 min-h-0 …"</em>&gt; … 큐 + 백로그 독 … &lt;/<b>section</b>&gt;
+&lt;/<b>div</b>&gt;
+
+<i>// DashboardView.tsx — 가로 (열 폭은 그리드가 들고 있으므로 변수로 넘긴다)</i>
+
+&lt;<b>div</b> ref={gridRef} style={{ [TIMEBLOCK_WIDTH_VAR]: `${timeblockWidth}px` }}
+     className=<em>"grid grid-cols-1 gap-3 xl:gap-0
+                xl:grid-cols-[var(--dash-timeblock-w)_auto_minmax(0,1fr)]"</em>&gt;
+  &lt;<b>div</b>&gt; … 오늘의 타임블록 … &lt;/<b>div</b>&gt;
+  &lt;<b>SplitHandle</b> orientation=<em>"vertical"</em> className=<em>"hidden xl:flex"</em> … /&gt;
+  &lt;<b>div</b>&gt; … 내 워크로드 + 큐 … &lt;/<b>div</b>&gt;
+&lt;/<b>div</b>&gt;</pre>
+
+  <div class="note">
+    <p><b>display는 부르는 쪽이 정한다.</b> <code>SplitHandle</code> 안에 <code>flex</code>를 박아 두면
+    가로 손잡이의 <code>hidden xl:flex</code>와 같은 <code>display</code> 속성끼리 부딪친다
+    (누가 이기는지는 Tailwind의 출력 순서에 달려 있어 기대면 안 된다).
+    기본 클래스에서 <code>flex</code>를 빼고 호출부가 <code>"flex"</code> / <code>"hidden xl:flex"</code>를 넘긴다.</p>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ─────────────────────── 제안 B ─────────────────────── -->
+<section>
+  <h2><span class="n">03</span>제안 B · 미배치를 타임블록에 꽂는다</h2>
+  <p class="sect-note">
+    미배치 행을 왼쪽 타임블록의 시간 칸에 떨어뜨리면 <b>그 시각에 블록이 생기고, 그날로 배치까지 끝난다.</b>
+    지금은 반대편 모달에서 같은 항목을 다시 찾아야 하고, 찾아 넣어도 미배치 숫자는 줄지 않는다.
+  </p>
+
+  <div class="frame">
+    <div class="mock" style="height:300px;flex-direction:row;gap:10px">
+      <div class="mc" style="width:210px;flex:none">
+        <div class="mc-h">오늘의 타임블록 <span class="lnk">8/6</span></div>
+        <div class="tb">
+          <div class="tb-ax"><i>13:00</i><i></i><i>14:00</i><i></i><i>15:00</i><i></i><i>16:00</i><i></i></div>
+          <div class="tb-body">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            <div class="tblk k-teal" style="top:2px;height:34px">패배창효과음 안뜨는 문제</div>
+            <div class="tblk k-ghost" style="top:110px;height:66px">[가이드 미션] 택틱스…<br><span style="opacity:.75">15:00 – 16:00</span></div>
+            <span class="chip" style="left:96px;top:150px"><i></i>[가이드 미션] 택틱스 모드…</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+        <div class="mc" style="height:86px">
+          <div class="mc-h">내 워크로드</div>
+          <div class="gantt">
+            <div class="g-row"><span class="g-lbl">유상건</span><span class="g-cell" style="flex:.45"></span><span class="g-bar" style="flex:.16;background:rgba(99,102,241,.3);border-color:var(--accent)"></span><span class="g-cell" style="flex:.39"></span></div>
+            <div class="g-row"><span class="g-lbl"></span><span class="g-cell" style="flex:.45;background:none"></span><span style="flex:.16;font-size:9.5px;color:var(--accent-soft);text-align:center">8/6 자동 배치</span><span class="g-cell" style="flex:.39;background:none"></span></div>
+          </div>
+        </div>
+        <div class="handle"><b></b></div>
+        <div class="mc" style="flex:1;min-height:0">
+          <div class="q-tabs">
+            <span class="q-tab on"><em></em>미배치 <b style="color:var(--secondary)">23</b></span>
+            <span class="q-tab ro"><em></em>지연 1</span>
+            <span style="margin-left:auto;font-size:10px;color:var(--accent-soft);font-weight:700">타임블록 시간대에 놓으면 그 시각에 잡힙니다</span>
+          </div>
+          <div class="qlist">
+            <div class="qrow drag" style="opacity:.4"><span class="ms"><i></i>4.테스트런칭</span><span class="t">[가이드 미션] 택틱스 모드 오픈</span><span class="a">끌는 중</span></div>
+            <div class="qrow"><span class="ms"><i></i>4.테스트런칭</span><span class="t">[네트워크] 연결 실패 처리</span><span class="a">오늘</span></div>
+            <div class="qrow"><span class="ms"><i></i>4.테스트런칭</span><span class="t">[맞춤법] Default 시트 오탈자</span><span class="a">오늘</span></div>
+            <div class="qrow"><span class="ms"><i></i>4.테스트런칭</span><span class="t">[맞춤법] Dialogue 시트 오탈자</span><span class="a">오늘</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="frame-cap"><b>드롭 순간</b> 15:00 칸에 1시간 고스트 · 놓으면 블록 생성 + 8/6 배치 + 미배치 24 → 23</div>
+  </div>
+
+  <h3>드롭 한 번이 하는 세 가지</h3>
+  <div class="flow">
+    <div class="f"><div class="f-n"></div><div>
+      <p class="f-t">타임블록 생성 — <code>scheduleAPI.createBlock</code></p>
+      <p class="f-b">놓은 칸이 시작 시각, 기본 길이 <b>1시간</b>(30분 슬롯 2칸). 기존 블록·점심시간은
+        이미 있는 <code>computeSegments()</code>가 피하고 잘라 준다 — 빈 곳 드래그로 만들 때와 완전히 같은 규칙이다.</p>
+    </div></div>
+    <div class="f"><div class="f-n"></div><div>
+      <p class="f-t">그날 워크로드에 배치 — <code>checklistAPI.patchItem</code></p>
+      <p class="f-b"><code>due_date</code> = 드롭한 날짜, <code>start_date</code>는 이미 더 이른 날이면 살리고 아니면 같은 날.
+        <b>기존 <code>placeItem()</code>을 그대로 재사용</b>하므로 되돌리기 안내까지 공짜로 따라온다.
+        이게 "미배치 24 → 23"과 간트에 바가 생기는 이유다.</p>
+    </div></div>
+    <div class="f"><div class="f-n"></div><div>
+      <p class="f-t">오늘의 체크리스트에 추가 — <code>dailyChecklistAPI.addItem</code></p>
+      <p class="f-b">모달 경로(<code>handleBoardChecklistItemSelect</code>)와 동일하게 맞춘다. 대시보드 위젯은
+        <code>hideDailyChecklist</code>라 눈에 안 보이지만, 일정 탭에서 열면 같은 항목이 같은 자리에 있어야 하기 때문이다.</p>
+    </div></div>
+  </div>
+
+  <h3>존 계약을 한 칸 넓힌다</h3>
+  <p style="font-size:13.5px;color:var(--fg-2);max-width:66ch">
+    <code>axisTransfer</code>는 "떨어졌다"만 알리고 <b>실제 변경은 항목을 들고 있는 쪽이 한다</b>는 규칙으로 돌아간다.
+    이 규칙을 깨지 않으면서 타임블록을 넣으려면 존 하나와 필드 하나만 더 있으면 된다.
+  </p>
+  <pre><i>// utils/axisTransfer.ts</i>
+
+<b>export type</b> AxisZone = <em>"workload"</em> | <em>"placement"</em> | <em>"backlog"</em> | <em>"timeblock"</em>;   <i>// ← 추가</i>
+
+<b>export interface</b> AxisDropDetail {
+  from: AxisZone;
+  to: AxisZone;
+  item: AxisItem;
+  <em>targetDate</em>?: string;   <i>// ← 추가. 타임블록이 "몇 일 칸에 놓였는지" 알려 준다</i>
+}
+
+<i>// findAxisZoneAt의 문자열 화이트리스트에도 "timeblock"을 더한다</i></pre>
+
+  <p style="font-size:13.5px;color:var(--fg-2);max-width:66ch;margin-top:14px">
+    책임 분담은 그대로다 — <b>타임블록은 블록만 만들고</b>, 날짜 배치는 항목의 주인인 <code>MyWorkloadWidget</code>이 한다.
+    블록 생성이 실패하면 이벤트를 쏘지 않으므로 <b>날짜도 안 바뀐다</b>(부분 성공이 없다).
+  </p>
+
+  <pre><i>// DailyScheduleView.tsx — 시간 셀에 드롭 핸들러를 붙인다</i>
+
+<b>const</b> DROP_SLOTS = 2;   <i>// 30분 슬롯 2칸 = 기본 1시간</i>
+
+<b>const</b> handleSlotDrop = <b>async</b> (e, userId, slotIndex) =&gt; {
+  <b>const</b> raw = e.dataTransfer.getData(PLACEMENT_DRAG_TYPE);
+  <b>if</b> (!raw || isViewer) <b>return</b>;              <i>// 백로그 카드는 이 키가 없어 자동으로 걸러진다</i>
+  e.preventDefault(); e.stopPropagation();
+  <b>const</b> item = JSON.parse(raw);
+  <b>const</b> dateStr = format(selectedDate, <em>"yyyy-MM-dd"</em>);   <i>// 오늘이 아니라 "보고 있는 날"</i>
+
+  <b>const</b> segments = computeSegments(
+    userId, timeSlots[slotIndex],
+    timeSlots[slotIndex + DROP_SLOTS] ?? `${workEndHour}:00`,
+  );
+  <b>if</b> (!segments) { setDropError(t(<em>"schedule.dropNoRoom"</em>, <em>"그 시간에 빈자리가 없습니다."</em>)); <b>return</b>; }
+
+  <b>try</b> {
+    <b>await</b> dailyChecklistAPI.addItem(boardId, {
+      checklist_item_id: item.id, assignee_id: userId, assigned_date: dateStr,
+    });
+    <b>for</b> (<b>const</b> seg <b>of</b> segments) {
+      <b>await</b> scheduleAPI.createBlock(boardId, {
+        checklist_item_id: item.id, assignee_id: userId, scheduled_date: dateStr,
+        start_time: seg.startTime, end_time: seg.endTime,
+      });
+    }
+    <i>// 여기서부터는 항목의 주인이 처리한다 — 날짜 배치 · 되돌리기 · 레일 갱신</i>
+    dispatchAxisDrop({ from: <em>"placement"</em>, to: <em>"timeblock"</em>, targetDate: dateStr, item });
+    <b>await</b> loadSchedule();
+  } <b>catch</b> (err) {
+    console.warn(<em>"DailyScheduleView: failed to drop placement item"</em>, err);
+    setDropError(t(<em>"schedule.dropFailed"</em>, <em>"타임블록에 넣지 못했습니다."</em>));
+  } <b>finally</b> { setDropPreview(<b>null</b>); endAxisDrag(); }
+};</pre>
+
+  <pre><i>// MyWorkloadWidget.tsx — 이미 있는 useAxisTransfer에 분기 하나</i>
+
+useAxisTransfer((detail) =&gt; {
+  <b>if</b> (!canEdit || !detail.item.task_id) <b>return</b>;
+
+  <i>// 타임블록에 꽂혔다 → 블록은 이미 생겼다. 우리는 날짜만 잡는다</i>
+  <b>if</b> (detail.from === <em>"placement"</em> &amp;&amp; detail.to === <em>"timeblock"</em> &amp;&amp; detail.targetDate) {
+    <b>void</b> placeItem({ …detail.item }, detail.targetDate);   <i>// 되돌리기 안내 · 레일 갱신 포함</i>
+    <b>return</b>;
+  }
+
+  <b>if</b> (detail.from === <em>"workload"</em> &amp;&amp; detail.to === <em>"placement"</em>) { <b>void</b> unscheduleItem(…); }
+});</pre>
+
+  <div class="note">
+    <p><b>블록 위에 떨어뜨리면?</b> 스케줄 블록 레이어는 <code>pointer-events</code>가 살아 있어 드래그오버를 가로챈다.
+    미배치 드래그가 진행 중일 때만 블록 레이어에 <code>pointer-events-none</code>을 걸어 아래 시간 칸이 받게 한다
+    (그러면 <code>computeSegments</code>가 겹치는 시간을 알아서 피해 준다).</p>
+  </div>
+
+  <div class="note ok">
+    <p><b>드래그 중 미리보기.</b> 드롭될 1시간 구간을 점선 고스트로 그린다(<code>dropPreview</code> state).
+    지금 빈 곳 드래그가 <code>bg-bridge-secondary/20</code>으로 선택 범위를 칠하는 것과 같은 자리에 얹으면 되고,
+    잔상 칩은 <code>setAxisDragGhost</code>가 이미 만들어 준다.</p>
+  </div>
+
+  <h3>드래그를 못 쓰는 환경</h3>
+  <p style="font-size:13.5px;color:var(--fg-2);max-width:66ch">
+    미배치 행에는 이미 「오늘」「내일」「백로그」 버튼이 있다. 여기에 <b>「지금」</b>을 더한다 —
+    현재 시각 이후 첫 30분 경계부터 1시간, 같은 <code>dispatchAxisDrop</code> 경로를 태운다.
+    터치·키보드 사용자와 드래그 사용자가 같은 코드로 같은 결과를 얻는다.
+  </p>
+</section>
+
+<hr class="rule">
+
+<!-- ─────────────────────── 작업 목록 ─────────────────────── -->
+<section>
+  <h2><span class="n">04</span>파일별 작업</h2>
+  <p class="sect-note">백엔드 변경 없음 — 쓰는 API 세 개(<code>createBlock</code> · <code>patchItem</code> · <code>addItem</code>)가 모두 이미 있다.</p>
+
+  <div class="tw">
+  <table>
+    <tr><th style="width:36%">파일</th><th style="width:9%">제안</th><th>변경</th></tr>
+    <tr><td><code>boarddashboard/usePersistentSplit.ts</code> <b>(신규)</b></td><td>A</td><td>축 공용 배분 훅 — state · 클램프 · ResizeObserver · 포인터/키보드 · localStorage</td></tr>
+    <tr><td><code>boarddashboard/dashboardSplit.ts</code> <b>(신규)</b></td><td>A</td><td>축별 상수와 저장 키 · <code>useWorkloadSplit</code>(세로) · <code>useTimeblockColumnSplit</code>(가로)</td></tr>
+    <tr><td><code>boarddashboard/SplitHandle.tsx</code> <b>(신규)</b></td><td>A</td><td>손잡이 UI — <code>role="separator"</code> · aria-value* · 포커스 링 · 가로/세로 겸용</td></tr>
+    <tr><td><code>boarddashboard/dashboardUtils.ts</code></td><td>A</td><td><code>WORKLOAD_CARD_HEIGHT</code>를 <b>기본값</b>으로 재정의(주석)</td></tr>
+    <tr><td><code>views/DashboardView.tsx</code></td><td>A</td><td>그리드에 CSS 변수 열 + 가운데 손잡이 열 · xl 미만에서는 손잡이 숨김</td></tr>
+    <tr><td><code>boarddashboard/MyWorkloadWidget.tsx</code></td><td>A·B</td><td><code>gap-3</code> → 손잡이 · 간트 높이 동적화 · <code>useAxisTransfer</code>에 timeblock 분기 · <code>timeblocked</code> 안내</td></tr>
+    <tr><td><code>utils/axisTransfer.ts</code></td><td>B</td><td><code>AxisZone</code>에 <code>"timeblock"</code> · <code>AxisDropDetail.targetDate</code> · <code>requestTimeblockPlacement</code>/<code>useTimeblockRequest</code></td></tr>
+    <tr><td><code>components/DailyScheduleView.tsx</code></td><td>B</td><td>시간 칸 <code>onDragOver/onDrop</code> · <code>dropPreview</code> 하이라이트 · 드래그 중 블록 레이어 <code>pointer-events</code> 해제 · <code>loadedDate</code> · 실패 안내</td></tr>
+    <tr><td><code>boarddashboard/PlacementRail.tsx</code></td><td>B</td><td>「지금」 버튼 · 힌트 문구를 "타임블록에도 놓을 수 있다"로</td></tr>
+    <tr><td><code>i18n/locales/ko.json</code></td><td>A·B</td><td>키 9개. <code>t(key, "기본값")</code> 패턴이라 나머지 9개 언어는 폴백으로 동작</td></tr>
+  </table>
+  </div>
+
+  <p style="margin-top:16px;font-size:13.5px;color:var(--muted)">
+    제안 A와 B는 <b>서로 의존하지 않는다</b> — 커밋도 따로 간다. 백엔드·API 변경은 없다.
+  </p>
+</section>
+
+<hr class="rule">
+
+<!-- ─────────────────────── 엣지 ─────────────────────── -->
+<section>
+  <h2><span class="n">05</span>엣지 케이스 · 권한</h2>
+  <div class="tw">
+  <table>
+    <tr><th style="width:30%">상황</th><th>처리</th></tr>
+    <tr><td><b>남의 대시보드</b>(<code>?scope=</code>)</td><td>부모가 <code>currentUserRole</code>을 <code>viewer</code>로 낮춰 보낸다 → 드롭 차단(<code>isViewer</code>). <b>높이 조절은 허용</b> — 내 화면의 취향이지 남의 데이터가 아니다.</td></tr>
+    <tr><td><b>보드 뷰어 역할</b></td><td>드롭·「지금」 모두 비활성. 미배치 행 자체가 <code>draggable=false</code>다.</td></tr>
+    <tr><td><b>오늘이 아닌 날</b>을 보는 중</td><td>보고 있는 <code>selectedDate</code>에 블록이 생기고 그 날짜로 배치된다. "오늘"로 강제하지 않는다.</td></tr>
+    <tr><td><b>점심시간에 걸침</b></td><td>1시간 구간이 점심을 가로지르면 <code>computeSegments</code>가 앞뒤로 쪼개 블록 2개를 만든다(기존 동작과 동일).</td></tr>
+    <tr><td><b>점심 칸에 직접 드롭</b></td><td>빈 곳 드래그로도 못 만드는 자리다 — 하이라이트를 켜지 않고, 떨어져도 안내만 띄우고 만들지 않는다.</td></tr>
+    <tr><td><b>그 시간이 꽉 참</b></td><td>10분 미만만 남으면 <code>null</code> → 만들지 않고 안내만. 날짜도 안 바뀐다.</td></tr>
+    <tr><td><b>백로그 카드를 타임블록에</b></td><td>백로그는 아직 태스크가 아니라 <code>PLACEMENT_DRAG_TYPE</code>을 싣지 않는다 → 자동 거부. 승격이 먼저다.</td></tr>
+    <tr><td><b>되돌리기</b></td><td>현재 되돌리기는 <b>날짜만</b> 되돌린다. 만들어진 블록은 남는다 → 안내 문구를 "일정에 배치됨 · 타임블록도 생성"으로 구분하고, 블록 삭제까지 원하면 <code>createdBlockIds</code>를 안내에 실어 <code>deleteBlock</code>을 함께 태운다(권장·별도 커밋).</td></tr>
+    <tr><td><b>「지금」인데 다른 날을 보는 중</b></td><td>오늘로 옮긴 뒤, <b>오늘 데이터가 실제로 도착한 다음</b> 만든다(<code>loadedDate</code>로 판정). 화면에 어제 블록이 실린 채 겹침을 판정하면 블록이 겹친다. 15초 안에 못 오면 요청을 버린다.</td></tr>
+    <tr><td><b>저장값 &gt; 화면 크기</b></td><td>작은 화면에서 표시만 클램프하고 저장값은 유지 → 큰 화면으로 돌아가면 복원된다.</td></tr>
+    <tr><td><b>localStorage 차단</b></td><td>읽기/쓰기 전부 <code>try/catch</code>. 조절은 되고 저장만 안 된다.</td></tr>
+  </table>
+  </div>
+
+  <div class="note">
+    <p><b>React #310 주의.</b> <code>MyWorkloadWidget</code>은 <code>myMembers.length === 0</code> 분기가 렌더 안에 있고
+    <code>DailyScheduleView</code>는 훅이 많다. 새 훅·<code>useCallback</code>은 반드시 <b>early return 위</b>에 선언한다(CLAUDE.md 규칙).</p>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ─────────────────────── 검증 ─────────────────────── -->
+<section>
+  <h2><span class="n">06</span>검증 체크리스트</h2>
+  <ul class="chk">
+    <li><code>cd frontend &amp;&amp; npm run build</code> — 빌드·타입 통과 <b>(확인함)</b></li>
+    <li>세로 핸들을 위/아래로 끌면 큐/간트가 각각 자라고, 하한에서 더는 안 줄어든다</li>
+    <li>가로 핸들을 좌/우로 끌면 타임블록 열이 넓어지고 워크로드 열이 줄어든다</li>
+    <li>새로고침 후에도 두 배분이 유지된다 · 다른 보드에서도 같은 배분이다</li>
+    <li>더블클릭으로 기본값(344 / 380) 복귀 · 저장 키가 지워진다</li>
+    <li>창을 줄였다 늘리면 클램프됐다가 원래 배분으로 돌아온다</li>
+    <li>창을 xl 미만으로 줄이면 두 열이 한 줄로 접히고 가로 핸들이 사라진다</li>
+    <li>Tab으로 핸들에 포커스 → 세로는 ↑/↓, 가로는 ←/→로 조절되고 포커스 링이 보인다</li>
+    <li>미배치 행을 타임블록 빈 시간에 드롭 → 1시간 블록 생성 · 미배치 카운트 −1 · 간트에 그날 바 생성</li>
+    <li>드래그 중 그리드가 위아래로 밀리지 않는다(안내 줄이 끼어들지 않아야 한다)</li>
+    <li>점심시간을 가로지르게 드롭 → 블록 2개로 쪼개진다 · 점심 칸 자체에는 안 들어간다</li>
+    <li>기존 블록 위에 드롭 → 겹치지 않는 빈 시간으로 들어가거나 안내가 뜬다</li>
+    <li>날짜를 내일로 넘긴 뒤 드롭 → 내일 블록 · 내일 배치</li>
+    <li>「지금」 버튼 → 오늘로 이동한 뒤 현재 시각부터 블록 생성 (터치·키보드 경로)</li>
+    <li><code>?scope=</code>로 남의 대시보드를 열면 드롭이 안 되고, 배분 조절은 된다</li>
+    <li>일정 탭 타임블록(임베드 아님)에서 기존 빈 곳 드래그 생성이 그대로 동작한다</li>
+    <li>라이트 모드에서 핸들·드롭 하이라이트 대비가 유지된다</li>
+  </ul>
+
+  <div class="note">
+    <p><b>실행 검증은 아직이다.</b> 위 목록에서 빌드 항목만 확인했다 —
+    로컬 백엔드(:8080)·프론트(:5173)가 떠 있지 않아 화면에서 끌어 보지 못했다.
+    나머지는 앱을 띄운 뒤 확인이 필요하다.</p>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ─────────────────────── 결정 ─────────────────────── -->
+<section>
+  <h2><span class="n">07</span>이렇게 정하고 만들었다</h2>
+  <p class="sect-note">기본값으로 갔고, 되돌리려면 각각 한 줄이다. 바꾸고 싶은 게 있으면 말해 주면 된다.</p>
+  <div class="cards">
+    <div class="c"><h4><span class="dot ind"></span>기본 블록 길이 = 1시간</h4><p><code>DROP_SLOT_SPAN = 2</code>(30분 슬롯 2칸). 30분은 대부분 모자라 다시 늘리게 되고, 2시간은 남의 시간까지 먹는다.</p></div>
+    <div class="c"><h4><span class="dot teal"></span>저장은 브라우저 전역</h4><p>보드·계정과 무관한 키 2개. 보드마다 다르게 기억해야 한다면 키에 <code>boardId</code>를 붙이면 된다.</p></div>
+    <div class="c"><h4><span class="dot am"></span>되돌리기 = 날짜만</h4><p>블록은 남는다. 대신 안내 문구를 <b>「…타임블록에 배치됨 · 되돌리면 날짜만 풀립니다」</b>로 따로 두어 무엇이 남는지 말한다.</p></div>
+    <div class="c"><h4><span class="dot em"></span>오늘의 체크리스트에도 추가</h4><p>모달 경로와 같은 취급. 다만 이미 올라가 있어 실패해도 삼킨다 — 이 드롭의 본질은 블록이기 때문.</p></div>
+  </div>
+
+  <h3>만들면서 바뀐 것</h3>
+  <ul>
+    <li><b>드래그 중 안내 줄을 뺐다.</b> 줄이 하나 생기면 그리드가 그만큼 내려가 커서 밑의 시간 칸이 통째로 바뀐다.
+      "놓을 수 있다"는 칸 하이라이트가, "무슨 일이 일어나는지"는 배치 레일 문구가 말한다.</li>
+    <li><b>훅을 축 공용으로 합쳤다.</b> 가로 배분 요청이 붙으면서 세로 전용 훅을 <code>usePersistentSplit</code>으로 일반화했다.</li>
+    <li><b>「지금」에 <code>loadedDate</code> 관문을 붙였다.</b> 날짜를 옮긴 직후에는 <code>selectedDate</code>가 이미 오늘이어도
+      화면에 실린 블록은 아직 어제 것이라, 그걸로 겹침을 판정하면 블록이 겹친다.</li>
+    <li><b>점심 칸은 받지 않는다.</b> 빈 곳 드래그로도 못 만드는 자리라 하이라이트도 켜지 않는다.</li>
+  </ul>
+</section>
+
+</div>

@@ -15,9 +15,10 @@ import { formatDate } from "../../utils/dateUtils";
 import { parseDate } from "../../utils/workloadBar";
 import type { BoardMember as ShareBoardMember } from "../ShareBoardModal";
 import { DashboardEmpty } from "./DashboardCard";
-import { WORKLOAD_CARD_HEIGHT } from "./dashboardUtils";
 import { BacklogRail } from "./BacklogRail";
 import { PlacementRail } from "./PlacementRail";
+import { MIN_WORKLOAD_HEIGHT, useWorkloadSplit } from "./dashboardSplit";
+import { SplitHandle } from "./SplitHandle";
 import { useAxisRefresh, useAxisTransfer } from "../../utils/axisTransfer";
 
 const ScheduleResourceView = lazyWithRetry(
@@ -35,8 +36,12 @@ const CONTRACTOR_PREFIX = "contractor:";
 
 /** 이동 직후 되돌리기용으로 붙잡아 두는 이전 값 */
 interface PlacementNotice {
-  /** placed = 날짜가 잡혔다 / unscheduled = 일정이 풀려 미배치로 내려갔다 */
-  kind: "placed" | "unscheduled";
+  /**
+   * placed      = 날짜가 잡혔다
+   * timeblocked = 날짜 + 타임블록까지 잡혔다 (되돌리기는 날짜만 되돌린다 — 그래서 문구가 다르다)
+   * unscheduled = 일정이 풀려 미배치로 내려갔다
+   */
+  kind: "placed" | "timeblocked" | "unscheduled";
   itemId: string;
   taskId: string;
   title: string;
@@ -144,6 +149,17 @@ export function MyWorkloadWidget({
 
   const bumpRefresh = useCallback(() => setRefreshTick((v) => v + 1), []);
 
+  // 간트 │ 큐 세로 배분 — 사용자가 정하고 브라우저가 기억한다
+  const {
+    containerRef: splitContainerRef,
+    paneRef: workloadCardRef,
+    size: workloadHeight,
+    maxSize: maxWorkloadHeight,
+    onPointerDown: onSplitPointerDown,
+    onKeyDown: onSplitKeyDown,
+    reset: resetSplit,
+  } = useWorkloadSplit();
+
   const showNotice = useCallback((next: PlacementNotice) => {
     setNotice(next);
     if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
@@ -184,6 +200,7 @@ export function MyWorkloadWidget({
       },
       targetDate: string,
       targetAssigneeId?: string,
+      noticeKind: "placed" | "timeblocked" = "placed",
     ) => {
       const keepStart =
         item.start_date && item.start_date <= targetDate
@@ -219,7 +236,7 @@ export function MyWorkloadWidget({
         });
         setError(null);
         showNotice({
-          kind: "placed",
+          kind: noticeKind,
           itemId: item.id,
           taskId: item.task_id,
           title: item.title ?? "",
@@ -281,12 +298,37 @@ export function MyWorkloadWidget({
     [boardId, bumpRefresh, showNotice, t],
   );
 
-  // 축 이동 수신 — 워크로드에서 나가는 건만 여기서 처리한다.
+  // 축 이동 수신 — 워크로드에서 나가는 건과 타임블록으로 꽂히는 건을 여기서 처리한다.
   // (백로그로 내리는 건 백로그 레일이 자기 목록까지 고쳐야 해서 그쪽이 받는다)
   useAxisTransfer((detail) => {
     if (!canEdit) return;
-    if (detail.from !== "workload" || detail.to !== "placement") return;
     if (!detail.item.task_id) return;
+
+    // 타임블록에 놓였다 — 블록은 타임블록이 이미 만들었다. 우리는 날짜만 잡는다.
+    // (이 이벤트가 왔다는 건 블록 생성이 성공했다는 뜻이다)
+    if (
+      detail.from === "placement" &&
+      detail.to === "timeblock" &&
+      detail.targetDate
+    ) {
+      void placeItem(
+        {
+          id: detail.item.id,
+          task_id: detail.item.task_id,
+          title: detail.item.title,
+          start_date: detail.item.start_date,
+          due_date: detail.item.due_date,
+        },
+        detail.targetDate,
+        undefined,
+        "timeblocked",
+      ).catch(() => {
+        /* placeItem이 이미 안내를 띄운다 */
+      });
+      return;
+    }
+
+    if (detail.from !== "workload" || detail.to !== "placement") return;
     void unscheduleItem({
       id: detail.item.id,
       task_id: detail.item.task_id,
@@ -354,14 +396,16 @@ export function MyWorkloadWidget({
 
   const childRefreshTrigger = refreshTrigger + refreshTick;
   return (
-    <div className="h-full min-h-0 flex flex-col gap-3">
+    // gap 대신 손잡이가 두 카드 사이를 벌린다 (12px으로 예전 gap-3과 같은 간격이다)
+    <div ref={splitContainerRef} className="h-full min-h-0 flex flex-col">
       {/*
-        이번 주 워크로드 — 담당자 행이 늘 하나라 카드 높이도 그만큼만 쓴다.
+        이번 주 워크로드 — 높이는 사용자가 손잡이로 정하고 브라우저가 기억한다.
         남는 세로 공간은 전부 아래 큐가 가져간다.
       */}
       <section
+        ref={workloadCardRef}
         className="flex-none bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden flex flex-col"
-        style={{ height: WORKLOAD_CARD_HEIGHT }}
+        style={{ height: workloadHeight }}
       >
         <header className="flex items-center gap-2 px-4 py-3 border-b border-foreground/[0.08] flex-none">
           <h2 className="text-xs md:text-sm font-bold text-foreground truncate">
@@ -399,15 +443,27 @@ export function MyWorkloadWidget({
                         defaultValue:
                           "「{{title}}」 일정 해제됨 · 담당자와 체크리스트는 그대로입니다",
                       })
-                    : t("boardDashboard.placedNotice", {
-                        title: notice!.title,
-                        // 로컬 Date로 넘긴다 — 문자열은 UTC로 해석돼 하루 어긋날 수 있다
-                        date: formatDate(
-                          parseDate(notice!.targetDate ?? ""),
-                          "PPP",
-                        ),
-                        defaultValue: "「{{title}}」 {{date}}에 배치됨",
-                      })}
+                    : notice!.kind === "timeblocked"
+                      ? // 되돌리기는 날짜만 되돌린다 — 만들어진 타임블록은 남는다.
+                        // 그래서 "배치됨"과 다른 문구로 무엇이 생겼는지 알린다.
+                        t("boardDashboard.timeblockedNotice", {
+                          title: notice!.title,
+                          date: formatDate(
+                            parseDate(notice!.targetDate ?? ""),
+                            "PPP",
+                          ),
+                          defaultValue:
+                            "「{{title}}」 {{date}} 타임블록에 배치됨 · 되돌리면 날짜만 풀립니다",
+                        })
+                      : t("boardDashboard.placedNotice", {
+                          title: notice!.title,
+                          // 로컬 Date로 넘긴다 — 문자열은 UTC로 해석돼 하루 어긋날 수 있다
+                          date: formatDate(
+                            parseDate(notice!.targetDate ?? ""),
+                            "PPP",
+                          ),
+                          defaultValue: "「{{title}}」 {{date}}에 배치됨",
+                        })}
                 </p>
                 <button
                   type="button"
@@ -461,6 +517,21 @@ export function MyWorkloadWidget({
           )}
         </div>
       </section>
+
+      <SplitHandle
+        orientation="horizontal"
+        value={workloadHeight}
+        min={MIN_WORKLOAD_HEIGHT}
+        max={maxWorkloadHeight}
+        label={t(
+          "boardDashboard.splitWorkloadQueue",
+          "워크로드와 큐 높이 조절",
+        )}
+        onPointerDown={onSplitPointerDown}
+        onKeyDown={onSplitKeyDown}
+        onReset={resetSplit}
+        className="flex"
+      />
 
       {/*
         큐 — 남는 높이를 전부 가져간다(늘 자리가 모자란 쪽이다).

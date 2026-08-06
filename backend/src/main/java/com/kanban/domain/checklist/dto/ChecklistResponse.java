@@ -38,8 +38,20 @@ public class ChecklistResponse {
         private Integer position;
         private LocalDateTime createdAt;
         private LocalDateTime completedAt;
+        /**
+         * 이 항목에 달린 댓글 수 — 행의 💬 뱃지에 쓴다.
+         *
+         * <p>목록 조회에서만 채운다. 단건 응답(생성·수정·토글)에서는 null이며,
+         * 클라이언트는 null을 "값 없음"으로 보고 기존 카운트를 유지해야 한다.
+         * 토글 한 번마다 카운트 쿼리를 더 돌릴 이유가 없다.</p>
+         */
+        private Integer commentCount;
 
         public static Detail of(ChecklistItem item) {
+            return of(item, null);
+        }
+
+        public static Detail of(ChecklistItem item, Integer commentCount) {
             return Detail.builder()
                     .id(item.getId())
                     .title(item.getTitle())
@@ -52,6 +64,7 @@ public class ChecklistResponse {
                     .position(item.getPosition())
                     .createdAt(item.getCreatedAt())
                     .completedAt(item.getCompletedAt())
+                    .commentCount(commentCount)
                     .build();
         }
     }
@@ -104,13 +117,23 @@ public class ChecklistResponse {
         private List<Detail> items;
 
         public static ListResponse of(List<ChecklistItem> items) {
+            return of(items, Map.of());
+        }
+
+        /**
+         * @param commentCounts 항목 id → 댓글 수. 항목마다 세면 N+1이므로 한 번의 group by 결과를 넘긴다.
+         *                      목록에 없는 항목은 0으로 채운다("아직 대화 없음"이 확정된 값이다).
+         */
+        public static ListResponse of(List<ChecklistItem> items, Map<String, Integer> commentCounts) {
             int total = items.size();
             int completed = (int) items.stream().filter(ChecklistItem::getIsCompleted).count();
 
             return ListResponse.builder()
                     .total(total)
                     .completed(completed)
-                    .items(items.stream().map(Detail::of).toList())
+                    .items(items.stream()
+                            .map(i -> Detail.of(i, commentCounts.getOrDefault(i.getId(), 0)))
+                            .toList())
                     .build();
         }
     }

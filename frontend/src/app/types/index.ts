@@ -581,6 +581,11 @@ export interface ChecklistItem {
   position: number;
   created_at?: string;
   completed_at?: string | null;
+  /**
+   * 이 항목에 달린 댓글 수 — 행의 💬 뱃지에 쓴다.
+   * 목록 조회에만 실려 오므로, 단건 갱신 때는 기존 값을 유지한다.
+   */
+  comment_count?: number;
 }
 
 export interface Checklist {
@@ -821,6 +826,12 @@ export interface TaskComment {
   reactions: CommentReaction[];
   parent_id: string | null;
   parent_author_name: string | null;
+  /** 이 댓글이 달린 체크리스트 항목. null이면 태스크에 직접 단 댓글 */
+  checklist_item_id?: string | null;
+  /** 칩에 표시할 항목 제목. 항목을 찾지 못하면 null */
+  checklist_item_title?: string | null;
+  /** 항목이 휴지통에 있으면 true — 칩에 취소선을 긋고 클릭을 막는다 */
+  checklist_item_deleted?: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -2278,17 +2289,10 @@ export interface DiaryVoiceSettings {
 
 export type PersonalTaskStatus = "TODO" | "IN_PROGRESS" | "DONE" | "ARCHIVED";
 export type PersonalTaskPriority =
-  | "NONE"
-  | "LOW"
-  | "MEDIUM"
-  | "HIGH"
-  | "URGENT";
+  "NONE" | "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 
 /** 백로그 항목이 무엇으로 승격됐는지 */
-export type PersonalTaskPromotionType =
-  | "TIMEBLOCK"
-  | "TASK"
-  | "CHECKLIST_ITEM";
+export type PersonalTaskPromotionType = "TIMEBLOCK" | "TASK" | "CHECKLIST_ITEM";
 export type HabitFrequency = "DAILY" | "WEEKDAY" | "WEEKEND" | "CUSTOM";
 export type HabitImportance = "HIGH" | "MEDIUM";
 

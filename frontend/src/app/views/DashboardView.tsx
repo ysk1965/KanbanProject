@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+} from "react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import type {
   BoardWebSocketEvent,
@@ -11,6 +18,12 @@ import { buildMilestoneColorMap } from "../utils/milestoneColor";
 import { DashboardScopeRow } from "../components/boarddashboard/DashboardScopeRow";
 import { MyWorkloadWidget } from "../components/boarddashboard/MyWorkloadWidget";
 import { TodayTimeblockWidget } from "../components/boarddashboard/TodayTimeblockWidget";
+import { SplitHandle } from "../components/boarddashboard/SplitHandle";
+import {
+  MIN_TIMEBLOCK_WIDTH,
+  TIMEBLOCK_WIDTH_VAR,
+  useTimeblockColumnSplit,
+} from "../components/boarddashboard/dashboardSplit";
 
 /** 대시보드 스코프 딥링크 파라미터 (?member= 는 칸반 담당자 필터가 이미 쓰고 있다) */
 const SCOPE_PARAM = "scope";
@@ -84,7 +97,19 @@ export function DashboardView({
   onOpenResourceView,
   onRefreshAfterPromote,
 }: DashboardViewProps) {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // 타임블록 │ 워크로드 좌우 배분 — 사용자가 정하고 브라우저가 기억한다.
+  // xl 미만에서는 두 열이 한 줄로 접히므로 손잡이도 값도 쓰이지 않는다.
+  const {
+    containerRef: gridRef,
+    size: timeblockWidth,
+    maxSize: maxTimeblockWidth,
+    onPointerDown: onColumnPointerDown,
+    onKeyDown: onColumnKeyDown,
+    reset: resetColumnSplit,
+  } = useTimeblockColumnSplit();
 
   // 마일스톤 id → 색 (일정 탭과 같은 규칙으로 만들어 색 일관성 유지)
   const milestoneColorMap = useMemo(
@@ -164,8 +189,19 @@ export function DashboardView({
           }`}
         >
           {/* 오늘 │ 워크로드 + 큐(바닥에 백로그 독) */}
-          {/* 왼쪽 폭 380 — 타임블록 카드가 제목·태스크명 두 줄을 자르지 않고 담는 최소치 */}
-          <div className="grid grid-cols-1 xl:grid-cols-[380px_minmax(0,1fr)] gap-3 xl:h-full xl:min-h-0">
+          {/*
+            왼쪽 폭은 CSS 변수로 들어간다 — 드래그 중에는 이 변수만 갈아 끼워
+            리렌더 없이 폭이 따라오고, xl 미만의 한 줄 배치는 그대로 남는다.
+          */}
+          <div
+            ref={gridRef}
+            style={
+              { [TIMEBLOCK_WIDTH_VAR]: `${timeblockWidth}px` } as CSSProperties
+            }
+            /* 변수명은 리터럴로 적는다 — Tailwind 스캐너가 문자열을 그대로 읽는다 */
+            className="grid grid-cols-1 gap-3 xl:h-full xl:min-h-0 xl:gap-0
+              xl:grid-cols-[var(--dash-timeblock-w)_auto_minmax(0,1fr)]"
+          >
             <div className="h-[520px] xl:h-full min-h-0">
               <TodayTimeblockWidget
                 boardId={boardId}
@@ -184,6 +220,19 @@ export function DashboardView({
                 onOpenSchedule={onOpenSchedule}
               />
             </div>
+
+            {/* 한 줄로 접히면 좌우가 없으므로 손잡이도 없다 */}
+            <SplitHandle
+              orientation="vertical"
+              value={timeblockWidth}
+              min={MIN_TIMEBLOCK_WIDTH}
+              max={maxTimeblockWidth}
+              label={t("boardDashboard.splitColumns", "타임블록 열 폭 조절")}
+              onPointerDown={onColumnPointerDown}
+              onKeyDown={onColumnKeyDown}
+              onReset={resetColumnSplit}
+              className="hidden xl:flex"
+            />
 
             <div className="min-w-0 min-h-0 h-[640px] xl:h-full">
               <MyWorkloadWidget

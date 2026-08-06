@@ -4264,5 +4264,21 @@
     "noSearchResults": "検索結果がありません",
     "clearSearch": "検索をクリア",
     "excludeFeature": "マインドマップから除外"
+  },
+  "checklistDetail": {
+    "open": "詳細を開く",
+    "title": "項目の詳細",
+    "info": "項目情報",
+    "gallery": "画像 {{count}}",
+    "galleryHint": "コメントから",
+    "noImages": "コメントに画像を投稿するとここに集まります",
+    "comments": "コメント {{count}}",
+    "placeholder": "この項目にコメント…",
+    "empty": "まだ会話がありません",
+    "emptyHint": "最初のコメントを残しましょう",
+    "backToTask": "タスク全体のコメントを見る",
+    "deletedBanner": "削除された項目です · 閲覧のみ可能です",
+    "chip": "チェックリスト · {{title}}",
+    "unknownItem": "削除された項目"
   }
 }

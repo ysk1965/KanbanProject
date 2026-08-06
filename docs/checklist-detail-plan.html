@@ -1,0 +1,1112 @@
+<title>체크리스트 디테일 — 설계 방안</title>
+<style>
+  :root {
+    --ground: #fffcf8;
+    --panel: #efe6d8;
+    --panel-soft: #f6f0e6;
+    --ink: #3d2e1f;
+    --ink-muted: #7a6a58;
+    --ink-faint: #a2937f;
+    --rule: rgba(61, 46, 31, 0.14);
+    --rule-soft: rgba(61, 46, 31, 0.08);
+    --accent: #5b5ee6;
+    --accent-soft: rgba(99, 102, 241, 0.12);
+    --teal: #0f9c8c;
+    --teal-soft: rgba(20, 184, 166, 0.14);
+    --amber: #b06e00;
+    --amber-soft: rgba(217, 143, 10, 0.14);
+    --emerald: #0b8a5c;
+    --emerald-soft: rgba(16, 185, 129, 0.13);
+    --rose: #c0384f;
+    --code-bg: rgba(61, 46, 31, 0.055);
+
+    --sans: "Apple SD Gothic Neo", "Pretendard Variable", Pretendard, "Noto Sans KR",
+            system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #191f2d;
+      --panel: #151b28;
+      --panel-soft: #1c2333;
+      --ink: #e4e8f2;
+      --ink-muted: #94a3b8;
+      --ink-faint: #64748b;
+      --rule: rgba(228, 232, 242, 0.14);
+      --rule-soft: rgba(228, 232, 242, 0.075);
+      --accent: #8b8df5;
+      --accent-soft: rgba(99, 102, 241, 0.2);
+      --teal: #2dd4bf;
+      --teal-soft: rgba(45, 212, 191, 0.15);
+      --amber: #f0b45c;
+      --amber-soft: rgba(245, 158, 11, 0.16);
+      --emerald: #4ade9f;
+      --emerald-soft: rgba(16, 185, 129, 0.16);
+      --rose: #f2788d;
+      --code-bg: rgba(228, 232, 242, 0.055);
+    }
+  }
+
+  :root[data-theme="light"] {
+    --ground: #fffcf8;
+    --panel: #efe6d8;
+    --panel-soft: #f6f0e6;
+    --ink: #3d2e1f;
+    --ink-muted: #7a6a58;
+    --ink-faint: #a2937f;
+    --rule: rgba(61, 46, 31, 0.14);
+    --rule-soft: rgba(61, 46, 31, 0.08);
+    --accent: #5b5ee6;
+    --accent-soft: rgba(99, 102, 241, 0.12);
+    --teal: #0f9c8c;
+    --teal-soft: rgba(20, 184, 166, 0.14);
+    --amber: #b06e00;
+    --amber-soft: rgba(217, 143, 10, 0.14);
+    --emerald: #0b8a5c;
+    --emerald-soft: rgba(16, 185, 129, 0.13);
+    --rose: #c0384f;
+    --code-bg: rgba(61, 46, 31, 0.055);
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #191f2d;
+    --panel: #151b28;
+    --panel-soft: #1c2333;
+    --ink: #e4e8f2;
+    --ink-muted: #94a3b8;
+    --ink-faint: #64748b;
+    --rule: rgba(228, 232, 242, 0.14);
+    --rule-soft: rgba(228, 232, 242, 0.075);
+    --accent: #8b8df5;
+    --accent-soft: rgba(99, 102, 241, 0.2);
+    --teal: #2dd4bf;
+    --teal-soft: rgba(45, 212, 191, 0.15);
+    --amber: #f0b45c;
+    --amber-soft: rgba(245, 158, 11, 0.16);
+    --emerald: #4ade9f;
+    --emerald-soft: rgba(16, 185, 129, 0.16);
+    --rose: #f2788d;
+    --code-bg: rgba(228, 232, 242, 0.055);
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 20px 96px;
+  }
+
+  @media (min-width: 1080px) {
+    .shell {
+      grid-template-columns: 178px minmax(0, 1fr);
+      column-gap: 48px;
+      padding-right: 32px;
+    }
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    grid-column: 1 / -1;
+    border-bottom: 1px solid var(--rule);
+    padding: 56px 0 28px;
+    margin-bottom: 44px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .kicker {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  h1 {
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.18;
+    text-wrap: balance;
+    max-width: 20ch;
+  }
+
+  .standfirst {
+    font-size: 17px;
+    color: var(--ink-muted);
+    max-width: 62ch;
+    line-height: 1.66;
+  }
+
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-faint);
+    padding-top: 6px;
+  }
+
+  .meta-row b { color: var(--ink-muted); font-weight: 500; }
+
+  /* ---------- rail ---------- */
+
+  .rail { display: none; }
+
+  @media (min-width: 1080px) {
+    .rail {
+      display: block;
+      position: sticky;
+      top: 32px;
+      align-self: start;
+      padding-top: 4px;
+    }
+    .rail ol {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      border-left: 1px solid var(--rule);
+      padding-left: 16px;
+    }
+    .rail a {
+      font-size: 13px;
+      color: var(--ink-faint);
+      text-decoration: none;
+      display: block;
+      transition: color 0.15s ease;
+    }
+    .rail a:hover, .rail a:focus-visible { color: var(--accent); }
+  }
+
+  /* ---------- flow ---------- */
+
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+    min-width: 0;
+  }
+
+  section { display: flex; flex-direction: column; gap: 18px; scroll-margin-top: 28px; }
+
+  .sec-head { display: flex; flex-direction: column; gap: 5px; }
+
+  .sec-tag {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 500;
+  }
+
+  h2 {
+    font-size: 25px;
+    font-weight: 700;
+    letter-spacing: -0.018em;
+    line-height: 1.3;
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-top: 6px;
+  }
+
+  p { max-width: 68ch; }
+  .flow p + p { margin-top: -6px; }
+
+  ul.bullets {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding-left: 2px;
+    list-style: none;
+    max-width: 68ch;
+  }
+
+  ul.bullets > li {
+    position: relative;
+    padding-left: 18px;
+  }
+
+  ul.bullets > li::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 12px;
+    width: 5px;
+    height: 1.5px;
+    background: var(--ink-faint);
+  }
+
+  strong { font-weight: 700; }
+  em { font-style: normal; color: var(--accent); font-weight: 500; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.875em;
+    background: var(--code-bg);
+    border-radius: 4px;
+    padding: 1.5px 5px;
+    word-break: break-all;
+  }
+
+  /* ---------- tables ---------- */
+
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--rule-soft);
+    border-radius: 12px;
+    background: var(--panel);
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 560px;
+    font-size: 14px;
+  }
+
+  thead th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+
+  tbody td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+    line-height: 1.6;
+  }
+
+  tbody tr:last-child td { border-bottom: 0; }
+  td.tight { white-space: nowrap; font-family: var(--mono); font-size: 12.5px; }
+  td.lead { font-weight: 500; }
+
+  /* ---------- chips ---------- */
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+    line-height: 1.6;
+  }
+
+  .chip-pick { background: var(--emerald-soft); color: var(--emerald); }
+  .chip-open { background: var(--amber-soft); color: var(--amber); }
+  .chip-skip { background: var(--code-bg); color: var(--ink-faint); }
+  .chip-new  { background: var(--accent-soft); color: var(--accent); }
+  .chip-keep { background: var(--teal-soft); color: var(--teal); }
+
+  /* ---------- callouts ---------- */
+
+  .callout {
+    border: 1px solid var(--rule-soft);
+    border-radius: 12px;
+    background: var(--panel);
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .callout-title {
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .callout p, .callout ul.bullets { max-width: 64ch; font-size: 14.5px; }
+  .callout-accent { border-left: 2px solid var(--accent); }
+  .callout-warn { border-left: 2px solid var(--amber); }
+
+  /* ---------- code block ---------- */
+
+  pre {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.72;
+    background: var(--panel);
+    border: 1px solid var(--rule-soft);
+    border-radius: 12px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    color: var(--ink);
+    tab-size: 2;
+  }
+
+  pre .cmt { color: var(--ink-faint); }
+  pre .kw { color: var(--accent); font-weight: 500; }
+
+  /* ---------- decision cards ---------- */
+
+  .cards {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  @media (min-width: 720px) {
+    .cards.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  .card {
+    border: 1px solid var(--rule-soft);
+    border-radius: 12px;
+    background: var(--panel);
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .card.picked { border-color: color-mix(in srgb, var(--emerald) 45%, transparent); }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .card-head h3 { margin-top: 0; font-size: 15.5px; }
+  .card ul.bullets { font-size: 14px; gap: 7px; }
+
+  /* ---------- steps ---------- */
+
+  .steps { display: flex; flex-direction: column; gap: 0; }
+
+  .step {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 18px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+
+  .step:first-child { border-top: 1px solid var(--rule-soft); }
+
+  .step-n {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+    padding-top: 3px;
+  }
+
+  .step-body { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+  .step-body h3 { margin-top: 0; font-size: 16px; }
+  .step-body p { font-size: 14.5px; color: var(--ink-muted); max-width: 62ch; }
+  .step-files { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); line-height: 1.9; }
+
+  /* ---------- wireframe ---------- */
+
+  figure {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .fig-frame {
+    overflow-x: auto;
+    border: 1px solid var(--rule-soft);
+    border-radius: 12px;
+    background: var(--panel);
+    padding: 20px 18px;
+  }
+
+  .fig-frame svg { display: block; min-width: 620px; width: 100%; height: auto; }
+
+  figcaption {
+    font-size: 13px;
+    color: var(--ink-faint);
+    max-width: 66ch;
+  }
+
+  /* ---------- questions ---------- */
+
+  .qlist { display: flex; flex-direction: column; gap: 14px; }
+
+  .q {
+    border: 1px solid var(--rule-soft);
+    border-left: 2px solid var(--amber);
+    border-radius: 12px;
+    background: var(--panel);
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .q-title { font-weight: 700; font-size: 15px; }
+  .q p { font-size: 14.5px; color: var(--ink-muted); max-width: 62ch; }
+
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="shell">
+
+  <header class="masthead">
+    <div class="kicker">BRIDGE / 설계 방안</div>
+    <h1>체크리스트 항목에 디테일을 붙인다</h1>
+    <p class="standfirst">
+      체크리스트 한 줄에 이미지와 댓글을 달 수 있게 하되, 거기 달린 댓글이 태스크 모달의 댓글 목록에
+      <strong>그대로 섞여 보이게</strong> 한다. 핵심은 새 댓글 도메인을 만들지 않는 것 —
+      기존 <code>comments</code>에 소속 항목을 한 칸 더 적는다.
+    </p>
+    <div class="meta-row">
+      <span><b>대상</b> backend + frontend</span>
+      <span><b>새 엔드포인트</b> 0개</span>
+      <span><b>새 테이블</b> 0개 (1단계)</span>
+      <span><b>작성</b> 2026-08-06</span>
+    </div>
+  </header>
+
+  <nav class="rail" aria-label="문서 목차">
+    <ol>
+      <li><a href="#now">지금 구조</a></li>
+      <li><a href="#decision">설계 결정</a></li>
+      <li><a href="#data">데이터 모델</a></li>
+      <li><a href="#api">API 변경</a></li>
+      <li><a href="#ux">화면 동작</a></li>
+      <li><a href="#realtime">실시간 · 알림</a></li>
+      <li><a href="#edges">엣지 케이스</a></li>
+      <li><a href="#rollout">작업 순서</a></li>
+      <li><a href="#questions">확인이 필요한 것</a></li>
+    </ol>
+  </nav>
+
+  <main class="flow">
+
+    <!-- ============ 지금 구조 ============ -->
+    <section id="now">
+      <div class="sec-head">
+        <div class="sec-tag">현황</div>
+        <h2>이미 있는 것과 없는 것</h2>
+      </div>
+      <p>
+        코드를 확인한 결과, 필요한 재료는 대부분 이미 있다. 댓글은 첨부·썸네일·리액션·멘션·답글·
+        슬랙/디스코드 알림·JIRA 양방향 동기화까지 완비돼 있고, 체크리스트는 담당자·기간·타임블록·
+        휴지통·자동수정까지 붙어 있다. <strong>둘 사이를 잇는 선만 없다.</strong>
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>영역</th><th>지금</th><th>비고</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="lead">댓글</td>
+              <td><code>comments</code> → <code>task_id</code> NOT NULL, <code>board_id</code>, <code>parent_id</code>(답글)</td>
+              <td>붙는 단위가 <em>태스크뿐</em></td>
+            </tr>
+            <tr>
+              <td class="lead">댓글 이미지</td>
+              <td><code>comment_attachments</code> — S3 키 + 썸네일, 최대 5개, temp→영구 이동</td>
+              <td>그대로 재사용 가능</td>
+            </tr>
+            <tr>
+              <td class="lead">체크리스트</td>
+              <td><code>checklist_items</code> — 제목·담당자·기간·position·soft delete</td>
+              <td>본문/첨부 <em>없음</em></td>
+            </tr>
+            <tr>
+              <td class="lead">태스크 모달</td>
+              <td>왼쪽 체크리스트 + 오른쪽 <code>CommentPanel</code> 2단 레이아웃</td>
+              <td>패널 자리를 그대로 쓴다</td>
+            </tr>
+            <tr>
+              <td class="lead">항목 하이라이트</td>
+              <td><code>highlightChecklistItemId</code> → 해당 행으로 스크롤 + 강조</td>
+              <td>댓글→항목 점프에 재사용</td>
+            </tr>
+            <tr>
+              <td class="lead">알림 대상</td>
+              <td>태스크 댓글 → 태스크 생성자 + <em>모든</em> 체크리스트 담당자</td>
+              <td>항목 지정 시 좁힐 여지</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 설계 결정 ============ -->
+    <section id="decision">
+      <div class="sec-head">
+        <div class="sec-tag">결정</div>
+        <h2>새 도메인을 만들지 않는다</h2>
+      </div>
+      <p>
+        "체크리스트에 달린 댓글이 태스크 댓글에 그대로 보인다"는 요구가 설계를 결정한다.
+        두 저장소로 나누면 화면에서 다시 합쳐야 하고, 그 합치기가 정렬·페이징·실시간·알림·JIRA
+        전부에 반복된다. <strong>애초에 한 테이블에 두면 합칠 일이 없다.</strong>
+      </p>
+
+      <div class="cards two">
+        <div class="card picked">
+          <div class="card-head">
+            <h3>A안 · <code>comments</code> 확장</h3>
+            <span class="chip chip-pick">채택</span>
+          </div>
+          <p style="font-size:14px;color:var(--ink-muted)">
+            <code>comments.checklist_item_id</code>(nullable)를 추가한다.
+            값이 없으면 지금까지처럼 태스크 댓글, 있으면 그 항목의 댓글.
+          </p>
+          <ul class="bullets">
+            <li>태스크 댓글 목록은 <strong>쿼리 변경 없이</strong> 항목 댓글까지 포함한다</li>
+            <li>첨부·리액션·멘션·답글·알림·JIRA가 전부 공짜로 따라온다</li>
+            <li>새 컨트롤러/서비스/레포지토리 0개</li>
+            <li>비용: 항목 이동·병합·삭제 시 댓글 소속을 맞춰줘야 한다</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>B안 · <code>checklist_comments</code> 신설</h3>
+            <span class="chip chip-skip">미채택</span>
+          </div>
+          <p style="font-size:14px;color:var(--ink-muted)">
+            체크리스트 전용 댓글 도메인을 따로 만든다.
+          </p>
+          <ul class="bullets">
+            <li>첨부·리액션·멘션·알림 로직을 전부 복제해야 한다</li>
+            <li>태스크 모달에서 두 목록을 시간순으로 머지 — 실시간 갱신 때마다 재머지</li>
+            <li>JIRA 동기화·주간 리포트·AI 요약이 한쪽만 본다</li>
+            <li>얻는 것: 체크리스트 삭제 시 댓글 생명주기가 깔끔 — <em>그 하나뿐</em></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout callout-accent">
+        <div class="callout-title">이미지는 어떻게 붙나</div>
+        <p>
+          1단계에서는 <strong>댓글 첨부를 그대로 쓴다</strong>. 항목 스레드에 이미지를 올리면
+          그게 곧 그 항목의 이미지다 — 별도 첨부 테이블도, 별도 업로드 경로도 필요 없다.
+          항목 자체의 고정 본문(<code>description</code> + 인라인 이미지)이 필요하다는 게 확인되면
+          4단계에서 노트 에디터가 쓰는 <code>/api/v1/files/upload-note</code> 경로를 재사용해 얹는다.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ 데이터 모델 ============ -->
+    <section id="data">
+      <div class="sec-head">
+        <div class="sec-tag">스키마</div>
+        <h2>컬럼 한 개</h2>
+      </div>
+
+      <p>
+        Flyway 마이그레이션은 타임스탬프 네이밍 + 멱등 규칙을 따른다.
+        파일명 타임스탬프는 작성 시점에 <code>date -u +%Y%m%d_%H%M%S</code>로 생성한다.
+      </p>
+
+      <pre><span class="cmt">-- V20260806_HHmmss__add_checklist_item_id_to_comments.sql</span>
+
+<span class="kw">DO</span> $$ <span class="kw">BEGIN</span>
+    <span class="kw">ALTER TABLE</span> comments <span class="kw">ADD COLUMN</span> checklist_item_id <span class="kw">VARCHAR</span>(36);
+<span class="kw">EXCEPTION WHEN</span> duplicate_column <span class="kw">THEN NULL</span>;
+<span class="kw">END</span> $$;
+
+<span class="kw">CREATE INDEX IF NOT EXISTS</span> idx_comment_checklist_item
+    <span class="kw">ON</span> comments(checklist_item_id);
+
+<span class="cmt">-- 태스크 열 때 항목별 댓글 수를 한 번에 세기 위한 복합 인덱스</span>
+<span class="kw">CREATE INDEX IF NOT EXISTS</span> idx_comment_task_checklist
+    <span class="kw">ON</span> comments(task_id, checklist_item_id);</pre>
+
+      <div class="callout callout-warn">
+        <div class="callout-title">FK 매핑이 아니라 문자열로 든다</div>
+        <p>
+          <code>ChecklistItem</code>에는 <code>@SQLRestriction("deleted_at IS NULL")</code>이 걸려 있다.
+          <code>Comment</code>에서 <code>@ManyToOne ChecklistItem</code>으로 매핑하면 항목을 휴지통에 넣는 순간
+          기존 댓글을 읽을 때 프록시 해석이 깨진다(<code>EntityNotFoundException</code>).
+          그러므로 <strong>엔티티 연관이 아니라 <code>String checklistItemId</code> 컬럼</strong>으로 들고,
+          제목은 조회 시 별도 쿼리로 붙인다. DB FK 제약도 걸지 않는다 —
+          휴지통·복원 흐름과 충돌한다.
+        </p>
+      </div>
+
+      <p>4단계(선택)에서 항목 본문이 필요해지면 컬럼 하나가 더 붙는다.</p>
+
+      <pre><span class="cmt">-- 4단계에서만. 지금은 만들지 않는다.</span>
+<span class="kw">DO</span> $$ <span class="kw">BEGIN</span>
+    <span class="kw">ALTER TABLE</span> checklist_items <span class="kw">ADD COLUMN</span> description <span class="kw">TEXT</span>;
+<span class="kw">EXCEPTION WHEN</span> duplicate_column <span class="kw">THEN NULL</span>;
+<span class="kw">END</span> $$;</pre>
+    </section>
+
+    <!-- ============ API ============ -->
+    <section id="api">
+      <div class="sec-head">
+        <div class="sec-tag">API</div>
+        <h2>기존 엔드포인트에 필드만 얹는다</h2>
+      </div>
+      <p>
+        새 경로를 만들지 않는 것이 이 설계의 요점이다. 프론트가 이미 호출하고 있는 네 곳에
+        필드가 늘어날 뿐이라, 클라이언트 구버전도 그대로 동작한다(추가 필드 무시).
+        모든 JSON 필드는 프로젝트 규칙대로 <code>snake_case</code>.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>엔드포인트</th><th>변경</th><th>구분</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="tight">POST&nbsp;…/tasks/{taskId}/comments</td>
+              <td>요청 body에 <code>checklist_item_id</code>(nullable) 추가.
+                  값이 있으면 해당 항목이 이 태스크 소속인지 검증 후 저장.</td>
+              <td><span class="chip chip-new">필드 추가</span></td>
+            </tr>
+            <tr>
+              <td class="tight">GET&nbsp;…/tasks/{taskId}/comments</td>
+              <td>응답 각 댓글에 <code>checklist_item_id</code>, <code>checklist_item_title</code>,
+                  <code>checklist_item_deleted</code> 추가. 항목 제목은 <code>IN</code> 쿼리 한 번으로 벌크 조회.</td>
+              <td><span class="chip chip-new">필드 추가</span></td>
+            </tr>
+            <tr>
+              <td class="tight">GET&nbsp;…/tasks/{taskId}/checklist</td>
+              <td>각 항목에 <code>comment_count</code> 추가. <code>GROUP BY</code> 카운트 쿼리 1회로 붙인다(N+1 금지).</td>
+              <td><span class="chip chip-new">필드 추가</span></td>
+            </tr>
+            <tr>
+              <td class="tight">PUT&nbsp;…/comments/{commentId}</td>
+              <td>변경 없음 — 소속 항목은 수정 대상이 아니다.</td>
+              <td><span class="chip chip-keep">그대로</span></td>
+            </tr>
+            <tr>
+              <td class="tight">PATCH&nbsp;…/checklist/{itemId}</td>
+              <td>(4단계) <code>description</code> 필드 추가.</td>
+              <td><span class="chip chip-open">보류</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>권한</h3>
+      <ul class="bullets">
+        <li>읽기 <code>checkViewerOrAbove</code>, 쓰기 <code>checkMemberOrAbove</code> — 기존 댓글과 동일하다.</li>
+        <li>항목 소속 검증을 반드시 넣는다: <code>checklist_item_id</code>의 <code>task_id</code>가 경로의
+            <code>taskId</code>와 다르면 <code>CHECKLIST_ITEM_NOT_FOUND</code>. 다른 태스크 항목에 댓글을
+            꽂는 경로를 막는다.</li>
+      </ul>
+    </section>
+
+    <!-- ============ UX ============ -->
+    <section id="ux">
+      <div class="sec-head">
+        <div class="sec-tag">화면</div>
+        <h2>오른쪽 패널이 항목 스레드로 바뀐다</h2>
+      </div>
+
+      <p>
+        태스크 모달은 이미 <strong>왼쪽 체크리스트 / 오른쪽 댓글</strong> 2단이다.
+        디테일을 위해 새 창을 띄우는 대신, 오른쪽 패널의 범위를 태스크 전체에서
+        항목 하나로 좁혔다 폈다 한다. 모달 위 모달이 생기지 않고, 항목을 보면서 대화할 수 있다.
+      </p>
+
+      <figure>
+        <div class="fig-frame">
+          <svg viewBox="0 0 900 400" role="img" aria-labelledby="wf-title">
+            <title id="wf-title">태스크 상세 모달 안에서 체크리스트 항목 스레드가 열린 모습</title>
+            <defs>
+              <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+                <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path>
+              </marker>
+            </defs>
+
+            <!-- modal frame -->
+            <rect x="8" y="10" width="884" height="380" rx="14"
+                  fill="var(--panel-soft)" stroke="var(--rule)"></rect>
+            <text x="28" y="40" font-family="var(--sans)" font-size="13" font-weight="700"
+                  fill="var(--ink)">로그인 개편 · 태스크 상세</text>
+            <line x1="8" y1="56" x2="892" y2="56" stroke="var(--rule-soft)"></line>
+
+            <!-- divider between panes -->
+            <line x1="516" y1="56" x2="516" y2="390" stroke="var(--rule)"></line>
+
+            <!-- left pane label -->
+            <text x="28" y="82" font-family="var(--mono)" font-size="11" letter-spacing="1"
+                  fill="var(--ink-faint)">CHECKLIST</text>
+
+            <!-- rows -->
+            <g font-family="var(--sans)" font-size="12.5" fill="var(--ink)">
+              <rect x="28" y="94" width="464" height="34" rx="8" fill="var(--panel)" stroke="var(--rule-soft)"></rect>
+              <rect x="40" y="105" width="12" height="12" rx="3" fill="none" stroke="var(--ink-faint)"></rect>
+              <text x="62" y="115">OAuth 리다이렉트 정리</text>
+
+              <rect x="28" y="134" width="464" height="34" rx="8" fill="var(--panel)" stroke="var(--rule-soft)"></rect>
+              <rect x="40" y="145" width="12" height="12" rx="3" fill="var(--emerald)" opacity="0.75"></rect>
+              <text x="62" y="155" fill="var(--ink-faint)" text-decoration="line-through">토큰 만료 정책 합의</text>
+
+              <!-- selected row -->
+              <rect x="28" y="174" width="464" height="34" rx="8"
+                    fill="var(--accent-soft)" stroke="var(--accent)"></rect>
+              <rect x="40" y="185" width="12" height="12" rx="3" fill="none" stroke="var(--accent)"></rect>
+              <text x="62" y="195" font-weight="700">에러 화면 문구 확정</text>
+              <rect x="392" y="181" width="46" height="20" rx="10" fill="var(--accent)" opacity="0.9"></rect>
+              <text x="415" y="195" font-size="11" font-weight="700" fill="var(--ground)"
+                    text-anchor="middle">💬 3</text>
+
+              <rect x="28" y="214" width="464" height="34" rx="8" fill="var(--panel)" stroke="var(--rule-soft)"></rect>
+              <rect x="40" y="225" width="12" height="12" rx="3" fill="none" stroke="var(--ink-faint)"></rect>
+              <text x="62" y="235">QA 시나리오 작성</text>
+              <rect x="400" y="221" width="38" height="20" rx="10" fill="var(--code-bg)"></rect>
+              <text x="419" y="235" font-size="11" font-weight="700" fill="var(--ink-faint)"
+                    text-anchor="middle">💬 1</text>
+            </g>
+
+            <!-- right pane: breadcrumb -->
+            <g font-family="var(--sans)">
+              <text x="540" y="82" font-size="11.5" fill="var(--accent)" font-weight="500">← 전체 댓글</text>
+              <rect x="540" y="94" width="182" height="22" rx="11" fill="var(--accent-soft)"></rect>
+              <text x="552" y="109" font-size="11.5" font-weight="700" fill="var(--accent)">체크리스트 · 에러 화면 문구 확정</text>
+
+              <!-- comment 1 -->
+              <circle cx="551" cy="140" r="10" fill="var(--teal)" opacity="0.55"></circle>
+              <text x="570" y="136" font-size="11.5" font-weight="700" fill="var(--ink)">유수경</text>
+              <text x="614" y="136" font-size="11" fill="var(--ink-faint)">2시간 전</text>
+              <text x="570" y="153" font-size="12" fill="var(--ink)">현재 문구 스샷입니다. 3번째가 애매해요</text>
+              <rect x="570" y="162" width="96" height="58" rx="7" fill="var(--code-bg)" stroke="var(--rule-soft)"></rect>
+              <path d="M586 206 L604 186 L618 202 L630 192 L650 214 Z" fill="var(--ink-faint)" opacity="0.45"></path>
+              <circle cx="596" cy="177" r="5" fill="var(--ink-faint)" opacity="0.4"></circle>
+
+              <!-- comment 2 -->
+              <circle cx="551" cy="248" r="10" fill="var(--accent)" opacity="0.55"></circle>
+              <text x="570" y="244" font-size="11.5" font-weight="700" fill="var(--ink)">박지훈</text>
+              <text x="614" y="244" font-size="11" fill="var(--ink-faint)">40분 전</text>
+              <text x="570" y="261" font-size="12" fill="var(--ink)">3번은 “다시 시도”로 통일하죠</text>
+              <rect x="570" y="270" width="42" height="18" rx="9" fill="var(--code-bg)"></rect>
+              <text x="591" y="283" font-size="10.5" text-anchor="middle" fill="var(--ink-muted)">👍 2</text>
+
+              <!-- input -->
+              <rect x="540" y="320" width="330" height="52" rx="10"
+                    fill="var(--panel)" stroke="var(--rule)"></rect>
+              <text x="556" y="342" font-size="11.5" fill="var(--ink-faint)">이 항목에 댓글 남기기…</text>
+              <text x="556" y="360" font-size="10.5" fill="var(--ink-faint)">📎 이미지 붙여넣기 · @멘션</text>
+            </g>
+
+            <!-- arrow from badge to thread header -->
+            <path d="M444 191 C480 191 500 108 534 105"
+                  fill="none" stroke="var(--accent)" stroke-width="1.4"
+                  stroke-dasharray="4 3" marker-end="url(#arw)"></path>
+          </svg>
+        </div>
+        <figcaption>
+          항목 행의 💬 뱃지를 누르면 오른쪽 패널이 그 항목 스레드로 좁혀지고,
+          "← 전체 댓글"로 되돌아온다. 뱃지 숫자는 <code>comment_count</code>다.
+        </figcaption>
+      </figure>
+
+      <h3>기본 상태 — 전체 댓글</h3>
+      <ul class="bullets">
+        <li>패널은 지금처럼 태스크의 <strong>모든</strong> 댓글을 시간순으로 보여준다.
+            항목 댓글도 여기 그대로 섞인다 — 요구사항 그대로다.</li>
+        <li>항목 댓글에는 본문 위에 작은 칩이 붙는다:
+            <span class="chip chip-new">체크리스트 · 에러 화면 문구 확정</span></li>
+        <li>칩을 누르면 왼쪽에서 해당 행이 강조된다. 이미 있는
+            <code>highlightChecklistItemId</code> 흐름을 그대로 태운다.</li>
+        <li>삭제된 항목의 댓글은 칩에 취소선 — 대화 기록은 지우지 않는다.</li>
+      </ul>
+
+      <h3>좁힌 상태 — 항목 스레드</h3>
+      <ul class="bullets">
+        <li>진입: 행의 💬 뱃지 클릭, 또는 행 우측 메뉴의 "디테일".</li>
+        <li>패널 상단에 항목 제목 + "← 전체 댓글" 브레드크럼. 입력창 placeholder도
+            "이 항목에 댓글 남기기…"로 바뀌어 어디에 쓰는지가 화면에 드러난다.</li>
+        <li>이 상태에서 쓴 댓글은 <code>checklist_item_id</code>가 실린다. 그 외에는 전부 동일 —
+            이미지 첨부·멘션·리액션·답글 다 된다.</li>
+        <li>필터는 <strong>클라이언트에서</strong> 한다. 이미 전체 목록을 받아왔으므로 재요청이 없다.</li>
+      </ul>
+
+      <div class="callout callout-warn">
+        <div class="callout-title">모바일</div>
+        <p>
+          모바일에서는 2단이 위아래로 쌓인다(<code>border-t md:border-l</code>).
+          항목 스레드로 진입하면 댓글 영역으로 자동 스크롤해야 한다 —
+          안 그러면 뱃지를 눌렀는데 화면이 안 변한 것처럼 보인다.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ 실시간/알림 ============ -->
+    <section id="realtime">
+      <div class="sec-head">
+        <div class="sec-tag">동기화</div>
+        <h2>실시간과 알림</h2>
+      </div>
+
+      <h3>WebSocket — 새 이벤트 없음</h3>
+      <p>
+        <code>COMMENT_CREATED</code> 페이로드가 곧 <code>CommentResponse.Detail</code>이므로,
+        여기에 <code>checklist_item_id</code>가 실리면 기존 <code>wsCommentEvent</code> 핸들러가
+        그대로 처리한다. 추가로 할 일은 하나: 이벤트를 받으면 왼쪽 행의
+        <code>comment_count</code>를 ±1 해준다.
+      </p>
+
+      <h3>알림 — 대상을 좁힌다</h3>
+      <p>
+        지금 태스크 댓글은 <strong>태스크의 모든 체크리스트 담당자</strong>에게 간다.
+        항목이 지정된 댓글까지 그렇게 뿌리면 20줄짜리 체크리스트에서 소음이 20배가 된다.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>댓글 종류</th><th>알림 대상</th><th>문구</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="lead">태스크 댓글</td>
+              <td>태스크 생성자 + 전체 체크리스트 담당자 <span class="chip chip-keep">그대로</span></td>
+              <td>변경 없음</td>
+            </tr>
+            <tr>
+              <td class="lead">항목 댓글</td>
+              <td><strong>그 항목의 담당자</strong> + 태스크 생성자 <span class="chip chip-new">신규</span></td>
+              <td>슬랙/디스코드에 <code>[항목명]</code> 접두 표시</td>
+            </tr>
+            <tr>
+              <td class="lead">멘션</td>
+              <td>멘션된 사람 <span class="chip chip-keep">그대로</span></td>
+              <td>기존 중복 제거 로직 유지</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:14px;color:var(--ink-muted)">
+        딥링크는 이미 있는 <code>highlightChecklistItemId</code> 파라미터로 연결하면
+        알림 클릭 → 태스크 모달 → 해당 항목 강조까지 이어진다.
+      </p>
+    </section>
+
+    <!-- ============ 엣지 케이스 ============ -->
+    <section id="edges">
+      <div class="sec-head">
+        <div class="sec-tag">함정</div>
+        <h2>댓글이 항목을 따라다녀야 하는 곳</h2>
+      </div>
+      <p>
+        A안의 유일한 비용이 여기다. 체크리스트 항목은 <strong>움직이고, 합쳐지고, 지워진다.</strong>
+        각 경로에서 댓글 소속을 맞춰주지 않으면 댓글이 엉뚱한 태스크에 남는다.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>상황</th><th>지금 동작</th><th>추가할 처리</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="lead">항목을 다른 태스크로 이동</td>
+              <td><code>moveChecklistItemToTask</code> — 항목의 <code>task_id</code>만 바뀜</td>
+              <td>그 항목 댓글의 <code>task_id</code>도 함께 <code>UPDATE</code>.
+                  안 하면 댓글이 원래 태스크에 고아로 남는다.</td>
+            </tr>
+            <tr>
+              <td class="lead">항목 병합</td>
+              <td><code>mergeChecklistItems</code> — 소스 항목 삭제, 타임블록만 이관</td>
+              <td>소스 항목 댓글의 <code>checklist_item_id</code>를 대표 항목으로 재지정.</td>
+            </tr>
+            <tr>
+              <td class="lead">항목 휴지통 이동</td>
+              <td>soft delete (<code>deleted_at</code>)</td>
+              <td>댓글은 <strong>건드리지 않는다</strong>. 태스크 댓글 목록엔 계속 보이되
+                  칩에 취소선. 복원하면 그대로 돌아온다.</td>
+            </tr>
+            <tr>
+              <td class="lead">항목 영구 삭제</td>
+              <td><code>hardDeleteChecklistItem</code> — row 삭제</td>
+              <td>댓글의 <code>checklist_item_id</code>를 <code>NULL</code>로 떨어뜨린다.
+                  댓글 자체는 태스크 댓글로 남는다 — 대화 기록은 지우지 않는다.</td>
+            </tr>
+            <tr>
+              <td class="lead">태스크 삭제</td>
+              <td>댓글 cascade 삭제</td>
+              <td>변경 없음. 항목도 같이 사라진다.</td>
+            </tr>
+            <tr>
+              <td class="lead">개인 스페이스</td>
+              <td><code>boardId</code>가 없어 <code>CommentPanel</code> 자체가 안 뜬다</td>
+              <td>항목 뱃지도 보드에서만 노출. 개인 태스크는 이번 범위 밖.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout-warn">
+        <div class="callout-title">JIRA 에코 주의</div>
+        <p>
+          댓글 생성은 <code>CommentCreatedEvent</code>를 발행하고, JIRA 연동 보드에서는
+          이게 JIRA 코멘트로 올라간다. 항목 댓글도 같은 경로를 타면 JIRA 이슈에
+          맥락 없는 조각들이 쌓인다. 접두어를 붙여 올릴지, 항목 댓글은 JIRA로 보내지 않을지
+          <a href="#questions">결정이 필요하다</a>.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ 롤아웃 ============ -->
+    <section id="rollout">
+      <div class="sec-head">
+        <div class="sec-tag">순서</div>
+        <h2>작업 순서</h2>
+      </div>
+      <p>
+        앞 단계가 끝나야 다음 단계가 화면에 나타나는 실제 의존 순서다.
+        1–2단계까지만 배포해도 요구사항은 충족된다.
+      </p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-n">1</div>
+          <div class="step-body">
+            <h3>백엔드 — 소속 컬럼과 검증</h3>
+            <p>
+              마이그레이션, <code>Comment</code>에 <code>String checklistItemId</code> 추가,
+              생성 시 항목–태스크 소속 검증, 응답 DTO에 항목 id/제목/삭제여부,
+              체크리스트 응답에 <code>comment_count</code>, 그리고 이동·병합·영구삭제 3경로의 댓글 동기화.
+            </p>
+            <div class="step-files">
+              comment/Comment.java · comment/dto/CommentRequest.java · CommentResponse.java<br>
+              comment/service/CommentService.java · comment/CommentRepository.java<br>
+              checklist/service/ChecklistService.java · checklist/dto/ChecklistResponse.java<br>
+              resources/db/migration/V20260806_HHmmss__add_checklist_item_id_to_comments.sql
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-n">2</div>
+          <div class="step-body">
+            <h3>프론트 — 뱃지, 칩, 스레드 전환</h3>
+            <p>
+              항목 행에 💬 뱃지, 오른쪽 패널의 스코프 상태(전체 ↔ 항목), 댓글에 체크리스트 칩과
+              칩→행 점프, 실시간 이벤트 수신 시 카운트 증감. 스코프 상태는
+              <code>TaskDetailModal</code>이 들고 <code>CommentPanel</code>에 내려준다.
+            </p>
+            <div class="step-files">
+              components/TaskDetailModal.tsx (ChecklistItemRow · SortableChecklistItemRow)<br>
+              components/CommentPanel.tsx · utils/api.ts · types/index.ts<br>
+              hooks/useBoardWebSocketHandlers.ts · i18n/locales × 10
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-n">3</div>
+          <div class="step-body">
+            <h3>알림 대상 정리</h3>
+            <p>
+              항목 댓글의 알림 수신자를 그 항목 담당자로 좁히고, 슬랙·디스코드 문구에 항목명을
+              넣는다. 딥링크를 항목 하이라이트까지 연결한다.
+            </p>
+            <div class="step-files">
+              notification/service/NotificationService.java<br>
+              integration/slack/service/SlackNotificationService.java<br>
+              integration/discord/service/DiscordNotificationService.java
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-n">4</div>
+          <div class="step-body">
+            <h3>(선택) 항목 본문 + 인라인 이미지</h3>
+            <p>
+              1–2단계를 써 보고 "댓글 말고 항목 자체에 고정된 설명이 필요하다"가 확인되면
+              <code>description</code>을 얹는다. 이미지 업로드는 노트가 쓰는
+              <code>/api/v1/files/upload-note</code>를 재사용해 새 첨부 테이블을 만들지 않는다.
+            </p>
+            <div class="step-files">
+              checklist/ChecklistItem.java · ChecklistRequest.Patch · ChecklistResponse.Detail<br>
+              신규 마이그레이션 1건
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 질문 ============ -->
+    <section id="questions">
+      <div class="sec-head">
+        <div class="sec-tag">확인</div>
+        <h2>착수 전에 정해야 할 것</h2>
+      </div>
+      <p>기본값을 정해뒀으니, 다르게 갈 것만 말해주면 된다.</p>
+
+      <div class="qlist">
+        <div class="q">
+          <div class="q-title">항목 본문(설명)이 지금 필요한가?</div>
+          <p>
+            기본값 = <strong>아니오</strong>. 이미지는 댓글 첨부로 충분하다고 보고 1–2단계만 만든다.
+            "항목마다 스펙 본문을 적고 싶다"면 4단계를 1단계와 함께 넣는다.
+          </p>
+        </div>
+
+        <div class="q">
+          <div class="q-title">항목 댓글도 JIRA로 올릴까?</div>
+          <p>
+            기본값 = <strong>올린다, 단 <code>[항목명]</code> 접두어를 붙여서</strong>.
+            JIRA 이슈를 깔끔하게 유지하고 싶다면 항목 댓글은 BRIDGE에만 남기는 쪽으로 뒤집는다.
+          </p>
+        </div>
+
+        <div class="q">
+          <div class="q-title">기본 화면은 "전체 댓글"인가?</div>
+          <p>
+            기본값 = <strong>전체</strong>. 태스크를 열면 지금과 똑같이 모든 댓글이 보이고,
+            항목 댓글은 칩으로 구분된다. 반대로 "항목별로만 보고 싶다"면 패널에 토글을 둘 수 있지만,
+            요청하신 "그대로 보인다"와는 어긋난다.
+          </p>
+        </div>
+
+        <div class="q">
+          <div class="q-title">체크리스트 항목에 첨부 개수 제한은?</div>
+          <p>
+            기본값 = <strong>댓글당 5개</strong>(기존 제한 그대로). 항목 단위 총량 제한은 두지 않는다.
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>

@@ -4139,5 +4139,21 @@
     "noSearchResults": "沒有搜尋結果",
     "clearSearch": "清除搜尋",
     "excludeFeature": "從心智圖中移除"
+  },
+  "checklistDetail": {
+    "open": "開啟詳情",
+    "title": "項目詳情",
+    "info": "項目資訊",
+    "gallery": "圖片 {{count}}",
+    "galleryHint": "來自留言",
+    "noImages": "在留言中上傳的圖片會匯集在這裡",
+    "comments": "留言 {{count}}",
+    "placeholder": "對此項目留言…",
+    "empty": "尚無對話",
+    "emptyHint": "留下第一則留言",
+    "backToTask": "查看任務全部留言",
+    "deletedBanner": "此項目已刪除 · 僅可檢視",
+    "chip": "檢查清單 · {{title}}",
+    "unknownItem": "已刪除的項目"
   }
 }

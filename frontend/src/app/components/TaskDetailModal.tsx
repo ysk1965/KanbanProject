@@ -86,6 +86,7 @@ import { useAutofixTaskJobs } from "../hooks/useAutofixTaskJobs";
 import { useAutofixRunnerStatus } from "../hooks/useAutofixRunnerStatus";
 import { TaskAIChecklistModal } from "./TaskAIChecklistModal";
 import { ChecklistHistoryModal } from "./ChecklistHistoryModal";
+import { ChecklistDetailModal } from "./ChecklistDetailModal";
 import { TaskHeaderActionsMenu } from "./TaskHeaderActionsMenu";
 import { BlockStatusPicker } from "./BlockStatusPicker";
 import { CommentPanel } from "./CommentPanel";
@@ -163,6 +164,23 @@ interface TaskDetailModalProps {
   onOpenFeature?: (featureId: string) => void;
   onChecklistSync?: (taskId: string, items: ChecklistItem[]) => void;
   highlightChecklistItemId?: string | null;
+}
+
+/**
+ * 체크리스트 항목 병합 — 들어온 값에 comment_count가 없으면 기존 값을 지킨다.
+ *
+ * 댓글 수는 목록 응답에만 실린다. 단건 응답(생성·수정·토글)을 그대로 스프레드하면
+ * 체크 한 번에 💬 뱃지가 사라진다.
+ */
+function mergeChecklistItem(
+  prev: ChecklistItem,
+  incoming: Partial<ChecklistItem>,
+): ChecklistItem {
+  const merged = { ...prev, ...incoming };
+  if (incoming.comment_count == null) {
+    merged.comment_count = prev.comment_count;
+  }
+  return merged;
 }
 
 export function TaskDetailModal({
@@ -273,6 +291,15 @@ export function TaskDetailModal({
   // '__no_assignee__' 토큰은 미할당 항목을 의미
   const [filterAssigneeIds, setFilterAssigneeIds] = useState<string[]>([]);
   const [milestonePickerOpen, setMilestonePickerOpen] = useState(false);
+  /** 디테일 모달이 열려 있는 항목. null이면 닫힌 상태 */
+  const [detailItemId, setDetailItemId] = useState<string | null>(null);
+  /**
+   * 마지막으로 본 항목의 모습. 열려 있는 동안 남이 그 항목을 지우면 목록에서는 사라지는데,
+   * 그렇다고 보던 창을 없애면 방금 읽던 대화까지 같이 사라진다. 마지막 모습으로 계속 읽게 둔다.
+   */
+  const lastDetailItemRef = useRef<ChecklistItem | null>(null);
+  /** 값이 오르면 태스크 댓글 패널이 목록을 조용히 다시 받아온다 */
+  const [commentReloadToken, setCommentReloadToken] = useState(0);
   const highlightChecklistRef = useRef<HTMLDivElement>(null);
   const hasScrolledToHighlightRef = useRef(false);
 
@@ -327,6 +354,8 @@ export function TaskDetailModal({
                   }
                 : null,
               contractor: item.contractor ?? null,
+              // 목록 응답에만 실려 온다. 이후 단건 갱신에서는 이 값을 보존한다.
+              comment_count: item.comment_count ?? 0,
             }));
             setChecklistItems(items);
 
@@ -382,7 +411,7 @@ export function TaskDetailModal({
         const item = payload.item as ChecklistItem;
         setChecklistItems((prev) => {
           const newItems = prev.map((ci) =>
-            ci.id === item.id ? { ...ci, ...item } : ci,
+            ci.id === item.id ? mergeChecklistItem(ci, item) : ci,
           );
           const completed = newItems.filter((ci) => ci.completed).length;
           onUpdate({
@@ -425,6 +454,53 @@ export function TaskDetailModal({
       }
     }
   }, [wsChecklistEvent, task, open, onUpdate]);
+
+  /**
+   * 행의 💬 뱃지 숫자를 조정한다.
+   *
+   * 내가 쓴 댓글은 여기서 바로 올리고, 남이 쓴 댓글은 아래 WebSocket 훅이 올린다.
+   * 자기 이벤트는 소켓에서 걸러지므로(useBoardWebSocket) 두 번 세지 않는다.
+   */
+  const adjustChecklistCommentCount = useCallback(
+    (itemId: string, delta: number) => {
+      setChecklistItems((prev) =>
+        prev.map((ci) =>
+          ci.id === itemId
+            ? {
+                ...ci,
+                comment_count: Math.max(0, (ci.comment_count ?? 0) + delta),
+              }
+            : ci,
+        ),
+      );
+    },
+    [],
+  );
+
+  // 디테일로 연 항목의 마지막 모습을 붙잡아 둔다 (삭제되어도 읽기는 계속되도록)
+  useEffect(() => {
+    if (!detailItemId) return;
+    const found = checklistItems.find((ci) => ci.id === detailItemId);
+    if (found) lastDetailItemRef.current = found;
+  }, [detailItemId, checklistItems]);
+
+  // 남이 남긴 항목 댓글 → 해당 행의 뱃지 갱신 (열려 있는 디테일 스레드는 CommentPanel이 따로 처리)
+  useEffect(() => {
+    if (!wsCommentEvent || !task || !open) return;
+    const { type, data } = wsCommentEvent;
+    const payload = data as {
+      task_id?: string;
+      checklist_item_id?: string | null;
+    };
+    if (payload?.task_id !== task.id) return;
+    if (!payload.checklist_item_id) return;
+
+    if (type === "COMMENT_CREATED") {
+      adjustChecklistCommentCount(payload.checklist_item_id, 1);
+    } else if (type === "COMMENT_DELETED") {
+      adjustChecklistCommentCount(payload.checklist_item_id, -1);
+    }
+  }, [wsCommentEvent, task, open, adjustChecklistCommentCount]);
 
   // Auto-save: 설명 debounce + 기간 즉시 저장
   const descriptionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -2243,6 +2319,12 @@ export function TaskDetailModal({
                                   ? highlightChecklistRef
                                   : undefined
                               }
+                              // 개인 스페이스는 boardId가 없어 댓글 API 자체가 없다 → 뱃지도 숨긴다
+                              onOpenDetail={
+                                boardId
+                                  ? () => setDetailItemId(item.id)
+                                  : undefined
+                              }
                             />
                           ))}
                         </SortableContext>
@@ -2276,11 +2358,50 @@ export function TaskDetailModal({
                 isAdminOrOwner={isAdminOrOwner}
                 wsCommentEvent={wsCommentEvent}
                 onClose={handleClose}
+                onOpenChecklistItem={setDetailItemId}
+                onChecklistCommentCountChange={adjustChecklistCommentCount}
+                reloadToken={commentReloadToken}
               />
             </div>
           )}
         </div>
       </MotionModal>
+
+      {/*
+        체크리스트 항목 디테일 — 태스크 모달 위에 겹쳐 뜬다.
+        항목은 목록에서 찾아 넘기므로 토글·수정이 그대로 반영되고,
+        남이 항목을 지워 목록에서 사라지면 itemMissing으로 읽기 전용이 된다.
+      */}
+      {boardId && detailItemId && (
+        <ChecklistDetailModal
+          open={!!detailItemId}
+          onClose={() => {
+            setDetailItemId(null);
+            // 디테일에서 쓰거나 지운 댓글을 뒤의 태스크 패널에도 반영시킨다
+            setCommentReloadToken((v) => v + 1);
+          }}
+          boardId={boardId}
+          taskId={task.id}
+          item={
+            checklistItems.find((ci) => ci.id === detailItemId) ??
+            lastDetailItemRef.current
+          }
+          itemMissing={!checklistItems.some((ci) => ci.id === detailItemId)}
+          taskTitle={editedTask?.title || task.title}
+          featureName={task.feature_title}
+          milestoneName={
+            milestones.find((m) => m.id === task.milestone_id)?.title
+          }
+          boardMembers={boardMembers}
+          currentUser={currentUser}
+          canEdit={canEdit}
+          isAdminOrOwner={isAdminOrOwner}
+          wsCommentEvent={wsCommentEvent}
+          timeBlocks={checklistTimeBlocksMap[detailItemId]}
+          onToggle={() => handleToggleChecklistItem(detailItemId)}
+          onCommentCountChange={adjustChecklistCommentCount}
+        />
+      )}
 
       {/* 삭제 다이얼로그 */}
       <MotionModal
@@ -3602,6 +3723,8 @@ function SortableChecklistItemRow(props: {
   preloadedTimeBlocks?: ScheduleBlockDetailResponse[];
   isHighlighted?: boolean;
   highlightRef?: React.Ref<HTMLDivElement>;
+  /** 이 항목의 디테일을 연다. boardId가 없는 개인 스페이스에서는 넘어오지 않는다. */
+  onOpenDetail?: () => void;
 }) {
   const dragEnabled = !!props.canEdit && !props.dragDisabled;
   const {
@@ -3694,9 +3817,7 @@ function AutofixSuggestionPanel({ suggestion }: { suggestion: string }) {
           onClick={handleCopy}
           className="ml-auto text-xs text-bridge-accent hover:underline"
         >
-          {copied
-            ? t("common.copied", "복사됨")
-            : t("common.copy", "복사")}
+          {copied ? t("common.copied", "복사됨") : t("common.copy", "복사")}
         </button>
       </div>
       <pre className="px-3 py-2 text-xs text-foreground whitespace-pre-wrap break-words font-normal max-h-64 overflow-y-auto custom-scrollbar">
@@ -3810,7 +3931,10 @@ function AutofixItemChip({
           onToggle();
         }}
         aria-expanded={expanded}
-        title={t("autofix.hasSuggestion", "고칠 내용을 남겼습니다 — 눌러서 보기")}
+        title={t(
+          "autofix.hasSuggestion",
+          "고칠 내용을 남겼습니다 — 눌러서 보기",
+        )}
         className="hover:opacity-80 transition-opacity"
       >
         {chip}
@@ -3844,6 +3968,7 @@ function ChecklistItemRow({
   dragHandleProps,
   preloadedTimeBlocks,
   isHighlighted = false,
+  onOpenDetail,
 }: {
   item: ChecklistItem;
   onToggle: () => void;
@@ -3865,6 +3990,8 @@ function ChecklistItemRow({
   dragHandleProps?: React.HTMLAttributes<HTMLElement>;
   preloadedTimeBlocks?: ScheduleBlockDetailResponse[];
   isHighlighted?: boolean;
+  /** 이 항목의 디테일을 연다. boardId가 없는 개인 스페이스에서는 넘어오지 않는다. */
+  onOpenDetail?: () => void;
 }) {
   const { t } = useTranslation();
   const reducedMotion = useReducedMotion();
@@ -4451,6 +4578,36 @@ function ChecklistItemRow({
           />
         )}
 
+        {/*
+          댓글 뱃지 — 이 항목의 디테일로 가는 문.
+          댓글이 있으면 항상 보이고, 없으면 hover에서만 나타난다(기존 ⋮ 버튼과 같은 규칙).
+          평생 댓글이 안 달릴 항목이 대부분인데 그걸 매 줄마다 말하면 체크리스트가 시끄러워진다.
+        */}
+        {onOpenDetail &&
+          (() => {
+            const count = item.comment_count ?? 0;
+            return (
+              <button
+                type="button"
+                onClick={(e) => {
+                  // 행은 드래그 대상이다 — 클릭이 위로 새지 않게 막는다
+                  e.stopPropagation();
+                  onOpenDetail();
+                }}
+                title={t("checklistDetail.open", "디테일 열기")}
+                aria-label={t("checklistDetail.open", "디테일 열기")}
+                className={`flex items-center gap-1 h-[22px] px-2 rounded-full text-xs font-bold tabular-nums transition-colors flex-none ${
+                  count > 0
+                    ? "bg-bridge-accent/15 text-bridge-accent hover:bg-bridge-accent/25"
+                    : "text-slate-500 hover:text-bridge-accent hover:bg-foreground/5 opacity-0 group-hover:opacity-100"
+                }`}
+              >
+                <MessageSquare className="h-3 w-3" />
+                {count > 0 ? count : ""}
+              </button>
+            );
+          })()}
+
         {/* 타임블록 총합 시간 + 토글 버튼 */}
         {totalTimeMinutes > 0 && (
           <span className="text-xs text-bridge-accent font-medium whitespace-nowrap">
@@ -4510,6 +4667,15 @@ function ChecklistItemRow({
                     </DropdownMenuItem>
                     <DropdownMenuSeparator className="bg-bridge-border" />
                   </>
+                )}
+                {onOpenDetail && (
+                  <DropdownMenuItem
+                    onClick={onOpenDetail}
+                    className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5 mr-2" />
+                    {t("checklistDetail.open", "디테일 열기")}
+                  </DropdownMenuItem>
                 )}
                 {boardId && (
                   <>

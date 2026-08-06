@@ -4264,5 +4264,21 @@
     "noSearchResults": "कोई खोज परिणाम नहीं",
     "clearSearch": "खोज साफ़ करें",
     "excludeFeature": "माइंड मैप से हटाएं"
+  },
+  "checklistDetail": {
+    "open": "विवरण खोलें",
+    "title": "आइटम विवरण",
+    "info": "आइटम जानकारी",
+    "gallery": "छवियाँ {{count}}",
+    "galleryHint": "टिप्पणियों से",
+    "noImages": "टिप्पणियों में डाली गई छवियाँ यहाँ दिखेंगी",
+    "comments": "टिप्पणियाँ {{count}}",
+    "placeholder": "इस आइटम पर टिप्पणी करें…",
+    "empty": "अभी कोई बातचीत नहीं",
+    "emptyHint": "पहली टिप्पणी छोड़ें",
+    "backToTask": "टास्क की सभी टिप्पणियाँ देखें",
+    "deletedBanner": "यह आइटम हटा दिया गया · केवल पढ़ें",
+    "chip": "चेकलिस्ट · {{title}}",
+    "unknownItem": "हटाया गया आइटम"
   }
 }

@@ -1,79 +1,145 @@
-import { useState, useEffect, useRef, useCallback, useMemo, Suspense, memo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { createPortal } from 'react-dom';
-import { TaskComment, CommentAttachment, CommentReaction, User, BoardCustomEmoji, BoardWebSocketEvent } from '../types';
-import { commentAPI, checklistAPI, fileAPI, customEmojiAPI, resolveFileUrl, CommentAISummaryResponse, mentionGroupAPI, MentionGroupDetail } from '../utils/api';
-import { BoardMember } from './ShareBoardModal';
-import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
-import { formatDate } from '../utils/dateUtils';
-import { escStack } from '../hooks/useEscClose';
-import { MotionModal } from './ui/MotionModal';
-import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play, ChevronLeft, ChevronRight, SmilePlus, Plus, ImageIcon, Sparkles, CheckCircle2, HelpCircle, ListChecks, Users, Reply } from 'lucide-react';
-import { VideoThumbnail } from './VideoThumbnail';
-import { MentionGroupModal } from './MentionGroupModal';
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+  Suspense,
+  memo,
+} from "react";
+import { useTranslation } from "react-i18next";
+import { createPortal } from "react-dom";
+import {
+  TaskComment,
+  CommentAttachment,
+  CommentReaction,
+  User,
+  BoardCustomEmoji,
+  BoardWebSocketEvent,
+} from "../types";
+import {
+  commentAPI,
+  checklistAPI,
+  fileAPI,
+  customEmojiAPI,
+  resolveFileUrl,
+  CommentAISummaryResponse,
+  mentionGroupAPI,
+  MentionGroupDetail,
+} from "../utils/api";
+import { BoardMember } from "./ShareBoardModal";
+import { getAssigneeClasses, getInitials } from "../utils/assigneeColor";
+import { formatDate } from "../utils/dateUtils";
+import { escStack } from "../hooks/useEscClose";
+import { MotionModal } from "./ui/MotionModal";
+import {
+  ListChecks,
+  MessageSquare,
+  Send,
+  RefreshCw,
+  Pencil,
+  Trash2,
+  X,
+  Check,
+  Loader2,
+  Paperclip,
+  Play,
+  ChevronLeft,
+  ChevronRight,
+  SmilePlus,
+  Plus,
+  ImageIcon,
+  Sparkles,
+  CheckCircle2,
+  HelpCircle,
+  ListChecks,
+  Users,
+  Reply,
+} from "lucide-react";
+import { VideoThumbnail } from "./VideoThumbnail";
+import { MentionGroupModal } from "./MentionGroupModal";
 
-import { lazyWithRetry } from '../utils/lazyWithRetry';
-const VideoLightbox = lazyWithRetry(() => import('./VideoLightbox').then(m => ({ default: m.VideoLightbox })), 'VideoLightbox');
+import { lazyWithRetry } from "../utils/lazyWithRetry";
+const VideoLightbox = lazyWithRetry(
+  () => import("./VideoLightbox").then((m) => ({ default: m.VideoLightbox })),
+  "VideoLightbox",
+);
 
 // ========== 상수 & 유틸 ==========
 
 const MAX_FILES = 5;
-const MAX_FILE_SIZE_IMAGE = 30 * 1024 * 1024;     // 30MB
-const MAX_FILE_SIZE_VIDEO = 50 * 1024 * 1024;      // 50MB
-const MAX_FILE_SIZE_DOC = 30 * 1024 * 1024;        // 30MB
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
-const ALLOWED_DOC_TYPES = [
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.ms-powerpoint',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'text/plain',
-  'text/markdown',
+const MAX_FILE_SIZE_IMAGE = 30 * 1024 * 1024; // 30MB
+const MAX_FILE_SIZE_VIDEO = 50 * 1024 * 1024; // 50MB
+const MAX_FILE_SIZE_DOC = 30 * 1024 * 1024; // 30MB
+const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
 ];
-const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES, ...ALLOWED_DOC_TYPES];
+const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
+const ALLOWED_DOC_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+  "text/markdown",
+];
+const ALLOWED_TYPES = [
+  ...ALLOWED_IMAGE_TYPES,
+  ...ALLOWED_VIDEO_TYPES,
+  ...ALLOWED_DOC_TYPES,
+];
 
-const isVideoType = (type: string) => type?.startsWith('video/');
-const isVideoAttachment = (att: CommentAttachment) => att.content_type?.startsWith('video/');
+const isVideoType = (type: string) => type?.startsWith("video/");
+const isVideoAttachment = (att: CommentAttachment) =>
+  att.content_type?.startsWith("video/");
 const isDocType = (type: string) => ALLOWED_DOC_TYPES.includes(type);
-const isDocAttachment = (att: CommentAttachment) => isDocType(att.content_type || '');
+const isDocAttachment = (att: CommentAttachment) =>
+  isDocType(att.content_type || "");
 
-const DOC_ACCEPT = ALLOWED_DOC_TYPES.join(',');
+const DOC_ACCEPT = ALLOWED_DOC_TYPES.join(",");
 const FILE_ACCEPT = `image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime,${DOC_ACCEPT}`;
 
 const getDocIcon = (type: string): string => {
-  if (type === 'application/pdf') return 'PDF';
-  if (type.includes('word') || type === 'application/msword') return 'DOC';
-  if (type.includes('spreadsheet') || type === 'application/vnd.ms-excel') return 'XLS';
-  if (type.includes('presentation') || type === 'application/vnd.ms-powerpoint') return 'PPT';
-  if (type === 'text/plain' || type === 'text/markdown') return 'TXT';
-  return 'FILE';
+  if (type === "application/pdf") return "PDF";
+  if (type.includes("word") || type === "application/msword") return "DOC";
+  if (type.includes("spreadsheet") || type === "application/vnd.ms-excel")
+    return "XLS";
+  if (type.includes("presentation") || type === "application/vnd.ms-powerpoint")
+    return "PPT";
+  if (type === "text/plain" || type === "text/markdown") return "TXT";
+  return "FILE";
 };
 
 const getDocColor = (type: string): string => {
-  if (type === 'application/pdf') return 'bg-red-500/15 text-red-400';
-  if (type.includes('word') || type === 'application/msword') return 'bg-blue-500/15 text-blue-400';
-  if (type.includes('spreadsheet') || type === 'application/vnd.ms-excel') return 'bg-emerald-500/15 text-emerald-400';
-  if (type.includes('presentation') || type === 'application/vnd.ms-powerpoint') return 'bg-orange-500/15 text-orange-400';
-  return 'bg-slate-500/15 text-slate-400';
+  if (type === "application/pdf") return "bg-red-500/15 text-red-400";
+  if (type.includes("word") || type === "application/msword")
+    return "bg-blue-500/15 text-blue-400";
+  if (type.includes("spreadsheet") || type === "application/vnd.ms-excel")
+    return "bg-emerald-500/15 text-emerald-400";
+  if (type.includes("presentation") || type === "application/vnd.ms-powerpoint")
+    return "bg-orange-500/15 text-orange-400";
+  return "bg-slate-500/15 text-slate-400";
 };
 
 function formatRelativeTime(dateStr: string): string {
-  const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
+  const date = new Date(dateStr.endsWith("Z") ? dateStr : dateStr + "Z");
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMinutes = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMinutes < 1) return 'just now';
+  if (diffMinutes < 1) return "just now";
   if (diffMinutes < 60) return `${diffMinutes}m`;
   if (diffHours < 24) return `${diffHours}h`;
   if (diffDays < 7) return `${diffDays}d`;
-  return formatDate(dateStr, 'M월 d일');
+  return formatDate(dateStr, "M월 d일");
 }
 
 function formatFileSize(bytes: number): string {
@@ -82,7 +148,20 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
-const REACTION_EMOJIS = ['👍', '❤️', '😄', '🎉', '🤔', '👀', '👏', '🔥', '✅', '🙏', '💯', '😢'];
+const REACTION_EMOJIS = [
+  "👍",
+  "❤️",
+  "😄",
+  "🎉",
+  "🤔",
+  "👀",
+  "👏",
+  "🔥",
+  "✅",
+  "🙏",
+  "💯",
+  "😢",
+];
 
 const URL_PATTERN = /(https?:\/\/[^\s<]+)/g;
 
@@ -91,8 +170,13 @@ function renderTextWithLinks(text: string, keyPrefix: string) {
   return parts.map((part, i) => {
     if (/^https?:\/\//.test(part)) {
       return (
-        <a key={`${keyPrefix}-${i}`} href={part} target="_blank" rel="noopener noreferrer"
-          className="text-bridge-accent hover:text-bridge-accent/80 underline underline-offset-2 break-all">
+        <a
+          key={`${keyPrefix}-${i}`}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-bridge-accent hover:text-bridge-accent/80 underline underline-offset-2 break-all"
+        >
           {part}
         </a>
       );
@@ -103,35 +187,51 @@ function renderTextWithLinks(text: string, keyPrefix: string) {
 
 function cleanMarkdownArtifacts(text: string): string {
   return text
-    .replace(/\\\n/g, '\n')
-    .replace(/\\$/gm, '')
-    .replace(/\*\*(.*?)\*\*/g, '$1')
-    .replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '$1')
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/`([^`]+)`/g, '$1');
+    .replace(/\\\n/g, "\n")
+    .replace(/\\$/gm, "")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/`([^`]+)`/g, "$1");
 }
 
-function renderContent(content: string, boardMembers: BoardMember[], mentionGroups: MentionGroupDetail[] = []) {
+function renderContent(
+  content: string,
+  boardMembers: BoardMember[],
+  mentionGroups: MentionGroupDetail[] = [],
+) {
   const cleaned = cleanMarkdownArtifacts(content);
-  const memberNames = boardMembers.map(m => m.name);
-  const groupNames = mentionGroups.map(g => g.name);
+  const memberNames = boardMembers.map((m) => m.name);
+  const groupNames = mentionGroups.map((g) => g.name);
   const allNames = [...memberNames, ...groupNames];
-  const mentionPattern = allNames.length > 0
-    ? new RegExp(`(@(?:${allNames.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}))(?=\\s|$)`, 'g')
-    : null;
-  if (!mentionPattern) return renderTextWithLinks(cleaned, 'root');
+  const mentionPattern =
+    allNames.length > 0
+      ? new RegExp(
+          `(@(?:${allNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")}))(?=\\s|$)`,
+          "g",
+        )
+      : null;
+  if (!mentionPattern) return renderTextWithLinks(cleaned, "root");
   const parts = cleaned.split(mentionPattern);
   return parts.map((part, i) => {
-    if (part.startsWith('@')) {
+    if (part.startsWith("@")) {
       const name = part.slice(1);
-      const member = boardMembers.find(m => m.name === name);
+      const member = boardMembers.find((m) => m.name === name);
       if (member) {
         const color = getAssigneeClasses(name, member.assigneeColor);
-        return <span key={i} className={`${color.text} font-medium`}>{part}</span>;
+        return (
+          <span key={i} className={`${color.text} font-medium`}>
+            {part}
+          </span>
+        );
       }
-      const group = mentionGroups.find(g => g.name === name);
+      const group = mentionGroups.find((g) => g.name === name);
       if (group) {
-        return <span key={i} className="text-bridge-secondary font-medium">{part}</span>;
+        return (
+          <span key={i} className="text-bridge-secondary font-medium">
+            {part}
+          </span>
+        );
       }
     }
     return <span key={i}>{renderTextWithLinks(part, `p${i}`)}</span>;
@@ -144,7 +244,7 @@ interface PendingFile {
   file: File;
   previewUrl: string;
   id: string;
-  tempKey?: string;     // 서버 업로드 완료 후 세팅
+  tempKey?: string; // 서버 업로드 완료 후 세팅
   uploading?: boolean;
   error?: string;
 }
@@ -158,12 +258,90 @@ interface CommentPanelProps {
   isAdminOrOwner?: boolean;
   wsCommentEvent?: BoardWebSocketEvent | null;
   onClose?: () => void;
+  /**
+   * 지정하면 그 체크리스트 항목의 댓글만 보여주고, 새 댓글도 그 항목에 달린다.
+   * 목록은 태스크 단위로 한 번만 받아 두고 여기서 걸러낸다 — 항목을 오갈 때마다 재요청하지 않는다.
+   */
+  checklistItemId?: string | null;
+  /** 디테일 모달 안에 들어갈 때. 자체 헤더·AI 요약·닫기 버튼을 접는다. */
+  variant?: "panel" | "embedded";
+  /** 체크리스트 칩 클릭 — 그 항목 디테일을 연다. 없으면 칩은 표시만 한다. */
+  onOpenChecklistItem?: (itemId: string) => void;
+  /** 댓글 수가 바뀌었을 때(작성·삭제·실시간 수신) 부모가 행 뱃지를 갱신하도록 알린다. */
+  onChecklistCommentCountChange?: (itemId: string, delta: number) => void;
+  /**
+   * 항목 스코프일 때 그 항목의 댓글 목록을 부모에 넘긴다.
+   * 디테일 모달의 이미지 갤러리가 이 목록을 본다 — 같은 데이터를 두 번 받아오지 않으려는 것이다.
+   */
+  onScopedCommentsChange?: (comments: TaskComment[]) => void;
+  /**
+   * 값이 바뀌면 목록을 조용히 다시 받아온다.
+   *
+   * 같은 태스크에 패널이 둘 뜰 수 있다(태스크 모달의 패널 + 디테일 모달 안의 스레드).
+   * 둘은 각자 상태를 들고 있고 자기 이벤트는 소켓에서 걸러지므로, 디테일에서 쓴 댓글이
+   * 뒤에 있는 패널에는 안 보인다. 디테일을 닫을 때 이 값을 올려 맞춘다.
+   * 리마운트가 아니라 새로고침이라 쓰다 만 입력이 날아가지 않는다.
+   */
+  reloadToken?: number;
 }
 
 // ========== 추출 서브 컴포넌트 (안정적 참조를 위해 CommentPanel 외부에 정의) ==========
 
+/**
+ * 항목 댓글이 어디서 왔는지 알려주는 칩.
+ *
+ * 태스크 댓글 목록에는 항목 댓글이 그대로 섞여 들어온다 — 그래서 출처를 말해 주는 표시가
+ * 없으면 "이건 무슨 얘기지"가 된다. 칩이 곧 그 항목으로 가는 문이기도 하다.
+ */
+const ChecklistOriginChip = memo(function ChecklistOriginChip({
+  itemId,
+  title,
+  deleted,
+  onOpen,
+}: {
+  itemId: string;
+  title?: string | null;
+  deleted: boolean;
+  onOpen?: (itemId: string) => void;
+}) {
+  const { t } = useTranslation();
+  const label = title || t("checklistDetail.unknownItem", "삭제된 항목");
+  const clickable = !!onOpen && !deleted;
+
+  const inner = (
+    <>
+      <ListChecks className="h-3 w-3 flex-shrink-0" />
+      <span className={`truncate ${deleted ? "line-through" : ""}`}>
+        {t("checklistDetail.chip", "체크리스트 · {{title}}", { title: label })}
+      </span>
+    </>
+  );
+
+  const base =
+    "inline-flex items-center gap-1 max-w-full mb-1 px-2 py-0.5 rounded-full text-xs font-bold bg-bridge-accent/15 text-bridge-accent";
+
+  if (!clickable) {
+    return (
+      <span className={`${base} ${deleted ? "opacity-70" : ""}`}>{inner}</span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen!(itemId)}
+      className={`${base} hover:bg-bridge-accent/25 transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50`}
+    >
+      {inner}
+    </button>
+  );
+});
+
 /** 댓글 첨부 그리드 (이미지 썸네일 + 영상 썸네일 + 문서 아이콘) */
-const AttachmentGrid = memo(function AttachmentGrid({ attachments, onOpenLightbox }: {
+const AttachmentGrid = memo(function AttachmentGrid({
+  attachments,
+  onOpenLightbox,
+}: {
   attachments: CommentAttachment[];
   onOpenLightbox: (attachmentId: string) => void;
 }) {
@@ -176,34 +354,58 @@ const AttachmentGrid = memo(function AttachmentGrid({ attachments, onOpenLightbo
 
         if (isDoc) {
           return (
-            <a key={att.id} href={resolveFileUrl(att.url)} target="_blank" rel="noopener noreferrer" download={att.file_name}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-foreground/[0.08] hover:border-foreground/[0.12] bg-foreground/[0.03] transition-colors max-w-[220px]">
-              <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${getDocColor(att.content_type || '')}`}>
-                {getDocIcon(att.content_type || '')}
+            <a
+              key={att.id}
+              href={resolveFileUrl(att.url)}
+              target="_blank"
+              rel="noopener noreferrer"
+              download={att.file_name}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-foreground/[0.08] hover:border-foreground/[0.12] bg-foreground/[0.03] transition-colors max-w-[220px]"
+            >
+              <span
+                className={`text-xs font-bold px-1.5 py-0.5 rounded ${getDocColor(att.content_type || "")}`}
+              >
+                {getDocIcon(att.content_type || "")}
               </span>
-              <span className="text-xs text-foreground truncate">{att.file_name}</span>
+              <span className="text-xs text-foreground truncate">
+                {att.file_name}
+              </span>
             </a>
           );
         }
 
         return (
-          <button key={att.id}
+          <button
+            key={att.id}
             onClick={() => onOpenLightbox(att.id)}
-            className="relative group/img rounded-md overflow-hidden border border-bridge-border hover:border-bridge-border transition-colors">
+            className="relative group/img rounded-md overflow-hidden border border-bridge-border hover:border-bridge-border transition-colors"
+          >
             {isVideo ? (
               <VideoThumbnail
                 videoUrl={resolveFileUrl(att.url)}
-                serverThumbnailUrl={att.thumbnail_url ? resolveFileUrl(att.thumbnail_url) : null}
+                serverThumbnailUrl={
+                  att.thumbnail_url ? resolveFileUrl(att.thumbnail_url) : null
+                }
                 className="h-20 w-[120px] max-w-[160px] object-cover"
                 alt={att.file_name}
               />
             ) : att.thumbnail_url ? (
-              <img src={resolveFileUrl(att.thumbnail_url)} alt={att.file_name}
-                className="h-20 w-auto max-w-[160px] object-cover" loading="lazy"
-                onError={(e) => { e.currentTarget.src = resolveFileUrl(att.url); }} />
+              <img
+                src={resolveFileUrl(att.thumbnail_url)}
+                alt={att.file_name}
+                className="h-20 w-auto max-w-[160px] object-cover"
+                loading="lazy"
+                onError={(e) => {
+                  e.currentTarget.src = resolveFileUrl(att.url);
+                }}
+              />
             ) : (
-              <img src={resolveFileUrl(att.url)} alt={att.file_name}
-                className="h-20 w-auto max-w-[160px] object-cover" loading="lazy" />
+              <img
+                src={resolveFileUrl(att.url)}
+                alt={att.file_name}
+                className="h-20 w-auto max-w-[160px] object-cover"
+                loading="lazy"
+              />
             )}
             {isVideo && (
               <div className="absolute inset-0 flex items-center justify-center">
@@ -222,7 +424,11 @@ const AttachmentGrid = memo(function AttachmentGrid({ attachments, onOpenLightbo
 
 /** 파일 미리보기 리스트 (새 댓글 or 수정 모드) */
 const FilePreviewList = memo(function FilePreviewList({
-  files, existingAttachments, keepIds, onRemoveFile, onRemoveExisting
+  files,
+  existingAttachments,
+  keepIds,
+  onRemoveFile,
+  onRemoveExisting,
 }: {
   files: PendingFile[];
   existingAttachments?: CommentAttachment[];
@@ -231,58 +437,83 @@ const FilePreviewList = memo(function FilePreviewList({
   onRemoveExisting?: (attId: string) => void;
 }) {
   const { t } = useTranslation();
-  const keptExisting = existingAttachments?.filter(a => keepIds?.includes(a.id)) || [];
+  const keptExisting =
+    existingAttachments?.filter((a) => keepIds?.includes(a.id)) || [];
   if (keptExisting.length === 0 && files.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-2 mb-2">
       {/* 기존 첨부파일 (수정 모드) */}
-      {keptExisting.map(att => (
+      {keptExisting.map((att) => (
         <div key={att.id} className="relative group/preview">
           {isDocAttachment(att) ? (
             <div className="flex items-center gap-1.5 h-16 px-2.5 rounded-md border border-bridge-border bg-foreground/[0.03]">
-              <span className={`text-xs font-bold px-1 py-0.5 rounded ${getDocColor(att.content_type || '')}`}>
-                {getDocIcon(att.content_type || '')}
+              <span
+                className={`text-xs font-bold px-1 py-0.5 rounded ${getDocColor(att.content_type || "")}`}
+              >
+                {getDocIcon(att.content_type || "")}
               </span>
-              <span className="text-xs text-foreground truncate max-w-[80px]">{att.file_name}</span>
+              <span className="text-xs text-foreground truncate max-w-[80px]">
+                {att.file_name}
+              </span>
             </div>
           ) : isVideoAttachment(att) ? (
             <div className="relative h-16 w-[90px]">
               <VideoThumbnail
                 videoUrl={resolveFileUrl(att.url)}
-                serverThumbnailUrl={att.thumbnail_url ? resolveFileUrl(att.thumbnail_url) : null}
+                serverThumbnailUrl={
+                  att.thumbnail_url ? resolveFileUrl(att.thumbnail_url) : null
+                }
                 className="h-16 w-[90px] object-cover rounded-md border border-bridge-border"
                 alt={att.file_name}
               />
               <Play className="absolute bottom-1 left-1 h-3 w-3 text-white drop-shadow" />
             </div>
           ) : (
-            <img src={resolveFileUrl(att.thumbnail_url || att.url)} alt={att.file_name}
-              className="h-16 w-auto max-w-[120px] object-cover rounded-md border border-bridge-border" />
+            <img
+              src={resolveFileUrl(att.thumbnail_url || att.url)}
+              alt={att.file_name}
+              className="h-16 w-auto max-w-[120px] object-cover rounded-md border border-bridge-border"
+            />
           )}
           {onRemoveExisting && (
-            <button onClick={() => onRemoveExisting(att.id)}
-              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity">
+            <button
+              onClick={() => onRemoveExisting(att.id)}
+              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity"
+            >
               <X className="h-2.5 w-2.5" />
             </button>
           )}
         </div>
       ))}
       {/* 새 파일 */}
-      {files.map(pf => (
+      {files.map((pf) => (
         <div key={pf.id} className="relative group/preview">
           {isDocType(pf.file.type) ? (
-            <div className={`flex items-center gap-1.5 h-16 px-2.5 rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'} bg-foreground/[0.03]`}>
-              <span className={`text-xs font-bold px-1 py-0.5 rounded ${getDocColor(pf.file.type)}`}>
+            <div
+              className={`flex items-center gap-1.5 h-16 px-2.5 rounded-md border ${pf.error ? "border-red-500/50" : "border-bridge-border"} bg-foreground/[0.03]`}
+            >
+              <span
+                className={`text-xs font-bold px-1 py-0.5 rounded ${getDocColor(pf.file.type)}`}
+              >
                 {getDocIcon(pf.file.type)}
               </span>
-              <span className="text-xs text-foreground truncate max-w-[80px]">{pf.file.name}</span>
+              <span className="text-xs text-foreground truncate max-w-[80px]">
+                {pf.file.name}
+              </span>
             </div>
           ) : isVideoType(pf.file.type) ? (
-            <video src={pf.previewUrl} muted preload="metadata"
-              className={`h-16 w-[90px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'}`} />
+            <video
+              src={pf.previewUrl}
+              muted
+              preload="metadata"
+              className={`h-16 w-[90px] object-cover rounded-md border ${pf.error ? "border-red-500/50" : "border-bridge-border"}`}
+            />
           ) : (
-            <img src={pf.previewUrl} alt={pf.file.name}
-              className={`h-16 w-auto max-w-[120px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'}`} />
+            <img
+              src={pf.previewUrl}
+              alt={pf.file.name}
+              className={`h-16 w-auto max-w-[120px] object-cover rounded-md border ${pf.error ? "border-red-500/50" : "border-bridge-border"}`}
+            />
           )}
           {pf.uploading && (
             <div className="absolute inset-0 bg-black/40 rounded-md flex items-center justify-center">
@@ -291,14 +522,18 @@ const FilePreviewList = memo(function FilePreviewList({
           )}
           {pf.error && (
             <div className="absolute inset-0 bg-red-500/20 rounded-md flex items-center justify-center">
-              <span className="text-xs text-red-300 font-medium">{t('comment.failed')}</span>
+              <span className="text-xs text-red-300 font-medium">
+                {t("comment.failed")}
+              </span>
             </div>
           )}
           {isVideoType(pf.file.type) && !pf.uploading && !pf.error && (
             <Play className="absolute bottom-1 left-1 h-3 w-3 text-white drop-shadow" />
           )}
-          <button onClick={() => onRemoveFile(pf.id)}
-            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity">
+          <button
+            onClick={() => onRemoveFile(pf.id)}
+            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity"
+          >
             <X className="h-2.5 w-2.5" />
           </button>
           <span className="absolute bottom-0.5 right-0.5 text-xs bg-black/60 text-white/80 px-1 rounded">
@@ -311,7 +546,12 @@ const FilePreviewList = memo(function FilePreviewList({
 });
 
 /** 리액션 뱃지 바 */
-const ReactionBar = memo(function ReactionBar({ comment, currentUserId, canEdit, onToggleReaction }: {
+const ReactionBar = memo(function ReactionBar({
+  comment,
+  currentUserId,
+  canEdit,
+  onToggleReaction,
+}: {
   comment: TaskComment;
   currentUserId: string | undefined;
   canEdit: boolean;
@@ -324,26 +564,37 @@ const ReactionBar = memo(function ReactionBar({ comment, currentUserId, canEdit,
 
   return (
     <div className="flex flex-wrap items-center gap-1 mt-1.5">
-      {reactions.map(reaction => {
-        const isMyReaction = reaction.users.some(u => u.id === currentUserId);
-        const tooltipNames = reaction.users.map(u =>
-          u.id === currentUserId ? t('comment.reaction.you') : u.name
-        ).join(', ');
+      {reactions.map((reaction) => {
+        const isMyReaction = reaction.users.some((u) => u.id === currentUserId);
+        const tooltipNames = reaction.users
+          .map((u) =>
+            u.id === currentUserId ? t("comment.reaction.you") : u.name,
+          )
+          .join(", ");
 
         return (
-          <button key={reaction.emoji}
-            onClick={() => canEdit && onToggleReaction(comment.id, reaction.emoji)}
+          <button
+            key={reaction.emoji}
+            onClick={() =>
+              canEdit && onToggleReaction(comment.id, reaction.emoji)
+            }
             disabled={!canEdit}
             className={`group/reaction relative inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all
-              ${isMyReaction
-                ? 'bg-bridge-accent/20 border border-bridge-accent/50 text-bridge-accent hover:bg-bridge-accent/30'
-                : 'bg-foreground/5 border border-foreground/10 text-slate-400 hover:bg-foreground/10 hover:text-muted-foreground'
+              ${
+                isMyReaction
+                  ? "bg-bridge-accent/20 border border-bridge-accent/50 text-bridge-accent hover:bg-bridge-accent/30"
+                  : "bg-foreground/5 border border-foreground/10 text-slate-400 hover:bg-foreground/10 hover:text-muted-foreground"
               }
-              ${!canEdit ? 'cursor-default' : 'cursor-pointer'}
+              ${!canEdit ? "cursor-default" : "cursor-pointer"}
             `}
-            title={tooltipNames}>
+            title={tooltipNames}
+          >
             {reaction.is_custom && reaction.image_url ? (
-              <img src={resolveFileUrl(reaction.image_url)} alt={reaction.emoji} className="w-4 h-4 object-contain" />
+              <img
+                src={resolveFileUrl(reaction.image_url)}
+                alt={reaction.emoji}
+                className="w-4 h-4 object-contain"
+              />
             ) : (
               <span className="text-xs">{reaction.emoji}</span>
             )}
@@ -357,10 +608,20 @@ const ReactionBar = memo(function ReactionBar({ comment, currentUserId, canEdit,
 
 /** 멘션 드롭다운 */
 const InlineMentionDropdown = memo(function InlineMentionDropdown({
-  isEdit, show, forEdit, filteredGroups, filteredMembers,
-  mentionIndex, onMentionIndexChange, isAdminOrOwner, mentionQuery,
-  onInsertMention, onInsertGroupMention, currentUserId,
-  onShowMentionGroupModal, onHideMention,
+  isEdit,
+  show,
+  forEdit,
+  filteredGroups,
+  filteredMembers,
+  mentionIndex,
+  onMentionIndexChange,
+  isAdminOrOwner,
+  mentionQuery,
+  onInsertMention,
+  onInsertGroupMention,
+  currentUserId,
+  onShowMentionGroupModal,
+  onHideMention,
 }: {
   isEdit: boolean;
   show: boolean;
@@ -379,7 +640,8 @@ const InlineMentionDropdown = memo(function InlineMentionDropdown({
 }) {
   const { t } = useTranslation();
   const totalItems = filteredGroups.length + filteredMembers.length;
-  if (!show || forEdit !== isEdit || (totalItems === 0 && !isAdminOrOwner)) return null;
+  if (!show || forEdit !== isEdit || (totalItems === 0 && !isAdminOrOwner))
+    return null;
   const hasGroups = filteredGroups.length > 0;
   const hasMembers = filteredMembers.length > 0;
   let itemIdx = 0;
@@ -389,13 +651,19 @@ const InlineMentionDropdown = memo(function InlineMentionDropdown({
       {isAdminOrOwner && !mentionQuery && (
         <>
           <button
-            onMouseDown={e => { e.preventDefault(); onShowMentionGroupModal(); onHideMention(); }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onShowMentionGroupModal();
+              onHideMention();
+            }}
             className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-bridge-accent hover:bg-foreground/5 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            <span>{t('mentionGroup.create', '멘션 그룹 만들기')}</span>
+            <span>{t("mentionGroup.create", "멘션 그룹 만들기")}</span>
           </button>
-          {(hasGroups || hasMembers) && <div className="border-t border-foreground/[0.08] my-1" />}
+          {(hasGroups || hasMembers) && (
+            <div className="border-t border-foreground/[0.08] my-1" />
+          )}
         </>
       )}
       {/* 그룹 섹션 */}
@@ -404,20 +672,31 @@ const InlineMentionDropdown = memo(function InlineMentionDropdown({
           {filteredGroups.map((group) => {
             const idx = itemIdx++;
             return (
-              <button key={`g-${group.id}`}
-                onMouseDown={e => { e.preventDefault(); onInsertGroupMention(group, isEdit); }}
+              <button
+                key={`g-${group.id}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onInsertGroupMention(group, isEdit);
+                }}
                 onMouseEnter={() => onMentionIndexChange(idx)}
-                className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${idx === mentionIndex ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`}
+                className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${idx === mentionIndex ? "bg-foreground/10" : "hover:bg-foreground/5"}`}
               >
                 <div className="w-5 h-5 rounded-full bg-bridge-secondary/20 flex items-center justify-center">
                   <Users className="w-3 h-3 text-bridge-secondary" />
                 </div>
-                <span className={idx === mentionIndex ? 'text-foreground' : ''}>{group.name}</span>
-                <span className="text-xs text-slate-500 ml-auto">{group.members.length}{t('mentionGroup.memberCountSuffix', '명')}</span>
+                <span className={idx === mentionIndex ? "text-foreground" : ""}>
+                  {group.name}
+                </span>
+                <span className="text-xs text-slate-500 ml-auto">
+                  {group.members.length}
+                  {t("mentionGroup.memberCountSuffix", "명")}
+                </span>
               </button>
             );
           })}
-          {hasMembers && <div className="border-t border-foreground/[0.08] my-1" />}
+          {hasMembers && (
+            <div className="border-t border-foreground/[0.08] my-1" />
+          )}
         </>
       )}
       {/* 개별 멤버 섹션 */}
@@ -425,16 +704,28 @@ const InlineMentionDropdown = memo(function InlineMentionDropdown({
         const idx = itemIdx++;
         const color = getAssigneeClasses(member.name, member.assigneeColor);
         return (
-          <button key={member.userId}
-            onMouseDown={e => { e.preventDefault(); onInsertMention(member, isEdit); }}
+          <button
+            key={member.userId}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onInsertMention(member, isEdit);
+            }}
             onMouseEnter={() => onMentionIndexChange(idx)}
-            className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${idx === mentionIndex ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`}
+            className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${idx === mentionIndex ? "bg-foreground/10" : "hover:bg-foreground/5"}`}
           >
-            <div className={`w-5 h-5 rounded-full ${color.bg} flex items-center justify-center text-xs font-bold text-white whitespace-nowrap overflow-hidden`}>
+            <div
+              className={`w-5 h-5 rounded-full ${color.bg} flex items-center justify-center text-xs font-bold text-white whitespace-nowrap overflow-hidden`}
+            >
               {getInitials(member.name)}
             </div>
-            <span className={idx === mentionIndex ? 'text-foreground' : ''}>{member.name}</span>
-            {member.userId === currentUserId && <span className="text-xs text-slate-400">({t('mentionGroup.me', '나')})</span>}
+            <span className={idx === mentionIndex ? "text-foreground" : ""}>
+              {member.name}
+            </span>
+            {member.userId === currentUserId && (
+              <span className="text-xs text-slate-400">
+                ({t("mentionGroup.me", "나")})
+              </span>
+            )}
           </button>
         );
       })}
@@ -444,13 +735,24 @@ const InlineMentionDropdown = memo(function InlineMentionDropdown({
 
 /** 이모지 피커 팝업 (portal) */
 const EmojiPickerPopup = memo(function EmojiPickerPopup({
-  commentId, activeCommentId, position, pickerRef,
-  onToggleReaction, customEmojis, isAdminOrOwner,
-  showEmojiUpload, onShowEmojiUploadChange,
-  selectedEmojiFile, onSelectedEmojiFileChange,
-  emojiUploadName, onEmojiUploadNameChange,
-  isUploadingEmoji, onUploadCustomEmoji, onDeleteCustomEmoji,
-  emojiFileInputRef, emojiNameInputRef,
+  commentId,
+  activeCommentId,
+  position,
+  pickerRef,
+  onToggleReaction,
+  customEmojis,
+  isAdminOrOwner,
+  showEmojiUpload,
+  onShowEmojiUploadChange,
+  selectedEmojiFile,
+  onSelectedEmojiFileChange,
+  emojiUploadName,
+  onEmojiUploadNameChange,
+  isUploadingEmoji,
+  onUploadCustomEmoji,
+  onDeleteCustomEmoji,
+  emojiFileInputRef,
+  emojiNameInputRef,
 }: {
   commentId: string;
   activeCommentId: string | null;
@@ -474,19 +776,30 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
   const { t } = useTranslation();
   if (activeCommentId !== commentId || !position) return null;
   return createPortal(
-    <div ref={pickerRef}
+    <div
+      ref={pickerRef}
       data-emoji-picker
-      style={{ position: 'fixed', top: position.top, left: position.left, zIndex: 9999 }}
+      style={{
+        position: "fixed",
+        top: position.top,
+        left: position.left,
+        zIndex: 9999,
+      }}
       className="bg-bridge-obsidian border border-bridge-border rounded-xl shadow-xl p-2 min-w-[200px] pointer-events-auto"
-      onPointerDown={e => e.stopPropagation()}
-      onMouseDown={e => e.stopPropagation()}>
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       {/* 기본 이모지 */}
-      <div className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">{t('comment.customEmoji.default', '기본')}</div>
+      <div className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">
+        {t("comment.customEmoji.default", "기본")}
+      </div>
       <div className="grid grid-cols-4 gap-1">
-        {REACTION_EMOJIS.map(emoji => (
-          <button key={emoji}
+        {REACTION_EMOJIS.map((emoji) => (
+          <button
+            key={emoji}
             onClick={() => onToggleReaction(commentId, emoji)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-foreground/10 transition-all hover:scale-110 text-base">
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-foreground/10 transition-all hover:scale-110 text-base"
+          >
             {emoji}
           </button>
         ))}
@@ -496,21 +809,32 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
       {(customEmojis.length > 0 || isAdminOrOwner) && (
         <>
           <div className="border-t border-foreground/10 my-1.5" />
-          <div className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">{t('comment.customEmoji.title', '커스텀')}</div>
+          <div className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">
+            {t("comment.customEmoji.title", "커스텀")}
+          </div>
           <div className="grid grid-cols-4 gap-1">
-            {customEmojis.map(ce => (
+            {customEmojis.map((ce) => (
               <div key={ce.id} className="relative group/ce">
                 <button
                   onClick={() => onToggleReaction(commentId, `custom:${ce.id}`)}
                   className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-foreground/10 transition-all hover:scale-110"
-                  title={ce.name}>
-                  <img src={resolveFileUrl(ce.image_url)} alt={ce.name} className="w-5 h-5 object-contain" />
+                  title={ce.name}
+                >
+                  <img
+                    src={resolveFileUrl(ce.image_url)}
+                    alt={ce.name}
+                    className="w-5 h-5 object-contain"
+                  />
                 </button>
                 {isAdminOrOwner && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); onDeleteCustomEmoji(ce.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteCustomEmoji(ce.id);
+                    }}
                     className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-white items-center justify-center text-xs leading-none hidden group-hover/ce:flex"
-                    title={t('comment.customEmoji.deleteConfirm', '삭제')}>
+                    title={t("comment.customEmoji.deleteConfirm", "삭제")}
+                  >
                     ×
                   </button>
                 )}
@@ -520,7 +844,8 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
               <button
                 onClick={() => onShowEmojiUploadChange(!showEmojiUpload)}
                 className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-foreground/10 transition-all text-slate-400 hover:text-muted-foreground border border-dashed border-foreground/10"
-                title={t('comment.customEmoji.add', '이모지 추가')}>
+                title={t("comment.customEmoji.add", "이모지 추가")}
+              >
                 <Plus className="w-3.5 h-3.5" />
               </button>
             )}
@@ -535,20 +860,30 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
                   disabled={isUploadingEmoji}
                   className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                     selectedEmojiFile
-                      ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
-                      : 'bg-bridge-accent/20 text-bridge-accent hover:bg-bridge-accent/30'
-                  }`}>
-                  {isUploadingEmoji ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
+                      ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
+                      : "bg-bridge-accent/20 text-bridge-accent hover:bg-bridge-accent/30"
+                  }`}
+                >
+                  {isUploadingEmoji ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <ImageIcon className="w-3 h-3" />
+                  )}
                   {selectedEmojiFile
                     ? selectedEmojiFile.name.length > 12
-                      ? selectedEmojiFile.name.slice(0, 12) + '…'
+                      ? selectedEmojiFile.name.slice(0, 12) + "…"
                       : selectedEmojiFile.name
-                    : t('comment.customEmoji.selectFile', '파일 선택')}
+                    : t("comment.customEmoji.selectFile", "파일 선택")}
                 </button>
                 <button
-                  onClick={() => { onShowEmojiUploadChange(false); onEmojiUploadNameChange(''); onSelectedEmojiFileChange(null); }}
-                  className="px-2 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-muted-foreground hover:bg-foreground/5 transition-all">
-                  {t('common.cancel', '취소')}
+                  onClick={() => {
+                    onShowEmojiUploadChange(false);
+                    onEmojiUploadNameChange("");
+                    onSelectedEmojiFileChange(null);
+                  }}
+                  className="px-2 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-muted-foreground hover:bg-foreground/5 transition-all"
+                >
+                  {t("common.cancel", "취소")}
                 </button>
               </div>
               {selectedEmojiFile && (
@@ -557,9 +892,15 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
                     ref={emojiNameInputRef}
                     type="text"
                     value={emojiUploadName}
-                    onChange={e => onEmojiUploadNameChange(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && emojiUploadName.trim()) onUploadCustomEmoji(); }}
-                    placeholder={t('comment.customEmoji.namePlaceholder', '이모지 이름')}
+                    onChange={(e) => onEmojiUploadNameChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && emojiUploadName.trim())
+                        onUploadCustomEmoji();
+                    }}
+                    placeholder={t(
+                      "comment.customEmoji.namePlaceholder",
+                      "이모지 이름",
+                    )}
                     className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1 text-xs text-foreground placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                     maxLength={50}
                     autoFocus
@@ -567,25 +908,33 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
                   <button
                     onClick={() => onUploadCustomEmoji()}
                     disabled={!emojiUploadName.trim() || isUploadingEmoji}
-                    className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-bold rounded-lg bg-bridge-accent text-white hover:bg-bridge-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
-                    {isUploadingEmoji && <Loader2 className="w-3 h-3 animate-spin" />}
-                    {t('comment.customEmoji.upload', '업로드')}
+                    className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-bold rounded-lg bg-bridge-accent text-white hover:bg-bridge-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  >
+                    {isUploadingEmoji && (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    )}
+                    {t("comment.customEmoji.upload", "업로드")}
                   </button>
                 </>
               )}
-              <p className="text-xs text-slate-500">{t('comment.customEmoji.maxSize', 'PNG, GIF, WebP · 128KB 이하')}</p>
+              <p className="text-xs text-slate-500">
+                {t(
+                  "comment.customEmoji.maxSize",
+                  "PNG, GIF, WebP · 128KB 이하",
+                )}
+              </p>
               <input
                 ref={emojiFileInputRef}
                 type="file"
                 accept="image/png,image/gif,image/webp"
                 className="hidden"
-                onChange={e => {
+                onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
                     onSelectedEmojiFileChange(file);
                     setTimeout(() => emojiNameInputRef.current?.focus(), 50);
                   }
-                  e.target.value = '';
+                  e.target.value = "";
                 }}
               />
             </div>
@@ -593,28 +942,49 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
         </>
       )}
     </div>,
-    document.body
+    document.body,
   );
 });
 
 // ========== 컴포넌트 ==========
 
-export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEdit = true, isAdminOrOwner = false, wsCommentEvent, onClose }: CommentPanelProps) {
+export function CommentPanel({
+  taskId,
+  boardId,
+  boardMembers,
+  currentUser,
+  canEdit = true,
+  isAdminOrOwner = false,
+  wsCommentEvent,
+  onClose,
+  checklistItemId = null,
+  variant = "panel",
+  onOpenChecklistItem,
+  onChecklistCommentCountChange,
+  onScopedCommentsChange,
+  reloadToken = 0,
+}: CommentPanelProps) {
   const { t, i18n } = useTranslation();
+  const isEmbedded = variant === "embedded";
   // 댓글 목록
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // AI 요약
-  const [aiSummary, setAiSummary] = useState<CommentAISummaryResponse | null>(null);
+  const [aiSummary, setAiSummary] = useState<CommentAISummaryResponse | null>(
+    null,
+  );
   const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
 
   // 답글 대상
-  const [replyTo, setReplyTo] = useState<{ id: string; authorName: string } | null>(null);
+  const [replyTo, setReplyTo] = useState<{
+    id: string;
+    authorName: string;
+  } | null>(null);
 
   // 새 댓글 입력
-  const [newComment, setNewComment] = useState('');
+  const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingMentions, setPendingMentions] = useState<string[]>([]);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
@@ -623,21 +993,28 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
   // 수정 모드
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState('');
+  const [editContent, setEditContent] = useState("");
   const [editMentions, setEditMentions] = useState<string[]>([]);
-  const [editKeepAttachmentIds, setEditKeepAttachmentIds] = useState<string[]>([]);
+  const [editKeepAttachmentIds, setEditKeepAttachmentIds] = useState<string[]>(
+    [],
+  );
   const [editNewFiles, setEditNewFiles] = useState<PendingFile[]>([]);
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
 
   // 이모지 리액션
-  const [emojiPickerCommentId, setEmojiPickerCommentId] = useState<string | null>(null);
-  const [emojiPickerPos, setEmojiPickerPos] = useState<{ top: number; left: number } | null>(null);
+  const [emojiPickerCommentId, setEmojiPickerCommentId] = useState<
+    string | null
+  >(null);
+  const [emojiPickerPos, setEmojiPickerPos] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
   const emojiTriggerRef = useRef<HTMLButtonElement>(null);
 
   // 커스텀 이모지
   const [customEmojis, setCustomEmojis] = useState<BoardCustomEmoji[]>([]);
   const [customEmojisLoaded, setCustomEmojisLoaded] = useState(false);
-  const [emojiUploadName, setEmojiUploadName] = useState('');
+  const [emojiUploadName, setEmojiUploadName] = useState("");
   const [isUploadingEmoji, setIsUploadingEmoji] = useState(false);
   const [showEmojiUpload, setShowEmojiUpload] = useState(false);
   const [selectedEmojiFile, setSelectedEmojiFile] = useState<File | null>(null);
@@ -646,10 +1023,12 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
   // 삭제 / 라이트박스
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [lightboxAttachmentId, setLightboxAttachmentId] = useState<string | null>(null);
+  const [lightboxAttachmentId, setLightboxAttachmentId] = useState<
+    string | null
+  >(null);
 
   // 멘션 드롭다운
-  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionQuery, setMentionQuery] = useState("");
   const [showInlineMention, setShowInlineMention] = useState(false);
   const [inlineMentionForEdit, setInlineMentionForEdit] = useState(false);
   const [mentionIndex, setMentionIndex] = useState(0);
@@ -668,26 +1047,64 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
   // ========== 댓글 로드 ==========
 
-  const loadComments = useCallback(async (showSpinner = true) => {
-    if (showSpinner) setIsLoading(true);
-    else setIsRefreshing(true);
-    try {
-      const response = await commentAPI.getComments(boardId, taskId);
-      setComments(response.comments);
-    } catch (error) {
-      console.error('Failed to load comments:', error);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [boardId, taskId]);
+  const loadComments = useCallback(
+    async (showSpinner = true) => {
+      if (showSpinner) setIsLoading(true);
+      else setIsRefreshing(true);
+      try {
+        const response = await commentAPI.getComments(boardId, taskId);
+        setComments(response.comments);
+      } catch (error) {
+        console.error("Failed to load comments:", error);
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [boardId, taskId],
+  );
 
-  useEffect(() => { loadComments(); }, [loadComments]);
+  /**
+   * 화면에 그릴 댓글. 항목 스코프가 걸려 있으면 그 항목 것만 남긴다.
+   * 서버 재조회 대신 여기서 거르는 이유 — 태스크 댓글은 이미 다 받아와 있고,
+   * 항목을 오갈 때마다 왕복하면 열자마자 빈 화면이 한 번씩 스친다.
+   */
+  const visibleComments = useMemo(
+    () =>
+      checklistItemId
+        ? comments.filter((c) => c.checklist_item_id === checklistItemId)
+        : comments,
+    [comments, checklistItemId],
+  );
+
+  useEffect(() => {
+    loadComments();
+  }, [loadComments]);
+
+  // 외부 신호로 조용히 재동기화 (첫 마운트에서는 loadComments가 이미 돌았으므로 건너뛴다)
+  const lastReloadTokenRef = useRef(reloadToken);
+  useEffect(() => {
+    if (lastReloadTokenRef.current === reloadToken) return;
+    lastReloadTokenRef.current = reloadToken;
+    loadComments(false);
+  }, [reloadToken, loadComments]);
+
+  // 스코프된 목록을 부모에게 전달. 콜백을 ref로 들고 의존성에서 빼야 한다 —
+  // 부모가 매 렌더 새 함수를 넘겨도 여기서 무한 루프가 돌지 않게.
+  const scopedChangeRef = useRef(onScopedCommentsChange);
+  scopedChangeRef.current = onScopedCommentsChange;
+  useEffect(() => {
+    if (!checklistItemId) return;
+    scopedChangeRef.current?.(visibleComments);
+  }, [checklistItemId, visibleComments]);
 
   // 멘션 그룹 로드
   useEffect(() => {
     if (!boardId) return;
-    mentionGroupAPI.getGroups(boardId).then(res => setMentionGroups(res.groups)).catch(() => {});
+    mentionGroupAPI
+      .getGroups(boardId)
+      .then((res) => setMentionGroups(res.groups))
+      .catch(() => {});
   }, [boardId]);
 
   // WebSocket 실시간 댓글 직접 상태 업데이트 (REST 재호출 없음)
@@ -696,41 +1113,50 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     const { type, data } = wsCommentEvent;
 
     switch (type) {
-      case 'COMMENT_CREATED': {
+      case "COMMENT_CREATED": {
         const comment = data as TaskComment;
         if (comment.task_id !== taskId) return;
-        setComments(prev => prev.some(c => c.id === comment.id) ? prev : [...prev, comment]);
+        setComments((prev) =>
+          prev.some((c) => c.id === comment.id) ? prev : [...prev, comment],
+        );
         break;
       }
-      case 'COMMENT_UPDATED': {
+      case "COMMENT_UPDATED": {
         const comment = data as TaskComment;
         if (comment.task_id !== taskId) return;
-        setComments(prev => prev.map(c => c.id === comment.id ? comment : c));
+        setComments((prev) =>
+          prev.map((c) => (c.id === comment.id ? comment : c)),
+        );
         break;
       }
-      case 'COMMENT_DELETED': {
+      case "COMMENT_DELETED": {
         const { id, task_id } = data as { id: string; task_id: string };
         if (task_id !== taskId) return;
-        setComments(prev => prev.filter(c => c.id !== id));
+        setComments((prev) => prev.filter((c) => c.id !== id));
         break;
       }
-      case 'COMMENT_REACTION_TOGGLED': {
+      case "COMMENT_REACTION_TOGGLED": {
         const comment = data as TaskComment;
         if (comment.task_id !== taskId) return;
-        setComments(prev => prev.map(c => c.id === comment.id ? comment : c));
+        setComments((prev) =>
+          prev.map((c) => (c.id === comment.id ? comment : c)),
+        );
         break;
       }
     }
   }, [wsCommentEvent, taskId]);
 
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [comments.length]);
+    if (scrollRef.current)
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    // 화면에 실제로 그려지는 목록 기준. 스코프가 걸린 상태에서 다른 항목 댓글이 늘었다고
+    // 내가 보던 스레드가 아래로 튀면 안 된다.
+  }, [visibleComments.length]);
 
   useEffect(() => {
     return () => {
-      pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
-      editNewFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
+      pendingFiles.forEach((pf) => URL.revokeObjectURL(pf.previewUrl));
+      editNewFiles.forEach((pf) => URL.revokeObjectURL(pf.previewUrl));
     };
   }, []);
 
@@ -747,13 +1173,17 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
   // 태스크 댓글 전체의 미디어 첨부를 시간 오름차순으로 평면화 (라이트박스 통합 탐색용)
   const allMedia = useMemo(() => {
-    const items: { url: string; type: 'image' | 'video'; attachmentId: string }[] = [];
+    const items: {
+      url: string;
+      type: "image" | "video";
+      attachmentId: string;
+    }[] = [];
     for (const c of comments) {
       for (const att of c.attachments || []) {
         if (isDocAttachment(att)) continue;
         items.push({
           url: resolveFileUrl(att.url),
-          type: isVideoAttachment(att) ? 'video' : 'image',
+          type: isVideoAttachment(att) ? "video" : "image",
           attachmentId: att.id,
         });
       }
@@ -763,7 +1193,10 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
   // 보고 있는 첨부가 더 이상 존재하지 않으면 라이트박스 자동 닫기
   useEffect(() => {
-    if (lightboxAttachmentId && !allMedia.some(m => m.attachmentId === lightboxAttachmentId)) {
+    if (
+      lightboxAttachmentId &&
+      !allMedia.some((m) => m.attachmentId === lightboxAttachmentId)
+    ) {
       setLightboxAttachmentId(null);
     }
   }, [allMedia, lightboxAttachmentId]);
@@ -772,14 +1205,18 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   useEffect(() => {
     if (!emojiPickerCommentId) return;
     const handleClick = (e: MouseEvent) => {
-      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node) &&
-          emojiTriggerRef.current && !emojiTriggerRef.current.contains(e.target as Node)) {
+      if (
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(e.target as Node) &&
+        emojiTriggerRef.current &&
+        !emojiTriggerRef.current.contains(e.target as Node)
+      ) {
         setEmojiPickerCommentId(null);
         setEmojiPickerPos(null);
       }
     };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, [emojiPickerCommentId]);
 
   const openEmojiPicker = (commentId: string, buttonEl: HTMLButtonElement) => {
@@ -804,19 +1241,28 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     }
     setEmojiPickerPos({ top, left });
     setEmojiPickerCommentId(commentId);
-    (emojiTriggerRef as React.MutableRefObject<HTMLButtonElement | null>).current = buttonEl;
+    (
+      emojiTriggerRef as React.MutableRefObject<HTMLButtonElement | null>
+    ).current = buttonEl;
   };
 
   // ========== 이모지 리액션 ==========
 
   const handleToggleReaction = async (commentId: string, emoji: string) => {
     try {
-      const response = await commentAPI.toggleReaction(boardId, taskId, commentId, emoji);
-      setComments(prev => prev.map(c =>
-        c.id === commentId ? { ...c, reactions: response.reactions } : c
-      ));
+      const response = await commentAPI.toggleReaction(
+        boardId,
+        taskId,
+        commentId,
+        emoji,
+      );
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId ? { ...c, reactions: response.reactions } : c,
+        ),
+      );
     } catch (error) {
-      console.error('Failed to toggle reaction:', error);
+      console.error("Failed to toggle reaction:", error);
     }
     setEmojiPickerCommentId(null);
     setEmojiPickerPos(null);
@@ -828,15 +1274,17 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     if (customEmojisLoaded) return;
     try {
       const res = await customEmojiAPI.getEmojis(boardId);
-      setCustomEmojis(res.emojis.map(e => ({
-        id: e.id,
-        name: e.name,
-        image_url: e.image_url,
-        content_type: e.content_type,
-      })));
+      setCustomEmojis(
+        res.emojis.map((e) => ({
+          id: e.id,
+          name: e.name,
+          image_url: e.image_url,
+          content_type: e.content_type,
+        })),
+      );
       setCustomEmojisLoaded(true);
     } catch (err) {
-      console.error('Failed to load custom emojis:', err);
+      console.error("Failed to load custom emojis:", err);
     }
   }, [boardId, customEmojisLoaded]);
 
@@ -852,18 +1300,25 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     if (!emojiUploadName.trim() || !uploadFile) return;
     setIsUploadingEmoji(true);
     try {
-      const res = await customEmojiAPI.uploadEmoji(boardId, emojiUploadName.trim(), uploadFile);
-      setCustomEmojis(prev => [...prev, {
-        id: res.id,
-        name: res.name,
-        image_url: res.image_url,
-        content_type: res.content_type,
-      }]);
-      setEmojiUploadName('');
+      const res = await customEmojiAPI.uploadEmoji(
+        boardId,
+        emojiUploadName.trim(),
+        uploadFile,
+      );
+      setCustomEmojis((prev) => [
+        ...prev,
+        {
+          id: res.id,
+          name: res.name,
+          image_url: res.image_url,
+          content_type: res.content_type,
+        },
+      ]);
+      setEmojiUploadName("");
       setSelectedEmojiFile(null);
       setShowEmojiUpload(false);
     } catch (err) {
-      console.error('Failed to upload custom emoji:', err);
+      console.error("Failed to upload custom emoji:", err);
     } finally {
       setIsUploadingEmoji(false);
     }
@@ -872,33 +1327,46 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   const handleDeleteCustomEmoji = async (emojiId: string) => {
     try {
       await customEmojiAPI.deleteEmoji(boardId, emojiId);
-      setCustomEmojis(prev => prev.filter(e => e.id !== emojiId));
+      setCustomEmojis((prev) => prev.filter((e) => e.id !== emojiId));
       // 리액션 목록에서도 해당 이모지 제거
-      setComments(prev => prev.map(c => ({
-        ...c,
-        reactions: c.reactions.filter(r => r.emoji !== `custom:${emojiId}`),
-      })));
+      setComments((prev) =>
+        prev.map((c) => ({
+          ...c,
+          reactions: c.reactions.filter((r) => r.emoji !== `custom:${emojiId}`),
+        })),
+      );
     } catch (err) {
-      console.error('Failed to delete custom emoji:', err);
+      console.error("Failed to delete custom emoji:", err);
     }
   };
 
   // ========== 파일 업로드 (백그라운드) ==========
 
-  const uploadFileToServer = async (pf: PendingFile, setter: React.Dispatch<React.SetStateAction<PendingFile[]>>) => {
-    setter(prev => prev.map(f => f.id === pf.id ? { ...f, uploading: true } : f));
+  const uploadFileToServer = async (
+    pf: PendingFile,
+    setter: React.Dispatch<React.SetStateAction<PendingFile[]>>,
+  ) => {
+    setter((prev) =>
+      prev.map((f) => (f.id === pf.id ? { ...f, uploading: true } : f)),
+    );
     try {
       const result = await fileAPI.smartUpload(pf.file);
-      setter(prev => prev.map(f => f.id === pf.id
-        ? { ...f, uploading: false, tempKey: result.tempKey }
-        : f
-      ));
+      setter((prev) =>
+        prev.map((f) =>
+          f.id === pf.id
+            ? { ...f, uploading: false, tempKey: result.tempKey }
+            : f,
+        ),
+      );
     } catch (err) {
-      console.error('Upload failed:', err);
-      setter(prev => prev.map(f => f.id === pf.id
-        ? { ...f, uploading: false, error: 'upload_failed' }
-        : f
-      ));
+      console.error("Upload failed:", err);
+      setter((prev) =>
+        prev.map((f) =>
+          f.id === pf.id
+            ? { ...f, uploading: false, error: "upload_failed" }
+            : f,
+        ),
+      );
     }
   };
 
@@ -906,7 +1374,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     fileList: FileList | File[],
     currentFiles: PendingFile[],
     setter: React.Dispatch<React.SetStateAction<PendingFile[]>>,
-    existingCount = 0
+    existingCount = 0,
   ) => {
     setFileError(null);
     const files = Array.from(fileList);
@@ -915,16 +1383,26 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
     for (const file of files) {
       if (totalCurrent + newFiles.length >= MAX_FILES) {
-        setFileError('comment.maxFilesError');
+        setFileError("comment.maxFilesError");
         break;
       }
       if (!ALLOWED_TYPES.includes(file.type)) {
-        setFileError('comment.fileTypeError');
+        setFileError("comment.fileTypeError");
         continue;
       }
-      const maxSize = isVideoType(file.type) ? MAX_FILE_SIZE_VIDEO : isDocType(file.type) ? MAX_FILE_SIZE_DOC : MAX_FILE_SIZE_IMAGE;
+      const maxSize = isVideoType(file.type)
+        ? MAX_FILE_SIZE_VIDEO
+        : isDocType(file.type)
+          ? MAX_FILE_SIZE_DOC
+          : MAX_FILE_SIZE_IMAGE;
       if (file.size > maxSize) {
-        setFileError(isVideoType(file.type) ? 'comment.videoFileSizeError' : isDocType(file.type) ? 'comment.docFileSizeError' : 'comment.fileSizeError');
+        setFileError(
+          isVideoType(file.type)
+            ? "comment.videoFileSizeError"
+            : isDocType(file.type)
+              ? "comment.docFileSizeError"
+              : "comment.fileSizeError",
+        );
         continue;
       }
       newFiles.push({
@@ -935,42 +1413,72 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     }
 
     if (newFiles.length > 0) {
-      setter(prev => [...prev, ...newFiles]);
+      setter((prev) => [...prev, ...newFiles]);
       // 즉시 업로드 시작
-      newFiles.forEach(pf => uploadFileToServer(pf, setter));
+      newFiles.forEach((pf) => uploadFileToServer(pf, setter));
     }
   };
 
-  const removePendingFile = (id: string, setter: React.Dispatch<React.SetStateAction<PendingFile[]>>) => {
-    setter(prev => {
-      const removed = prev.find(pf => pf.id === id);
+  const removePendingFile = (
+    id: string,
+    setter: React.Dispatch<React.SetStateAction<PendingFile[]>>,
+  ) => {
+    setter((prev) => {
+      const removed = prev.find((pf) => pf.id === id);
       if (removed) URL.revokeObjectURL(removed.previewUrl);
-      return prev.filter(pf => pf.id !== id);
+      return prev.filter((pf) => pf.id !== id);
     });
     setFileError(null);
   };
 
   // ========== 이벤트 핸들러 ==========
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
+  const handleFileSelect = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    isEdit: boolean,
+  ) => {
     if (!e.target.files) return;
     if (isEdit) {
-      validateAndAddFiles(e.target.files, editNewFiles, setEditNewFiles, editKeepAttachmentIds.length);
+      validateAndAddFiles(
+        e.target.files,
+        editNewFiles,
+        setEditNewFiles,
+        editKeepAttachmentIds.length,
+      );
     } else {
       validateAndAddFiles(e.target.files, pendingFiles, setPendingFiles);
     }
-    e.target.value = '';
+    e.target.value = "";
   };
 
-  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); };
-  const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); };
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation(); setIsDragOver(false);
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
     if (e.dataTransfer.files.length > 0) {
       if (editingId) {
-        validateAndAddFiles(e.dataTransfer.files, editNewFiles, setEditNewFiles, editKeepAttachmentIds.length);
+        validateAndAddFiles(
+          e.dataTransfer.files,
+          editNewFiles,
+          setEditNewFiles,
+          editKeepAttachmentIds.length,
+        );
       } else {
-        validateAndAddFiles(e.dataTransfer.files, pendingFiles, setPendingFiles);
+        validateAndAddFiles(
+          e.dataTransfer.files,
+          pendingFiles,
+          setPendingFiles,
+        );
       }
     }
   };
@@ -979,7 +1487,11 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     const mediaFiles: File[] = [];
     for (let i = 0; i < e.clipboardData.items.length; i++) {
       const item = e.clipboardData.items[i];
-      if (item.type.startsWith('image/') || item.type.startsWith('video/') || ALLOWED_DOC_TYPES.includes(item.type)) {
+      if (
+        item.type.startsWith("image/") ||
+        item.type.startsWith("video/") ||
+        ALLOWED_DOC_TYPES.includes(item.type)
+      ) {
         const file = item.getAsFile();
         if (file) mediaFiles.push(file);
       }
@@ -987,7 +1499,12 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     if (mediaFiles.length > 0) {
       e.preventDefault();
       if (isEdit) {
-        validateAndAddFiles(mediaFiles, editNewFiles, setEditNewFiles, editKeepAttachmentIds.length);
+        validateAndAddFiles(
+          mediaFiles,
+          editNewFiles,
+          setEditNewFiles,
+          editKeepAttachmentIds.length,
+        );
       } else {
         validateAndAddFiles(mediaFiles, pendingFiles, setPendingFiles);
       }
@@ -996,7 +1513,10 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
   // ========== 멘션 ==========
 
-  const detectMentionQuery = (text: string, cursorPos: number): string | null => {
+  const detectMentionQuery = (
+    text: string,
+    cursorPos: number,
+  ): string | null => {
     const before = text.slice(0, cursorPos);
     const match = before.match(/@(\S*)$/);
     return match ? match[1] : null;
@@ -1017,7 +1537,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
       setMentionIndex(0);
     } else {
       setShowInlineMention(false);
-      setMentionQuery('');
+      setMentionQuery("");
     }
   };
 
@@ -1031,14 +1551,18 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
     if (isEdit) {
       setEditContent(replaced + after);
-      setEditMentions(prev => prev.includes(member.userId) ? prev : [...prev, member.userId]);
+      setEditMentions((prev) =>
+        prev.includes(member.userId) ? prev : [...prev, member.userId],
+      );
     } else {
       setNewComment(replaced + after);
-      setPendingMentions(prev => prev.includes(member.userId) ? prev : [...prev, member.userId]);
+      setPendingMentions((prev) =>
+        prev.includes(member.userId) ? prev : [...prev, member.userId],
+      );
     }
 
     setShowInlineMention(false);
-    setMentionQuery('');
+    setMentionQuery("");
     mentionJustSelected.current = true;
 
     requestAnimationFrame(() => {
@@ -1059,17 +1583,17 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     const after = text.slice(cursorPos);
     const replaced = before.replace(/@\S*$/, `@${group.name} `);
 
-    const memberIds = group.members.map(m => m.user_id);
+    const memberIds = group.members.map((m) => m.user_id);
     if (isEdit) {
       setEditContent(replaced + after);
-      setEditMentions(prev => [...new Set([...prev, ...memberIds])]);
+      setEditMentions((prev) => [...new Set([...prev, ...memberIds])]);
     } else {
       setNewComment(replaced + after);
-      setPendingMentions(prev => [...new Set([...prev, ...memberIds])]);
+      setPendingMentions((prev) => [...new Set([...prev, ...memberIds])]);
     }
 
     setShowInlineMention(false);
-    setMentionQuery('');
+    setMentionQuery("");
     mentionJustSelected.current = true;
 
     requestAnimationFrame(() => {
@@ -1082,19 +1606,21 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     });
   };
 
-  type MentionItem = { type: 'member'; member: BoardMember } | { type: 'group'; group: MentionGroupDetail };
+  type MentionItem =
+    | { type: "member"; member: BoardMember }
+    | { type: "group"; group: MentionGroupDetail };
 
-  const filteredMembers = boardMembers.filter(m =>
-    m.name.toLowerCase().includes(mentionQuery.toLowerCase())
+  const filteredMembers = boardMembers.filter((m) =>
+    m.name.toLowerCase().includes(mentionQuery.toLowerCase()),
   );
 
-  const filteredGroups = mentionGroups.filter(g =>
-    g.name.toLowerCase().includes(mentionQuery.toLowerCase())
+  const filteredGroups = mentionGroups.filter((g) =>
+    g.name.toLowerCase().includes(mentionQuery.toLowerCase()),
   );
 
   const filteredItems: MentionItem[] = [
-    ...filteredGroups.map(g => ({ type: 'group' as const, group: g })),
-    ...filteredMembers.map(m => ({ type: 'member' as const, member: m })),
+    ...filteredGroups.map((g) => ({ type: "group" as const, group: g })),
+    ...filteredMembers.map((m) => ({ type: "member" as const, member: m })),
   ];
 
   // ========== CRUD ==========
@@ -1105,35 +1631,39 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     if ((!hasText && !hasFiles) || isSubmitting) return;
 
     // 모든 파일이 업로드 완료될 때까지 대기
-    const uploading = pendingFiles.some(pf => pf.uploading);
+    const uploading = pendingFiles.some((pf) => pf.uploading);
     if (uploading) {
-      setFileError('comment.uploadInProgress');
+      setFileError("comment.uploadInProgress");
       return;
     }
-    const hasError = pendingFiles.some(pf => pf.error);
+    const hasError = pendingFiles.some((pf) => pf.error);
     if (hasError) {
-      setFileError('comment.uploadFailedRetry');
+      setFileError("comment.uploadFailedRetry");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const fileKeys = pendingFiles.map(pf => pf.tempKey!).filter(Boolean);
+      const fileKeys = pendingFiles.map((pf) => pf.tempKey!).filter(Boolean);
       const response = await commentAPI.createComment(boardId, taskId, {
-        content: newComment.trim() || '',
+        content: newComment.trim() || "",
         mentions: pendingMentions,
         fileKeys: fileKeys.length > 0 ? fileKeys : undefined,
         parentId: replyTo?.id,
+        checklistItemId: checklistItemId ?? undefined,
       });
-      setComments(prev => [...prev, response]);
-      setNewComment('');
+      setComments((prev) => [...prev, response]);
+      if (checklistItemId) {
+        onChecklistCommentCountChange?.(checklistItemId, 1);
+      }
+      setNewComment("");
       setReplyTo(null);
       setPendingMentions([]);
-      pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
+      pendingFiles.forEach((pf) => URL.revokeObjectURL(pf.previewUrl));
       setPendingFiles([]);
       setFileError(null);
     } catch (error) {
-      console.error('Failed to create comment:', error);
+      console.error("Failed to create comment:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -1143,15 +1673,15 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     setEditingId(comment.id);
     setEditContent(comment.content);
     setEditMentions(comment.mentions || []);
-    setEditKeepAttachmentIds((comment.attachments || []).map(a => a.id));
+    setEditKeepAttachmentIds((comment.attachments || []).map((a) => a.id));
     setEditNewFiles([]);
     setFileError(null);
   };
 
   const cancelEditing = () => {
-    editNewFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
+    editNewFiles.forEach((pf) => URL.revokeObjectURL(pf.previewUrl));
     setEditingId(null);
-    setEditContent('');
+    setEditContent("");
     setEditMentions([]);
     setEditKeepAttachmentIds([]);
     setEditNewFiles([]);
@@ -1161,25 +1691,32 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   const handleUpdate = async (commentId: string) => {
     if (!editContent.trim()) return;
 
-    const uploading = editNewFiles.some(pf => pf.uploading);
+    const uploading = editNewFiles.some((pf) => pf.uploading);
     if (uploading) {
-      setFileError('comment.uploadInProgress');
+      setFileError("comment.uploadInProgress");
       return;
     }
 
     setIsEditSubmitting(true);
     try {
-      const newFileKeys = editNewFiles.map(pf => pf.tempKey!).filter(Boolean);
-      const response = await commentAPI.updateComment(boardId, taskId, commentId, {
-        content: editContent.trim(),
-        mentions: editMentions,
-        keepAttachmentIds: editKeepAttachmentIds,
-        newFileKeys: newFileKeys.length > 0 ? newFileKeys : undefined,
-      });
-      setComments(prev => prev.map(c => c.id === commentId ? response : c));
+      const newFileKeys = editNewFiles.map((pf) => pf.tempKey!).filter(Boolean);
+      const response = await commentAPI.updateComment(
+        boardId,
+        taskId,
+        commentId,
+        {
+          content: editContent.trim(),
+          mentions: editMentions,
+          keepAttachmentIds: editKeepAttachmentIds,
+          newFileKeys: newFileKeys.length > 0 ? newFileKeys : undefined,
+        },
+      );
+      setComments((prev) =>
+        prev.map((c) => (c.id === commentId ? response : c)),
+      );
       cancelEditing();
     } catch (error) {
-      console.error('Failed to update comment:', error);
+      console.error("Failed to update comment:", error);
     } finally {
       setIsEditSubmitting(false);
     }
@@ -1187,10 +1724,17 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
   const handleDelete = async (commentId: string) => {
     try {
+      // 지우기 전에 소속 항목을 확인해 둔다 — 지운 뒤에는 어느 행의 뱃지를 줄일지 알 수 없다.
+      const removedItemId = comments.find(
+        (c) => c.id === commentId,
+      )?.checklist_item_id;
       await commentAPI.deleteComment(boardId, taskId, commentId);
-      setComments(prev => prev.filter(c => c.id !== commentId));
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      if (removedItemId) {
+        onChecklistCommentCountChange?.(removedItemId, -1);
+      }
     } catch (error) {
-      console.error('Failed to delete comment:', error);
+      console.error("Failed to delete comment:", error);
     } finally {
       setDeleteTarget(null);
     }
@@ -1198,26 +1742,47 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
   // ========== 키보드 ==========
 
-  const handleMentionNav = (e: React.KeyboardEvent<HTMLTextAreaElement>, isEdit: boolean): boolean => {
+  const handleMentionNav = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>,
+    isEdit: boolean,
+  ): boolean => {
     if (!showInlineMention || filteredItems.length === 0) return false;
-    if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(prev => (prev + 1) % filteredItems.length); return true; }
-    if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIndex(prev => (prev - 1 + filteredItems.length) % filteredItems.length); return true; }
-    if (e.key === 'Enter' || e.key === 'Tab') {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setMentionIndex((prev) => (prev + 1) % filteredItems.length);
+      return true;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setMentionIndex(
+        (prev) => (prev - 1 + filteredItems.length) % filteredItems.length,
+      );
+      return true;
+    }
+    if (e.key === "Enter" || e.key === "Tab") {
       e.preventDefault();
       const item = filteredItems[mentionIndex];
-      if (item.type === 'group') insertGroupMention(item.group, isEdit);
+      if (item.type === "group") insertGroupMention(item.group, isEdit);
       else insertMention(item.member, isEdit);
       return true;
     }
-    if (e.key === 'Escape') { e.preventDefault(); setShowInlineMention(false); return true; }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setShowInlineMention(false);
+      return true;
+    }
     return false;
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.nativeEvent.isComposing) return;
     if (handleMentionNav(e, false)) return;
-    if (e.key === 'Enter' && !e.shiftKey) {
-      if (mentionJustSelected.current) { e.preventDefault(); mentionJustSelected.current = false; return; }
+    if (e.key === "Enter" && !e.shiftKey) {
+      if (mentionJustSelected.current) {
+        e.preventDefault();
+        mentionJustSelected.current = false;
+        return;
+      }
       e.preventDefault();
       handleSubmit();
     } else {
@@ -1225,14 +1790,21 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     }
   };
 
-  const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, commentId: string) => {
+  const handleEditKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>,
+    commentId: string,
+  ) => {
     if (e.nativeEvent.isComposing) return;
     if (handleMentionNav(e, true)) return;
-    if (e.key === 'Enter' && !e.shiftKey) {
-      if (mentionJustSelected.current) { e.preventDefault(); mentionJustSelected.current = false; return; }
+    if (e.key === "Enter" && !e.shiftKey) {
+      if (mentionJustSelected.current) {
+        e.preventDefault();
+        mentionJustSelected.current = false;
+        return;
+      }
       e.preventDefault();
       handleUpdate(commentId);
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       cancelEditing();
     } else {
       mentionJustSelected.current = false;
@@ -1243,61 +1815,96 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
   // ========== 메인 렌더 ==========
 
-  const currentComment = editingId ? comments.find(c => c.id === editingId) : null;
+  const currentComment = editingId
+    ? comments.find((c) => c.id === editingId)
+    : null;
 
   return (
-    <div className="flex flex-col h-full" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+    <div
+      className="flex flex-col h-full"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {/* 드래그 오버레이 */}
       {isDragOver && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-bridge-accent/10 border-2 border-dashed border-bridge-accent rounded-lg pointer-events-none">
           <div className="flex flex-col items-center gap-2 text-bridge-accent">
             <Paperclip className="h-8 w-8" />
-            <span className="text-sm font-medium">{t('comment.dropFileHere')}</span>
+            <span className="text-sm font-medium">
+              {t("comment.dropFileHere")}
+            </span>
           </div>
         </div>
       )}
 
-      {/* 헤더 */}
-      <div className="flex items-center px-4 py-3 border-b border-bridge-border">
-        <div className="flex items-center gap-2 flex-1">
-          <MessageSquare className="h-4 w-4 text-slate-400" />
-          <span className="text-sm font-medium text-foreground">{t('comment.title')}</span>
-          {comments.length > 0 && <span className="text-xs text-slate-400">{comments.length}</span>}
-          <button onClick={() => loadComments(false)} disabled={isRefreshing}
-            className="p-0.5 text-slate-400 hover:text-foreground transition-colors disabled:opacity-50" title={t('comment.refresh')}>
-            <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </button>
+      {/* 헤더 — 디테일 모달 안에서는 모달 자체가 제목을 갖고 있으므로 접는다 */}
+      {!isEmbedded && (
+        <div className="flex items-center px-4 py-3 border-b border-bridge-border">
+          <div className="flex items-center gap-2 flex-1">
+            <MessageSquare className="h-4 w-4 text-slate-400" />
+            <span className="text-sm font-medium text-foreground">
+              {t("comment.title")}
+            </span>
+            {comments.length > 0 && (
+              <span className="text-xs text-slate-400">{comments.length}</span>
+            )}
+            <button
+              onClick={() => loadComments(false)}
+              disabled={isRefreshing}
+              className="p-0.5 text-slate-400 hover:text-foreground transition-colors disabled:opacity-50"
+              title={t("comment.refresh")}
+            >
+              <RefreshCw
+                className={`h-3 w-3 ${isRefreshing ? "animate-spin" : ""}`}
+              />
+            </button>
+          </div>
+          {comments.length >= 3 && canEdit && (
+            <button
+              onClick={async () => {
+                setAiSummaryLoading(true);
+                try {
+                  const result = await commentAPI.aiSummarize(
+                    boardId,
+                    taskId,
+                    i18n.language,
+                  );
+                  setAiSummary(result);
+                } catch {
+                  /* ignore */
+                } finally {
+                  setAiSummaryLoading(false);
+                }
+              }}
+              disabled={aiSummaryLoading}
+              className="flex items-center gap-1 px-2 py-0.5 text-xs font-bold text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-all disabled:opacity-50"
+            >
+              {aiSummaryLoading ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Sparkles className="h-3 w-3" />
+              )}
+              {t("comment.aiSummarize")}
+            </button>
+          )}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="hidden md:flex ml-2 p-1 rounded-sm text-slate-400 hover:text-foreground transition-colors"
+              aria-label="닫기"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
-        {comments.length >= 3 && canEdit && (
-          <button
-            onClick={async () => {
-              setAiSummaryLoading(true);
-              try {
-                const result = await commentAPI.aiSummarize(boardId, taskId, i18n.language);
-                setAiSummary(result);
-              } catch { /* ignore */ }
-              finally { setAiSummaryLoading(false); }
-            }}
-            disabled={aiSummaryLoading}
-            className="flex items-center gap-1 px-2 py-0.5 text-xs font-bold text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-all disabled:opacity-50"
-          >
-            {aiSummaryLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-            {t('comment.aiSummarize')}
-          </button>
-        )}
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="hidden md:flex ml-2 p-1 rounded-sm text-slate-400 hover:text-foreground transition-colors"
-            aria-label="닫기"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
+      )}
 
       {/* 댓글 목록 */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-4 custom-scrollbar">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-4 py-3 space-y-4 custom-scrollbar"
+      >
         {/* AI 요약 카드 */}
         {aiSummary && (
           <div className="mb-2 bg-bridge-accent/5 border border-bridge-accent/20 rounded-xl p-4 space-y-3">
@@ -1305,10 +1912,13 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               <div className="flex items-center gap-1.5">
                 <Sparkles className="h-3.5 w-3.5 text-bridge-accent" />
                 <span className="text-xs font-bold uppercase tracking-widest text-bridge-accent">
-                  {t('comment.aiSummaryTitle')}
+                  {t("comment.aiSummaryTitle")}
                 </span>
               </div>
-              <button onClick={() => setAiSummary(null)} className="text-slate-400 hover:text-foreground p-0.5">
+              <button
+                onClick={() => setAiSummary(null)}
+                className="text-slate-400 hover:text-foreground p-0.5"
+              >
                 <X className="h-3 w-3" />
               </button>
             </div>
@@ -1317,10 +1927,15 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
             {aiSummary.decisions.length > 0 && (
               <div>
-                <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">{t('comment.aiDecisions')}</span>
+                <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">
+                  {t("comment.aiDecisions")}
+                </span>
                 <ul className="mt-1 space-y-0.5">
                   {aiSummary.decisions.map((d, i) => (
-                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                    <li
+                      key={i}
+                      className="text-xs text-muted-foreground flex items-start gap-1.5"
+                    >
                       <CheckCircle2 className="h-3 w-3 text-emerald-400 mt-0.5 flex-shrink-0" />
                       {d}
                     </li>
@@ -1331,10 +1946,15 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
             {aiSummary.open_questions.length > 0 && (
               <div>
-                <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">{t('comment.aiOpenQuestions')}</span>
+                <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">
+                  {t("comment.aiOpenQuestions")}
+                </span>
                 <ul className="mt-1 space-y-0.5">
                   {aiSummary.open_questions.map((q, i) => (
-                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                    <li
+                      key={i}
+                      className="text-xs text-muted-foreground flex items-start gap-1.5"
+                    >
                       <HelpCircle className="h-3 w-3 text-amber-400 mt-0.5 flex-shrink-0" />
                       {q}
                     </li>
@@ -1345,24 +1965,37 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
             {aiSummary.action_items.length > 0 && (
               <div>
-                <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">{t('comment.aiActionItems')}</span>
+                <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">
+                  {t("comment.aiActionItems")}
+                </span>
                 <ul className="mt-1 space-y-1">
                   {aiSummary.action_items.map((item, i) => (
-                    <li key={i} className="text-xs text-muted-foreground flex items-center justify-between">
+                    <li
+                      key={i}
+                      className="text-xs text-muted-foreground flex items-center justify-between"
+                    >
                       <span className="flex items-center gap-1.5">
                         <ListChecks className="h-3 w-3 text-blue-400 flex-shrink-0" />
                         {item.title}
                         {item.assignee_hint && (
-                          <span className="text-xs text-slate-500">@{item.assignee_hint}</span>
+                          <span className="text-xs text-slate-500">
+                            @{item.assignee_hint}
+                          </span>
                         )}
                       </span>
                       <button
                         onClick={async () => {
-                          try { await checklistAPI.addItem(boardId, taskId, { title: item.title }); } catch { /* ignore */ }
+                          try {
+                            await checklistAPI.addItem(boardId, taskId, {
+                              title: item.title,
+                            });
+                          } catch {
+                            /* ignore */
+                          }
                         }}
                         className="text-xs text-bridge-accent hover:text-bridge-accent/80 px-1.5 py-0.5 rounded bg-bridge-accent/10 hover:bg-bridge-accent/20 transition-all whitespace-nowrap ml-2"
                       >
-                        + {t('comment.checklist')}
+                        + {t("comment.checklist")}
                       </button>
                     </li>
                   ))}
@@ -1376,39 +2009,59 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
           </div>
-        ) : comments.length === 0 ? (
+        ) : visibleComments.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <MessageSquare className="h-8 w-8 text-slate-400 mb-2" />
-            <p className="text-sm text-slate-400">{t('comment.noComments')}</p>
-            <p className="text-xs text-slate-400 mt-1">{t('comment.beFirstComment')}</p>
+            <p className="text-sm text-slate-400">
+              {checklistItemId
+                ? t("checklistDetail.empty", "아직 대화가 없습니다")
+                : t("comment.noComments")}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              {checklistItemId
+                ? t("checklistDetail.emptyHint", "첫 댓글을 남겨보세요")
+                : t("comment.beFirstComment")}
+            </p>
           </div>
         ) : (
-          comments.map(comment => {
+          visibleComments.map((comment) => {
             const isAuthor = currentUser?.id === comment.author.id;
-            const authorMember = boardMembers.find(m => m.userId === comment.author.id);
-            const color = getAssigneeClasses(comment.author.name, authorMember?.assigneeColor);
+            const authorMember = boardMembers.find(
+              (m) => m.userId === comment.author.id,
+            );
+            const color = getAssigneeClasses(
+              comment.author.name,
+              authorMember?.assigneeColor,
+            );
             const isEdited = comment.created_at !== comment.updated_at;
             const isBeingEdited = editingId === comment.id;
 
             return (
               <div key={comment.id} className="group">
                 <div className="flex gap-2.5">
-                  <div className={`w-7 h-7 rounded-full ${color.bg} flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5`}>
+                  <div
+                    className={`w-7 h-7 rounded-full ${color.bg} flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5`}
+                  >
                     {getInitials(comment.author.name)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium text-foreground">{comment.author.name}</span>
+                      <span className="text-xs font-medium text-foreground">
+                        {comment.author.name}
+                      </span>
                       <span className="text-xs text-slate-400">
                         {formatRelativeTime(comment.created_at)}
-                        {isEdited && ` (${t('comment.edited')})`}
+                        {isEdited && ` (${t("comment.edited")})`}
                       </span>
                       {canEdit && !isBeingEdited && (
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
                           <button
-                            onClick={(e) => openEmojiPicker(comment.id, e.currentTarget)}
+                            onClick={(e) =>
+                              openEmojiPicker(comment.id, e.currentTarget)
+                            }
                             className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground"
-                            title={t('comment.reaction.addReaction')}>
+                            title={t("comment.reaction.addReaction")}
+                          >
                             <SmilePlus className="h-3 w-3" />
                           </button>
                           <EmojiPickerPopup
@@ -1433,22 +2086,30 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                           />
                           <button
                             onClick={() => {
-                              setReplyTo({ id: comment.id, authorName: comment.author.name });
+                              setReplyTo({
+                                id: comment.id,
+                                authorName: comment.author.name,
+                              });
                               textareaRef.current?.focus();
                             }}
                             className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground"
-                            title={t('comment.reply')}>
+                            title={t("comment.reply")}
+                          >
                             <Reply className="h-3 w-3" />
                           </button>
                           {isAuthor && (
-                            <button onClick={() => startEditing(comment)}
-                              className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground">
+                            <button
+                              onClick={() => startEditing(comment)}
+                              className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground"
+                            >
                               <Pencil className="h-3 w-3" />
                             </button>
                           )}
                           {(isAuthor || isAdminOrOwner) && (
-                            <button onClick={() => setDeleteTarget(comment.id)}
-                              className="p-1 rounded hover:bg-red-500/10 text-slate-400 hover:text-red-400">
+                            <button
+                              onClick={() => setDeleteTarget(comment.id)}
+                              className="p-1 rounded hover:bg-red-500/10 text-slate-400 hover:text-red-400"
+                            >
                               <Trash2 className="h-3 w-3" />
                             </button>
                           )}
@@ -1456,12 +2117,32 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                       )}
                     </div>
 
-                    {!isBeingEdited && comment.parent_id && comment.parent_author_name && (
-                      <div className="flex items-center gap-1 mb-1 text-xs text-slate-400">
-                        <Reply className="h-2.5 w-2.5 flex-shrink-0" />
-                        <span className="truncate">@{comment.parent_author_name}</span>
-                      </div>
-                    )}
+                    {!isBeingEdited &&
+                      comment.parent_id &&
+                      comment.parent_author_name && (
+                        <div className="flex items-center gap-1 mb-1 text-xs text-slate-400">
+                          <Reply className="h-2.5 w-2.5 flex-shrink-0" />
+                          <span className="truncate">
+                            @{comment.parent_author_name}
+                          </span>
+                        </div>
+                      )}
+
+                    {/*
+                      어느 체크리스트 항목의 댓글인지 밝히는 칩.
+                      항목 스코프에서는 이미 제목이 모달 헤더에 있으므로 붙이지 않는다 — 같은 말을 두 번 하는 셈이다.
+                      삭제된 항목이면 취소선만 긋고 클릭은 막는다(열 화면이 없다).
+                    */}
+                    {!isBeingEdited &&
+                      !checklistItemId &&
+                      comment.checklist_item_id && (
+                        <ChecklistOriginChip
+                          itemId={comment.checklist_item_id}
+                          title={comment.checklist_item_title}
+                          deleted={!!comment.checklist_item_deleted}
+                          onOpen={onOpenChecklistItem}
+                        />
+                      )}
 
                     {isBeingEdited ? (
                       <div className="space-y-2">
@@ -1470,45 +2151,94 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                           files={editNewFiles}
                           existingAttachments={comment.attachments}
                           keepIds={editKeepAttachmentIds}
-                          onRemoveFile={(id) => removePendingFile(id, setEditNewFiles)}
-                          onRemoveExisting={(attId) => setEditKeepAttachmentIds(prev => prev.filter(id => id !== attId))}
+                          onRemoveFile={(id) =>
+                            removePendingFile(id, setEditNewFiles)
+                          }
+                          onRemoveExisting={(attId) =>
+                            setEditKeepAttachmentIds((prev) =>
+                              prev.filter((id) => id !== attId),
+                            )
+                          }
                         />
-                        {fileError && <p className="text-xs text-red-400">{t(fileError)}</p>}
+                        {fileError && (
+                          <p className="text-xs text-red-400">{t(fileError)}</p>
+                        )}
 
                         <div className="relative">
-                          <InlineMentionDropdown isEdit={true} show={showInlineMention} forEdit={inlineMentionForEdit}
-                            filteredGroups={filteredGroups} filteredMembers={filteredMembers}
-                            mentionIndex={mentionIndex} onMentionIndexChange={setMentionIndex}
-                            isAdminOrOwner={isAdminOrOwner} mentionQuery={mentionQuery}
-                            onInsertMention={insertMention} onInsertGroupMention={insertGroupMention}
-                            currentUserId={currentUser?.id} onShowMentionGroupModal={() => setShowMentionGroupModal(true)}
-                            onHideMention={() => setShowInlineMention(false)} />
-                          <textarea ref={editTextareaRef} value={editContent}
-                            onChange={e => handleTextChange(e.target.value, true)}
-                            onKeyDown={e => handleEditKeyDown(e, comment.id)}
-                            onPaste={e => handlePaste(e, true)}
-                            onBlur={() => setTimeout(() => setShowInlineMention(false), 150)}
+                          <InlineMentionDropdown
+                            isEdit={true}
+                            show={showInlineMention}
+                            forEdit={inlineMentionForEdit}
+                            filteredGroups={filteredGroups}
+                            filteredMembers={filteredMembers}
+                            mentionIndex={mentionIndex}
+                            onMentionIndexChange={setMentionIndex}
+                            isAdminOrOwner={isAdminOrOwner}
+                            mentionQuery={mentionQuery}
+                            onInsertMention={insertMention}
+                            onInsertGroupMention={insertGroupMention}
+                            currentUserId={currentUser?.id}
+                            onShowMentionGroupModal={() =>
+                              setShowMentionGroupModal(true)
+                            }
+                            onHideMention={() => setShowInlineMention(false)}
+                          />
+                          <textarea
+                            ref={editTextareaRef}
+                            value={editContent}
+                            onChange={(e) =>
+                              handleTextChange(e.target.value, true)
+                            }
+                            onKeyDown={(e) => handleEditKeyDown(e, comment.id)}
+                            onPaste={(e) => handlePaste(e, true)}
+                            onBlur={() =>
+                              setTimeout(() => setShowInlineMention(false), 150)
+                            }
                             className="w-full text-xs bg-foreground/5 border border-bridge-border rounded-lg px-3 py-2 text-foreground placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
-                            rows={3} autoFocus />
+                            rows={3}
+                            autoFocus
+                          />
                         </div>
                         <div className="flex items-center gap-1">
-                          <input ref={editFileInputRef} type="file" accept={FILE_ACCEPT}
-                            multiple className="hidden" onChange={e => handleFileSelect(e, true)} />
-                          <button onClick={() => editFileInputRef.current?.click()}
-                            disabled={editKeepAttachmentIds.length + editNewFiles.length >= MAX_FILES}
-                            className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-foreground/10 disabled:opacity-30 transition-colors" title={t('comment.addFile')}>
+                          <input
+                            ref={editFileInputRef}
+                            type="file"
+                            accept={FILE_ACCEPT}
+                            multiple
+                            className="hidden"
+                            onChange={(e) => handleFileSelect(e, true)}
+                          />
+                          <button
+                            onClick={() => editFileInputRef.current?.click()}
+                            disabled={
+                              editKeepAttachmentIds.length +
+                                editNewFiles.length >=
+                              MAX_FILES
+                            }
+                            className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-foreground/10 disabled:opacity-30 transition-colors"
+                            title={t("comment.addFile")}
+                          >
                             <Paperclip className="h-3.5 w-3.5" />
                           </button>
                           <div className="flex-1" />
-                          <button onClick={cancelEditing}
+                          <button
+                            onClick={cancelEditing}
                             className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground"
-                            aria-label="닫기">
+                            aria-label="닫기"
+                          >
                             <X className="h-3.5 w-3.5" />
                           </button>
-                          <button onClick={() => handleUpdate(comment.id)} disabled={isEditSubmitting}
+                          <button
+                            onClick={() => handleUpdate(comment.id)}
+                            disabled={isEditSubmitting}
                             className="p-1 rounded hover:bg-bridge-accent/20 text-bridge-accent disabled:opacity-50"
-                            aria-label="확인">
-                            {isEditSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                            aria-label="확인"
+                          >
+                            {isEditSubmitting ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Check className="h-3.5 w-3.5" />
+                            )}
                           </button>
                         </div>
                       </div>
@@ -1516,11 +2246,23 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                       <>
                         {comment.content && comment.content.trim() && (
                           <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">
-                            {renderContent(comment.content, boardMembers, mentionGroups)}
+                            {renderContent(
+                              comment.content,
+                              boardMembers,
+                              mentionGroups,
+                            )}
                           </p>
                         )}
-                        <AttachmentGrid attachments={comment.attachments || []} onOpenLightbox={setLightboxAttachmentId} />
-                        <ReactionBar comment={comment} currentUserId={currentUser?.id} canEdit={canEdit} onToggleReaction={handleToggleReaction} />
+                        <AttachmentGrid
+                          attachments={comment.attachments || []}
+                          onOpenLightbox={setLightboxAttachmentId}
+                        />
+                        <ReactionBar
+                          comment={comment}
+                          currentUserId={currentUser?.id}
+                          canEdit={canEdit}
+                          onToggleReaction={handleToggleReaction}
+                        />
                       </>
                     )}
                   </div>
@@ -1538,145 +2280,256 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
             <div className="flex items-center gap-2 px-1 py-1.5 mb-1.5 rounded-lg bg-bridge-accent/10 border border-bridge-accent/20">
               <Reply className="h-3 w-3 text-bridge-accent flex-shrink-0" />
               <span className="text-xs text-bridge-accent font-medium truncate">
-                {t('comment.replyingTo', { name: replyTo.authorName })}
+                {t("comment.replyingTo", { name: replyTo.authorName })}
               </span>
               <button
                 onClick={() => setReplyTo(null)}
-                className="ml-auto p-0.5 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground flex-shrink-0">
+                className="ml-auto p-0.5 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground flex-shrink-0"
+              >
                 <X className="h-3 w-3" />
               </button>
             </div>
           )}
-          <FilePreviewList files={pendingFiles}
-            onRemoveFile={(id) => removePendingFile(id, setPendingFiles)} />
+          <FilePreviewList
+            files={pendingFiles}
+            onRemoveFile={(id) => removePendingFile(id, setPendingFiles)}
+          />
 
-          {fileError && !editingId && <p className="text-xs text-red-400 mb-1">{t(fileError)}</p>}
+          {fileError && !editingId && (
+            <p className="text-xs text-red-400 mb-1">{t(fileError)}</p>
+          )}
 
           <div className="relative">
-            <InlineMentionDropdown isEdit={false} show={showInlineMention} forEdit={inlineMentionForEdit}
-              filteredGroups={filteredGroups} filteredMembers={filteredMembers}
-              mentionIndex={mentionIndex} onMentionIndexChange={setMentionIndex}
-              isAdminOrOwner={isAdminOrOwner} mentionQuery={mentionQuery}
-              onInsertMention={insertMention} onInsertGroupMention={insertGroupMention}
-              currentUserId={currentUser?.id} onShowMentionGroupModal={() => setShowMentionGroupModal(true)}
-              onHideMention={() => setShowInlineMention(false)} />
-            <textarea ref={textareaRef} value={newComment}
-              onChange={e => handleTextChange(e.target.value, false)}
+            <InlineMentionDropdown
+              isEdit={false}
+              show={showInlineMention}
+              forEdit={inlineMentionForEdit}
+              filteredGroups={filteredGroups}
+              filteredMembers={filteredMembers}
+              mentionIndex={mentionIndex}
+              onMentionIndexChange={setMentionIndex}
+              isAdminOrOwner={isAdminOrOwner}
+              mentionQuery={mentionQuery}
+              onInsertMention={insertMention}
+              onInsertGroupMention={insertGroupMention}
+              currentUserId={currentUser?.id}
+              onShowMentionGroupModal={() => setShowMentionGroupModal(true)}
+              onHideMention={() => setShowInlineMention(false)}
+            />
+            <textarea
+              ref={textareaRef}
+              value={newComment}
+              onChange={(e) => handleTextChange(e.target.value, false)}
               onKeyDown={handleKeyDown}
-              onPaste={e => handlePaste(e, false)}
+              onPaste={(e) => handlePaste(e, false)}
               onBlur={() => setTimeout(() => setShowInlineMention(false), 150)}
-              placeholder={t('comment.inputPlaceholder')}
+              // 지금 쓰는 글이 어디로 가는지 화면에 적혀 있어야 한다
+              placeholder={
+                checklistItemId
+                  ? t("checklistDetail.placeholder", "이 항목에 댓글 남기기…")
+                  : t("comment.inputPlaceholder")
+              }
               className="w-full text-xs bg-foreground/5 border border-bridge-border rounded-lg pl-3 pr-20 py-2.5 text-foreground placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
-              rows={2} />
+              rows={2}
+            />
             <div className="absolute right-2 bottom-2 flex items-center gap-1">
-              <input ref={fileInputRef} type="file" accept={FILE_ACCEPT}
-                multiple className="hidden" onChange={e => handleFileSelect(e, false)} />
-              <button onClick={() => fileInputRef.current?.click()} disabled={pendingFiles.length >= MAX_FILES}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={FILE_ACCEPT}
+                multiple
+                className="hidden"
+                onChange={(e) => handleFileSelect(e, false)}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={pendingFiles.length >= MAX_FILES}
                 className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-foreground/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                title={t('comment.attachFile')}>
+                title={t("comment.attachFile")}
+              >
                 <Paperclip className="h-3.5 w-3.5" />
               </button>
-              <button onClick={handleSubmit}
-                disabled={(!newComment.trim() && pendingFiles.length === 0) || isSubmitting || pendingFiles.some(f => f.uploading)}
-                className="p-1.5 rounded bg-bridge-accent hover:bg-bridge-accent/80 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-                {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+              <button
+                onClick={handleSubmit}
+                disabled={
+                  (!newComment.trim() && pendingFiles.length === 0) ||
+                  isSubmitting ||
+                  pendingFiles.some((f) => f.uploading)
+                }
+                className="p-1.5 rounded bg-bridge-accent hover:bg-bridge-accent/80 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                {isSubmitting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Send className="h-3.5 w-3.5" />
+                )}
               </button>
             </div>
           </div>
-          <p className="text-xs text-slate-400 mt-1">{t('comment.fileHelp')}</p>
+          <p className="text-xs text-slate-400 mt-1">{t("comment.fileHelp")}</p>
         </div>
       ) : (
         <div className="px-4 py-3 border-t border-bridge-border">
-          <p className="text-xs text-slate-400 text-center">{t('comment.viewerReadOnly')}</p>
+          <p className="text-xs text-slate-400 text-center">
+            {t("comment.viewerReadOnly")}
+          </p>
         </div>
       )}
 
       {/* 미디어 라이트박스 - Portal로 body에 렌더링 (모달 transform 영향 회피) */}
-      {lightboxAttachmentId && createPortal(
-        (() => {
-          const index = allMedia.findIndex(m => m.attachmentId === lightboxAttachmentId);
-          if (index < 0) return null;
-          const current = allMedia[index];
-          const total = allMedia.length;
-          const hasPrev = index > 0;
-          const hasNext = index < total - 1;
-          const goPrev = () => hasPrev && setLightboxAttachmentId(allMedia[index - 1].attachmentId);
-          const goNext = () => hasNext && setLightboxAttachmentId(allMedia[index + 1].attachmentId);
-          const close = () => setLightboxAttachmentId(null);
+      {lightboxAttachmentId &&
+        createPortal(
+          (() => {
+            const index = allMedia.findIndex(
+              (m) => m.attachmentId === lightboxAttachmentId,
+            );
+            if (index < 0) return null;
+            const current = allMedia[index];
+            const total = allMedia.length;
+            const hasPrev = index > 0;
+            const hasNext = index < total - 1;
+            const goPrev = () =>
+              hasPrev &&
+              setLightboxAttachmentId(allMedia[index - 1].attachmentId);
+            const goNext = () =>
+              hasNext &&
+              setLightboxAttachmentId(allMedia[index + 1].attachmentId);
+            const close = () => setLightboxAttachmentId(null);
 
-          const navChrome = (
-            <>
-              {hasPrev && (
-                <button onClick={(e) => { e.stopPropagation(); goPrev(); }}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10 pointer-events-auto">
-                  <ChevronLeft className="h-6 w-6" />
-                </button>
-              )}
-              {hasNext && (
-                <button onClick={(e) => { e.stopPropagation(); goNext(); }}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10 pointer-events-auto">
-                  <ChevronRight className="h-6 w-6" />
-                </button>
-              )}
-              {total > 1 && (
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-black/50 text-white text-xs z-10 pointer-events-none">
-                  {index + 1} / {total}
-                </div>
-              )}
-            </>
-          );
+            const navChrome = (
+              <>
+                {hasPrev && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      goPrev();
+                    }}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10 pointer-events-auto"
+                  >
+                    <ChevronLeft className="h-6 w-6" />
+                  </button>
+                )}
+                {hasNext && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      goNext();
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10 pointer-events-auto"
+                  >
+                    <ChevronRight className="h-6 w-6" />
+                  </button>
+                )}
+                {total > 1 && (
+                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-black/50 text-white text-xs z-10 pointer-events-none">
+                    {index + 1} / {total}
+                  </div>
+                )}
+              </>
+            );
 
-          return current.type === 'video' ? (
-            <>
-              <Suspense fallback={
-                <div data-lightbox-overlay className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm pointer-events-auto">
-                  <Loader2 className="h-8 w-8 animate-spin text-white" />
+            return current.type === "video" ? (
+              <>
+                <Suspense
+                  fallback={
+                    <div
+                      data-lightbox-overlay
+                      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm pointer-events-auto"
+                    >
+                      <Loader2 className="h-8 w-8 animate-spin text-white" />
+                    </div>
+                  }
+                >
+                  <VideoLightbox
+                    key={current.attachmentId}
+                    url={current.url}
+                    onClose={close}
+                  />
+                </Suspense>
+                <div
+                  className="fixed inset-0 z-[10000] pointer-events-none"
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowLeft") {
+                      e.stopPropagation();
+                      goPrev();
+                    } else if (e.key === "ArrowRight") {
+                      e.stopPropagation();
+                      goNext();
+                    }
+                  }}
+                  tabIndex={0}
+                  ref={(el) => el?.focus()}
+                >
+                  {navChrome}
                 </div>
-              }>
-                <VideoLightbox key={current.attachmentId} url={current.url} onClose={close} />
-              </Suspense>
-              <div className="fixed inset-0 z-[10000] pointer-events-none"
+              </>
+            ) : (
+              <div
+                data-lightbox-overlay
+                className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-pointer pointer-events-auto"
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  close();
+                }}
                 onKeyDown={(e) => {
-                  if (e.key === 'ArrowLeft') { e.stopPropagation(); goPrev(); }
-                  else if (e.key === 'ArrowRight') { e.stopPropagation(); goNext(); }
+                  if (e.key === "ArrowLeft") {
+                    e.stopPropagation();
+                    goPrev();
+                  } else if (e.key === "ArrowRight") {
+                    e.stopPropagation();
+                    goNext();
+                  }
                 }}
                 tabIndex={0}
-                ref={(el) => el?.focus()}>
+                ref={(el) => el?.focus()}
+              >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    close();
+                  }}
+                  className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
+                >
+                  <X className="h-5 w-5" />
+                </button>
                 {navChrome}
+                <img
+                  src={current.url}
+                  alt={t("comment.attachedFile")}
+                  className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
+                  onClick={(e) => e.stopPropagation()}
+                />
               </div>
-            </>
-          ) : (
-            <div data-lightbox-overlay className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-pointer pointer-events-auto"
-              onPointerDown={e => e.stopPropagation()}
-              onMouseDown={e => e.stopPropagation()}
-              onClick={(e) => { e.stopPropagation(); close(); }}
-              onKeyDown={(e) => {
-                if (e.key === 'ArrowLeft') { e.stopPropagation(); goPrev(); }
-                else if (e.key === 'ArrowRight') { e.stopPropagation(); goNext(); }
-              }}
-              tabIndex={0}
-              ref={(el) => el?.focus()}>
-              <button onClick={(e) => { e.stopPropagation(); close(); }}
-                className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10">
-                <X className="h-5 w-5" />
-              </button>
-              {navChrome}
-              <img src={current.url} alt={t('comment.attachedFile')}
-                className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
-                onClick={e => e.stopPropagation()} />
-            </div>
-          );
-        })(),
-        document.body
-      )}
+            );
+          })(),
+          document.body,
+        )}
 
       {/* 삭제 확인 */}
-      <MotionModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} className="sm:max-w-sm p-6">
-        <h3 className="text-lg font-bold text-foreground">{t('comment.deleteTitle')}</h3>
-        <p className="text-sm text-slate-400 mt-1">{t('comment.deleteDesc')}</p>
+      <MotionModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        className="sm:max-w-sm p-6"
+      >
+        <h3 className="text-lg font-bold text-foreground">
+          {t("comment.deleteTitle")}
+        </h3>
+        <p className="text-sm text-slate-400 mt-1">{t("comment.deleteDesc")}</p>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
-          <button onClick={() => setDeleteTarget(null)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-bridge-border text-foreground hover:bg-foreground/10">{t('common.cancel')}</button>
-          <button onClick={() => deleteTarget && handleDelete(deleteTarget)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-500 hover:bg-red-600 text-white">{t('common.delete')}</button>
+          <button
+            onClick={() => setDeleteTarget(null)}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-bridge-border text-foreground hover:bg-foreground/10"
+          >
+            {t("common.cancel")}
+          </button>
+          <button
+            onClick={() => deleteTarget && handleDelete(deleteTarget)}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-500 hover:bg-red-600 text-white"
+          >
+            {t("common.delete")}
+          </button>
         </div>
       </MotionModal>
 

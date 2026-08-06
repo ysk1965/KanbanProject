@@ -32,6 +32,42 @@ public interface CommentRepository extends JpaRepository<Comment, String> {
 
     int countByTaskId(String taskId);
 
+    // ==================== 체크리스트 항목 댓글 ====================
+    //
+    // 아래 벌크 UPDATE들은 clearAutomatically를 쓰지 않는다. 영속성 컨텍스트를 비우면
+    // 호출한 서비스가 들고 있던 ChecklistItem이 detach되어, 그 뒤에 응답을 만들 때
+    // LAZY 담당자/외주에서 터진다. comments만 건드리므로 컨텍스트가 낡을 일도 없다.
+
+    /**
+     * 태스크 안에서 체크리스트 항목별 댓글 수. 행마다 세면 N+1이 되므로 한 번의 group by로 가져온다.
+     * 반환: {@code [checklistItemId, count]}
+     */
+    @Query("SELECT c.checklistItemId, COUNT(c) FROM Comment c " +
+           "WHERE c.task.id = :taskId AND c.checklistItemId IS NOT NULL " +
+           "GROUP BY c.checklistItemId")
+    List<Object[]> countByChecklistItemForTask(@Param("taskId") String taskId);
+
+    /**
+     * 항목이 다른 태스크로 옮겨갈 때 그 항목의 댓글도 함께 옮긴다.
+     * 안 하면 댓글이 원래 태스크에 고아로 남는다.
+     */
+    @Modifying(flushAutomatically = true)
+    @Query(value = "UPDATE comments SET task_id = :targetTaskId WHERE checklist_item_id = :itemId", nativeQuery = true)
+    int moveCommentsToTask(@Param("itemId") String itemId, @Param("targetTaskId") String targetTaskId);
+
+    /** 항목 병합: 소스 항목들의 댓글을 대표 항목으로 넘긴다. */
+    @Modifying(flushAutomatically = true)
+    @Query(value = "UPDATE comments SET checklist_item_id = :targetItemId WHERE checklist_item_id IN (:sourceItemIds)", nativeQuery = true)
+    int reassignCommentsToItem(@Param("sourceItemIds") List<String> sourceItemIds,
+                               @Param("targetItemId") String targetItemId);
+
+    /**
+     * 항목 영구삭제: 소속만 끊고 댓글은 태스크 댓글로 남긴다. 대화 기록을 지우지 않는다.
+     */
+    @Modifying(flushAutomatically = true)
+    @Query(value = "UPDATE comments SET checklist_item_id = NULL WHERE checklist_item_id = :itemId", nativeQuery = true)
+    int detachCommentsFromItem(@Param("itemId") String itemId);
+
     @Modifying
     @Query("DELETE FROM Comment c WHERE c.task.id = :taskId")
     void deleteByTaskId(@Param("taskId") String taskId);

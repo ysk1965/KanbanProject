@@ -173,6 +173,15 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     @Query(value = "SELECT * FROM checklist_items WHERE id = :id", nativeQuery = true)
     Optional<ChecklistItem> findByIdIncludingDeleted(@Param("id") String id);
 
+    /**
+     * 댓글에 붙일 항목 제목을 삭제된 것까지 포함해 벌크 조회.
+     * 삭제된 항목의 댓글도 태스크 댓글 목록에 계속 보여야 하므로 @SQLRestriction을 우회한다.
+     * 반환: {@code [id, title, deleted(boolean)]}
+     */
+    @Query(value = "SELECT id, title, (deleted_at IS NOT NULL) AS deleted " +
+                   "FROM checklist_items WHERE id IN (:ids)", nativeQuery = true)
+    List<Object[]> findTitlesByIdsIncludingDeleted(@Param("ids") List<String> ids);
+
     @Query(value = "SELECT * FROM checklist_items WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff", nativeQuery = true)
     List<ChecklistItem> findExpiredSoftDeleted(@Param("cutoff") LocalDateTime cutoff);
 

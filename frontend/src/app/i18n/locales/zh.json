@@ -4264,5 +4264,21 @@
     "noSearchResults": "没有搜索结果",
     "clearSearch": "清除搜索",
     "excludeFeature": "从思维导图中移除"
+  },
+  "checklistDetail": {
+    "open": "打开详情",
+    "title": "条目详情",
+    "info": "条目信息",
+    "gallery": "图片 {{count}}",
+    "galleryHint": "来自评论",
+    "noImages": "在评论中上传的图片会汇集到这里",
+    "comments": "评论 {{count}}",
+    "placeholder": "对该条目发表评论…",
+    "empty": "还没有对话",
+    "emptyHint": "留下第一条评论",
+    "backToTask": "查看任务全部评论",
+    "deletedBanner": "该条目已删除 · 仅可查看",
+    "chip": "清单 · {{title}}",
+    "unknownItem": "已删除的条目"
   }
 }

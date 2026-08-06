@@ -21,7 +21,7 @@ import {
   subWeeks,
   eachDayOfInterval,
 } from "date-fns";
-import { formatDate } from "../utils/dateUtils";
+import { formatDate, getTodayDateString } from "../utils/dateUtils";
 import { useHolidays } from "../hooks/useHolidays";
 import { BoardMember } from "./ShareBoardModal";
 import { ScheduleBlock } from "./ScheduleBlock";
@@ -49,6 +49,14 @@ import {
 import { getInitials, getAssigneeHex } from "../utils/assigneeColor";
 import type { MilestoneColorMap } from "../utils/milestoneColor";
 import { BoardWebSocketEvent, ChecklistItem } from "../types";
+import { PLACEMENT_DRAG_TYPE } from "./boarddashboard/PlacementRail";
+import {
+  dispatchAxisDrop,
+  endAxisDrag,
+  useAxisDropZone,
+  useTimeblockRequest,
+  type AxisItem,
+} from "../utils/axisTransfer";
 
 interface DailyScheduleViewProps {
   boardId: string;
@@ -83,6 +91,14 @@ const SLOT_HEIGHT = 40; // 30분 슬롯의 기본 높이 (px)
 // (대시보드에서는 오늘 카드가 뷰포트 높이를 다 쓰므로 화면이 클수록 스크롤이 줄어든다).
 const EMBED_SLOT_HEIGHT = 34;
 const MIN_BLOCK_HEIGHT = 28; // 블록 최소 가시 높이 (px) - 제목 텍스트가 보이는 최소 크기
+
+/**
+ * 미배치 항목을 떨어뜨렸을 때 잡아 주는 기본 길이 — 30분 슬롯 2칸(=1시간).
+ *
+ * 놓는 동작만으로는 "얼마나 걸리는 일인지"를 알 수 없다. 30분은 대부분 모자라 다시 늘리게 되고,
+ * 2시간은 남의 시간까지 먹는다. 겹치거나 점심에 걸리면 computeSegments가 알아서 줄이고 쪼갠다.
+ */
+const DROP_SLOT_SPAN = 2;
 
 // 시간 문자열 → 분 단위 (예: "14:30" → 870)
 const timeToMin = (time: string): number => {
@@ -180,6 +196,8 @@ export function DailyScheduleView({
   );
   const [isLoading, setIsLoading] = useState(false);
   const [columns, setColumns] = useState<ScheduleColumnInfo[]>([]);
+  /** columns에 실제로 실려 있는 날짜 (일 단위 뷰) */
+  const [loadedDate, setLoadedDate] = useState<string | null>(null);
   const [weeklyData, setWeeklyData] = useState<
     Map<string, ScheduleColumnInfo[]>
   >(new Map());
@@ -199,6 +217,17 @@ export function DailyScheduleView({
     endSlotIndex: number;
   } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  // 배치 레일에서 끌려온 항목이 놓일 자리 (커서를 따라다니는 미리보기)
+  const [dropPreview, setDropPreview] = useState<{
+    userId: string;
+    startSlotIndex: number;
+    endSlotIndex: number;
+  } | null>(null);
+  const [dropError, setDropError] = useState<string | null>(null);
+  // 드래그를 못 쓰는 환경의 「지금」 요청 — 오늘 데이터가 도착한 뒤 처리한다
+  const [pendingTimeblockItem, setPendingTimeblockItem] =
+    useState<AxisItem | null>(null);
 
   // 터치 드래그 refs (모바일 long-press → 멀티슬롯 선택)
   const timeGridRef = useRef<HTMLDivElement>(null);
@@ -314,6 +343,9 @@ export function DailyScheduleView({
         setOverlayMeetings(
           (response.meetings || []).filter((m) => m.start_time && m.end_time),
         );
+        // 지금 화면에 실린 블록이 며칠 것인지 — 겹침 판정을 이 날짜에만 걸기 위한 표식.
+        // selectedDate는 요청 직후 이미 새 날짜지만 columns는 아직 옛 날짜다.
+        setLoadedDate(dateStr);
       } else {
         // 주 단위: 통합 API로 7일치 데이터 1회 로드 (기존 7회 → 1회)
         const startDateStr = format(weekDays[0], "yyyy-MM-dd");
@@ -339,13 +371,7 @@ export function DailyScheduleView({
     } finally {
       setIsLoading(false);
     }
-  }, [
-    boardId,
-    selectedDate,
-    viewMode,
-    weekDays,
-    organizationId,
-  ]);
+  }, [boardId, selectedDate, viewMode, weekDays, organizationId]);
 
   useEffect(() => {
     loadSchedule();
@@ -913,6 +939,222 @@ export function DailyScheduleView({
     setPendingBlock(null);
   };
 
+  /* ── 배치 레일 → 타임블록 ─────────────────────────────
+     미배치 행을 시간 칸에 떨어뜨리면 그 시각에 블록이 생긴다.
+     날짜(시작·마감) 배치는 항목의 주인인 MyWorkloadWidget이 이어받는다 —
+     블록 생성이 성공했을 때만 축 이동 이벤트를 쏘므로 "블록만 있고 미배치인" 상태가 안 생긴다. */
+
+  // 존 등록용. 실제 드롭은 시간 칸이 받는다(몇 시인지는 칸만 안다).
+  const { active: placementDragActive, zoneProps: timeblockZoneProps } =
+    useAxisDropZone({
+      zone: "timeblock",
+      accepts: ["placement"],
+      disabled: isViewer,
+    });
+
+  const placeDroppedItem = useCallback(
+    async (item: AxisItem, userId: string, startSlotIndex: number) => {
+      if (!item.task_id) return;
+
+      const dateStr = format(selectedDate, "yyyy-MM-dd");
+      const startTime = timeSlots[startSlotIndex];
+      // 마지막 슬롯에 놓으면 다음 슬롯이 없다 — 근무 종료로 닫는다
+      const endTime =
+        timeSlots[startSlotIndex + DROP_SLOT_SPAN] ??
+        minToTime(workEndHour * 60);
+      if (!startTime) return;
+
+      // 기존 블록·점심시간 회피는 빈 곳 드래그와 같은 규칙을 그대로 쓴다
+      const segments = computeSegments(userId, startTime, endTime);
+      if (!segments) {
+        setDropError(
+          t("schedule.dropNoRoom", "그 시간에는 빈자리가 없습니다."),
+        );
+        return;
+      }
+
+      try {
+        // 오늘의 체크리스트에도 올린다(모달 경로와 같은 취급).
+        // 이미 올라가 있으면 실패할 수 있는데, 이 드롭의 본질은 블록이므로 삼킨다.
+        try {
+          await dailyChecklistAPI.addItem(boardId, {
+            checklist_item_id: item.id,
+            assignee_id: userId,
+            assigned_date: dateStr,
+          });
+        } catch {
+          /* 이미 있는 항목 — 무시 */
+        }
+
+        for (const seg of segments) {
+          await scheduleAPI.createBlock(boardId, {
+            checklist_item_id: item.id,
+            assignee_id: userId,
+            scheduled_date: dateStr,
+            start_time: seg.startTime,
+            end_time: seg.endTime,
+          });
+        }
+
+        setDropError(null);
+        // 여기서부터는 항목의 주인이 처리한다 — 날짜 배치 · 되돌리기 · 레일 갱신
+        dispatchAxisDrop({
+          from: "placement",
+          to: "timeblock",
+          targetDate: dateStr,
+          item,
+        });
+        await loadSchedule();
+      } catch (error) {
+        console.error("Failed to place dropped checklist item:", error);
+        setDropError(t("schedule.dropFailed", "타임블록에 넣지 못했습니다."));
+      }
+    },
+    [
+      boardId,
+      computeSegments,
+      loadSchedule,
+      selectedDate,
+      t,
+      timeSlots,
+      workEndHour,
+    ],
+  );
+
+  const handleSlotDragOver = useCallback(
+    (e: React.DragEvent, userId: string, slotIndex: number) => {
+      if (isViewer) return;
+      if (!e.dataTransfer.types.includes(PLACEMENT_DRAG_TYPE)) return;
+      // 점심시간은 빈 곳 드래그로도 못 만드는 자리다 — 받는 척하지 않는다
+      if (isBreakSlot(timeSlots[slotIndex] ?? "")) {
+        setDropPreview(null);
+        return;
+      }
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      // dragover는 쉬지 않고 들어온다 — 자리가 그대로면 상태를 건드리지 않는다
+      setDropPreview((prev) =>
+        prev?.userId === userId && prev.startSlotIndex === slotIndex
+          ? prev
+          : {
+              userId,
+              startSlotIndex: slotIndex,
+              endSlotIndex: Math.min(
+                slotIndex + DROP_SLOT_SPAN - 1,
+                timeSlots.length - 1,
+              ),
+            },
+      );
+    },
+    [isBreakSlot, isViewer, timeSlots],
+  );
+
+  const handleSlotDrop = useCallback(
+    (e: React.DragEvent, userId: string, slotIndex: number) => {
+      setDropPreview(null);
+      if (isViewer) return;
+      const raw = e.dataTransfer.getData(PLACEMENT_DRAG_TYPE);
+      if (!raw) return;
+      // 존 루트가 같은 드롭을 한 번 더 처리하지 않게 막는다
+      e.preventDefault();
+      e.stopPropagation();
+      endAxisDrag();
+
+      // 존 루트가 그리드 전체에 드롭을 허용하므로 점심 칸에도 떨어질 수 있다
+      if (isBreakSlot(timeSlots[slotIndex] ?? "")) {
+        setDropError(
+          t("schedule.dropOnBreak", "점심시간에는 넣을 수 없습니다."),
+        );
+        return;
+      }
+
+      try {
+        const item = JSON.parse(raw) as AxisItem;
+        if (item?.id) void placeDroppedItem(item, userId, slotIndex);
+      } catch {
+        /* 우리 페이로드가 아니면 무시한다 */
+      }
+    },
+    [isBreakSlot, isViewer, placeDroppedItem, t, timeSlots],
+  );
+
+  /**
+   * 「지금」 요청 — 드래그를 못 쓰는 환경(터치·키보드)의 같은 경로.
+   * 오늘이 아닌 날을 보고 있으면 오늘로 옮긴 뒤, 그 날 데이터가 도착하면 처리한다
+   * (겹침 판정이 지금 화면에 실린 블록을 보기 때문이다).
+   */
+  useTimeblockRequest((item) => {
+    if (isViewer) return;
+    setSelectedDate(startOfDay(new Date()));
+    setPendingTimeblockItem(item);
+  });
+
+  useEffect(() => {
+    if (!pendingTimeblockItem || isLoading) return;
+    // selectedDate가 아니라 loadedDate로 본다 — 날짜를 막 옮긴 순간에는
+    // 화면에 아직 어제 블록이 실려 있고, 그걸로 겹침을 판정하면 블록이 겹친다
+    if (loadedDate !== getTodayDateString()) return;
+
+    // 열이 하나면 그 사람 것이고, 여럿이면 항목에 실린 담당자를 따른다
+    const targetUserId =
+      activeMembers.length === 1
+        ? activeMembers[0].userId
+        : activeMembers.find(
+            (m) => m.userId === pendingTimeblockItem.assignee_id,
+          )?.userId;
+
+    const item = pendingTimeblockItem;
+    setPendingTimeblockItem(null);
+    if (!targetUserId) return;
+
+    // 지금 시각이 걸린 슬롯부터. 근무 시간 밖이면 양 끝으로 붙인다.
+    const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+    const slotIndex = Math.min(
+      Math.max(Math.floor((nowMinutes - workStartHour * 60) / 30), 0),
+      Math.max(timeSlots.length - 1, 0),
+    );
+    void placeDroppedItem(item, targetUserId, slotIndex);
+  }, [
+    pendingTimeblockItem,
+    isLoading,
+    loadedDate,
+    activeMembers,
+    workStartHour,
+    timeSlots.length,
+    placeDroppedItem,
+  ]);
+
+  // 오늘 데이터가 끝내 안 오면(로드 실패 등) 요청을 흘려보낸다.
+  // 안 그러면 한참 뒤 다른 맥락에서 갑자기 블록이 생긴다.
+  useEffect(() => {
+    if (!pendingTimeblockItem) return;
+    const timer = window.setTimeout(
+      () => setPendingTimeblockItem(null),
+      15_000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [pendingTimeblockItem]);
+
+  // 드래그가 끝나면(놓았든 취소했든) 미리보기를 지운다.
+  // 칸마다 dragleave로 지우면 칸을 옮길 때마다 깜빡인다 — 끝날 때 한 번만 지운다.
+  useEffect(() => {
+    if (!placementDragActive) setDropPreview(null);
+  }, [placementDragActive]);
+
+  // 안내는 잠깐만 띄운다 — 배치 레일의 안내와 같은 수명
+  useEffect(() => {
+    if (!dropError) return;
+    const timer = window.setTimeout(() => setDropError(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [dropError]);
+
+  /** 미배치 항목이 놓일 자리인지 — 드래그 선택 하이라이트와 같은 자리에 그린다 */
+  const isDropPreviewSlot = (userId: string, slotIndex: number) =>
+    !!dropPreview &&
+    dropPreview.userId === userId &&
+    slotIndex >= dropPreview.startSlotIndex &&
+    slotIndex <= dropPreview.endSlotIndex;
+
   // 현재 시간 표시선용 상태 (1분마다 갱신)
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -1331,6 +1573,24 @@ export function DailyScheduleView({
           )}
       </div>
 
+      {/*
+        드롭 실패 안내 — 그리드 밖에 둔다(스크롤과 함께 사라지면 안 되는 문구다).
+
+        드래그 중 안내는 일부러 여기 넣지 않는다. 줄이 하나 생기면 그리드가 그만큼
+        내려가 커서 밑의 시간 칸이 통째로 바뀐다. "놓을 수 있다"는 신호는
+        칸 하이라이트가, "무슨 일이 일어나는지"는 배치 레일의 문구가 이미 말하고 있다.
+      */}
+      {dropError && (
+        <div
+          role="status"
+          className="flex-none flex items-center gap-2 px-4 py-2 border-b border-foreground/[0.08] bg-foreground/[0.03]"
+        >
+          <p className="text-xs truncate text-rose-600 dark:text-rose-400">
+            {dropError}
+          </p>
+        </div>
+      )}
+
       {/* 타임블록 스케줄 그리드 + 상세 패널 */}
       <div className="flex-1 flex min-h-0">
         <div
@@ -1526,8 +1786,15 @@ export function DailyScheduleView({
                 </div>
               )}
 
-              {/* 시간 그리드 */}
-              <div ref={timeGridRef} className="relative select-none">
+              {/*
+                시간 그리드. 존 등록(data-axis-zone)만 여기서 하고 실제 드롭은 칸이 받는다 —
+                몇 시에 놓였는지는 칸만 알기 때문이다.
+              */}
+              <div
+                ref={timeGridRef}
+                {...timeblockZoneProps}
+                className="relative select-none"
+              >
                 {timeSlots.map((time, slotIndex) => {
                   const isBreak = isBreakSlot(time);
                   return (
@@ -1554,6 +1821,11 @@ export function DailyScheduleView({
                           member.userId,
                           slotIndex,
                         );
+                        // 미배치 항목이 놓일 자리 — 선택 하이라이트와 구분되게 액센트로 칠한다
+                        const isDropTarget = isDropPreviewSlot(
+                          member.userId,
+                          slotIndex,
+                        );
                         return (
                           <div
                             key={`${member.userId}-${time}`}
@@ -1567,15 +1839,17 @@ export function DailyScheduleView({
                                   ? "cursor-default"
                                   : "cursor-pointer"
                             } ${
-                              isBreak
-                                ? isSelected
-                                  ? "bg-bridge-secondary/5"
-                                  : ""
-                                : isSelected
-                                  ? "bg-bridge-secondary/20"
-                                  : isViewer
-                                    ? ""
-                                    : "hover:bg-foreground/5"
+                              isDropTarget
+                                ? "bg-bridge-accent/20"
+                                : isBreak
+                                  ? isSelected
+                                    ? "bg-bridge-secondary/5"
+                                    : ""
+                                  : isSelected
+                                    ? "bg-bridge-secondary/20"
+                                    : isViewer
+                                      ? ""
+                                      : "hover:bg-foreground/5"
                             }`}
                             onMouseDown={
                               isBreak
@@ -1588,6 +1862,12 @@ export function DailyScheduleView({
                                 ? undefined
                                 : () =>
                                     handleMouseEnter(member.userId, slotIndex)
+                            }
+                            onDragOver={(e) =>
+                              handleSlotDragOver(e, member.userId, slotIndex)
+                            }
+                            onDrop={(e) =>
+                              handleSlotDrop(e, member.userId, slotIndex)
                             }
                           >
                             {/* 점심시간 빗금 오버레이 */}
@@ -1638,8 +1918,17 @@ export function DailyScheduleView({
                   </div>
                 )}
 
-                {/* 스케줄 블록들 (각 멤버 컬럼 위에 absolute로 배치) */}
-                <div className="absolute top-0 left-14 md:left-20 right-0 pointer-events-none">
+                {/*
+                  스케줄 블록들 (각 멤버 컬럼 위에 absolute로 배치).
+                  블록은 스스로 pointer-events-auto라 미배치 드래그를 가로챈다 —
+                  드래그 중에만 통째로 꺼서 아래 시간 칸이 드롭을 받게 한다
+                  (겹치는 시간은 computeSegments가 알아서 피해 준다).
+                */}
+                <div
+                  className={`absolute top-0 left-14 md:left-20 right-0 pointer-events-none ${
+                    placementDragActive ? "[&_*]:pointer-events-none" : ""
+                  }`}
+                >
                   <div className="flex">
                     {activeMembers.map((member) => {
                       const blocks = blocksByUser.get(member.userId) || [];

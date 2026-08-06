@@ -4755,5 +4755,21 @@
     "noSearchResults": "Sin resultados de búsqueda",
     "clearSearch": "Borrar búsqueda",
     "excludeFeature": "Quitar del mapa mental"
+  },
+  "checklistDetail": {
+    "open": "Abrir detalle",
+    "title": "Detalle del elemento",
+    "info": "Información",
+    "gallery": "Imágenes {{count}}",
+    "galleryHint": "De los comentarios",
+    "noImages": "Las imágenes de los comentarios aparecen aquí",
+    "comments": "Comentarios {{count}}",
+    "placeholder": "Comenta en este elemento…",
+    "empty": "Aún no hay conversación",
+    "emptyHint": "Deja el primer comentario",
+    "backToTask": "Ver todos los comentarios de la tarea",
+    "deletedBanner": "Elemento eliminado · solo lectura",
+    "chip": "Lista · {{title}}",
+    "unknownItem": "Elemento eliminado"
   }
 }

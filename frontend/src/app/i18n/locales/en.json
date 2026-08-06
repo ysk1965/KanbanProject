@@ -690,6 +690,22 @@
       "changed": "made a change"
     }
   },
+  "checklistDetail": {
+    "open": "Open detail",
+    "title": "Item detail",
+    "info": "Item info",
+    "gallery": "Images {{count}}",
+    "galleryHint": "From comments",
+    "noImages": "Images posted in comments show up here",
+    "comments": "Comments {{count}}",
+    "placeholder": "Comment on this item…",
+    "empty": "No conversation yet",
+    "emptyHint": "Leave the first comment",
+    "backToTask": "View all task comments",
+    "deletedBanner": "This item was deleted · read only",
+    "chip": "Checklist · {{title}}",
+    "unknownItem": "Deleted item"
+  },
   "milestone": {
     "onboardingTitle": "Manage your project with milestones",
     "onboardingDesc": "Group Features into milestones to track schedules and progress at a glance.",

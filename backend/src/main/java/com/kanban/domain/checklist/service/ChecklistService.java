@@ -17,6 +17,7 @@ import com.kanban.domain.checklist.dto.ChecklistResponse;
 import com.kanban.domain.block.Block;
 import com.kanban.domain.block.BlockRepository;
 import com.kanban.domain.block.FixedBlockType;
+import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.contractor.entity.BoardContractor;
 import com.kanban.domain.contractor.repository.BoardContractorRepository;
 import com.kanban.domain.feature.Feature;
@@ -68,6 +69,8 @@ public class ChecklistService {
     private final BlockRepository blockRepository;
     private final InboxFeatureService inboxFeatureService;
     private final ScheduleBlockRepository scheduleBlockRepository;
+    /** 항목이 옮겨지거나 합쳐지거나 사라질 때, 그 항목에 달린 댓글의 소속을 맞춰주기 위해 쓴다. */
+    private final CommentRepository commentRepository;
     private final DailyChecklistRepository dailyChecklistRepository;
     private final ActivityService activityService;
     private final NotificationService notificationService;
@@ -86,7 +89,16 @@ public class ChecklistService {
         }
 
         List<ChecklistItem> items = checklistItemRepository.findByTaskIdOrderByPositionAsc(taskId);
-        return ChecklistResponse.ListResponse.of(items);
+        return ChecklistResponse.ListResponse.of(items, countCommentsByItem(taskId));
+    }
+
+    /** 태스크 안의 항목별 댓글 수를 group by 한 번으로 집계한다(행마다 세면 N+1). */
+    private Map<String, Integer> countCommentsByItem(String taskId) {
+        Map<String, Integer> counts = new java.util.HashMap<>();
+        for (Object[] row : commentRepository.countByChecklistItemForTask(taskId)) {
+            counts.put((String) row[0], ((Number) row[1]).intValue());
+        }
+        return counts;
     }
 
     @Transactional
@@ -451,6 +463,9 @@ public class ChecklistService {
         dailyChecklistRepository.unlinkByChecklistItemId(itemId);
         scheduleBlockRepository.unlinkByChecklistItemId(itemId);
 
+        // 댓글은 지우지 않고 소속만 끊는다 — 항목이 사라져도 그 대화는 태스크의 기록으로 남는다.
+        commentRepository.detachCommentsFromItem(itemId);
+
         checklistItemRepository.delete(item);
 
         log.info("Checklist item hard-deleted: {}", itemId);
@@ -691,6 +706,13 @@ public class ChecklistService {
 
         item.moveToTask(targetTask, newPosition);
 
+        // 이 항목에 달린 댓글도 함께 옮긴다. 댓글은 task_id를 따로 들고 있어서, 안 옮기면
+        // 항목만 새 태스크로 가고 대화는 원래 태스크 댓글 목록에 고아로 남는다.
+        int movedComments = commentRepository.moveCommentsToTask(itemId, targetTask.getId());
+        if (movedComments > 0) {
+            log.info("Checklist item {} moved with {} comment(s) to task {}", itemId, movedComments, targetTask.getId());
+        }
+
         // 항목이 다른 태스크로 옮겨가면 스프린트 소속도 대상 태스크의 것을 그대로 따른다(재정합 불필요).
 
         User user = userRepository.findById(userId)
@@ -821,6 +843,10 @@ public class ChecklistService {
 
         // 타임블록 재지정: sources → target
         scheduleBlockRepository.relinkChecklistItemBlocks(target, sourceIds);
+
+        // 댓글 재지정: sources → target. 합쳐지는 항목의 대화도 대표 항목으로 따라와야 한다
+        // (소스 항목은 곧 삭제되므로 여기서 옮기지 않으면 어디에도 붙지 않은 댓글이 된다).
+        commentRepository.reassignCommentsToItem(sourceIds, targetId);
 
         // 대표 항목 필드 반영
         if (request.getTitle() != null && !request.getTitle().isBlank()) {

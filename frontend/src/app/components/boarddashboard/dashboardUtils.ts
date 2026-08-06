@@ -2,7 +2,10 @@ import type { Task } from "../../types";
 import { getTodayDateString, toDateInputValue } from "../../utils/dateUtils";
 
 /**
- * 워크로드(간트) 카드 높이.
+ * 워크로드(간트) 카드의 **기본** 높이.
+ *
+ * 사용자가 스플리터로 조절하면 그 값이 브라우저에 남고 이 상수는 쓰이지 않는다
+ * (useWorkloadSplit 참고). 손대지 않은 사람과 초기화한 사람이 보는 높이다.
  *
  * 대시보드는 보고 있는 대상 1명만 간트에 넘기므로 담당자 행이 늘 하나다.
  * 그런데 ScheduleResourceView는 부모가 준 높이를 채우는 구조라(root가 flex-1)

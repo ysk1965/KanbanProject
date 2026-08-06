@@ -1,0 +1,887 @@
+<title>체크리스트 디테일 모달 — 화면 기획</title>
+<style>
+  :root {
+    --ground: #fffcf8;
+    --panel: #efe6d8;
+    --panel-soft: #f6f0e6;
+    --ink: #3d2e1f;
+    --ink-muted: #7a6a58;
+    --ink-faint: #a2937f;
+    --rule: rgba(61, 46, 31, 0.14);
+    --rule-soft: rgba(61, 46, 31, 0.08);
+    --accent: #5b5ee6;
+    --accent-soft: rgba(99, 102, 241, 0.12);
+    --teal: #0f9c8c;
+    --teal-soft: rgba(20, 184, 166, 0.14);
+    --amber: #b06e00;
+    --amber-soft: rgba(217, 143, 10, 0.14);
+    --emerald: #0b8a5c;
+    --emerald-soft: rgba(16, 185, 129, 0.13);
+    --rose: #c0384f;
+    --rose-soft: rgba(192, 56, 79, 0.12);
+    --code-bg: rgba(61, 46, 31, 0.055);
+
+    --sans: "Apple SD Gothic Neo", "Pretendard Variable", Pretendard, "Noto Sans KR",
+            system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #191f2d;
+      --panel: #151b28;
+      --panel-soft: #1c2333;
+      --ink: #e4e8f2;
+      --ink-muted: #94a3b8;
+      --ink-faint: #64748b;
+      --rule: rgba(228, 232, 242, 0.14);
+      --rule-soft: rgba(228, 232, 242, 0.075);
+      --accent: #8b8df5;
+      --accent-soft: rgba(99, 102, 241, 0.2);
+      --teal: #2dd4bf;
+      --teal-soft: rgba(45, 212, 191, 0.15);
+      --amber: #f0b45c;
+      --amber-soft: rgba(245, 158, 11, 0.16);
+      --emerald: #4ade9f;
+      --emerald-soft: rgba(16, 185, 129, 0.16);
+      --rose: #f2788d;
+      --rose-soft: rgba(242, 120, 141, 0.14);
+      --code-bg: rgba(228, 232, 242, 0.055);
+    }
+  }
+
+  :root[data-theme="light"] {
+    --ground: #fffcf8; --panel: #efe6d8; --panel-soft: #f6f0e6;
+    --ink: #3d2e1f; --ink-muted: #7a6a58; --ink-faint: #a2937f;
+    --rule: rgba(61, 46, 31, 0.14); --rule-soft: rgba(61, 46, 31, 0.08);
+    --accent: #5b5ee6; --accent-soft: rgba(99, 102, 241, 0.12);
+    --teal: #0f9c8c; --teal-soft: rgba(20, 184, 166, 0.14);
+    --amber: #b06e00; --amber-soft: rgba(217, 143, 10, 0.14);
+    --emerald: #0b8a5c; --emerald-soft: rgba(16, 185, 129, 0.13);
+    --rose: #c0384f; --rose-soft: rgba(192, 56, 79, 0.12);
+    --code-bg: rgba(61, 46, 31, 0.055);
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #191f2d; --panel: #151b28; --panel-soft: #1c2333;
+    --ink: #e4e8f2; --ink-muted: #94a3b8; --ink-faint: #64748b;
+    --rule: rgba(228, 232, 242, 0.14); --rule-soft: rgba(228, 232, 242, 0.075);
+    --accent: #8b8df5; --accent-soft: rgba(99, 102, 241, 0.2);
+    --teal: #2dd4bf; --teal-soft: rgba(45, 212, 191, 0.15);
+    --amber: #f0b45c; --amber-soft: rgba(245, 158, 11, 0.16);
+    --emerald: #4ade9f; --emerald-soft: rgba(16, 185, 129, 0.16);
+    --rose: #f2788d; --rose-soft: rgba(242, 120, 141, 0.14);
+    --code-bg: rgba(228, 232, 242, 0.055);
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 20px 96px;
+  }
+
+  @media (min-width: 1080px) {
+    .shell { grid-template-columns: 178px minmax(0, 1fr); column-gap: 48px; padding-right: 32px; }
+  }
+
+  .masthead {
+    grid-column: 1 / -1;
+    border-bottom: 1px solid var(--rule);
+    padding: 56px 0 28px;
+    margin-bottom: 44px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .kicker {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  h1 {
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.18;
+    text-wrap: balance;
+    max-width: 20ch;
+  }
+
+  .standfirst { font-size: 17px; color: var(--ink-muted); max-width: 62ch; line-height: 1.66; }
+
+  .meta-row {
+    display: flex; flex-wrap: wrap; gap: 8px 20px;
+    font-family: var(--mono); font-size: 12px; color: var(--ink-faint); padding-top: 6px;
+  }
+  .meta-row b { color: var(--ink-muted); font-weight: 500; }
+  .meta-row a { color: var(--accent); }
+
+  .rail { display: none; }
+  @media (min-width: 1080px) {
+    .rail { display: block; position: sticky; top: 32px; align-self: start; padding-top: 4px; }
+    .rail ol {
+      list-style: none; display: flex; flex-direction: column; gap: 11px;
+      border-left: 1px solid var(--rule); padding-left: 16px;
+    }
+    .rail a { font-size: 13px; color: var(--ink-faint); text-decoration: none; display: block; transition: color .15s ease; }
+    .rail a:hover, .rail a:focus-visible { color: var(--accent); }
+  }
+
+  .flow { display: flex; flex-direction: column; gap: 56px; min-width: 0; }
+  section { display: flex; flex-direction: column; gap: 18px; scroll-margin-top: 28px; }
+  .sec-head { display: flex; flex-direction: column; gap: 5px; }
+  .sec-tag {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ink-faint); font-weight: 500;
+  }
+  h2 { font-size: 25px; font-weight: 700; letter-spacing: -0.018em; line-height: 1.3; text-wrap: balance; }
+  h3 { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; margin-top: 6px; }
+  p { max-width: 68ch; }
+  .flow p + p { margin-top: -6px; }
+
+  ul.bullets { display: flex; flex-direction: column; gap: 9px; padding-left: 2px; list-style: none; max-width: 68ch; }
+  ul.bullets > li { position: relative; padding-left: 18px; }
+  ul.bullets > li::before {
+    content: ""; position: absolute; left: 2px; top: 12px;
+    width: 5px; height: 1.5px; background: var(--ink-faint);
+  }
+
+  strong { font-weight: 700; }
+  em { font-style: normal; color: var(--accent); font-weight: 500; }
+  code {
+    font-family: var(--mono); font-size: 0.875em; background: var(--code-bg);
+    border-radius: 4px; padding: 1.5px 5px; word-break: break-all;
+  }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--rule-soft); border-radius: 12px; background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; min-width: 580px; font-size: 14px; }
+  thead th {
+    text-align: left; font-family: var(--mono); font-size: 12px; font-weight: 500;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint);
+    padding: 11px 16px; border-bottom: 1px solid var(--rule); white-space: nowrap;
+  }
+  tbody td { padding: 12px 16px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; line-height: 1.6; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.tight { white-space: nowrap; font-family: var(--mono); font-size: 12.5px; }
+  td.lead { font-weight: 500; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700;
+    padding: 2px 9px; border-radius: 999px; white-space: nowrap; line-height: 1.6;
+  }
+  .chip-pick { background: var(--emerald-soft); color: var(--emerald); }
+  .chip-open { background: var(--amber-soft); color: var(--amber); }
+  .chip-skip { background: var(--code-bg); color: var(--ink-faint); }
+  .chip-new { background: var(--accent-soft); color: var(--accent); }
+  .chip-keep { background: var(--teal-soft); color: var(--teal); }
+  .chip-stop { background: var(--rose-soft); color: var(--rose); }
+
+  .callout {
+    border: 1px solid var(--rule-soft); border-radius: 12px; background: var(--panel);
+    padding: 18px 20px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .callout-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 9px; }
+  .callout p, .callout ul.bullets { max-width: 64ch; font-size: 14.5px; }
+  .callout-accent { border-left: 2px solid var(--accent); }
+  .callout-warn { border-left: 2px solid var(--amber); }
+
+  pre {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.72; background: var(--panel);
+    border: 1px solid var(--rule-soft); border-radius: 12px; padding: 16px 18px;
+    overflow-x: auto; color: var(--ink); tab-size: 2;
+  }
+  pre .cmt { color: var(--ink-faint); }
+  pre .kw { color: var(--accent); font-weight: 500; }
+
+  .cards { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 720px) { .cards.two { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .card {
+    border: 1px solid var(--rule-soft); border-radius: 12px; background: var(--panel);
+    padding: 18px 20px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .card.picked { border-color: color-mix(in srgb, var(--emerald) 45%, transparent); }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .card-head h3 { margin-top: 0; font-size: 15.5px; }
+  .card ul.bullets { font-size: 14px; gap: 7px; }
+  .card > p { font-size: 14px; color: var(--ink-muted); }
+
+  figure { display: flex; flex-direction: column; gap: 10px; }
+  .fig-frame {
+    overflow-x: auto; border: 1px solid var(--rule-soft); border-radius: 12px;
+    background: var(--panel); padding: 20px 18px;
+  }
+  .fig-frame svg { display: block; width: 100%; height: auto; }
+  .fig-frame.wide svg { min-width: 660px; }
+  .fig-frame.narrow svg { min-width: 300px; max-width: 380px; margin: 0 auto; }
+  figcaption { font-size: 13px; color: var(--ink-faint); max-width: 66ch; }
+
+  .qlist { display: flex; flex-direction: column; gap: 14px; }
+  .q {
+    border: 1px solid var(--rule-soft); border-left: 2px solid var(--amber); border-radius: 12px;
+    background: var(--panel); padding: 16px 20px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .q-title { font-weight: 700; font-size: 15px; }
+  .q p { font-size: 14.5px; color: var(--ink-muted); max-width: 62ch; }
+
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="shell">
+
+  <header class="masthead">
+    <div class="kicker">BRIDGE / 화면 기획</div>
+    <h1>체크리스트 디테일 모달</h1>
+    <p class="standfirst">
+      체크리스트 한 줄을 열면 그 항목의 <strong>정보·이미지·대화</strong>가 한 화면에 있다.
+      태스크 모달 위에 겹쳐 뜨고, 닫으면 원래 줄로 정확히 돌아온다.
+      여기서 쓴 댓글은 태스크 댓글 목록에도 그대로 나타난다.
+    </p>
+    <div class="meta-row">
+      <span><b>신규 컴포넌트</b> 1개</span>
+      <span><b>수정</b> TaskDetailModal · CommentPanel</span>
+      <span><b>선행 문서</b> <a href="./checklist-detail-plan.html">체크리스트 디테일 설계 방안</a></span>
+      <span><b>작성</b> 2026-08-06</span>
+    </div>
+  </header>
+
+  <nav class="rail" aria-label="문서 목차">
+    <ol>
+      <li><a href="#why">모달로 간다</a></li>
+      <li><a href="#entry">진입과 이탈</a></li>
+      <li><a href="#layout">레이아웃</a></li>
+      <li><a href="#regions">영역별 상세</a></li>
+      <li><a href="#mobile">모바일</a></li>
+      <li><a href="#states">상태 매트릭스</a></li>
+      <li><a href="#realtime">실시간 반영</a></li>
+      <li><a href="#compose">컴포넌트 분해</a></li>
+      <li><a href="#traps">구현 함정</a></li>
+      <li><a href="#i18n">문구 키</a></li>
+      <li><a href="#questions">확인이 필요한 것</a></li>
+    </ol>
+  </nav>
+
+  <main class="flow">
+
+    <!-- ============ 모달로 간다 ============ -->
+    <section id="why">
+      <div class="sec-head">
+        <div class="sec-tag">방향 확정</div>
+        <h2>패널 전환이 아니라 모달</h2>
+      </div>
+      <p>
+        선행 문서에서는 오른쪽 <code>CommentPanel</code>의 범위를 좁히는 안을 기본으로 뒀다.
+        모달 위 모달을 피하려던 것인데, 코드를 보니 <strong>이 저장소는 이미 그렇게 하고 있다</strong>.
+        체크리스트 행에서 <code>ChecklistHistoryModal</code>이 열리고, 삭제·완료 확인 창도 태스크 모달
+        위에 뜬다. 그리고 그게 안전하게 동작하도록 만들어 둔 장치가 이미 있다.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>걱정거리</th><th>이미 해결돼 있는 것</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="lead">ESC가 둘 다 닫는다</td>
+              <td><code>escStack</code>이 LIFO로 <em>최상단 하나만</em> 닫는다 (<code>useEscClose.ts</code>).
+                  디테일을 닫아도 태스크 모달은 열려 있다.</td>
+            </tr>
+            <tr>
+              <td class="lead">포커스가 튄다</td>
+              <td><code>MotionModal</code>이 열릴 때 <code>document.activeElement</code>를 저장하고
+                  닫을 때 되돌린다. 뱃지를 눌러 열었으면 닫을 때 그 뱃지로 돌아온다.</td>
+            </tr>
+            <tr>
+              <td class="lead">쌓임 순서가 꼬인다</td>
+              <td>둘 다 <code>z-50</code>이지만 <code>createPortal</code>로 body에 나중에 붙으므로
+                  나중 모달이 위에 그려진다. 기존 중첩 모달들이 같은 방식으로 동작 중.</td>
+            </tr>
+            <tr>
+              <td class="lead">오버레이 클릭으로 다 닫힌다</td>
+              <td>디테일의 오버레이 클릭은 디테일만 닫는다 — 이벤트가 <code>stopPropagation</code>된다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        모달이 더 나은 실질적 이유도 있다. 패널 전환은 <strong>폭 320px 남짓</strong>이라
+        이미지 갤러리와 항목 정보를 같이 놓을 자리가 없다. 모달은 폭을 직접 정할 수 있고,
+        태스크 모달의 체크리스트 목록을 뒤에 그대로 남겨 두므로 "어디서 왔는지"가 계속 보인다.
+      </p>
+    </section>
+
+    <!-- ============ 진입/이탈 ============ -->
+    <section id="entry">
+      <div class="sec-head">
+        <div class="sec-tag">동선</div>
+        <h2>어디서 열고 어떻게 닫나</h2>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>진입점</th><th>동작</th><th>노출 조건</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="lead">행의 댓글 뱃지</td>
+              <td>💬 + 개수. 클릭 시 디테일 모달 오픈.</td>
+              <td>개수 &gt; 0이면 <strong>항상</strong>, 0이면 행 hover 시에만
+                  (<code>opacity-0 group-hover:opacity-100</code> — 기존 ⋮ 버튼과 같은 규칙)</td>
+            </tr>
+            <tr>
+              <td class="lead">⋮ 메뉴 › 디테일 열기</td>
+              <td>메뉴 최상단 항목. 아이콘 <code>PanelRightOpen</code>.</td>
+              <td><code>canEdit</code> 무관 — Viewer도 읽기 위해 연다</td>
+            </tr>
+            <tr>
+              <td class="lead">태스크 댓글의 체크리스트 칩</td>
+              <td>칩 클릭 → 그 항목 디테일 모달 오픈.</td>
+              <td>항목이 삭제되지 않았을 때만 클릭 가능</td>
+            </tr>
+            <tr>
+              <td class="lead">알림 딥링크</td>
+              <td>태스크 모달 + 디테일 모달을 함께 연다.
+                  기존 <code>highlightChecklistItemId</code> 경로를 그대로 태운다.</td>
+              <td>항목 댓글 알림에서만</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>이탈</h3>
+      <ul class="bullets">
+        <li><strong>ESC</strong> · <strong>오버레이 클릭</strong> · <strong>✕ 버튼</strong> — 셋 다 디테일만 닫는다.</li>
+        <li>닫으면 그 행이 잠깐 강조된다(기존 하이라이트 스타일 재사용). 목록이 길 때 "내가 보던 줄"을 잃지 않는다.</li>
+        <li>댓글 입력창에 <strong>쓰다 만 내용이 있으면</strong> 오버레이 클릭으로는 닫지 않는다
+            (<code>overlayClose={false}</code> 동적 적용). ESC·✕는 확인 없이 닫되 초안은 항목별로 보관한다.</li>
+      </ul>
+    </section>
+
+    <!-- ============ 레이아웃 ============ -->
+    <section id="layout">
+      <div class="sec-head">
+        <div class="sec-tag">구조</div>
+        <h2>왼쪽은 항목, 오른쪽은 대화</h2>
+      </div>
+      <p>
+        태스크 모달이 쓰는 문법(왼쪽 내용 / 오른쪽 댓글)을 한 단계 아래에서 그대로 반복한다.
+        사용자가 새 규칙을 배울 게 없다. <code>sm:max-w-4xl</code>, 높이는 <code>max-h-[85dvh]</code>.
+      </p>
+
+      <figure>
+        <div class="fig-frame wide">
+          <svg viewBox="0 0 900 470" role="img" aria-labelledby="wf-desktop">
+            <title id="wf-desktop">데스크톱에서 체크리스트 디테일 모달이 태스크 모달 위에 겹쳐 뜬 모습</title>
+
+            <!-- task modal behind -->
+            <rect x="4" y="6" width="892" height="458" rx="14"
+                  fill="var(--panel-soft)" stroke="var(--rule-soft)" opacity="0.5"></rect>
+            <text x="24" y="30" font-family="var(--sans)" font-size="11.5"
+                  fill="var(--ink-faint)" opacity="0.85">태스크 상세 모달 (뒤에 남는다 · 딤 + blur)</text>
+
+            <!-- detail modal -->
+            <rect x="60" y="46" width="780" height="392" rx="14"
+                  fill="var(--panel)" stroke="var(--rule)"></rect>
+            <rect x="60" y="46" width="780" height="3" rx="1.5" fill="var(--accent)" opacity="0.65"></rect>
+
+            <!-- header -->
+            <g font-family="var(--sans)">
+              <rect x="80" y="66" width="14" height="14" rx="4" fill="none" stroke="var(--ink-muted)" stroke-width="1.4"></rect>
+              <text x="104" y="78" font-size="14" font-weight="700" fill="var(--ink)">에러 화면 문구 확정</text>
+              <text x="80" y="98" font-size="11" fill="var(--ink-faint)">로그인 개편 · 인증 · 마일스톤 8월 2주</text>
+
+              <rect x="700" y="63" width="42" height="20" rx="6" fill="var(--code-bg)"></rect>
+              <text x="721" y="77" font-size="10.5" text-anchor="middle" fill="var(--ink-muted)">이력</text>
+              <text x="762" y="78" font-size="14" fill="var(--ink-muted)">⋮</text>
+              <text x="800" y="78" font-size="14" fill="var(--ink-muted)">✕</text>
+            </g>
+            <line x1="60" y1="112" x2="840" y2="112" stroke="var(--rule-soft)"></line>
+
+            <!-- column divider -->
+            <line x1="392" y1="112" x2="392" y2="438" stroke="var(--rule-soft)"></line>
+
+            <!-- LEFT -->
+            <g font-family="var(--sans)">
+              <text x="80" y="136" font-family="var(--mono)" font-size="10.5" letter-spacing="1"
+                    fill="var(--ink-faint)">항목 정보</text>
+
+              <rect x="80" y="146" width="292" height="72" rx="9" fill="var(--panel-soft)" stroke="var(--rule-soft)"></rect>
+              <text x="94" y="166" font-size="11" fill="var(--ink-faint)">담당자</text>
+              <circle cx="176" cy="162" r="7" fill="var(--teal)" opacity="0.6"></circle>
+              <text x="190" y="166" font-size="11.5" fill="var(--ink)">유수경</text>
+              <text x="94" y="188" font-size="11" fill="var(--ink-faint)">기간</text>
+              <text x="176" y="188" font-size="11.5" fill="var(--ink)">8/4 → 8/8</text>
+              <text x="286" y="188" font-size="11" font-weight="700" fill="var(--amber)">D-2</text>
+              <text x="94" y="210" font-size="11" fill="var(--ink-faint)">기록 시간</text>
+              <text x="176" y="210" font-size="11.5" fill="var(--accent)">3h 20m</text>
+
+              <text x="80" y="248" font-family="var(--mono)" font-size="10.5" letter-spacing="1"
+                    fill="var(--ink-faint)">이미지 4</text>
+              <text x="238" y="248" font-size="10.5" fill="var(--ink-faint)">댓글에 올라온 것 모음</text>
+
+              <rect x="80" y="258" width="68" height="60" rx="8" fill="var(--code-bg)" stroke="var(--rule-soft)"></rect>
+              <path d="M92 306 L106 288 L118 300 L128 290 L142 312 Z" fill="var(--ink-faint)" opacity="0.4"></path>
+              <rect x="155" y="258" width="68" height="60" rx="8" fill="var(--code-bg)" stroke="var(--rule-soft)"></rect>
+              <path d="M167 306 L181 290 L193 302 L203 292 L217 312 Z" fill="var(--ink-faint)" opacity="0.4"></path>
+              <rect x="230" y="258" width="68" height="60" rx="8" fill="var(--code-bg)" stroke="var(--rule-soft)"></rect>
+              <path d="M242 306 L256 292 L268 302 L278 294 L292 312 Z" fill="var(--ink-faint)" opacity="0.4"></path>
+              <rect x="305" y="258" width="67" height="60" rx="8" fill="var(--code-bg)" stroke="var(--rule-soft)"></rect>
+              <text x="338" y="293" font-size="12" font-weight="700" text-anchor="middle" fill="var(--ink-muted)">+1</text>
+
+              <text x="80" y="352" font-family="var(--mono)" font-size="10.5" letter-spacing="1"
+                    fill="var(--ink-faint)">설명</text>
+              <rect x="80" y="362" width="292" height="52" rx="9"
+                    fill="none" stroke="var(--rule-soft)" stroke-dasharray="4 3"></rect>
+              <text x="226" y="384" font-size="11" text-anchor="middle" fill="var(--ink-faint)">4단계에서 추가</text>
+              <text x="226" y="400" font-size="10.5" text-anchor="middle" fill="var(--ink-faint)">1단계에서는 이 영역 자체가 없다</text>
+            </g>
+
+            <!-- RIGHT -->
+            <g font-family="var(--sans)">
+              <text x="414" y="136" font-family="var(--mono)" font-size="10.5" letter-spacing="1"
+                    fill="var(--ink-faint)">댓글 3</text>
+              <rect x="740" y="126" width="80" height="18" rx="9" fill="var(--code-bg)"></rect>
+              <text x="780" y="139" font-size="10" text-anchor="middle" fill="var(--ink-faint)">태스크 전체 보기</text>
+
+              <circle cx="424" cy="166" r="9" fill="var(--teal)" opacity="0.55"></circle>
+              <text x="442" y="163" font-size="11.5" font-weight="700" fill="var(--ink)">유수경</text>
+              <text x="486" y="163" font-size="10.5" fill="var(--ink-faint)">2시간 전</text>
+              <text x="442" y="180" font-size="11.5" fill="var(--ink)">현재 문구 스샷입니다. 3번째가 애매해요</text>
+              <rect x="442" y="188" width="84" height="50" rx="7" fill="var(--code-bg)" stroke="var(--rule-soft)"></rect>
+              <path d="M456 228 L468 210 L480 222 L490 214 L506 232 Z" fill="var(--ink-faint)" opacity="0.4"></path>
+
+              <circle cx="424" cy="264" r="9" fill="var(--accent)" opacity="0.55"></circle>
+              <text x="442" y="261" font-size="11.5" font-weight="700" fill="var(--ink)">박지훈</text>
+              <text x="486" y="261" font-size="10.5" fill="var(--ink-faint)">40분 전</text>
+              <text x="442" y="278" font-size="11.5" fill="var(--ink)">3번은 “다시 시도”로 통일하죠</text>
+              <rect x="442" y="286" width="40" height="17" rx="8.5" fill="var(--code-bg)"></rect>
+              <text x="462" y="298" font-size="10" text-anchor="middle" fill="var(--ink-muted)">👍 2</text>
+
+              <circle cx="424" cy="330" r="9" fill="var(--ink-faint)" opacity="0.4"></circle>
+              <text x="442" y="327" font-size="11.5" font-weight="700" fill="var(--ink)">유수경</text>
+              <text x="442" y="344" font-size="11.5" fill="var(--ink)">반영했습니다 👍</text>
+
+              <rect x="414" y="368" width="406" height="52" rx="10"
+                    fill="var(--panel-soft)" stroke="var(--rule)"></rect>
+              <text x="430" y="390" font-size="11" fill="var(--ink-faint)">이 항목에 댓글 남기기…</text>
+              <text x="430" y="407" font-size="10.5" fill="var(--ink-faint)">📎 이미지 · @멘션 · 붙여넣기 업로드</text>
+            </g>
+          </svg>
+        </div>
+        <figcaption>
+          왼쪽은 항목 자체, 오른쪽은 그 항목에 관한 대화. 이미지 갤러리는 별도 저장이 아니라
+          <strong>댓글 첨부를 모아 보여주는 것</strong>이라 1단계부터 바로 채워진다.
+        </figcaption>
+      </figure>
+    </section>
+
+    <!-- ============ 영역별 ============ -->
+    <section id="regions">
+      <div class="sec-head">
+        <div class="sec-tag">상세</div>
+        <h2>영역별로 무엇이 되는가</h2>
+      </div>
+
+      <h3>헤더</h3>
+      <ul class="bullets">
+        <li><strong>체크박스</strong> — 여기서 바로 완료 토글. 태스크 모달의 행과 같은 API를 부르고,
+            결과는 뒤에 있는 행에도 즉시 반영된다.</li>
+        <li><strong>제목</strong> — 클릭하면 인라인 편집(행에서 쓰는 동작 그대로). Viewer는 편집 불가.</li>
+        <li><strong>브레드크럼</strong> — <code>태스크 · 피처 · 마일스톤</code>. 항목이 어느 맥락에 있는지
+            디테일에서도 잃지 않는다. 태스크명을 누르면 디테일이 닫히고 그 행으로 돌아간다.</li>
+        <li><strong>우측</strong> — 이력 버튼(기존 <code>ChecklistHistoryModal</code>을 그대로 연다),
+            ⋮ 메뉴(병합·이동·맥에 맡기기·삭제 — 행 메뉴와 동일 구성), 닫기.</li>
+      </ul>
+
+      <div class="callout callout-warn">
+        <div class="callout-title">이력 모달은 3단이 된다</div>
+        <p>
+          태스크 → 디테일 → 이력. <code>escStack</code>이 LIFO라 동작은 맞지만 3단은 깊다.
+          대안은 이력을 디테일 왼쪽 하단에 <strong>인라인 섹션</strong>으로 접어 넣는 것.
+          <a href="#questions">결정이 필요하다</a> — 기본값은 기존 모달 재사용(코드 0줄 추가).
+        </p>
+      </div>
+
+      <h3>왼쪽 — 항목 정보</h3>
+      <ul class="bullets">
+        <li><strong>담당자 / 기간 / 기록 시간</strong>. 담당자·기간은 행에서와 동일한 피커로 여기서도 바꾼다.
+            기록 시간은 타임블록 합계이며, 누르면 타임블록 목록이 펼쳐진다.</li>
+        <li><strong>이미지 갤러리</strong> — 이 항목 댓글들의 첨부 중 이미지만 모아 격자로. 최대 3개 + <code>+N</code>,
+            클릭 시 기존 라이트박스. 이미지가 없으면 섹션 자체를 숨긴다(빈 액자를 두지 않는다).</li>
+        <li><strong>설명</strong> — 4단계 전까지는 <em>렌더링하지 않는다</em>. 자리만 잡아두고 "준비 중"을
+            띄우는 건 화면을 낭비하는 일이다.</li>
+      </ul>
+
+      <h3>오른쪽 — 댓글 스레드</h3>
+      <ul class="bullets">
+        <li>이 항목의 댓글만 시간순. 태스크 댓글과 기능 차이가 <strong>없다</strong> — 답글, 이미지 첨부,
+            멘션, 리액션, 수정·삭제 모두 동일하다.</li>
+        <li>입력창 placeholder가 "이 항목에 댓글 남기기…"로 바뀐다. 지금 쓰는 글이 어디로 가는지가
+            화면에 적혀 있어야 한다.</li>
+        <li>우상단 <strong>"태스크 전체 보기"</strong> — 디테일을 닫고 태스크 댓글 패널로 돌아간다.</li>
+        <li>AI 요약 버튼은 여기 두지 않는다. 항목 3개짜리 스레드를 요약할 이유가 없고,
+            크레딧만 쓴다.</li>
+      </ul>
+    </section>
+
+    <!-- ============ 모바일 ============ -->
+    <section id="mobile">
+      <div class="sec-head">
+        <div class="sec-tag">반응형</div>
+        <h2>모바일에서는 대화가 먼저다</h2>
+      </div>
+      <p>
+        <code>MotionModal</code>은 좁은 화면에서 하단 시트로 붙는다(<code>items-end</code>,
+        <code>rounded-t-2xl</code>, safe-area 패딩). 디테일도 그 형태를 따르되
+        <strong>순서를 바꾼다</strong> — 항목 정보를 접고, 대화를 위로 올린다.
+      </p>
+
+      <figure>
+        <div class="fig-frame narrow">
+          <svg viewBox="0 0 320 440" role="img" aria-labelledby="wf-mobile">
+            <title id="wf-mobile">모바일에서 디테일이 하단 시트로 열린 모습</title>
+            <rect x="10" y="8" width="300" height="424" rx="20" fill="var(--panel-soft)" stroke="var(--rule-soft)"></rect>
+            <rect x="10" y="70" width="300" height="362" rx="18" fill="var(--panel)" stroke="var(--rule)"></rect>
+            <rect x="136" y="80" width="48" height="4" rx="2" fill="var(--ink-faint)" opacity="0.4"></rect>
+
+            <g font-family="var(--sans)">
+              <rect x="28" y="98" width="13" height="13" rx="4" fill="none" stroke="var(--ink-muted)" stroke-width="1.4"></rect>
+              <text x="50" y="109" font-size="12.5" font-weight="700" fill="var(--ink)">에러 화면 문구 확정</text>
+              <text x="28" y="128" font-size="10.5" fill="var(--ink-faint)">로그인 개편 · 인증</text>
+              <text x="284" y="109" font-size="13" fill="var(--ink-muted)">✕</text>
+
+              <!-- collapsed info -->
+              <rect x="28" y="140" width="264" height="30" rx="8" fill="var(--panel-soft)" stroke="var(--rule-soft)"></rect>
+              <circle cx="44" cy="155" r="6" fill="var(--teal)" opacity="0.6"></circle>
+              <text x="56" y="159" font-size="10.5" fill="var(--ink)">유수경</text>
+              <text x="108" y="159" font-size="10.5" fill="var(--ink-muted)">8/4 → 8/8</text>
+              <text x="176" y="159" font-size="10.5" font-weight="700" fill="var(--amber)">D-2</text>
+              <text x="212" y="159" font-size="10.5" fill="var(--accent)">🖼 4</text>
+              <text x="276" y="159" font-size="10.5" fill="var(--ink-faint)">⌄</text>
+
+              <!-- thread -->
+              <text x="28" y="192" font-family="var(--mono)" font-size="10" letter-spacing="1" fill="var(--ink-faint)">댓글 3</text>
+
+              <circle cx="36" cy="214" r="8" fill="var(--teal)" opacity="0.55"></circle>
+              <text x="52" y="212" font-size="10.5" font-weight="700" fill="var(--ink)">유수경</text>
+              <text x="52" y="228" font-size="10.5" fill="var(--ink)">현재 문구 스샷입니다</text>
+              <rect x="52" y="236" width="72" height="44" rx="6" fill="var(--code-bg)" stroke="var(--rule-soft)"></rect>
+              <path d="M64 272 L76 256 L86 266 L94 258 L108 276 Z" fill="var(--ink-faint)" opacity="0.4"></path>
+
+              <circle cx="36" cy="304" r="8" fill="var(--accent)" opacity="0.55"></circle>
+              <text x="52" y="302" font-size="10.5" font-weight="700" fill="var(--ink)">박지훈</text>
+              <text x="52" y="318" font-size="10.5" fill="var(--ink)">“다시 시도”로 통일하죠</text>
+
+              <circle cx="36" cy="348" r="8" fill="var(--ink-faint)" opacity="0.4"></circle>
+              <text x="52" y="346" font-size="10.5" font-weight="700" fill="var(--ink)">유수경</text>
+              <text x="52" y="362" font-size="10.5" fill="var(--ink)">반영했습니다 👍</text>
+
+              <!-- sticky composer -->
+              <line x1="10" y1="380" x2="310" y2="380" stroke="var(--rule)"></line>
+              <rect x="28" y="392" width="230" height="28" rx="14" fill="var(--panel-soft)" stroke="var(--rule)"></rect>
+              <text x="42" y="410" font-size="10.5" fill="var(--ink-faint)">이 항목에 댓글…</text>
+              <circle cx="278" cy="406" r="14" fill="var(--accent)"></circle>
+              <path d="M272 406 L284 406 M279 401 L284 406 L279 411" stroke="var(--ground)" stroke-width="1.6" fill="none"></path>
+            </g>
+          </svg>
+        </div>
+        <figcaption>
+          항목 정보는 한 줄로 접히고(펼치면 전체), 대화가 화면의 대부분을 차지한다.
+          입력창은 하단 고정 — 스레드를 스크롤해도 따라오지 않고 그 자리에 있다.
+        </figcaption>
+      </figure>
+
+      <ul class="bullets">
+        <li>정보 줄에는 담당자·기간·D-day·이미지 개수만. 나머지는 펼쳐야 나온다.</li>
+        <li>키보드가 올라올 때 입력창이 가려지지 않아야 한다 — <code>dvh</code> 기준 높이와
+            <code>env(safe-area-inset-bottom)</code>는 <code>MotionModal</code>이 이미 처리한다.</li>
+        <li>이미지 갤러리는 가로 스크롤 한 줄로. 세로 공간을 격자에 쓰지 않는다.</li>
+      </ul>
+    </section>
+
+    <!-- ============ 상태 ============ -->
+    <section id="states">
+      <div class="sec-head">
+        <div class="sec-tag">상태</div>
+        <h2>모든 상태에 화면이 있다</h2>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>상태</th><th>화면</th><th>가능한 조작</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="lead">로딩</td>
+              <td>왼쪽 정보는 이미 있는 데이터로 <strong>즉시</strong> 그린다(행에서 넘겨받음).
+                  오른쪽만 <code>Loader2</code> 스피너.</td>
+              <td>닫기</td>
+            </tr>
+            <tr>
+              <td class="lead">댓글 없음</td>
+              <td>"아직 대화가 없습니다 · 첫 댓글을 남겨보세요" + 입력창 자동 포커스</td>
+              <td>전부</td>
+            </tr>
+            <tr>
+              <td class="lead">불러오기 실패</td>
+              <td><code>AlertCircle</code> + "댓글을 불러오지 못했습니다" + 다시 시도 버튼</td>
+              <td>재시도 · 닫기</td>
+            </tr>
+            <tr>
+              <td class="lead">Viewer 권한</td>
+              <td>입력창·체크박스·⋮ 메뉴 숨김. 읽기만.</td>
+              <td>읽기 · 이미지 확대 · 닫기</td>
+            </tr>
+            <tr>
+              <td class="lead">항목이 삭제됨<br><span style="font-size:12px;color:var(--ink-faint)">(다른 사람이 지웠을 때)</span></td>
+              <td>상단에 <span class="chip chip-stop">삭제된 항목</span> 배너 + 제목 취소선.
+                  대화는 그대로 읽힌다.</td>
+              <td>읽기 · 닫기 <span class="chip chip-skip">쓰기 차단</span></td>
+            </tr>
+            <tr>
+              <td class="lead">항목이 다른 태스크로 이동됨</td>
+              <td>"이 항목은 <em>다른 태스크</em>로 옮겨졌습니다" 배너 + 이동 후 태스크로 가는 링크</td>
+              <td>이동 · 닫기</td>
+            </tr>
+            <tr>
+              <td class="lead">업로드 중</td>
+              <td>썸네일 자리에 진행 표시. 전송 버튼 비활성.</td>
+              <td>취소</td>
+            </tr>
+            <tr>
+              <td class="lead">첨부 한도 초과</td>
+              <td>"이미지는 댓글당 5개까지 올릴 수 있습니다" — 무엇이 문제고 한도가 얼마인지 같이 말한다.</td>
+              <td>파일 빼기</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 실시간 ============ -->
+    <section id="realtime">
+      <div class="sec-head">
+        <div class="sec-tag">동기화</div>
+        <h2>열려 있는 동안 계속 맞는다</h2>
+      </div>
+      <p>
+        디테일은 태스크 모달 안에서 열리므로 <strong>이미 들어오고 있는</strong> WebSocket 이벤트를
+        쓰면 된다. 새 구독도, 폴링도 필요 없다.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>수신 이벤트</th><th>디테일이 하는 일</th></tr></thead>
+          <tbody>
+            <tr><td class="tight">COMMENT_CREATED</td>
+                <td><code>checklist_item_id</code>가 이 항목이면 스레드 하단에 추가 + 뒤 행의 뱃지 +1</td></tr>
+            <tr><td class="tight">COMMENT_UPDATED / DELETED</td>
+                <td>해당 댓글 교체 또는 제거. 삭제면 뱃지 −1, 갤러리에서도 이미지 제거</td></tr>
+            <tr><td class="tight">COMMENT_REACTION_TOGGLED</td><td>리액션 줄만 갱신</td></tr>
+            <tr><td class="tight">CHECKLIST_UPDATED / TOGGLED</td><td>헤더의 제목·체크·담당자·기간 갱신</td></tr>
+            <tr><td class="tight">CHECKLIST_DELETED</td><td>삭제 배너 표시 + 쓰기 차단 (모달을 강제로 닫지 않는다)</td></tr>
+            <tr><td class="tight">CHECKLIST_MOVED</td><td>이동 배너 표시</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout callout-accent">
+        <div class="callout-title">모달을 임의로 닫지 않는다</div>
+        <p>
+          남이 항목을 지웠다고 내가 보던 창을 없애면, 방금 읽던 대화가 사라진다.
+          배너로 알리고 쓰기만 막는다 — 닫는 건 사용자가 정한다.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ 컴포넌트 ============ -->
+    <section id="compose">
+      <div class="sec-head">
+        <div class="sec-tag">구현</div>
+        <h2>스레드를 어떻게 재사용하나</h2>
+      </div>
+      <p>
+        <code>CommentPanel.tsx</code>는 1,694줄이고 멘션 자동완성·커스텀 이모지 업로드·라이트박스·
+        AI 요약이 다 들어 있다. 이걸 디테일에서 다시 만들 이유는 없다. 문제는 <em>어떻게</em> 재사용하느냐다.
+      </p>
+
+      <div class="cards two">
+        <div class="card picked">
+          <div class="card-head">
+            <h3>A안 · props로 범위를 준다</h3>
+            <span class="chip chip-pick">채택</span>
+          </div>
+          <p>
+            <code>CommentPanel</code>에 <code>checklistItemId</code>와
+            <code>variant="embedded"</code>를 추가한다. 목록 필터와 작성 시 소속이 그 값으로 결정되고,
+            <code>embedded</code>는 자체 헤더·AI 요약·닫기 버튼을 숨긴다.
+          </p>
+          <ul class="bullets">
+            <li>이미 <code>taskId</code>/<code>boardId</code> props로 자족적이라 결이 맞는다</li>
+            <li>중복 코드 0줄 · 버그 고치면 양쪽 다 고쳐진다</li>
+            <li>비용: 큰 컴포넌트에 분기가 는다</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h3>B안 · CommentThread 추출</h3>
+            <span class="chip chip-skip">나중에</span>
+          </div>
+          <p>스레드 렌더링과 작성기를 별도 컴포넌트로 빼고 둘이 공유한다.</p>
+          <ul class="bullets">
+            <li>구조적으로는 이쪽이 정답이다</li>
+            <li>다만 1,700줄을 지금 가르면 이번 기능의 위험이 리팩터링 위험과 섞인다</li>
+            <li>기능이 안정된 뒤 별도 작업으로 분리한다</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>파일</h3>
+      <pre><span class="cmt">신규</span>
+components/ChecklistDetailModal.tsx      <span class="cmt">— 모달 셸 · 헤더 · 좌측 정보 · 갤러리</span>
+
+<span class="cmt">수정</span>
+components/CommentPanel.tsx              <span class="cmt">— checklistItemId · variant props</span>
+components/TaskDetailModal.tsx           <span class="cmt">— 행 뱃지 · ⋮ 메뉴 항목 · 모달 마운트</span>
+components/ui/... <span class="cmt">(변경 없음 — MotionModal 그대로 사용)</span>
+i18n/locales/*.json × 10                 <span class="cmt">— checklistDetail.* 키</span></pre>
+    </section>
+
+    <!-- ============ 함정 ============ -->
+    <section id="traps">
+      <div class="sec-head">
+        <div class="sec-tag">주의</div>
+        <h2>여기서 깨지기 쉽다</h2>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>함정</th><th>왜 생기나</th><th>대응</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="lead">스크롤이 두 겹</td>
+              <td><code>MotionModal</code>의 콘텐츠 래퍼에 이미 <code>overflow-y-auto</code>가 걸려 있다.
+                  안에서 좌우 칼럼을 따로 스크롤시키면 바깥 스크롤과 겹친다.</td>
+              <td><code>className</code>에 <code>overflow-hidden</code>을 넘겨 바깥 스크롤을 끄고,
+                  칼럼 각각에 <code>overflow-y-auto custom-scrollbar</code>를 준다.</td>
+            </tr>
+            <tr>
+              <td class="lead">행 뱃지 클릭이 드래그가 된다</td>
+              <td>체크리스트 행은 <code>useSortable</code> 대상이다.</td>
+              <td>드래그는 <code>dragHandleProps</code>가 달린 요소에서만 시작하므로 구조적으로는 안전.
+                  뱃지에 <code>e.stopPropagation()</code>을 붙여 확실히 한다.</td>
+            </tr>
+            <tr>
+              <td class="lead">Hooks 순서 오류 (React #310)</td>
+              <td>새 모달도 <code>if (!item) return null</code> 패턴을 쓰게 된다.
+                  그 뒤에 <code>useCallback</code>을 추가하는 실수가 이 저장소에서 반복됐다.</td>
+              <td>모든 hook을 early return <strong>위에</strong>. CLAUDE.md에 명시된 규칙.</td>
+            </tr>
+            <tr>
+              <td class="lead">드롭다운이 모달 뒤로 간다</td>
+              <td>⋮ 메뉴(Radix)가 포털로 나가면서 모달과 쌓임 순서가 어긋날 수 있다.</td>
+              <td>행의 ⋮가 태스크 모달 안에서 잘 뜨고 있으므로 같은 구성을 유지.
+                  QA에서 실제로 한 번 확인한다.</td>
+            </tr>
+            <tr>
+              <td class="lead">뱃지 숫자가 어긋난다</td>
+              <td>낙관적 추가 + WS 이벤트 수신으로 <strong>두 번</strong> 세기 쉽다.</td>
+              <td>댓글 id 기준으로 중복 제거 후 길이를 센다. 증감 카운터를 따로 두지 않는다.</td>
+            </tr>
+            <tr>
+              <td class="lead">개인 스페이스에서 터진다</td>
+              <td>개인 태스크는 <code>boardId</code>가 없어 댓글 API 자체가 없다.</td>
+              <td><code>boardId</code>가 없으면 뱃지와 메뉴 항목을 아예 렌더링하지 않는다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ i18n ============ -->
+    <section id="i18n">
+      <div class="sec-head">
+        <div class="sec-tag">문구</div>
+        <h2>번역 키</h2>
+      </div>
+      <p>10개 로케일(ko, en, ja, zh, zh-TW, vi, th, es, pt-BR, hi) 전부에 넣는다. 한국어 기준 문구:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>키</th><th>한국어</th></tr></thead>
+          <tbody>
+            <tr><td class="tight">checklistDetail.open</td><td>디테일 열기</td></tr>
+            <tr><td class="tight">checklistDetail.title</td><td>항목 디테일</td></tr>
+            <tr><td class="tight">checklistDetail.info</td><td>항목 정보</td></tr>
+            <tr><td class="tight">checklistDetail.gallery</td><td>이미지 {{count}}</td></tr>
+            <tr><td class="tight">checklistDetail.galleryHint</td><td>댓글에 올라온 것 모음</td></tr>
+            <tr><td class="tight">checklistDetail.comments</td><td>댓글 {{count}}</td></tr>
+            <tr><td class="tight">checklistDetail.placeholder</td><td>이 항목에 댓글 남기기…</td></tr>
+            <tr><td class="tight">checklistDetail.empty</td><td>아직 대화가 없습니다</td></tr>
+            <tr><td class="tight">checklistDetail.emptyHint</td><td>첫 댓글을 남겨보세요</td></tr>
+            <tr><td class="tight">checklistDetail.backToTask</td><td>태스크 전체 보기</td></tr>
+            <tr><td class="tight">checklistDetail.deletedBanner</td><td>삭제된 항목입니다 · 읽기만 가능합니다</td></tr>
+            <tr><td class="tight">checklistDetail.movedBanner</td><td>이 항목은 다른 태스크로 옮겨졌습니다</td></tr>
+            <tr><td class="tight">checklistDetail.loadError</td><td>댓글을 불러오지 못했습니다</td></tr>
+            <tr><td class="tight">checklistDetail.chip</td><td>체크리스트 · {{title}}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 질문 ============ -->
+    <section id="questions">
+      <div class="sec-head">
+        <div class="sec-tag">확인</div>
+        <h2>착수 전에 정해야 할 것</h2>
+      </div>
+      <p>
+        <a href="./checklist-detail-plan.html#questions">선행 문서의 4개</a>에 더해, 화면에서 갈리는 것 셋.
+      </p>
+
+      <div class="qlist">
+        <div class="q">
+          <div class="q-title">이력을 3단 모달로 둘까, 디테일 안에 접어 넣을까?</div>
+          <p>
+            기본값 = <strong>기존 이력 모달 재사용</strong>(추가 코드 없음, 대신 태스크→디테일→이력 3단).
+            깊이가 부담이면 디테일 왼쪽 하단에 접이식 섹션으로 옮긴다 — 이 경우 이력 모달을
+            디테일에서만 쓰도록 바꾸는 작업이 따라온다.
+          </p>
+        </div>
+
+        <div class="q">
+          <div class="q-title">디테일에서 담당자·기간을 바꿀 수 있게 할까?</div>
+          <p>
+            기본값 = <strong>가능</strong>. 행에서 쓰는 피커를 그대로 가져온다.
+            읽기 전용으로 두면 화면이 단순해지지만, 항목을 보러 들어와서 고치려면
+            창을 닫고 나가야 한다.
+          </p>
+        </div>
+
+        <div class="q">
+          <div class="q-title">태스크 댓글 패널의 항목 칩을 누르면?</div>
+          <p>
+            기본값 = <strong>디테일 모달을 연다</strong>. 선행 문서에서는 "행 하이라이트"였는데,
+            모달이 생긴 이상 칩이 곧 그 항목으로 가는 문이 되는 게 자연스럽다.
+            행 하이라이트는 모달을 닫을 때 자동으로 걸린다.
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>

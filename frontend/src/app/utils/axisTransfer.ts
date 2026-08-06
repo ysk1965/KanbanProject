@@ -23,7 +23,11 @@ import {
   type DragEvent,
 } from "react";
 
-export type AxisZone = "workload" | "placement" | "backlog";
+/**
+ * timeblock은 확정도 축의 끝이다 — "며칠에 한다"를 넘어 "몇 시에 한다"까지 정해진 상태.
+ * 다만 이 존만은 목적지가 블록을 먼저 만들고 나서 드롭을 알린다(아래 targetDate 주석 참고).
+ */
+export type AxisZone = "workload" | "placement" | "backlog" | "timeblock";
 
 /** 통합 드래그 페이로드 MIME. 기존 존별 타입과 함께 실어 하위 호환을 지킨다 */
 export const AXIS_DRAG_TYPE = "application/bridge-axis-item";
@@ -54,6 +58,14 @@ export interface AxisDropDetail {
   from: AxisZone;
   to: AxisZone;
   item: AxisItem;
+  /**
+   * 목적지가 "며칠 칸"을 아는 경우에만 실린다 (지금은 timeblock 뿐).
+   *
+   * 타임블록은 시각까지 정하는 존이라 순서가 반대다 — 목적지가 블록을 먼저 만들고,
+   * 성공했을 때만 이 이벤트를 쏜다. 항목의 주인(MyWorkloadWidget)은 이 날짜로
+   * 시작·마감만 잡는다. 블록 생성이 실패하면 이벤트가 없으니 날짜도 안 바뀐다.
+   */
+  targetDate?: string;
 }
 
 interface AxisDragPayload {
@@ -169,10 +181,46 @@ export function findAxisZoneAt(x: number, y: number): AxisZone | null {
   const el = document.elementFromPoint(x, y);
   const zoneEl = el?.closest("[data-axis-zone]") as HTMLElement | null;
   const zone = zoneEl?.getAttribute("data-axis-zone");
-  if (zone === "workload" || zone === "placement" || zone === "backlog") {
+  if (
+    zone === "workload" ||
+    zone === "placement" ||
+    zone === "backlog" ||
+    zone === "timeblock"
+  ) {
     return zone;
   }
   return null;
+}
+
+/* ── 드래그를 못 쓰는 환경의 대체 경로 ─────────────── */
+
+const TIMEBLOCK_REQUEST_EVENT = "bridge:timeblock-request";
+
+/**
+ * "이 항목을 지금부터 타임블록에 넣어 달라" — 터치·키보드용.
+ *
+ * 드롭과 달리 좌표가 없으므로 시각은 받는 쪽(타임블록)이 정한다.
+ * 블록을 만든 뒤 dispatchAxisDrop을 쏘는 뒷부분은 드롭과 완전히 같은 코드를 탄다.
+ */
+export function requestTimeblockPlacement(item: AxisItem) {
+  window.dispatchEvent(
+    new CustomEvent<AxisItem>(TIMEBLOCK_REQUEST_EVENT, { detail: item }),
+  );
+}
+
+/** 타임블록이 구독한다 — 듣는 쪽이 없으면(일정 탭 밖) 아무 일도 일어나지 않는다 */
+export function useTimeblockRequest(handler: (item: AxisItem) => void) {
+  const ref = useRef(handler);
+  ref.current = handler;
+
+  useEffect(() => {
+    const onRequest = (e: Event) => {
+      const detail = (e as CustomEvent<AxisItem>).detail;
+      if (detail?.id) ref.current(detail);
+    };
+    window.addEventListener(TIMEBLOCK_REQUEST_EVENT, onRequest);
+    return () => window.removeEventListener(TIMEBLOCK_REQUEST_EVENT, onRequest);
+  }, []);
 }
 
 /** 마우스 기반 소스가 드롭을 확정할 때 (HTML5 드롭은 useAxisDropZone이 대신 쏜다) */
