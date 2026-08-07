@@ -43,6 +43,7 @@ import {
   saveToLocalStorage,
 } from "./mockData";
 import { nowUTC, getTodayDateString } from "./dateUtils";
+import { isServerDownError } from "./serverHealth";
 import type {
   Board,
   Feature,
@@ -78,6 +79,16 @@ import type {
 // API 호출 실패 시 목업 데이터 사용
 const USE_MOCK_ON_ERROR = true;
 
+/**
+ * 목업 폴백 허용 여부.
+ *
+ * 서버가 내려간 상태(네트워크 실패 · 502/503/504)에서 목업으로 대체하면
+ * 가짜 보드/태스크가 실데이터인 척 화면에 남는다(BE 배포 중 발생). 이때는
+ * 폴백하지 않고 에러를 그대로 올려서, App의 서버 가드가 점검 페이지를 띄우게 한다.
+ */
+const canUseMock = (error: unknown): boolean =>
+  USE_MOCK_ON_ERROR && !isServerDownError(error);
+
 // ========================================
 // Board Service
 // ========================================
@@ -89,7 +100,7 @@ export const boardService = {
       return boards;
     } catch (error) {
       console.warn("API failed, using mock data for boards", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return loadFromLocalStorage("kanban_boards", mockBoards);
       }
       throw error;
@@ -102,7 +113,7 @@ export const boardService = {
       return board;
     } catch (error) {
       console.warn("API failed, using mock data for board", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const boards = loadFromLocalStorage("kanban_boards", mockBoards);
         const board = boards.find((b: Board) => b.id === boardId);
         if (board) return board;
@@ -125,7 +136,7 @@ export const boardService = {
       return board;
     } catch (error) {
       console.warn("API failed, using mock data for create board", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const boards = loadFromLocalStorage("kanban_boards", mockBoards);
         const newBoard: Board = {
           id: `board-${Date.now()}`,
@@ -166,7 +177,7 @@ export const boardService = {
       return board;
     } catch (error) {
       console.warn("API failed for update board", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const boards = loadFromLocalStorage("kanban_boards", mockBoards);
         const updatedBoards = boards.map((b: Board) =>
           b.id === boardId
@@ -193,7 +204,7 @@ export const boardService = {
       return result;
     } catch (error) {
       console.warn("API failed, using mock data for toggle star", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const boards = loadFromLocalStorage("kanban_boards", mockBoards);
         const board = boards.find((b: Board) => b.id === boardId);
         const newStarred = !board?.is_starred;
@@ -212,7 +223,7 @@ export const boardService = {
       await boardAPI.deleteBoard(boardId);
     } catch (error) {
       console.warn("API failed, using mock data for delete board", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const boards = loadFromLocalStorage("kanban_boards", mockBoards);
         const updatedBoards = boards.filter((b: Board) => b.id !== boardId);
         saveToLocalStorage("kanban_boards", updatedBoards);
@@ -244,7 +255,7 @@ export const boardService = {
       return tierInfo;
     } catch (error) {
       console.warn("API failed, using mock data for board tier", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return {
           tier: "TRIAL",
           trial_ends_at: new Date(
@@ -265,7 +276,7 @@ export const boardService = {
       return limits;
     } catch (error) {
       console.warn("API failed, using mock data for board limits", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return {
           task_limit: null, // Premium에서는 무제한
           current_task_count: 0,
@@ -315,7 +326,7 @@ export const blockService = {
       return response.blocks.filter((b) => !b.jira_status_id);
     } catch (error) {
       console.warn("API failed, using mock data for blocks", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return loadFromLocalStorage("kanban_blocks", mockBlocks);
       }
       throw error;
@@ -337,7 +348,7 @@ export const blockService = {
       };
     } catch (error) {
       console.warn("API failed for getBlocksWithHidden", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return {
           blocks: loadFromLocalStorage("kanban_blocks", mockBlocks),
           hiddenBlocks: [],
@@ -356,7 +367,7 @@ export const blockService = {
       return block;
     } catch (error) {
       console.warn("API failed, using mock data for create block", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const blocks = loadFromLocalStorage("kanban_blocks", mockBlocks);
         const maxPosition = Math.max(
           ...blocks.map((b: Block) => b.position),
@@ -388,7 +399,7 @@ export const blockService = {
       return block;
     } catch (error) {
       console.warn("API failed, using mock data for update block", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const blocks = loadFromLocalStorage("kanban_blocks", mockBlocks);
         const updatedBlocks = blocks.map((b: Block) =>
           b.id === blockId ? { ...b, ...data } : b,
@@ -405,7 +416,7 @@ export const blockService = {
       await blockAPI.deleteBlock(boardId, blockId);
     } catch (error) {
       console.warn("API failed, using mock data for delete block", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const blocks = loadFromLocalStorage("kanban_blocks", mockBlocks);
         const updatedBlocks = blocks.filter((b: Block) => b.id !== blockId);
         saveToLocalStorage("kanban_blocks", updatedBlocks);
@@ -424,7 +435,7 @@ export const blockService = {
       return response.blocks;
     } catch (error) {
       console.warn("API failed, using mock data for reorder blocks", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const blocks = loadFromLocalStorage("kanban_blocks", mockBlocks);
         const updatedBlocks = blockIds
           .map((id, index) => {
@@ -454,7 +465,7 @@ export const featureService = {
       return response.features;
     } catch (error) {
       console.warn("API failed, using mock data for features", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return loadFromLocalStorage("kanban_features", mockFeatures);
       }
       throw error;
@@ -467,7 +478,7 @@ export const featureService = {
       return feature;
     } catch (error) {
       console.warn("API failed, using mock data for feature", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const features = loadFromLocalStorage("kanban_features", mockFeatures);
         return features.find((f: Feature) => f.id === featureId);
       }
@@ -491,7 +502,7 @@ export const featureService = {
       return feature;
     } catch (error) {
       console.warn("API failed, using mock data for create feature", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const features = loadFromLocalStorage("kanban_features", mockFeatures);
         const newFeature: Feature = {
           id: `feature-${Date.now()}`,
@@ -534,7 +545,7 @@ export const featureService = {
       return feature;
     } catch (error) {
       console.warn("API failed, using mock data for update feature", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const features = loadFromLocalStorage("kanban_features", mockFeatures);
         const updatedFeatures = features.map((f: Feature) =>
           f.id === featureId ? { ...f, ...data } : f,
@@ -559,7 +570,7 @@ export const featureService = {
       await featureAPI.deleteFeature(boardId, featureId, data);
     } catch (error) {
       console.warn("API failed, using mock data for delete feature", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const features = loadFromLocalStorage("kanban_features", mockFeatures);
         const updatedFeatures = features.filter(
           (f: Feature) => f.id !== featureId,
@@ -580,7 +591,7 @@ export const featureService = {
       return response.features;
     } catch (error) {
       console.warn("API failed, using mock data for reorder features", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const features = loadFromLocalStorage("kanban_features", mockFeatures);
         const updatedFeatures = featureIds
           .map((id, index) => {
@@ -637,7 +648,7 @@ export const taskService = {
       return response.tasks;
     } catch (error) {
       console.warn("API failed, using mock data for tasks", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         let tasks = loadFromLocalStorage("kanban_tasks", mockTasks);
         if (params?.block_id) {
           tasks = tasks.filter((t: Task) => t.block_id === params.block_id);
@@ -657,7 +668,7 @@ export const taskService = {
       return task;
     } catch (error) {
       console.warn("API failed, using mock data for task", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const tasks = loadFromLocalStorage("kanban_tasks", mockTasks);
         return tasks.find((t: Task) => t.id === taskId);
       }
@@ -690,7 +701,7 @@ export const taskService = {
       return task;
     } catch (error) {
       console.warn("API failed, using mock data for create task", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const tasks = loadFromLocalStorage("kanban_tasks", mockTasks);
         const features = loadFromLocalStorage("kanban_features", mockFeatures);
         const blocks = loadFromLocalStorage("kanban_blocks", mockBlocks);
@@ -741,7 +752,7 @@ export const taskService = {
       return task;
     } catch (error) {
       console.warn("API failed, using mock data for update task", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const tasks = loadFromLocalStorage("kanban_tasks", mockTasks);
         const updatedTasks = tasks.map((t: Task) =>
           t.id === taskId ? { ...t, ...data } : t,
@@ -758,7 +769,7 @@ export const taskService = {
       await taskAPI.deleteTask(boardId, taskId);
     } catch (error) {
       console.warn("API failed, using mock data for delete task", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const tasks = loadFromLocalStorage("kanban_tasks", mockTasks);
         const updatedTasks = tasks.filter((t: Task) => t.id !== taskId);
         saveToLocalStorage("kanban_tasks", updatedTasks);
@@ -782,7 +793,7 @@ export const taskService = {
       return task;
     } catch (error) {
       console.warn("API failed, using mock data for move task", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const tasks = loadFromLocalStorage("kanban_tasks", mockTasks);
         const blocks = loadFromLocalStorage("kanban_blocks", mockBlocks);
         const doneBlock = blocks.find((b: Block) => b.fixed_type === "DONE");
@@ -837,7 +848,7 @@ export const taskService = {
       return task;
     } catch (error) {
       console.warn("API failed, using mock data for update task dates", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const tasks = loadFromLocalStorage("kanban_tasks", mockTasks);
         const updatedTasks = tasks.map((t: Task) =>
           t.id === taskId
@@ -902,7 +913,7 @@ export const tagService = {
       return response.tags;
     } catch (error) {
       console.warn("API failed, using mock data for tags", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return loadFromLocalStorage("kanban_tags", mockTags);
       }
       throw error;
@@ -918,7 +929,7 @@ export const tagService = {
       return tag;
     } catch (error) {
       console.warn("API failed, using mock data for create tag", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const tags = loadFromLocalStorage("kanban_tags", mockTags);
         const newTag: Tag = {
           id: `tag-${Date.now()}`,
@@ -944,7 +955,7 @@ export const tagService = {
       return tag;
     } catch (error) {
       console.warn("API failed, using mock data for update tag", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const tags = loadFromLocalStorage("kanban_tags", mockTags);
         const updatedTags = tags.map((t: Tag) =>
           t.id === tagId ? { ...t, ...data } : t,
@@ -961,7 +972,7 @@ export const tagService = {
       await tagAPI.deleteTag(boardId, tagId);
     } catch (error) {
       console.warn("API failed, using mock data for delete tag", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const tags = loadFromLocalStorage("kanban_tags", mockTags);
         const updatedTags = tags.filter((t: Tag) => t.id !== tagId);
         saveToLocalStorage("kanban_tags", updatedTags);
@@ -986,7 +997,7 @@ export const checklistService = {
       return checklist;
     } catch (error) {
       console.warn("API failed, using mock data for checklist", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return { total: 0, completed: 0, items: [] };
       }
       throw error;
@@ -1011,7 +1022,7 @@ export const checklistService = {
       return response;
     } catch (error) {
       console.warn("API failed, using empty data for batch checklists", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return {};
       }
       throw error;
@@ -1092,7 +1103,7 @@ export const memberService = {
       return response;
     } catch (error) {
       console.warn("API failed, using mock data for members", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const members = loadFromLocalStorage("kanban_members", mockMembers);
         return { total: members.length, billable: members.length, members };
       }
@@ -1148,7 +1159,7 @@ export const memberService = {
         throw error;
       }
       console.warn("API failed, using mock data for update member role", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const members = loadFromLocalStorage("kanban_members", mockMembers);
         const updatedMembers = members.map((m: BoardMember) =>
           m.id === memberId ? { ...m, role } : m,
@@ -1195,7 +1206,7 @@ export const memberService = {
       await memberAPI.removeMember(boardId, memberId);
     } catch (error) {
       console.warn("API failed, using mock data for remove member", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const members = loadFromLocalStorage("kanban_members", mockMembers);
         const updatedMembers = members.filter(
           (m: BoardMember) => m.id !== memberId,
@@ -1339,7 +1350,7 @@ export const authService = {
       }
       // 네트워크 에러 등은 mock 사용
       console.warn("API failed, using mock auth", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const mockUser: User = {
           id: `user-${Date.now()}`,
           email,
@@ -1373,7 +1384,7 @@ export const authService = {
       }
       // 네트워크 에러 등은 mock 사용
       console.warn("API failed, using mock auth", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         const mockUser: User = {
           id: "user-1",
           email,
@@ -1555,7 +1566,7 @@ export const inviteLinkService = {
       return response.invites;
     } catch (error) {
       console.warn("API failed, using mock data for invite links", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return loadFromLocalStorage("kanban_invite_links", []);
       }
       throw error;
@@ -1603,7 +1614,7 @@ export const subscriptionService = {
       return subscription;
     } catch (error) {
       console.warn("API failed, using mock data for subscription", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return {
           status: "TRIAL",
           plan: null,
@@ -1666,7 +1677,7 @@ export const subscriptionService = {
       return pricing;
     } catch (error) {
       console.warn("API failed, using mock data for seat pricing", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return {
           price_per_seat: {
             monthly: 500, // $5.00 in cents
@@ -1745,7 +1756,7 @@ export const activityService = {
       return response;
     } catch (error) {
       console.warn("API failed, using mock data for activities", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return {
           activities: loadFromLocalStorage("kanban_activities", []),
           has_more: false,
@@ -1772,7 +1783,7 @@ export const pricingService = {
       return response;
     } catch (error) {
       console.warn("API failed, using mock data for pricing plans", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return {
           plans: [
             {
@@ -1836,7 +1847,7 @@ export const milestoneService = {
       }));
     } catch (error) {
       console.warn("API failed, using empty array for milestones", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return [];
       }
       throw error;
@@ -1991,7 +2002,7 @@ export const milestoneService = {
       return response.allocations;
     } catch (error) {
       console.warn("API failed, returning empty allocations", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return [];
       }
       throw error;
@@ -2151,7 +2162,7 @@ export const statisticsService = {
       };
     } catch (error) {
       console.warn("API failed, using empty statistics", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return EMPTY_BOARD_STATISTICS;
       }
       throw error;
@@ -2171,7 +2182,7 @@ export const statisticsService = {
       return response;
     } catch (error) {
       console.warn("API failed, using empty personal statistics", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return EMPTY_PERSONAL_STATISTICS;
       }
       throw error;
@@ -2189,7 +2200,7 @@ export const statisticsService = {
       };
     } catch (error) {
       console.warn("API failed, using default weight levels", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return {
           board_id: boardId,
           levels: DEFAULT_WEIGHT_LEVELS,
@@ -2262,7 +2273,7 @@ export const statisticsService = {
       };
     } catch (error) {
       console.warn("API failed, returning null weight level", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return { task_id: taskId, weight_level: null };
       }
       throw error;
@@ -2327,7 +2338,7 @@ export const managementService = {
       return response as ManagementStatistics;
     } catch (error) {
       console.warn("API failed, using empty management statistics", error);
-      if (USE_MOCK_ON_ERROR) {
+      if (canUseMock(error)) {
         return EMPTY_MANAGEMENT_STATISTICS;
       }
       throw error;

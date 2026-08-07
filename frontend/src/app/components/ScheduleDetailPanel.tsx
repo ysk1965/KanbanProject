@@ -17,6 +17,7 @@ import {
   Pencil,
   Tag,
   ExternalLink,
+  ArrowDownToLine,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { MotionModal } from "./ui/MotionModal";
@@ -46,6 +47,12 @@ interface ScheduleDetailPanelProps {
   workStartHour: number;
   onClose: () => void;
   onDelete: () => void;
+  /**
+   * 「미배치로 빼기」 — 그 날의 블록을 지우고 항목을 배치 레일로 돌려보낸다.
+   * 블록을 레일로 끌어내리는 것과 같은 경로이며, 드래그를 못 쓰는 환경을 위해 둔다.
+   * 넘기지 않으면(뷰어·회의/커스텀 블록) 버튼이 아예 없다.
+   */
+  onUnplace?: () => void | Promise<void>;
   onUpdate: () => void;
   onChecklistToggle: () => void;
   onViewTask?: (taskId: string, checklistItemId?: string) => void;
@@ -129,6 +136,7 @@ export function ScheduleDetailPanel({
   workStartHour,
   onClose,
   onDelete,
+  onUnplace,
   onUpdate,
   onChecklistToggle,
   onViewTask,
@@ -144,6 +152,7 @@ export function ScheduleDetailPanel({
 
   // 로컬 상태로 체크리스트 완료 여부 관리 (즉시 UI 반영용)
   const [isCompleted, setIsCompleted] = useState(checklist?.completed ?? false);
+  const [isUnplacing, setIsUnplacing] = useState(false);
 
   // Task의 전체 체크리스트 항목
   const [allChecklistItems, setAllChecklistItems] = useState<
@@ -339,6 +348,20 @@ export function ScheduleDetailPanel({
       // 실패 시 원래 상태로 롤백
       setIsCompleted(!newCompletedState);
       console.error("Failed to toggle checklist:", error);
+    }
+  };
+
+  /**
+   * 미배치로 빼기 — 실제 처리(블록 삭제 · 일정 해제)는 넘겨받은 쪽이 한다.
+   * 여기서는 두 번 눌리지 않게 잠그는 것까지만 맡는다.
+   */
+  const handleUnplace = async () => {
+    if (!onUnplace || isUnplacing) return;
+    setIsUnplacing(true);
+    try {
+      await onUnplace();
+    } finally {
+      setIsUnplacing(false);
     }
   };
 
@@ -1171,20 +1194,40 @@ export function ScheduleDetailPanel({
         )}
       </div>
 
-      {/* 푸터: Esc 안내 + 삭제 */}
-      <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-xs text-slate-600">
+      {/* 푸터: Esc 안내 + 미배치로 빼기 + 삭제 */}
+      <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-foreground/[0.08]">
+        <span className="hidden sm:block text-xs text-slate-600">
           {t("scheduleDetail.escClose")}
         </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleDelete}
-          className="border-red-600 text-red-400 hover:bg-red-600/20"
-        >
-          <Trash2 className="h-4 w-4 mr-2" />
-          {t("scheduleDetail.deleteBlock")}
-        </Button>
+        <div className="flex items-center gap-2 ml-auto">
+          {/* 체크리스트가 붙은 블록만 돌아갈 자리(배치 레일)가 있다 */}
+          {onUnplace && checklist && task && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleUnplace}
+              disabled={isUnplacing}
+              title={t("scheduleDetail.unplaceHint")}
+              className="border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/5"
+            >
+              {isUnplacing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <ArrowDownToLine className="h-4 w-4 mr-2" />
+              )}
+              {t("scheduleDetail.unplace")}
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDelete}
+            className="border-red-600 text-red-400 hover:bg-red-600/20"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            {t("scheduleDetail.deleteBlock")}
+          </Button>
+        </div>
       </div>
     </MotionModal>
   );

@@ -37,11 +37,12 @@ const CONTRACTOR_PREFIX = "contractor:";
 /** 이동 직후 되돌리기용으로 붙잡아 두는 이전 값 */
 interface PlacementNotice {
   /**
-   * placed      = 날짜가 잡혔다
-   * timeblocked = 날짜 + 타임블록까지 잡혔다 (되돌리기는 날짜만 되돌린다 — 그래서 문구가 다르다)
-   * unscheduled = 일정이 풀려 미배치로 내려갔다
+   * placed        = 날짜가 잡혔다
+   * timeblocked   = 날짜 + 타임블록까지 잡혔다 (되돌리기는 날짜만 되돌린다 — 그래서 문구가 다르다)
+   * unscheduled   = 일정이 풀려 미배치로 내려갔다
+   * untimeblocked = 타임블록에서 빠지며 일정도 풀렸다 (되돌려도 지워진 블록은 안 돌아온다)
    */
-  kind: "placed" | "timeblocked" | "unscheduled";
+  kind: "placed" | "timeblocked" | "unscheduled" | "untimeblocked";
   itemId: string;
   taskId: string;
   title: string;
@@ -264,13 +265,16 @@ export function MyWorkloadWidget({
    * 되돌리기를 띄운다 — 잃는 건 날짜 두 개뿐이라 복구가 정확하다.
    */
   const unscheduleItem = useCallback(
-    async (item: {
-      id: string;
-      task_id: string;
-      title?: string;
-      start_date?: string | null;
-      due_date?: string | null;
-    }) => {
+    async (
+      item: {
+        id: string;
+        task_id: string;
+        title?: string;
+        start_date?: string | null;
+        due_date?: string | null;
+      },
+      noticeKind: "unscheduled" | "untimeblocked" = "unscheduled",
+    ) => {
       try {
         await checklistAPI.patchItem(boardId, item.task_id, item.id, {
           start_date: null,
@@ -278,7 +282,7 @@ export function MyWorkloadWidget({
         });
         setError(null);
         showNotice({
-          kind: "unscheduled",
+          kind: noticeKind,
           itemId: item.id,
           taskId: item.task_id,
           title: item.title ?? "",
@@ -328,14 +332,21 @@ export function MyWorkloadWidget({
       return;
     }
 
-    if (detail.from !== "workload" || detail.to !== "placement") return;
-    void unscheduleItem({
-      id: detail.item.id,
-      task_id: detail.item.task_id,
-      title: detail.item.title,
-      start_date: detail.item.start_date,
-      due_date: detail.item.due_date,
-    });
+    if (detail.to !== "placement") return;
+    if (detail.from !== "workload" && detail.from !== "timeblock") return;
+
+    // 타임블록에서 내려온 건은 블록을 이미 타임블록이 지웠다 — 우리는 날짜만 푼다.
+    // (되돌리기로도 블록은 안 돌아오므로 안내 문구가 다르다)
+    void unscheduleItem(
+      {
+        id: detail.item.id,
+        task_id: detail.item.task_id,
+        title: detail.item.title,
+        start_date: detail.item.start_date,
+        due_date: detail.item.due_date,
+      },
+      detail.from === "timeblock" ? "untimeblocked" : "unscheduled",
+    );
   });
 
   // 다른 존이 내 항목을 가져갔으면(예: 백로그로 강등) 간트·레일을 다시 읽는다
@@ -437,33 +448,40 @@ export function MyWorkloadWidget({
             ) : (
               <>
                 <p className="text-xs text-slate-400 truncate">
-                  {notice!.kind === "unscheduled"
-                    ? t("boardDashboard.unscheduledNotice", {
+                  {notice!.kind === "untimeblocked"
+                    ? // 지워진 블록은 되돌리기로도 안 돌아온다 — 무엇이 돌아오는지만 말한다
+                      t("boardDashboard.untimeblockedNotice", {
                         title: notice!.title,
                         defaultValue:
-                          "「{{title}}」 일정 해제됨 · 담당자와 체크리스트는 그대로입니다",
+                          "「{{title}}」 타임블록에서 빠짐 · 되돌리면 날짜만 돌아옵니다",
                       })
-                    : notice!.kind === "timeblocked"
-                      ? // 되돌리기는 날짜만 되돌린다 — 만들어진 타임블록은 남는다.
-                        // 그래서 "배치됨"과 다른 문구로 무엇이 생겼는지 알린다.
-                        t("boardDashboard.timeblockedNotice", {
+                    : notice!.kind === "unscheduled"
+                      ? t("boardDashboard.unscheduledNotice", {
                           title: notice!.title,
-                          date: formatDate(
-                            parseDate(notice!.targetDate ?? ""),
-                            "PPP",
-                          ),
                           defaultValue:
-                            "「{{title}}」 {{date}} 타임블록에 배치됨 · 되돌리면 날짜만 풀립니다",
+                            "「{{title}}」 일정 해제됨 · 담당자와 체크리스트는 그대로입니다",
                         })
-                      : t("boardDashboard.placedNotice", {
-                          title: notice!.title,
-                          // 로컬 Date로 넘긴다 — 문자열은 UTC로 해석돼 하루 어긋날 수 있다
-                          date: formatDate(
-                            parseDate(notice!.targetDate ?? ""),
-                            "PPP",
-                          ),
-                          defaultValue: "「{{title}}」 {{date}}에 배치됨",
-                        })}
+                      : notice!.kind === "timeblocked"
+                        ? // 되돌리기는 날짜만 되돌린다 — 만들어진 타임블록은 남는다.
+                          // 그래서 "배치됨"과 다른 문구로 무엇이 생겼는지 알린다.
+                          t("boardDashboard.timeblockedNotice", {
+                            title: notice!.title,
+                            date: formatDate(
+                              parseDate(notice!.targetDate ?? ""),
+                              "PPP",
+                            ),
+                            defaultValue:
+                              "「{{title}}」 {{date}} 타임블록에 배치됨 · 되돌리면 날짜만 풀립니다",
+                          })
+                        : t("boardDashboard.placedNotice", {
+                            title: notice!.title,
+                            // 로컬 Date로 넘긴다 — 문자열은 UTC로 해석돼 하루 어긋날 수 있다
+                            date: formatDate(
+                              parseDate(notice!.targetDate ?? ""),
+                              "PPP",
+                            ),
+                            defaultValue: "「{{title}}」 {{date}}에 배치됨",
+                          })}
                 </p>
                 <button
                   type="button"

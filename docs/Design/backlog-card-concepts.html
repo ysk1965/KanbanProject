@@ -1,0 +1,915 @@
+<title>백로그 카드 레이아웃 시안</title>
+<style>
+  /* ─────────────────────────────────────────────
+     페이지 크롬 — 제품 표면(#191f2d)보다 한 단 어둡게 깔아
+     미리보기가 "붙여 넣은 실물"로 읽히게 한다.
+     ───────────────────────────────────────────── */
+  :root {
+    --ground: #0d1017;
+    --panel: #141824;
+    --panel-2: #10141e;
+    --hair: #232a3a;
+    --ink: #e8eaf0;
+    --ink-2: #a3abbf;
+    --ink-3: #6f7891;
+    --accent: #6366f1;
+    --teal: #2dd4bf;
+    --amber: #f59e0b;
+    --rose: #f43f5e;
+
+    /* 제품 토큰 (BRIDGE theme.css) */
+    --bridge-dark: #191f2d;
+    --bridge-obsidian: #151b28;
+    --bridge-accent: #6366f1;
+    --bridge-secondary: #2dd4bf;
+    --fg: #f2f3f7;
+    --fg-rgb: 242, 243, 247;
+
+    --sans: system-ui, -apple-system, "Segoe UI", "Pretendard", "Apple SD Gothic Neo", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground: #eae5db;
+      --panel: #fbf9f5;
+      --panel-2: #f3efe6;
+      --hair: #ddd5c7;
+      --ink: #2b2418;
+      --ink-2: #6b6353;
+      --ink-3: #918876;
+
+      --bridge-dark: #fffcf8;
+      --bridge-obsidian: #efe6d8;
+      --bridge-secondary: #14b8a6;
+      --fg: #3d2e1f;
+      --fg-rgb: 61, 46, 31;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0d1017; --panel: #141824; --panel-2: #10141e;
+    --hair: #232a3a; --ink: #e8eaf0; --ink-2: #a3abbf; --ink-3: #6f7891;
+    --bridge-dark: #191f2d; --bridge-obsidian: #151b28; --bridge-secondary: #2dd4bf;
+    --fg: #f2f3f7; --fg-rgb: 242, 243, 247;
+  }
+  :root[data-theme="light"] {
+    --ground: #eae5db; --panel: #fbf9f5; --panel-2: #f3efe6;
+    --hair: #ddd5c7; --ink: #2b2418; --ink-2: #6b6353; --ink-3: #918876;
+    --bridge-dark: #fffcf8; --bridge-obsidian: #efe6d8; --bridge-secondary: #14b8a6;
+    --fg: #3d2e1f; --fg-rgb: 61, 46, 31;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  /* ── 헤더 ───────────────────────────── */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  h1 {
+    margin: 10px 0 0;
+    font-size: clamp(28px, 4.5vw, 40px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    text-wrap: balance;
+  }
+  .lede {
+    margin: 14px 0 0;
+    max-width: 62ch;
+    color: var(--ink-2);
+    font-size: 15px;
+  }
+  .lede code {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink);
+    background: rgba(99, 102, 241, 0.12);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  /* ── 높이 비교 막대 ─────────────────── */
+  .gauge {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--hair);
+    border: 1px solid var(--hair);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .gauge div {
+    background: var(--panel);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .gauge .k {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .gauge .v {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .gauge .bar {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+  .gauge .base .v { color: var(--ink-3); }
+  .gauge .base .bar { background: var(--ink-3); }
+  .gauge .d {
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+
+  /* ── 시안 블록 ──────────────────────── */
+  .spec {
+    border: 1px solid var(--hair);
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--panel);
+  }
+  .spec > header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 18px 20px 16px;
+    border-bottom: 1px solid var(--hair);
+  }
+  .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(99, 102, 241, 0.15);
+    color: var(--accent);
+  }
+  .tag.base {
+    background: rgba(var(--fg-rgb), 0.08);
+    color: var(--ink-3);
+  }
+  .spec h2 {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .thesis {
+    flex: 1 1 320px;
+    min-width: 260px;
+    color: var(--ink-2);
+    font-size: 13.5px;
+  }
+
+  /* 제품 표면 위의 실물 미리보기 */
+  .stage {
+    background: var(--bridge-obsidian);
+    padding: 0;
+    overflow-x: auto;
+  }
+  .rail {
+    background: color-mix(in srgb, var(--bridge-accent) 4%, var(--bridge-dark));
+    border-top: 1px solid rgba(99, 102, 241, 0.25);
+    min-width: 860px;
+  }
+  .rail-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    font-family: var(--sans);
+    font-size: 12px;
+  }
+  .rtab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-weight: 700;
+    color: var(--fg);
+    background: rgba(var(--fg-rgb), 0.08);
+  }
+  .rtab.off { background: none; color: rgba(var(--fg-rgb), 0.45); }
+  .rtab .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--bridge-accent); }
+  .rtab.off .dot { background: var(--bridge-secondary); }
+  .rtab .n { color: rgba(var(--fg-rgb), 0.4); }
+  .rhint {
+    margin-left: auto;
+    color: rgba(var(--fg-rgb), 0.35);
+    font-size: 12px;
+  }
+
+  .track {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    padding: 0 12px 12px;
+  }
+
+  /* 입력 카드 (모든 시안 공통 골격) */
+  .composer {
+    flex: none;
+    width: 236px;
+    border: 1px dashed rgba(var(--fg-rgb), 0.12);
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+  }
+  .composer .field {
+    background: rgba(var(--fg-rgb), 0.03);
+    border: 1px solid rgba(var(--fg-rgb), 0.1);
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 12px;
+    color: rgba(var(--fg-rgb), 0.35);
+  }
+  .composer .k {
+    font-size: 12px;
+    color: rgba(var(--fg-rgb), 0.3);
+  }
+  .composer.slim { width: 220px; padding: 0; border-radius: 10px; justify-content: center; }
+  .composer.slim .field { border: none; background: none; padding: 0 10px; }
+  .composer.line {
+    width: 240px; padding: 0 10px; flex-direction: row; align-items: center;
+    border-radius: 999px;
+  }
+  .composer.line .field { border: none; background: none; padding: 0; }
+
+  /* ── 공통 카드 원자 ─────────────────── */
+  .card {
+    flex: none;
+    background: var(--bridge-dark);
+    border: 1px solid rgba(var(--fg-rgb), 0.08);
+    border-radius: 12px;
+    font-size: 12px;
+    color: var(--fg);
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .card:hover { border-color: rgba(var(--fg-rgb), 0.16); }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 1px 8px 1px 6px;
+    border-radius: 999px;
+    background: rgba(99, 102, 241, 0.15);
+    color: var(--bridge-accent);
+  }
+  .chip .sq { width: 6px; height: 6px; border-radius: 1px; background: var(--bridge-accent); }
+  .chip.stale {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    padding: 1px 7px;
+  }
+  @media (prefers-color-scheme: light) { .chip.stale { color: #b45309; } }
+  :root[data-theme="light"] .chip.stale { color: #b45309; }
+  :root[data-theme="dark"] .chip.stale { color: #fbbf24; }
+
+  .title { font-weight: 500; line-height: 1.35; }
+  .meta { color: rgba(var(--fg-rgb), 0.42); }
+  .grip { color: rgba(var(--fg-rgb), 0.3); flex: none; line-height: 1; }
+
+  .acts { display: flex; align-items: center; gap: 2px; }
+  .acts button {
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(var(--fg-rgb), 0.45);
+    background: none;
+    border: 0;
+    padding: 3px 7px;
+    border-radius: 7px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .acts button:hover { color: var(--fg); background: rgba(var(--fg-rgb), 0.07); }
+  .acts button:focus-visible { outline: 2px solid var(--bridge-accent); outline-offset: 1px; }
+  .acts .del { color: rgba(var(--fg-rgb), 0.28); margin-left: auto; }
+  .acts .del:hover { color: var(--rose); }
+
+  .reveal { opacity: 0; transition: opacity 0.14s ease; }
+  .card:hover .reveal, .card:focus-within .reveal { opacity: 1; }
+
+  /* ── 시안 A: 2행 압축 ───────────────── */
+  .a-card {
+    width: 208px;
+    padding: 8px 10px 6px 8px;
+    display: flex;
+    gap: 7px;
+    align-items: flex-start;
+  }
+  .a-card .stripe {
+    flex: none;
+    width: 2px;
+    align-self: stretch;
+    border-radius: 999px;
+    background: var(--bridge-accent);
+  }
+  .a-card.is-stale .stripe { background: var(--amber); }
+  .a-card .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .a-card .title {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .a-card .foot { display: flex; align-items: center; gap: 6px; min-height: 22px; }
+  .a-card .foot .meta { white-space: nowrap; }
+  .a-card .acts { margin-left: auto; }
+
+  /* ── 시안 B: 1행 인라인 ─────────────── */
+  .b-card {
+    max-width: 260px;
+    height: 34px;
+    padding: 0 4px 0 9px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .b-card .dot { flex: none; width: 6px; height: 6px; border-radius: 999px; background: var(--bridge-accent); }
+  .b-card.is-stale .dot { background: var(--amber); }
+  .b-card .title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .b-card .meta { flex: none; font-variant-numeric: tabular-nums; }
+  .b-card .acts { flex: none; }
+  .b-card .acts button { padding: 3px 6px; }
+  .b-swap .meta { transition: opacity 0.14s ease; }
+  .b-card:hover .b-swap .meta, .b-card:focus-within .b-swap .meta { display: none; }
+  .b-swap { display: flex; align-items: center; }
+
+  /* ── 시안 C: 2단 스택 ───────────────── */
+  .c-col {
+    flex: none;
+    width: 232px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .c-card {
+    height: 33px;
+    padding: 0 4px 0 8px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .c-card .sq { flex: none; width: 6px; height: 6px; border-radius: 1px; background: var(--bridge-accent); }
+  .c-card.is-stale .sq { background: var(--amber); }
+  .c-card .title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .c-card .meta { flex: none; font-variant-numeric: tabular-nums; }
+  .c-card .acts button { padding: 3px 6px; }
+  .c-empty {
+    height: 33px;
+    border: 1px dashed rgba(var(--fg-rgb), 0.07);
+    border-radius: 9px;
+  }
+
+  /* ── 기준선(현재) 카드 ──────────────── */
+  .now-card {
+    width: 194px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .now-card .row1 { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+  .now-card .title {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .now-card .acts { margin-top: auto; padding-top: 4px; }
+
+  /* ── 스펙 / 트레이드오프 ────────────── */
+  .notes {
+    display: grid;
+    grid-template-columns: 168px 1fr;
+    gap: 0;
+    border-top: 1px solid var(--hair);
+  }
+  .notes > .m {
+    padding: 16px 20px;
+    border-right: 1px solid var(--hair);
+    background: var(--panel-2);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .m dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; }
+  .m dt {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--ink-3); align-self: center;
+  }
+  .m dd {
+    margin: 0; font-family: var(--mono); font-size: 12.5px; font-weight: 700;
+    font-variant-numeric: tabular-nums; text-align: right;
+  }
+  .notes > .t { padding: 16px 20px; display: flex; flex-direction: column; gap: 9px; }
+  .t p { margin: 0; font-size: 13.5px; display: flex; gap: 9px; align-items: flex-start; }
+  .t .plus, .t .minus {
+    flex: none; font-family: var(--mono); font-size: 11px; font-weight: 700;
+    width: 15px; text-align: center; line-height: 1.55;
+  }
+  .t .plus { color: var(--teal); }
+  .t .minus { color: var(--amber); }
+  .t b { font-weight: 700; }
+
+  .hoverhint {
+    display: flex; align-items: center; gap: 7px;
+    padding: 9px 20px;
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink-3);
+    border-top: 1px solid var(--hair);
+  }
+  .hoverhint::before {
+    content: ""; width: 5px; height: 5px; border-radius: 999px;
+    background: var(--accent); flex: none;
+  }
+
+  /* ── 마무리 권고 ────────────────────── */
+  .verdict {
+    border: 1px solid var(--hair);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 12px 12px 0;
+    background: var(--panel);
+    padding: 20px 22px;
+  }
+  .verdict h3 {
+    margin: 0 0 10px;
+    font-size: 15px; font-weight: 700; letter-spacing: -0.01em;
+  }
+  .verdict p { margin: 0 0 8px; color: var(--ink-2); font-size: 14px; max-width: 68ch; }
+  .verdict p:last-child { margin-bottom: 0; }
+  .verdict strong { color: var(--ink); }
+  .verdict code {
+    font-family: var(--mono); font-size: 12.5px;
+    background: rgba(var(--fg-rgb), 0.06); padding: 1px 5px; border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+    .reveal { opacity: 1; }
+  }
+
+  @media (max-width: 720px) {
+    .gauge { grid-template-columns: repeat(2, 1fr); }
+    .notes { grid-template-columns: 1fr; }
+    .notes > .m { border-right: none; border-bottom: 1px solid var(--hair); }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Bridge · 대시보드 하단 독</p>
+    <h1>내 백로그 카드 — 얇게 다시 짜기</h1>
+    <p class="lede">
+      지금 카드는 <code>194px</code> 폭에 배지행 · 제목 2줄 · 메타행 · 액션행까지
+      네 단을 세로로 쌓아 <code>~124px</code>를 쓴다. 백로그 항목이 갖는 정보는 사실상
+      <b>제목 하나</b>뿐인데 골격은 태스크 카드만큼 무겁다. 세 시안 모두 같은 전제에서 출발한다 —
+      <b>배지는 색으로, 액션은 호버로 접고, 제목만 남긴다.</b>
+    </p>
+  </header>
+
+  <div class="gauge">
+    <div class="base">
+      <span class="k">현재</span>
+      <span class="v">124px</span>
+      <span class="bar" style="width:100%"></span>
+      <span class="d">194px 폭 · 4단</span>
+    </div>
+    <div>
+      <span class="k">시안 A</span>
+      <span class="v">62px</span>
+      <span class="bar" style="width:50%"></span>
+      <span class="d">−50% · 2단</span>
+    </div>
+    <div>
+      <span class="k">시안 B</span>
+      <span class="v">34px</span>
+      <span class="bar" style="width:27%"></span>
+      <span class="d">−73% · 1단</span>
+    </div>
+    <div>
+      <span class="k">시안 C</span>
+      <span class="v">72px</span>
+      <span class="bar" style="width:58%"></span>
+      <span class="d">−42% · 2행 스택 · 밀도 2배</span>
+    </div>
+  </div>
+
+  <!-- ══════════ 현재 (기준선) ══════════ -->
+  <section class="spec">
+    <header>
+      <span class="tag base">현재</span>
+      <h2>4단 카드</h2>
+      <p class="thesis">배지 · 제목 · 메타 · 액션이 모두 상시 노출된다. 액션 3개가 카드 바닥을 한 줄 통째로 차지한다.</p>
+    </header>
+    <div class="stage">
+      <div class="rail">
+        <div class="rail-head">
+          <span class="rtab"><span class="dot"></span>내 백로그 <span class="n">3</span></span>
+          <span class="rtab off"><span class="dot"></span>승격됨 <span class="n">0</span></span>
+          <span class="rhint">b 로 적기 · 위로 끌어 올리면 승격 · 나만 보입니다</span>
+        </div>
+        <div class="track">
+          <div class="composer">
+            <div class="field">떠오른 걸 한 줄로…</div>
+            <div class="k">Enter 로 추가</div>
+          </div>
+          <div class="card now-card">
+            <div class="row1">
+              <span class="chip"><span class="sq"></span>백로그</span>
+              <span class="chip stale">6일 · 가장 오래됨</span>
+            </div>
+            <p class="title" style="margin:0">[스토리] 추천 편성 버튼 상시 노출 건의</p>
+            <p class="meta" style="margin:0">20시간 전 · 나만 보임</p>
+            <div class="acts">
+              <button type="button">타임블록</button>
+              <button type="button">태스크</button>
+              <button type="button" class="del">×</button>
+            </div>
+          </div>
+          <div class="card now-card">
+            <div class="row1"><span class="chip"><span class="sq"></span>백로그</span></div>
+            <p class="title" style="margin:0">전투에서 스탯 증분 표현 개선</p>
+            <p class="meta" style="margin:0">20시간 전 · 나만 보임</p>
+            <div class="acts">
+              <button type="button">타임블록</button>
+              <button type="button">태스크</button>
+              <button type="button" class="del">×</button>
+            </div>
+          </div>
+          <div class="card now-card">
+            <div class="row1"><span class="chip"><span class="sq"></span>백로그</span></div>
+            <p class="title" style="margin:0">[텍티스 모드] 볼 시너지 연구 레벨 보상 효과 미적용</p>
+            <p class="meta" style="margin:0">19시간 전 · 나만 보임</p>
+            <div class="acts">
+              <button type="button">타임블록</button>
+              <button type="button">태스크</button>
+              <button type="button" class="del">×</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <div class="m">
+        <dl>
+          <dt>높이</dt><dd>124px</dd>
+          <dt>폭</dt><dd>194px</dd>
+          <dt>단</dt><dd>4</dd>
+          <dt>1440에 보임</dt><dd>4장</dd>
+        </dl>
+      </div>
+      <div class="t">
+        <p><span class="minus">−</span><span>「백로그」 배지가 카드마다 반복된다. 레일 전체가 백로그인데 카드마다 다시 말한다.</span></p>
+        <p><span class="minus">−</span><span>「나만 보임」도 헤더 힌트에 이미 있다 — 카드에서 두 번째 발화.</span></p>
+        <p><span class="minus">−</span><span>액션 행이 상시 노출이라 카드 높이의 1/5을 쓴다. 실제로 누르는 빈도는 낮다.</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ 시안 A ══════════ -->
+  <section class="spec">
+    <header>
+      <span class="tag">시안 A</span>
+      <h2>2단 압축 — 좌측 색 레일</h2>
+      <p class="thesis">「백로그」 배지를 왼쪽 2px 스트라이프로 치환하고, 메타와 액션을 한 줄에 합친다. 방치 상태는 스트라이프가 호박색으로 바뀌어 말한다.</p>
+    </header>
+    <div class="stage">
+      <div class="rail">
+        <div class="rail-head">
+          <span class="rtab"><span class="dot"></span>내 백로그 <span class="n">3</span></span>
+          <span class="rtab off"><span class="dot"></span>승격됨 <span class="n">0</span></span>
+          <span class="rhint">b 로 적기 · 위로 끌어 올리면 승격 · 나만 보입니다</span>
+        </div>
+        <div class="track">
+          <div class="composer slim">
+            <div class="field">떠오른 걸 한 줄로…&nbsp;&nbsp;<span style="opacity:.6">↵</span></div>
+          </div>
+          <div class="card a-card is-stale">
+            <span class="stripe"></span>
+            <div class="body">
+              <p class="title" style="margin:0">[스토리] 추천 편성 버튼 상시 노출 건의</p>
+              <div class="foot">
+                <span class="chip stale">6일</span>
+                <div class="acts reveal">
+                  <button type="button">타임블록</button>
+                  <button type="button">태스크</button>
+                  <button type="button" class="del">×</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card a-card">
+            <span class="stripe"></span>
+            <div class="body">
+              <p class="title" style="margin:0">전투에서 스탯 증분 표현 개선</p>
+              <div class="foot">
+                <span class="meta">20시간 전</span>
+                <div class="acts reveal">
+                  <button type="button">타임블록</button>
+                  <button type="button">태스크</button>
+                  <button type="button" class="del">×</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card a-card">
+            <span class="stripe"></span>
+            <div class="body">
+              <p class="title" style="margin:0">[텍티스 모드] 볼 시너지 연구 레벨 보상 효과 미적용</p>
+              <div class="foot">
+                <span class="meta">19시간 전</span>
+                <div class="acts reveal">
+                  <button type="button">타임블록</button>
+                  <button type="button">태스크</button>
+                  <button type="button" class="del">×</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card a-card">
+            <span class="stripe"></span>
+            <div class="body">
+              <p class="title" style="margin:0">데미지 폰트 회의 한 번 하시죠</p>
+              <div class="foot">
+                <span class="meta">2일 전</span>
+                <div class="acts reveal">
+                  <button type="button">타임블록</button>
+                  <button type="button">태스크</button>
+                  <button type="button" class="del">×</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="hoverhint">카드에 마우스를 올리면 액션이 나타납니다</div>
+    <div class="notes">
+      <div class="m">
+        <dl>
+          <dt>높이</dt><dd>62px</dd>
+          <dt>폭</dt><dd>208px</dd>
+          <dt>단</dt><dd>2</dd>
+          <dt>1440에 보임</dt><dd>4장</dd>
+        </dl>
+      </div>
+      <div class="t">
+        <p><span class="plus">+</span><span>제목 <b>2줄</b>을 그대로 유지한다. 긴 이슈 제목이 많은 이 보드에서 가장 안전한 선택.</span></p>
+        <p><span class="plus">+</span><span>스트라이프가 배지 자리를 대신하면서 방치 신호까지 겸한다 — 칩 하나가 사라진다.</span></p>
+        <p><span class="minus">−</span><span>가로로 보이는 장수는 그대로다. 레일이 얇아질 뿐 <b>더 많이 담기지는 않는다</b>.</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ 시안 B ══════════ -->
+  <section class="spec">
+    <header>
+      <span class="tag">시안 B</span>
+      <h2>1행 인라인 — 칩 카드</h2>
+      <p class="thesis">카드를 버리고 칩이 된다. 제목 한 줄이 전부이고 폭은 내용에 맞춰 줄어든다. 호버하면 시간 자리에 액션이 들어선다.</p>
+    </header>
+    <div class="stage">
+      <div class="rail">
+        <div class="rail-head">
+          <span class="rtab"><span class="dot"></span>내 백로그 <span class="n">4</span></span>
+          <span class="rtab off"><span class="dot"></span>승격됨 <span class="n">0</span></span>
+          <span class="rhint">b 로 적기 · 위로 끌어 올리면 승격 · 나만 보입니다</span>
+        </div>
+        <div class="track" style="align-items:center">
+          <div class="composer line">
+            <div class="field">떠오른 걸 한 줄로…&nbsp;&nbsp;<span style="opacity:.6">↵</span></div>
+          </div>
+          <div class="card b-card is-stale">
+            <span class="dot"></span>
+            <span class="title">[스토리] 추천 편성 버튼 상시 노출 건의</span>
+            <span class="b-swap">
+              <span class="chip stale">6일</span>
+              <span class="acts reveal">
+                <button type="button">블록</button>
+                <button type="button">태스크</button>
+                <button type="button" class="del">×</button>
+              </span>
+            </span>
+          </div>
+          <div class="card b-card">
+            <span class="dot"></span>
+            <span class="title">전투에서 스탯 증분 표현 개선</span>
+            <span class="b-swap">
+              <span class="meta">20h</span>
+              <span class="acts reveal">
+                <button type="button">블록</button>
+                <button type="button">태스크</button>
+                <button type="button" class="del">×</button>
+              </span>
+            </span>
+          </div>
+          <div class="card b-card">
+            <span class="dot"></span>
+            <span class="title">[텍티스 모드] 볼 시너지 연구 레벨 보상 효과 미적용</span>
+            <span class="b-swap">
+              <span class="meta">19h</span>
+              <span class="acts reveal">
+                <button type="button">블록</button>
+                <button type="button">태스크</button>
+                <button type="button" class="del">×</button>
+              </span>
+            </span>
+          </div>
+          <div class="card b-card">
+            <span class="dot"></span>
+            <span class="title">데미지 폰트 회의</span>
+            <span class="b-swap">
+              <span class="meta">2d</span>
+              <span class="acts reveal">
+                <button type="button">블록</button>
+                <button type="button">태스크</button>
+                <button type="button" class="del">×</button>
+              </span>
+            </span>
+          </div>
+          <div class="card b-card">
+            <span class="dot"></span>
+            <span class="title">소탕 기능 일정 등록</span>
+            <span class="b-swap">
+              <span class="meta">3d</span>
+              <span class="acts reveal">
+                <button type="button">블록</button>
+                <button type="button">태스크</button>
+                <button type="button" class="del">×</button>
+              </span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="hoverhint">호버하면 경과 시간 자리에 액션이 들어섭니다</div>
+    <div class="notes">
+      <div class="m">
+        <dl>
+          <dt>높이</dt><dd>34px</dd>
+          <dt>폭</dt><dd>가변 / 260max</dd>
+          <dt>단</dt><dd>1</dd>
+          <dt>1440에 보임</dt><dd>5–7장</dd>
+        </dl>
+      </div>
+      <div class="t">
+        <p><span class="plus">+</span><span>가장 얇다. 레일이 <b>34px</b>로 줄어 위쪽 간트와 배치 목록에 그만큼 세로가 돌아간다.</span></p>
+        <p><span class="plus">+</span><span>폭이 내용에 맞춰 줄어들어 짧은 메모가 많을수록 한 화면에 더 담긴다.</span></p>
+        <p><span class="minus">−</span><span>제목이 <b>1줄로 잘린다</b>. 「[텍티스 모드] 볼 시너지 연구 레벨…」처럼 접두 태그가 붙은 제목은 뒤가 안 보인다.</span></p>
+        <p><span class="minus">−</span><span>액션 라벨을 「블록」으로 줄여야 들어간다 — 승격 대상이 타임블록인지 즉시 읽히지 않는다.</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ 시안 C ══════════ -->
+  <section class="spec">
+    <header>
+      <span class="tag">시안 C</span>
+      <h2>2행 스택 — 밀도 우선</h2>
+      <p class="thesis">B의 한 줄 행을 세로 2개씩 묶어 열로 세운다. 레일 높이는 A와 비슷하지만 같은 가로 폭에 두 배가 들어간다. 백로그가 10장을 넘길 때를 위한 안.</p>
+    </header>
+    <div class="stage">
+      <div class="rail">
+        <div class="rail-head">
+          <span class="rtab"><span class="dot"></span>내 백로그 <span class="n">7</span></span>
+          <span class="rtab off"><span class="dot"></span>승격됨 <span class="n">0</span></span>
+          <span class="rhint">b 로 적기 · 위로 끌어 올리면 승격 · 나만 보입니다</span>
+        </div>
+        <div class="track">
+          <div class="composer slim" style="width:212px">
+            <div class="field">떠오른 걸 한 줄로…&nbsp;&nbsp;<span style="opacity:.6">↵</span></div>
+          </div>
+          <div class="c-col">
+            <div class="card c-card is-stale">
+              <span class="sq"></span>
+              <span class="title">[스토리] 추천 편성 버튼 상시 노출</span>
+              <span class="chip stale">6일</span>
+              <span class="acts reveal"><button type="button" class="del">×</button></span>
+            </div>
+            <div class="card c-card">
+              <span class="sq"></span>
+              <span class="title">전투에서 스탯 증분 표현 개선</span>
+              <span class="meta">20h</span>
+              <span class="acts reveal"><button type="button" class="del">×</button></span>
+            </div>
+          </div>
+          <div class="c-col">
+            <div class="card c-card">
+              <span class="sq"></span>
+              <span class="title">[텍티스] 볼 시너지 보상 미적용</span>
+              <span class="meta">19h</span>
+              <span class="acts reveal"><button type="button" class="del">×</button></span>
+            </div>
+            <div class="card c-card">
+              <span class="sq"></span>
+              <span class="title">데미지 폰트 회의 한 번</span>
+              <span class="meta">2d</span>
+              <span class="acts reveal"><button type="button" class="del">×</button></span>
+            </div>
+          </div>
+          <div class="c-col">
+            <div class="card c-card">
+              <span class="sq"></span>
+              <span class="title">소탕 기능 일정 등록 필요</span>
+              <span class="meta">3d</span>
+              <span class="acts reveal"><button type="button" class="del">×</button></span>
+            </div>
+            <div class="card c-card">
+              <span class="sq"></span>
+              <span class="title">디스코드 버튼 기획 확인</span>
+              <span class="meta">3d</span>
+              <span class="acts reveal"><button type="button" class="del">×</button></span>
+            </div>
+          </div>
+          <div class="c-col">
+            <div class="card c-card">
+              <span class="sq"></span>
+              <span class="title">이벤트 / 미션 오픈 타이밍</span>
+              <span class="meta">4d</span>
+              <span class="acts reveal"><button type="button" class="del">×</button></span>
+            </div>
+            <div class="c-empty"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="hoverhint">승격은 드래그 또는 더블클릭 — 카드 안에는 삭제만 남습니다</div>
+    <div class="notes">
+      <div class="m">
+        <dl>
+          <dt>행 높이</dt><dd>33px</dd>
+          <dt>트랙 높이</dt><dd>72px</dd>
+          <dt>열 폭</dt><dd>232px</dd>
+          <dt>1440에 보임</dt><dd>8장</dd>
+        </dl>
+      </div>
+      <div class="t">
+        <p><span class="plus">+</span><span>현재보다 얇은데 <b>보이는 장수는 2배</b>다. 방치가 쌓일수록 이득이 커진다.</span></p>
+        <p><span class="plus">+</span><span>가로 스크롤 없이 백로그 전체가 보이는 구간이 넓다 — 「다시 열게 만든다」는 원래 목적에 가장 맞다.</span></p>
+        <p><span class="minus">−</span><span>승격 버튼이 카드 밖으로 나간다. 드래그를 못 쓰는 환경의 대체 경로가 <b>더블클릭/컨텍스트 메뉴</b>로 숨는다 — 발견성이 떨어진다.</span></p>
+        <p><span class="minus">−</span><span>2행 스택은 좌→우 읽기 순서가 아니라 <b>위→아래→다음 열</b>이라, 「가장 오래된 게 맨 앞」 규칙이 약해진다.</span></p>
+      </div>
+    </div>
+  </section>
+
+  <div class="verdict">
+    <h3>고른다면</h3>
+    <p>
+      <strong>A를 기본으로, C를 옵션으로.</strong> 이 보드의 백로그 제목은
+      「[텍티스 모드] 볼 시너지 연구 레벨 보상 효과 미적용」처럼 접두 태그가 붙어 길다.
+      B의 1줄 자르기는 그 제목들에서 정보를 실제로 잃는다. A는 <b>−50%</b>를 가져가면서 2줄을 지킨다.
+    </p>
+    <p>
+      C는 항목이 쌓였을 때 확실히 낫지만 승격 버튼을 밖으로 밀어낸다.
+      <code>openItems.length</code>가 임계치(예: 6)를 넘으면 자동으로 C 밀도로 전환하는 쪽이,
+      두 레이아웃을 사용자가 고르게 하는 것보다 낫다.
+    </p>
+    <p>
+      세 시안 공통으로 <b>「백로그」 칩과 「나만 보임」은 카드에서 뺐다.</b>
+      레일 헤더가 이미 두 가지를 다 말하고 있어서, 카드에서 반복되는 만큼이 곧 지금의 두께다.
+    </p>
+  </div>
+
+</div>

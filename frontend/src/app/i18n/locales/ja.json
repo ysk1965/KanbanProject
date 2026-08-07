@@ -874,7 +874,9 @@
     "breakTime": "休憩時間",
     "breakTimeDesc": "休憩時間は勤務時間から除外されます",
     "effectiveHours": "実働：",
-    "excludingBreak": "（休憩{{hours}}時間を除く）"
+    "excludingBreak": "（休憩{{hours}}時間を除く）",
+    "unplaceNotChecklist": "チェックリストが紐づいたブロックのみ未配置に戻せます。",
+    "unplaceFailed": "未配置に戻せませんでした。"
   },
   "dailySummary": {
     "summaryButton": "要約",
@@ -1171,6 +1173,20 @@
     "autoRefresh": "30秒ごとに自動確認中",
     "progress": "メンテナンス進捗 {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
+  },
+  "serverDown": {
+    "title": "サーバーに接続できません",
+    "subtitle": "サーバーを更新中か、一時的に応答していません。復旧すると自動的に再接続されます。",
+    "offlineTitle": "インターネットに接続されていません",
+    "offlineSubtitle": "ネットワーク状態をご確認ください。接続が戻ると自動的に再試行します。",
+    "elapsed": "切断",
+    "statusLabel": "サーバー状態",
+    "statusUnreachable": "応答なし",
+    "statusOffline": "ネットワーク切断",
+    "checking": "確認中...",
+    "checkNow": "今すぐ再試行",
+    "autoRefresh": "5秒ごとに自動で再接続します",
+    "hint": "保存されていない変更は失われた可能性があります。サーバーが復旧すると、この画面は自動的に閉じます。"
   },
   "nightShutdown": {
     "title": "営業時間外です",
@@ -2350,7 +2366,8 @@
     "nextDay": "翌日",
     "custom": "カスタムブロック",
     "orgScheduleLabel": "{{boardName}}ボード",
-    "orgScheduleReadOnly": "読み取り専用（他のボード）"
+    "orgScheduleReadOnly": "読み取り専用（他のボード）",
+    "willUnplace": "未配置に戻す"
   },
   "scheduleDetail": {
     "title": "タイムブロック詳細",
@@ -2376,7 +2393,9 @@
     "editCustom": "ブロック編集",
     "titlePlaceholder": "スケジュール名を入力してください",
     "viewMeeting": "ミーティング詳細",
-    "escClose": "Escで閉じる"
+    "escClose": "Escで閉じる",
+    "unplace": "未配置に戻す",
+    "unplaceHint": "この日のタイムブロックを削除し、日程も解除します"
   },
   "emptyBoard": {
     "heading": "ボードを始めましょう",

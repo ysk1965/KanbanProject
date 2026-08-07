@@ -12,7 +12,6 @@ import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
   ChevronUp,
-  GripVertical,
   Loader2,
   Plus,
   RotateCcw,
@@ -495,9 +494,17 @@ export function BacklogRail({
     return item.promoted_label ? `${kind} · ${item.promoted_label}` : kind;
   };
 
-  // 큐 패널 바닥에 붙는 독이라 카드가 좁다 — 좁힌 만큼 한 번에 한 장 더 보인다
+  /**
+   * 2단 압축 카드 — 제목 한 덩이 + 아래 한 줄이 전부다.
+   *
+   * 백로그 항목이 가진 정보는 사실상 제목 하나인데 카드는 배지·제목·메타·액션까지
+   * 네 단을 쌓고 있었다. 「백로그」 배지는 레일 헤더가 이미 말하고 「나만 보임」도
+   * 헤더 힌트에 있어, 카드에서 반복되던 만큼이 곧 두께였다.
+   *
+   * 배지는 왼쪽 2px 색 레일이 대신한다 — 방치 상태까지 이 레일 하나가 겸한다.
+   */
   const cardBase =
-    "flex-none w-[194px] snap-start bg-bridge-dark rounded-xl border p-2.5 flex flex-col gap-1 transition-colors";
+    "group flex-none w-[208px] snap-start bg-bridge-dark rounded-xl border pt-2 pb-1.5 pl-2 pr-2.5 flex items-start gap-2 transition-colors";
 
   return (
     <section
@@ -685,7 +692,9 @@ export function BacklogRail({
             {/* 입력 카드는 항상 맨 앞. 스냅 대상으로 잡아두지 않으면 마운트 시
                 레일이 첫 카드로 스냅해 입력칸을 지나쳐 버린다. */}
             {tab === "open" && (
-              <div className="flex-none w-[236px] snap-start rounded-xl border border-dashed border-foreground/10 p-2.5 flex flex-col justify-center gap-1.5">
+              // 카드가 2단으로 얇아진 만큼 입력칸도 한 줄로 눕힌다 —
+              // 여기가 두꺼우면 트랙 높이가 입력칸에 끌려간다
+              <div className="flex-none w-[220px] snap-start rounded-xl border border-dashed border-foreground/10 flex items-center gap-1.5 px-2.5 focus-within:ring-2 focus-within:ring-bridge-accent/50 transition-all">
                 <input
                   ref={inputRef}
                   type="text"
@@ -704,18 +713,21 @@ export function BacklogRail({
                   }
                   placeholder={t("backlog.placeholder", "떠오른 걸 한 줄로…")}
                   aria-label={t("backlog.addAria", "백로그 적기")}
-                  className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg py-2 px-2.5 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                  className="flex-1 min-w-0 bg-transparent py-2.5 text-xs text-foreground placeholder-slate-500 focus:outline-none"
                 />
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-slate-600">
-                    {t("backlog.enterHint", "Enter 로 추가")}
+                {draft.length >= COUNTER_FROM ? (
+                  <span className="flex-none text-xs font-bold text-amber-600 dark:text-amber-400">
+                    {draft.length} / {TITLE_MAX}
                   </span>
-                  {draft.length >= COUNTER_FROM && (
-                    <span className="ml-auto text-xs font-bold text-amber-600 dark:text-amber-400">
-                      {draft.length} / {TITLE_MAX}
-                    </span>
-                  )}
-                </div>
+                ) : (
+                  <span
+                    className="flex-none text-xs text-slate-600"
+                    title={t("backlog.enterHint", "Enter 로 추가")}
+                    aria-hidden="true"
+                  >
+                    ↵
+                  </span>
+                )}
               </div>
             )}
 
@@ -772,27 +784,44 @@ export function BacklogRail({
                       : "border-foreground/[0.08] opacity-60"
                   }`}
                 >
-                  <p className="text-xs font-medium text-foreground leading-snug line-clamp-2">
-                    {p.title}
-                  </p>
-                  {p.state === "sending" ? (
-                    <p className="text-xs text-slate-500">
-                      {t("backlog.saving", "저장 중…")}
+                  <span
+                    className={`flex-none w-[2px] self-stretch rounded-full ${
+                      p.state === "failed" ? "bg-rose-500" : "bg-slate-600"
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                    <p className="text-xs font-medium text-foreground leading-snug line-clamp-2">
+                      {p.title}
                     </p>
-                  ) : (
-                    <>
-                      <p className="text-xs text-slate-500">
-                        {t(
-                          "backlog.savedLocally",
-                          "저장 안 됨 · 로컬에 보관됨",
-                        )}
+                    {p.state === "sending" ? (
+                      <p className="flex items-center min-h-[22px] text-xs text-slate-500">
+                        {t("backlog.saving", "저장 중…")}
                       </p>
-                      <div className="flex items-center gap-1 mt-auto">
-                        <TriangleAlert
-                          size={12}
-                          className="text-rose-600 dark:text-rose-400 flex-none"
-                          aria-hidden="true"
-                        />
+                    ) : (
+                      // 실패는 숨기지 않는다 — 호버로 접는 건 성공한 카드의 액션뿐이다
+                      <div className="flex items-center gap-1 min-h-[22px] -ml-1">
+                        {/* 두 줄에 문장을 놓을 자리가 없다 — 「적어둔 건 남아 있다」는
+                            이 아이콘의 툴팁과 보조기기용 문장으로 옮긴다 */}
+                        <span
+                          className="ml-1 flex-none"
+                          title={t(
+                            "backlog.savedLocally",
+                            "저장 안 됨 · 로컬에 보관됨",
+                          )}
+                        >
+                          <TriangleAlert
+                            size={12}
+                            className="text-rose-600 dark:text-rose-400"
+                            aria-hidden="true"
+                          />
+                          <span className="sr-only">
+                            {t(
+                              "backlog.savedLocally",
+                              "저장 안 됨 · 로컬에 보관됨",
+                            )}
+                          </span>
+                        </span>
                         <button
                           type="button"
                           onClick={() => {
@@ -805,7 +834,7 @@ export function BacklogRail({
                             );
                             void persist(p.localId, p.title);
                           }}
-                          className="px-2 py-1 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          className="px-1.5 py-1 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
                         >
                           {t("backlog.retry", "재시도")}
                         </button>
@@ -816,13 +845,13 @@ export function BacklogRail({
                               prev.filter((x) => x.localId !== p.localId),
                             )
                           }
-                          className="px-2 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                          className="px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                         >
                           {t("backlog.discard", "버리기")}
                         </button>
                       </div>
-                    </>
-                  )}
+                    )}
+                  </div>
                 </div>
               ))}
 
@@ -861,38 +890,36 @@ export function BacklogRail({
                     });
                   }}
                   onDragEnd={endAxisDrag}
-                  className={`group ${cardBase} border-foreground/[0.08] hover:border-foreground/[0.12] ${
+                  className={`${cardBase} border-foreground/[0.08] hover:border-foreground/[0.12] ${
                     draggable
                       ? "cursor-grab active:cursor-grabbing"
                       : "opacity-75"
                   }`}
                 >
-                  <div className="flex items-start gap-1.5">
-                    {draggable && (
-                      <GripVertical
-                        size={12}
-                        className="text-slate-600 mt-0.5 flex-none"
-                        aria-hidden="true"
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      {/* 마일스톤 칩 자리 — 배치 레일 카드와 골격을 맞추고 칩만 다르게 한다 */}
-                      <div className="flex items-center gap-1 mb-1 min-w-0">
-                        <span className="flex items-center gap-1 min-w-0 text-xs font-bold pl-1.5 pr-2 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
-                          <span
-                            className="flex-none w-1.5 h-1.5 rounded-[1px] bg-bridge-accent"
-                            aria-hidden="true"
-                          />
-                          <span className="truncate">
-                            {t("backlog.chip", "백로그")}
-                          </span>
-                        </span>
-                        {item.promoted_type && (
-                          <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full truncate bg-bridge-secondary/15 text-bridge-secondary">
-                            → {promotedLabel(item)}
-                          </span>
-                        )}
-                        {stale && (
+                  {/* 배지를 대신하는 색 레일 — 승격됨(틸) · 방치(호박) · 평상(인디고)을
+                      한 자리에서 말한다. 카드마다 「백로그」를 다시 적지 않는다. */}
+                  <span
+                    className={`flex-none w-[2px] self-stretch rounded-full ${
+                      item.promoted_type
+                        ? "bg-bridge-secondary"
+                        : stale
+                          ? "bg-amber-500"
+                          : "bg-bridge-accent"
+                    }`}
+                    aria-hidden="true"
+                  />
+
+                  <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                    <p className="text-xs font-medium text-foreground leading-snug line-clamp-2">
+                      {item.title}
+                    </p>
+
+                    {/* 나이 한 줄. 액션은 그 위에 겹쳐 두고 호버·포커스 때만 띄운다 —
+                        208px 안에 둘을 나란히 넣으면 양쪽 다 잘린다.
+                        (display:none이 아니라 opacity라서 Tab 순서에는 그대로 남는다) */}
+                    <div className="relative flex items-center min-h-[22px]">
+                      <div className="flex items-center gap-1 min-w-0">
+                        {stale ? (
                           <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
                             {isOldest
                               ? t(
@@ -904,57 +931,63 @@ export function BacklogRail({
                                   count: age as number,
                                 })}
                           </span>
+                        ) : item.promoted_type ? (
+                          <span className="min-w-0 truncate text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
+                            → {promotedLabel(item)}
+                          </span>
+                        ) : (
+                          <span className="truncate text-xs text-slate-500">
+                            {formatRelativeTime(item.created_at)}
+                          </span>
                         )}
                       </div>
 
-                      <p className="text-xs font-medium text-foreground leading-snug line-clamp-2">
-                        {item.title}
-                      </p>
-                      <p className="text-xs text-slate-500 truncate mt-1">
-                        {formatRelativeTime(item.created_at)} ·{" "}
-                        {t("backlog.privateNote", "나만 보임")}
-                      </p>
+                      <div className="absolute inset-y-0 right-0 flex items-center gap-0.5 bg-bridge-dark rounded-lg opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                        <span
+                          className="pointer-events-none absolute right-full top-0 h-full w-6 bg-gradient-to-l from-bridge-dark to-transparent"
+                          aria-hidden="true"
+                        />
+                        {item.promoted_type ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleUnpromote(item)}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                          >
+                            <RotateCcw size={11} aria-hidden="true" />
+                            {t("backlog.undo", "되돌리기")}
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPromoting({ item, target: "TIMEBLOCK" })
+                              }
+                              className="px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                            >
+                              {t("backlog.kindTimeblock", "타임블록")}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPromoting({ item, target: "TASK" })
+                              }
+                              className="px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                            >
+                              {t("backlog.kindTask", "태스크")}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDelete(item)}
+                              aria-label={t("common.delete", "삭제")}
+                              className="px-1.5 py-1 rounded-lg text-xs font-bold text-slate-600 hover:text-rose-500 hover:bg-foreground/5 transition-colors"
+                            >
+                              ×
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="flex items-center gap-1 mt-auto">
-                    {item.promoted_type ? (
-                      <button
-                        type="button"
-                        onClick={() => void handleUnpromote(item)}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-                      >
-                        <RotateCcw size={11} aria-hidden="true" />
-                        {t("backlog.undo", "되돌리기")}
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPromoting({ item, target: "TIMEBLOCK" })
-                          }
-                          className="px-2 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-                        >
-                          {t("backlog.kindTimeblock", "타임블록")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPromoting({ item, target: "TASK" })}
-                          className="px-2 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-                        >
-                          {t("backlog.kindTask", "태스크")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleDelete(item)}
-                          aria-label={t("common.delete", "삭제")}
-                          className="ml-auto px-2 py-1 rounded-lg text-xs font-bold text-slate-600 hover:text-rose-500 hover:bg-foreground/5 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                        >
-                          ×
-                        </button>
-                      </>
-                    )}
                   </div>
                 </div>
               );

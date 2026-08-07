@@ -1,6 +1,10 @@
 import { nowUTC } from "./dateUtils";
 import { domainBrandName } from "./domain";
 import { addBreadcrumb } from "../../lib/sentry";
+import {
+  reportServerReachable,
+  reportServerUnreachable,
+} from "./serverHealth";
 
 // API Base URL - BE 서버
 const API_BASE_URL =
@@ -106,20 +110,19 @@ const isTokenExpired = (token: string): boolean => {
   return decoded.exp <= now;
 };
 
-// 서버 점검 시간 체크 (KST 03:30~08:30)
-const isMaintenanceWindow = (): boolean => {
-  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  const mins = kst.getUTCHours() * 60 + kst.getUTCMinutes();
-  return mins >= 3 * 60 + 30 && mins < 8 * 60 + 30;
-};
-
 // API 에러 타입
 export interface ApiError {
   code: string;
   message: string;
   timestamp: string;
   errors?: Record<string, string>;
+  /** HTTP 상태 코드 (5xx 판별용 — 서버 다운 감지에 쓰인다) */
+  status?: number;
 }
+
+// 서버 생존 확인용 엔드포인트. 여기서 나는 실패는 가드가 직접 판정하므로
+// 신호를 발행하지 않는다(신호 → 재확인 → 실패 → 신호 루프 방지).
+const HEALTH_ENDPOINT = "/system/status";
 
 // API 클라이언트
 class ApiClient {
@@ -200,6 +203,20 @@ class ApiClient {
           message: response.statusText,
           timestamp: nowUTC(),
         }));
+        errorData.status = response.status;
+
+        // 502/503/504 = 서버가 내려갔거나 배포 중(ALB가 정상 인스턴스를 못 찾음)
+        if (
+          response.status === 502 ||
+          response.status === 503 ||
+          response.status === 504
+        ) {
+          if (!endpoint.startsWith(HEALTH_ENDPOINT)) {
+            reportServerUnreachable(endpoint);
+          }
+        } else {
+          reportServerReachable();
+        }
 
         // Error Response 로깅
         console.error(`❌ [API Error] ${options?.method || "GET"} ${url}`, {
@@ -265,6 +282,9 @@ class ApiClient {
         throw errorData;
       }
 
+      // 정상 응답 = 서버 생존
+      reportServerReachable();
+
       // 204 No Content 또는 빈 응답 처리
       if (response.status === 204) {
         console.log(`✅ [API Response] ${options?.method || "GET"} ${url}`, {
@@ -317,13 +337,10 @@ class ApiClient {
         });
       }
 
-      // 네트워크 에러 + 점검 시간대이면 점검 이벤트 발행
-      if (error instanceof TypeError && isMaintenanceWindow()) {
-        window.dispatchEvent(
-          new CustomEvent("server-maintenance", {
-            detail: { message: "서비스 점검 중입니다 (03:30~08:30)" },
-          }),
-        );
+      // fetch 자체가 실패했으면 서버가 내려간 것으로 의심하고 신호를 보낸다.
+      // (App의 서버 가드가 /system/status로 재확인 후 점검 페이지를 띄운다)
+      if (error instanceof TypeError && !endpoint.startsWith(HEALTH_ENDPOINT)) {
+        reportServerUnreachable(endpoint);
       }
 
       throw error;
@@ -363,8 +380,21 @@ class ApiClient {
         setTokens(data.access_token, data.refresh_token);
         return true;
       }
-    } catch {
-      // 갱신 실패
+
+      // 서버 장애(5xx)는 세션 만료가 아니다. 토큰을 지우거나 로그인으로 보내면
+      // BE 배포 때마다 전원이 로그아웃되므로, 갱신만 포기하고 토큰은 남긴다.
+      if (response.status >= 500) {
+        console.warn("⚠️ [Auth] 서버 장애로 토큰 갱신 실패 — 세션 유지");
+        reportServerUnreachable("/auth/refresh");
+        return false;
+      }
+    } catch (error) {
+      // 네트워크 자체가 끊긴 경우도 세션 만료로 취급하지 않는다
+      if (error instanceof TypeError) {
+        console.warn("⚠️ [Auth] 네트워크 오류로 토큰 갱신 실패 — 세션 유지");
+        reportServerUnreachable("/auth/refresh");
+        return false;
+      }
     }
 
     // 세션 만료 - 로그인 페이지로 리다이렉트
@@ -5517,7 +5547,9 @@ export const inquiryAPI = {
 // System API (공개)
 export const systemAPI = {
   getStatus: async () => {
-    return apiClient.get<MaintenanceStatus>("/system/status");
+    // 공개 엔드포인트 — 인증 헤더를 붙이지 않아야 서버 다운 중 토큰 갱신/로그아웃
+    // 경로를 타지 않는다 (서버 생존 확인 용도로도 쓰인다)
+    return apiClient.get<MaintenanceStatus>("/system/status", true);
   },
 
   getActiveAnnouncements: async () => {

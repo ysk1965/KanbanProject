@@ -104,6 +104,8 @@ export function TodayTimeblockWidget({
             initialSubTab="timeblock"
             embedded
             hideDailyChecklist
+            // 오른쪽 큐의 배치 레일이 같이 떠 있는 화면이라 블록을 되돌려 보낼 자리가 있다
+            canUnplace
           />
         )}
       </div>

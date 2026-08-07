@@ -874,7 +874,9 @@
     "breakTime": "ब्रेक टाइम",
     "breakTimeDesc": "ब्रेक टाइम कार्य घंटों से बाहर है",
     "effectiveHours": "प्रभावी:",
-    "excludingBreak": "({{hours}} घंटे ब्रेक को छोड़कर)"
+    "excludingBreak": "({{hours}} घंटे ब्रेक को छोड़कर)",
+    "unplaceNotChecklist": "केवल चेकलिस्ट से जुड़े ब्लॉक ही अनिर्धारित में भेजे जा सकते हैं।",
+    "unplaceFailed": "अनिर्धारित में नहीं भेजा जा सका।"
   },
   "dailySummary": {
     "summaryButton": "सारांश",
@@ -1171,6 +1173,20 @@
     "autoRefresh": "हर 30 सेकंड में स्वचालित जांच",
     "progress": "रखरखाव प्रगति {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
+  },
+  "serverDown": {
+    "title": "सर्वर से कनेक्ट नहीं हो पा रहा",
+    "subtitle": "सर्वर अपडेट हो रहा है या अस्थायी रूप से प्रतिक्रिया नहीं दे रहा। ठीक होते ही अपने आप फिर से जुड़ जाएगा।",
+    "offlineTitle": "आप ऑफ़लाइन हैं",
+    "offlineSubtitle": "अपना नेटवर्क कनेक्शन जाँचें। ऑनलाइन आते ही हम अपने आप दोबारा कोशिश करेंगे।",
+    "elapsed": "डिस्कनेक्ट",
+    "statusLabel": "सर्वर स्थिति",
+    "statusUnreachable": "कोई प्रतिक्रिया नहीं",
+    "statusOffline": "नेटवर्क बंद",
+    "checking": "जाँच हो रही है...",
+    "checkNow": "अभी दोबारा कोशिश करें",
+    "autoRefresh": "हर 5 सेकंड में अपने आप दोबारा जुड़ता है",
+    "hint": "बिना सेव किए बदलाव खो सकते हैं। सर्वर वापस आते ही यह स्क्रीन अपने आप बंद हो जाएगी।"
   },
   "nightShutdown": {
     "title": "संचालन समय के बाहर",
@@ -2350,7 +2366,8 @@
     "nextDay": "अगला दिन",
     "custom": "कस्टम ब्लॉक",
     "orgScheduleLabel": "{{boardName}}",
-    "orgScheduleReadOnly": "केवल पढ़ने के लिए (अन्य बोर्ड)"
+    "orgScheduleReadOnly": "केवल पढ़ने के लिए (अन्य बोर्ड)",
+    "willUnplace": "अनिर्धारित में भेजें"
   },
   "scheduleDetail": {
     "title": "टाइम Block विवरण",
@@ -2376,7 +2393,9 @@
     "editCustom": "ब्लॉक संपादित करें",
     "titlePlaceholder": "शेड्यूल नाम दर्ज करें",
     "viewMeeting": "मीटिंग विवरण देखें",
-    "escClose": "Esc से बंद करें"
+    "escClose": "Esc से बंद करें",
+    "unplace": "अनिर्धारित में भेजें",
+    "unplaceHint": "इस दिन के टाइम ब्लॉक हटाकर तिथियाँ भी हटा देता है"
   },
   "emptyBoard": {
     "heading": "अपने बोर्ड के साथ शुरू करें",

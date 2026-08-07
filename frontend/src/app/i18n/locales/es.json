@@ -874,7 +874,9 @@
     "breakTime": "Hora de descanso",
     "breakTimeDesc": "El tiempo de descanso se excluye de las horas laborales",
     "effectiveHours": "Efectivas:",
-    "excludingBreak": "(sin {{hours}}h de descanso)"
+    "excludingBreak": "(sin {{hours}}h de descanso)",
+    "unplaceNotChecklist": "Solo se pueden devolver los bloques vinculados a un elemento de la lista.",
+    "unplaceFailed": "No se pudo mover a sin asignar."
   },
   "dailySummary": {
     "summaryButton": "Resumen",
@@ -1171,6 +1173,20 @@
     "autoRefresh": "Verificación automática cada 30 segundos",
     "progress": "Progreso del mantenimiento {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
+  },
+  "serverDown": {
+    "title": "No se puede conectar con el servidor",
+    "subtitle": "El servidor se está actualizando o no responde temporalmente. La conexión se restablecerá automáticamente.",
+    "offlineTitle": "No tienes conexión a internet",
+    "offlineSubtitle": "Comprueba tu red. Volveremos a intentarlo automáticamente cuando vuelvas a estar en línea.",
+    "elapsed": "Desconectado",
+    "statusLabel": "Estado del servidor",
+    "statusUnreachable": "Sin respuesta",
+    "statusOffline": "Red perdida",
+    "checking": "Comprobando...",
+    "checkNow": "Reintentar ahora",
+    "autoRefresh": "Reconectando automáticamente cada 5 segundos",
+    "hint": "Los cambios sin guardar pueden haberse perdido. Esta pantalla se cerrará sola cuando el servidor vuelva."
   },
   "nightShutdown": {
     "title": "Fuera del horario de servicio",
@@ -2350,7 +2366,8 @@
     "nextDay": "día siguiente",
     "custom": "Bloque personalizado",
     "orgScheduleLabel": "{{boardName}}",
-    "orgScheduleReadOnly": "Solo lectura (otro tablero)"
+    "orgScheduleReadOnly": "Solo lectura (otro tablero)",
+    "willUnplace": "Mover a sin asignar"
   },
   "scheduleDetail": {
     "title": "Detalles del bloque de tiempo",
@@ -2376,7 +2393,9 @@
     "editCustom": "Editar bloque",
     "titlePlaceholder": "Ingrese el nombre del horario",
     "viewMeeting": "Ver detalle de reunión",
-    "escClose": "Esc para cerrar"
+    "escClose": "Esc para cerrar",
+    "unplace": "Mover a sin asignar",
+    "unplaceHint": "Elimina los bloques de tiempo de este día y borra las fechas"
   },
   "emptyBoard": {
     "heading": "Comienza con tu tablero",

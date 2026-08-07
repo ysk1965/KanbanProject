@@ -48,15 +48,19 @@ import { SlackOAuthCallback } from "./components/slack/SlackOAuthCallback";
 import { AnnouncementDisplay } from "./components/AnnouncementDisplay";
 import { MaintenancePage } from "./components/MaintenancePage";
 import { NightShutdownPage } from "./components/NightShutdownPage";
+import { ServerDownPage } from "./components/ServerDownPage";
 import {
   boardService,
   inviteLinkService,
   organizationService,
-  systemService,
 } from "./utils/services";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Board } from "./types";
 import type { MaintenanceStatus } from "./utils/api";
+import {
+  SERVER_UNAVAILABLE_EVENT,
+  fetchServerStatus,
+} from "./utils/serverHealth";
 import { trackEvent } from "./contexts/AnalyticsContext";
 import {
   useVisualViewport,
@@ -764,6 +768,13 @@ const MAINTENANCE_ALLOWED_PATHS = [
   "/shared/gallery-upload",
 ];
 
+/** KST 03:30~08:30 야간 점검 시간대인지 */
+const isNightWindow = (): boolean => {
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const kstMins = kst.getUTCHours() * 60 + kst.getUTCMinutes();
+  return kstMins >= 3 * 60 + 30 && kstMins < 8 * 60 + 30;
+};
+
 // 점검 모드 + 공지사항 래퍼
 function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -771,17 +782,40 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
     useState<MaintenanceStatus | null>(null);
   const [isNightShutdown, setIsNightShutdown] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  // 서버 자체가 응답하지 않는 상태 (BE 배포 중 · 장애 · 오프라인)
+  const [outage, setOutage] = useState<{
+    offline: boolean;
+    since: number;
+  } | null>(null);
+
+  // 동시 다발 실패로 확인 요청이 겹치지 않게 하는 in-flight 락
+  const checkingRef = useRef(false);
+  const outageRef = useRef(false);
+  // 한 번이라도 앱을 정상 렌더한 뒤 끊겼는지 (복구 시 새로고침 여부 판단)
+  const wasHealthyRef = useRef(false);
 
   const checkMaintenance = useCallback(async () => {
+    if (checkingRef.current) return;
+    checkingRef.current = true;
     try {
-      const status = await systemService.getStatus();
+      // 타임아웃이 있는 직접 조회 — 응답 없는 서버에서 스피너가 멈추지 않는 것을 막는다
+      const status = await fetchServerStatus<MaintenanceStatus>();
+
+      // 세션 도중 끊겼다가 복구된 경우: 화면에 남은 데이터가 낡았으므로 다시 로드
+      if (outageRef.current && wasHealthyRef.current) {
+        window.location.reload();
+        return;
+      }
+
+      outageRef.current = false;
+      setOutage(null);
       setMaintenanceStatus(status);
       setIsNightShutdown(false);
     } catch {
       // 서버 접속 불가 + 점검 시간(KST 03:30~08:30)이면 야간 셧다운 페이지 표시
-      const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
-      const kstMins = kst.getUTCHours() * 60 + kst.getUTCMinutes();
-      if (kstMins >= 3 * 60 + 30 && kstMins < 8 * 60 + 30) {
+      if (isNightWindow()) {
+        outageRef.current = false;
+        setOutage(null);
         setIsNightShutdown(true);
         setMaintenanceStatus({
           enabled: true,
@@ -790,16 +824,46 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
           estimated_end_at: null,
         });
       } else {
+        // 그 외 시간대의 무응답 = 서버 다운(배포 중 포함).
+        // 여기서 통과시키면 목업 데이터가 실데이터인 척 렌더된다.
+        outageRef.current = true;
         setIsNightShutdown(false);
         setMaintenanceStatus(null);
+        setOutage((prev) => ({
+          offline: typeof navigator !== "undefined" && !navigator.onLine,
+          since: prev?.since ?? Date.now(),
+        }));
       }
     } finally {
       setIsChecking(false);
+      checkingRef.current = false;
     }
   }, []);
 
   useEffect(() => {
     checkMaintenance();
+  }, [checkMaintenance]);
+
+  // API 계층이 보낸 "서버 무응답" 신호 → 실제로 죽었는지 재확인
+  useEffect(() => {
+    const handleUnavailable = () => {
+      void checkMaintenance();
+    };
+    const handleOffline = () => {
+      outageRef.current = true;
+      setOutage((prev) => ({
+        offline: true,
+        since: prev?.since ?? Date.now(),
+      }));
+    };
+    window.addEventListener(SERVER_UNAVAILABLE_EVENT, handleUnavailable);
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleUnavailable);
+    return () => {
+      window.removeEventListener(SERVER_UNAVAILABLE_EVENT, handleUnavailable);
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleUnavailable);
+    };
   }, [checkMaintenance]);
 
   // 점검 모드에서도 허용된 경로인지 확인
@@ -808,11 +872,32 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
       location.pathname === path || location.pathname.startsWith(path + "/"),
   );
 
+  const isBlocked =
+    !!outage || (!!maintenanceStatus?.enabled && !isAllowedPath);
+
+  // 정상 렌더에 도달한 시점을 기록 (복구 시 새로고침 판단용)
+  useEffect(() => {
+    if (!isChecking && !isBlocked) {
+      wasHealthyRef.current = true;
+    }
+  }, [isChecking, isBlocked]);
+
   if (isChecking) {
     return (
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-bridge-accent" />
       </div>
+    );
+  }
+
+  // 서버 무응답은 로그인/공유 링크 포함 전 경로에서 막는다 (어차피 API가 없다)
+  if (outage) {
+    return (
+      <ServerDownPage
+        onRetry={checkMaintenance}
+        isOffline={outage.offline}
+        since={outage.since}
+      />
     );
   }
 

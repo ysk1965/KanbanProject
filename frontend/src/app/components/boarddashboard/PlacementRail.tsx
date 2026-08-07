@@ -35,8 +35,11 @@ import {
 /** 드래그 페이로드 MIME — ScheduleResourceView.handleDrop이 읽는 키와 같아야 한다 */
 export const PLACEMENT_DRAG_TYPE = "application/checklist-item";
 
-/** 이 레일이 받아 주는 출발지 — 위(간트 바)와 아래(백로그) 양쪽 */
-const ACCEPTS: AxisZone[] = ["workload", "backlog"];
+/**
+ * 이 레일이 받아 주는 출발지 — 위(간트 바·타임블록)와 아래(백로그) 양쪽.
+ * 타임블록에서 내려오는 건은 블록까지 지워야 하므로 타임블록 쪽이 먼저 처리하고 알린다.
+ */
+const ACCEPTS: AxisZone[] = ["workload", "backlog", "timeblock"];
 
 type RailTab = "unplaced" | "overdue";
 

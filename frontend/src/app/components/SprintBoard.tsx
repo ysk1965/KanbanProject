@@ -145,7 +145,7 @@ function lineOwnedBy(line: SprintChecklistLine, memberId: string): boolean {
   return memberId === "__none__"
     ? !line.assignee && !line.contractor?.manager_user_id
     : line.assignee?.id === memberId ||
-      line.contractor?.manager_user_id === memberId;
+        line.contractor?.manager_user_id === memberId;
 }
 
 /**
@@ -179,6 +179,24 @@ const SPRINT_TREE_WIDTH_KEY = "bridge:sprint-tree:width";
 const SPRINT_UNCAT_COLLAPSED_KEY = "bridge:sprint-uncategorized:collapsed";
 
 /**
+ * JIRA 흐름 게이지 세그먼트 색 — 단계가 뒤로 갈수록 액센트가 진해지고,
+ * 마지막 단계(=완료)만 보조색 단색으로 세워 "끝난 몫"이 색 하나로 읽히게 한다.
+ * QA 성격 컬럼은 앰버, 상태 미상(기타)은 슬레이트로 흐름 밖임을 드러낸다.
+ */
+function jiraFlowSegColor(
+  col: { key: string; tone: string },
+  index: number,
+  lastKey?: string,
+): string {
+  if (lastKey && col.key === lastKey) return "var(--bridge-secondary)";
+  if (col.key === "__unmapped__" || col.tone === "muted")
+    return "rgba(148, 163, 184, 0.45)";
+  if (col.tone === "review") return "#f59e0b";
+  const alpha = Math.min(0.28 + index * 0.15, 0.72);
+  return `rgba(99, 102, 241, ${alpha})`;
+}
+
+/**
  * 미분류 사유 — 스프린트에 담겼는데 분류 정보가 빈 카드를 하단 레일로 모으는 기준.
  *  · assignee: 담당자·외주 관리담당이 아무도 없음 → 구성원 컬럼 어디에도 서지 못한다(레일이 유일한 노출처).
  *  · feature:  피쳐 미지정 → 컬럼엔 서지만 "무엇에 속한 일인지"가 비어 있다(레일은 보조 트레이).
@@ -201,7 +219,11 @@ type DoneVisibility = "all" | "open" | "done";
 const DONE_VIS_OPTIONS: { key: DoneVisibility; label: string; hint: string }[] =
   [
     { key: "all", label: "전체", hint: "완료·진행중 모두 표시" },
-    { key: "open", label: "진행중", hint: "완료된 카드와 체크된 줄을 숨깁니다" },
+    {
+      key: "open",
+      label: "진행중",
+      hint: "완료된 카드와 체크된 줄을 숨깁니다",
+    },
     { key: "done", label: "완료", hint: "완료된 카드와 체크된 줄만 표시" },
   ];
 
@@ -1608,15 +1630,38 @@ export function SprintBoard({
     isNewJiraLink,
   ]);
 
-  // JIRA 게이지/헤더용 집계 — 검증완료 + 검토중 2색 세그먼트
-  const jiraStats = useMemo(() => {
-    // 연동이 끊긴(JIRA 삭제) 카드는 진행률 분모에서 제외 — 영원히 안 끝나는 게이지 방지
-    const all = jiraColumns.flatMap((c) => c.cards).filter((c) => !c.isDeleted);
+  // 반려 건수 — 컬럼(상태)이 아니라 QA 플래그라 흐름 게이지 세그먼트에 섞이지 않는다.
+  // 별도 칩으로만 세운다. 연동이 끊긴(JIRA 삭제) 카드는 제외.
+  const jiraRejected = useMemo(
+    () =>
+      jiraColumns
+        .flatMap((c) => c.cards)
+        .filter((c) => !c.isDeleted && c.qaState === "REJECTED").length,
+    [jiraColumns],
+  );
+
+  // JIRA 흐름 게이지(보드 바닥 스트립) — 컬럼(=JIRA 상태) 분포와 "마지막 단계" 도달률.
+  // 헤더 게이지가 스프린트 진척(체크리스트 줄)이라 "JIRA 이슈가 어디까지 갔나"는 여기서만 읽힌다.
+  // jiraColumns가 이미 필터바·Feature 칩을 적용한 결과라 컬럼 헤더 숫자와 항상 일치한다.
+  const jiraFlow = useMemo(() => {
+    const cols = jiraColumns.map((c) => ({
+      key: c.statusId,
+      label: c.label,
+      tone: c.tone,
+      // 연동이 끊긴(JIRA 삭제) 카드는 제외 — 끝나지 않는 게이지 방지(jiraStats와 같은 규칙)
+      count: c.cards.filter((k) => !k.isDeleted).length,
+    }));
+    const total = cols.reduce((s, c) => s + c.count, 0);
+    // 마지막 단계 = leftover("기타")를 뺀 마지막 컬럼.
+    //  · 미러: 미러 블록 position 순 → 배열 끝이 JIRA 보드의 종료 컬럼
+    //  · 매뉴얼: rankOf 정렬로 검증완료(VERIFIED)가 맨 뒤
+    const real = cols.filter((c) => c.key !== "__unmapped__");
+    const last = real.length > 0 ? real[real.length - 1] : null;
     return {
-      linked: all.length,
-      verified: all.filter((c) => c.qaState === "VERIFIED").length,
-      review: all.filter((c) => c.qaState === "REVIEW").length,
-      rejected: all.filter((c) => c.qaState === "REJECTED").length,
+      cols,
+      total,
+      last,
+      pct: total > 0 && last ? Math.round((last.count / total) * 100) : 0,
     };
   }, [jiraColumns]);
 
@@ -2119,7 +2164,9 @@ export function SprintBoard({
         ? arr.filter((l) => (doneVis === "done" ? l.completed : !l.completed))
         : arr;
     const visibleBase = visibleOf(baseLines);
-    const otherCount = scoped ? visibleOf(lines).length - visibleBase.length : 0;
+    const otherCount = scoped
+      ? visibleOf(lines).length - visibleBase.length
+      : 0;
     // 미리보기 2줄 — "남은 것 하나 + 끝낸 것 하나"가 진행 상태를 가장 정확히 요약한다.
     // 한쪽만 있으면 그 종류로 채우고, 노출 순서는 원본 순서를 유지한다.
     // (보임 필터가 걸린 뒤 목록 위에서 골라야 진행중 모드에서 미리보기가 비지 않는다.)
@@ -3352,33 +3399,14 @@ export function SprintBoard({
                         <span className="w-1.5 h-1.5 rounded-full bg-bridge-secondary animate-pulse" />
                         진행중
                       </span>
+                      {/* 스프린트 진척은 탭과 무관하게 한 잣대(체크리스트 줄)로 잰다.
+                          JIRA 이슈가 어디까지 갔는지는 층위가 달라 보드 바닥 스트립(jiraFlow)이 전담. */}
                       <span className="text-2xl font-bold text-foreground tabular-nums leading-none">
-                        {groupBy === "jira"
-                          ? jiraStats.linked > 0
-                            ? Math.round(
-                                (jiraStats.verified / jiraStats.linked) * 100,
-                              )
-                            : 0
-                          : pct}
+                        {pct}
                         <span className="text-sm text-slate-400">%</span>
                       </span>
                       <span className="text-xs font-medium text-slate-400 tabular-nums">
-                        {groupBy === "jira" ? (
-                          <>
-                            검증 {jiraStats.verified} · 검토중{" "}
-                            {jiraStats.review} / 연동 {jiraStats.linked}건
-                            {jiraStats.rejected > 0 && (
-                              <span className="text-rose-400">
-                                {" "}
-                                · 반려 {jiraStats.rejected}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            체크리스트 {doneN} / {totalN}
-                          </>
-                        )}
+                        체크리스트 {doneN} / {totalN}
                       </span>
                       {sprintProgress.nToday > 0 && (
                         <span
@@ -3425,67 +3453,32 @@ export function SprintBoard({
                         title="진행 현황 자세히 보기"
                         className="group/bar flex-1 min-w-[80px] flex items-center -mx-0.5 px-0.5 py-1 rounded"
                       >
+                        {/* 이전 완료 · 오늘 완료 · 진행중 3색 — 탭과 무관하게 같은 세그먼트를 쓴다 */}
                         <div className="flex-1 h-[5px] rounded-full bg-slate-600 overflow-hidden relative">
-                          {groupBy === "jira" ? (
-                            (() => {
-                              const vPct =
-                                jiraStats.linked > 0
-                                  ? (jiraStats.verified / jiraStats.linked) *
-                                    100
-                                  : 0;
-                              const rPct =
-                                jiraStats.linked > 0
-                                  ? (jiraStats.review / jiraStats.linked) * 100
-                                  : 0;
-                              return (
-                                <>
-                                  {/* 검증완료 */}
-                                  <div
-                                    className="absolute left-0 top-0 h-full bg-gradient-to-r from-bridge-accent to-bridge-secondary transition-all duration-500"
-                                    style={{ width: `${vPct}%` }}
-                                  />
-                                  {/* 검토중(QA 대기) */}
-                                  {rPct > 0 && (
-                                    <div
-                                      className="absolute top-0 h-full bg-amber-500 transition-all duration-500"
-                                      style={{
-                                        left: `${vPct}%`,
-                                        width: `${rPct}%`,
-                                      }}
-                                    />
-                                  )}
-                                </>
-                              );
-                            })()
-                          ) : (
-                            <>
-                              <div
-                                className="absolute left-0 top-0 h-full bg-bridge-accent transition-all duration-500"
-                                style={{
-                                  width: `${sprintProgress.segEarlier}%`,
-                                }}
-                              />
-                              {sprintProgress.segToday > 0 && (
-                                <div
-                                  className="absolute top-0 h-full bg-bridge-secondary transition-all duration-500"
-                                  style={{
-                                    left: `${sprintProgress.segEarlier}%`,
-                                    width: `${sprintProgress.segToday}%`,
-                                    boxShadow:
-                                      "0 0 8px var(--bridge-secondary)",
-                                  }}
-                                />
-                              )}
-                              {sprintProgress.segProg > 0 && (
-                                <div
-                                  className="absolute top-0 h-full bg-amber-500 transition-all duration-500"
-                                  style={{
-                                    left: `${sprintProgress.segEarlier + sprintProgress.segToday}%`,
-                                    width: `${sprintProgress.segProg}%`,
-                                  }}
-                                />
-                              )}
-                            </>
+                          <div
+                            className="absolute left-0 top-0 h-full bg-bridge-accent transition-all duration-500"
+                            style={{
+                              width: `${sprintProgress.segEarlier}%`,
+                            }}
+                          />
+                          {sprintProgress.segToday > 0 && (
+                            <div
+                              className="absolute top-0 h-full bg-bridge-secondary transition-all duration-500"
+                              style={{
+                                left: `${sprintProgress.segEarlier}%`,
+                                width: `${sprintProgress.segToday}%`,
+                                boxShadow: "0 0 8px var(--bridge-secondary)",
+                              }}
+                            />
+                          )}
+                          {sprintProgress.segProg > 0 && (
+                            <div
+                              className="absolute top-0 h-full bg-amber-500 transition-all duration-500"
+                              style={{
+                                left: `${sprintProgress.segEarlier + sprintProgress.segToday}%`,
+                                width: `${sprintProgress.segProg}%`,
+                              }}
+                            />
                           )}
                         </div>
                       </button>
@@ -4560,6 +4553,92 @@ export function SprintBoard({
               </div>
             )}
           </div>
+          {/* JIRA 흐름 게이지 — 보드 바닥 스트립. 헤더 게이지가 스프린트 진척(체크리스트 줄)이라
+              "연동 이슈가 마지막 단계까지 얼마나 갔나"는 이 자리에서만 읽힌다.
+              바닥에 고정 도크(JiraAutofixDock)가 떠 있어 그 높이만큼 여백을 비워 둔다. */}
+          {!previewColumns &&
+            !previewLoading &&
+            !!activeSprint &&
+            groupBy === "jira" &&
+            (jiraMirrorReady || hasBlockMapping) &&
+            jiraFlow.total > 0 && (
+              <div
+                className={`shrink-0 border-t border-foreground/[0.08] bg-bridge-obsidian px-3 md:px-4 pt-2.5 flex items-center gap-3 flex-wrap ${
+                  jiraConnected ? "pb-[102px] md:pb-[38px]" : "pb-2.5"
+                }`}
+              >
+                <span className="text-xs font-bold uppercase tracking-widest text-slate-400 shrink-0">
+                  JIRA
+                </span>
+                <span className="text-sm font-bold text-foreground tabular-nums shrink-0">
+                  {jiraFlow.pct}
+                  <span className="text-xs text-slate-400">%</span>
+                </span>
+                <span className="text-xs text-slate-500 tabular-nums shrink-0">
+                  {jiraFlow.last?.label ?? "완료"} {jiraFlow.last?.count ?? 0} /
+                  전체 {jiraFlow.total}건
+                </span>
+                {/* 컬럼별 세그먼트 — 앞 단계는 액센트 투명도 스텝, 마지막 단계만 단색으로 끝난 몫을 세운다 */}
+                <div className="flex-1 min-w-[120px] h-[6px] rounded-full bg-foreground/10 overflow-hidden flex">
+                  {jiraFlow.cols.map((c, i) => {
+                    if (c.count === 0) return null;
+                    return (
+                      <div
+                        key={c.key}
+                        title={`${c.label} ${c.count}건`}
+                        className="h-full transition-all duration-500"
+                        style={{
+                          width: `${(c.count / jiraFlow.total) * 100}%`,
+                          background: jiraFlowSegColor(
+                            c,
+                            i,
+                            jiraFlow.last?.key,
+                          ),
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                  {jiraFlow.cols.map((c, i) => {
+                    if (c.count === 0) return null;
+                    const isLast = c.key === jiraFlow.last?.key;
+                    return (
+                      <span
+                        key={c.key}
+                        className={`inline-flex items-center gap-1.5 text-xs font-bold px-1.5 py-0.5 rounded-full ${
+                          isLast
+                            ? "bg-bridge-secondary/15 text-bridge-secondary"
+                            : c.tone === "review"
+                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                              : "bg-foreground/[0.06] text-slate-400"
+                        }`}
+                      >
+                        <span
+                          className="w-[7px] h-[7px] rounded-sm shrink-0"
+                          style={{
+                            background: jiraFlowSegColor(
+                              c,
+                              i,
+                              jiraFlow.last?.key,
+                            ),
+                          }}
+                        />
+                        {c.label} {c.count}
+                      </span>
+                    );
+                  })}
+                  {jiraRejected > 0 && (
+                    <span
+                      className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 tabular-nums"
+                      title="JIRA에서 반려된 이슈"
+                    >
+                      반려 {jiraRejected}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           {/* 미분류 레일 — 구성원 뷰 전용. 미리보기(읽기 전용 스냅샷)에선 숨긴다. */}
           {!previewColumns &&
             !previewLoading &&

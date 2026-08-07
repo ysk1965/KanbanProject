@@ -874,7 +874,9 @@
     "breakTime": "Intervalo",
     "breakTimeDesc": "O intervalo é excluído das horas de trabalho",
     "effectiveHours": "Efetivas:",
-    "excludingBreak": "(excluindo {{hours}}h de intervalo)"
+    "excludingBreak": "(excluindo {{hours}}h de intervalo)",
+    "unplaceNotChecklist": "Só é possível devolver blocos vinculados a um item da checklist.",
+    "unplaceFailed": "Não foi possível mover para não alocado."
   },
   "dailySummary": {
     "summaryButton": "Resumo",
@@ -1171,6 +1173,20 @@
     "autoRefresh": "Verificação automática a cada 30 segundos",
     "progress": "Progresso da manutenção {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
+  },
+  "serverDown": {
+    "title": "Não foi possível conectar ao servidor",
+    "subtitle": "O servidor está sendo atualizado ou não responde no momento. A conexão será restabelecida automaticamente.",
+    "offlineTitle": "Você está sem conexão",
+    "offlineSubtitle": "Verifique sua rede. Vamos tentar novamente assim que você voltar a ficar on-line.",
+    "elapsed": "Desconectado",
+    "statusLabel": "Status do servidor",
+    "statusUnreachable": "Sem resposta",
+    "statusOffline": "Rede perdida",
+    "checking": "Verificando...",
+    "checkNow": "Tentar agora",
+    "autoRefresh": "Reconectando automaticamente a cada 5 segundos",
+    "hint": "Alterações não salvas podem ter sido perdidas. Esta tela fecha sozinha quando o servidor voltar."
   },
   "nightShutdown": {
     "title": "Fora do horário de funcionamento",
@@ -2350,7 +2366,8 @@
     "nextDay": "dia seguinte",
     "custom": "Bloco personalizado",
     "orgScheduleLabel": "{{boardName}}",
-    "orgScheduleReadOnly": "Somente leitura (outro quadro)"
+    "orgScheduleReadOnly": "Somente leitura (outro quadro)",
+    "willUnplace": "Mover para não alocado"
   },
   "scheduleDetail": {
     "title": "Detalhes do Bloco de Tempo",
@@ -2376,7 +2393,9 @@
     "editCustom": "Editar bloco",
     "titlePlaceholder": "Digite o nome da agenda",
     "viewMeeting": "Ver detalhes da reunião",
-    "escClose": "Esc para fechar"
+    "escClose": "Esc para fechar",
+    "unplace": "Mover para não alocado",
+    "unplaceHint": "Exclui os blocos de tempo deste dia e limpa as datas"
   },
   "emptyBoard": {
     "heading": "Comece com seu board",

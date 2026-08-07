@@ -874,7 +874,9 @@
     "breakTime": "Giờ nghỉ",
     "breakTimeDesc": "Giờ nghỉ không tính vào giờ làm việc",
     "effectiveHours": "Thực tế:",
-    "excludingBreak": "(trừ {{hours}} giờ nghỉ)"
+    "excludingBreak": "(trừ {{hours}} giờ nghỉ)",
+    "unplaceNotChecklist": "Chỉ khối gắn với mục checklist mới có thể chuyển về chưa xếp.",
+    "unplaceFailed": "Không thể chuyển về chưa xếp."
   },
   "dailySummary": {
     "summaryButton": "Tóm tắt",
@@ -1171,6 +1173,20 @@
     "autoRefresh": "Tu dong kiem tra moi 30 giay",
     "progress": "Tien do bao tri {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
+  },
+  "serverDown": {
+    "title": "Không thể kết nối máy chủ",
+    "subtitle": "Máy chủ đang được cập nhật hoặc tạm thời không phản hồi. Kết nối sẽ tự động khôi phục.",
+    "offlineTitle": "Bạn đang ngoại tuyến",
+    "offlineSubtitle": "Vui lòng kiểm tra kết nối mạng. Chúng tôi sẽ tự động thử lại khi có mạng.",
+    "elapsed": "Mất kết nối",
+    "statusLabel": "Trạng thái máy chủ",
+    "statusUnreachable": "Không phản hồi",
+    "statusOffline": "Mất mạng",
+    "checking": "Đang kiểm tra...",
+    "checkNow": "Thử lại ngay",
+    "autoRefresh": "Tự động kết nối lại mỗi 5 giây",
+    "hint": "Các thay đổi chưa lưu có thể đã mất. Màn hình này sẽ tự đóng khi máy chủ hoạt động trở lại."
   },
   "nightShutdown": {
     "title": "Ngoài giờ hoạt động",
@@ -2350,7 +2366,8 @@
     "nextDay": "ngày hôm sau",
     "custom": "Khối tùy chỉnh",
     "orgScheduleLabel": "{{boardName}}",
-    "orgScheduleReadOnly": "Chỉ đọc (bảng khác)"
+    "orgScheduleReadOnly": "Chỉ đọc (bảng khác)",
+    "willUnplace": "Chuyển về chưa xếp"
   },
   "scheduleDetail": {
     "title": "Chi tiet khoi thoi gian",
@@ -2376,7 +2393,9 @@
     "editCustom": "Chỉnh sửa khối",
     "titlePlaceholder": "Nhập tên lịch trình",
     "viewMeeting": "Xem chi tiết cuộc họp",
-    "escClose": "Esc để đóng"
+    "escClose": "Esc để đóng",
+    "unplace": "Chuyển về chưa xếp",
+    "unplaceHint": "Xóa các khối thời gian của ngày này và bỏ ngày đã đặt"
   },
   "emptyBoard": {
     "heading": "Bat dau voi bang cua ban",

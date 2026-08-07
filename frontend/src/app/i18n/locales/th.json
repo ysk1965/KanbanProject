@@ -874,7 +874,9 @@
     "breakTime": "เวลาพัก",
     "breakTimeDesc": "เวลาพักจะไม่นับรวมในชั่วโมงทำงาน",
     "effectiveHours": "ทำงานจริง:",
-    "excludingBreak": "(ไม่รวมพัก {{hours}} ชม.)"
+    "excludingBreak": "(ไม่รวมพัก {{hours}} ชม.)",
+    "unplaceNotChecklist": "เฉพาะบล็อกที่เชื่อมกับรายการเช็กลิสต์เท่านั้นที่ย้ายกลับได้",
+    "unplaceFailed": "ย้ายไปยังที่ยังไม่จัดไม่สำเร็จ"
   },
   "dailySummary": {
     "summaryButton": "สรุป",
@@ -1171,6 +1173,20 @@
     "autoRefresh": "ตรวจสอบอัตโนมัติทุก 30 วินาที",
     "progress": "ความคืบหน้าการบำรุงรักษา {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
+  },
+  "serverDown": {
+    "title": "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์",
+    "subtitle": "เซิร์ฟเวอร์กำลังอัปเดตหรือไม่ตอบสนองชั่วคราว ระบบจะเชื่อมต่อใหม่โดยอัตโนมัติ",
+    "offlineTitle": "คุณออฟไลน์อยู่",
+    "offlineSubtitle": "โปรดตรวจสอบการเชื่อมต่อเครือข่าย ระบบจะลองใหม่อัตโนมัติเมื่อกลับมาออนไลน์",
+    "elapsed": "ขาดการเชื่อมต่อ",
+    "statusLabel": "สถานะเซิร์ฟเวอร์",
+    "statusUnreachable": "ไม่มีการตอบสนอง",
+    "statusOffline": "เครือข่ายขาด",
+    "checking": "กำลังตรวจสอบ...",
+    "checkNow": "ลองใหม่ทันที",
+    "autoRefresh": "เชื่อมต่อใหม่อัตโนมัติทุก 5 วินาที",
+    "hint": "การเปลี่ยนแปลงที่ยังไม่บันทึกอาจสูญหาย หน้านี้จะปิดเองเมื่อเซิร์ฟเวอร์กลับมา"
   },
   "nightShutdown": {
     "title": "นอกเวลาทำการ",
@@ -2350,7 +2366,8 @@
     "nextDay": "วันถัดไป",
     "custom": "บล็อกกำหนดเอง",
     "orgScheduleLabel": "{{boardName}}",
-    "orgScheduleReadOnly": "อ่านอย่างเดียว (บอร์ดอื่น)"
+    "orgScheduleReadOnly": "อ่านอย่างเดียว (บอร์ดอื่น)",
+    "willUnplace": "ย้ายไปยังที่ยังไม่จัด"
   },
   "scheduleDetail": {
     "title": "รายละเอียด Time Block",
@@ -2376,7 +2393,9 @@
     "editCustom": "แก้ไขบล็อก",
     "titlePlaceholder": "ป้อนชื่อตารางเวลา",
     "viewMeeting": "ดูรายละเอียดการประชุม",
-    "escClose": "Esc ปิด"
+    "escClose": "Esc ปิด",
+    "unplace": "ย้ายไปยังที่ยังไม่จัด",
+    "unplaceHint": "ลบไทม์บล็อกของวันนี้และล้างวันที่"
   },
   "emptyBoard": {
     "heading": "เริ่มต้นกับบอร์ดของคุณ",

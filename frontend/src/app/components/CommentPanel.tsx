@@ -52,7 +52,6 @@ import {
   Sparkles,
   CheckCircle2,
   HelpCircle,
-  ListChecks,
   Users,
   Reply,
 } from "lucide-react";

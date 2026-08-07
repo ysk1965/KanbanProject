@@ -1042,7 +1042,9 @@
     "breakStart": "Start",
     "breakEnd": "End",
     "excludingBreak": "(excluding {{hours}}hr break)",
-    "effectiveHours": "Effective:"
+    "effectiveHours": "Effective:",
+    "unplaceNotChecklist": "Only blocks linked to a checklist item can be sent back.",
+    "unplaceFailed": "Couldn't send it back to unplaced."
   },
   "dailySummary": {
     "summaryButton": "Summary",
@@ -1381,6 +1383,20 @@
     "autoRefresh": "Auto-checking every 30 seconds",
     "progress": "Maintenance progress {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
+  },
+  "serverDown": {
+    "title": "Can't reach the server",
+    "subtitle": "The server is being updated or is temporarily unresponsive. You will be reconnected automatically.",
+    "offlineTitle": "You are offline",
+    "offlineSubtitle": "Check your network connection. We will retry automatically once you are back online.",
+    "elapsed": "Disconnected",
+    "statusLabel": "Server status",
+    "statusUnreachable": "No response",
+    "statusOffline": "Network lost",
+    "checking": "Checking...",
+    "checkNow": "Retry now",
+    "autoRefresh": "Reconnecting automatically every 5 seconds",
+    "hint": "Unsaved changes may have been lost. This screen closes automatically once the server is back."
   },
   "nightShutdown": {
     "title": "Outside Operating Hours",
@@ -2137,7 +2153,8 @@
     "nextDay": "next day",
     "custom": "Custom Block",
     "orgScheduleLabel": "{{boardName}}",
-    "orgScheduleReadOnly": "Read-only (other board)"
+    "orgScheduleReadOnly": "Read-only (other board)",
+    "willUnplace": "Send to unplaced"
   },
   "scheduleDetail": {
     "title": "Time Block Details",
@@ -2163,7 +2180,9 @@
     "editCustom": "Edit Block",
     "titlePlaceholder": "Enter schedule name",
     "viewMeeting": "View meeting",
-    "escClose": "Esc to close"
+    "escClose": "Esc to close",
+    "unplace": "Send to unplaced",
+    "unplaceHint": "Deletes this day's time blocks and clears the dates"
   },
   "emptyBoard": {
     "heading": "Get started with your board",
@@ -5163,6 +5182,7 @@
     "railToBacklog": "Backlog",
     "unscheduleFailed": "Could not clear the schedule.",
     "unscheduledNotice": "“{{title}}” schedule cleared · assignee and checklist are unchanged",
-    "railToBacklogAria": "Move to backlog"
+    "railToBacklogAria": "Move to backlog",
+    "untimeblockedNotice": "“{{title}}” removed from the time block · undo restores the dates only"
   }
 }

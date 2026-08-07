@@ -859,7 +859,9 @@
     "blockUnit": "30 分鐘",
     "totalBlockCount": "總區塊數：",
     "endAfterStart": "結束時間必須晚於開始時間。",
-    "minBlocksRequired": "至少需要 4 個區塊。"
+    "minBlocksRequired": "至少需要 4 個區塊。",
+    "unplaceNotChecklist": "只有關聯清單項目的區塊才能移回未安排。",
+    "unplaceFailed": "無法移回未安排。"
   },
   "dailySummary": {
     "summaryButton": "摘要",
@@ -1156,6 +1158,20 @@
     "autoRefresh": "每 30 秒自動檢查",
     "progress": "維護進度 {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
+  },
+  "serverDown": {
+    "title": "無法連線至伺服器",
+    "subtitle": "伺服器正在更新或暫時無回應。恢復後將自動重新連線。",
+    "offlineTitle": "目前沒有網路連線",
+    "offlineSubtitle": "請檢查網路狀態。連線恢復後將自動重試。",
+    "elapsed": "已中斷",
+    "statusLabel": "伺服器狀態",
+    "statusUnreachable": "無回應",
+    "statusOffline": "網路已中斷",
+    "checking": "確認中...",
+    "checkNow": "立即重試",
+    "autoRefresh": "每 5 秒自動重新連線",
+    "hint": "未儲存的變更可能已遺失。伺服器恢復後此畫面會自動關閉。"
   },
   "nightShutdown": {
     "title": "非營運時間",
@@ -2308,7 +2324,8 @@
     "nextDay": "隔天",
     "custom": "自訂區塊",
     "orgScheduleLabel": "{{boardName}}看板",
-    "orgScheduleReadOnly": "唯讀（其他看板）"
+    "orgScheduleReadOnly": "唯讀（其他看板）",
+    "willUnplace": "移回未安排"
   },
   "scheduleDetail": {
     "title": "時間區塊詳情",
@@ -2334,7 +2351,9 @@
     "editCustom": "編輯區塊",
     "titlePlaceholder": "請輸入行程名稱",
     "viewMeeting": "查看會議詳情",
-    "escClose": "Esc 關閉"
+    "escClose": "Esc 關閉",
+    "unplace": "移回未安排",
+    "unplaceHint": "刪除當天的時間區塊並清除日期"
   },
   "emptyBoard": {
     "heading": "開始使用您的看板",

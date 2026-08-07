@@ -1046,7 +1046,9 @@
     "effectiveHours": "실 근무:",
     "dropNoRoom": "그 시간에는 빈자리가 없습니다.",
     "dropFailed": "타임블록에 넣지 못했습니다.",
-    "dropOnBreak": "점심시간에는 넣을 수 없습니다."
+    "dropOnBreak": "점심시간에는 넣을 수 없습니다.",
+    "unplaceNotChecklist": "체크리스트가 연결된 블록만 미배치로 뺄 수 있습니다.",
+    "unplaceFailed": "미배치로 빼지 못했습니다."
   },
   "dailySummary": {
     "summaryButton": "요약",
@@ -1385,6 +1387,20 @@
     "autoRefresh": "30초마다 자동으로 확인합니다",
     "progress": "점검 진행률 {{percent}}%",
     "dateFormat": "M월 d일 HH:mm"
+  },
+  "serverDown": {
+    "title": "서버에 연결할 수 없습니다",
+    "subtitle": "서버를 업데이트 중이거나 일시적으로 응답하지 않습니다. 복구되면 자동으로 다시 연결됩니다.",
+    "offlineTitle": "인터넷에 연결되어 있지 않습니다",
+    "offlineSubtitle": "네트워크 상태를 확인해 주세요. 연결이 복구되면 자동으로 다시 시도합니다.",
+    "elapsed": "연결 끊김",
+    "statusLabel": "서버 상태",
+    "statusUnreachable": "응답 없음",
+    "statusOffline": "네트워크 끊김",
+    "checking": "확인 중...",
+    "checkNow": "지금 다시 시도",
+    "autoRefresh": "5초마다 자동으로 다시 연결합니다",
+    "hint": "저장하지 않은 변경사항은 사라졌을 수 있습니다. 서버가 복구되면 이 화면은 자동으로 닫힙니다."
   },
   "nightShutdown": {
     "title": "운영 시간이 아닙니다",
@@ -2142,7 +2158,8 @@
     "nextDay": "다음날",
     "custom": "커스텀 블록",
     "orgScheduleLabel": "{{boardName}} 보드",
-    "orgScheduleReadOnly": "읽기 전용 (다른 보드)"
+    "orgScheduleReadOnly": "읽기 전용 (다른 보드)",
+    "willUnplace": "미배치로 빼기"
   },
   "scheduleDetail": {
     "title": "타임블록 상세",
@@ -2168,7 +2185,9 @@
     "editCustom": "블록 편집",
     "titlePlaceholder": "일정 이름을 입력하세요",
     "viewMeeting": "회의 상세보기",
-    "escClose": "Esc 닫기"
+    "escClose": "Esc 닫기",
+    "unplace": "미배치로 빼기",
+    "unplaceHint": "이 날의 타임블록을 지우고 일정도 해제합니다"
   },
   "emptyBoard": {
     "heading": "보드를 시작해보세요",
@@ -5194,6 +5213,7 @@
     "timeblockedNotice": "「{{title}}」 {{date}} 타임블록에 배치됨 · 되돌리면 날짜만 풀립니다",
     "splitWorkloadQueue": "워크로드와 큐 높이 조절",
     "splitColumns": "타임블록 열 폭 조절",
-    "splitHandleHint": "끌어서 조절 · 더블클릭 초기화"
+    "splitHandleHint": "끌어서 조절 · 더블클릭 초기화",
+    "untimeblockedNotice": "「{{title}}」 타임블록에서 빠짐 · 되돌리면 날짜만 돌아옵니다"
   }
 }

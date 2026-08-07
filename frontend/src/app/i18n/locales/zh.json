@@ -874,7 +874,9 @@
     "breakTime": "午休时间",
     "breakTimeDesc": "午休时间不计入工作时间",
     "effectiveHours": "实际工时：",
-    "excludingBreak": "（不含{{hours}}小时午休）"
+    "excludingBreak": "（不含{{hours}}小时午休）",
+    "unplaceNotChecklist": "只有关联清单项的时间块才能移回未安排。",
+    "unplaceFailed": "未能移回未安排。"
   },
   "dailySummary": {
     "summaryButton": "摘要",
@@ -1171,6 +1173,20 @@
     "autoRefresh": "每 30 秒自动检查",
     "progress": "维护进度 {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
+  },
+  "serverDown": {
+    "title": "无法连接到服务器",
+    "subtitle": "服务器正在更新或暂时无响应。恢复后将自动重新连接。",
+    "offlineTitle": "当前没有网络连接",
+    "offlineSubtitle": "请检查网络状态。连接恢复后将自动重试。",
+    "elapsed": "已断开",
+    "statusLabel": "服务器状态",
+    "statusUnreachable": "无响应",
+    "statusOffline": "网络已断开",
+    "checking": "检查中...",
+    "checkNow": "立即重试",
+    "autoRefresh": "每 5 秒自动重新连接",
+    "hint": "未保存的更改可能已丢失。服务器恢复后此页面会自动关闭。"
   },
   "nightShutdown": {
     "title": "非运营时间",
@@ -2350,7 +2366,8 @@
     "nextDay": "次日",
     "custom": "自定义块",
     "orgScheduleLabel": "{{boardName}}看板",
-    "orgScheduleReadOnly": "只读（其他看板）"
+    "orgScheduleReadOnly": "只读（其他看板）",
+    "willUnplace": "移回未安排"
   },
   "scheduleDetail": {
     "title": "时间块详情",
@@ -2376,7 +2393,9 @@
     "editCustom": "编辑块",
     "titlePlaceholder": "请输入日程名称",
     "viewMeeting": "查看会议详情",
-    "escClose": "Esc 关闭"
+    "escClose": "Esc 关闭",
+    "unplace": "移回未安排",
+    "unplaceHint": "删除当天的时间块并清除日期"
   },
   "emptyBoard": {
     "heading": "开始使用您的看板",

@@ -1,6 +1,12 @@
 import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScheduleBlockInfo } from '../utils/api';
+import {
+  endAxisDrag,
+  findAxisZoneAt,
+  updateAxisDragOver,
+  type AxisZone,
+} from '../utils/axisTransfer';
 
 interface ScheduleBlockProps {
   block: ScheduleBlockInfo;
@@ -16,8 +22,21 @@ interface ScheduleBlockProps {
   onResize?: (blockId: string, startTime: string, endTime: string) => void;
   onMove?: (blockId: string, startTime: string, endTime: string) => void;
   onSplitResize?: (blockId: string, segments: Array<{ startTime: string; endTime: string }>) => void;
+  /**
+   * 그리드 밖으로 끌어냈을 때 이 블록을 받아 줄 확정도 축 존들 (예: 배치 레일).
+   * 비어 있으면 축 이동을 아예 켜지 않는다 — 세로 이동만 하는 원래 드래그가 된다.
+   */
+  axisTargets?: AxisZone[];
+  /** 위 존 위에서 놓았을 때. 시간 이동 대신 이쪽만 불린다 */
+  onAxisDragOut?: (zone: AxisZone) => void;
   isOrgOverlay?: boolean;
 }
+
+/** 축 이동으로 볼 최소 이동 거리 (px) — 클릭에 가까운 흔들림은 무시한다 */
+const AXIS_DRAG_SLOP = 6;
+
+/** 이 블록들이 놓여 있는 존 — 나갈 때 「어디서 왔는지」로 실린다 */
+const SELF_ZONE: AxisZone = 'timeblock';
 
 // 시간 문자열을 분 단위로 변환
 const timeToMinutes = (time: string): number => {
@@ -51,7 +70,7 @@ const MIN_BLOCK_VIS = 32; // 블록 최소 가시 높이 (px) — text-sm 제목
 const TASK_TITLE_MIN_H = 36;
 const FEATURE_TITLE_MIN_H = 58;
 
-export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, otherBlocks = [], breakStartTime, breakEndTime, minutesToPx: minutesToPxProp, pxToMinutes: pxToMinutesProp, onClick, onResize, onMove, onSplitResize, isOrgOverlay }: ScheduleBlockProps) {
+export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, otherBlocks = [], breakStartTime, breakEndTime, minutesToPx: minutesToPxProp, pxToMinutes: pxToMinutesProp, onClick, onResize, onMove, onSplitResize, axisTargets, onAxisDragOut, isOrgOverlay }: ScheduleBlockProps) {
   // 가변 슬롯 높이 지원: prop이 있으면 사용, 없으면 선형 매핑 fallback
   const mToPx = minutesToPxProp || ((minutes: number) => ((minutes - workStartHour * 60) / 30) * slotHeight);
   const pxToM = pxToMinutesProp || ((px: number) => workStartHour * 60 + (px / slotHeight) * 30);
@@ -66,7 +85,19 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
   const [overlapType, setOverlapType] = useState<'none' | 'block' | 'split'>('none');
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const dragStartY = useRef<number>(0);
+  const dragStartX = useRef<number>(0);
   const blockRef = useRef<HTMLDivElement>(null);
+
+  // 그리드 밖 존 위로 끌어냈는지 — null이면 평소대로 시간 이동이다
+  const [axisZone, setAxisZone] = useState<AxisZone | null>(null);
+  const axisZoneRef = useRef<AxisZone | null>(null);
+  // 존들에게 드래그를 알렸는지 — 알린 적이 있어야 끝에 endAxisDrag를 쏜다
+  const axisNotifiedRef = useRef(false);
+  // 매 렌더 새 배열이 넘어와도 드래그 중 핸들러가 최신 값을 읽게 한다
+  const axisTargetsRef = useRef<AxisZone[]>(axisTargets ?? []);
+  axisTargetsRef.current = axisTargets ?? [];
+  const onAxisDragOutRef = useRef(onAxisDragOut);
+  useEffect(() => { onAxisDragOutRef.current = onAxisDragOut; }, [onAxisDragOut]);
 
   // 드래그/리사이즈 후 click 이벤트 방지용 ref (React state보다 먼저 동기적으로 체크)
   const wasDraggedOrResizedRef = useRef(false);
@@ -337,6 +368,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
     e.preventDefault();
 
     dragStartY.current = e.clientY;
+    dragStartX.current = e.clientX;
 
     // 0.15초 후 드래그 모드 활성화
     longPressTimer.current = setTimeout(() => {
@@ -346,10 +378,42 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       setOverlapType('none');
       dragOffsetRef.current = 0;
       overlapTypeRef.current = 'none';
+      axisZoneRef.current = null;
+      axisNotifiedRef.current = false;
+      setAxisZone(null);
       document.body.style.userSelect = 'none';
 
       // 드래그 중 마우스 이동 핸들러
       const handleDragMove = (moveEvent: MouseEvent) => {
+        // 그리드 밖 존(배치 레일 등) 위로 끌어냈는지 먼저 본다 —
+        // 그쪽에서 놓으면 시간 이동이 아니라 확정도 축 이동이 된다.
+        if (axisTargetsRef.current.length > 0) {
+          const movedFar =
+            Math.abs(moveEvent.clientX - dragStartX.current) > AXIS_DRAG_SLOP ||
+            Math.abs(moveEvent.clientY - dragStartY.current) > AXIS_DRAG_SLOP;
+          if (movedFar) {
+            const hovered = findAxisZoneAt(moveEvent.clientX, moveEvent.clientY);
+            const zone = hovered && hovered !== SELF_ZONE && axisTargetsRef.current.includes(hovered)
+              ? hovered
+              : null;
+            if (zone !== axisZoneRef.current || !axisNotifiedRef.current) {
+              axisZoneRef.current = zone;
+              axisNotifiedRef.current = true;
+              setAxisZone(zone);
+              if (zone) {
+                // 나가는 중엔 겹침 경고를 끈다 — 이 드래그는 시간을 바꾸지 않는다
+                setOverlapType('none');
+                overlapTypeRef.current = 'none';
+              }
+              updateAxisDragOver(SELF_ZONE, zone);
+            }
+          }
+        }
+
+        // 레일 위에 있는 동안은 세로 미리보기를 멈춘다.
+        // 옆으로 끌어내는 동안 블록이 위아래로 튀면 어디에 놓이는지 읽히지 않는다.
+        if (axisZoneRef.current) return;
+
         const deltaY = moveEvent.clientY - dragStartY.current;
         const newTopPx = top + deltaY;
         const rawMin = pxToM(newTopPx);
@@ -383,13 +447,27 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
 
         const finalOffset = dragOffsetRef.current;
         const finalOverlapType = overlapTypeRef.current;
+        const finalAxisZone = axisZoneRef.current;
 
         // 시각 상태 리셋
         setDragOffset(0);
         setOverlapType('none');
         setIsDragging(false);
+        setAxisZone(null);
         dragOffsetRef.current = 0;
         overlapTypeRef.current = 'none';
+        axisZoneRef.current = null;
+        if (axisNotifiedRef.current) {
+          axisNotifiedRef.current = false;
+          endAxisDrag();
+        }
+
+        // 그리드 밖 존에서 놓았다 — 시간 이동이 아니라 축 이동이다.
+        // 실제 변경은 이 블록을 그린 쪽이 한다(무엇을 지우고 무엇을 남길지는 그쪽 몫이다).
+        if (finalAxisZone) {
+          onAxisDragOutRef.current?.(finalAxisZone);
+          return;
+        }
 
         // 다른 블록과 겹침이면 이동 취소
         if (finalOverlapType === 'block') return;
@@ -444,11 +522,16 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
     }
   }, [isDragging]);
 
-  // 컴포넌트 언마운트 시 타이머 정리
+  // 컴포넌트 언마운트 시 타이머 정리.
+  // 드래그 도중 사라졌다면(목록 갱신 등) 켜 둔 존들도 같이 꺼 준다 — 안 그러면 레일이 계속 빛난다.
   useEffect(() => {
     return () => {
       if (longPressTimer.current) {
         clearTimeout(longPressTimer.current);
+      }
+      if (axisNotifiedRef.current) {
+        axisNotifiedRef.current = false;
+        endAxisDrag();
       }
     };
   }, []);
@@ -493,7 +576,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       ref={blockRef}
       className={`absolute left-1 right-1 rounded-lg border-l-4 px-2.5 py-1.5 pointer-events-auto
         overflow-hidden ${getBackgroundColor()} ${isResizing || isDragging ? 'z-20' : ''}
-        ${(isDragging || isResizing) && overlapType === 'block' ? 'cursor-not-allowed shadow-2xl ring-2 ring-red-500 bg-red-500/30' : (isDragging || isResizing) && overlapType === 'split' ? 'cursor-grab shadow-2xl ring-2 ring-amber-400 bg-amber-500/20' : isDragging ? 'cursor-grabbing shadow-2xl ring-2 ring-white/50' : isResizing ? 'cursor-ns-resize shadow-lg' : 'cursor-pointer hover:shadow-lg'}
+        ${axisZone ? 'cursor-grabbing shadow-2xl ring-2 ring-bridge-accent opacity-50' : (isDragging || isResizing) && overlapType === 'block' ? 'cursor-not-allowed shadow-2xl ring-2 ring-red-500 bg-red-500/30' : (isDragging || isResizing) && overlapType === 'split' ? 'cursor-grab shadow-2xl ring-2 ring-amber-400 bg-amber-500/20' : isDragging ? 'cursor-grabbing shadow-2xl ring-2 ring-white/50' : isResizing ? 'cursor-ns-resize shadow-lg' : 'cursor-pointer hover:shadow-lg'}
         ${isDragging || isResizing ? '' : 'transition-shadow'}`}
       style={{ top: `${displayTop}px`, height: `${Math.max(displayHeight, MIN_BLOCK_VIS)}px`, ...getInlineStyle() }}
       onClick={() => {
@@ -537,8 +620,14 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
         )}
       </div>
 
+      {/* 그리드 밖으로 끌어내는 중 — 놓으면 이 블록이 사라진다는 신호 */}
+      {axisZone && (
+        <div className="absolute inset-0 bg-bridge-accent/50 flex items-center justify-center rounded-md">
+          <span className="text-white text-xs font-bold">{t('scheduleBlock.willUnplace')}</span>
+        </div>
+      )}
       {/* 겹침 시 경고 오버레이 */}
-      {(isDragging || isResizing) && overlapType === 'block' && (
+      {!axisZone && (isDragging || isResizing) && overlapType === 'block' && (
         <div className="absolute inset-0 bg-red-500/60 flex items-center justify-center rounded-md">
           <span className="text-white text-xs font-bold">{isDragging ? t('scheduleBlock.cannotMove') : t('scheduleBlock.cannotChange')}</span>
         </div>

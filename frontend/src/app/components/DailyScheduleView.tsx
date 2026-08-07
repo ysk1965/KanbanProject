@@ -56,6 +56,7 @@ import {
   useAxisDropZone,
   useTimeblockRequest,
   type AxisItem,
+  type AxisZone,
 } from "../utils/axisTransfer";
 
 interface DailyScheduleViewProps {
@@ -82,6 +83,14 @@ interface DailyScheduleViewProps {
    * embedded와 별개 축이다(좁은 컨테이너여도 체크리스트를 볼 수 있어야 하므로).
    */
   hideDailyChecklist?: boolean;
+  /**
+   * 블록을 「미배치로 빼기」 할 수 있는 화면인지 — 배치 레일이 같이 떠 있을 때만 켠다.
+   *
+   * 빼기는 여기서 블록을 지우고 날짜 해제는 항목의 주인(MyWorkloadWidget)이 이어받는다.
+   * 레일이 없는 화면(일정 탭)에서는 그 뒷부분을 들어 줄 쪽이 없어 블록만 사라지므로,
+   * 아예 길을 열지 않는다. 드래그와 상세 패널 버튼 양쪽에 걸린다.
+   */
+  canUnplace?: boolean;
 }
 
 const SLOT_HEIGHT = 40; // 30분 슬롯의 기본 높이 (px)
@@ -99,6 +108,15 @@ const MIN_BLOCK_HEIGHT = 28; // 블록 최소 가시 높이 (px) - 제목 텍스
  * 2시간은 남의 시간까지 먹는다. 겹치거나 점심에 걸리면 computeSegments가 알아서 줄이고 쪼갠다.
  */
 const DROP_SLOT_SPAN = 2;
+
+/**
+ * 블록을 그리드 밖으로 끌어냈을 때 받아 주는 존 — 배치 레일뿐이다.
+ *
+ * 백로그(=아직 태스크도 아님)까지 한 번에 내리는 건 이 제스처가 감당할 범위를 넘는다.
+ * 레일에 내려놓은 뒤 거기서 다시 내리면 되므로 경로가 없어지지도 않는다.
+ * 모듈 상수인 이유는 참조가 매 렌더 바뀌면 드래그 중인 블록이 값을 다시 읽기 때문이다.
+ */
+const BLOCK_AXIS_TARGETS: AxisZone[] = ["placement"];
 
 // 시간 문자열 → 분 단위 (예: "14:30" → 870)
 const timeToMin = (time: string): number => {
@@ -149,6 +167,7 @@ export function DailyScheduleView({
   initialSubTab,
   embedded = false,
   hideDailyChecklist = false,
+  canUnplace = false,
 }: DailyScheduleViewProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -467,6 +486,16 @@ export function DailyScheduleView({
     });
     return map;
   }, [columns]);
+
+  // 상세 패널에서 「미배치로 빼기」를 하려면 어느 열의 블록인지가 필요하다.
+  // 블록 자체는 담당자를 싣고 오지 않으므로 열에서 거슬러 찾는다.
+  const selectedBlockOwnerId = useMemo(() => {
+    if (!selectedBlock) return null;
+    return (
+      columns.find((col) => col.blocks.some((b) => b.id === selectedBlock.id))
+        ?.user.id ?? null
+    );
+  }, [columns, selectedBlock]);
 
   // 멤버별 조직 크로스보드 블록 매핑 (읽기 전용 오버레이)
   const orgBlocksByUser = useMemo(() => {
@@ -1076,6 +1105,79 @@ export function DailyScheduleView({
       }
     },
     [isBreakSlot, isViewer, placeDroppedItem, t, timeSlots],
+  );
+
+  /* ── 타임블록 → 배치 레일 ─────────────────────────────
+     들어온 길의 반대 방향이다. 그 날의 블록을 지우고 오늘의 체크리스트에서도 뺀 뒤,
+     날짜(시작·마감) 해제는 항목의 주인인 MyWorkloadWidget에게 넘긴다 —
+     블록을 지우는 데 성공했을 때만 축 이동 이벤트를 쏘므로
+     "간트에서는 사라졌는데 블록은 남아 있는" 상태가 안 생긴다. */
+  const unplaceBlock = useCallback(
+    async (block: ScheduleBlockInfo, userId: string): Promise<boolean> => {
+      if (isViewer) return false;
+
+      const item = block.checklist_item;
+      const taskId = block.task?.id;
+      // 회의·커스텀 블록은 체크리스트 항목이 없어 돌아갈 자리(레일)가 없다
+      if (!item || !taskId) {
+        setDropError(
+          t(
+            "schedule.unplaceNotChecklist",
+            "체크리스트가 연결된 블록만 미배치로 뺄 수 있습니다.",
+          ),
+        );
+        return false;
+      }
+
+      const dateStr = format(selectedDate, "yyyy-MM-dd");
+      // 점심시간을 피하느라 쪼개진 조각까지 한 번에 지운다.
+      // 하나만 지우면 나머지 조각이 남아 "뺐는데 아직 있는" 상태가 된다.
+      const siblings = (blocksByUser.get(userId) ?? []).filter(
+        (b) => b.checklist_item?.id === item.id,
+      );
+      const targets = siblings.length > 0 ? siblings : [block];
+
+      try {
+        for (const target of targets) {
+          await scheduleAPI.deleteBlock(boardId, target.id);
+        }
+
+        // 넣을 때 오늘의 체크리스트에 올렸으므로 뺄 때도 같이 내린다.
+        // 올라가 있지 않았다면 내릴 것도 없으므로 실패는 삼킨다.
+        try {
+          await dailyChecklistAPI.excludeItem(boardId, {
+            checklist_item_id: item.id,
+            assigned_date: dateStr,
+            assignee_id: userId,
+          });
+        } catch {
+          /* 오늘의 체크리스트에 없던 항목 — 무시 */
+        }
+
+        setDropError(null);
+        dispatchAxisDrop({
+          from: "timeblock",
+          to: "placement",
+          item: {
+            id: item.id,
+            task_id: taskId,
+            title: item.title,
+            start_date: item.start_date,
+            due_date: item.due_date,
+            assignee_id: userId,
+          },
+        });
+        await loadSchedule();
+        return true;
+      } catch (error) {
+        console.error("Failed to unplace block:", error);
+        setDropError(t("schedule.unplaceFailed", "미배치로 빼지 못했습니다."));
+        // 조각을 지우다 중간에 실패했을 수 있다 — 남은 것을 그대로 보여 준다
+        await loadSchedule();
+        return false;
+      }
+    },
+    [blocksByUser, boardId, isViewer, loadSchedule, selectedDate, t],
   );
 
   /**
@@ -1956,6 +2058,15 @@ export function DailyScheduleView({
                               onResize={handleBlockResize}
                               onMove={handleBlockResize}
                               onSplitResize={handleBlockSplitResize}
+                              axisTargets={
+                                canUnplace && !isViewer
+                                  ? BLOCK_AXIS_TARGETS
+                                  : undefined
+                              }
+                              onAxisDragOut={(zone) => {
+                                if (zone !== "placement") return;
+                                void unplaceBlock(block, member.userId);
+                              }}
                             />
                           ))}
                           {/* Cross-board org schedule blocks (read-only overlay) */}
@@ -2294,6 +2405,22 @@ export function DailyScheduleView({
             displayMode={displayMode}
             workStartHour={workStartHour}
             onClose={handleClosePanel}
+            onUnplace={
+              // 드래그를 못 쓰는 환경(터치·키보드)의 같은 경로.
+              // 뷰어이거나 주인을 못 찾으면 버튼 자체를 내지 않는다.
+              !canUnplace || isViewer || !selectedBlockOwnerId
+                ? undefined
+                : async () => {
+                    // 먼저 끝내고 닫는다 — 패널이 먼저 사라지면 버튼의 진행 표시가 보이지 않는다.
+                    // 블록이 지워져도 패널은 스스로 닫히지 않으므로 여기서 닫아 준다.
+                    // 실패하면 열어 둔다 — 안내는 그리드 위 배너가 한다.
+                    const ok = await unplaceBlock(
+                      selectedBlock,
+                      selectedBlockOwnerId,
+                    );
+                    if (ok) handleClosePanel();
+                  }
+            }
             onDelete={handleBlockDeleted}
             onUpdate={loadSchedule}
             onChecklistToggle={handleChecklistToggled}
