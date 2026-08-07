@@ -1395,6 +1395,7 @@
     "changeStatus": "Cambiar estado",
     "description": "Descripción",
     "noDescription": "Sin descripción",
+    "jiraDescriptionLocked": "Esta descripción la gestiona JIRA. Edítala en la incidencia de JIRA.",
     "period": "Período",
     "startDateTbd": "Fecha de inicio por definir",
     "endDateTbd": "Fecha de fin por definir",

@@ -1636,6 +1636,7 @@
     "changeStatus": "상태 변경",
     "description": "설명",
     "noDescription": "설명이 없습니다",
+    "jiraDescriptionLocked": "JIRA가 관리하는 설명입니다. 수정은 JIRA 이슈에서 하세요.",
     "period": "기간",
     "startDateTbd": "시작일 미정",
     "endDateTbd": "종료일 미정",

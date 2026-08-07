@@ -1395,6 +1395,7 @@
     "changeStatus": "स्थिति बदलें",
     "description": "विवरण",
     "noDescription": "कोई विवरण नहीं",
+    "jiraDescriptionLocked": "यह विवरण JIRA द्वारा प्रबंधित है. इसे JIRA इशू में संपादित करें.",
     "period": "अवधि",
     "startDateTbd": "प्रारंभ तिथि निर्धारित नहीं",
     "endDateTbd": "समाप्ति तिथि निर्धारित नहीं",

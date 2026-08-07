@@ -1395,6 +1395,7 @@
     "changeStatus": "Đổi trạng thái",
     "description": "Mo ta",
     "noDescription": "Khong co mo ta",
+    "jiraDescriptionLocked": "Mô tả này do JIRA quản lý. Hãy chỉnh sửa trong issue JIRA.",
     "period": "Thoi gian",
     "startDateTbd": "Ngay bat dau chua xac dinh",
     "endDateTbd": "Ngay ket thuc chua xac dinh",

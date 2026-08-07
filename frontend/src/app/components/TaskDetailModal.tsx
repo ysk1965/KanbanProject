@@ -79,6 +79,7 @@ import {
   List,
   LayoutGrid,
   Search,
+  Lock,
 } from "lucide-react";
 import { TaskMoveModal } from "./TaskMoveModal";
 import { AutofixDelegateModal } from "./AutofixDelegateModal";
@@ -989,6 +990,11 @@ export function TaskDetailModal({
     }
     onClose();
   };
+
+  // JIRA 연동 카드의 설명은 JIRA가 원본이다 — pull이 매번 덮어쓰므로 여기서 지워봐야
+  // 되돌아오고, 그 전에 실수로 날리면 복구할 길이 없다. 그래서 읽기 전용으로 잠근다.
+  const isJiraOwnedDescription = !!task.jira_issue_key;
+  const canEditDescription = !!canEdit && !isJiraOwnedDescription;
 
   const updateEditedTask = (updates: Partial<Task>) => {
     setEditedTask((prev) => (prev ? { ...prev, ...updates } : null));
@@ -2042,24 +2048,39 @@ export function TaskDetailModal({
                   </div>
                 )}
 
-                {/* 설명 섹션 */}
+                {/* 설명 섹션 — JIRA 연동 카드는 설명을 JIRA가 소유(pull이 덮어씀)하므로 읽기 전용 */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4 text-slate-400" />
                     <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                       {t("task.description")}
                     </Label>
+                    {isJiraOwnedDescription && (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+                        <Lock className="h-3 w-3" />
+                        {task.jira_issue_key}
+                      </span>
+                    )}
                   </div>
                   <Textarea
                     value={editedTask.description || ""}
                     onChange={(e) =>
-                      canEdit && handleDescriptionChange(e.target.value)
+                      canEditDescription &&
+                      handleDescriptionChange(e.target.value)
                     }
                     placeholder={t("task.noDescription")}
                     rows={7}
-                    readOnly={!canEdit}
-                    className={`max-h-[240px] overflow-y-auto custom-scrollbar bg-bridge-dark/50 border-bridge-border/30 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEdit ? "cursor-default" : ""}`}
+                    readOnly={!canEditDescription}
+                    className={`max-h-[240px] overflow-y-auto custom-scrollbar bg-bridge-dark/50 border-bridge-border/30 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEditDescription ? "cursor-default" : ""}`}
                   />
+                  {isJiraOwnedDescription && canEdit && (
+                    <p className="text-xs text-slate-500">
+                      {t(
+                        "task.jiraDescriptionLocked",
+                        "JIRA가 관리하는 설명입니다. 수정은 JIRA 이슈에서 하세요.",
+                      )}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -3622,8 +3643,10 @@ export function TaskDetailModal({
                   <textarea
                     value={editedTask.description || ""}
                     onChange={(e) =>
+                      canEditDescription &&
                       updateEditedTask({ description: e.target.value })
                     }
+                    readOnly={!canEditDescription}
                     placeholder={t("task.aiChecklistConfirmNoDesc")}
                     rows={3}
                     className="w-full px-3 py-2 bg-white/5 rounded-lg border border-foreground/5 text-sm text-slate-300 placeholder-amber-400/60 resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"

@@ -1395,6 +1395,7 @@
     "changeStatus": "เปลี่ยนสถานะ",
     "description": "คำอธิบาย",
     "noDescription": "ไม่มีคำอธิบาย",
+    "jiraDescriptionLocked": "คำอธิบายนี้จัดการโดย JIRA แก้ไขได้ที่ issue ใน JIRA",
     "period": "ระยะเวลา",
     "startDateTbd": "วันเริ่มต้นยังไม่กำหนด",
     "endDateTbd": "วันสิ้นสุดยังไม่กำหนด",

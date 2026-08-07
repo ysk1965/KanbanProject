@@ -4337,7 +4337,95 @@ export function SprintBoard({
 
         {/* 우: 동적 컬럼 보드 (미리보기 중엔 읽기 전용 스냅샷)
             + 하단 미분류 레일. 컬럼 스트립이 세로를 채우고 레일은 바닥에 붙는다. */}
-        <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-sprint-bg">
+        {/* 바닥 고정 도크(JiraAutofixDock)가 JIRA 뷰 보드 위에 떠 있어 그 높이만큼 여백을 비워 둔다 —
+            게이지가 위로 올라가면서 여백을 책임질 자리도 보드 컨테이너로 옮겼다. */}
+        <div
+          className={`flex-1 min-w-0 flex flex-col overflow-hidden bg-sprint-bg ${
+            groupBy === "jira" && jiraConnected ? "pb-[102px] md:pb-[38px]" : ""
+          }`}
+        >
+          {/* JIRA 흐름 게이지 — 스프린트 게이지(체크리스트 진척)와 보드 사이. 헤더 게이지가
+              스프린트 진척이라 "연동 이슈가 마지막 단계까지 얼마나 갔나"는 이 자리에서만 읽힌다.
+              보드 바로 위에 두어 컬럼 분포와 눈이 이어지고, 바닥 고정 도크와도 겹치지 않는다. */}
+          {!previewColumns &&
+            !previewLoading &&
+            !!activeSprint &&
+            groupBy === "jira" &&
+            (jiraMirrorReady || hasBlockMapping) &&
+            jiraFlow.total > 0 && (
+              <div className="shrink-0 border-b border-foreground/[0.08] bg-bridge-obsidian px-3 md:px-4 py-2.5 flex items-center gap-3 flex-wrap">
+                <span className="text-xs font-bold uppercase tracking-widest text-slate-400 shrink-0">
+                  JIRA
+                </span>
+                <span className="text-sm font-bold text-foreground tabular-nums shrink-0">
+                  {jiraFlow.pct}
+                  <span className="text-xs text-slate-400">%</span>
+                </span>
+                <span className="text-xs text-slate-500 tabular-nums shrink-0">
+                  {jiraFlow.last?.label ?? "완료"} {jiraFlow.last?.count ?? 0} /
+                  전체 {jiraFlow.total}건
+                </span>
+                {/* 컬럼별 세그먼트 — 앞 단계는 액센트 투명도 스텝, 마지막 단계만 단색으로 끝난 몫을 세운다 */}
+                <div className="flex-1 min-w-[120px] h-[6px] rounded-full bg-foreground/10 overflow-hidden flex">
+                  {jiraFlow.cols.map((c, i) => {
+                    if (c.count === 0) return null;
+                    return (
+                      <div
+                        key={c.key}
+                        title={`${c.label} ${c.count}건`}
+                        className="h-full transition-all duration-500"
+                        style={{
+                          width: `${(c.count / jiraFlow.total) * 100}%`,
+                          background: jiraFlowSegColor(
+                            c,
+                            i,
+                            jiraFlow.last?.key,
+                          ),
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                  {jiraFlow.cols.map((c, i) => {
+                    if (c.count === 0) return null;
+                    const isLast = c.key === jiraFlow.last?.key;
+                    return (
+                      <span
+                        key={c.key}
+                        className={`inline-flex items-center gap-1.5 text-xs font-bold px-1.5 py-0.5 rounded-full ${
+                          isLast
+                            ? "bg-bridge-secondary/15 text-bridge-secondary"
+                            : c.tone === "review"
+                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                              : "bg-foreground/[0.06] text-slate-400"
+                        }`}
+                      >
+                        <span
+                          className="w-[7px] h-[7px] rounded-sm shrink-0"
+                          style={{
+                            background: jiraFlowSegColor(
+                              c,
+                              i,
+                              jiraFlow.last?.key,
+                            ),
+                          }}
+                        />
+                        {c.label} {c.count}
+                      </span>
+                    );
+                  })}
+                  {jiraRejected > 0 && (
+                    <span
+                      className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 tabular-nums"
+                      title="JIRA에서 반려된 이슈"
+                    >
+                      반려 {jiraRejected}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           <div className="flex-1 min-h-0 overflow-x-auto custom-scrollbar">
             {previewColumns ? (
               <div className="flex gap-3 p-3 md:p-4 h-full min-w-max">
@@ -4553,92 +4641,6 @@ export function SprintBoard({
               </div>
             )}
           </div>
-          {/* JIRA 흐름 게이지 — 보드 바닥 스트립. 헤더 게이지가 스프린트 진척(체크리스트 줄)이라
-              "연동 이슈가 마지막 단계까지 얼마나 갔나"는 이 자리에서만 읽힌다.
-              바닥에 고정 도크(JiraAutofixDock)가 떠 있어 그 높이만큼 여백을 비워 둔다. */}
-          {!previewColumns &&
-            !previewLoading &&
-            !!activeSprint &&
-            groupBy === "jira" &&
-            (jiraMirrorReady || hasBlockMapping) &&
-            jiraFlow.total > 0 && (
-              <div
-                className={`shrink-0 border-t border-foreground/[0.08] bg-bridge-obsidian px-3 md:px-4 pt-2.5 flex items-center gap-3 flex-wrap ${
-                  jiraConnected ? "pb-[102px] md:pb-[38px]" : "pb-2.5"
-                }`}
-              >
-                <span className="text-xs font-bold uppercase tracking-widest text-slate-400 shrink-0">
-                  JIRA
-                </span>
-                <span className="text-sm font-bold text-foreground tabular-nums shrink-0">
-                  {jiraFlow.pct}
-                  <span className="text-xs text-slate-400">%</span>
-                </span>
-                <span className="text-xs text-slate-500 tabular-nums shrink-0">
-                  {jiraFlow.last?.label ?? "완료"} {jiraFlow.last?.count ?? 0} /
-                  전체 {jiraFlow.total}건
-                </span>
-                {/* 컬럼별 세그먼트 — 앞 단계는 액센트 투명도 스텝, 마지막 단계만 단색으로 끝난 몫을 세운다 */}
-                <div className="flex-1 min-w-[120px] h-[6px] rounded-full bg-foreground/10 overflow-hidden flex">
-                  {jiraFlow.cols.map((c, i) => {
-                    if (c.count === 0) return null;
-                    return (
-                      <div
-                        key={c.key}
-                        title={`${c.label} ${c.count}건`}
-                        className="h-full transition-all duration-500"
-                        style={{
-                          width: `${(c.count / jiraFlow.total) * 100}%`,
-                          background: jiraFlowSegColor(
-                            c,
-                            i,
-                            jiraFlow.last?.key,
-                          ),
-                        }}
-                      />
-                    );
-                  })}
-                </div>
-                <div className="flex items-center gap-1.5 flex-wrap shrink-0">
-                  {jiraFlow.cols.map((c, i) => {
-                    if (c.count === 0) return null;
-                    const isLast = c.key === jiraFlow.last?.key;
-                    return (
-                      <span
-                        key={c.key}
-                        className={`inline-flex items-center gap-1.5 text-xs font-bold px-1.5 py-0.5 rounded-full ${
-                          isLast
-                            ? "bg-bridge-secondary/15 text-bridge-secondary"
-                            : c.tone === "review"
-                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                              : "bg-foreground/[0.06] text-slate-400"
-                        }`}
-                      >
-                        <span
-                          className="w-[7px] h-[7px] rounded-sm shrink-0"
-                          style={{
-                            background: jiraFlowSegColor(
-                              c,
-                              i,
-                              jiraFlow.last?.key,
-                            ),
-                          }}
-                        />
-                        {c.label} {c.count}
-                      </span>
-                    );
-                  })}
-                  {jiraRejected > 0 && (
-                    <span
-                      className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 tabular-nums"
-                      title="JIRA에서 반려된 이슈"
-                    >
-                      반려 {jiraRejected}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
           {/* 미분류 레일 — 구성원 뷰 전용. 미리보기(읽기 전용 스냅샷)에선 숨긴다. */}
           {!previewColumns &&
             !previewLoading &&

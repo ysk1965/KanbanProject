@@ -496,6 +496,8 @@ export interface Task {
   completed_at?: string | null;
   /** JIRA에서 pull된 QA 상태 (읽기전용). null=QA 흐름 밖(개발 소유) */
   qa_state?: "REVIEW" | "VERIFIED" | "REJECTED" | null;
+  /** 살아있는 JIRA 이슈 링크가 있으면 그 키(TBTRP-294). 설명은 JIRA가 소유 → 읽기 전용 */
+  jira_issue_key?: string | null;
 }
 
 // ========================================

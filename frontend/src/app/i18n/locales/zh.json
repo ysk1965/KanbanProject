@@ -1395,6 +1395,7 @@
     "changeStatus": "更改状态",
     "description": "描述",
     "noDescription": "暂无描述",
+    "jiraDescriptionLocked": "该描述由 JIRA 管理，请在 JIRA 议题中修改。",
     "period": "时间段",
     "startDateTbd": "开始日期待定",
     "endDateTbd": "结束日期待定",

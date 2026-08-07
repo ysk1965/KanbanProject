@@ -1395,6 +1395,7 @@
     "changeStatus": "ステータス変更",
     "description": "説明",
     "noDescription": "説明なし",
+    "jiraDescriptionLocked": "この説明は JIRA が管理しています。修正は JIRA のイシューで行ってください。",
     "period": "期間",
     "startDateTbd": "開始日未定",
     "endDateTbd": "終了日未定",

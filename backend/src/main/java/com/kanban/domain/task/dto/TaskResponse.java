@@ -42,8 +42,14 @@ public class TaskResponse {
         private int checklistCompleted;
         private List<AssigneeInfo> assignees;
         private String qaState;   // JIRA pull QA 상태 (REVIEW/VERIFIED/REJECTED, nullable)
+        private String jiraIssueKey;  // 살아있는 JIRA 이슈 링크가 있으면 그 키. null = JIRA 소유가 아님
 
         public static Simple of(Task task, List<Tag> tags, int checklistTotal, int checklistCompleted, List<AssigneeInfo> assignees) {
+            return of(task, tags, checklistTotal, checklistCompleted, assignees, null);
+        }
+
+        public static Simple of(Task task, List<Tag> tags, int checklistTotal, int checklistCompleted,
+                                List<AssigneeInfo> assignees, String jiraIssueKey) {
             return Simple.builder()
                     .id(task.getId())
                     .featureId(task.getFeature().getId())
@@ -69,6 +75,7 @@ public class TaskResponse {
                     .checklistCompleted(checklistCompleted)
                     .assignees(assignees != null ? assignees : List.of())
                     .qaState(task.getQaState() != null ? task.getQaState().name() : null)
+                    .jiraIssueKey(jiraIssueKey)
                     .build();
         }
     }
@@ -102,8 +109,13 @@ public class TaskResponse {
         private LocalDateTime updatedAt;
         private LocalDateTime completedAt;
         private String qaState;   // JIRA pull QA 상태 (REVIEW/VERIFIED/REJECTED, nullable)
+        private String jiraIssueKey;  // 살아있는 JIRA 이슈 링크가 있으면 그 키. null = JIRA 소유가 아님
 
         public static Detail of(Task task, List<Tag> tags) {
+            return of(task, tags, null);
+        }
+
+        public static Detail of(Task task, List<Tag> tags, String jiraIssueKey) {
             return Detail.builder()
                     .id(task.getId())
                     .featureId(task.getFeature().getId())
@@ -130,6 +142,7 @@ public class TaskResponse {
                     .updatedAt(task.getUpdatedAt())
                     .completedAt(task.getCompletedAt())
                     .qaState(task.getQaState() != null ? task.getQaState().name() : null)
+                    .jiraIssueKey(jiraIssueKey)
                     .build();
         }
     }
@@ -191,6 +204,14 @@ public class TaskResponse {
                                       Map<String, List<Tag>> taskTagsMap,
                                       Map<String, int[]> checklistCountMap,
                                       Map<String, List<AssigneeInfo>> taskAssigneesMap) {
+            return of(tasks, taskTagsMap, checklistCountMap, taskAssigneesMap, Map.of());
+        }
+
+        public static ListResponse of(List<Task> tasks,
+                                      Map<String, List<Tag>> taskTagsMap,
+                                      Map<String, int[]> checklistCountMap,
+                                      Map<String, List<AssigneeInfo>> taskAssigneesMap,
+                                      Map<String, String> jiraIssueKeyMap) {
             return ListResponse.builder()
                     .tasks(tasks.stream()
                             .map(t -> {
@@ -199,7 +220,8 @@ public class TaskResponse {
                                         taskTagsMap.getOrDefault(t.getId(), List.of()),
                                         counts[0],
                                         counts[1],
-                                        taskAssigneesMap.getOrDefault(t.getId(), List.of()));
+                                        taskAssigneesMap.getOrDefault(t.getId(), List.of()),
+                                        jiraIssueKeyMap.get(t.getId()));
                             })
                             .toList())
                     .build();

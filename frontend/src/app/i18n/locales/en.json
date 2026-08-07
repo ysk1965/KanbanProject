@@ -1632,6 +1632,7 @@
     "changeStatus": "Change status",
     "description": "Description",
     "noDescription": "No description",
+    "jiraDescriptionLocked": "This description is managed by JIRA. Edit it in the JIRA issue.",
     "period": "Period",
     "startDateTbd": "Start date TBD",
     "endDateTbd": "End date TBD",
