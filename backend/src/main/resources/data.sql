@@ -35,6 +35,7 @@ VALUES (
 -- ============================================================================
 MERGE INTO boards (id, name, description, owner_id, board_type, tier,
   work_hours_per_day, work_start_time, schedule_display_mode,
+  ui_level, ui_options,
   created_at, updated_at)
 KEY(id)
 VALUES (
@@ -47,6 +48,8 @@ VALUES (
   10,
   TIME '09:00:00',
   'TIME',
+  3,
+  'members,review,timeblock,jira',
   TIMESTAMP '2025-06-01 00:00:00',
   TIMESTAMP '2026-02-19 00:00:00'
 );
