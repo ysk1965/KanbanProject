@@ -1,0 +1,941 @@
+<title>스프린트 카드 액션 개편 시안</title>
+
+<style>
+  :root {
+    --page-bg: #0e121b;
+    --panel: #161d2b;
+    --panel-2: #1b2333;
+    --ink: #e8ecf5;
+    --ink-2: #94a3b8;
+    --ink-3: #64748b;
+    --ink-4: #475569;
+    --rule: rgba(148,163,184,0.16);
+    --rule-strong: rgba(148,163,184,0.30);
+
+    --sprint-bg: #10141d;
+    --sprint-col: #1b2333;
+    --sprint-card: #232d42;
+    --sprint-card-hover: #2b3752;
+    --sprint-border: rgba(148,163,184,0.16);
+    --sprint-border-hover: rgba(148,163,184,0.30);
+
+    --accent: #6366F1;
+    --teal: #2DD4BF;
+    --amber: #f59e0b;
+    --rose: #f43f5e;
+
+    --card-ink: #e8ecf5;
+    --menu-bg: #1e2739;
+    --shadow: 0 18px 40px -20px rgba(0,0,0,0.8);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --page-bg: #f6f1e8;
+      --panel: #fffcf8;
+      --panel-2: #f1ebe1;
+      --ink: #2f261c;
+      --ink-2: #6b6154;
+      --ink-3: #8a7f70;
+      --ink-4: #a1968a;
+      --rule: rgba(60,50,40,0.12);
+      --rule-strong: rgba(60,50,40,0.24);
+
+      --sprint-bg: #f1ebe1;
+      --sprint-col: #fffcf8;
+      --sprint-card: #ffffff;
+      --sprint-card-hover: #fbf7f0;
+      --sprint-border: rgba(60,50,40,0.12);
+      --sprint-border-hover: rgba(60,50,40,0.22);
+
+      --teal: #14B8A6;
+      --card-ink: #2f261c;
+      --menu-bg: #ffffff;
+      --shadow: 0 18px 40px -22px rgba(60,50,40,0.35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --page-bg: #0e121b; --panel: #161d2b; --panel-2: #1b2333;
+    --ink: #e8ecf5; --ink-2: #94a3b8; --ink-3: #64748b; --ink-4: #475569;
+    --rule: rgba(148,163,184,0.16); --rule-strong: rgba(148,163,184,0.30);
+    --sprint-bg: #10141d; --sprint-col: #1b2333; --sprint-card: #232d42;
+    --sprint-card-hover: #2b3752;
+    --sprint-border: rgba(148,163,184,0.16); --sprint-border-hover: rgba(148,163,184,0.30);
+    --teal: #2DD4BF; --card-ink: #e8ecf5; --menu-bg: #1e2739;
+    --shadow: 0 18px 40px -20px rgba(0,0,0,0.8);
+  }
+  :root[data-theme="light"] {
+    --page-bg: #f6f1e8; --panel: #fffcf8; --panel-2: #f1ebe1;
+    --ink: #2f261c; --ink-2: #6b6154; --ink-3: #8a7f70; --ink-4: #a1968a;
+    --rule: rgba(60,50,40,0.12); --rule-strong: rgba(60,50,40,0.24);
+    --sprint-bg: #f1ebe1; --sprint-col: #fffcf8; --sprint-card: #ffffff;
+    --sprint-card-hover: #fbf7f0;
+    --sprint-border: rgba(60,50,40,0.12); --sprint-border-hover: rgba(60,50,40,0.22);
+    --teal: #14B8A6; --card-ink: #2f261c; --menu-bg: #ffffff;
+    --shadow: 0 18px 40px -22px rgba(60,50,40,0.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--page-bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+      "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 56px 28px 96px;
+  }
+
+  /* ---------- 페이지 헤더 ---------- */
+  .eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 42px);
+    line-height: 1.18; font-weight: 700; letter-spacing: -0.02em;
+    margin: 10px 0 14px; text-wrap: balance;
+  }
+  .lede {
+    max-width: 62ch; color: var(--ink-2); font-size: 16px; margin: 0;
+  }
+  .toolbar {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--rule);
+  }
+  .toolbar span { font-size: 13px; color: var(--ink-3); }
+
+  /* ---------- 섹션 ---------- */
+  section { margin-top: 68px; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  .sec-tag {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.1em;
+    color: var(--ink-4); text-transform: uppercase;
+  }
+  h2 {
+    font-size: 24px; font-weight: 700; letter-spacing: -0.015em;
+    margin: 0 0 8px; text-wrap: balance;
+  }
+  h3 { font-size: 16px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .sub { color: var(--ink-2); margin: 0 0 22px; max-width: 66ch; }
+
+  /* ---------- 시안 레이아웃 ---------- */
+  .lab {
+    display: grid; grid-template-columns: minmax(0,1fr) 330px; gap: 34px;
+    align-items: start;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 20px;
+    padding: 28px;
+  }
+  @media (max-width: 860px) { .lab { grid-template-columns: 1fr; } }
+
+  .notes { min-width: 0; }
+  .notes > p { color: var(--ink-2); margin: 0 0 16px; max-width: 60ch; }
+
+  ul.facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  ul.facts li {
+    display: grid; grid-template-columns: 20px 1fr; gap: 12px;
+    font-size: 14px; color: var(--ink-2);
+  }
+  ul.facts b { color: var(--ink); font-weight: 700; }
+  .mark {
+    width: 20px; height: 20px; border-radius: 6px; display: grid;
+    place-items: center; font-size: 11px; font-weight: 700;
+    font-variant-numeric: tabular-nums; margin-top: 2px;
+  }
+  .mark.bad  { background: rgba(244,63,94,0.16); color: var(--rose); }
+  .mark.good { background: rgba(45,212,191,0.16); color: var(--teal); }
+  .mark.info { background: rgba(99,102,241,0.16); color: var(--accent); }
+
+  .tradeoff {
+    margin-top: 18px; padding: 12px 14px; border-radius: 12px;
+    background: var(--panel-2); border: 1px solid var(--rule);
+    font-size: 13px; color: var(--ink-2);
+  }
+  .tradeoff b { color: var(--ink); }
+
+  /* ---------- 미니 스프린트 컬럼 ---------- */
+  .stage {
+    background: var(--sprint-bg);
+    border: 1px solid var(--rule);
+    border-radius: 18px;
+    padding: 16px;
+    position: relative;
+  }
+  .stage-hint {
+    font-size: 12px; color: var(--ink-4); text-align: center;
+    margin: 0 0 12px; letter-spacing: 0.02em;
+  }
+  .col {
+    width: 100%; background: var(--sprint-col);
+    border: 1px solid var(--sprint-border); border-radius: 16px;
+    overflow: hidden;
+  }
+  .col-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 14px 10px;
+    border-bottom: 2px solid #a855f7;
+  }
+  .avatar {
+    width: 22px; height: 22px; border-radius: 999px; background: #a855f7;
+    color: #fff; font-size: 11px; font-weight: 700;
+    display: grid; place-items: center;
+  }
+  .col-head .who { font-size: 13px; font-weight: 700; color: var(--card-ink); }
+  .col-head .cnt {
+    margin-left: auto; font-size: 13px; font-weight: 700; color: var(--card-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .col-body { padding: 12px; display: grid; gap: 10px; }
+
+  /* ---------- 카드 ---------- */
+  .card {
+    position: relative;
+    background: var(--sprint-card);
+    border: 1px solid var(--sprint-border);
+    border-left: 3px solid #a855f7;
+    border-radius: 12px;
+    padding: 10px;
+    display: grid; gap: 8px;
+    box-shadow: 0 2px 6px -2px rgba(0,0,0,0.45);
+    cursor: grab;
+    transition: background-color .15s, border-color .15s;
+  }
+  .card:hover { background: var(--sprint-card-hover); border-color: var(--sprint-border-hover); }
+  .card.is-done { opacity: .82; }
+
+  .meta { display: flex; align-items: center; gap: 6px; min-height: 22px; }
+  .feat {
+    font-size: 12px; font-weight: 700; padding: 2px 6px; border-radius: 6px;
+    background: rgba(168,85,247,0.15); color: #c084fc; white-space: nowrap;
+  }
+  .meta-right {
+    margin-left: auto; display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--ink-3);
+  }
+  .dday {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 6px; border-radius: 6px; font-weight: 700;
+    background: rgba(148,163,184,0.10); color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .mono {
+    width: 18px; height: 18px; border-radius: 999px; background: #a855f7;
+    color: #fff; font-size: 9px; font-weight: 700; display: grid; place-items: center;
+  }
+  .title { font-size: 12px; font-weight: 500; line-height: 1.45; color: var(--card-ink); }
+  .card.is-done .title { text-decoration: line-through; color: var(--ink-3); }
+
+  .roll { padding-top: 8px; border-top: 1px solid var(--rule); display: grid; gap: 6px; }
+  .gauge { display: flex; align-items: center; gap: 8px; }
+  .segs { flex: 1; display: flex; gap: 2px; }
+  .segs i { flex: 1; height: 4px; border-radius: 2px; background: rgba(148,163,184,0.18); }
+  .segs i.on { background: var(--teal); }
+  .count {
+    font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .count b { color: var(--ink-2); font-weight: 700; }
+  .lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .lines li { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; }
+  .tick {
+    margin-top: 2px; width: 13px; height: 13px; border-radius: 4px; flex: none;
+    display: grid; place-items: center; border: 1px solid var(--ink-4);
+    background: transparent; color: transparent; font-size: 9px; font-weight: 700;
+  }
+  .tick.on { background: var(--teal); border-color: var(--teal); color: #06251f; }
+  .lines span { color: var(--ink-2); line-height: 1.4; }
+  .lines li.done span { text-decoration: line-through; color: var(--ink-3); }
+  .more { font-size: 12px; color: var(--ink-4); }
+
+  /* ---------- 버튼 기본 ---------- */
+  button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  button:focus-visible {
+    outline: none; box-shadow: 0 0 0 2px var(--sprint-card), 0 0 0 4px var(--accent);
+  }
+
+  /* AS-IS 액션 클러스터 */
+  .cluster {
+    position: absolute; top: 8px; right: 8px; z-index: 5;
+    display: flex; align-items: center; gap: 4px;
+    opacity: 0; transition: opacity .15s;
+  }
+  .card:hover .cluster, .card:focus-within .cluster { opacity: 1; }
+  .card:hover .meta-right.fades, .card:focus-within .meta-right.fades { opacity: 0; transition: opacity .15s; }
+
+  .mini {
+    height: 26px; border-radius: 8px; font-size: 12px; font-weight: 700;
+    display: inline-flex; align-items: center; gap: 2px; padding: 0 6px;
+    transition: background-color .12s, color .12s;
+  }
+  .mini.w { width: 26px; padding: 0; justify-content: center; }
+  .mini.amber { background: rgba(245,158,11,0.15); color: var(--amber); }
+  .mini.amber:hover { background: var(--amber); color: #451a03; }
+  .mini.teal { background: rgba(45,212,191,0.15); color: var(--teal); }
+  .mini.teal:hover { background: var(--teal); color: #06251f; }
+  .mini.grey { background: rgba(148,163,184,0.14); color: var(--ink-2); }
+  .mini.grey:hover { background: var(--accent); color: #fff; }
+
+  /* 히트박스 오버레이 */
+  .hitmap .mini { outline: 1px dashed rgba(244,63,94,0.7); outline-offset: 1px; }
+  .hitmap .cluster { opacity: 1 !important; }
+  .hitmap .meta-right.fades { opacity: 0 !important; }
+
+  /* ---------- A안: 주액션 + 메뉴 ---------- */
+  .actbar {
+    position: absolute; top: 8px; right: 8px; z-index: 5;
+    display: flex; align-items: center; gap: 6px;
+    opacity: 0; transition: opacity .15s;
+  }
+  .card:hover .actbar, .card:focus-within .actbar, .actbar.pinned { opacity: 1; }
+
+  .primary {
+    height: 30px; padding: 0 12px; border-radius: 9px;
+    font-size: 12px; font-weight: 700;
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--teal); color: #06251f;
+    box-shadow: 0 2px 8px -2px rgba(45,212,191,0.5);
+    transition: filter .12s, transform .12s;
+  }
+  .primary:hover { filter: brightness(1.08); }
+  .primary:active { transform: translateY(1px); }
+
+  .kebab {
+    width: 30px; height: 30px; border-radius: 9px;
+    display: grid; place-items: center;
+    background: rgba(148,163,184,0.16); color: var(--ink-2);
+    transition: background-color .12s, color .12s;
+  }
+  .kebab:hover, .kebab[aria-expanded="true"] { background: var(--accent); color: #fff; }
+
+  .menu {
+    position: absolute; top: 42px; right: 8px; z-index: 20; width: 186px;
+    background: var(--menu-bg); border: 1px solid var(--rule-strong);
+    border-radius: 12px; padding: 5px; box-shadow: var(--shadow);
+    display: none;
+  }
+  .menu.open { display: block; }
+  .menu button {
+    width: 100%; display: flex; align-items: center; gap: 9px;
+    padding: 9px 10px; border-radius: 8px; font-size: 13px;
+    color: var(--ink); text-align: left;
+  }
+  .menu button:hover { background: rgba(99,102,241,0.14); }
+  .menu .danger { color: var(--rose); }
+  .menu .danger:hover { background: rgba(244,63,94,0.14); }
+  .menu hr { border: none; border-top: 1px solid var(--rule); margin: 5px 4px; }
+  .menu .ic { width: 15px; text-align: center; opacity: .85; }
+
+  /* ---------- B안: 단계 스테퍼 ---------- */
+  .stepper {
+    display: flex; gap: 3px; padding: 3px;
+    background: rgba(148,163,184,0.10); border-radius: 9px;
+  }
+  .stepper button {
+    flex: 1; height: 26px; border-radius: 7px;
+    font-size: 12px; font-weight: 700; color: var(--ink-3);
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    transition: background-color .14s, color .14s;
+  }
+  .stepper button:hover { background: rgba(148,163,184,0.16); color: var(--ink); }
+  .stepper button[aria-current="true"] { color: #fff; cursor: default; }
+  .stepper button[data-step="todo"][aria-current="true"] { background: var(--ink-4); }
+  .stepper button[data-step="review"][aria-current="true"] { background: var(--amber); color: #451a03; }
+  .stepper button[data-step="done"][aria-current="true"] { background: var(--teal); color: #06251f; }
+
+  .corner {
+    position: absolute; top: 8px; right: 8px; z-index: 5;
+    opacity: 0; transition: opacity .15s;
+  }
+  .card:hover .corner, .card:focus-within .corner, .corner.pinned { opacity: 1; }
+
+  /* ---------- C안: 양끝 분리 ---------- */
+  .cardC { padding-left: 34px; }
+  .bigcheck {
+    position: absolute; left: 8px; top: 10px; z-index: 5;
+    width: 20px; height: 20px; border-radius: 999px;
+    border: 1.5px solid var(--ink-4); background: transparent;
+    display: grid; place-items: center;
+    color: transparent; font-size: 11px; font-weight: 700;
+    transition: border-color .14s, background-color .14s, color .14s, transform .14s;
+  }
+  .bigcheck:hover { border-color: var(--teal); color: rgba(45,212,191,0.55); transform: scale(1.08); }
+  .bigcheck.on { background: var(--teal); border-color: var(--teal); color: #06251f; }
+  .reviewdot {
+    position: absolute; left: 8px; top: 36px; z-index: 5;
+    width: 20px; height: 20px; border-radius: 999px;
+    display: grid; place-items: center; font-size: 11px;
+    background: rgba(245,158,11,0.14); color: var(--amber);
+    opacity: 0; transition: opacity .15s, background-color .12s;
+  }
+  .cardC:hover .reviewdot, .cardC:focus-within .reviewdot { opacity: 1; }
+  .reviewdot.on { opacity: 1; background: var(--amber); color: #451a03; }
+  .reviewdot:hover { background: var(--amber); color: #451a03; }
+
+  /* ---------- 상태 칩 & 토스트 ---------- */
+  .statechip {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 999px;
+  }
+  .statechip.review { background: rgba(245,158,11,0.15); color: var(--amber); }
+  .statechip.done { background: rgba(45,212,191,0.15); color: var(--teal); }
+
+  .toast {
+    position: absolute; left: 16px; right: 16px; bottom: 16px; z-index: 30;
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; border-radius: 12px;
+    background: var(--menu-bg); border: 1px solid var(--rule-strong);
+    box-shadow: var(--shadow); font-size: 13px; color: var(--ink);
+    opacity: 0; transform: translateY(8px); pointer-events: none;
+    transition: opacity .18s, transform .18s;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  .toast .undo {
+    margin-left: auto; font-size: 12px; font-weight: 700; color: var(--accent);
+    padding: 3px 8px; border-radius: 7px;
+  }
+  .toast .undo:hover { background: rgba(99,102,241,0.14); }
+
+  /* ---------- 비교표 ---------- */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 16px; }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+  th, td { padding: 13px 16px; text-align: left; border-bottom: 1px solid var(--rule); }
+  thead th {
+    font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 700; background: var(--panel);
+  }
+  tbody th { font-weight: 500; color: var(--ink-2); }
+  tbody tr:last-child th, tbody tr:last-child td { border-bottom: none; }
+  td { color: var(--ink); font-variant-numeric: tabular-nums; }
+  td.pos { color: var(--teal); font-weight: 700; }
+  td.neg { color: var(--rose); font-weight: 700; }
+  .colA { background: rgba(99,102,241,0.05); }
+
+  /* ---------- 권장안 ---------- */
+  .rec {
+    background: var(--panel); border: 1px solid var(--rule);
+    border-radius: 20px; padding: 28px;
+  }
+  .rec ol { margin: 0; padding-left: 20px; color: var(--ink-2); }
+  .rec ol li { margin-bottom: 8px; }
+  .rec code {
+    background: rgba(99,102,241,0.12); color: var(--accent);
+    padding: 1px 6px; border-radius: 5px; font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .switch {
+    font-size: 13px; font-weight: 700; padding: 7px 14px; border-radius: 999px;
+    background: rgba(99,102,241,0.12); color: var(--accent);
+    border: 1px solid rgba(99,102,241,0.28);
+    transition: background-color .12s;
+  }
+  .switch:hover { background: rgba(99,102,241,0.22); }
+  .switch[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">SprintBoard · renderCard</p>
+    <h1>스프린트 카드 액션 개편 시안</h1>
+    <p class="lede">
+      지금은 카드에 마우스를 올리면 <b>리뷰 · 완료 · 빼기 · 상세</b> 네 개가 한꺼번에,
+      그것도 D-day와 담당 칩이 있던 자리를 덮으며 나타납니다. 커서가 이미 그 구역에 있는 상태에서
+      26px짜리 타깃 네 개가 나란히 생기니 오조작이 나는 게 정상입니다.
+      아래 세 가지 방향을 실제로 눌러보고 고르시면 됩니다.
+    </p>
+    <div class="toolbar">
+      <button class="switch" id="hitToggle" aria-pressed="false">히트 영역 보기</button>
+      <span>모든 카드는 실제로 동작합니다 — 눌러서 상태를 바꿔보세요.</span>
+    </div>
+  </header>
+
+  <!-- ============ 문제 진단 ============ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">AS-IS</span></div>
+    <h2>지금 무엇이 문제인가</h2>
+    <p class="sub">현재 카드를 그대로 재현했습니다. 호버해 보면 네 버튼이 동시에 뜹니다.</p>
+
+    <div class="lab">
+      <div class="notes">
+        <ul class="facts">
+          <li><span class="mark bad">1</span><span><b>타깃 4개가 4px 간격으로 붙어 있습니다.</b> 각 26px. 손이 조금만 흔들려도 옆 버튼입니다.</span></li>
+          <li><span class="mark bad">2</span><span><b>버튼이 커서 바로 아래에 생깁니다.</b> D-day·담당 칩 자리를 덮으며 나타나니, 카드를 읽으려 올린 커서가 이미 버튼 위입니다.</span></li>
+          <li><span class="mark bad">3</span><span><b>되돌리기 어려운 “스프린트에서 빼기”가 완료 바로 옆입니다.</b> 확인 절차도, 실행 취소도 없습니다.</span></li>
+          <li><span class="mark bad">4</span><span><b>리뷰와 빼기가 같은 앰버색입니다.</b> 성격이 전혀 다른 두 액션이 색으로 구분되지 않습니다.</span></li>
+          <li><span class="mark bad">5</span><span><b>카드는 드래그 대상입니다.</b> 버튼 근처에서 살짝 끌리면 클릭이 드래그로 먹힙니다.</span></li>
+          <li><span class="mark bad">6</span><span><b>터치에는 호버가 없습니다.</b> 모바일·태블릿에서 이 네 버튼은 사실상 없는 기능입니다.</span></li>
+        </ul>
+      </div>
+
+      <div class="stage" id="stageAs">
+        <p class="stage-hint">카드에 마우스를 올려보세요</p>
+        <div class="col">
+          <div class="col-head">
+            <span class="avatar">진웅</span>
+            <span class="who">박진웅</span>
+            <span class="cnt">18/21</span>
+          </div>
+          <div class="col-body">
+            <div class="card" id="cardAs">
+              <div class="cluster">
+                <button class="mini amber" data-act="review">👁 리뷰</button>
+                <button class="mini teal" data-act="done">✓ 완료</button>
+                <button class="mini w amber" data-act="eject" title="스프린트에서 빼기">↰</button>
+                <button class="mini w grey" data-act="detail" title="상세 보기">↗</button>
+              </div>
+              <div class="meta">
+                <span class="feat">게임 플로우 작업</span>
+                <span class="meta-right fades">
+                  <span class="dday">📅 D-6</span>
+                  <span class="mono">진웅</span>
+                </span>
+              </div>
+              <div class="title">튜토리얼 작업 (Sprint3)</div>
+              <div class="roll">
+                <div class="gauge">
+                  <span class="segs"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                  <span class="count"><b>2</b>/2 · 전체 10/13</span>
+                </div>
+                <ul class="lines">
+                  <li class="done"><span class="tick on">✓</span><span>튜토리얼 기획</span></li>
+                  <li class="done"><span class="tick on">✓</span><span>기존 데이터 변경</span></li>
+                </ul>
+                <div class="more">담당 외 8개</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="toast" id="toastAs"><span class="t-msg"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ A안 ============ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">시안 A</span></div>
+    <h2>주 액션 하나 + 더보기 메뉴</h2>
+    <p class="sub">가장 잦은 “완료”만 큰 버튼으로 남기고, 나머지는 <b>⋯</b> 하나 뒤로 접습니다. 손이 닿는 타깃은 두 개뿐입니다.</p>
+
+    <div class="lab">
+      <div class="notes">
+        <ul class="facts">
+          <li><span class="mark good">✓</span><span><b>호버 타깃 4개 → 2개.</b> 완료 버튼은 30px 높이에 라벨 포함, ⋯는 30×30px입니다.</span></li>
+          <li><span class="mark good">✓</span><span><b>빼기는 메뉴 안쪽으로.</b> 손가락이 미끄러져서 닿을 수 있는 자리가 아닙니다. 로즈색으로 구분선 아래 분리했습니다.</span></li>
+          <li><span class="mark good">✓</span><span><b>상세는 카드 본문 클릭.</b> 제목 어디를 눌러도 열리니 ↗ 아이콘이 필요 없습니다.</span></li>
+          <li><span class="mark info">↺</span><span><b>실행 취소 토스트.</b> 잘못 눌러도 5초 안에 되돌립니다 — 세 안 모두 공통 적용.</span></li>
+          <li><span class="mark bad">△</span><span>리뷰가 한 단계 깊어집니다. 리뷰 이동이 완료만큼 잦다면 B안이 낫습니다.</span></li>
+        </ul>
+        <div class="tradeoff">
+          <b>변경 규모 —</b> 가장 작습니다. 버튼 배치와 메뉴 컴포넌트만 손대면 되고, 카드 레이아웃·높이는 그대로입니다.
+        </div>
+      </div>
+
+      <div class="stage" id="stageA">
+        <p class="stage-hint">완료를 눌러보고, ⋯도 열어보세요</p>
+        <div class="col">
+          <div class="col-head">
+            <span class="avatar">진웅</span><span class="who">박진웅</span><span class="cnt">18/21</span>
+          </div>
+          <div class="col-body">
+            <div class="card" id="cardA" data-state="todo">
+              <div class="actbar">
+                <button class="primary" data-act="done">✓ 완료</button>
+                <button class="kebab" data-menu="menuA" aria-expanded="false" aria-haspopup="menu" aria-label="더보기">⋯</button>
+              </div>
+              <div class="menu" id="menuA" role="menu">
+                <button role="menuitem" data-act="review"><span class="ic">👁</span> 리뷰로 보내기</button>
+                <button role="menuitem" data-act="detail"><span class="ic">↗</span> 상세 열기</button>
+                <hr>
+                <button role="menuitem" class="danger" data-act="eject"><span class="ic">↰</span> 스프린트에서 빼기</button>
+              </div>
+              <div class="meta">
+                <span class="feat">게임 플로우 작업</span>
+                <span class="state-slot"></span>
+                <span class="meta-right fades">
+                  <span class="dday">📅 D-6</span>
+                  <span class="mono">진웅</span>
+                </span>
+              </div>
+              <div class="title">튜토리얼 작업 (Sprint3)</div>
+              <div class="roll">
+                <div class="gauge">
+                  <span class="segs"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                  <span class="count"><b>2</b>/2 · 전체 10/13</span>
+                </div>
+                <ul class="lines">
+                  <li class="done"><span class="tick on">✓</span><span>튜토리얼 기획</span></li>
+                  <li class="done"><span class="tick on">✓</span><span>기존 데이터 변경</span></li>
+                </ul>
+                <div class="more">담당 외 8개</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="toast" id="toastA"><span class="t-msg"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ B안 ============ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">시안 B</span></div>
+    <h2>진행 단계 스테퍼</h2>
+    <p class="sub">카드 아래에 <b>대기 · 리뷰 · 완료</b> 세 칸을 상시로 둡니다. 지금 어느 단계인지 호버 없이 보이고, 칸을 누르면 그리로 이동합니다. 되돌리기도 같은 자리에서 됩니다.</p>
+
+    <div class="lab">
+      <div class="notes">
+        <ul class="facts">
+          <li><span class="mark good">✓</span><span><b>타깃이 3배 넓어집니다.</b> 카드 폭을 셋으로 나눈 약 85×26px. 옆 칸을 누르는 사고가 구조적으로 줄어듭니다.</span></li>
+          <li><span class="mark good">✓</span><span><b>호버로 나타나지 않습니다.</b> 커서 밑에서 갑자기 생기는 버튼이 없고, 터치에서도 그대로 동작합니다.</span></li>
+          <li><span class="mark good">✓</span><span><b>상태가 항상 읽힙니다.</b> 카드를 열지 않아도 리뷰 대기인지 완료인지 한눈에 보입니다.</span></li>
+          <li><span class="mark good">✓</span><span><b>뒤로 되돌리기가 같은 UI.</b> 완료를 잘못 눌렀으면 “대기”를 다시 누르면 끝입니다.</span></li>
+          <li><span class="mark bad">△</span><span>카드 높이가 약 32px 늘어납니다. 한 화면에 보이는 카드 수가 줄어듭니다.</span></li>
+        </ul>
+        <div class="tradeoff">
+          <b>변경 규모 —</b> 중간. 카드 하단 영역이 새로 생기고, 컬럼 종류(Feature 뷰 / 구성원 뷰 / 리뷰·Done 컬럼)마다 스테퍼를 어떻게 보일지 규칙이 필요합니다.
+        </div>
+      </div>
+
+      <div class="stage" id="stageB">
+        <p class="stage-hint">단계를 눌러 이동시켜 보세요</p>
+        <div class="col">
+          <div class="col-head">
+            <span class="avatar">진웅</span><span class="who">박진웅</span><span class="cnt">18/21</span>
+          </div>
+          <div class="col-body">
+            <div class="card" id="cardB" data-state="todo">
+              <div class="corner">
+                <button class="kebab" data-menu="menuB" aria-expanded="false" aria-haspopup="menu" aria-label="더보기">⋯</button>
+              </div>
+              <div class="menu" id="menuB" role="menu">
+                <button role="menuitem" data-act="detail"><span class="ic">↗</span> 상세 열기</button>
+                <hr>
+                <button role="menuitem" class="danger" data-act="eject"><span class="ic">↰</span> 스프린트에서 빼기</button>
+              </div>
+              <div class="meta">
+                <span class="feat">게임 플로우 작업</span>
+                <span class="meta-right fades">
+                  <span class="dday">📅 D-6</span>
+                  <span class="mono">진웅</span>
+                </span>
+              </div>
+              <div class="title">튜토리얼 작업 (Sprint3)</div>
+              <div class="roll">
+                <div class="gauge">
+                  <span class="segs"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                  <span class="count"><b>2</b>/2 · 전체 10/13</span>
+                </div>
+                <ul class="lines">
+                  <li class="done"><span class="tick on">✓</span><span>튜토리얼 기획</span></li>
+                  <li class="done"><span class="tick on">✓</span><span>기존 데이터 변경</span></li>
+                </ul>
+                <div class="more">담당 외 8개</div>
+              </div>
+              <div class="stepper" role="group" aria-label="진행 단계">
+                <button data-step="todo" aria-current="true">진행</button>
+                <button data-step="review" aria-current="false">👁 리뷰</button>
+                <button data-step="done" aria-current="false">✓ 완료</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="toast" id="toastB"><span class="t-msg"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ C안 ============ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">시안 C</span></div>
+    <h2>양끝 분리 — 왼쪽 체크, 오른쪽 메뉴</h2>
+    <p class="sub">완료는 카드 <b>왼쪽</b> 상시 노출 체크 원, 나머지는 <b>오른쪽</b> ⋯. 자주 쓰는 두 액션을 카드의 물리적 반대편에 두어 인접 오조작을 원천 차단합니다.</p>
+
+    <div class="lab">
+      <div class="notes">
+        <ul class="facts">
+          <li><span class="mark good">✓</span><span><b>완료와 나머지가 200px 이상 떨어집니다.</b> 미끄러져서 잘못 누를 물리적 거리가 아닙니다.</span></li>
+          <li><span class="mark good">✓</span><span><b>완료 체크가 항상 보입니다.</b> 할 일 앱과 같은 익숙한 형태라 설명이 필요 없고, 터치에서도 동작합니다.</span></li>
+          <li><span class="mark good">✓</span><span><b>리뷰는 체크 바로 아래 점.</b> 호버 시에만 나오지만 완료와 세로로 떨어져 있어 겹치지 않습니다.</span></li>
+          <li><span class="mark bad">△</span><span>카드 왼쪽에 34px 여백이 필요해 제목 폭이 줄어듭니다. 270px 컬럼에서는 체감이 있습니다.</span></li>
+          <li><span class="mark bad">△</span><span>좌측 3px 피처 색 스트라이프와 체크 원이 같은 구역에서 경쟁합니다.</span></li>
+        </ul>
+        <div class="tradeoff">
+          <b>변경 규모 —</b> 중간. 카드 그리드 자체를 바꾸므로 Feature 뷰·구성원 뷰·JIRA 뷰 카드를 전부 함께 검수해야 합니다.
+        </div>
+      </div>
+
+      <div class="stage" id="stageC">
+        <p class="stage-hint">왼쪽 원을 눌러 완료 처리해 보세요</p>
+        <div class="col">
+          <div class="col-head">
+            <span class="avatar">진웅</span><span class="who">박진웅</span><span class="cnt">18/21</span>
+          </div>
+          <div class="col-body">
+            <div class="card cardC" id="cardC" data-state="todo">
+              <button class="bigcheck" data-act="done" aria-label="완료 처리">✓</button>
+              <button class="reviewdot" data-act="review" aria-label="리뷰로 보내기" title="리뷰로 보내기">👁</button>
+              <div class="corner">
+                <button class="kebab" data-menu="menuC" aria-expanded="false" aria-haspopup="menu" aria-label="더보기">⋯</button>
+              </div>
+              <div class="menu" id="menuC" role="menu">
+                <button role="menuitem" data-act="detail"><span class="ic">↗</span> 상세 열기</button>
+                <hr>
+                <button role="menuitem" class="danger" data-act="eject"><span class="ic">↰</span> 스프린트에서 빼기</button>
+              </div>
+              <div class="meta">
+                <span class="feat">게임 플로우 작업</span>
+                <span class="state-slot"></span>
+                <span class="meta-right fades">
+                  <span class="dday">📅 D-6</span>
+                  <span class="mono">진웅</span>
+                </span>
+              </div>
+              <div class="title">튜토리얼 작업 (Sprint3)</div>
+              <div class="roll">
+                <div class="gauge">
+                  <span class="segs"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                  <span class="count"><b>2</b>/2 · 전체 10/13</span>
+                </div>
+                <ul class="lines">
+                  <li class="done"><span class="tick on">✓</span><span>튜토리얼 기획</span></li>
+                  <li class="done"><span class="tick on">✓</span><span>기존 데이터 변경</span></li>
+                </ul>
+                <div class="more">담당 외 8개</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="toast" id="toastC"><span class="t-msg"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 비교 ============ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">비교</span></div>
+    <h2>한 장으로 보기</h2>
+    <p class="sub">오조작 위험은 “서로 붙어 있는 타깃의 수 × 타깃의 작음”으로 결정됩니다.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">항목</th>
+            <th scope="col">현재</th>
+            <th scope="col" class="colA">A · 주액션+메뉴</th>
+            <th scope="col">B · 스테퍼</th>
+            <th scope="col">C · 양끝 분리</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">인접 타깃 수</th>
+            <td class="neg">4개</td><td class="colA pos">2개</td><td class="pos">3개(넓음)</td><td class="pos">1 + 1</td></tr>
+          <tr><th scope="row">최소 타깃 크기</th>
+            <td class="neg">26 × 26</td><td class="colA pos">30 × 30</td><td class="pos">85 × 26</td><td>20 × 20</td></tr>
+          <tr><th scope="row">되돌리기 어려운 액션</th>
+            <td class="neg">노출</td><td class="colA pos">메뉴 안</td><td class="pos">메뉴 안</td><td class="pos">메뉴 안</td></tr>
+          <tr><th scope="row">터치 지원</th>
+            <td class="neg">불가</td><td class="colA">부분</td><td class="pos">완전</td><td class="pos">완전</td></tr>
+          <tr><th scope="row">호버 전 상태 가시성</th>
+            <td>없음</td><td class="colA">없음</td><td class="pos">항상</td><td class="pos">항상</td></tr>
+          <tr><th scope="row">카드 높이 변화</th>
+            <td>—</td><td class="colA pos">없음</td><td class="neg">+32px</td><td class="pos">없음</td></tr>
+          <tr><th scope="row">리뷰 이동 비용</th>
+            <td class="pos">1클릭</td><td class="colA neg">2클릭</td><td class="pos">1클릭</td><td class="pos">1클릭</td></tr>
+          <tr><th scope="row">구현 범위</th>
+            <td>—</td><td class="colA pos">작음</td><td>중간</td><td>중간</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ 권장 ============ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">권장</span></div>
+    <h2>A안을 먼저, 스테퍼는 그다음</h2>
+    <div class="rec">
+      <p class="sub" style="margin-bottom:18px">
+        지금 나는 사고의 대부분은 “빼기를 누를 생각이 없었는데 눌렸다”와 “완료 대신 상세가 열렸다” 두 가지입니다.
+        둘 다 <b>붙어 있는 타깃 수</b>에서 오는 문제라, A안만으로 대부분 사라집니다.
+        스테퍼(B안)는 상태 가시성과 터치까지 가져오는 더 큰 개선이지만 카드 높이를 먹으므로,
+        A안을 적용해 실제로 오조작이 줄었는지 본 뒤 결정하는 편이 안전합니다.
+      </p>
+      <ol>
+        <li><code>SprintBoard.tsx:2256</code> 호버 액션 클러스터를 <b>완료 pill + ⋯ 메뉴</b>로 교체</li>
+        <li><code>showEject</code> · <code>showDetail</code> · <code>showReview</code>를 메뉴 항목으로 이동, 빼기는 구분선 아래 로즈색</li>
+        <li>카드 본문 클릭 = 상세 열기 (드래그 임계값 이상 움직였으면 클릭 무시)</li>
+        <li>컬럼 이동·빼기 직후 <b>5초 실행 취소 토스트</b> 추가 — 세 안 어느 것을 골라도 필요한 안전장치</li>
+        <li>이미 리뷰·Done 컬럼인 카드는 완료 pill 대신 현재 상태 칩을 노출 (지금의 <code>showReview</code>/<code>showDone</code> 판정 그대로 재사용)</li>
+      </ol>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  (function () {
+    var TIMERS = {};
+
+    function toastEl(stage) { return stage.querySelector('.toast'); }
+
+    function showToast(stage, msg, undoFn) {
+      var t = toastEl(stage);
+      if (!t) return;
+      t.querySelector('.t-msg').textContent = msg;
+      var old = t.querySelector('.undo');
+      if (old) old.remove();
+      if (undoFn) {
+        var b = document.createElement('button');
+        b.className = 'undo';
+        b.textContent = '실행 취소';
+        b.addEventListener('click', function () {
+          undoFn();
+          t.classList.remove('show');
+        });
+        t.appendChild(b);
+      }
+      t.classList.add('show');
+      clearTimeout(TIMERS[stage.id]);
+      TIMERS[stage.id] = setTimeout(function () { t.classList.remove('show'); }, 5000);
+    }
+
+    // 카드 상태(대기/리뷰/완료) 반영
+    function applyState(card, state) {
+      card.dataset.state = state;
+      card.classList.toggle('is-done', state === 'done');
+
+      var slot = card.querySelector('.state-slot');
+      if (slot) {
+        slot.innerHTML = '';
+        if (state === 'review') {
+          slot.innerHTML = '<span class="statechip review">👁 리뷰중</span>';
+        } else if (state === 'done') {
+          slot.innerHTML = '<span class="statechip done">✓ 완료</span>';
+        }
+      }
+
+      var primary = card.querySelector('.primary');
+      if (primary) primary.style.display = state === 'done' ? 'none' : '';
+
+      var steps = card.querySelectorAll('.stepper button');
+      steps.forEach(function (s) {
+        s.setAttribute('aria-current', s.dataset.step === state ? 'true' : 'false');
+      });
+
+      var big = card.querySelector('.bigcheck');
+      if (big) big.classList.toggle('on', state === 'done');
+      var dot = card.querySelector('.reviewdot');
+      if (dot) dot.classList.toggle('on', state === 'review');
+    }
+
+    var LABEL = { todo: '진행', review: '리뷰', done: '완료' };
+
+    function move(card, stage, next) {
+      var prev = card.dataset.state || 'todo';
+      if (prev === next) return;
+      applyState(card, next);
+      showToast(stage, LABEL[next] + ' 컬럼으로 옮겼습니다', function () { applyState(card, prev); });
+    }
+
+    // ---- 메뉴 ----
+    function closeMenus(except) {
+      document.querySelectorAll('.menu.open').forEach(function (m) {
+        if (m === except) return;
+        m.classList.remove('open');
+        var trigger = document.querySelector('[data-menu="' + m.id + '"]');
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        var bar = trigger && trigger.closest('.actbar, .corner');
+        if (bar) bar.classList.remove('pinned');
+      });
+    }
+
+    document.addEventListener('click', function (e) {
+      var trigger = e.target.closest('[data-menu]');
+      if (trigger) {
+        e.stopPropagation();
+        var menu = document.getElementById(trigger.dataset.menu);
+        var open = menu.classList.contains('open');
+        closeMenus();
+        if (!open) {
+          menu.classList.add('open');
+          trigger.setAttribute('aria-expanded', 'true');
+          var bar = trigger.closest('.actbar, .corner');
+          if (bar) bar.classList.add('pinned');
+        }
+        return;
+      }
+      if (!e.target.closest('.menu')) closeMenus();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeMenus();
+    });
+
+    // ---- 액션 ----
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      var card = btn.closest('.card');
+      var stage = btn.closest('.stage');
+      if (!card || !stage) return;
+      e.stopPropagation();
+      closeMenus();
+
+      var act = btn.dataset.act;
+      if (act === 'review') {
+        move(card, stage, card.dataset.state === 'review' ? 'todo' : 'review');
+      } else if (act === 'done') {
+        move(card, stage, card.dataset.state === 'done' ? 'todo' : 'done');
+      } else if (act === 'detail') {
+        showToast(stage, '태스크 상세를 엽니다', null);
+      } else if (act === 'eject') {
+        card.style.opacity = '0.35';
+        showToast(stage, '스프린트에서 뺐습니다', function () { card.style.opacity = ''; });
+      }
+    });
+
+    // ---- 스테퍼 ----
+    document.addEventListener('click', function (e) {
+      var s = e.target.closest('.stepper button');
+      if (!s) return;
+      e.stopPropagation();
+      move(s.closest('.card'), s.closest('.stage'), s.dataset.step);
+    });
+
+    // ---- 카드 본문 클릭 = 상세 (A·C안) ----
+    ['cardA', 'cardC'].forEach(function (id) {
+      var card = document.getElementById(id);
+      if (!card) return;
+      card.addEventListener('click', function (e) {
+        if (e.target.closest('button')) return;
+        showToast(card.closest('.stage'), '태스크 상세를 엽니다 (카드 본문 클릭)', null);
+      });
+    });
+
+    // ---- 히트 영역 토글 ----
+    var ht = document.getElementById('hitToggle');
+    ht.addEventListener('click', function () {
+      var on = ht.getAttribute('aria-pressed') === 'true';
+      ht.setAttribute('aria-pressed', String(!on));
+      document.getElementById('stageAs').classList.toggle('hitmap', !on);
+      ht.textContent = !on ? '히트 영역 숨기기' : '히트 영역 보기';
+    });
+  })();
+</script>

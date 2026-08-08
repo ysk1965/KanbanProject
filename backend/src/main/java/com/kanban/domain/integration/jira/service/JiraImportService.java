@@ -75,8 +75,6 @@ public class JiraImportService {
     private static final int MAX_DELETION_PROBES = 20;
     /** 한 번의 import에서 댓글을 대조할 최대 이슈 수 — 이슈당 코멘트 조회 1콜이 추가되므로 제한. */
     private static final int MAX_COMMENT_RECONCILES = 15;
-    /** 담당자 체크리스트 항목의 제목 접두사 — "이 항목은 JIRA 담당자 것"이라는 표식을 겸한다. */
-    private static final String ASSIGNEE_CHECKLIST_PREFIX = "담당: ";
     /**
      * 한 번의 import에서 이슈 메타를 소급해 채울 최대 건수.
      * JIRA가 안 바뀐 이슈까지 담당자·태그를 뒤지는 경로라, 첫 배포 직후 한 주기가 보드 전체를
@@ -238,7 +236,7 @@ public class JiraImportService {
             // 신규 이슈도 대조 배치 상한을 함께 쓴다. 밀렸으면 워터마크를 비워 다음 주기에 stale로 잡히게 한다.
             boolean batchedNew = commentSyncOn && commentReconcileKeys.size() < MAX_COMMENT_RECONCILES;
             if (batchedNew) commentReconcileKeys.add(issue.key());
-            saveLink(board, issue, JiraLinkTargetType.TASK, task.getId(),
+            JiraIssueLink newLink = saveLink(board, issue, JiraLinkTargetType.TASK, task.getId(),
                 commentSyncOn && !batchedNew ? null : issue.updated());
             c.tasks++;
             c.created++;
@@ -246,7 +244,7 @@ public class JiraImportService {
             // 담당자 → ChecklistItem
             User assignee = resolveAssignee(board, members, issue.assigneeAccountId(), issue.assigneeDisplayName());
             if (assignee != null) {
-                createAssigneeChecklist(task, assignee, issue.assigneeDisplayName());
+                createAssigneeChecklist(task, newLink, assignee, issue.assigneeDisplayName());
                 c.checklists++;
             }
 
@@ -433,13 +431,16 @@ public class JiraImportService {
      *  · 블록↔status 매핑이 있으면 <b>pull 전용</b>(검토중/완료/반려)만 카드를 옮긴다 — 개발 소유 위치는 보존.
      *  · 매핑이 없으면(레거시) 기존 statusName→block 단방향 동작.
      *
-     * <p>담당자·우선순위·컴포넌트는 <b>JIRA 소유 필드</b>다 — 최초 생성 때 한 번 심고 마는 게 아니라
-     * 여기서 계속 맞춘다. 그렇지 않으면 JIRA에서 담당자를 넘겨도 BRIDGE는 최초 값을 영원히 들고 있고,
+     * <p>우선순위·컴포넌트는 <b>JIRA 소유 필드</b>다 — 최초 생성 때 한 번 심고 마는 게 아니라
+     * 여기서 계속 맞춘다. 그렇지 않으면 JIRA에서 값을 바꿔도 BRIDGE는 최초 값을 영원히 들고 있고,
      * 화면은 "몇 분 전 동기화됨"이라 말하고 있어 사용자가 그 값을 최신이라 믿는다.
      *
-     * @param syncOwnedFields 담당자·우선순위·컴포넌트까지 맞출지. JIRA가 실제로 갱신된 이슈에만 켠다 —
-     *                        2분 폴링마다 전 이슈의 체크리스트·태그를 뒤지면 조회 비용이 감당이 안 된다.
+     * <p>담당자만은 <b>양쪽이 함께 쓰는 필드</b>라 규칙이 다르다 — {@link #syncAssignee} 참고.
+     *
+     * @param syncOwnedFields 우선순위·컴포넌트(태그)까지 맞출지. JIRA가 실제로 갱신된 이슈에만 켠다 —
+     *                        2분 폴링마다 전 이슈의 태그를 뒤지면 조회 비용이 감당이 안 된다.
      *                        (판단은 호출 측이 한다. 메타 미기록 링크의 소급 채움도 거기서 함께 조절한다)
+     *                        담당자는 이 게이트 밖이다 — 아래 호출부 주석 참고.
      */
     private void updateTaskFromIssue(Task task, Board board, User importer, ParsedJiraIssue issue,
                                      SyncMaps maps, JiraAuthContext ctx, JiraIssueLink link,
@@ -459,8 +460,12 @@ public class JiraImportService {
         }
         link.markJiraStatus(issue.statusId());   // 다음 전환 감지용 직전 status 기록
 
+        // 담당자는 소유 필드 게이트 밖이다. 게이트는 "조회 비용"을 묶으려는 장치인데, 담당자 동기화는
+        // 기준선이 어긋나지 않는 한 질의 없이 즉시 빠져나온다(원장 UPDATE는 어차피 매 주기 일어난다).
+        // 반대로 게이트 안에 두면 기준선이 늦게 잡혀, 그 사이 JIRA가 옮긴 담당자를 영영 놓친다.
+        syncAssignee(task, board, maps.members(), issue, link);
+
         if (syncOwnedFields) {
-            syncAssignee(task, board, maps.members(), issue);
             syncJiraTags(task, board, issue, link, maps.priorityToTag(), maps.componentToTag());
             // 태그를 반영한 바로 그 값으로 원장을 갱신한다 — 둘이 어긋나면 다음 주기에 낡은 태그가 남는다.
             link.applyIssueMeta(truncate(issue.issueTypeName(), 60),
@@ -471,33 +476,58 @@ public class JiraImportService {
     /**
      * JIRA 담당자 → 담당자 체크리스트 항목 동기화.
      *
-     * <p>담당자를 체크리스트로 이관하는 구조라 "어느 항목이 JIRA 것인가"를 알아야 하는데,
-     * 표식 컬럼 대신 생성 때 쓴 제목 접두사({@value #ASSIGNEE_CHECKLIST_PREFIX})로 찾는다.
-     * 사람이 그 항목의 제목을 바꿨다면 못 찾고 새로 하나 만든다 — 남의 체크리스트를 덮어쓰는 것보다는 낫다.
+     * <p>담당자를 체크리스트로 이관하는 구조라 "어느 항목이 JIRA 것인가"를 알아야 한다.
+     * 그 판정은 {@link JiraAssigneeChecklist}가 맡는다 — 원장 표식이 우선이고, 표식이 없는 옛 카드만
+     * 제목 접두사로 찾는다.
+     *
+     * <p><b>담당자는 양쪽이 다 만지는 값이다.</b> JIRA에서도 넘기고, BRIDGE에서도 팀원에게 나눈다.
+     * 그래서 "지금 값이 다르다"만 보고 pull이 이기게 두면, 보드에서 나눠 놓은 담당이 폴링 한 바퀴에
+     * 통째로 JIRA 값으로 되돌아간다(실제로 그렇게 됐다). 판정 기준은 현재 값이 아니라
+     * <b>직전 관측값 대비 JIRA가 움직였는가</b>다:
+     *
+     * <ul>
+     *   <li>기준선 없음 → 이번엔 관측만 하고 카드는 건드리지 않는다. 기존 링크는 전부 여기로 들어와
+     *       한 바퀴를 조용히 지나간다.</li>
+     *   <li>JIRA가 움직임 → pull이 이긴다(아래 기존 규칙대로 반영).</li>
+     *   <li>JIRA 그대로인데 BRIDGE가 다름 → 사람이 나눈 것. 손대지 않는다.</li>
+     * </ul>
      *
      * <p>덮어쓰기 범위를 좁게 잡은 이유가 하나 더 있다. JIRA에 담당자가 있는데 BRIDGE 멤버로
      * 해석되지 않는 경우(매핑 없음·이름 불일치)까지 "pull이 이긴다"고 밀어붙이면,
-     * <b>사람이 BRIDGE에서 지정해 둔 담당자가 매 주기 지워진다.</b> 그래서 담당자를 비우는 것은
+     * 사람이 BRIDGE에서 지정해 둔 담당자가 매 주기 지워진다. 그래서 담당자를 비우는 것은
      * JIRA가 실제로 "미지정"이라고 말할 때뿐이고, 해석 실패는 이름만 갱신하고 넘어간다.
+     *
+     * <p>대가 하나: JIRA 담당자가 처음부터 BRIDGE 멤버로 해석되지 않아 항목이 안 만들어진 카드는,
+     * 나중에 사용자 매핑을 이어 줘도 그 담당자가 JIRA에서 실제로 바뀌기 전까지는 항목이 생기지 않는다.
+     * 지워 둔 항목을 되살리지 않으려면 "없음"과 "지웠음"을 구분하지 않는 수밖에 없고, 그렇다면
+     * 되살리지 않는 쪽이 사람의 손을 존중한다.
      */
-    private void syncAssignee(Task task, Board board, List<BoardMember> members, ParsedJiraIssue issue) {
+    private void syncAssignee(Task task, Board board, List<BoardMember> members, ParsedJiraIssue issue,
+                              JiraIssueLink link) {
         String accountId = issue.assigneeAccountId();
+
+        boolean baselineOnly = link.needsAssigneeBaseline();
+        boolean jiraChanged = link.jiraAssigneeChanged(accountId);
+        link.applyAssignee(accountId);
+        if (baselineOnly || !jiraChanged) return;
+
         boolean unassignedInJira = accountId == null;
         User resolved = unassignedInJira
             ? null : resolveAssignee(board, members, accountId, issue.assigneeDisplayName());
 
-        ChecklistItem owned = checklistItemRepository.findByTaskIdOrderByPositionAsc(task.getId()).stream()
-            .filter(c -> c.getTitle() != null && c.getTitle().startsWith(ASSIGNEE_CHECKLIST_PREFIX))
-            .findFirst()
-            .orElse(null);
+        ChecklistItem owned = JiraAssigneeChecklist.findOwned(checklistItemRepository, task.getId(), link);
 
         if (owned == null) {
             // 해석되지 않는 담당자 하나 때문에 담당자 없는 빈 항목을 만들지는 않는다(생성 경로와 같은 규칙).
-            if (resolved != null) createAssigneeChecklist(task, resolved, issue.assigneeDisplayName());
+            if (resolved != null) createAssigneeChecklist(task, link, resolved, issue.assigneeDisplayName());
             return;
         }
 
-        owned.updateTitle(assigneeChecklistTitle(issue.assigneeDisplayName()));
+        // 제목은 접두사가 남아 있을 때만 맞춘다. 사람이 이슈 제목으로 바꿔 쓰고 있는 항목을
+        // 담당자가 바뀌었다고 "담당: OOO"으로 되돌리면, 팀이 붙여 둔 이름이 매번 사라진다.
+        if (JiraAssigneeChecklist.hasPrefix(owned)) {
+            owned.updateTitle(JiraAssigneeChecklist.titleFor(issue.assigneeDisplayName()));
+        }
         if (resolved != null) {
             owned.updateAssignee(resolved);
         } else if (unassignedInJira) {
@@ -858,19 +888,16 @@ public class JiraImportService {
         return resolveBlock(boardId, issue.statusName(), statusToBlock, defaultBlock);
     }
 
-    private void createAssigneeChecklist(Task task, User assignee, String displayName) {
+    /** 담당자 항목 생성 + 원장에 소유권 표식. 표식을 함께 심어야 제목이 바뀌어도 이 항목을 계속 따라간다. */
+    private void createAssigneeChecklist(Task task, JiraIssueLink link, User assignee, String displayName) {
         ChecklistItem item = ChecklistItem.builder()
             .task(task)
-            .title(assigneeChecklistTitle(displayName))
+            .title(JiraAssigneeChecklist.titleFor(displayName))
             .assignee(assignee)
             .position(0)
             .build();
         checklistItemRepository.save(item);
-    }
-
-    /** 담당자 체크리스트 제목. 접두사가 곧 "이 항목은 JIRA 담당자 것"이라는 표식이라 한 곳에서만 만든다. */
-    private String assigneeChecklistTitle(String displayName) {
-        return ASSIGNEE_CHECKLIST_PREFIX + (displayName != null ? displayName : "이슈 처리");
+        link.linkAssigneeItem(item.getId());
     }
 
     /**
@@ -998,10 +1025,16 @@ public class JiraImportService {
         }
     }
 
-    /** {@code jiraUpdatedAt}은 호출 측이 정한다 — 댓글 대조가 밀린 이슈는 null로 남겨 다음 주기에 다시 잡는다. */
-    private void saveLink(Board board, ParsedJiraIssue issue, JiraLinkTargetType type, String targetId,
-                          LocalDateTime jiraUpdatedAt) {
-        issueLinkRepository.save(JiraIssueLink.builder()
+    /**
+     * {@code jiraUpdatedAt}은 호출 측이 정한다 — 댓글 대조가 밀린 이슈는 null로 남겨 다음 주기에 다시 잡는다.
+     *
+     * <p>담당자 기준선은 여기서 바로 심는다. 이 경로로 만들어지는 카드는 담당자 항목도 같은
+     * 트랜잭션에서 JIRA 값 그대로 만들어지므로, 기준선을 비워 두고 다음 주기에 관측시키면
+     * 그 한 바퀴 동안 담당자 변경만 반영되지 않는 구멍이 생긴다.
+     */
+    private JiraIssueLink saveLink(Board board, ParsedJiraIssue issue, JiraLinkTargetType type, String targetId,
+                                   LocalDateTime jiraUpdatedAt) {
+        return issueLinkRepository.save(JiraIssueLink.builder()
             .board(board)
             .jiraIssueKey(issue.key())
             .jiraIssueId(issue.id())
@@ -1012,6 +1045,8 @@ public class JiraImportService {
             .jiraIssueType(truncate(issue.issueTypeName(), 60))
             .jiraPriority(truncate(issue.priorityName(), 60))
             .jiraComponentNames(joinComponents(issue.componentNames()))
+            .jiraAssigneeAccountId(issue.assigneeAccountId())
+            .assigneeSyncedAt(LocalDateTime.now(ZoneOffset.UTC))
             .build());
     }
 

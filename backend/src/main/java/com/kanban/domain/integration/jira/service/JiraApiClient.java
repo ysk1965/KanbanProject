@@ -125,6 +125,37 @@ public class JiraApiClient {
         exchange(ctx, HttpMethod.POST, "/issue/" + issueKey + "/transitions", body);
     }
 
+    // ── 담당자 (BRIDGE → JIRA push) ───────────────
+
+    /**
+     * 이슈 담당자 지정. {@code accountId}가 null이면 미배정으로 만든다.
+     *
+     * <p>이슈 편집(PUT /issue/{key})이 아니라 담당 전용 엔드포인트를 쓴다 — "이슈 할당(Assign issues)"
+     * 권한만으로 동작해서, 편집 권한이 없는 연동 계정으로도 담당자만은 넘길 수 있다.
+     * 프로젝트에 배정할 수 없는 사용자면 JIRA가 400을 준다(→ {@link ErrorCode#JIRA_API_ERROR}).
+     */
+    /**
+     * 이 프로젝트에 배정 가능한 사용자 검색. {@code query}는 표시명과 이메일 양쪽에 걸린다.
+     *
+     * <p>담당자 매핑 원장은 "JIRA에서 담당자로 등장한 적 있는 사람"만 담는다. 그래서 보드에서
+     * 처음 배정받는 팀원은 원장에 없고, 그 사람에게 넘기려면 JIRA에 직접 물어보는 수밖에 없다.
+     */
+    public JsonNode searchAssignableUsers(JiraAuthContext ctx, String projectKey, String query) {
+        String encoded = java.net.URLEncoder.encode(query, StandardCharsets.UTF_8);
+        return exchange(ctx, HttpMethod.GET,
+            "/user/assignable/search?project=" + projectKey + "&query=" + encoded + "&maxResults=20", null);
+    }
+
+    public void assignIssue(JiraAuthContext ctx, String issueKey, String accountId) {
+        ObjectNode body = objectMapper.createObjectNode();
+        if (accountId != null) {
+            body.put("accountId", accountId);
+        } else {
+            body.putNull("accountId");
+        }
+        exchange(ctx, HttpMethod.PUT, "/issue/" + issueKey + "/assignee", body);
+    }
+
     // ── 첨부 다운로드 (content URL은 절대경로) ────
 
     public byte[] downloadAttachment(JiraAuthContext ctx, String contentUrl) {

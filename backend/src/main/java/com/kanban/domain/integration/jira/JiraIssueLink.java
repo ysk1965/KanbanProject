@@ -74,6 +74,35 @@ public class JiraIssueLink {
     @Column(name = "jira_component_names", length = 500)
     private String jiraComponentNames;
 
+    /**
+     * 직전에 관측한 JIRA 담당자 accountId(미배정이면 null).
+     *
+     * <p>담당자는 양쪽이 다 만지는 값이라, 현재 값만 봐서는 어긋남의 원인을 알 수 없다.
+     * 직전 관측값을 들고 있어야 "JIRA가 움직였다"와 "BRIDGE에서 사람이 나눴다"를 가른다.
+     */
+    @Column(name = "jira_assignee_account_id", length = 128)
+    private String jiraAssigneeAccountId;
+
+    /**
+     * 담당자 기준선을 기록한 시각. null이면 이 링크는 담당자 동기화를 한 번도 거치지 않았다는 뜻이라
+     * 다음 동기화가 <b>관측만 하고 카드를 건드리지 않는다</b>.
+     * (accountId 쪽은 "미배정"도 정상값이라 null로 둘 수 있어서, 유무 판정은 이 컬럼이 맡는다)
+     */
+    @Column(name = "assignee_synced_at")
+    private LocalDateTime assigneeSyncedAt;
+
+    /**
+     * 이 이슈의 담당자를 대표하는 체크리스트 항목 id.
+     *
+     * <p>전에는 제목 접두사가 소유권 표식을 겸했는데, 사람이 항목 제목을 이슈 제목으로 바꿔 쓰면
+     * 동기화가 그 항목을 못 찾고 담당 항목을 하나 더 만들었다. 표식을 여기로 옮겨 이름을 바꿔도
+     * 소유권이 유지되게 한다 — 접두사는 이제 표시 기본값일 뿐이다.
+     *
+     * <p>null이면 아직 이어진 항목이 없다는 뜻이고, 그때만 접두사로 찾는 옛 경로를 쓴다.
+     */
+    @Column(name = "jira_assignee_item_id", length = 36)
+    private String jiraAssigneeItemId;
+
     @Column(name = "last_imported_at", nullable = false)
     private LocalDateTime lastImportedAt;
 
@@ -145,6 +174,31 @@ public class JiraIssueLink {
      */
     public boolean needsIssueMetaBackfill() {
         return this.jiraIssueType == null;
+    }
+
+    /**
+     * 담당자 기준선 갱신 — JIRA를 관측했을 때와 BRIDGE에서 JIRA로 밀어 넣었을 때 모두 호출한다.
+     * push 직후에 부르는 것이 에코 차단이다. 부르지 않으면 다음 pull이 방금 우리가 만든 변경을
+     * "JIRA가 움직였다"고 읽고 되받아친다.
+     */
+    public void applyAssignee(String jiraAccountId) {
+        this.jiraAssigneeAccountId = jiraAccountId;
+        this.assigneeSyncedAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    /** 담당자를 대표하는 항목을 지정/해제. 제목이 아니라 이 값이 소유권이다. */
+    public void linkAssigneeItem(String checklistItemId) {
+        this.jiraAssigneeItemId = checklistItemId;
+    }
+
+    /** 담당자 기준선이 아직 없음 — 이번 관측은 기록만 하고 카드는 그대로 둔다. */
+    public boolean needsAssigneeBaseline() {
+        return this.assigneeSyncedAt == null;
+    }
+
+    /** 들어온 JIRA 담당자가 직전 관측값과 다른지 — 다르면 JIRA 쪽이 실제로 움직인 것. */
+    public boolean jiraAssigneeChanged(String incomingAccountId) {
+        return !java.util.Objects.equals(this.jiraAssigneeAccountId, incomingAccountId);
     }
 
     /** JIRA 원본이 삭제됨 — 연동 해제 표시(멱등). */

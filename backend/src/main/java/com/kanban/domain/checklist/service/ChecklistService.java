@@ -77,6 +77,8 @@ public class ChecklistService {
     private final SlackNotificationService slackNotificationService;
     private final DiscordNotificationService discordNotificationService;
     private final WebSocketEventService webSocketEventService;
+    /** 담당자 변경을 JIRA로 넘기기 위한 통로. core→integration 역의존을 피하려 이벤트로 건넨다. */
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public ChecklistResponse.ListResponse getChecklist(String boardId, String taskId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
@@ -290,6 +292,7 @@ public class ChecklistService {
 
         // 변경 이력 기록 (제목/기간/담당자 변경분을 각각 로깅)
         logChecklistDiffs(task.getBoard(), user, item, oldTitle, oldStart, oldDue, oldAssigneeName);
+        publishAssigneeChangeIfAny(boardId, taskId, item, oldAssigneeId);
 
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_UPDATED, userId, user.getName(),
                 Map.of("task_id", taskId, "item", response));
@@ -411,10 +414,25 @@ public class ChecklistService {
 
         // 변경 이력 기록 (제목/기간/담당자 변경분을 각각 로깅)
         logChecklistDiffs(task.getBoard(), user, item, oldTitle, oldStart, oldDue, oldAssigneeName);
+        publishAssigneeChangeIfAny(boardId, taskId, item, oldAssigneeId);
 
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_UPDATED, userId, user.getName(),
                 Map.of("task_id", taskId, "item", response));
         return response;
+    }
+
+    /**
+     * 담당자가 실제로 바뀐 경우에만 JIRA push 이벤트를 낸다.
+     *
+     * <p>분기(배정/외주 배정/해제)마다 따로 내지 않고 최종 상태를 이전 값과 한 번 비교한다 —
+     * 분기가 늘 때마다 발행을 빠뜨리는 쪽이 실제로 반복된 사고였다.
+     * 대상 판정(그 항목이 JIRA 담당자를 대표하는가)과 계정 해석은 수신 측이 한다.
+     */
+    private void publishAssigneeChangeIfAny(String boardId, String taskId, ChecklistItem item, String oldAssigneeId) {
+        String newAssigneeId = item.getAssignee() != null ? item.getAssignee().getId() : null;
+        if (java.util.Objects.equals(oldAssigneeId, newAssigneeId)) return;
+        eventPublisher.publishEvent(
+                new com.kanban.domain.checklist.event.ChecklistAssigneeChangedEvent(boardId, taskId, item.getId()));
     }
 
     /**

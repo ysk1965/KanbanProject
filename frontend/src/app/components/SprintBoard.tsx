@@ -65,6 +65,7 @@ import {
   jiraPriorityMark,
 } from "../utils/jira";
 import { MotionModal } from "./ui/MotionModal";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { SprintMemberGanttModal } from "./SprintMemberGanttModal";
 import { MilestoneConsoleModal } from "./MilestoneConsoleModal";
 import { JiraOnboardingGuide } from "./JiraOnboardingGuide";
@@ -466,6 +467,8 @@ export function SprintBoard({
       /* 프라이빗 모드 등 localStorage 접근 불가 시 무시 */
     }
   }, [doneVis]);
+  // 보임 필터 드롭다운 열림 상태 — 항목 선택 즉시 닫기 위해 제어형으로 쓴다.
+  const [doneVisOpen, setDoneVisOpen] = useState(false);
 
   // ── JIRA 뷰: 연동 상태(탭 노출 판정) + 메타(상태명) ──
   // status는 block_status_map(블록→JIRA상태) 제공, meta는 상태 id→name 제공.
@@ -3622,6 +3625,71 @@ export function SprintBoard({
                           </div>
                         </button>
 
+                        {/* 보임 필터 — 구성원 뷰 전용. 그룹 기준(Feature↔구성원)보다 앞에 둔다:
+                          "무엇을 볼까"를 먼저 고르고 "어떻게 자를까"를 뒤에 고르는 순서가
+                          왼→오 읽기와 맞고, 세그먼트 두 벌이 나란히 서서 한 덩어리로
+                          오독되던 문제도 사라진다. 드롭다운이라 폭도 고정된다. */}
+                        {groupBy === "member" && (
+                          <Popover
+                            open={doneVisOpen}
+                            onOpenChange={setDoneVisOpen}
+                          >
+                            <PopoverTrigger asChild>
+                              <button
+                                type="button"
+                                onClick={(e) => e.stopPropagation()}
+                                aria-label="완료 항목 보임 필터"
+                                title={
+                                  DONE_VIS_OPTIONS.find(
+                                    (o) => o.key === doneVis,
+                                  )?.hint
+                                }
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                                  doneVis === "all"
+                                    ? "bg-foreground/[0.06] border-foreground/10 text-slate-400 hover:text-foreground"
+                                    : "bg-bridge-secondary/15 border-bridge-secondary/40 text-bridge-secondary"
+                                }`}
+                              >
+                                <Eye className="w-3 h-3" />
+                                {
+                                  DONE_VIS_OPTIONS.find(
+                                    (o) => o.key === doneVis,
+                                  )?.label
+                                }
+                                <ChevronDown className="w-3 h-3" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              align="start"
+                              className="w-44 p-1 bg-bridge-obsidian border-foreground/10"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {DONE_VIS_OPTIONS.map((opt) => (
+                                <button
+                                  key={opt.key}
+                                  type="button"
+                                  aria-pressed={doneVis === opt.key}
+                                  onClick={() => {
+                                    setDoneVis(opt.key);
+                                    setDoneVisOpen(false);
+                                  }}
+                                  title={opt.hint}
+                                  className={`flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-xs font-bold text-left transition-colors ${
+                                    doneVis === opt.key
+                                      ? "bg-bridge-secondary/15 text-bridge-secondary"
+                                      : "text-slate-400 hover:bg-foreground/5 hover:text-foreground"
+                                  }`}
+                                >
+                                  <span className="truncate">{opt.label}</span>
+                                  {doneVis === opt.key && (
+                                    <Check className="w-3.5 h-3.5 ml-auto shrink-0" />
+                                  )}
+                                </button>
+                              ))}
+                            </PopoverContent>
+                          </Popover>
+                        )}
+
                         {/* Feature ↔ 구성원 전환 — 둘 다 "지금 스프린트에 담긴 것"을 소유 축으로
                           자르는, 서로 교환 가능한 절단면이다. JIRA는 스코프도 축도 달라
                           여기가 아니라 화면 선택 줄(스프린트 | 블록 보드 | JIRA)에 있다. */}
@@ -3662,42 +3730,6 @@ export function SprintBoard({
                               <Users className="w-3 h-3" />
                               구성원
                             </button>
-                          </div>
-                        )}
-
-                        {/* 보임 필터 — 구성원 뷰 전용. 그룹 기준 세그먼트와 붙이지 않고 라벨을 앞세워
-                          "또 하나의 그룹 기준"으로 오독되지 않게 하고, 선택 상태는 틸(secondary)로 칠해
-                          바로 옆 인디고 세그먼트와 한 덩어리로 보이지 않게 한다. */}
-                        {groupBy === "member" && (
-                          <div
-                            className="flex items-center gap-1.5 shrink-0 ml-1"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <span className="hidden lg:inline text-xs font-bold uppercase tracking-widest text-slate-500">
-                              보임
-                            </span>
-                            <div
-                              className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/[0.06] border border-foreground/10"
-                              role="group"
-                              aria-label="완료 항목 보임"
-                            >
-                              {DONE_VIS_OPTIONS.map((opt) => (
-                                <button
-                                  key={opt.key}
-                                  type="button"
-                                  aria-pressed={doneVis === opt.key}
-                                  onClick={() => setDoneVis(opt.key)}
-                                  title={opt.hint}
-                                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
-                                    doneVis === opt.key
-                                      ? "bg-bridge-secondary text-white"
-                                      : "text-slate-400 hover:text-foreground"
-                                  }`}
-                                >
-                                  {opt.label}
-                                </button>
-                              ))}
-                            </div>
                           </div>
                         )}
 
