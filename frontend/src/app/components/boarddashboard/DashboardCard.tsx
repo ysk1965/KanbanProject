@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from "react";
+import type { HTMLAttributes, ReactNode, Ref } from "react";
 import { Loader2, ExternalLink } from "lucide-react";
 
 /**
@@ -111,6 +111,11 @@ interface PanelShellProps {
   overlayClassName?: string;
   /** 드롭 존 속성 등 섹션에 그대로 펼칠 것 (className은 따로 받는다) */
   sectionProps?: HTMLAttributes<HTMLElement>;
+  /**
+   * 카드 바깥 노드를 잡는 ref — 손잡이가 드래그 중에 이 노드의 height를 직접 쓴다.
+   * (매 프레임 setState하면 간트가 통째로 다시 그려지므로 DOM만 만진다)
+   */
+  sectionRef?: Ref<HTMLElement>;
   children: ReactNode;
 }
 
@@ -131,11 +136,13 @@ export function PanelShell({
   bodyClassName = "",
   overlayClassName,
   sectionProps,
+  sectionRef,
   children,
 }: PanelShellProps) {
   return (
     <section
       {...sectionProps}
+      ref={sectionRef}
       className={`relative bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden flex flex-col min-h-0 ${className}`}
     >
       <header

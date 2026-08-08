@@ -58,6 +58,7 @@ public class JiraIssueMapper {
             issue.path("id").asText(null),
             isEpic,
             isSubtask,
+            textOrNull(issuetype, "name"),
             textOrNull(fields, "summary"),
             JiraAdfConverter.toPlainText(fields.get("description")),
             status.path("id").asText(null),

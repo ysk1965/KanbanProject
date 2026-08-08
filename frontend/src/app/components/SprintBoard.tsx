@@ -59,6 +59,11 @@ import {
   getTodayDateString,
   getDDay,
 } from "../utils/dateUtils";
+import {
+  jiraIssueUrl,
+  jiraIssueTypeMark,
+  jiraPriorityMark,
+} from "../utils/jira";
 import { MotionModal } from "./ui/MotionModal";
 import { SprintMemberGanttModal } from "./SprintMemberGanttModal";
 import { MilestoneConsoleModal } from "./MilestoneConsoleModal";
@@ -1484,6 +1489,9 @@ export function SprintBoard({
     total: number; // 스프린트에 담긴 체크리스트 수
     isNew: boolean; // 마지막 확인 이후 링크된 이슈 — 카드 NEW 표시용
     isDeleted: boolean; // JIRA에서 원본 이슈가 삭제됨 — 연동 해제 표시(드래그 불가)
+    issueType: string | null; // JIRA 이슈 타입 이름 (표식 해석은 utils/jira)
+    priority: string | null; // JIRA 우선순위 이름 (표식 해석은 utils/jira)
+    jiraUpdatedAt: string | null; // JIRA에서 마지막으로 움직인 시각
   }
   interface JiraColumnDef {
     statusId: string; // 대표 JIRA 상태 id ("__unmapped__" = 상태 미상 leftover)
@@ -1552,6 +1560,9 @@ export function SprintBoard({
         total: jt.total,
         isNew: isNewJiraLink(jt.linked_at),
         isDeleted: !!jt.jira_deleted,
+        issueType: jt.jira_issue_type ?? null,
+        priority: jt.jira_priority ?? null,
+        jiraUpdatedAt: jt.jira_updated_at ?? null,
       });
     }
 
@@ -3002,6 +3013,15 @@ export function SprintBoard({
     const pct = card.total > 0 ? Math.round((card.done / card.total) * 100) : 0;
     // JIRA 원본이 사라진 카드는 전이시킬 이슈가 없으므로 드래그를 막는다.
     const canDrag = canEdit && draggable && !card.isDeleted;
+    const typeMark = jiraIssueTypeMark(card.issueType);
+    const priorityMark = jiraPriorityMark(card.priority);
+    // 원본이 삭제된 이슈로는 나갈 곳이 없다 — 404로 보내지 않는다.
+    const issueUrl = card.isDeleted
+      ? null
+      : jiraIssueUrl(jiraStatus?.base_url, card.jiraKey);
+    // 체크리스트 진행바는 "담당자 항목 하나"뿐인 카드에선 늘 100%라 정보가 없다.
+    // 실제로 쪼갠 카드에서만 세우고, 비운 자리는 JIRA 갱신 시각이 받는다.
+    const showProgress = card.total > 1;
     return (
       <div
         key={card.taskId}
@@ -3017,19 +3037,65 @@ export function SprintBoard({
         }`}
       >
         <div className="flex items-center gap-1.5 mb-1.5">
-          <span
-            className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ${
-              card.isDeleted ? "line-through opacity-60" : ""
-            }`}
-            style={
-              card.isDeleted
-                ? { background: "rgba(148,163,184,0.16)", color: "#94a3b8" }
-                : { background: "rgba(38,132,255,0.16)", color: "#7fb0ff" }
-            }
-          >
-            <Diamond className="w-2.5 h-2.5" />
-            {card.jiraKey}
-          </span>
+          {/* 이슈 타입·우선순위 — 색만이 아니라 모양으로도 구분되게 아이콘을 쓴다 */}
+          {typeMark && (
+            <span
+              className="shrink-0 leading-none"
+              role="img"
+              aria-label={`이슈 타입 ${typeMark.label}`}
+              title={typeMark.label}
+            >
+              <typeMark.icon
+                className="w-3 h-3"
+                style={{ color: typeMark.color }}
+              />
+            </span>
+          )}
+          {priorityMark && (
+            <span
+              className="shrink-0 leading-none -ml-0.5"
+              role="img"
+              aria-label={`우선순위 ${priorityMark.label}`}
+              title={priorityMark.label}
+            >
+              <priorityMark.icon
+                className="w-3 h-3"
+                style={{ color: priorityMark.color }}
+              />
+            </span>
+          )}
+          {/* 이슈키 = JIRA 원문으로 나가는 문. 카드 본체 클릭(BRIDGE 모달)과 겹치지 않게 전파를 끊는다.
+              draggable=false가 없으면 카드를 끌 때 브라우저의 링크 드래그가 먼저 잡아챈다. */}
+          {issueUrl ? (
+            <a
+              href={issueUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              draggable={false}
+              onClick={(e) => e.stopPropagation()}
+              title={`JIRA에서 ${card.jiraKey} 열기`}
+              className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+              style={{ background: "rgba(38,132,255,0.16)", color: "#7fb0ff" }}
+            >
+              <Diamond className="w-2.5 h-2.5" />
+              {card.jiraKey}
+              <ExternalLink className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </a>
+          ) : (
+            <span
+              className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ${
+                card.isDeleted ? "line-through opacity-60" : ""
+              }`}
+              style={
+                card.isDeleted
+                  ? { background: "rgba(148,163,184,0.16)", color: "#94a3b8" }
+                  : { background: "rgba(38,132,255,0.16)", color: "#7fb0ff" }
+              }
+            >
+              <Diamond className="w-2.5 h-2.5" />
+              {card.jiraKey}
+            </span>
+          )}
           {/* JIRA에서 원본 이슈가 삭제됨 — 연동만 끊고 카드는 보존한다 */}
           {card.isDeleted && (
             <span
@@ -3054,15 +3120,27 @@ export function SprintBoard({
           {card.taskTitle}
         </div>
         <div className="mt-2 flex items-center gap-2">
-          <div className="flex-1 h-1 rounded-full bg-foreground/10 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-bridge-accent to-bridge-secondary transition-all"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          <span className="text-[10px] text-slate-500 tabular-nums shrink-0">
-            {card.done}/{card.total}
-          </span>
+          {showProgress ? (
+            <>
+              <div className="flex-1 h-1 rounded-full bg-foreground/10 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-bridge-accent to-bridge-secondary transition-all"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <span className="text-[10px] text-slate-500 tabular-nums shrink-0">
+                {card.done}/{card.total}
+              </span>
+            </>
+          ) : (
+            /* "JIRA"를 앞에 붙이는 이유 — 이 시각은 BRIDGE에서 만진 시각이 아니라
+               이슈가 JIRA에서 마지막으로 움직인 시각이다. 두 축이 섞이면 아무도 못 믿는다. */
+            <span className="flex-1 text-[10px] text-slate-500 truncate">
+              {card.jiraUpdatedAt
+                ? `JIRA ${formatRelativeTime(card.jiraUpdatedAt)}`
+                : ""}
+            </span>
+          )}
           {card.assignees.length > 0 && (
             <div className="flex -space-x-1 shrink-0">
               {card.assignees.slice(0, 3).map((a) => (
@@ -3623,31 +3701,21 @@ export function SprintBoard({
                           </div>
                         )}
 
-                        {/* JIRA 연결/관리 — 스프린트에서 직접 연결·미러보드 선택·해제 (관리 권한자만) */}
-                        {isAdminOrOwner &&
-                          (jiraConnected ? (
-                            <button
-                              type="button"
-                              onClick={() => setShowJiraModal(true)}
-                              className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-colors shrink-0"
-                              title="JIRA 연동 관리 (미러 보드·해제)"
-                              aria-label="JIRA 연동 관리"
-                            >
-                              <Settings2 className="w-3.5 h-3.5" />
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setShowJiraModal(true)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-bridge-accent bg-bridge-accent/15 hover:bg-bridge-accent/25 transition-colors shrink-0"
-                              title="이 스프린트 보드에 JIRA를 연결합니다"
-                            >
-                              <Diamond className="w-3 h-3" />
-                              JIRA 연결
-                            </button>
-                          ))}
-
-                        {/* (JIRA 동기화 인디케이터는 JIRA 화면 머리말로 옮겼다) */}
+                        {/* JIRA 최초 연결 — 미연동 보드엔 JIRA 화면 버튼 자체가 없어
+                          보드 안에 진입점이 남지 않는다. 그래서 "아직 없을 때"의 CTA만 여기 둔다.
+                          연결된 뒤의 관리(미러보드·해제)·동기화 표시는 전부 JIRA 화면 머리말로 갔다 —
+                          쓸 화면이 따로 있는데 스프린트에 같은 손잡이를 겹쳐 두지 않는다. */}
+                        {isAdminOrOwner && !jiraConnected && (
+                          <button
+                            type="button"
+                            onClick={() => setShowJiraModal(true)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-bridge-accent bg-bridge-accent/15 hover:bg-bridge-accent/25 transition-colors shrink-0"
+                            title="이 스프린트 보드에 JIRA를 연결합니다"
+                          >
+                            <Diamond className="w-3 h-3" />
+                            JIRA 연결
+                          </button>
+                        )}
 
                         {isAdminOrOwner && (
                           <>
@@ -5073,10 +5141,12 @@ export function SprintBoard({
         </div>
       </MotionModal>
 
-      {/* 자동수정 하단 도크 — 보드를 보면서 후보를 고를 수 있어야 해서 여기 둔다 */}
+      {/* 자동수정 하단 도크 — 보드를 보면서 후보를 고를 수 있어야 해서 여기 둔다.
+          단 그 "보드"는 JIRA 화면이다. 후보도 결과(PR)도 전부 JIRA 이슈 단위라
+          스프린트 화면 바닥을 상시 차지할 이유가 없다(여백 보정도 JIRA 때만 걸려 있다). */}
       <JiraAutofixDock
         boardId={boardId}
-        enabled={jiraConnected}
+        enabled={jiraConnected && groupBy === "jira"}
         onOpenTask={openTask}
       />
     </div>

@@ -726,6 +726,10 @@ export interface SprintJiraTask {
   total: number; // 전체 체크리스트 수
   linked_at: string | null; // 이 이슈가 BRIDGE 보드에 링크된 시각 — 신규 뱃지 판정 기준
   jira_deleted?: boolean; // JIRA에서 원본 이슈가 삭제되어 연동이 끊긴 카드 (Task는 보존)
+  jira_issue_type?: string | null; // JIRA 이슈 타입 이름 — utils/jira.ts가 표식으로 해석
+  jira_priority?: string | null; // JIRA 우선순위 이름 — utils/jira.ts가 표식으로 해석
+  /** JIRA fields.updated — 이슈가 JIRA에서 마지막으로 움직인 시각(linked_at과 다른 축). */
+  jira_updated_at?: string | null;
 }
 
 export interface SprintBoard {

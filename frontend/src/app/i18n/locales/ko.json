@@ -5069,18 +5069,20 @@
   "backlog": {
     "presetDate": "{{date}}에 배치됩니다",
     "title": "내 백로그",
+    "titleOf": "{{name}}의 백로그",
+    "hintReadOnly": "읽기 전용",
     "chip": "백로그",
     "promotedTab": "승격됨",
     "tabsLabel": "백로그 목록",
-    "hint": "b 로 적기 · 위로 끌어 올리면 승격 · 나만 보입니다",
+    "hint": "b 로 적기 · 왼쪽으로 끌면 승격 · 보드 멤버가 볼 수 있습니다",
     "placeholder": "떠오른 걸 한 줄로…",
     "enterHint": "Enter 로 추가",
     "addAria": "백로그 적기",
-    "expand": "백로그 레일 펼치기",
-    "collapse": "백로그 레일 접기",
+    "expand": "백로그 열 펼치기",
+    "collapse": "백로그 열 접기",
     "privateNote": "나만 보임",
     "empty": "백로그가 비었습니다.",
-    "emptyPromoted": "아직 승격시킨 항목이 없습니다. 카드를 위로 끌어올려 보세요.",
+    "emptyPromoted": "아직 승격시킨 항목이 없습니다. 카드를 왼쪽으로 끌어 보세요.",
     "loadFailed": "백로그를 불러오지 못했습니다.",
     "saving": "저장 중…",
     "savedLocally": "저장 안 됨 · 로컬에 보관됨",
@@ -5106,11 +5108,11 @@
     "noFeature": "피처가 없습니다",
     "noTask": "태스크가 없습니다",
     "taskLoadFailed": "태스크 목록을 불러오지 못했습니다.",
-    "dropHint": "여기에 놓으면 일정·담당을 해제하고 나만 보이는 메모로 내려갑니다",
+    "dropHint": "여기에 놓으면 일정·담당을 해제하고 백로그 메모로 내려갑니다",
     "demoteFailed": "백로그로 내리지 못했습니다.",
-    "demotedNotice": "「{{title}}」 백로그로 내렸습니다 · 일정과 담당이 해제되고 나만 보입니다",
+    "demotedNotice": "「{{title}}」 백로그로 내렸습니다 · 일정과 담당이 해제됩니다",
     "undoFailed": "되돌리지 못했습니다.",
-    "demotedNoticeUnplaced": "「{{title}}」 백로그로 내렸습니다 · 태스크에서 빠지고 나만 보입니다",
+    "demotedNoticeUnplaced": "「{{title}}」 백로그로 내렸습니다 · 태스크에서 빠집니다",
     "milestone": "마일스톤",
     "milestoneAll": "전체 마일스톤",
     "milestoneNone": "마일스톤 없음",
@@ -5136,7 +5138,7 @@
     "staleDays": "{{count}}일",
     "staleOldest": "{{count}}일 · 가장 오래됨",
     "openTab": "대기",
-    "hintShort": "나만 보입니다 · b 로 적기"
+    "hintShort": "보드 멤버가 볼 수 있습니다 · b 로 적기"
   },
   "boardDashboard": {
     "scopePrefix": "대시보드",
@@ -5221,6 +5223,6 @@
     "splitHandleHint": "끌어서 조절 · 더블클릭 초기화",
     "untimeblockedNotice": "「{{title}}」 타임블록에서 빠짐 · 되돌리면 날짜만 돌아옵니다",
     "placementTitle": "배치 대기",
-    "splitQueueBacklog": "배치 대기와 백로그 높이 조절"
+    "splitQueueBacklog": "백로그 열 폭 조절"
   }
 }

@@ -80,11 +80,14 @@ import {
   LayoutGrid,
   Search,
   Lock,
+  ExternalLink,
 } from "lucide-react";
 import { TaskMoveModal } from "./TaskMoveModal";
 import { AutofixDelegateModal } from "./AutofixDelegateModal";
 import { useAutofixTaskJobs } from "../hooks/useAutofixTaskJobs";
 import { useAutofixRunnerStatus } from "../hooks/useAutofixRunnerStatus";
+import { useJiraBaseUrl } from "../hooks/useJiraBaseUrl";
+import { jiraIssueUrl } from "../utils/jira";
 import { TaskAIChecklistModal } from "./TaskAIChecklistModal";
 import { ChecklistHistoryModal } from "./ChecklistHistoryModal";
 import { ChecklistDetailModal } from "./ChecklistDetailModal";
@@ -979,6 +982,9 @@ export function TaskDetailModal({
   // 러너가 한 번도 붙은 적 없는 보드에는 메뉴를 만들지 않는다 — 쓸 수 없는 항목이 늘어날 뿐이다.
   const canDelegate = autofixEnabled && autofixRunner.status !== null;
 
+  // JIRA 이슈 원문 링크용 사이트 주소. 훅이라 early return 위에 둔다(React #310).
+  const jiraBaseUrl = useJiraBaseUrl(boardId, !!task?.jira_issue_key);
+
   if (!task || !editedTask) return null;
 
   const handleClose = () => {
@@ -995,6 +1001,7 @@ export function TaskDetailModal({
   // 되돌아오고, 그 전에 실수로 날리면 복구할 길이 없다. 그래서 읽기 전용으로 잠근다.
   const isJiraOwnedDescription = !!task.jira_issue_key;
   const canEditDescription = !!canEdit && !isJiraOwnedDescription;
+  const jiraIssueHref = jiraIssueUrl(jiraBaseUrl, task.jira_issue_key);
 
   const updateEditedTask = (updates: Partial<Task>) => {
     setEditedTask((prev) => (prev ? { ...prev, ...updates } : null));
@@ -2055,12 +2062,26 @@ export function TaskDetailModal({
                     <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                       {t("task.description")}
                     </Label>
-                    {isJiraOwnedDescription && (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
-                        <Lock className="h-3 w-3" />
-                        {task.jira_issue_key}
-                      </span>
-                    )}
+                    {isJiraOwnedDescription &&
+                      (jiraIssueHref ? (
+                        /* 잠금 표시이자 원문으로 가는 문 — "여기선 못 고친다"면 고칠 수 있는 곳을 알려줘야 한다 */
+                        <a
+                          href={jiraIssueHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={`JIRA에서 ${task.jira_issue_key} 열기`}
+                          className="inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent hover:bg-bridge-accent/25 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-colors"
+                        >
+                          <Lock className="h-3 w-3" />
+                          {task.jira_issue_key}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+                          <Lock className="h-3 w-3" />
+                          {task.jira_issue_key}
+                        </span>
+                      ))}
                   </div>
                   <Textarea
                     value={editedTask.description || ""}

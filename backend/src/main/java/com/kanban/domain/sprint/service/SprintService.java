@@ -734,6 +734,9 @@ public class SprintService {
                     .total(total)
                     .linkedAt(link.getCreatedAt())
                     .jiraDeleted(link.isJiraDeleted())
+                    .jiraIssueType(link.getJiraIssueType())
+                    .jiraPriority(link.getJiraPriority())
+                    .jiraUpdatedAt(link.getJiraUpdatedAt())
                     .build());
         }
         return out;

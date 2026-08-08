@@ -1,10 +1,7 @@
 import { nowUTC } from "./dateUtils";
 import { domainBrandName } from "./domain";
 import { addBreadcrumb } from "../../lib/sentry";
-import {
-  reportServerReachable,
-  reportServerUnreachable,
-} from "./serverHealth";
+import { reportServerReachable, reportServerUnreachable } from "./serverHealth";
 
 // API Base URL - BE 서버
 const API_BASE_URL =
@@ -8030,12 +8027,20 @@ export const personalTaskAPI = {
   },
 
   /** 보드 대시보드 백로그 레일 — board_id로 그 보드에서 적은 것만 가져온다 */
+  /**
+   * 보드 대시보드 백로그 목록.
+   *
+   * @param userId 다른 보드 멤버의 목록을 읽을 때만 넘긴다(읽기 전용).
+   *   생략하면 내 목록이다. board_id가 있는 항목만 오므로 마이스페이스의
+   *   개인 할 일은 남에게 절대 노출되지 않는다.
+   */
   getBacklog: async (
     boardId: string,
+    userId?: string,
   ): Promise<import("../types").PersonalTask[]> => {
-    return apiClient.get(
-      `/personal/tasks?board_id=${encodeURIComponent(boardId)}`,
-    );
+    const query = new URLSearchParams({ board_id: boardId });
+    if (userId) query.set("user_id", userId);
+    return apiClient.get(`/personal/tasks?${query.toString()}`);
   },
 
   create: async (data: {

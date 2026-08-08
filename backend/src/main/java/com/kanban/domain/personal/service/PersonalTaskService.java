@@ -1,5 +1,6 @@
 package com.kanban.domain.personal.service;
 
+import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.checklist.dto.ChecklistRequest;
@@ -40,6 +41,7 @@ public class PersonalTaskService {
 
     private final PersonalTaskRepository personalTaskRepository;
     private final UserRepository userRepository;
+    private final BoardMemberRepository boardMemberRepository;
     private final TaskService taskService;
     private final ChecklistService checklistService;
     private final ScheduleService scheduleService;
@@ -56,12 +58,38 @@ public class PersonalTaskService {
     }
 
     /**
-     * 보드 대시보드 백로그 레일 목록.
+     * 보드 대시보드 백로그 목록.
      *
-     * <p>개인 데이터라 보드 권한을 보지 않는다 — user_id로만 걸린다.
-     * 승격된 항목은 어디로 갔는지 라벨을 붙여 준다(카드 링크 칩).
+     * <p>승격된 항목은 어디로 갔는지 라벨을 붙여 준다(카드 링크 칩).
      */
     public List<PersonalTaskResponse.Detail> getBacklog(String userId, String boardId) {
+        return toBacklogDetails(userId, boardId);
+    }
+
+    /**
+     * 같은 보드에 있는 다른 멤버의 백로그 목록 (읽기 전용).
+     *
+     * <p>대시보드는 스코프를 바꿔 남의 워크로드·배치 대기를 읽을 수 있는데 백로그만
+     * 빈칸이었다. "이 사람이 무엇을 적어 뒀나"는 배치를 상의하는 데 필요한 정보라 열어 준다.
+     *
+     * <p>여는 범위는 <b>이 보드의</b> 백로그뿐이다 — 조회가 board_id로 걸려 있어
+     * 마이스페이스의 개인 할 일(board_id 없음)은 어떤 경우에도 여기 들어오지 않는다.
+     * 요청자와 대상 둘 다 이 보드의 멤버여야 한다.
+     */
+    public List<PersonalTaskResponse.Detail> getMemberBacklog(String requesterId, String boardId, String targetUserId) {
+        if (requesterId.equals(targetUserId)) {
+            return toBacklogDetails(requesterId, boardId);
+        }
+        if (!boardMemberRepository.existsByBoardIdAndUserId(boardId, requesterId)) {
+            throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
+        }
+        if (!boardMemberRepository.existsByBoardIdAndUserId(boardId, targetUserId)) {
+            throw new BusinessException(ErrorCode.PERSONAL_ACCESS_DENIED);
+        }
+        return toBacklogDetails(targetUserId, boardId);
+    }
+
+    private List<PersonalTaskResponse.Detail> toBacklogDetails(String userId, String boardId) {
         return personalTaskRepository.findBacklogByUserIdAndBoardId(userId, boardId).stream()
                 .map(task -> PersonalTaskResponse.Detail.of(task, resolvePromotedLabel(task)))
                 .toList();

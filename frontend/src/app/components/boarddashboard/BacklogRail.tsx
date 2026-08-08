@@ -11,9 +11,8 @@ import {
 import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
-  ChevronUp,
+  ChevronRight,
   Loader2,
-  Plus,
   RotateCcw,
   TriangleAlert,
 } from "lucide-react";
@@ -60,8 +59,19 @@ interface PendingItem {
 
 interface BacklogRailProps {
   boardId: string;
-  /** 나 — 강등을 되돌릴 때 체크리스트 항목의 담당자로 되돌려 놓는다 */
+  /**
+   * 보고 있는 대상의 userId.
+   *   내 백로그   — 강등을 되돌릴 때 체크리스트 항목의 담당자로 되돌려 놓는다.
+   *   남의 백로그 — 누구의 목록을 읽어 올지 정한다 (readOnly와 함께 온다).
+   */
   userId?: string;
+  /** 다른 멤버를 보는 중일 때 그 이름 — 제목이 「○○의 백로그」로 바뀐다 */
+  scopeName?: string;
+  /**
+   * 읽기 전용 — 남의 백로그를 보는 중이다.
+   * 적기·붙여넣기·b 단축키·드래그·승격·삭제·드롭이 모두 사라지고 목록만 남는다.
+   */
+  readOnly?: boolean;
   /** 보드의 피처 목록 — 태스크 승격 시 붙일 곳을 고른다 */
   features: Feature[];
   /** 보드의 마일스톤 — 승격 모달의 1차 필터 */
@@ -71,13 +81,13 @@ interface BacklogRailProps {
   /** 승격 후 보드 데이터를 다시 읽게 한다 */
   onPromoted?: () => void;
   /**
-   * 접힘이 바뀌었을 때 — 카드 높이와 손잡이를 들고 있는 건 부모(큐 스택)다.
-   * 접힘 자체는 여기가 소유한다(b 단축키·빠른 적기가 스스로 펼쳐야 하므로).
+   * 접힘이 바뀌었을 때 — 열 크기와 손잡이를 들고 있는 건 부모다.
+   * 접힘 자체는 여기가 소유한다(b 단축키·드래그 시작이 스스로 펼쳐야 하므로).
    */
   onCollapsedChange?: (collapsed: boolean) => void;
 }
 
-/** 이 레일이 받아 주는 출발지 — 위쪽 두 존에서 내려오는 것만 */
+/** 이 열이 받아 주는 출발지 — 왼쪽 두 존에서 넘어오는 것만 */
 const ACCEPTS: AxisZone[] = ["workload", "placement"];
 
 /** 강등 안내를 띄워 두는 시간 (ms) — 되돌릴 수 있는 창 */
@@ -95,25 +105,27 @@ const draftKey = (boardId: string) => `bridge.backlog.draft.${boardId}`;
 const collapseKey = (boardId: string) => `bridge.backlog.collapsed.${boardId}`;
 
 /**
- * 내 백로그 — 오른쪽 열 맨 아래 카드. 개인 TODO다.
+ * 백로그 — 대시보드 오른쪽 끝 열. 보드에서 적어 두는 개인 TODO다.
  *
- * 대시보드는 성숙도 순으로 쌓여 있다(타임블록·간트 = 확정 / 배치 대기 = 태스크는 됨).
- * 백로그는 그 아래 한 층, "아직 아무것도 아닌 일"을 담는다. 나만 보인다.
+ * 대시보드는 성숙도 순이다(타임블록·간트 = 확정 / 배치 대기 = 태스크는 됨).
+ * 백로그는 그 앞 한 층, "아직 아무것도 아닌 일"을 담는다.
  *
- * 예전에는 배치 대기 카드 바닥에 붙은 틴트 영역이었다. 그러면 넷이 동등한 패널로
- * 안 읽히고, 무엇보다 상시 인디고 틴트가 드래그 상태 색과 겹쳐 둘 다 안 보였다.
- * 지금은 자기 카드를 갖고, 인디고는 드롭 상태일 때만 나타난다.
+ * 세로 스택의 맨 아래 칸이었다가 옆 열로 나왔다 — 카드 셋이 한 열에 쌓여 있으면
+ * 간트 레인이 늘어난 날 가운데(배치 대기)가 0행으로 눌려 사라졌다.
+ * 열이 되면서 카드는 위에서 아래로 흐르고(xl 이상), 폭은 손잡이가 정한다.
  *
- * 카드를 위로 끌어 놓는 자리가 곧 승격 대상이 된다. 드래그를 못 쓰는 환경을 위해
- * 카드마다 빠른 승격 버튼을 함께 둔다(배치 대기의 "오늘/내일"과 같은 패턴).
+ * 카드를 왼쪽 두 존으로 끌어 놓는 자리가 곧 승격 대상이 된다. 드래그를 못 쓰는
+ * 환경을 위해 카드마다 빠른 승격 버튼을 함께 둔다(배치 대기의 "오늘/내일"과 같은 패턴).
  *
- * 쓰기(b 단축키·붙여넣기 분할)는 원래 충분했다. 비어 있던 건 읽기 쪽이라,
- * 오래된 것부터 앞에 세우고 방치 일수를 배지로 띄운다 —
- * 백로그를 다시 열게 만드는 건 개수가 아니라 그 숫자다.
+ * 보이는 범위 — 이 보드의 백로그는 보드 멤버가 서로 읽을 수 있다(스코프 행에서 사람을
+ * 바꾸면 그 사람의 목록이 읽기 전용으로 열린다). 마이스페이스의 개인 할 일은
+ * board_id가 없어 여기 목록에 아예 들어오지 않는다.
  */
 export function BacklogRail({
   boardId,
   userId,
+  scopeName,
+  readOnly = false,
   features,
   milestones,
   selectedMilestoneId,
@@ -133,8 +145,8 @@ export function BacklogRail({
   const [pastedLines, setPastedLines] = useState<string[] | null>(null);
   const [pastedRaw, setPastedRaw] = useState("");
 
-  // 접기는 높이 조절과 다른 일이다 — 손잡이가 "얼마나 볼까"라면 이건 "지금은 안 본다"다.
-  // 접으면 카드가 머리 한 줄만 남기고 손잡이도 사라진다(잡을 칸이 없으므로).
+  // 접기는 폭 조절과 다른 일이다 — 손잡이가 "얼마나 볼까"라면 이건 "지금은 안 본다"다.
+  // 접으면 열이 세로 제목 한 줄만 남기고 손잡이도 사라진다(잡을 칸이 없으므로).
   const [collapsed, setCollapsed] = useState(false);
   const [promoting, setPromoting] = useState<{
     item: PersonalTask;
@@ -152,10 +164,14 @@ export function BacklogRail({
   const demoteTimerRef = useRef<number | null>(null);
 
   const {
-    active: dropActive,
-    over: dropOver,
+    active: rawDropActive,
+    over: rawDropOver,
     zoneProps,
   } = useAxisDropZone({ zone: "backlog", accepts: ACCEPTS });
+
+  // 남의 백로그는 받는 곳이 아니다 — 틴트도 힌트도 뜨지 않는다
+  const dropActive = !readOnly && rawDropActive;
+  const dropOver = !readOnly && rawDropOver;
 
   /* ── 초기 상태 복구 (보드별) ── */
   useEffect(() => {
@@ -183,18 +199,26 @@ export function BacklogRail({
 
   /* ── 목록 ── */
   const load = useCallback(async () => {
+    // 남의 목록은 대상이 정해진 뒤에만 읽는다 — userId 없이 부르면 내 목록이 온다
+    if (readOnly && !userId) return;
     try {
       setError(null);
-      const list = await personalTaskAPI.getBacklog(boardId);
+      const list = await personalTaskAPI.getBacklog(
+        boardId,
+        readOnly ? userId : undefined,
+      );
       setItems(list);
     } catch {
       setError(t("backlog.loadFailed", "백로그를 불러오지 못했습니다."));
     } finally {
       setIsLoading(false);
     }
-  }, [boardId, t]);
+  }, [boardId, readOnly, userId, t]);
 
+  // 보는 대상이 바뀌면 남의 목록이 잠깐 남아 보이지 않게 비우고 다시 읽는다
   useEffect(() => {
+    setItems([]);
+    setIsLoading(true);
     void load();
   }, [load]);
 
@@ -311,15 +335,20 @@ export function BacklogRail({
   const focusAdd = useCallback(() => {
     applyCollapsed(false);
     setTab("open");
-    // 레일이 펼쳐진 뒤에 입력칸으로 간다
+    // 열이 펼쳐진 뒤에 입력칸으로 간다 — 입력칸은 트랙 맨 앞이라 양쪽 축을 되감는다
+    // (xl 이상에서는 세로로, 그 미만에서는 가로로 흐른다)
     window.requestAnimationFrame(() => {
-      if (trackRef.current) trackRef.current.scrollLeft = 0;
+      if (trackRef.current) {
+        trackRef.current.scrollLeft = 0;
+        trackRef.current.scrollTop = 0;
+      }
       inputRef.current?.focus();
     });
   }, [applyCollapsed]);
 
   // b (한글 자판에서는 ㅠ) — 입력 컨텍스트가 아닐 때만. ⌘K는 마이스페이스가 이미 쓴다.
   useEffect(() => {
+    if (readOnly) return; // 남의 백로그에는 적을 칸이 없다
     const onKeyDown = (e: globalThis.KeyboardEvent) => {
       if (e.key !== "b" && e.key !== "ㅠ") return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -338,10 +367,11 @@ export function BacklogRail({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [focusAdd]);
+  }, [focusAdd, readOnly]);
 
   /* ── 간트 날짜 칸에 떨어졌을 때 ── */
   useEffect(() => {
+    if (readOnly) return;
     const onDrop = (e: Event) => {
       const detail = (e as CustomEvent<BacklogDropDetail>).detail;
       if (!detail?.id) return;
@@ -353,7 +383,7 @@ export function BacklogRail({
     };
     window.addEventListener(BACKLOG_DROP_EVENT, onDrop);
     return () => window.removeEventListener(BACKLOG_DROP_EVENT, onDrop);
-  }, [items]);
+  }, [items, readOnly]);
 
   /* ── 승격 ── */
   const handlePromoted = useCallback(
@@ -493,7 +523,8 @@ export function BacklogRail({
   }, [boardId, demoted, userId, load, t]);
 
   useAxisTransfer((detail) => {
-    // 아래로 내려온 것 — 내가 목록을 갖고 있으므로 여기서 처리한다
+    if (readOnly) return; // 남의 백로그는 오가는 곳이 아니다
+    // 이 열로 내려온 것 — 내가 목록을 갖고 있으므로 여기서 처리한다
     if (detail.to === "backlog" && detail.from !== "backlog") {
       void demote(detail.from, detail.item);
       return;
@@ -522,22 +553,79 @@ export function BacklogRail({
    * 2단 압축 카드 — 제목 한 덩이 + 아래 한 줄이 전부다.
    *
    * 백로그 항목이 가진 정보는 사실상 제목 하나인데 카드는 배지·제목·메타·액션까지
-   * 네 단을 쌓고 있었다. 「백로그」 배지는 레일 헤더가 이미 말하고 「나만 보임」도
-   * 헤더 힌트에 있어, 카드에서 반복되던 만큼이 곧 두께였다.
+   * 네 단을 쌓고 있었다. 「백로그」 배지는 레일 헤더가 이미 말하고 보이는 범위도
+   * 헤더 부제에 있어, 카드에서 반복되던 만큼이 곧 두께였다.
    *
    * 배지는 왼쪽 2px 색 레일이 대신한다 — 방치 상태까지 이 레일 하나가 겸한다.
+   *
+   * 폭 — xl 이상에서는 열을 꽉 채운다(위에서 아래로 흐르는 목록이다).
+   * 그 미만에서는 카드가 한 줄로 눕고 옆으로 넘치므로 208px 고정 폭을 유지한다.
    */
   const cardBase =
-    "group flex-none w-[208px] snap-start bg-bridge-dark rounded-xl border pt-2 pb-1.5 pl-2 pr-2.5 flex items-start gap-2 transition-colors";
+    "group flex-none w-[208px] xl:w-full snap-start bg-bridge-dark rounded-xl border pt-2 pb-1.5 pl-2 pr-2.5 flex items-start gap-2 transition-colors";
 
   const openCount = openItems.length + pending.length;
+
+  const title = scopeName
+    ? t("backlog.titleOf", "{{name}}의 백로그", { name: scopeName })
+    : t("backlog.title", "내 백로그");
+
+  /* 승격 모달은 접힘과 무관하게 살아 있어야 한다 — 접힌 사이에 열려 있을 수 있다 */
+  const promoteModal = promoting ? (
+    <PromoteBacklogModal
+      boardId={boardId}
+      item={promoting.item}
+      target={promoting.target}
+      presetDate={promoting.presetDate}
+      features={features}
+      milestones={milestones}
+      selectedMilestoneId={selectedMilestoneId}
+      userId={userId}
+      onClose={() => setPromoting(null)}
+      onPromoted={handlePromoted}
+    />
+  ) : null;
+
+  /*
+    접힌 열 — 카드 대신 세로로 세운 제목 한 줄만 남긴다.
+    같은 버튼이 두 방향을 겸한다: xl 이상에서는 글자가 세로로 흐르고(writing-mode),
+    한 줄로 접힌 화면에서는 원래대로 가로 막대가 된다.
+  */
+  if (collapsed) {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => applyCollapsed(false)}
+          aria-expanded={false}
+          aria-label={t("backlog.expand", "백로그 열 펼치기")}
+          className="w-full h-full flex items-center justify-center gap-2
+            bg-bridge-obsidian rounded-2xl border border-foreground/[0.08]
+            hover:border-foreground/[0.12] text-slate-400 hover:text-foreground
+            transition-colors xl:[writing-mode:vertical-rl]"
+        >
+          <span
+            className="flex-none w-1.5 h-1.5 rounded-full bg-slate-500"
+            aria-hidden="true"
+          />
+          <span className="text-xs font-bold">{title}</span>
+          {openCount > 0 && <PanelCount value={openCount} />}
+        </button>
+        {promoteModal}
+      </>
+    );
+  }
 
   return (
     <PanelShell
       dot="slate"
-      title={t("backlog.title", "내 백로그")}
+      title={title}
       /* 정적 힌트는 부제 자리로 — 머리 오른쪽은 링크·접기 몫이라 문구가 서면 밀린다 */
-      subtitle={t("backlog.hintShort", "나만 보입니다 · b 로 적기")}
+      subtitle={
+        readOnly
+          ? t("backlog.hintReadOnly", "읽기 전용")
+          : t("backlog.hintShort", "보드 멤버가 볼 수 있습니다 · b 로 적기")
+      }
       tabs={
         <div
           className="flex-none flex items-center gap-1"
@@ -578,47 +666,32 @@ export function BacklogRail({
         </div>
       }
       headerExtra={
-        <>
-          {/* 방치 신호 — 개수는 이미 탭에 있다. 다시 열게 만드는 건 이 숫자다 */}
-          {tab === "open" &&
-            oldestDays !== null &&
-            oldestDays >= BACKLOG_STALE_DAYS && (
-              <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                {t("backlog.oldestDays", "가장 오래된 것 {{count}}일", {
-                  count: oldestDays,
-                })}
-              </span>
-            )}
-          {/* 접힌 채로도 적을 수 있어야 한다 — 누르면 펼쳐지고 입력칸으로 간다 */}
-          {collapsed && (
-            <button
-              type="button"
-              onClick={focusAdd}
-              aria-label={t("backlog.addAria", "백로그 적기")}
-              className="flex-none p-1 rounded-lg text-bridge-accent hover:bg-foreground/5 transition-colors"
-            >
-              <Plus size={14} aria-hidden="true" />
-            </button>
-          )}
-        </>
+        /* 방치 신호 — 개수는 이미 탭에 있다. 다시 열게 만드는 건 이 숫자다 */
+        tab === "open" &&
+        oldestDays !== null &&
+        oldestDays >= BACKLOG_STALE_DAYS ? (
+          <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+            {t("backlog.oldestDays", "가장 오래된 것 {{count}}일", {
+              count: oldestDays,
+            })}
+          </span>
+        ) : undefined
       }
       headerTrailing={
         <button
           type="button"
-          onClick={() => applyCollapsed(!collapsed)}
-          aria-expanded={!collapsed}
-          aria-label={
-            collapsed
-              ? t("backlog.expand", "백로그 레일 펼치기")
-              : t("backlog.collapse", "백로그 레일 접기")
-          }
+          onClick={() => applyCollapsed(true)}
+          aria-expanded
+          aria-label={t("backlog.collapse", "백로그 열 접기")}
           className="flex-none p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
         >
-          {collapsed ? (
-            <ChevronUp size={14} aria-hidden="true" />
-          ) : (
-            <ChevronDown size={14} aria-hidden="true" />
-          )}
+          {/* 열은 오른쪽으로 접힌다 — 화살표가 접히는 방향을 가리킨다 */}
+          <ChevronRight
+            size={14}
+            aria-hidden="true"
+            className="hidden xl:block"
+          />
+          <ChevronDown size={14} aria-hidden="true" className="xl:hidden" />
         </button>
       }
       banner={
@@ -634,12 +707,12 @@ export function BacklogRail({
                     ? t("backlog.demotedNotice", {
                         title: demoted!.item.title,
                         defaultValue:
-                          "「{{title}}」 백로그로 내렸습니다 · 일정과 담당이 해제되고 나만 보입니다",
+                          "「{{title}}」 백로그로 내렸습니다 · 일정과 담당이 해제됩니다",
                       })
                     : t("backlog.demotedNoticeUnplaced", {
                         title: demoted!.item.title,
                         defaultValue:
-                          "「{{title}}」 백로그로 내렸습니다 · 태스크에서 빠지고 나만 보입니다",
+                          "「{{title}}」 백로그로 내렸습니다 · 태스크에서 빠집니다",
                       })}
                 </p>
                 <button
@@ -661,14 +734,15 @@ export function BacklogRail({
           <PanelFooterHint emphasized>
             {t(
               "backlog.dropHint",
-              "여기에 놓으면 일정·담당을 해제하고 나만 보이는 메모로 내려갑니다",
+              "여기에 놓으면 일정·담당을 해제하고 백로그 메모로 내려갑니다",
             )}
           </PanelFooterHint>
         ) : undefined
       }
       padded={false}
       bodyClassName="flex flex-col"
-      sectionProps={zoneProps}
+      /* 남의 백로그는 드롭 존이 아니다 — 리스너를 아예 걸지 않는다 */
+      sectionProps={readOnly ? undefined : zoneProps}
       className="h-full"
       /*
         상시 틴트를 걷어낸다 — 인디고는 드래그 상태 전용이다.
@@ -682,16 +756,11 @@ export function BacklogRail({
             : undefined
       }
     >
-      {/*
-        hidden 속성만으로는 안 접힌다 — Tailwind의 flex(display:flex)가
-        UA 스타일시트의 [hidden]{display:none}을 이긴다. 그래서 display도 함께 바꾼다.
-      */}
       <div
         id="backlog-rail-panel"
         role="tabpanel"
         aria-labelledby={`backlog-rail-tab-${tab}`}
-        hidden={collapsed}
-        className={`flex-1 min-h-0 flex-col ${collapsed ? "hidden" : "flex"}`}
+        className="flex-1 min-h-0 flex flex-col"
       >
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center py-6">
@@ -704,20 +773,22 @@ export function BacklogRail({
           <p className="text-xs text-slate-500 text-center py-6">{error}</p>
         ) : (
           /*
-            세로로 채우고 넘치면 다음 열로 넘긴다 — 카드는 가로 트랙 그대로지만,
-            손잡이로 카드를 키우면 그 높이가 곧 한 열에 들어오는 개수가 된다.
-            (예전에는 늘 한 줄이라 높이를 늘려도 빈 공간만 늘었다)
+            xl 이상 — 열이므로 위에서 아래로 한 줄씩 흐르고, 넘치면 세로로 스크롤한다.
+            xl 미만 — 열이 한 줄로 눕는다. 이때는 세로로 채우고 넘치면 다음 칸으로
+            넘긴 뒤 가로로 스크롤한다(원래 트랙 그대로).
           */
           <div
             ref={trackRef}
-            className="flex-1 min-h-0 flex flex-col flex-wrap content-start gap-2 px-3.5 pt-2.5 pb-3 overflow-x-auto overflow-y-hidden custom-scrollbar snap-x"
+            className="flex-1 min-h-0 flex flex-col flex-wrap content-start gap-2 px-3.5 pt-2.5 pb-3
+              overflow-x-auto overflow-y-hidden custom-scrollbar snap-x
+              xl:flex-nowrap xl:overflow-x-hidden xl:overflow-y-auto"
           >
             {/* 입력 카드는 항상 맨 앞. 스냅 대상으로 잡아두지 않으면 마운트 시
                 레일이 첫 카드로 스냅해 입력칸을 지나쳐 버린다. */}
-            {tab === "open" && (
+            {tab === "open" && !readOnly && (
               // 카드가 2단으로 얇아진 만큼 입력칸도 한 줄로 눕힌다 —
               // 여기가 두꺼우면 트랙 높이가 입력칸에 끌려간다
-              <div className="flex-none w-[208px] snap-start rounded-xl border border-dashed border-foreground/10 flex items-center gap-1.5 px-2.5 focus-within:ring-2 focus-within:ring-bridge-accent/50 transition-all">
+              <div className="flex-none w-[208px] xl:w-full snap-start rounded-xl border border-dashed border-foreground/10 flex items-center gap-1.5 px-2.5 focus-within:ring-2 focus-within:ring-bridge-accent/50 transition-all">
                 <input
                   ref={inputRef}
                   type="text"
@@ -756,7 +827,7 @@ export function BacklogRail({
 
             {/* 여러 줄 붙여넣기 확인 */}
             {tab === "open" && pastedLines && (
-              <div className="flex-none w-[270px] snap-start rounded-xl border border-dashed border-bridge-accent bg-bridge-accent/[0.08] p-2.5 flex flex-col gap-2">
+              <div className="flex-none w-[270px] xl:w-full snap-start rounded-xl border border-dashed border-bridge-accent bg-bridge-accent/[0.08] p-2.5 flex flex-col gap-2">
                 <p className="text-xs font-bold text-foreground">
                   {t("backlog.pasteAsk", "{{count}}개 항목으로 나눌까요?", {
                     count: pastedLines.length,
@@ -879,22 +950,25 @@ export function BacklogRail({
               ))}
 
             {visible.length === 0 && pending.length === 0 && (
-              <p className="flex-none w-[208px] text-xs text-slate-500 py-4 leading-relaxed">
+              <p className="flex-none w-[208px] xl:w-full text-xs text-slate-500 py-4 leading-relaxed">
                 {tab === "open"
                   ? t("backlog.empty", "백로그가 비었습니다.")
                   : t(
                       "backlog.emptyPromoted",
-                      "아직 승격시킨 항목이 없습니다. 카드를 위로 끌어올려 보세요.",
+                      "아직 승격시킨 항목이 없습니다. 카드를 왼쪽으로 끌어 보세요.",
                     )}
               </p>
             )}
 
             {visible.map((item, index) => {
-              const draggable = !item.promoted_type;
+              const draggable = !readOnly && !item.promoted_type;
               const age = daysSince(item.created_at);
+              // 방치는 읽기 전용에서도 보여야 한다 — 드래그 가능 여부와 별개다.
               // 오래된 순으로 정렬돼 있으므로 방치 1등은 언제나 첫 카드다
               const stale =
-                draggable && age !== null && age >= BACKLOG_STALE_DAYS;
+                !item.promoted_type &&
+                age !== null &&
+                age >= BACKLOG_STALE_DAYS;
               const isOldest = stale && index === 0;
               return (
                 <div
@@ -916,7 +990,10 @@ export function BacklogRail({
                   className={`${cardBase} border-foreground/[0.08] hover:border-foreground/[0.12] ${
                     draggable
                       ? "cursor-grab active:cursor-grabbing"
-                      : "opacity-75"
+                      : // 승격된 항목만 흐리게 둔다 — 읽기 전용은 "끝난 일"이 아니다
+                        item.promoted_type
+                        ? "opacity-75"
+                        : ""
                   }`}
                 >
                   {/* 배지를 대신하는 색 레일 — 승격됨(틸) · 방치(호박) · 평상(인디고)을
@@ -965,7 +1042,13 @@ export function BacklogRail({
                         )}
                       </div>
 
-                      <div className="absolute inset-y-0 right-0 flex items-center gap-0.5 bg-bridge-dark rounded-lg opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                      {/* 남의 백로그에는 손댈 것이 없다 — 액션 묶음을 아예 그리지 않는다 */}
+                      <div
+                        hidden={readOnly}
+                        className={`absolute inset-y-0 right-0 items-center gap-0.5 bg-bridge-dark rounded-lg opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 ${
+                          readOnly ? "hidden" : "flex"
+                        }`}
+                      >
                         <span
                           className="pointer-events-none absolute right-full top-0 h-full w-6 bg-gradient-to-l from-bridge-dark to-transparent"
                           aria-hidden="true"
@@ -1019,20 +1102,7 @@ export function BacklogRail({
         )}
       </div>
 
-      {promoting && (
-        <PromoteBacklogModal
-          boardId={boardId}
-          item={promoting.item}
-          target={promoting.target}
-          presetDate={promoting.presetDate}
-          features={features}
-          milestones={milestones}
-          selectedMilestoneId={selectedMilestoneId}
-          userId={userId}
-          onClose={() => setPromoting(null)}
-          onPromoted={handlePromoted}
-        />
-      )}
+      {promoteModal}
     </PanelShell>
   );
 }

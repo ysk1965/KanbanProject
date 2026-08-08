@@ -26,13 +26,22 @@ public class PersonalTaskController {
     private final PromoteSuggestionService promoteSuggestionService;
 
     /**
-     * boardId가 오면 그 보드의 백로그 레일 목록, 없으면 기존 마이스페이스 전체 목록.
+     * boardId가 오면 그 보드의 백로그 목록, 없으면 기존 마이스페이스 전체 목록.
+     *
+     * <p>userId까지 오면 같은 보드에 있는 그 멤버의 백로그를 읽기 전용으로 돌려준다
+     * (대시보드 스코프 전환). board_id 없이는 남의 목록을 조회할 수 없다 —
+     * 마이스페이스 개인 할 일은 어떤 경로로도 열리지 않는다.
      */
     @GetMapping
     public ResponseEntity<List<PersonalTaskResponse.Detail>> getTasks(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam(name = "board_id", required = false) String boardId) {
+            @RequestParam(name = "board_id", required = false) String boardId,
+            @RequestParam(name = "user_id", required = false) String userId) {
         if (boardId != null && !boardId.isBlank()) {
+            if (userId != null && !userId.isBlank()) {
+                return ResponseEntity.ok(
+                        personalTaskService.getMemberBacklog(principal.getUserId(), boardId, userId));
+            }
             return ResponseEntity.ok(personalTaskService.getBacklog(principal.getUserId(), boardId));
         }
         return ResponseEntity.ok(personalTaskService.getTasks(principal.getUserId()));

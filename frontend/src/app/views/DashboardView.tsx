@@ -69,12 +69,13 @@ interface DashboardViewProps {
 /**
  * 보드 > 대시보드 — 개인 관점의 진입 화면.
  *
- * 레이아웃 — 패널 넷, 카드 넷.
- *  왼쪽  = 오늘의 타임블록
- *  오른쪽 = 내 워크로드 · 배치 대기 · 내 백로그 (위에서 아래로 성숙도 역순)
+ * 레이아웃 — 패널 넷, 열 셋.
+ *  왼쪽   = 오늘의 타임블록
+ *  가운데 = 내 워크로드 (위) · 배치 대기 (아래)
+ *  오른쪽 = 내 백로그
  *
  * 넷 다 같은 셸(PanelShell)을 쓴다 — 머리 높이·좌우 여백·링크 자리·배너 위치가 같다.
- * 경계는 셋(좌우 하나 + 오른쪽 열 안에 둘) 모두 손잡이라, 배분은 전부 사용자가 정한다.
+ * 경계는 셋(좌우 둘 + 가운데 열 안에 하나) 모두 손잡이라, 배분은 전부 사용자가 정한다.
  */
 export function DashboardView({
   boardId,
@@ -208,7 +209,7 @@ export function DashboardView({
             selectableMembers.length > 1 ? "" : "pt-3 md:pt-5"
           }`}
         >
-          {/* 오늘 │ 워크로드 + 배치 대기 + 백로그 */}
+          {/* 오늘 │ (워크로드 + 배치 대기) │ 백로그 */}
           {/*
             왼쪽 폭은 CSS 변수로 들어간다 — 드래그 중에는 이 변수만 갈아 끼워
             리렌더 없이 폭이 따라오고, xl 미만의 한 줄 배치는 그대로 남는다.
@@ -254,8 +255,8 @@ export function DashboardView({
               className="hidden xl:flex"
             />
 
-            {/* 한 줄로 접힌 화면에서는 카드 셋이 이 높이를 나눠 갖는다 (하한 합 = 524) */}
-            <div className="min-w-0 min-h-0 h-[720px] xl:h-full">
+            {/* 한 줄로 접힌 화면에서는 카드 셋이 각자 높이를 갖고 이 블록이 늘어난다 */}
+            <div className="min-w-0 min-h-0 xl:h-full">
               <MyWorkloadWidget
                 boardId={boardId}
                 boardMembers={boardMembersData}
@@ -276,7 +277,8 @@ export function DashboardView({
                 onOpenContractorManager={onOpenContractorManager}
                 onOpenResourceView={onOpenResourceView}
                 onOpenKanban={onOpenKanban}
-                showBacklog={!isOtherScope}
+                /* 남의 백로그는 볼 수만 있다 — 적기·승격·강등이 전부 사라진다 */
+                backlogReadOnly={isOtherScope}
                 selectedMilestoneId={selectedMilestoneId}
                 onRefreshAfterPromote={onRefreshAfterPromote}
               />

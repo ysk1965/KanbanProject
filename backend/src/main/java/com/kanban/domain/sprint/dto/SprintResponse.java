@@ -65,6 +65,15 @@ public class SprintResponse {
         private LocalDateTime linkedAt;
         /** JIRA에서 원본 이슈가 삭제되어 연동이 끊긴 카드 — FE가 "JIRA 삭제됨" 뱃지로 표시. */
         private boolean jiraDeleted;
+        /** JIRA 이슈 타입 이름("버그"/"Story"…). 이름 집합이 프로젝트마다 달라 FE가 표식으로 해석한다. */
+        private String jiraIssueType;
+        /** JIRA 우선순위 이름("Highest"/"높음"…). FE가 순위 표식으로 해석하고, 모르는 이름은 그대로 보인다. */
+        private String jiraPriority;
+        /**
+         * JIRA {@code fields.updated} — "이 이슈가 JIRA에서 마지막으로 움직인 시각".
+         * {@link #linkedAt}(우리 보드에 들어온 시각)과 다른 축이라 둘 다 내려보낸다.
+         */
+        private LocalDateTime jiraUpdatedAt;
     }
 
     /** 스프린트 보드 컬럼 (마일스톤 단위). kind: START | MIDDLE | END */

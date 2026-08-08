@@ -5044,18 +5044,20 @@
   "backlog": {
     "presetDate": "Will be placed on {{date}}",
     "title": "My Backlog",
+    "titleOf": "{{name}}'s Backlog",
+    "hintReadOnly": "Read-only",
     "chip": "Backlog",
     "promotedTab": "Promoted",
     "tabsLabel": "Backlog lists",
-    "hint": "Press b to jot · drag upward to promote · only you can see this",
+    "hint": "Press b to jot · drag left to promote · visible to board members",
     "placeholder": "Jot it down in one line…",
     "enterHint": "Enter to add",
     "addAria": "Add to backlog",
-    "expand": "Expand backlog rail",
-    "collapse": "Collapse backlog rail",
+    "expand": "Expand backlog column",
+    "collapse": "Collapse backlog column",
     "privateNote": "Private",
     "empty": "Your backlog is empty.",
-    "emptyPromoted": "Nothing promoted yet. Drag a card onto anything above.",
+    "emptyPromoted": "Nothing promoted yet. Drag a card to the left.",
     "loadFailed": "Couldn't load your backlog.",
     "saving": "Saving…",
     "savedLocally": "Not saved · kept locally",
@@ -5081,11 +5083,11 @@
     "noFeature": "No features yet",
     "noTask": "No tasks yet",
     "taskLoadFailed": "Couldn't load tasks.",
-    "dropHint": "Drop here to clear its dates and owner and keep it as a private note",
+    "dropHint": "Drop here to clear its dates and owner and keep it as a backlog note",
     "demoteFailed": "Could not move it to the backlog.",
-    "demotedNotice": "“{{title}}” moved down to the backlog · dates and owner cleared, only you can see it",
+    "demotedNotice": "“{{title}}” moved to the backlog · dates and owner cleared",
     "undoFailed": "Could not undo that.",
-    "demotedNoticeUnplaced": "“{{title}}” moved down to the backlog · removed from its task, only you can see it",
+    "demotedNoticeUnplaced": "“{{title}}” moved to the backlog · removed from its task",
     "milestone": "Milestone",
     "milestoneAll": "All milestones",
     "milestoneNone": "No milestone",
@@ -5111,7 +5113,7 @@
     "staleDays": "{{count}}d",
     "staleOldest": "{{count}}d · oldest",
     "openTab": "Open",
-    "hintShort": "Only you can see this · press b to jot"
+    "hintShort": "Visible to board members · press b to jot"
   },
   "boardDashboard": {
     "scopePrefix": "Dashboard",
@@ -5192,6 +5194,6 @@
     "timeblockMovedNotice": "“{{title}}” moved into the {{date}} time block · undo restores the dates only",
     "placementTitle": "To place",
     "splitWorkloadQueue": "Resize workload and to-place panes",
-    "splitQueueBacklog": "Resize to-place and backlog panes"
+    "splitQueueBacklog": "Resize backlog column width"
   }
 }

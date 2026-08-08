@@ -75,6 +75,14 @@ public class JiraImportService {
     private static final int MAX_DELETION_PROBES = 20;
     /** 한 번의 import에서 댓글을 대조할 최대 이슈 수 — 이슈당 코멘트 조회 1콜이 추가되므로 제한. */
     private static final int MAX_COMMENT_RECONCILES = 15;
+    /** 담당자 체크리스트 항목의 제목 접두사 — "이 항목은 JIRA 담당자 것"이라는 표식을 겸한다. */
+    private static final String ASSIGNEE_CHECKLIST_PREFIX = "담당: ";
+    /**
+     * 한 번의 import에서 이슈 메타를 소급해 채울 최대 건수.
+     * JIRA가 안 바뀐 이슈까지 담당자·태그를 뒤지는 경로라, 첫 배포 직후 한 주기가 보드 전체를
+     * 훑지 않도록 묶는다. 남은 카드는 다음 주기에 이어서 채워진다.
+     */
+    private static final int MAX_META_BACKFILLS = 40;
 
     private final JiraApiClient jiraApiClient;
     private final JiraOAuthService oauthService;
@@ -138,6 +146,8 @@ public class JiraImportService {
         List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
         Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
             .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
+        SyncMaps syncMaps = new SyncMaps(blockMap, mirror, statusToBlock, taskBlock,
+            members, priorityToTag, componentToTag);
 
         // 에픽은 그룹핑에 쓰지 않으므로 제외 (프로젝트 Space = Feature)
         List<ParsedJiraIssue> importable = issues.stream()
@@ -178,6 +188,7 @@ public class JiraImportService {
         // 이 조건이면 웹훅을 놓친 댓글 변경까지 함께 잡힌다.
         List<String> commentReconcileKeys = new ArrayList<>();
         boolean commentSyncOn = config.isCommentSyncEnabled();
+        int metaBackfills = 0;
 
         // ── 업서트: 이미 연동된 이슈는 갱신, 없으면(또는 삭제 후) 생성 ──
         for (ParsedJiraIssue issue : importable) {
@@ -201,7 +212,14 @@ public class JiraImportService {
                         taskLink.clearJiraDeleted();
                         log.info("JIRA reconcile board {}: {} 재등장 → 연동 복구", boardId, issue.key());
                     }
-                    updateTaskFromIssue(existingTask, board, importer, issue, blockMap, mirror, statusToBlock, taskBlock, ctx, taskLink);
+                    // JIRA가 안 바뀐 이슈라도 메타를 한 번도 기록한 적 없으면(이 기능 이전에 링크된 카드)
+                    // 이번에 채운다. 다만 253건짜리 보드가 배포 직후 첫 폴링 한 번에 전량을 훑으면
+                    // 트랜잭션 하나가 수백 번 질의한다 — 주기당 상한을 걸어 몇 바퀴에 나눠 채운다.
+                    boolean backfillMeta = !stale && taskLink.needsIssueMetaBackfill()
+                        && metaBackfills < MAX_META_BACKFILLS;
+                    if (backfillMeta) metaBackfills++;
+                    updateTaskFromIssue(existingTask, board, importer, issue, syncMaps, ctx, taskLink,
+                        stale || backfillMeta);
 
                     // 첨부는 신규 생성 때만 가져오고 있었다. QA가 이슈를 올린 뒤 댓글로 스크린샷을
                     // 덧붙이는 것이 오히려 흔한데, 그 그림들이 BRIDGE에 영영 들어오지 않았다.
@@ -300,8 +318,12 @@ public class JiraImportService {
         BlockStatusMap blockMap = BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
         MirrorColumns mirror = MirrorColumns.parse(objectMapper, config.getMirrorColumnsJson());
         Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK).orElse(null);
+        SyncMaps maps = new SyncMaps(blockMap, mirror, statusToBlock, taskBlock,
+            boardMemberRepository.findByBoardId(boardId),
+            readMap(config.getPriorityToTagJson()), readMap(config.getComponentToTagJson()));
 
-        updateTaskFromIssue(task, board, importer, issue, blockMap, mirror, statusToBlock, taskBlock, ctx, link);
+        // 여기까지 온 것 자체가 "JIRA가 원장보다 최신"이라는 판정을 통과했다는 뜻 → 소유 필드도 함께 맞춘다.
+        updateTaskFromIssue(task, board, importer, issue, maps, ctx, link, true);
         link.touchImport(JiraLinkTargetType.TASK, task.getId(), issue.updated());
         config.markSynced();
 
@@ -397,28 +419,154 @@ public class JiraImportService {
     }
 
     /**
+     * 한 번의 동기화 동안 고정인 매핑 묶음. 이슈마다 다시 읽지 않도록 모아 둔다.
+     * (인자를 열 개 넘게 늘어놓지 않으려는 목적도 겸한다)
+     */
+    private record SyncMaps(BlockStatusMap blockMap, MirrorColumns mirrorCols,
+                            Map<String, String> statusToBlock, Block taskBlock,
+                            List<BoardMember> members,
+                            Map<String, String> priorityToTag, Map<String, String> componentToTag) {}
+
+    /**
      * 기존 Task를 JIRA 이슈 최신값으로 갱신(동기화 = pull). 재가져오기/폴링이 동기화 역할을 한다.
      * 제목·설명은 항상 JIRA에서 갱신. 블록/QA 상태는 소유권에 따라:
      *  · 블록↔status 매핑이 있으면 <b>pull 전용</b>(검토중/완료/반려)만 카드를 옮긴다 — 개발 소유 위치는 보존.
      *  · 매핑이 없으면(레거시) 기존 statusName→block 단방향 동작.
+     *
+     * <p>담당자·우선순위·컴포넌트는 <b>JIRA 소유 필드</b>다 — 최초 생성 때 한 번 심고 마는 게 아니라
+     * 여기서 계속 맞춘다. 그렇지 않으면 JIRA에서 담당자를 넘겨도 BRIDGE는 최초 값을 영원히 들고 있고,
+     * 화면은 "몇 분 전 동기화됨"이라 말하고 있어 사용자가 그 값을 최신이라 믿는다.
+     *
+     * @param syncOwnedFields 담당자·우선순위·컴포넌트까지 맞출지. JIRA가 실제로 갱신된 이슈에만 켠다 —
+     *                        2분 폴링마다 전 이슈의 체크리스트·태그를 뒤지면 조회 비용이 감당이 안 된다.
+     *                        (판단은 호출 측이 한다. 메타 미기록 링크의 소급 채움도 거기서 함께 조절한다)
      */
     private void updateTaskFromIssue(Task task, Board board, User importer, ParsedJiraIssue issue,
-                                     BlockStatusMap blockMap, MirrorColumns mirrorCols, Map<String, String> statusToBlock,
-                                     Block taskBlock, JiraAuthContext ctx, JiraIssueLink link) {
+                                     SyncMaps maps, JiraAuthContext ctx, JiraIssueLink link,
+                                     boolean syncOwnedFields) {
         task.updateInfo(truncate(issue.summary(), 200), issue.description(),
             task.getStartDate(), task.getDueDate(), task.getEstimatedMinutes());
 
         // 미러 모드: 상태=위치. 대응 미러 컬럼으로 이동 후, QA 검토 중 → 할 일 역행이면 반려 처리.
-        Block mirror = resolveMirrorBlock(board.getId(), issue.statusId(), mirrorCols);
+        Block mirror = resolveMirrorBlock(board.getId(), issue.statusId(), maps.mirrorCols());
         if (mirror != null) {
             moveTaskToBlockEnd(task, mirror);
-            applyMirrorRejection(task, board, importer, issue, mirrorCols, ctx, link.getLastJiraStatusId());
-        } else if (!blockMap.isEmpty()) {
-            applyPullReflection(task, board, importer, issue, blockMap, ctx, link.getLastJiraStatusId());
+            applyMirrorRejection(task, board, importer, issue, maps.mirrorCols(), ctx, link.getLastJiraStatusId());
+        } else if (!maps.blockMap().isEmpty()) {
+            applyPullReflection(task, board, importer, issue, maps.blockMap(), ctx, link.getLastJiraStatusId());
         } else {
-            moveTaskToBlockEnd(task, resolveBlock(board.getId(), issue.statusName(), statusToBlock, taskBlock));
+            moveTaskToBlockEnd(task, resolveBlock(board.getId(), issue.statusName(), maps.statusToBlock(), maps.taskBlock()));
         }
         link.markJiraStatus(issue.statusId());   // 다음 전환 감지용 직전 status 기록
+
+        if (syncOwnedFields) {
+            syncAssignee(task, board, maps.members(), issue);
+            syncJiraTags(task, board, issue, link, maps.priorityToTag(), maps.componentToTag());
+            // 태그를 반영한 바로 그 값으로 원장을 갱신한다 — 둘이 어긋나면 다음 주기에 낡은 태그가 남는다.
+            link.applyIssueMeta(truncate(issue.issueTypeName(), 60),
+                truncate(issue.priorityName(), 60), joinComponents(issue.componentNames()));
+        }
+    }
+
+    /**
+     * JIRA 담당자 → 담당자 체크리스트 항목 동기화.
+     *
+     * <p>담당자를 체크리스트로 이관하는 구조라 "어느 항목이 JIRA 것인가"를 알아야 하는데,
+     * 표식 컬럼 대신 생성 때 쓴 제목 접두사({@value #ASSIGNEE_CHECKLIST_PREFIX})로 찾는다.
+     * 사람이 그 항목의 제목을 바꿨다면 못 찾고 새로 하나 만든다 — 남의 체크리스트를 덮어쓰는 것보다는 낫다.
+     *
+     * <p>덮어쓰기 범위를 좁게 잡은 이유가 하나 더 있다. JIRA에 담당자가 있는데 BRIDGE 멤버로
+     * 해석되지 않는 경우(매핑 없음·이름 불일치)까지 "pull이 이긴다"고 밀어붙이면,
+     * <b>사람이 BRIDGE에서 지정해 둔 담당자가 매 주기 지워진다.</b> 그래서 담당자를 비우는 것은
+     * JIRA가 실제로 "미지정"이라고 말할 때뿐이고, 해석 실패는 이름만 갱신하고 넘어간다.
+     */
+    private void syncAssignee(Task task, Board board, List<BoardMember> members, ParsedJiraIssue issue) {
+        String accountId = issue.assigneeAccountId();
+        boolean unassignedInJira = accountId == null;
+        User resolved = unassignedInJira
+            ? null : resolveAssignee(board, members, accountId, issue.assigneeDisplayName());
+
+        ChecklistItem owned = checklistItemRepository.findByTaskIdOrderByPositionAsc(task.getId()).stream()
+            .filter(c -> c.getTitle() != null && c.getTitle().startsWith(ASSIGNEE_CHECKLIST_PREFIX))
+            .findFirst()
+            .orElse(null);
+
+        if (owned == null) {
+            // 해석되지 않는 담당자 하나 때문에 담당자 없는 빈 항목을 만들지는 않는다(생성 경로와 같은 규칙).
+            if (resolved != null) createAssigneeChecklist(task, resolved, issue.assigneeDisplayName());
+            return;
+        }
+
+        owned.updateTitle(assigneeChecklistTitle(issue.assigneeDisplayName()));
+        if (resolved != null) {
+            owned.updateAssignee(resolved);
+        } else if (unassignedInJira) {
+            owned.updateAssignee(null);
+        }
+    }
+
+    /**
+     * JIRA 우선순위·컴포넌트 → 태그 동기화.
+     *
+     * <p>회수 대상은 <b>원장에 적힌 직전 값</b>뿐이다. 이름이 비슷하다고 떼지 않는다 —
+     * 사람이 BRIDGE에서 직접 붙인 태그를 JIRA 동기화가 뜯어가면 안 되기 때문이다.
+     * 태그 자체(Tag 행)는 지우지 않고 Task와의 연결만 끊는다. 다른 카드가 쓰고 있을 수 있다.
+     */
+    private void syncJiraTags(Task task, Board board, ParsedJiraIssue issue, JiraIssueLink link,
+                              Map<String, String> priorityToTag, Map<String, String> componentToTag) {
+        // 이번 동기화 후에도 남아 있어야 할 태그. 매핑 설정(priority_to_tag/component_to_tag)에서
+        // 서로 다른 JIRA 값이 같은 태그를 가리킬 수 있어, "떼기"는 반드시 이 집합을 피해서 한다.
+        // 이 보호가 없으면 우선순위 High→Highest가 같은 태그로 매핑된 보드에서 태그가 사라진다.
+        Set<String> keep = new HashSet<>();
+        collectTagId(keep, board, issue.priorityName(), priorityToTag);
+        for (String comp : issue.componentNames()) {
+            collectTagId(keep, board, comp, componentToTag);
+        }
+
+        String prevPriority = link.getJiraPriority();
+        String nextPriority = issue.priorityName();
+        if (!Objects.equals(prevPriority, nextPriority)) {
+            detachTag(task, board, prevPriority, priorityToTag, keep);
+            applyTag(task, resolveTag(board, nextPriority, priorityToTag));
+        }
+
+        Set<String> prevComponents = splitComponents(link.getJiraComponentNames());
+        Set<String> nextComponents = new LinkedHashSet<>(issue.componentNames());
+        for (String gone : prevComponents) {
+            if (!nextComponents.contains(gone)) detachTag(task, board, gone, componentToTag, keep);
+        }
+        for (String added : nextComponents) {
+            if (!prevComponents.contains(added)) applyTag(task, resolveTag(board, added, componentToTag));
+        }
+    }
+
+    /** 보존 대상 태그 id 수집. 아직 없는 태그는 뗄 수도 없으므로 생성하지 않고 지나간다. */
+    private void collectTagId(Set<String> into, Board board, String jiraValue, Map<String, String> mapping) {
+        Tag tag = findTag(board, jiraValue, mapping);
+        if (tag != null) into.add(tag.getId());
+    }
+
+    /** JIRA가 심었던 태그를 카드에서 떼어낸다. 이미 없거나 아직 쓰이는 태그면 조용히 넘어간다. */
+    private void detachTag(Task task, Board board, String jiraValue,
+                           Map<String, String> mapping, Set<String> keep) {
+        Tag tag = findTag(board, jiraValue, mapping);
+        if (tag == null || keep.contains(tag.getId())) return;
+        taskTagRepository.deleteByTaskIdAndTagId(task.getId(), tag.getId());
+    }
+
+    /**
+     * {@link #resolveTag}의 비생성 버전. 회수하려는 태그를 찾는 자리에서 새 태그를 만들면,
+     * 없어진 우선순위 이름으로 빈 태그가 계속 늘어난다.
+     */
+    private Tag findTag(Board board, String jiraValue, Map<String, String> mapping) {
+        if (jiraValue == null || jiraValue.isBlank()) return null;
+        if (mapping.containsKey(jiraValue)) {
+            Tag mapped = tagRepository.findById(mapping.get(jiraValue)).orElse(null);
+            if (mapped != null && mapped.getBoard() != null && board.getId().equals(mapped.getBoard().getId())) {
+                return mapped;
+            }
+        }
+        return tagRepository.findByBoardIdAndName(board.getId(), jiraValue).orElse(null);
     }
 
     /**
@@ -713,11 +861,16 @@ public class JiraImportService {
     private void createAssigneeChecklist(Task task, User assignee, String displayName) {
         ChecklistItem item = ChecklistItem.builder()
             .task(task)
-            .title("담당: " + (displayName != null ? displayName : "이슈 처리"))
+            .title(assigneeChecklistTitle(displayName))
             .assignee(assignee)
             .position(0)
             .build();
         checklistItemRepository.save(item);
+    }
+
+    /** 담당자 체크리스트 제목. 접두사가 곧 "이 항목은 JIRA 담당자 것"이라는 표식이라 한 곳에서만 만든다. */
+    private String assigneeChecklistTitle(String displayName) {
+        return ASSIGNEE_CHECKLIST_PREFIX + (displayName != null ? displayName : "이슈 처리");
     }
 
     /**
@@ -856,7 +1009,25 @@ public class JiraImportService {
             .targetId(targetId)
             .jiraUpdatedAt(jiraUpdatedAt)
             .lastJiraStatusId(issue.statusId())
+            .jiraIssueType(truncate(issue.issueTypeName(), 60))
+            .jiraPriority(truncate(issue.priorityName(), 60))
+            .jiraComponentNames(joinComponents(issue.componentNames()))
             .build());
+    }
+
+    /** 컴포넌트 이름들을 원장 보관용 한 줄로. 빈 목록은 null(= "심은 것 없음")로 둔다. */
+    private String joinComponents(List<String> names) {
+        if (names == null || names.isEmpty()) return null;
+        return truncate(String.join(",", names), 500);
+    }
+
+    /** 원장에 보관된 컴포넌트 줄을 다시 집합으로. 순서는 보존한다(태그 부착 순서 안정). */
+    private Set<String> splitComponents(String joined) {
+        if (joined == null || joined.isBlank()) return Set.of();
+        return Arrays.stream(joined.split(","))
+            .map(String::trim)
+            .filter(s -> !s.isEmpty())
+            .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     // ── 유틸 ──────────────────────────────────────

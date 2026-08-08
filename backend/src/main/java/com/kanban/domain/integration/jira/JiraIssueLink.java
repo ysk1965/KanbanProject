@@ -56,6 +56,24 @@ public class JiraIssueLink {
     @Column(name = "last_jira_status_id", length = 30)
     private String lastJiraStatusId;
 
+    /**
+     * JIRA 이슈 타입 이름("버그"/"Story"…). 카드의 타입 표식용.
+     * 이름을 그대로 두는 이유: 타입 집합이 프로젝트·언어마다 달라 enum으로 좁히면 못 담는 값이 생긴다.
+     */
+    @Column(name = "jira_issue_type", length = 60)
+    private String jiraIssueType;
+
+    /** JIRA 우선순위 이름("Highest"/"높음"…). 카드 표식 + 태그 재동기화의 직전 값. */
+    @Column(name = "jira_priority", length = 60)
+    private String jiraPriority;
+
+    /**
+     * JIRA 컴포넌트 이름들(콤마 결합). 우선순위와 함께 태그로 심기 때문에,
+     * 다음 동기화에서 <b>어떤 태그를 떼야 하는지</b> 알려면 직전에 심은 값을 알고 있어야 한다.
+     */
+    @Column(name = "jira_component_names", length = 500)
+    private String jiraComponentNames;
+
     @Column(name = "last_imported_at", nullable = false)
     private LocalDateTime lastImportedAt;
 
@@ -109,6 +127,24 @@ public class JiraIssueLink {
     /** 직전 JIRA status 기록(반려 전환 감지용). pull 반영 후 호출. */
     public void markJiraStatus(String statusId) {
         this.lastJiraStatusId = statusId;
+    }
+
+    /**
+     * JIRA 이슈 메타 기록 — 카드 표시값이자, 다음 재동기화가 낡은 태그를 떼는 기준이 된다.
+     * 태그 반영과 <b>같은 시점에</b> 호출해야 한다. 여기만 앞서 나가면 떼지 못한 태그가 남는다.
+     */
+    public void applyIssueMeta(String issueType, String priority, String componentNames) {
+        this.jiraIssueType = issueType;
+        this.jiraPriority = priority;
+        this.jiraComponentNames = componentNames;
+    }
+
+    /**
+     * 이 링크가 이슈 메타를 아직 한 번도 기록한 적이 없는지 — 이 기능 이전에 만들어진 링크.
+     * 이슈 타입은 JIRA에서 항상 채워지므로 이 값이 비어 있으면 미기록으로 본다.
+     */
+    public boolean needsIssueMetaBackfill() {
+        return this.jiraIssueType == null;
     }
 
     /** JIRA 원본이 삭제됨 — 연동 해제 표시(멱등). */
