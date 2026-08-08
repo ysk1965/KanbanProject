@@ -218,6 +218,8 @@ public class BoardFacadeService {
                 .subscription(subscription != null ? BoardResponse.SubscriptionInfo.of(subscription) : null)
                 .scheduleSettings(BoardResponse.ScheduleSettings.of(board))
                 .selectedMilestoneId(board.getSelectedMilestoneId())
+                .uiLevel(board.getUiLevel())
+                .uiOptions(board.getUiOptions())
                 .organizationId(board.getOrganization() != null ? board.getOrganization().getId() : null)
                 .organizationName(board.getOrganization() != null ? board.getOrganization().getName() : null)
                 .isOrgMemberViewer(isOrgMemberViewer)

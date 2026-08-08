@@ -1101,7 +1101,7 @@ export function PromoteBacklogModal({
           <p className="text-xs text-slate-500 leading-relaxed">
             {t(
               "backlog.timeblockNote",
-              "항목은 백로그에 남습니다. 시간을 잡았을 뿐 아직 끝난 일이 아닙니다.",
+              "이 시간에 개인 블록으로 잡힙니다. 항목은 백로그에서 빠집니다.",
             )}
           </p>
         </div>

@@ -23,6 +23,12 @@ interface BoardSubTabsProps {
   onViewModeChange: (mode: ViewMode) => void;
   /** 마일스톤 접근 권한 (프리미엄 기능) */
   canAccessMilestone: boolean;
+  /**
+   * 단계(마일스톤) 레이어를 화면에 세우는가 — 보드 레벨 3에서만 true.
+   * 권한(canAccessMilestone)과 다른 축이다: 권한은 "쓸 수 있나", 이건 "지금 쓰기로 했나".
+   * 미지정이면 켜진 것으로 본다 — 값을 모를 때 화면이 줄어드는 쪽이 더 나쁘다.
+   */
+  showMilestone?: boolean;
 }
 
 interface TabItem {
@@ -78,8 +84,15 @@ export function BoardSubTabs({
   viewMode,
   onViewModeChange,
   canAccessMilestone,
+  showMilestone = true,
 }: BoardSubTabsProps) {
   const { t } = useTranslation();
+
+  // 레벨 1·2에서는 단계 탭 자체를 내린다. 잠금 아이콘으로 남기지 않는 이유:
+  // 잠금은 "돈 내면 열림"이고 여기는 "아직 안 쓰기로 함"이라 뜻이 다르다.
+  const visibleTabs = showMilestone
+    ? TABS
+    : TABS.filter((tab) => tab.mode !== "milestone");
 
   return (
     <div className="flex items-center justify-center py-1.5">
@@ -88,7 +101,7 @@ export function BoardSubTabs({
         role="tablist"
         aria-label={t("kanban.viewBoard", "보드 서브뷰")}
       >
-        {TABS.map(
+        {visibleTabs.map(
           ({
             mode,
             icon: Icon,

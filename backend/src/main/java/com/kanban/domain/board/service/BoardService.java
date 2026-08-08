@@ -464,6 +464,33 @@ public class BoardService {
         return BoardResponse.Detail.of(board, membership.getRole(), isStarred, memberCount, subscription);
     }
 
+    /**
+     * 화면 복잡도(레벨·옵션) 변경. 보드 단위 설정이라 같은 보드를 보는 팀원 화면이 함께 바뀐다 —
+     * 개인별로 갈리면 "그 카드 어디 있어요?"가 안 통한다.
+     *
+     * <p>데이터는 건드리지 않는다. 레벨을 내려도 마일스톤·스프린트 행은 그대로 남고 화면에서만 빠지므로
+     * 다시 올릴 때 복원 비용이 없다.
+     */
+    @Transactional
+    public BoardResponse.Detail updateUiConfig(String boardId, String userId, Integer uiLevel, String uiOptions) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        BoardMember membership = boardMemberRepository.findByBoardIdAndUserId(boardId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_ACCESS_DENIED));
+
+        board.updateUiConfig(uiLevel, uiOptions);
+
+        boolean isStarred = userBoardStarRepository.existsByUserIdAndBoardId(userId, boardId);
+        int memberCount = boardMemberRepository.countBillableMembers(boardId);
+        Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
+
+        log.info("Board ui config updated: {} level={} options={} by user: {}",
+                boardId, board.getUiLevel(), board.getUiOptions(), userId);
+
+        return BoardResponse.Detail.of(board, membership.getRole(), isStarred, memberCount, subscription);
+    }
+
     @Transactional
     public BoardResponse.StarToggle toggleStar(String boardId, String userId) {
         Board board = boardRepository.findById(boardId)

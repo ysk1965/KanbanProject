@@ -56,6 +56,7 @@ import {
 } from "./utils/services";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Board } from "./types";
+import { boardAPI } from "./utils/api";
 import type { MaintenanceStatus } from "./utils/api";
 import {
   SERVER_UNAVAILABLE_EVENT,
@@ -339,6 +340,7 @@ function BoardsRoute() {
     name: string,
     description?: string,
     backgroundGradient?: string,
+    uiLevel?: 1 | 2 | 3,
   ) => {
     try {
       const newBoard = await boardService.createBoard(
@@ -346,6 +348,15 @@ function BoardsRoute() {
         description,
         backgroundGradient,
       );
+      // 화면 복잡도는 생성 응답에 실리지 않으므로 뒤이어 반영한다.
+      // 기본값이 1이라 1을 고른 경우엔 왕복을 아낀다.
+      if (uiLevel && uiLevel !== 1) {
+        try {
+          await boardAPI.updateUiConfig(newBoard.id, { ui_level: uiLevel });
+        } catch {
+          /* 화면 설정 실패로 보드 생성을 되돌리지 않는다 — 나중에 기능 서랍에서 바꿀 수 있다 */
+        }
+      }
       setBoards([...boards, newBoard]);
       trackEvent("board_create", { board_id: newBoard.id });
     } catch (error) {

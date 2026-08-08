@@ -5047,8 +5047,6 @@
     "titleOf": "{{name}}'s Backlog",
     "hintReadOnly": "Read-only",
     "chip": "Backlog",
-    "promotedTab": "Promoted",
-    "tabsLabel": "Backlog lists",
     "hint": "Press b to jot · drag left to promote · visible to board members",
     "placeholder": "Jot it down in one line…",
     "enterHint": "Enter to add",
@@ -5057,7 +5055,6 @@
     "collapse": "Collapse backlog column",
     "privateNote": "Private",
     "empty": "Your backlog is empty.",
-    "emptyPromoted": "Nothing promoted yet. Drag a card to the left.",
     "loadFailed": "Couldn't load your backlog.",
     "saving": "Saving…",
     "savedLocally": "Not saved · kept locally",
@@ -5070,8 +5067,7 @@
     "promote": "Promote",
     "promoteTitle": "Promote backlog item",
     "promoteFailed": "Couldn't promote this item.",
-    "promoteNote": "You'll be the assignee. The item leaves your backlog once promoted.",
-    "timeblockNote": "The item stays in your backlog — you've only booked the time.",
+    "timeblockNote": "Booked as a personal block at this time. The item leaves your backlog.",
     "kindTimeblock": "Time block",
     "kindTask": "Task",
     "kindChecklist": "Checklist",
@@ -5112,8 +5108,7 @@
     "oldestDays": "Oldest {{count}}d",
     "staleDays": "{{count}}d",
     "staleOldest": "{{count}}d · oldest",
-    "openTab": "Open",
-    "hintShort": "Visible to board members · press b to jot"
+    "hintShort": "Visible to board members"
   },
   "boardDashboard": {
     "scopePrefix": "Dashboard",

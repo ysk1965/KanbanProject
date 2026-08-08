@@ -22,6 +22,7 @@ import {
   BarChart3,
   FileBarChart2,
   Lock,
+  Settings2,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import {
@@ -214,6 +215,13 @@ import { useBoardWebSocket } from "../hooks/useBoardWebSocket";
 // 추출된 Hook 및 컴포넌트
 import { useBoardWebSocketHandlers } from "../hooks/useBoardWebSocketHandlers";
 import { useBoardDataLoader } from "../hooks/useBoardDataLoader";
+import { useBoardUiConfig } from "../hooks/useBoardUiConfig";
+import { FeatureDrawer } from "../components/FeatureDrawer";
+import {
+  FeatureGhost,
+  useFeatureGhosts,
+} from "../components/FeatureGhost";
+import { LevelUpWizard } from "../components/LevelUpWizard";
 import { useBoardFilters } from "../hooks/useBoardFilters";
 import { useBoardModals } from "../hooks/useBoardModals";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
@@ -504,6 +512,17 @@ export function KanbanBoardPage() {
     refreshMembers,
   } = useBoardDataLoader(boardId);
 
+  // 화면 복잡도 — 레벨(시간 묶음 깊이)과 직교 옵션. 게이팅은 전부 이 값 하나를 본다.
+  // 설계: docs/Design/level-model.html
+  // 승급 마법사 — 레벨이 올라간 직후 정리 작업을 띄운다(건너뛸 수 있다).
+  const [levelUpTarget, setLevelUpTarget] = useState<2 | 3 | null>(null);
+  const uiConfig = useBoardUiConfig(boardId, board, setBoard, (level) => {
+    if (level === 2 || level === 3) setLevelUpTarget(level);
+  });
+  const boardFeatures = uiConfig.features;
+  // 기능 서랍 — 레벨/옵션을 한 곳에서 보고 바꾼다. 켤 방법이 있어야 끄는 걸 넣을 수 있다.
+  const [showFeatureDrawer, setShowFeatureDrawer] = useState(false);
+
   // milestoneIdRef를 최신 값으로 동기화 (WebSocket 핸들러에서 stale closure 방지)
   useEffect(() => {
     milestoneIdRef.current = kanbanSelectedMilestoneId;
@@ -558,6 +577,14 @@ export function KanbanBoardPage() {
     hideBilling,
     isSystemAdmin,
     isTester,
+  );
+
+  // 유령 슬롯 — 꺼진 기능이 자기 자리에 점선으로 선다. 동시 2개 제한 때문에 한 곳에서 계산한다.
+  // 바꿀 수 없는 사람에게 제안을 띄우면 막다른 길이라 관리자에게만 보인다.
+  const { visible: featureGhosts, mute: muteFeatureGhost } = useFeatureGhosts(
+    boardId,
+    uiConfig,
+    isAdminOrOwner,
   );
 
   // 참가 요청 (Admin/Owner만)
@@ -3072,11 +3099,37 @@ export function KanbanBoardPage() {
 
         {/* 보드 상단 서브탭 바 (칸반 / 마일스톤) */}
         {BOARD_SUB_MODES.includes(viewMode) && (
-          <BoardSubTabs
-            viewMode={viewMode}
-            onViewModeChange={(mode) => handleViewModeChange(mode)}
-            canAccessMilestone={canAccessMilestone}
-          />
+          <div className="flex items-center justify-center gap-2">
+            <BoardSubTabs
+              viewMode={viewMode}
+              onViewModeChange={(mode) => handleViewModeChange(mode)}
+              canAccessMilestone={canAccessMilestone}
+              showMilestone={boardFeatures.showMilestone}
+            />
+            {/* 단계 유령 — 마일스톤 탭이 설 자리. 위치가 곧 설명이다. */}
+            <FeatureGhost
+              ghost="level3"
+              visible={featureGhosts}
+              uiConfig={uiConfig}
+              onMute={muteFeatureGhost}
+            />
+            {/* 주기 유령 — 아직 시간을 안 묶는 보드에 "한 번씩 끊기"를 권한다. */}
+            <FeatureGhost
+              ghost="level2"
+              visible={featureGhosts}
+              uiConfig={uiConfig}
+              onMute={muteFeatureGhost}
+            />
+            <button
+              type="button"
+              onClick={() => setShowFeatureDrawer(true)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+              title="이 보드에서 쓰는 기능 — 레벨과 옵션"
+            >
+              <Settings2 className="w-3.5 h-3.5" />
+              기능
+            </button>
+          </div>
         )}
 
         {/* 서브뷰 ↔ 마일스톤 구분선 (대시보드·마인드맵은 마일스톤 필터 제외) */}
@@ -3215,6 +3268,25 @@ export function KanbanBoardPage() {
             hiddenBlocks={hiddenBlocks}
             checklistDataMap={checklistDataMap}
             memberColorMap={memberColorMap}
+            boardFeatures={boardFeatures}
+            memberGhost={
+              <FeatureGhost
+                ghost="members"
+                visible={featureGhosts}
+                uiConfig={uiConfig}
+                onMute={muteFeatureGhost}
+                alignRight
+              />
+            }
+            reviewGhost={
+              <FeatureGhost
+                ghost="review"
+                visible={featureGhosts}
+                uiConfig={uiConfig}
+                onMute={muteFeatureGhost}
+                variant="column"
+              />
+            }
             expandedChecklistTaskIds={expandedChecklistTaskIds}
             scheduledTaskIds={scheduledTaskIds}
             recentlyCompletedTaskIds={recentlyCompletedTaskIds}
@@ -3648,6 +3720,33 @@ export function KanbanBoardPage() {
         )}
 
         {/* 모달들 */}
+        {/* 기능 서랍 — 저장 성공 시 board 상태를 갱신해 화면 전체가 즉시 따라 움직인다. */}
+        {board && (
+          <FeatureDrawer
+            open={showFeatureDrawer}
+            onClose={() => setShowFeatureDrawer(false)}
+            uiConfig={uiConfig}
+            canEdit={isAdminOrOwner}
+          />
+        )}
+
+        {/* 승급 마법사 — 1→2는 자동 흡수된 백로그를 골라 되돌리고, 2→3은 단계에 이름을 붙인다. */}
+        {levelUpTarget && boardId && (
+          <LevelUpWizard
+            open={!!levelUpTarget}
+            onClose={() => setLevelUpTarget(null)}
+            boardId={boardId}
+            milestoneId={
+              kanbanSelectedMilestoneId !== "all" &&
+              kanbanSelectedMilestoneId !== "none"
+                ? kanbanSelectedMilestoneId
+                : (milestones[0]?.id ?? null)
+            }
+            level={levelUpTarget}
+            onDone={() => void reloadFeaturesAndTasks()}
+          />
+        )}
+
         <BoardModalManager
           boardId={boardId || ""}
           // Feature Modal

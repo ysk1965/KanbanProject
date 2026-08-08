@@ -17,7 +17,12 @@ declare const __FE_COMMIT_HASH__: string;
 interface BoardListPageProps {
   boards: Board[];
   onSelectBoard: (boardId: string) => void;
-  onCreateBoard: (name: string, description?: string, backgroundGradient?: string) => void;
+  onCreateBoard: (
+    name: string,
+    description?: string,
+    backgroundGradient?: string,
+    uiLevel?: 1 | 2 | 3,
+  ) => void;
   onUpdateBoard: (boardId: string, name: string, description?: string, backgroundGradient?: string) => void;
   onDeleteBoard: (boardId: string) => void;
   onToggleStar: (boardId: string) => void;
@@ -233,8 +238,8 @@ export function BoardListPage({
       <CreateBoardModal
         open={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onCreateBoard={(name, description, backgroundGradient) => {
-          onCreateBoard(name, description, backgroundGradient);
+        onCreateBoard={(name, description, backgroundGradient, uiLevel) => {
+          onCreateBoard(name, description, backgroundGradient, uiLevel);
           setIsCreateModalOpen(false);
         }}
       />

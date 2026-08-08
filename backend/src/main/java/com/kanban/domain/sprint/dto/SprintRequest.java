@@ -49,6 +49,18 @@ public class SprintRequest {
         private String color;
     }
 
+    /**
+     * 주기 이름·기간 변경. 셋 다 nullable이라 이름만·기간만 따로 바꿀 수 있다.
+     * 레벨 1→2 승급 마법사가 "이번 주기는 언제까지"를 받아 여기로 보낸다.
+     */
+    @Getter
+    @NoArgsConstructor
+    public static class UpdateSprint {
+        private String name;
+        private java.time.LocalDate startDate;
+        private java.time.LocalDate endDate;
+    }
+
     /** 중간 컬럼 순서 재정렬 (START 다음 ~ END 이전, 순서대로의 컬럼 id 목록) */
     @Getter
     @NoArgsConstructor

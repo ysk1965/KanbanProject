@@ -1,16 +1,12 @@
 package com.kanban.domain.personal.service;
 
 import com.kanban.domain.board.BoardMemberRepository;
-import com.kanban.domain.checklist.ChecklistItem;
-import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.checklist.dto.ChecklistRequest;
 import com.kanban.domain.checklist.dto.ChecklistResponse;
 import com.kanban.domain.checklist.service.ChecklistService;
 import com.kanban.domain.personal.*;
 import com.kanban.domain.personal.dto.PersonalTaskRequest;
 import com.kanban.domain.personal.dto.PersonalTaskResponse;
-import com.kanban.domain.schedule.ScheduleBlock;
-import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.schedule.dto.ScheduleRequest;
 import com.kanban.domain.schedule.dto.ScheduleResponse;
 import com.kanban.domain.schedule.service.ScheduleService;
@@ -46,8 +42,6 @@ public class PersonalTaskService {
     private final ChecklistService checklistService;
     private final ScheduleService scheduleService;
     private final TaskRepository taskRepository;
-    private final ChecklistItemRepository checklistItemRepository;
-    private final ScheduleBlockRepository scheduleBlockRepository;
 
     // ─── Task CRUD ───
 
@@ -60,7 +54,7 @@ public class PersonalTaskService {
     /**
      * 보드 대시보드 백로그 목록.
      *
-     * <p>승격된 항목은 어디로 갔는지 라벨을 붙여 준다(카드 링크 칩).
+     * <p>승격된 항목은 여기 없다 — 승격은 ARCHIVED로 닫고, 조회가 ARCHIVED를 걸러낸다.
      */
     public List<PersonalTaskResponse.Detail> getBacklog(String userId, String boardId) {
         return toBacklogDetails(userId, boardId);
@@ -91,7 +85,7 @@ public class PersonalTaskService {
 
     private List<PersonalTaskResponse.Detail> toBacklogDetails(String userId, String boardId) {
         return personalTaskRepository.findBacklogByUserIdAndBoardId(userId, boardId).stream()
-                .map(task -> PersonalTaskResponse.Detail.of(task, resolvePromotedLabel(task)))
+                .map(PersonalTaskResponse.Detail::of)
                 .toList();
     }
 
@@ -195,7 +189,7 @@ public class PersonalTaskService {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
         if (backlog.getPromotedType() != null) {
-            // 이미 승격된 항목 — 되돌린 뒤 다시 승격해야 한다
+            // 이미 승격돼 백로그에서 빠진 항목 — 두 번 승격될 자리가 없다
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
@@ -241,33 +235,6 @@ public class PersonalTaskService {
         }
 
         return PersonalTaskResponse.Detail.of(backlog, label);
-    }
-
-    /**
-     * 승격을 되돌린다. 만들어진 태스크 · 체크리스트 항목 · 블록은 그대로 둔다 —
-     * 승격이 실수였을 뿐 결과물까지 지우는 건 별개의 결정이다.
-     */
-    @Transactional
-    public PersonalTaskResponse.Detail unpromote(String userId, String taskId) {
-        PersonalTask backlog = findTaskAndVerifyOwner(userId, taskId);
-        backlog.unpromote();
-        return PersonalTaskResponse.Detail.of(backlog);
-    }
-
-    /** 승격 결과를 카드에 한 줄로 보여주기 위한 이름. 대상이 지워졌으면 null. */
-    private String resolvePromotedLabel(PersonalTask task) {
-        if (task.getPromotedType() == null || task.getPromotedRefId() == null) return null;
-        return switch (task.getPromotedType()) {
-            case TASK -> resolveTaskLabel(task.getPromotedRefId());
-            case CHECKLIST_ITEM -> checklistItemRepository.findById(task.getPromotedRefId())
-                    .map(ChecklistItem::getTask)
-                    .map(Task::getTitle)
-                    .orElse(null);
-            case TIMEBLOCK -> scheduleBlockRepository.findById(task.getPromotedRefId())
-                    .map(ScheduleBlock::getStartTime)
-                    .map(Object::toString)
-                    .orElse(null);
-        };
     }
 
     /** 태스크 라벨은 제목이 아니라 "어느 블록으로 갔나" — 제목은 백로그 항목과 같아서 정보가 없다 */

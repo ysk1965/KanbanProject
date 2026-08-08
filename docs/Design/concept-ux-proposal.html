@@ -1,0 +1,1162 @@
+<title>다섯 개의 명사, 세 개의 질문 — 스프린트 뷰 개념 UX 제안</title>
+<style>
+  :root {
+    --ground: #12172a;
+    --panel: #1a2038;
+    --raised: #232b48;
+    --line: rgba(226, 232, 255, 0.10);
+    --line-strong: rgba(226, 232, 255, 0.18);
+    --ink: #eef1fb;
+    --ink-2: #a8b0cc;
+    --ink-3: #6f789a;
+    --accent: #7c7ef4;
+    --accent-soft: rgba(124, 126, 244, 0.16);
+    --teal: #2DD4BF;
+    --teal-soft: rgba(45, 212, 191, 0.14);
+    --amber: #F5A623;
+    --amber-soft: rgba(245, 166, 35, 0.14);
+    --rose: #FB6E8A;
+    --rose-soft: rgba(251, 110, 138, 0.14);
+    --emerald: #45D9A0;
+    --emerald-soft: rgba(69, 217, 160, 0.14);
+    --shadow: 0 18px 48px rgba(4, 7, 20, 0.5);
+
+    --kr: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo",
+          "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, "Cascadia Mono",
+            "D2Coding", monospace;
+
+    --step-0: 1rem;
+    --step-1: 1.125rem;
+    --step-2: clamp(1.25rem, 2.2vw, 1.5rem);
+    --step-3: clamp(1.55rem, 3.2vw, 2.1rem);
+    --step-4: clamp(2.1rem, 5.4vw, 3.4rem);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground: #fffcf8;
+      --panel: #f6efe4;
+      --raised: #efe6d8;
+      --line: rgba(61, 46, 31, 0.12);
+      --line-strong: rgba(61, 46, 31, 0.22);
+      --ink: #2b2317;
+      --ink-2: #6b6152;
+      --ink-3: #948a79;
+      --accent: #5457e0;
+      --accent-soft: rgba(84, 87, 224, 0.12);
+      --teal: #0e9c8c;
+      --teal-soft: rgba(14, 156, 140, 0.12);
+      --amber: #b6720a;
+      --amber-soft: rgba(182, 114, 10, 0.14);
+      --rose: #cf3f5f;
+      --rose-soft: rgba(207, 63, 95, 0.12);
+      --emerald: #0f9e6d;
+      --emerald-soft: rgba(15, 158, 109, 0.12);
+      --shadow: 0 16px 40px rgba(61, 46, 31, 0.12);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #12172a; --panel: #1a2038; --raised: #232b48;
+    --line: rgba(226,232,255,0.10); --line-strong: rgba(226,232,255,0.18);
+    --ink: #eef1fb; --ink-2: #a8b0cc; --ink-3: #6f789a;
+    --accent: #7c7ef4; --accent-soft: rgba(124,126,244,0.16);
+    --teal: #2DD4BF; --teal-soft: rgba(45,212,191,0.14);
+    --amber: #F5A623; --amber-soft: rgba(245,166,35,0.14);
+    --rose: #FB6E8A; --rose-soft: rgba(251,110,138,0.14);
+    --emerald: #45D9A0; --emerald-soft: rgba(69,217,160,0.14);
+    --shadow: 0 18px 48px rgba(4,7,20,0.5);
+  }
+  :root[data-theme="light"] {
+    --ground: #fffcf8; --panel: #f6efe4; --raised: #efe6d8;
+    --line: rgba(61,46,31,0.12); --line-strong: rgba(61,46,31,0.22);
+    --ink: #2b2317; --ink-2: #6b6152; --ink-3: #948a79;
+    --accent: #5457e0; --accent-soft: rgba(84,87,224,0.12);
+    --teal: #0e9c8c; --teal-soft: rgba(14,156,140,0.12);
+    --amber: #b6720a; --amber-soft: rgba(182,114,10,0.14);
+    --rose: #cf3f5f; --rose-soft: rgba(207,63,95,0.12);
+    --emerald: #0f9e6d; --emerald-soft: rgba(15,158,109,0.12);
+    --shadow: 0 16px 40px rgba(61,46,31,0.12);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--kr);
+    font-size: var(--step-0);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px 96px; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0;
+  }
+
+  h1, h2, h3, h4 { text-wrap: balance; margin: 0; letter-spacing: -0.02em; }
+
+  /* ---------- header ---------- */
+  .masthead { padding: 72px 0 48px; border-bottom: 1px solid var(--line); }
+  .masthead h1 {
+    font-size: var(--step-4);
+    font-weight: 700;
+    line-height: 1.12;
+    margin: 18px 0 0;
+  }
+  .masthead h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+  .lede {
+    margin: 20px 0 0;
+    max-width: 60ch;
+    font-size: var(--step-1);
+    color: var(--ink-2);
+  }
+  .meta-row {
+    display: flex; flex-wrap: wrap; gap: 10px 28px;
+    margin-top: 32px;
+    font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em;
+    color: var(--ink-3);
+  }
+  .meta-row b { color: var(--ink); font-weight: 500; }
+
+  /* ---------- section shell ---------- */
+  section { padding: 72px 0 0; }
+  .sec-head { display: grid; gap: 12px; margin-bottom: 34px; }
+  .sec-head h2 { font-size: var(--step-3); font-weight: 700; line-height: 1.2; }
+  .sec-head p { margin: 0; max-width: 62ch; color: var(--ink-2); }
+
+  /* ---------- coordinate diagnostic ---------- */
+  .coord {
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--panel);
+    overflow: hidden;
+  }
+  .coord-top {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--line);
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px;
+  }
+  .coord-top .card-name { font-weight: 700; font-size: var(--step-1); }
+  .coord-top .card-key {
+    font-family: var(--mono); font-size: 0.75rem;
+    color: var(--ink-3); letter-spacing: 0.06em;
+  }
+  .coord-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  }
+  .coord-cell {
+    padding: 18px 20px;
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    display: grid; gap: 6px; align-content: start;
+  }
+  .coord-cell:last-child { border-right: none; }
+  .coord-cell .fk {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.04em;
+    color: var(--ink-3);
+  }
+  .coord-cell .val { font-weight: 700; font-size: 0.95rem; }
+  .coord-cell .why { font-size: 0.8rem; color: var(--ink-2); line-height: 1.5; }
+  .coord-cell.clash { background: var(--rose-soft); }
+  .coord-cell.clash .val { color: var(--rose); }
+  .coord-foot {
+    padding: 16px 24px;
+    font-size: 0.9rem; color: var(--ink-2);
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .coord-foot .tick { color: var(--rose); font-family: var(--mono); flex: none; }
+
+  /* ---------- axis reframe ---------- */
+  .axes { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .axis {
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 24px;
+    background: var(--panel);
+    display: grid; gap: 14px; align-content: start;
+    position: relative;
+  }
+  .axis::before {
+    content: "";
+    position: absolute; inset: 0 auto 0 0; width: 3px;
+    border-radius: 18px 0 0 18px;
+    background: var(--axis-color, var(--accent));
+  }
+  .axis .q {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--axis-color, var(--accent));
+  }
+  .axis h3 { font-size: var(--step-2); font-weight: 700; }
+  .axis p { margin: 0; font-size: 0.9rem; color: var(--ink-2); }
+  .axis ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+  .axis li {
+    display: flex; align-items: baseline; gap: 10px;
+    font-size: 0.88rem;
+    padding-top: 8px; border-top: 1px solid var(--line);
+  }
+  .axis li span.n {
+    font-family: var(--mono); font-size: 0.72rem;
+    color: var(--ink-3); flex: none; min-width: 5.5em;
+  }
+  .axis-work { --axis-color: var(--accent); }
+  .axis-time { --axis-color: var(--teal); }
+  .axis-flow { --axis-color: var(--amber); }
+
+  .truth {
+    margin-top: 20px;
+    border: 1px solid var(--line-strong);
+    border-radius: 18px; padding: 24px 26px;
+    background: linear-gradient(120deg, var(--accent-soft), transparent 70%);
+    display: grid; gap: 10px;
+  }
+  .truth h3 { font-size: var(--step-2); font-weight: 700; }
+  .truth p { margin: 0; color: var(--ink-2); max-width: 68ch; }
+
+  /* ---------- mock ---------- */
+  .level-bar {
+    display: flex; flex-wrap: wrap; gap: 14px 20px;
+    align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .seg {
+    display: inline-flex; padding: 4px; gap: 4px;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 999px;
+  }
+  .seg button {
+    font: inherit; font-size: 0.85rem; font-weight: 500;
+    border: 0; background: transparent; color: var(--ink-2);
+    padding: 8px 16px; border-radius: 999px; cursor: pointer;
+    transition: background 160ms ease, color 160ms ease;
+  }
+  .seg button:hover { color: var(--ink); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .count-chip {
+    font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.06em;
+    color: var(--ink-2);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 7px 14px; background: var(--panel);
+  }
+  .count-chip b { color: var(--accent); font-weight: 700; font-size: 0.95rem; }
+
+  .mock {
+    border: 1px solid var(--line-strong);
+    border-radius: 20px; overflow: hidden;
+    background: var(--panel); box-shadow: var(--shadow);
+  }
+  .mock-chrome {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px; border-bottom: 1px solid var(--line);
+    background: var(--raised);
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line-strong); }
+  .mock-chrome .title {
+    margin-left: 10px; font-size: 0.8rem; color: var(--ink-3);
+    font-family: var(--mono); letter-spacing: 0.04em;
+  }
+
+  /* 레이어 게이팅 — 각 요소가 자기 display 값을 갖고, 단계에서만 켜진다 */
+  .ms-tabs {
+    display: none; gap: 4px; overflow-x: auto;
+    padding: 10px 16px; border-bottom: 1px solid var(--line);
+    scrollbar-width: thin;
+  }
+  .mock[data-level="3"] .ms-tabs { display: flex; }
+  .ms-tab {
+    flex: none; font-size: 0.8rem; color: var(--ink-2);
+    padding: 6px 12px; border-radius: 8px; white-space: nowrap;
+    border: 1px solid transparent;
+  }
+  .ms-tab.on { background: var(--teal-soft); color: var(--teal); border-color: var(--teal); font-weight: 700; }
+
+  .sprint-head {
+    padding: 16px; border-bottom: 1px solid var(--line);
+    display: none; gap: 12px;
+  }
+  .mock[data-level="2"] .sprint-head,
+  .mock[data-level="3"] .sprint-head { display: grid; }
+  .sprint-head .row1 {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px;
+  }
+  .sprint-head .sname { font-weight: 700; font-size: 1rem; }
+  .sprint-head .spct { font-family: var(--mono); font-size: 1.1rem; color: var(--teal); font-weight: 700; }
+  .sprint-head .sinfo { font-size: 0.8rem; color: var(--ink-3); }
+  .bar { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--teal); border-radius: 999px; }
+
+  .mock-body { display: flex; min-height: 372px; }
+
+  .rail {
+    flex: none; width: 210px; border-right: 1px solid var(--line);
+    padding: 14px; display: none; gap: 10px;
+    flex-direction: column; background: var(--raised);
+  }
+  .mock[data-level="2"] .rail, .mock[data-level="3"] .rail { display: flex; }
+  .rail .rail-title {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--ink-3);
+  }
+  .rail-item {
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px; display: grid; gap: 6px; background: var(--panel);
+  }
+  .rail-item .t { font-size: 0.82rem; font-weight: 500; }
+  .rail-item .m { font-family: var(--mono); font-size: 0.72rem; color: var(--ink-3); }
+
+  .cols { flex: 1; display: flex; gap: 12px; padding: 14px; overflow-x: auto; }
+  .col { flex: none; width: 232px; display: grid; gap: 10px; align-content: start; }
+  .col-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 8px; border-bottom: 2px solid var(--col-color, var(--line-strong));
+  }
+  .col-head .cname { font-size: 0.85rem; font-weight: 700; }
+  .col-head .ccount { font-family: var(--mono); font-size: 0.75rem; color: var(--ink-3); }
+
+  .card {
+    border: 1px solid var(--line); border-radius: 12px;
+    background: var(--panel); padding: 12px; display: grid; gap: 9px;
+  }
+  .card .crumb {
+    font-family: var(--mono); font-size: 0.72rem; color: var(--ink-3);
+    letter-spacing: 0.02em; display: none;
+  }
+  .mock[data-level="2"] .card .crumb, .mock[data-level="3"] .card .crumb { display: block; }
+  .card .ctitle { font-size: 0.88rem; font-weight: 700; line-height: 1.4; }
+  .card .cmeta {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 0.72rem; color: var(--ink-3);
+  }
+  .who {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--kr); font-size: 0.75rem; color: var(--ink-2);
+  }
+  .who i {
+    width: 18px; height: 18px; border-radius: 50%; flex: none;
+    display: grid; place-items: center; font-style: normal;
+    font-size: 0.65rem; color: #fff; font-weight: 700;
+  }
+  .checks { display: grid; gap: 5px; }
+  .chk { display: flex; gap: 7px; font-size: 0.78rem; color: var(--ink-2); line-height: 1.45; }
+  .chk i {
+    flex: none; width: 13px; height: 13px; border-radius: 4px;
+    border: 1.5px solid var(--line-strong); margin-top: 3px;
+  }
+  .chk.done i { background: var(--emerald); border-color: var(--emerald); }
+  .chk.done span { color: var(--ink-3); text-decoration: line-through; }
+
+  .grp-toggle {
+    display: none; align-items: center; gap: 6px;
+    font-size: 0.75rem; color: var(--ink-3);
+  }
+  .mock[data-level="3"] .grp-toggle { display: flex; }
+  .grp-toggle b {
+    color: var(--ink); background: var(--accent-soft);
+    border-radius: 6px; padding: 3px 8px; font-weight: 500;
+  }
+
+  .mock-note {
+    margin-top: 14px; font-size: 0.88rem; color: var(--ink-2);
+    border-left: 2px solid var(--accent); padding-left: 14px;
+    max-width: 68ch;
+  }
+
+  /* ---------- onboarding stepper ---------- */
+  .steps {
+    display: grid; gap: 20px;
+    grid-template-columns: 230px 1fr;
+  }
+  @media (max-width: 720px) { .steps { grid-template-columns: 1fr; } }
+
+  .step-list { display: grid; gap: 6px; align-content: start; }
+  .step-btn {
+    font: inherit; text-align: left; cursor: pointer;
+    border: 1px solid var(--line); border-radius: 12px;
+    background: transparent; color: var(--ink-2);
+    padding: 12px 14px; display: grid; gap: 3px;
+    transition: border-color 150ms ease, background 150ms ease;
+  }
+  .step-btn:hover { border-color: var(--line-strong); color: var(--ink); }
+  .step-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .step-btn[aria-selected="true"] {
+    border-color: var(--accent); background: var(--accent-soft); color: var(--ink);
+  }
+  .step-btn .sn {
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em; color: var(--ink-3);
+  }
+  .step-btn[aria-selected="true"] .sn { color: var(--accent); }
+  .step-btn .sl { font-size: 0.9rem; font-weight: 500; }
+
+  .step-panel {
+    border: 1px solid var(--line); border-radius: 18px;
+    background: var(--panel); padding: 26px; display: grid; gap: 16px;
+    align-content: start; min-height: 300px;
+  }
+  .step-panel h3 { font-size: var(--step-2); font-weight: 700; }
+  .step-panel .ask { color: var(--ink-2); margin: 0; max-width: 56ch; }
+  .fake-input {
+    border: 1px solid var(--line-strong); border-radius: 12px;
+    padding: 12px 14px; background: var(--ground);
+    font-size: 0.92rem; color: var(--ink);
+  }
+  .fake-input.ghost { color: var(--ink-3); }
+  .fake-list { display: grid; gap: 8px; }
+  .learn {
+    display: flex; gap: 10px; align-items: flex-start;
+    border-top: 1px solid var(--line); padding-top: 14px;
+    font-size: 0.85rem; color: var(--ink-2);
+  }
+  .learn b { color: var(--accent); font-weight: 700; }
+  .learn .tag {
+    flex: none; font-family: var(--mono); font-size: 0.68rem;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-3); padding-top: 2px;
+  }
+
+  /* ---------- concept chip demo ---------- */
+  .chip-demo {
+    border: 1px solid var(--line); border-radius: 18px; background: var(--panel);
+    padding: 26px; display: grid; gap: 18px;
+  }
+  .chip-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.95rem; }
+  .chip-line .sep { color: var(--ink-3); }
+  .cchip {
+    position: relative; border: 0; font: inherit; cursor: help;
+    background: var(--accent-soft); color: var(--ink);
+    border-radius: 8px; padding: 4px 10px; font-size: 0.85rem;
+    border-bottom: 2px solid var(--accent);
+  }
+  .cchip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .cchip .tip {
+    position: absolute; left: 50%; bottom: calc(100% + 10px);
+    transform: translateX(-50%) translateY(4px);
+    width: max-content; max-width: 260px;
+    background: var(--raised); color: var(--ink);
+    border: 1px solid var(--line-strong); border-radius: 12px;
+    padding: 10px 12px; font-size: 0.8rem; line-height: 1.5;
+    text-align: left; box-shadow: var(--shadow);
+    opacity: 0; pointer-events: none; z-index: 5;
+    transition: opacity 140ms ease, transform 140ms ease;
+  }
+  .cchip:hover .tip, .cchip:focus-visible .tip {
+    opacity: 1; transform: translateX(-50%) translateY(0);
+  }
+  .cchip .tip b { display: block; color: var(--accent); margin-bottom: 3px; }
+  .chip-demo .cap { margin: 0; font-size: 0.85rem; color: var(--ink-2); max-width: 66ch; }
+  .chip-t { --accent: var(--teal); --accent-soft: var(--teal-soft); }
+  .chip-a { --accent: var(--amber); --accent-soft: var(--amber-soft); }
+
+  /* ---------- findings table ---------- */
+  .findings { display: grid; gap: 14px; }
+  .find {
+    border: 1px solid var(--line); border-radius: 16px;
+    background: var(--panel); overflow: hidden;
+    display: grid; grid-template-columns: 6px 1fr;
+  }
+  .find .stripe { background: var(--sev, var(--amber)); }
+  .find .body { padding: 20px 22px; display: grid; gap: 10px; }
+  .find .top { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  .find .sev-pill {
+    font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.12em;
+    text-transform: uppercase; padding: 3px 9px; border-radius: 999px;
+    background: var(--sev-soft, var(--amber-soft)); color: var(--sev, var(--amber));
+    font-weight: 700;
+  }
+  .find h4 { font-size: 1rem; font-weight: 700; }
+  .find p { margin: 0; font-size: 0.9rem; color: var(--ink-2); max-width: 74ch; }
+  .find .ev {
+    font-family: var(--mono); font-size: 0.74rem; color: var(--ink-3);
+    line-height: 1.7; word-break: break-all;
+  }
+  .find .fix {
+    font-size: 0.88rem; color: var(--ink);
+    border-top: 1px solid var(--line); padding-top: 10px;
+  }
+  .find .fix b { color: var(--emerald); font-weight: 700; }
+  .sev-crit { --sev: var(--rose); --sev-soft: var(--rose-soft); }
+  .sev-warn { --sev: var(--amber); --sev-soft: var(--amber-soft); }
+  .sev-info { --sev: var(--accent); --sev-soft: var(--accent-soft); }
+
+  /* ---------- order ---------- */
+  .order { display: grid; gap: 12px; counter-reset: ord; }
+  .ord {
+    display: grid; grid-template-columns: 46px 1fr auto; gap: 16px;
+    align-items: baseline;
+    border-bottom: 1px solid var(--line); padding: 16px 4px;
+  }
+  .ord::before {
+    counter-increment: ord; content: counter(ord, decimal-leading-zero);
+    font-family: var(--mono); font-size: 0.85rem; color: var(--accent);
+  }
+  .ord .what { display: grid; gap: 4px; }
+  .ord .what b { font-size: 0.98rem; font-weight: 700; }
+  .ord .what span { font-size: 0.86rem; color: var(--ink-2); }
+  .ord .cost {
+    font-family: var(--mono); font-size: 0.72rem; color: var(--ink-3);
+    letter-spacing: 0.06em; white-space: nowrap;
+  }
+  @media (max-width: 620px) {
+    .ord { grid-template-columns: 34px 1fr; }
+    .ord .cost { grid-column: 2; }
+  }
+
+  footer {
+    margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Milkyway · 스프린트 뷰 개념 UX 제안</p>
+    <h1>명사가 다섯 개다.<br />질문은 <em>세 개</em>면 된다.</h1>
+    <p class="lede">
+      마일스톤·스프린트·피처·태스크·체크리스트. 처음 온 사람이 이 화면에서 배워야 할 개념이 다섯 개고,
+      거기에 블록 보드의 컬럼까지 여섯 개다. 개념을 줄이자는 얘기가 아니다 —
+      <b>다섯 개를 세 개의 질문에 나눠 담고, 필요할 때만 꺼내 보이자</b>는 얘기다.
+    </p>
+    <div class="meta-row">
+      <span>현재 노출 개념 <b>6</b></span>
+      <span>첫 화면 목표 <b>2</b></span>
+      <span>보드 내 이동 가능 뷰 <b>17</b></span>
+      <span>태스크 한 장의 좌표 <b>5</b></span>
+    </div>
+  </header>
+
+  <section id="diagnosis">
+    <div class="sec-head">
+      <p class="eyebrow">진단 / 카드 한 장의 좌표</p>
+      <h2>문제는 개념 개수가 아니라, 카드 하나가 다섯 군데에 동시에 있다는 것</h2>
+      <p>
+        <code>tasks</code> 테이블 한 행이 들고 있는 외래키다. 이 중 하나만 봐도 카드 위치를 말할 수 없다.
+        신규 유저가 헷갈리는 건 "스프린트가 뭐지"가 아니라 "이 카드는 지금 어디 있는 거지"다.
+      </p>
+    </div>
+
+    <div class="coord">
+      <div class="coord-top">
+        <span class="card-name">튜토리얼 작업 (Sprint3)</span>
+        <span class="card-key">tasks · task_key = STORY-42</span>
+      </div>
+      <div class="coord-grid">
+        <div class="coord-cell">
+          <span class="fk">feature_id · NOT NULL</span>
+          <span class="val">게임 플로우 작업</span>
+          <span class="why">무엇을 위한 일인가</span>
+        </div>
+        <div class="coord-cell">
+          <span class="fk">milestone_id · NULL 허용</span>
+          <span class="val">4. 테스트런칭</span>
+          <span class="why">어느 단계에 속하나</span>
+        </div>
+        <div class="coord-cell">
+          <span class="fk">sprint_id · NULL 허용</span>
+          <span class="val">Sprint 3</span>
+          <span class="why">이번 주기에 담겼나</span>
+        </div>
+        <div class="coord-cell clash">
+          <span class="fk">block_id · NOT NULL</span>
+          <span class="val">개발 중</span>
+          <span class="why">칸반 보드에서의 상태</span>
+        </div>
+        <div class="coord-cell clash">
+          <span class="fk">sprint_column_id</span>
+          <span class="val">In Review</span>
+          <span class="why">스프린트 보드에서의 상태</span>
+        </div>
+      </div>
+      <div class="coord-foot">
+        <span class="tick">↑</span>
+        <span>
+          같은 카드가 칸반에서는 <b>개발 중</b>, 스프린트에서는 <b>In Review</b>다.
+          상태의 진실이 두 개고, 둘을 동기화할 규칙은 END 컬럼 도달 시 체크리스트 완료 하나뿐이다.
+          여기에 담당자는 카드가 아니라 <code>checklist_items.assignee_id</code>에만 있어서,
+          구성원 뷰에서는 <b>같은 카드가 여러 컬럼에 동시에 서게 된다</b>.
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <section id="reframe">
+    <div class="sec-head">
+      <p class="eyebrow">재구성 / 세 개의 축</p>
+      <h2>다섯 개 명사를 "무엇 · 언제 · 어디"로 나눠 담는다</h2>
+      <p>
+        개념을 지우지 않는다. 이미 만들어 놓은 것들은 각자 이유가 있다.
+        대신 <b>어느 질문에 답하는 물건인지</b>를 UI 언어로 못 박으면, 외울 게 다섯 개에서 세 개로 줄어든다.
+      </p>
+    </div>
+
+    <div class="axes">
+      <div class="axis axis-work">
+        <span class="q">What</span>
+        <h3>무엇을 위한 일인가</h3>
+        <p>목적의 묶음. 시간과 무관하게 존재하고, 다 끝나면 사라진다.</p>
+        <ul>
+          <li><span class="n">Feature</span> 묶음 — "이걸 왜 하나"</li>
+          <li><span class="n">Task</span> 작업 — 카드 한 장</li>
+          <li><span class="n">Checklist</span> 할 일 — 사람이 체크하는 최소 단위</li>
+        </ul>
+      </div>
+      <div class="axis axis-time">
+        <span class="q">When</span>
+        <h3>언제까지 하는가</h3>
+        <p>기간 상자. 작업을 담았다 비웠다 할 뿐, 스스로 일을 만들지 않는다.</p>
+        <ul>
+          <li><span class="n">Milestone</span> 단계 — 몇 주~몇 달</li>
+          <li><span class="n">Sprint</span> 주기 — 단계 안의 반복</li>
+        </ul>
+      </div>
+      <div class="axis axis-flow">
+        <span class="q">Where</span>
+        <h3>지금 어디까지 왔나</h3>
+        <p>흐름의 위치. <b>하나여야 한다</b> — 지금은 둘이라 이 축이 깨져 있다.</p>
+        <ul>
+          <li><span class="n">Column</span> 컬럼 — 할 일 / 하는 중 / 끝</li>
+          <li><span class="n">Block</span> <span style="color:var(--rose)">중복 — 통합 대상</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="truth">
+      <h3>그리고 한 문장: 실제 "일"은 체크 한 줄뿐이다</h3>
+      <p>
+        담당자도, 완료 시각도, 완료한 사람도 전부 <code>checklist_items</code>에 있다.
+        Feature·Task·Milestone·Sprint의 진행률은 전부 이 줄에서 파생된다.
+        이걸 UI에서 대놓고 말해주면 — "이 화면에서 당신이 실제로 하는 건 체크뿐입니다" —
+        나머지 네 개는 외울 개념이 아니라 <b>서랍 이름</b>이 된다.
+      </p>
+    </div>
+  </section>
+
+  <section id="mock">
+    <div class="sec-head">
+      <p class="eyebrow">해결책 1 / 점진적 공개</p>
+      <h2>보드 복잡도를 유저가 고르게 한다</h2>
+      <p>
+        이미 <code>Milestone.sprintEnabled</code>로 스프린트 레이어를 켜고 끄는 토글이 있다.
+        그걸 일반화해서, 보드 하나에 <b>복잡도 단계</b>를 둔다. 아래 버튼을 눌러 같은 화면이 어떻게 벗겨지는지 확인해보라.
+      </p>
+    </div>
+
+    <div class="level-bar">
+      <div class="seg" role="group" aria-label="보드 복잡도 단계">
+        <button type="button" data-lv="1" aria-pressed="true">1 · 작업만</button>
+        <button type="button" data-lv="2" aria-pressed="false">2 · 주기 추가</button>
+        <button type="button" data-lv="3" aria-pressed="false">3 · 로드맵 전체</button>
+      </div>
+      <span class="count-chip">이 화면이 요구하는 개념 <b id="cc">2</b>개</span>
+    </div>
+
+    <div class="mock" id="mock" data-level="1">
+      <div class="mock-chrome">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="title" id="mockTitle">오토배틀러 프로젝트 — 보드</span>
+      </div>
+
+      <div class="layer l3 ms-tabs" role="presentation">
+        <span class="ms-tab">1. 개발1차</span>
+        <span class="ms-tab">2. 개발2차</span>
+        <span class="ms-tab">3. 개발3차</span>
+        <span class="ms-tab on">4. 테스트런칭 6/22 ~ 8/14</span>
+        <span class="ms-tab">5. 소프트런칭</span>
+        <span class="ms-tab">6. 하드런칭</span>
+      </div>
+
+      <div class="layer l2 sprint-head">
+        <div class="row1">
+          <span class="sname">Sprint 3</span>
+          <span class="spct">86%</span>
+          <span class="sinfo">할 일 308 / 359 · 남은 24개 · 8/14 종료</span>
+          <span class="grp-toggle layer l3 flexy" style="margin-left:auto">
+            묶어보기 <b>구성원별</b>
+          </span>
+        </div>
+        <div class="bar"><i style="width:86%"></i></div>
+      </div>
+
+      <div class="mock-body">
+        <aside class="rail">
+          <span class="rail-title">아직 안 담은 것</span>
+          <div class="rail-item">
+            <span class="t">눈 챕터 작업</span>
+            <span class="m">할 일 1/6 · 담김 0</span>
+          </div>
+          <div class="rail-item">
+            <span class="t">[QA] 스텔라나이츠</span>
+            <span class="m">할 일 177/262 · 담김 0</span>
+          </div>
+          <div class="rail-item">
+            <span class="t">신규 캐릭터 타키</span>
+            <span class="m">할 일 1/4 · 담김 1</span>
+          </div>
+        </aside>
+
+        <div class="cols">
+          <div class="col" style="--col-color: var(--ink-3)">
+            <div class="col-head"><span class="cname">할 일</span><span class="ccount">3</span></div>
+
+            <article class="card">
+              <span class="crumb">테스트런칭 › Sprint 3 › 게임 플로우</span>
+              <span class="ctitle">튜토리얼 작업</span>
+              <span class="who"><i style="background:#7c7ef4">진</i> 박진웅</span>
+              <div class="checks">
+                <div class="chk"><i></i><span>튜토리얼 기획</span></div>
+                <div class="chk"><i></i><span>기존 데이터 변경</span></div>
+              </div>
+              <span class="cmeta">할 일 0/2</span>
+            </article>
+
+            <article class="card">
+              <span class="crumb">테스트런칭 › Sprint 3 › 신규 캐릭터</span>
+              <span class="ctitle">타키 스킬 연출</span>
+              <span class="who"><i style="background:#F5A623">다</i> 김다미</span>
+              <div class="checks">
+                <div class="chk"><i></i><span>[연출] 타키 스킬 이펙트</span></div>
+              </div>
+              <span class="cmeta">할 일 0/1</span>
+            </article>
+          </div>
+
+          <div class="col" style="--col-color: var(--accent)">
+            <div class="col-head"><span class="cname">하는 중</span><span class="ccount">2</span></div>
+
+            <article class="card">
+              <span class="crumb">테스트런칭 › Sprint 3 › 공용 UI</span>
+              <span class="ctitle">공용 UI · 연출 작업</span>
+              <span class="who"><i style="background:#2DD4BF">상</i> 유상건</span>
+              <div class="checks">
+                <div class="chk done"><i></i><span>로비 망원경 반응 추가</span></div>
+                <div class="chk done"><i></i><span>다운로드 영상 한국어 적용</span></div>
+                <div class="chk"><i></i><span>아이템 보상 팝업 수정</span></div>
+              </div>
+              <span class="cmeta">할 일 2/3</span>
+            </article>
+
+            <article class="card">
+              <span class="crumb">테스트런칭 › Sprint 3 › 텍틱스 모드</span>
+              <span class="ctitle">텍틱스 모드 아웃게임</span>
+              <span class="who"><i style="background:#FB6E8A">효</i> 김효림</span>
+              <div class="checks">
+                <div class="chk done"><i></i><span>[개발] 텍틱스 아웃게임</span></div>
+              </div>
+              <span class="cmeta">할 일 1/1 · 검수 대기</span>
+            </article>
+          </div>
+
+          <div class="col" style="--col-color: var(--emerald)">
+            <div class="col-head"><span class="cname">끝</span><span class="ccount">14</span></div>
+
+            <article class="card">
+              <span class="crumb">테스트런칭 › Sprint 3 › 프롤로그</span>
+              <span class="ctitle">프롤로그 작업</span>
+              <span class="who"><i style="background:#45D9A0">규</i> 김규현</span>
+              <div class="checks">
+                <div class="chk done"><i></i><span>[개발] 프롤로그 개발대응</span></div>
+              </div>
+              <span class="cmeta">할 일 1/1 · 8/6 완료</span>
+            </article>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="mock-note" id="mockNote">
+      <b>1단계.</b> 보이는 건 작업 카드와 그 안의 할 일뿐이다. 컬럼 이름은 상태가 아니라 동사다.
+      마일스톤·스프린트·묶음은 존재하지만 화면에 없다 — 데이터는 그대로 쌓이고, 나중에 켜면 그때 나타난다.
+    </p>
+  </section>
+
+  <section id="onboarding">
+    <div class="sec-head">
+      <p class="eyebrow">해결책 2 / 만들면서 배우기</p>
+      <h2>개념 설명서 대신, 첫 스프린트를 같이 만든다</h2>
+      <p>
+        용어를 먼저 설명하면 아무도 안 읽는다. 실제 데이터를 만들게 하고,
+        <b>방금 만든 것의 이름을 사후에 알려주는</b> 순서로 뒤집는다. 4단계, 각 단계는 입력 하나.
+      </p>
+    </div>
+
+    <div class="steps">
+      <div class="step-list" role="tablist" aria-label="온보딩 단계">
+        <button type="button" class="step-btn" role="tab" aria-selected="true" data-step="0">
+          <span class="sn">STEP 01</span><span class="sl">뭘 만들고 있나요?</span>
+        </button>
+        <button type="button" class="step-btn" role="tab" aria-selected="false" data-step="1">
+          <span class="sn">STEP 02</span><span class="sl">그러려면 뭘 해야 하죠?</span>
+        </button>
+        <button type="button" class="step-btn" role="tab" aria-selected="false" data-step="2">
+          <span class="sn">STEP 03</span><span class="sl">이번 주에 할 건요?</span>
+        </button>
+        <button type="button" class="step-btn" role="tab" aria-selected="false" data-step="3">
+          <span class="sn">STEP 04</span><span class="sl">언제까지 끝내야 하죠?</span>
+        </button>
+      </div>
+
+      <div class="step-panel" id="stepPanel" role="tabpanel"></div>
+    </div>
+  </section>
+
+  <section id="chips">
+    <div class="sec-head">
+      <p class="eyebrow">해결책 3 / 반복 노출</p>
+      <h2>카드 한 줄 브레드크럼이 개념 지도를 대신한다</h2>
+      <p>
+        도움말 문서는 한 번 읽히고 잊힌다. 위계를 <b>카드마다 한 줄로 반복</b>하면
+        유저는 설명 없이 구조를 학습한다. 칩에 마우스를 올리면 그 개념이 무엇인지 한 줄로 나온다.
+      </p>
+    </div>
+
+    <div class="chip-demo">
+      <div class="chip-line">
+        <button type="button" class="cchip chip-t">
+          테스트런칭
+          <span class="tip"><b>단계 (Milestone)</b>몇 주~몇 달짜리 기간 상자. 이 안에서 스프린트가 반복된다.</span>
+        </button>
+        <span class="sep">›</span>
+        <button type="button" class="cchip chip-t">
+          Sprint 3
+          <span class="tip"><b>주기 (Sprint)</b>단계 안의 짧은 반복. 이번에 실제로 손댈 작업만 담는다.</span>
+        </button>
+        <span class="sep">›</span>
+        <button type="button" class="cchip">
+          게임 플로우
+          <span class="tip"><b>묶음 (Feature)</b>같은 목적의 작업 모음. 기간과 무관하고, 다 끝나면 닫힌다.</span>
+        </button>
+        <span class="sep">›</span>
+        <button type="button" class="cchip">
+          튜토리얼 작업
+          <span class="tip"><b>작업 (Task)</b>카드 한 장. 컬럼을 옮겨 다니는 단위.</span>
+        </button>
+        <span class="sep">›</span>
+        <button type="button" class="cchip chip-a">
+          기존 데이터 변경
+          <span class="tip"><b>할 일 (Checklist)</b>담당자와 완료가 붙는 유일한 단위. 진짜 일은 여기서만 일어난다.</span>
+        </button>
+      </div>
+      <p class="cap">
+        색이 축을 말한다 — <b style="color:var(--teal)">청록 = 언제</b>,
+        <b style="color:var(--accent)">보라 = 무엇</b>,
+        <b style="color:var(--amber)">주황 = 실제 일</b>.
+        같은 색 규칙을 필터 바·레일·컬럼 헤더에 그대로 쓰면, 유저는 색만으로 축을 구분하게 된다.
+      </p>
+    </div>
+  </section>
+
+  <section id="findings">
+    <div class="sec-head">
+      <p class="eyebrow">진단 / 과잉과 허점</p>
+      <h2>UX 이전에 시스템에서 먼저 정리할 것</h2>
+      <p>화면을 아무리 잘 만들어도, 아래 네 개가 남아 있으면 설명이 계속 필요하다.</p>
+    </div>
+
+    <div class="findings">
+
+      <article class="find sev-crit">
+        <div class="stripe"></div>
+        <div class="body">
+          <div class="top">
+            <span class="sev-pill">치명 · 상태 이중화</span>
+            <h4>컬럼 시스템이 두 벌이다</h4>
+          </div>
+          <p>
+            <code>blocks</code>(칸반 컬럼, 보드 단위)와 <code>sprint_columns</code>(스프린트 컬럼, 마일스톤 단위)가
+            각각 독립된 위치를 갖는다. 태스크는 <code>block_id</code>가 NOT NULL이라
+            스프린트에만 있고 싶어도 칸반 어딘가에 반드시 서 있어야 한다.
+            "이 카드 상태가 뭐야"에 정답이 두 개인 구조다.
+          </p>
+          <p class="ev">
+            backend/…/block/Block.java · sprint/SprintColumn.java · task/Task.java (block_id NOT NULL + sprint_column_id)
+          </p>
+          <p class="fix">
+            <b>제안:</b> 스프린트 컬럼을 정본으로 삼고 블록은 그 위의 <em>표시 그룹</em>으로 강등한다.
+            중간 단계로는 최소한 "블록 보드"를 기본 숨김 처리하고, 마이그레이션 없이도
+            <code>sprint_column_id</code>가 있으면 그 값을 카드 상태로 단일 표기한다.
+          </p>
+        </div>
+      </article>
+
+      <article class="find sev-crit">
+        <div class="stripe"></div>
+        <div class="body">
+          <div class="top">
+            <span class="sev-pill">치명 · 담당자 부재</span>
+            <h4>Task에 담당자가 없다</h4>
+          </div>
+          <p>
+            담당자는 <code>features.assignee_id</code>와 <code>checklist_items.assignee_id</code>에만 있고
+            <code>tasks</code>에는 없다. 그래서 구성원 뷰는 카드 한 장을 여러 컬럼에 복제해 놓고,
+            각 컬럼에서 "그 사람 몫만" 다시 계산한다 — 스크린샷의
+            <em>2/2 · 전체 23/24</em>, <em>담당 외 21개</em> 같은 이중 표기가 그 증상이다.
+            신규 유저는 카드 하나의 진행률을 읽는 법부터 배워야 한다.
+          </p>
+          <p class="ev">
+            frontend/…/SprintBoard.tsx — lineOwnedBy() / memberCardDone() / "담당 외 N개"
+          </p>
+          <p class="fix">
+            <b>제안:</b> <code>tasks.owner_id</code>를 추가한다(체크리스트 담당자 중 최다 보유자로 자동 채움, 수동 변경 가능).
+            카드는 한 컬럼에만 서고, 세부 담당은 카드를 열었을 때만 보이면 된다.
+            진행률 표기가 한 줄로 줄어든다.
+          </p>
+        </div>
+      </article>
+
+      <article class="find sev-warn">
+        <div class="stripe"></div>
+        <div class="body">
+          <div class="top">
+            <span class="sev-pill">과잉 · 날짜 5층</span>
+            <h4>같은 일에 시작·종료일이 다섯 벌 있다</h4>
+          </div>
+          <p>
+            Milestone(start/end) · Sprint(start/end) · Feature(start/due) ·
+            Task(start/due + baseline start/due) · ChecklistItem(start/due).
+            어긋나도 아무도 막지 않고, 어느 날짜가 진짜인지 화면마다 다르다.
+            입력 비용은 5배인데 신뢰도는 1/5이다.
+          </p>
+          <p class="ev">
+            milestone/Milestone.java · sprint/Sprint.java · feature/Feature.java · task/Task.java · checklist/ChecklistItem.java
+          </p>
+          <p class="fix">
+            <b>제안:</b> 사람이 직접 입력하는 날짜는 <em>단계</em>와 <em>주기</em> 둘만 남긴다.
+            Feature·Task 날짜는 하위 항목에서 파생(min/max)해 읽기 전용으로 표시하고,
+            직접 입력이 꼭 필요할 때만 "직접 지정" 배지를 달아 예외로 드러낸다.
+          </p>
+        </div>
+      </article>
+
+      <article class="find sev-warn">
+        <div class="stripe"></div>
+        <div class="body">
+          <div class="top">
+            <span class="sev-pill">과잉 · 뷰 17개</span>
+            <h4>보드 하나에 갈 수 있는 곳이 17군데다</h4>
+          </div>
+          <p>
+            상단 탭 5(보드·일정·회의·자료실·보고서) → 서브탭 4(대시보드·칸반·마일스톤·마인드맵)
+            → 칸반 내 서브탭 3(스프린트·블록보드·JIRA) → 우하단 뷰 전환 5(칸반·리스트·간트·캘린더·미니칸반).
+            네 층의 내비게이션이 서로 다른 위치·다른 모양으로 존재한다.
+            처음 온 사람이 "메인 화면"을 못 찾는 건 당연하다.
+          </p>
+          <p class="ev">
+            frontend/…/BoardSubTabs.tsx · FloatingViewSwitcher.tsx · KanbanBoardPage.tsx(3,984줄)
+          </p>
+          <p class="fix">
+            <b>제안:</b> 스프린트 뷰를 유일한 기본 진입점으로 못 박고,
+            나머지는 <em>같은 데이터를 다르게 보는 렌즈</em>로 한 곳(우상단 단일 드롭다운)에 모은다.
+            블록보드는 복잡도 3단계에서만, 마인드맵·간트는 "보기 방식"으로 내린다.
+          </p>
+        </div>
+      </article>
+
+      <article class="find sev-info">
+        <div class="stripe"></div>
+        <div class="body">
+          <div class="top">
+            <span class="sev-pill">허점 · 진입 순간</span>
+            <h4>빈 보드에서 첫 클릭이 정해져 있지 않다</h4>
+          </div>
+          <p>
+            보드를 만들면 기본 마일스톤이 자동 생성되고(<code>isDefault=true</code>),
+            <code>sprintEnabled</code>는 false다. 즉 신규 유저의 첫 화면은
+            "스프린트 뷰가 메인"이라는 의도와 달리 <b>스프린트가 꺼진 상태</b>다.
+            의도와 기본값이 어긋나 있다.
+          </p>
+          <p class="ev">
+            milestone/Milestone.java — sprintEnabled default false, isDefault 자동 생성
+          </p>
+          <p class="fix">
+            <b>제안:</b> 복잡도 1단계에서도 스프린트 프레임은 켜두되 이름만 감춘다
+            ("이번 주기" 헤더 없이 컬럼만). 온보딩 4단계를 마치는 순간 2단계로 자동 승급하고,
+            그때 처음 "스프린트"라는 단어를 보여준다.
+          </p>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section id="order">
+    <div class="sec-head">
+      <p class="eyebrow">실행 / 순서</p>
+      <h2>싼 것부터, 되돌릴 수 있는 것부터</h2>
+      <p>앞의 셋은 스키마를 건드리지 않는다. 효과를 보고 나서 뒤의 둘을 결정해도 늦지 않다.</p>
+    </div>
+
+    <div class="order">
+      <div class="ord">
+        <div class="what">
+          <b>카드 브레드크럼 + 개념 칩 툴팁</b>
+          <span>축별 색 규칙을 필터·레일·컬럼 헤더까지 확장. 문서 없이 위계가 학습된다.</span>
+        </div>
+        <span class="cost">FE only · 반나절</span>
+      </div>
+      <div class="ord">
+        <div class="what">
+          <b>복잡도 3단계 게이팅</b>
+          <span>보드 설정 값 하나 + 조건부 렌더. <code>sprintEnabled</code> 토글을 일반화해 재사용.</span>
+        </div>
+        <span class="cost">FE + 컬럼 1개 · 1~2일</span>
+      </div>
+      <div class="ord">
+        <div class="what">
+          <b>온보딩 4단계 위저드</b>
+          <span>기존 생성 API 재사용. 마지막 단계에서 복잡도 2로 자동 승급.</span>
+        </div>
+        <span class="cost">FE only · 2일</span>
+      </div>
+      <div class="ord">
+        <div class="what">
+          <b><code>tasks.owner_id</code> 도입</b>
+          <span>구성원 뷰의 카드 복제를 제거. 진행률 표기가 한 줄로 정리된다.</span>
+        </div>
+        <span class="cost">마이그레이션 · 3~4일</span>
+      </div>
+      <div class="ord">
+        <div class="what">
+          <b>블록 ↔ 스프린트 컬럼 통합</b>
+          <span>가장 크고 가장 값진 정리. 앞의 넷을 다 하고 나서 판단해도 된다.</span>
+        </div>
+        <span class="cost">BE + FE · 1~2주</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Milkyway · 스프린트 뷰 개념 UX 제안 — 코드 기준: backend/domain(milestone, sprint, feature, task, checklist, block), frontend/components(SprintBoard, BoardSubTabs, FloatingViewSwitcher)
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    var mock = document.getElementById('mock');
+    var cc = document.getElementById('cc');
+    var note = document.getElementById('mockNote');
+    var title = document.getElementById('mockTitle');
+    var seg = document.querySelectorAll('.seg button');
+
+    var LEVELS = {
+      '1': {
+        count: 2,
+        title: '오토배틀러 프로젝트 — 보드',
+        html: '<b>1단계.</b> 보이는 건 작업 카드와 그 안의 할 일뿐이다. 컬럼 이름은 상태가 아니라 동사다. ' +
+              '마일스톤·스프린트·묶음은 존재하지만 화면에 없다 — 데이터는 그대로 쌓이고, 나중에 켜면 그때 나타난다.'
+      },
+      '2': {
+        count: 4,
+        title: '오토배틀러 프로젝트 — 이번 주기',
+        html: '<b>2단계.</b> 기간 개념이 하나 들어온다. 상단에 주기 진행률, 왼쪽에 "아직 안 담은 것" 레일. ' +
+              '레일에서 컬럼으로 끌어다 놓는 동작 하나가 <em>담기</em>의 전부라, 스프린트를 설명할 필요가 없다. ' +
+              '카드마다 브레드크럼이 붙어 묶음(Feature)이 자연스럽게 노출된다.'
+      },
+      '3': {
+        count: 6,
+        title: '오토배틀러 프로젝트 — 로드맵',
+        html: '<b>3단계.</b> 단계(Milestone) 탭과 묶어보기 전환이 열린다. 여기까지 온 유저는 이미 ' +
+              '주기·묶음·할 일을 손으로 만들어봤기 때문에, 단계는 "주기를 담는 더 큰 상자"라는 한 문장으로 끝난다. ' +
+              'JIRA·간트·의존성도 이 단계에서만 등장한다.'
+      }
+    };
+
+    seg.forEach(function (b) {
+      b.addEventListener('click', function () {
+        var lv = b.dataset.lv;
+        seg.forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+        mock.dataset.level = lv;
+        cc.textContent = LEVELS[lv].count;
+        note.innerHTML = LEVELS[lv].html;
+        title.textContent = LEVELS[lv].title;
+      });
+    });
+
+    var STEPS = [
+      {
+        h: '뭘 만들고 있나요?',
+        ask: '지금 팀이 붙어 있는 일 하나만 적어주세요. 거창하지 않아도 됩니다.',
+        fields: ['<div class="fake-input">튜토리얼 개편</div>'],
+        tag: '방금 만든 것',
+        learn: '<b>묶음</b> 하나가 생겼습니다. 같은 목적의 작업을 모아두는 서랍이고, ' +
+               '안의 일이 전부 끝나면 알아서 닫힙니다.'
+      },
+      {
+        h: '그러려면 뭘 해야 하죠?',
+        ask: '떠오르는 대로 3개만. 순서도 크기도 신경 쓰지 마세요.',
+        fields: [
+          '<div class="fake-input">튜토리얼 기획서 정리</div>',
+          '<div class="fake-input">기존 데이터 변경</div>',
+          '<div class="fake-input">인게임 튜토리얼 폴리싱</div>'
+        ],
+        tag: '방금 만든 것',
+        learn: '<b>작업</b> 카드 3장입니다. 컬럼을 옮겨 다니는 건 이 카드고, ' +
+               '카드를 열면 그 안에 <b>할 일</b> 체크가 들어갑니다 — 담당자와 완료는 거기 붙습니다.'
+      },
+      {
+        h: '이번 주에 할 건요?',
+        ask: '세 개 중에 지금 손댈 것만 골라주세요. 나머지는 왼쪽 레일에 남습니다.',
+        fields: [
+          '<div class="fake-input">✓ 튜토리얼 기획서 정리</div>',
+          '<div class="fake-input">✓ 기존 데이터 변경</div>',
+          '<div class="fake-input ghost">인게임 튜토리얼 폴리싱 — 다음에</div>'
+        ],
+        tag: '방금 만든 것',
+        learn: '이게 <b>주기(스프린트)</b>입니다. 새 개념이 아니라 "지금 할 것만 담아둔 칸"이에요. ' +
+               '안 담긴 건 사라지지 않고 레일에서 기다립니다.'
+      },
+      {
+        h: '언제까지 끝내야 하죠?',
+        ask: '이 주기의 마감일만 정하면 끝입니다. 나머지 날짜는 자동으로 계산됩니다.',
+        fields: [
+          '<div class="fake-input">2026-08-14 금요일</div>',
+          '<div class="fake-input ghost">작업·할 일 마감은 여기서 파생됩니다 (직접 지정 가능)</div>'
+        ],
+        tag: '나중에',
+        learn: '주기를 여러 번 돌리다 보면 그걸 묶는 <b>단계(마일스톤)</b>가 필요해집니다. ' +
+               '그때 보드 설정에서 켜면 됩니다 — 지금은 몰라도 됩니다.'
+      }
+    ];
+
+    var panel = document.getElementById('stepPanel');
+    var btns = document.querySelectorAll('.step-btn');
+
+    function render(i) {
+      var s = STEPS[i];
+      panel.innerHTML =
+        '<h3>' + s.h + '</h3>' +
+        '<p class="ask">' + s.ask + '</p>' +
+        '<div class="fake-list">' + s.fields.join('') + '</div>' +
+        '<div class="learn"><span class="tag">' + s.tag + '</span><span>' + s.learn + '</span></div>';
+    }
+
+    btns.forEach(function (b) {
+      b.addEventListener('click', function () {
+        btns.forEach(function (x) { x.setAttribute('aria-selected', String(x === b)); });
+        render(Number(b.dataset.step));
+      });
+    });
+
+    render(0);
+  })();
+</script>

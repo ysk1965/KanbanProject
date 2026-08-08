@@ -1,0 +1,1278 @@
+<title>현재 vs 개선안 — 스프린트 뷰 테스트 시안</title>
+<style>
+  :root {
+    --ground:#12172a; --panel:#1a2038; --raised:#232b48; --sunken:#0e1324;
+    --line:rgba(226,232,255,0.10); --line-strong:rgba(226,232,255,0.20);
+    --ink:#eef1fb; --ink-2:#a8b0cc; --ink-3:#6f789a;
+    --accent:#7c7ef4; --accent-soft:rgba(124,126,244,0.16);
+    --teal:#2DD4BF; --teal-soft:rgba(45,212,191,0.14);
+    --amber:#F5A623; --amber-soft:rgba(245,166,35,0.14);
+    --rose:#FB6E8A; --rose-soft:rgba(251,110,138,0.14);
+    --emerald:#45D9A0; --emerald-soft:rgba(69,217,160,0.14);
+    --shadow:0 20px 52px rgba(4,7,20,0.55);
+    --kr:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,"Cascadia Mono","D2Coding",monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground:#fffcf8; --panel:#f7f1e7; --raised:#efe6d8; --sunken:#f2ebe0;
+      --line:rgba(61,46,31,0.13); --line-strong:rgba(61,46,31,0.24);
+      --ink:#2b2317; --ink-2:#6b6152; --ink-3:#948a79;
+      --accent:#5457e0; --accent-soft:rgba(84,87,224,0.12);
+      --teal:#0e9c8c; --teal-soft:rgba(14,156,140,0.13);
+      --amber:#b6720a; --amber-soft:rgba(182,114,10,0.14);
+      --rose:#cf3f5f; --rose-soft:rgba(207,63,95,0.12);
+      --emerald:#0f9e6d; --emerald-soft:rgba(15,158,109,0.13);
+      --shadow:0 16px 40px rgba(61,46,31,0.13);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#12172a; --panel:#1a2038; --raised:#232b48; --sunken:#0e1324;
+    --line:rgba(226,232,255,0.10); --line-strong:rgba(226,232,255,0.20);
+    --ink:#eef1fb; --ink-2:#a8b0cc; --ink-3:#6f789a;
+    --accent:#7c7ef4; --accent-soft:rgba(124,126,244,0.16);
+    --teal:#2DD4BF; --teal-soft:rgba(45,212,191,0.14);
+    --amber:#F5A623; --amber-soft:rgba(245,166,35,0.14);
+    --rose:#FB6E8A; --rose-soft:rgba(251,110,138,0.14);
+    --emerald:#45D9A0; --emerald-soft:rgba(69,217,160,0.14);
+    --shadow:0 20px 52px rgba(4,7,20,0.55);
+  }
+  :root[data-theme="light"] {
+    --ground:#fffcf8; --panel:#f7f1e7; --raised:#efe6d8; --sunken:#f2ebe0;
+    --line:rgba(61,46,31,0.13); --line-strong:rgba(61,46,31,0.24);
+    --ink:#2b2317; --ink-2:#6b6152; --ink-3:#948a79;
+    --accent:#5457e0; --accent-soft:rgba(84,87,224,0.12);
+    --teal:#0e9c8c; --teal-soft:rgba(14,156,140,0.13);
+    --amber:#b6720a; --amber-soft:rgba(182,114,10,0.14);
+    --rose:#cf3f5f; --rose-soft:rgba(207,63,95,0.12);
+    --emerald:#0f9e6d; --emerald-soft:rgba(15,158,109,0.13);
+    --shadow:0 16px 40px rgba(61,46,31,0.13);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--kr); font-size:1rem; line-height:1.7;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 22px 90px; }
+  h1,h2,h3,h4 { margin:0; letter-spacing:-0.02em; text-wrap:balance; }
+  .eyebrow {
+    margin:0; font-family:var(--mono); font-size:0.73rem;
+    letter-spacing:0.16em; text-transform:uppercase; color:var(--ink-3);
+  }
+  code { font-family:var(--mono); font-size:0.86em; }
+
+  .masthead { padding:60px 0 36px; border-bottom:1px solid var(--line); }
+  .masthead h1 { font-size:clamp(1.85rem,4.4vw,2.8rem); font-weight:700; line-height:1.16; margin-top:14px; }
+  .masthead h1 em { font-style:normal; color:var(--accent); }
+  .lede { margin:16px 0 0; max-width:64ch; color:var(--ink-2); font-size:1.04rem; }
+  .jump { display:flex; flex-wrap:wrap; gap:10px; margin-top:26px; }
+  .jump a {
+    font-size:0.85rem; text-decoration:none; color:var(--ink-2);
+    border:1px solid var(--line); border-radius:999px; padding:7px 15px;
+    transition:border-color .15s, color .15s;
+  }
+  .jump a:hover { color:var(--ink); border-color:var(--line-strong); }
+  .jump a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  section { padding:60px 0 0; }
+  .sec-head { display:grid; gap:10px; margin-bottom:26px; }
+  .sec-head h2 { font-size:clamp(1.4rem,3vw,1.95rem); font-weight:700; line-height:1.22; }
+  .sec-head p { margin:0; max-width:66ch; color:var(--ink-2); }
+
+  /* ════ 공통 목업 셸 ════ */
+  .shell {
+    border:1px solid var(--line-strong); border-radius:16px; overflow:hidden;
+    background:var(--panel); box-shadow:var(--shadow); position:relative;
+  }
+  .shell.before { border-color:var(--rose); }
+  .shell.after  { border-color:var(--emerald); }
+  .shell-tag {
+    position:absolute; top:0; right:0; z-index:6;
+    font-family:var(--mono); font-size:0.68rem; letter-spacing:0.14em;
+    padding:5px 12px; border-radius:0 0 0 10px; font-weight:700;
+  }
+  .shell.before .shell-tag { background:var(--rose); color:#fff; }
+  .shell.after  .shell-tag { background:var(--emerald); color:#08210f; }
+
+  .navrow {
+    display:flex; align-items:center; gap:3px; overflow-x:auto;
+    padding:7px 12px; border-bottom:1px solid var(--line); background:var(--raised);
+  }
+  .navrow.sub { background:var(--panel); }
+  .navrow .nl {
+    flex:none; font-family:var(--mono); font-size:0.63rem; letter-spacing:0.1em;
+    color:var(--ink-3); margin-right:8px; text-transform:uppercase;
+  }
+  .nt {
+    flex:none; font-size:0.75rem; color:var(--ink-2); padding:4px 10px;
+    border-radius:7px; white-space:nowrap; border:1px solid transparent;
+  }
+  .nt.on { background:var(--accent-soft); color:var(--accent); font-weight:700; border-color:var(--accent); }
+  .nt.ms.on { background:var(--teal-soft); color:var(--teal); border-color:var(--teal); }
+
+  .lens {
+    margin-left:auto; flex:none; font-size:0.74rem; color:var(--ink-2);
+    border:1px solid var(--line-strong); border-radius:8px; padding:4px 10px; white-space:nowrap;
+  }
+
+  .shead { padding:12px 14px; border-bottom:1px solid var(--line); display:grid; gap:9px; }
+  .shead .r1 { display:flex; flex-wrap:wrap; align-items:center; gap:7px 12px; }
+  .sname { font-weight:700; font-size:0.95rem; }
+  .spct { font-family:var(--mono); font-weight:700; font-size:1rem; color:var(--teal); }
+  .sinfo { font-size:0.76rem; color:var(--ink-3); }
+  .sdate { font-family:var(--mono); font-size:0.72rem; color:var(--teal); background:var(--teal-soft); border-radius:7px; padding:2px 8px; }
+  .bar { height:5px; border-radius:999px; background:var(--line); overflow:hidden; }
+  .bar > i { display:block; height:100%; background:var(--teal); border-radius:999px; transition:width .35s ease; }
+  .sprintpills { display:flex; gap:6px; flex-wrap:wrap; }
+  .spill {
+    font-size:0.7rem; color:var(--ink-3); border:1px solid var(--line);
+    border-radius:8px; padding:3px 8px; font-family:var(--mono);
+  }
+  .filters { display:flex; gap:5px; flex-wrap:wrap; }
+  .fchip {
+    font-size:0.7rem; color:var(--ink-3); border:1px solid var(--line);
+    border-radius:999px; padding:3px 9px; white-space:nowrap;
+  }
+
+  .stage { display:flex; min-height:400px; }
+  .rail {
+    flex:none; width:206px; border-right:1px solid var(--line); background:var(--raised);
+    padding:12px; display:flex; flex-direction:column; gap:8px; overflow-y:auto; max-height:520px;
+  }
+  .rail-h { font-family:var(--mono); font-size:0.68rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-3); }
+  .rail-item {
+    border:1px solid var(--line); border-radius:10px; background:var(--panel);
+    padding:9px; display:grid; gap:6px; cursor:grab;
+  }
+  .rail-item:active { cursor:grabbing; }
+  .rail-item.dragging { opacity:.4; }
+  .rail-item .rt { font-size:0.8rem; font-weight:500; line-height:1.4; }
+  .rail-item .rm { font-family:var(--mono); font-size:0.68rem; color:var(--ink-3); }
+  .rail-item .rfeat { font-size:0.68rem; padding:2px 7px; border-radius:999px; justify-self:start; font-weight:700; }
+  .commit-btn {
+    font:inherit; font-size:0.73rem; border:1px solid var(--line-strong); background:transparent;
+    color:var(--ink-2); border-radius:8px; padding:5px 8px; cursor:pointer; transition:background .15s,color .15s;
+  }
+  .commit-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .commit-btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .rail-empty { font-size:0.78rem; color:var(--ink-3); padding:10px 2px; line-height:1.6; }
+  /* before 레일 = 트리 */
+  .tree-f {
+    border:1px solid var(--line); border-radius:10px; background:var(--panel);
+    padding:9px; display:grid; gap:5px;
+  }
+  .tree-f .tfh { display:flex; align-items:baseline; gap:6px; }
+  .tree-f .tfn { font-size:0.79rem; font-weight:700; }
+  .tree-f .tfp { margin-left:auto; font-family:var(--mono); font-size:0.72rem; color:var(--accent); font-weight:700; }
+  .tree-f .tfm { font-family:var(--mono); font-size:0.66rem; color:var(--ink-3); }
+  .tree-t {
+    font-size:0.74rem; color:var(--ink-2); padding-left:9px;
+    border-left:1px solid var(--line-strong); line-height:1.5;
+  }
+
+  .cols { flex:1; display:flex; gap:10px; padding:12px; overflow-x:auto; align-items:flex-start; }
+  .col { flex:none; width:238px; display:grid; gap:8px; align-content:start;
+         border-radius:12px; padding:5px; outline:2px dashed transparent; outline-offset:-2px;
+         transition:background .15s, outline-color .15s; }
+  .col.dropok { background:var(--accent-soft); outline-color:var(--accent); }
+  .col-h { display:flex; align-items:center; gap:7px; padding:2px 3px 7px; border-bottom:2px solid var(--ck,var(--line-strong)); }
+  .col-h .cav { width:19px; height:19px; border-radius:50%; flex:none; display:grid; place-items:center;
+                font-size:0.6rem; font-weight:700; color:#fff; }
+  .col-h .cn { font-size:0.83rem; font-weight:700; }
+  .col-h .cc { margin-left:auto; font-family:var(--mono); font-size:0.7rem; color:var(--ink-3); }
+
+  .card {
+    border:1px solid var(--line); border-radius:11px; background:var(--panel);
+    padding:10px; display:grid; gap:7px; cursor:pointer; transition:border-color .15s, transform .15s;
+  }
+  .card:hover { border-color:var(--line-strong); }
+  .card.sel { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .card.justdropped { animation:pop .45s ease; }
+  @keyframes pop { 0%{transform:scale(.94)} 60%{transform:scale(1.02)} 100%{transform:scale(1)} }
+  .card.done-card { opacity:.72; }
+
+  .crumb { font-family:var(--mono); font-size:0.67rem; color:var(--ink-3); line-height:1.4; }
+  .ctitle { font-size:0.85rem; font-weight:700; line-height:1.4; }
+  .row-mid { display:flex; flex-wrap:wrap; align-items:center; gap:5px; }
+  .dbadge { display:inline-flex; align-items:center; gap:4px; font-family:var(--mono); font-size:0.66rem;
+            background:var(--teal-soft); color:var(--teal); border-radius:7px; padding:2px 7px; }
+  .dbadge.overridden { background:var(--amber-soft); color:var(--amber); }
+  .dbadge i { font-style:normal; font-size:0.7rem; }
+  .stagechip { font:inherit; font-size:0.66rem; font-weight:700; border:0; cursor:pointer;
+               border-radius:999px; padding:3px 9px; font-family:var(--mono); letter-spacing:.04em; }
+  .stagechip:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .st-doing { background:var(--accent-soft); color:var(--accent); }
+  .st-review { background:var(--amber-soft); color:var(--amber); }
+  .st-done { background:var(--emerald-soft); color:var(--emerald); }
+
+  .checks { display:grid; gap:4px; }
+  .chk { display:flex; gap:6px; align-items:flex-start; font-size:0.76rem; color:var(--ink-2);
+         line-height:1.45; background:none; border:0; font-family:inherit; text-align:left;
+         padding:1px 0; cursor:pointer; width:100%; }
+  .chk:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:4px; }
+  .chk i { flex:none; width:13px; height:13px; border-radius:4px; margin-top:3px;
+           border:1.5px solid var(--line-strong); display:grid; place-items:center;
+           font-size:9px; color:#fff; font-style:normal; transition:background .15s,border-color .15s; }
+  .chk.done i { background:var(--emerald); border-color:var(--emerald); }
+  .chk.done .cx { color:var(--ink-3); text-decoration:line-through; }
+  .chk .cav { flex:none; width:15px; height:15px; border-radius:50%; margin-top:2px;
+              display:grid; place-items:center; font-size:.55rem; font-weight:700; color:#fff; }
+  .chk .blk { font-family:var(--mono); font-size:0.65rem; color:var(--amber); white-space:nowrap; }
+  .chk .blk.outside { color:var(--rose); }
+  .chk.done .cx .blk { text-decoration:none; }
+
+  .cfoot { display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:0.68rem;
+           color:var(--ink-3); border-top:1px solid var(--line); padding-top:6px; }
+  .avstack { display:flex; margin-left:auto; }
+  .avstack span { width:17px; height:17px; border-radius:50%; margin-left:-5px; border:2px solid var(--panel);
+                  display:grid; place-items:center; font-size:.55rem; font-weight:700; color:#fff; font-family:var(--kr); }
+  .avstack span:first-child { margin-left:0; }
+  .share-note { color:var(--ink-3); font-family:var(--kr); font-size:0.69rem; }
+  .mine-note { color:var(--accent); font-weight:700; }
+
+  /* before 전용 카드 요소 */
+  .b-tag { font-size:0.66rem; padding:2px 7px; border-radius:6px; font-weight:700;
+           background:var(--accent-soft); color:var(--accent); justify-self:start; }
+  .b-bars { display:grid; gap:3px; }
+  .b-bar { height:3px; border-radius:999px; background:var(--line); overflow:hidden; }
+  .b-bar > i { display:block; height:100%; background:var(--accent); }
+  .b-nums { font-family:var(--mono); font-size:0.68rem; color:var(--ink-3); }
+  .b-rest { font-family:var(--mono); font-size:0.68rem; color:var(--ink-3); }
+  .b-hidden { font-size:0.7rem; color:var(--ink-3); text-align:center; padding:5px; }
+  .b-float {
+    position:absolute; right:12px; bottom:12px; z-index:5;
+    font-size:0.7rem; color:var(--ink-2); background:var(--raised);
+    border:1px solid var(--line-strong); border-radius:999px; padding:6px 12px;
+  }
+
+  /* 하이라이트 */
+  [data-hl] { border-radius:8px; transition:box-shadow .2s, background .2s; }
+  .hl { box-shadow:0 0 0 2px var(--amber), 0 0 0 6px var(--amber-soft) !important; position:relative; z-index:3; }
+  .shell.dimming [data-hl]:not(.hl) { opacity:.4; }
+
+  /* diff chips */
+  .diffbar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+  .dchip {
+    font:inherit; font-size:0.82rem; cursor:pointer;
+    border:1px solid var(--line); border-radius:999px; padding:7px 14px;
+    background:var(--panel); color:var(--ink-2); transition:all .15s;
+  }
+  .dchip:hover { color:var(--ink); border-color:var(--line-strong); }
+  .dchip[aria-pressed="true"] { background:var(--amber); color:#1b1205; border-color:var(--amber); font-weight:700; }
+  .dchip:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  .diffnote {
+    border:1px solid var(--line); border-left:3px solid var(--amber); border-radius:12px;
+    background:var(--panel); padding:16px 18px; margin-bottom:18px; display:grid; gap:10px;
+  }
+  .diffnote h4 { font-size:0.95rem; font-weight:700; }
+  .diffnote .two { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:700px) { .diffnote .two { grid-template-columns:1fr; } }
+  .diffnote .bx { border-radius:10px; padding:11px 13px; display:grid; gap:4px; }
+  .diffnote .bx.b { background:var(--rose-soft); }
+  .diffnote .bx.a { background:var(--emerald-soft); }
+  .diffnote .bx .lb { font-family:var(--mono); font-size:0.66rem; letter-spacing:.12em; text-transform:uppercase; font-weight:700; }
+  .diffnote .bx.b .lb { color:var(--rose); }
+  .diffnote .bx.a .lb { color:var(--emerald); }
+  .diffnote .bx p { margin:0; font-size:0.85rem; color:var(--ink); line-height:1.6; }
+  .diffnote .why { margin:0; font-size:0.86rem; color:var(--ink-2); }
+  .diffnote .why b { color:var(--ink); }
+
+  .boards { display:grid; gap:16px; }
+
+  /* ════ 여정 ════ */
+  .journey { display:grid; grid-template-columns:214px 1fr; gap:18px; align-items:start; }
+  @media (max-width:860px) { .journey { grid-template-columns:1fr; } }
+
+  .tracker {
+    border:1px solid var(--line); border-radius:16px; background:var(--panel);
+    padding:16px; display:grid; gap:12px; position:sticky; top:16px;
+  }
+  .tracker h4 { font-family:var(--mono); font-size:0.68rem; letter-spacing:.12em;
+                text-transform:uppercase; color:var(--ink-3); font-weight:400; }
+  .tracker .big { font-size:1.9rem; font-weight:700; font-family:var(--mono); line-height:1;
+                  color:var(--accent); transition:color .3s; }
+  .tracker .big span { font-size:0.85rem; color:var(--ink-3); font-weight:400; }
+  .klist { display:grid; gap:5px; }
+  .kitem {
+    display:flex; align-items:center; gap:8px; font-size:0.82rem;
+    color:var(--ink-3); padding:5px 8px; border-radius:8px;
+    border:1px solid transparent; transition:all .3s;
+  }
+  .kitem i { width:7px; height:7px; border-radius:50%; background:var(--line-strong); flex:none; transition:background .3s; }
+  .kitem.on { color:var(--ink); background:var(--accent-soft); border-color:var(--accent); font-weight:700; }
+  .kitem.on i { background:var(--accent); }
+  .kitem.fresh { animation:kpop .5s ease; }
+  @keyframes kpop { 0%{transform:scale(.9)} 55%{transform:scale(1.05)} 100%{transform:scale(1)} }
+
+  .jstage { display:grid; gap:14px; }
+  .jbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+  .jsteps { display:flex; gap:5px; flex-wrap:wrap; }
+  .jstep {
+    font:inherit; font-size:0.78rem; cursor:pointer; border:1px solid var(--line);
+    background:var(--panel); color:var(--ink-3); border-radius:999px; padding:5px 12px; transition:all .15s;
+  }
+  .jstep:hover { color:var(--ink); }
+  .jstep[aria-current="true"] { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:700; }
+  .jstep:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .jnav { margin-left:auto; display:flex; gap:7px; }
+  .jbtn {
+    font:inherit; font-size:0.82rem; font-weight:700; cursor:pointer;
+    border:1px solid var(--line-strong); background:transparent; color:var(--ink-2);
+    border-radius:10px; padding:7px 15px; transition:all .15s;
+  }
+  .jbtn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .jbtn:hover { border-color:var(--accent); color:var(--ink); }
+  .jbtn.primary:hover { color:#fff; opacity:.9; }
+  .jbtn:disabled { opacity:.35; cursor:not-allowed; }
+  .jbtn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  .jhead { display:grid; gap:6px; }
+  .jday {
+    font-family:var(--mono); font-size:0.7rem; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--amber); font-weight:700;
+  }
+  .jhead h3 { font-size:1.15rem; font-weight:700; }
+  .jhead p { margin:0; font-size:0.9rem; color:var(--ink-2); max-width:66ch; }
+
+  .compare-line {
+    display:grid; grid-template-columns:1fr 1fr; gap:12px;
+  }
+  @media (max-width:760px) { .compare-line { grid-template-columns:1fr; } }
+  .cl {
+    border-radius:12px; padding:13px 15px; display:grid; gap:5px; font-size:0.85rem;
+  }
+  .cl.b { background:var(--rose-soft); }
+  .cl.a { background:var(--emerald-soft); }
+  .cl .lb { font-family:var(--mono); font-size:0.65rem; letter-spacing:.12em; text-transform:uppercase; font-weight:700; }
+  .cl.b .lb { color:var(--rose); }
+  .cl.a .lb { color:var(--emerald); }
+  .cl p { margin:0; color:var(--ink); line-height:1.6; }
+
+  /* 온보딩 화면 */
+  .ob {
+    border:1px solid var(--line-strong); border-radius:16px; background:var(--panel);
+    box-shadow:var(--shadow); padding:34px 30px; display:grid; gap:18px;
+    min-height:290px; align-content:center; justify-items:center; text-align:center;
+  }
+  .ob .oq { font-size:1.25rem; font-weight:700; line-height:1.4; max-width:24ch; }
+  .ob .osub { margin:0; font-size:0.86rem; color:var(--ink-2); max-width:44ch; }
+  .obin {
+    width:100%; max-width:400px; border:1px solid var(--line-strong); border-radius:12px;
+    background:var(--ground); padding:13px 16px; font-size:0.95rem; text-align:left;
+    color:var(--ink); min-height:48px; display:flex; align-items:center;
+  }
+  .obin.ghost { color:var(--ink-3); }
+  .oblist { width:100%; max-width:400px; display:grid; gap:8px; }
+  .obrow { display:flex; align-items:center; gap:9px; border:1px solid var(--line-strong);
+           border-radius:12px; background:var(--ground); padding:11px 14px; }
+  .obrow .ot { font-size:0.9rem; text-align:left; flex:1; }
+  .obrow .oav { width:22px; height:22px; border-radius:50%; display:grid; place-items:center;
+                font-size:.62rem; font-weight:700; color:#fff; flex:none; }
+  .obrow.ghost { border-style:dashed; }
+  .obrow.ghost .ot { color:var(--ink-3); }
+  .learned {
+    border-top:1px solid var(--line); padding-top:14px; width:100%; max-width:520px;
+    font-size:0.87rem; color:var(--ink-2); line-height:1.65; text-align:left;
+    display:flex; gap:11px; align-items:flex-start;
+  }
+  .learned .tg {
+    flex:none; font-family:var(--mono); font-size:0.64rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); font-weight:700; padding-top:3px;
+  }
+  .learned b { color:var(--ink); }
+
+  .banner {
+    display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+    background:var(--amber-soft); border-bottom:1px solid var(--line);
+    padding:10px 14px; font-size:0.83rem; color:var(--ink);
+  }
+  .banner .bi { color:var(--amber); font-weight:700; }
+
+  .toast {
+    position:absolute; left:50%; bottom:16px; transform:translateX(-50%) translateY(12px);
+    background:var(--sunken); border:1px solid var(--teal); color:var(--ink);
+    border-radius:12px; padding:10px 16px; font-size:0.81rem; box-shadow:var(--shadow);
+    z-index:20; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; max-width:88%;
+  }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  .toast b { color:var(--teal); }
+
+  /* 요약 표 */
+  .scoreboard { display:grid; gap:0; border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .srow { display:grid; grid-template-columns:1.5fr 1fr 1fr; border-bottom:1px solid var(--line); }
+  .srow:last-child { border-bottom:0; }
+  .srow > div { padding:13px 16px; font-size:0.87rem; }
+  .srow.head > div { background:var(--raised); font-family:var(--mono); font-size:0.68rem;
+                     letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); }
+  .srow .lab { font-weight:700; }
+  .srow .bv { color:var(--rose); font-family:var(--mono); }
+  .srow .av { color:var(--emerald); font-family:var(--mono); font-weight:700; }
+  @media (max-width:620px) {
+    .srow { grid-template-columns:1fr; gap:0; }
+    .srow > div { padding:8px 14px; }
+    .srow.head { display:none; }
+    .srow .bv::before { content:"현재 "; color:var(--ink-3); }
+    .srow .av::before { content:"개선 "; color:var(--ink-3); }
+  }
+
+  /* 실행 순서 */
+  .order { display:grid; counter-reset:ord; }
+  .ord { display:grid; grid-template-columns:42px 1fr auto; gap:14px; align-items:baseline;
+         border-bottom:1px solid var(--line); padding:14px 4px; }
+  .ord::before { counter-increment:ord; content:counter(ord,decimal-leading-zero);
+                 font-family:var(--mono); font-size:0.8rem; color:var(--accent); }
+  .ord .what { display:grid; gap:3px; }
+  .ord .what b { font-size:0.94rem; font-weight:700; }
+  .ord .what span { font-size:0.84rem; color:var(--ink-2); }
+  .ord .cost { font-family:var(--mono); font-size:0.7rem; color:var(--ink-3); white-space:nowrap; }
+  @media (max-width:620px) { .ord { grid-template-columns:30px 1fr; } .ord .cost { grid-column:2; } }
+
+  footer { margin-top:60px; padding-top:20px; border-top:1px solid var(--line);
+           font-family:var(--mono); font-size:0.71rem; color:var(--ink-3); }
+  @media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Milkyway · 테스트 시안</p>
+    <h1>같은 데이터, 같은 스프린트.<br />화면만 <em>바꿔서</em> 나란히 놓았습니다.</h1>
+    <p class="lede">
+      아래 두 섹션이 전부입니다. 하나는 <b>지금 화면과 개선 화면을 위아래로 붙여놓고</b> 차이를 하나씩 짚는 것,
+      다른 하나는 <b>처음 들어온 사람이 첫날부터 한 달까지</b> 무엇을 보게 되는지 실제로 눌러보는 것입니다.
+    </p>
+    <nav class="jump">
+      <a href="#compare">① 현재 vs 개선안 — 차이 6개</a>
+      <a href="#journey">② 신규 유저 첫 한 달 — 6장면</a>
+      <a href="#score">③ 숫자로 본 차이</a>
+      <a href="#order">④ 실행 순서</a>
+    </nav>
+  </header>
+
+  <section id="compare">
+    <div class="sec-head">
+      <p class="eyebrow">① 나란히 비교</p>
+      <h2>차이 6개 — 칩을 누르면 두 화면에서 해당 부분이 켜집니다</h2>
+      <p>
+        위가 지금 화면, 아래가 개선안입니다. 데이터는 완전히 같습니다 — 같은 스프린트, 같은 사람, 같은 카드.
+      </p>
+    </div>
+
+    <div class="diffbar" id="diffbar"></div>
+    <div class="diffnote" id="diffnote"></div>
+
+    <div class="boards">
+      <div class="shell before" id="shellB"><span class="shell-tag">현재</span></div>
+      <div class="shell after"  id="shellA"><span class="shell-tag">개선안</span></div>
+    </div>
+  </section>
+
+  <section id="journey">
+    <div class="sec-head">
+      <p class="eyebrow">② 신규 유저 여정</p>
+      <h2>초대 링크를 누른 순간부터 한 달까지</h2>
+      <p>
+        왼쪽 카운터는 <b>그 시점까지 이 사람이 알아야 하는 개념 수</b>입니다.
+        각 장면마다 지금 제품이라면 무엇을 보게 되는지 함께 적었습니다. 화면은 실제로 조작됩니다.
+      </p>
+    </div>
+
+    <div class="journey">
+      <aside class="tracker">
+        <h4>지금까지 배운 개념</h4>
+        <div class="big" id="kcount">0<span> / 6</span></div>
+        <div class="klist" id="klist"></div>
+      </aside>
+
+      <div class="jstage">
+        <div class="jbar">
+          <div class="jsteps" id="jsteps"></div>
+          <div class="jnav">
+            <button type="button" class="jbtn" id="jprev">← 이전</button>
+            <button type="button" class="jbtn primary" id="jnext">다음 →</button>
+          </div>
+        </div>
+
+        <div class="jhead" id="jhead"></div>
+        <div id="jbody"></div>
+        <div class="compare-line" id="jcompare"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="score">
+    <div class="sec-head">
+      <p class="eyebrow">③ 숫자</p>
+      <h2>같은 일을 하는 데 드는 비용</h2>
+      <p>느낌이 아니라 세어본 값입니다. 화면에 실제로 그려지는 요소와 코드에서 확인한 필드 기준입니다.</p>
+    </div>
+
+    <div class="scoreboard">
+      <div class="srow head"><div>항목</div><div>현재</div><div>개선안</div></div>
+      <div class="srow">
+        <div class="lab">첫 화면이 요구하는 개념</div>
+        <div class="bv">6개 (마일스톤·스프린트·피처·태스크·체크리스트·블록)</div>
+        <div class="av">2개 → 단계적으로 6개</div>
+      </div>
+      <div class="srow">
+        <div class="lab">보드에서 갈 수 있는 곳</div>
+        <div class="bv">17곳 · 내비 4층</div>
+        <div class="av">5곳 + 렌즈 드롭다운 1개</div>
+      </div>
+      <div class="srow">
+        <div class="lab">태스크 한 장의 위치 좌표</div>
+        <div class="bv">5개 FK (feature·milestone·sprint·block·sprint_column)</div>
+        <div class="av">3개 (feature·sprint·stage)</div>
+      </div>
+      <div class="srow">
+        <div class="lab">사람이 직접 입력하는 날짜</div>
+        <div class="bv">5층 (마일스톤·스프린트·피처·태스크·체크리스트)</div>
+        <div class="av">3층 (마일스톤·스프린트·개인 블록)</div>
+      </div>
+      <div class="srow">
+        <div class="lab">카드 하나의 진행률 숫자</div>
+        <div class="bv">4개 (내 몫 · 전체 · 담당 외 · 숨김 건수)</div>
+        <div class="av">1개 (내 몫) + 아바타</div>
+      </div>
+      <div class="srow">
+        <div class="lab">새 작업 만들 때 입력칸</div>
+        <div class="bv">제목·설명·담당·시작일·마감일·블록·피처</div>
+        <div class="av">제목 (+ 담을지 여부)</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="order">
+    <div class="sec-head">
+      <p class="eyebrow">④ 실행</p>
+      <h2>싼 것부터 · 1~3번은 스키마 무변경</h2>
+      <p>담당자 설계를 그대로 두기로 하면서 마이그레이션 부담이 줄었습니다. 앞의 셋만으로도 위 비교의 절반이 실현됩니다.</p>
+    </div>
+
+    <div class="order">
+      <div class="ord">
+        <div class="what">
+          <b>카드 표기 정리 — 숫자 4개 → 1개</b>
+          <span>이중 진행바·"담당 외 N개"·"진행중 N건 숨김" 제거 → <code>내 몫 N/M</code> + 함께 N명 아바타. 담당자 설계는 그대로.</span>
+        </div>
+        <span class="cost">FE only · 1일</span>
+      </div>
+      <div class="ord">
+        <div class="what">
+          <b>브레드크럼 + 기간 배지</b>
+          <span>카드마다 <code>단계 › 주기 › 묶음</code> 한 줄. 기간은 담긴 주기에서 상속해 표시(읽기 전용).</span>
+        </div>
+        <span class="cost">FE only · 1일</span>
+      </div>
+      <div class="ord">
+        <div class="what">
+          <b>복잡도 3단계 게이팅 + 온보딩 3문답</b>
+          <span><code>sprintEnabled</code>를 단계 값으로 일반화. 신규 보드는 1단계, 온보딩 종료 시 2단계 자동 승급.</span>
+        </div>
+        <span class="cost">FE + 값 확장 · 3일</span>
+      </div>
+      <div class="ord">
+        <div class="what">
+          <b>태스크 날짜 파생 전환</b>
+          <span>생성 폼에서 날짜칸 제거. 기존 값은 <code>date_override</code>로 마킹해 ✎ 배지로 노출.</span>
+        </div>
+        <span class="cost">플래그 컬럼 1개 · 2일</span>
+      </div>
+      <div class="ord">
+        <div class="what">
+          <b>피처 날짜 · 태스크 baseline 드롭</b>
+          <span><code>features.start_date/due_date</code>, <code>tasks.baseline_*</code> 제거. 계획선은 "최초 담긴 주기".</span>
+        </div>
+        <span class="cost">마이그레이션 · 2~3일</span>
+      </div>
+      <div class="ord">
+        <div class="what">
+          <b>블록 폐기 3단계</b>
+          <span>① 블록 보드 서브탭 숨김 + <code>block_id</code> nullable ② 신규 태스크 미할당 ③ 컬럼·테이블 드롭.</span>
+        </div>
+        <span class="cost">BE + FE · 1주</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Milkyway 테스트 시안 — 반영: 블록 폐기 · Task 담당자 설계 유지 · 날짜 3층 모델
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ═══════════ 공통 데이터 ═══════════ */
+  var MEM = {
+    u1:{n:"유상건",s:"상",c:"#2DD4BF"}, u2:{n:"박진웅",s:"진",c:"#7c7ef4"},
+    u3:{n:"김규현",s:"규",c:"#45D9A0"}, u4:{n:"김효림",s:"효",c:"#FB6E8A"}
+  };
+  function av(u, cls){ var m=MEM[u]; return '<span class="'+(cls||"cav")+'" style="background:'+m.c+'">'+m.s+"</span>"; }
+
+  /* ═══════════ ① 비교 섹션 ═══════════ */
+  var CF = { f1:{n:"게임 플로우",c:"#7c7ef4"}, f2:{n:"공용 UI · 연출",c:"#2DD4BF"}, f3:{n:"신규 캐릭터",c:"#F5A623"} };
+
+  // 비교용 카드 — 스크린샷의 실제 카드를 그대로 옮김
+  var CTASK = [
+    { id:"a1", f:"f2", col:"u1", title:"공용 UI · 연출 작업",
+      mine:[{t:"로비 망원경 반응 추가",u:"u1",d:true},{t:"다운로드 영상 한국어 적용",u:"u1",d:true}],
+      restCount:21, total:24, totalDone:23, others:["u4","u2"] },
+    { id:"a2", f:"f1", col:"u2", title:"튜토리얼 작업 (Sprint3)",
+      mine:[{t:"튜토리얼 기획",u:"u2",d:true},{t:"기존 데이터 변경",u:"u2",d:false}],
+      restCount:8, total:13, totalDone:10, others:["u1"] },
+    { id:"a3", f:"f3", col:"u3", title:"타키 스킬 연출",
+      mine:[{t:"[연출] 타키 스킬 이펙트",u:"u3",d:true}],
+      restCount:3, total:4, totalDone:3, others:["u2"] }
+  ];
+
+  var DIFFS = [
+    { k:"nums", label:"카드의 숫자 4개",
+      title:"카드 하나가 숫자 네 개를 동시에 말한다",
+      before:"진행바 두 줄 + <code>2/2 · 전체 23/24</code> + <code>담당 외 21개</code> + 하단 <code>진행중 3건 숨김</code>. 어느 숫자가 내 것인지 읽는 법부터 배워야 한다.",
+      after:"<code>내 몫 2/2</code> 하나만. 나머지 참여자는 아바타 스택으로 접고, 전체 수는 카드를 열었을 때만 보여준다.",
+      why:"담당자가 할 일에만 붙는 <b>설계는 그대로</b> 두고 표기만 바꾼 것이다. 같은 카드가 여러 컬럼에 서는 것도 그대로 — 대신 카드가 그 사실을 직접 말한다." },
+    { k:"date", label:"기간이 어디서 왔는지",
+      title:"태스크가 자기 날짜를 갖는가",
+      before:"태스크에 시작일·마감일 필드가 따로 있고, 화면에는 아예 안 보인다. 안 채우면 비고, 채우면 주기와 어긋나도 아무도 안 막는다.",
+      after:"담긴 주기의 기간을 <code>⤣ 7/27~8/14</code>로 상속 표시. 예외로 직접 지정하면 <code>✎</code> 배지가 남아 눈에 띈다.",
+      why:"입력을 지운 게 아니라 <b>소유권을 옮긴 것</b>이다. 이월돼도 날짜를 다시 만질 필요가 없고, <code>baseline_*</code> 필드도 필요 없어진다." },
+    { k:"crumb", label:"위계가 보이는가",
+      title:"이 카드가 어디에 속한 건지",
+      before:"카드에 라벨 하나(<code>기타 작업</code>)만 있다. 어느 마일스톤·어느 주기·어느 묶음인지 카드에서 알 수 없다.",
+      after:"<code>테스트런칭 › Sprint 3 › 공용 UI·연출</code> 한 줄. 카드마다 반복되니 도움말 없이 구조가 학습된다.",
+      why:"개념 지도를 문서로 주면 한 번 읽히고 잊힌다. <b>매 카드에 반복 노출</b>하는 쪽이 싸고 효과가 크다." },
+    { k:"nav", label:"내비게이션 4층",
+      title:"보드 하나에 갈 수 있는 곳이 17군데",
+      before:"상단 탭 5 → 서브탭 4 → 칸반 내 서브탭 3 → 우하단 플로팅 5. 층마다 위치도 모양도 다르다.",
+      after:"상단 탭 5개만 남기고, 같은 데이터를 다르게 보는 것들은 <b>렌즈 드롭다운 하나</b>로 모은다. 블록 보드는 사라진다.",
+      why:"처음 온 사람이 \"메인 화면\"을 못 찾는 직접적 원인. 뷰를 지우는 게 아니라 <b>한 곳에 모으는</b> 것이다." },
+    { k:"stage", label:"상태가 두 벌",
+      title:"칸반 컬럼과 스프린트 컬럼이 따로 논다",
+      before:"태스크는 <code>block_id</code>(NOT NULL)와 <code>sprint_column_id</code>를 동시에 갖는다. 칸반에선 \"개발 중\", 스프린트에선 \"In Review\"일 수 있다.",
+      after:"단계는 카드 위 칩 하나 — <code>진행 · 리뷰 · 완료</code>. 컬럼은 \"누가/무엇을\"만 담당하고 \"어디까지\"는 칩이 말한다.",
+      why:"블록은 통합 대상이 아니라 <b>이미 죽은 개념</b>이다. 남길 것은 리뷰/완료 두 지점뿐이라 컬럼 시스템 하나를 통째로 걷어낼 수 있다." },
+    { k:"rail", label:"왼쪽 레일",
+      title:"안 담긴 일을 어떻게 보여주는가",
+      before:"피처 트리에 <code>17%</code>, <code>1/6 체크 · 담김 0</code>. \"담김\"이 무슨 뜻인지 아무 데도 안 나온다.",
+      after:"<b>아직 안 담음</b> 목록 + <code>담기 →</code> 버튼. 끌어다 놓는 동작 하나가 \"주기에 담는다\"의 전부다.",
+      why:"동사를 화면에 직접 두면 명사를 설명할 필요가 없다. 담는 순간 기간이 붙는 것도 같은 자리에서 체감된다." }
+  ];
+
+  var CS = { diff: "nums" };
+
+  function beforeBoard() {
+    var h = "";
+    h += '<div class="navrow" data-hl="nav"><span class="nl">보드</span>' +
+         '<span class="nt on">보드</span><span class="nt">일정</span><span class="nt">회의</span>' +
+         '<span class="nt">자료실</span><span class="nt">보고서</span></div>';
+    h += '<div class="navrow sub" data-hl="nav"><span class="nl">서브탭</span>' +
+         '<span class="nt">대시보드</span><span class="nt on">칸반</span><span class="nt">마일스톤</span>' +
+         '<span class="nt">마인드맵</span></div>';
+    h += '<div class="navrow sub" data-hl="nav"><span class="nl">칸반</span>' +
+         '<span class="nt on">스프린트</span><span class="nt" data-hl="stage">블록 보드</span><span class="nt">JIRA</span></div>';
+    h += '<div class="navrow sub"><span class="nl">단계</span>' +
+         '<span class="nt">1.개발1차</span><span class="nt">2.개발2차</span><span class="nt">3.개발3차</span>' +
+         '<span class="nt ms on">4.테스트런칭 6/22~8/14</span><span class="nt">5.소프트런칭</span></div>';
+
+    h += '<div class="shead"><div class="r1">' +
+         '<span class="sprintpills"><span class="spill">Sprint 1 완료</span><span class="spill">Sprint 2 완료</span></span>' +
+         '<span class="sname">Sprint 3</span><span class="spct">86%</span>' +
+         '<span class="sinfo">체크리스트 308 / 359 · 남은 24개 · 이월</span></div>' +
+         '<div class="bar"><i style="width:86%"></i></div>' +
+         '<div class="filters"><span class="fchip">담당자 ▾</span><span class="fchip">Feature ▾</span>' +
+         '<span class="fchip">라벨 ▾</span><span class="fchip">상태 ▾</span><span class="fchip">완료 ▾</span>' +
+         '<span class="fchip">Feature / 구성원</span></div></div>';
+
+    h += '<div class="stage"><aside class="rail" data-hl="rail"><span class="rail-h">업무 리스트</span>';
+    h += '<div class="tree-f"><div class="tfh"><span class="tfn">눈 챕터 작업</span><span class="tfp">17%</span></div>' +
+         '<span class="tfm">1/6 체크 · 담김 0</span>' +
+         '<span class="tree-t">눈 챕터 배경 &nbsp;1/6</span></div>';
+    h += '<div class="tree-f"><div class="tfh"><span class="tfn">[QA] 스텔라나이츠</span><span class="tfp">68%</span></div>' +
+         '<span class="tfm">177/262 체크 · 담김 0</span>' +
+         '<span class="tree-t">[맞춤법] 테크 런칭 스펙 위주…</span>' +
+         '<span class="tree-t">[미션] 광고 시청 버튼이 시스템…</span></div>';
+    h += "</aside>";
+
+    h += '<div class="cols">';
+    ["u1","u2","u3"].forEach(function (uk) {
+      var m = MEM[uk];
+      var mine = CTASK.filter(function (t) { return t.col === uk; });
+      var big = uk === "u1" ? "34/42" : uk === "u2" ? "18/21" : "67/69";
+      h += '<div class="col" style="--ck:'+m.c+'"><div class="col-h">' +
+             '<span class="cav" style="background:'+m.c+'">'+m.s+"</span>" +
+             '<span class="cn">'+m.n+"</span>" +
+             '<span class="cc" data-hl="nums">'+big+" 📅</span></div>";
+      mine.forEach(function (t) {
+        var mineDone = 0;
+        t.mine.forEach(function (c) { if (c.d) mineDone += 1; });
+        h += '<article class="card">' +
+               '<span class="b-tag">기타 작업</span>' +
+               '<span class="ctitle">'+t.title+"</span>" +
+               '<div class="b-bars" data-hl="nums">' +
+                 '<div class="b-bar"><i style="width:'+(mineDone/t.mine.length*100)+'%"></i></div>' +
+                 '<div class="b-bar"><i style="width:'+(t.totalDone/t.total*100)+'%;background:var(--ink-3)"></i></div>' +
+                 '<span class="b-nums">'+mineDone+"/"+t.mine.length+" · 전체 "+t.totalDone+"/"+t.total+"</span>" +
+               "</div>" +
+               '<div class="checks">';
+        t.mine.forEach(function (c) {
+          h += '<span class="chk'+(c.d?" done":"")+'"><i>'+(c.d?"✓":"")+'</i><span class="cx">'+c.t+"</span></span>";
+        });
+        h += "</div>" +
+             '<span class="b-rest" data-hl="nums">담당 외 '+t.restCount+"개</span>" +
+             "</article>";
+      });
+      h += '<div class="b-hidden" data-hl="nums">진행중 3건 숨김</div>';
+      h += "</div>";
+    });
+    h += "</div></div>";
+    h += '<div class="b-float" data-hl="nav">▦ 칸반 ▾</div>';
+    return h;
+  }
+
+  function afterBoard() {
+    var h = "";
+    h += '<div class="navrow" data-hl="nav"><span class="nl">보드</span>' +
+         '<span class="nt on">보드</span><span class="nt">일정</span><span class="nt">회의</span>' +
+         '<span class="nt">자료실</span><span class="nt">보고서</span>' +
+         '<span class="lens">▦ 칸반으로 보기 ▾</span></div>';
+    h += '<div class="navrow sub"><span class="nl">단계</span>' +
+         '<span class="nt">1.개발1차</span><span class="nt">2.개발2차</span><span class="nt">3.개발3차</span>' +
+         '<span class="nt ms on">4.테스트런칭 6/22~8/14</span><span class="nt">5.소프트런칭</span></div>';
+
+    h += '<div class="shead"><div class="r1">' +
+         '<span class="sname">Sprint 3</span><span class="spct">86%</span>' +
+         '<span class="sdate" data-hl="date">7/27 ~ 8/14</span>' +
+         '<span class="sinfo">할 일 308 / 359 · 남은 카드 24개 · 8/14 종료</span></div>' +
+         '<div class="bar"><i style="width:86%"></i></div></div>';
+
+    h += '<div class="stage"><aside class="rail" data-hl="rail"><span class="rail-h">아직 안 담음</span>';
+    h += '<div class="rail-item"><span class="rfeat" style="background:#7c7ef422;color:#7c7ef4">게임 플로우</span>' +
+         '<span class="rt">눈 챕터 배경</span><span class="rm">할 일 1/6</span>' +
+         '<span class="commit-btn" role="presentation">담기 →</span></div>';
+    h += '<div class="rail-item"><span class="rfeat" style="background:#2DD4BF22;color:#2DD4BF">공용 UI · 연출</span>' +
+         '<span class="rt">[맞춤법] 테크 런칭 스펙</span><span class="rm">할 일 0/3</span>' +
+         '<span class="commit-btn" role="presentation">담기 →</span></div>';
+    h += "</aside>";
+
+    h += '<div class="cols">';
+    ["u1","u2","u3"].forEach(function (uk) {
+      var m = MEM[uk];
+      var mine = CTASK.filter(function (t) { return t.col === uk; });
+      var tot = 0, dn = 0;
+      mine.forEach(function (t) { tot += t.mine.length; t.mine.forEach(function (c) { if (c.d) dn += 1; }); });
+      h += '<div class="col" style="--ck:'+m.c+'"><div class="col-h">' +
+             '<span class="cav" style="background:'+m.c+'">'+m.s+"</span>" +
+             '<span class="cn">'+m.n+"</span>" +
+             '<span class="cc" data-hl="nums">'+dn+"/"+tot+"</span></div>";
+      mine.forEach(function (t) {
+        var mineDone = 0;
+        t.mine.forEach(function (c) { if (c.d) mineDone += 1; });
+        var st = mineDone === t.mine.length ? "done" : "doing";
+        h += '<article class="card">' +
+               '<span class="crumb" data-hl="crumb">테스트런칭 › Sprint 3 › '+CF[t.f].n+"</span>" +
+               '<span class="ctitle">'+t.title.replace(" (Sprint3)","")+"</span>" +
+               '<span class="row-mid">' +
+                 '<span class="dbadge" data-hl="date"><i>⤣</i>7/27 ~ 8/14</span>' +
+                 '<span class="stagechip st-'+st+'" data-hl="stage">'+(st==="done"?"완료":"진행")+"</span>" +
+               "</span>" +
+               '<div class="checks">';
+        t.mine.forEach(function (c) {
+          h += '<span class="chk'+(c.d?" done":"")+'"><i>'+(c.d?"✓":"")+"</i>"+av(c.u)+
+               '<span class="cx">'+c.t+"</span></span>";
+        });
+        h += "</div>" +
+             '<div class="cfoot" data-hl="nums"><span class="mine-note">내 몫 '+mineDone+"/"+t.mine.length+"</span>" +
+               '<span class="share-note">함께 '+t.others.length+'명</span><span class="avstack">';
+        t.others.forEach(function (u) { h += av(u, "x"); });
+        h += "</span></div></article>";
+      });
+      h += "</div>";
+    });
+    h += "</div></div>";
+    return h;
+  }
+
+  var shellB = document.getElementById("shellB");
+  var shellA = document.getElementById("shellA");
+  var diffbar = document.getElementById("diffbar");
+  var diffnote = document.getElementById("diffnote");
+
+  function renderCompare() {
+    shellB.innerHTML = '<span class="shell-tag">현재</span>' + beforeBoard();
+    shellA.innerHTML = '<span class="shell-tag">개선안</span>' + afterBoard();
+
+    diffbar.innerHTML = DIFFS.map(function (d) {
+      return '<button type="button" class="dchip" data-diff="'+d.k+'" aria-pressed="'+
+             (CS.diff===d.k)+'">'+d.label+"</button>";
+    }).join("");
+
+    var d = null;
+    DIFFS.forEach(function (x) { if (x.k === CS.diff) d = x; });
+    if (d) {
+      diffnote.innerHTML =
+        "<h4>"+d.title+"</h4>" +
+        '<div class="two">' +
+          '<div class="bx b"><span class="lb">현재</span><p>'+d.before+"</p></div>" +
+          '<div class="bx a"><span class="lb">개선안</span><p>'+d.after+"</p></div>" +
+        "</div>" +
+        '<p class="why">'+d.why+"</p>";
+    }
+
+    [shellB, shellA].forEach(function (sh) {
+      sh.classList.add("dimming");
+      sh.querySelectorAll("[data-hl]").forEach(function (el) {
+        el.classList.toggle("hl", el.dataset.hl === CS.diff);
+      });
+    });
+  }
+
+  diffbar.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-diff]");
+    if (!b) return;
+    CS.diff = b.dataset.diff;
+    renderCompare();
+  });
+
+  renderCompare();
+
+  /* ═══════════ ② 신규 유저 여정 ═══════════ */
+  var KEYS = [
+    { k:"feat",   n:"묶음 (Feature)" },
+    { k:"task",   n:"작업 (Task)" },
+    { k:"check",  n:"할 일 (Checklist)" },
+    { k:"sprint", n:"주기 (Sprint)" },
+    { k:"ms",     n:"단계 (Milestone)" },
+    { k:"member", n:"구성원 뷰" }
+  ];
+
+  var JF = { c:"#7c7ef4", n:"튜토리얼 개편" };
+  var JT = [
+    { id:"j1", title:"튜토리얼 기획서 정리", committed:false, stage:null,
+      checks:[{t:"기존 흐름 캡처",u:"u1",d:false,b:"7/29 · 2h"},
+              {t:"개선안 문서로 정리",u:"u1",d:false,b:"7/30 · 3h"}] },
+    { id:"j2", title:"기존 데이터 변경", committed:false, stage:null,
+      checks:[{t:"테이블 스키마 수정",u:"u2",d:false,b:"8/3 · 4h"},
+              {t:"마이그레이션 작성",u:"u2",d:false,b:"8/4 · 2h"}] },
+    { id:"j3", title:"인게임 튜토리얼 폴리싱", committed:false, stage:null,
+      checks:[{t:"연출 타이밍 조정",u:"u4",d:false,b:"8/6 · 3h"},
+              {t:"사운드 붙이기",u:"u3",d:false,b:"8/19 · 2h",out:true}] }
+  ];
+
+  var SCENES = [
+    {
+      day:"DAY 0 · 00:00",
+      h:"초대 링크를 눌렀다",
+      p:"팀원이 보낸 링크로 처음 들어온 순간. 이 사람은 이 도구를 써본 적이 없다.",
+      known:[],
+      body:"invite",
+      cmpB:"빈 칸반 보드가 열린다. 상단 탭 5개, 서브탭 4개, 칸반 서브탭 3개, 우하단 뷰 전환 5개 — <b>누를 수 있는 곳이 17군데</b>인데 무엇부터 눌러야 하는지 알려주는 게 없다. 기본 마일스톤은 이미 만들어져 있고 스프린트는 꺼져 있다.",
+      cmpA:"화면 한가운데 <b>질문 하나</b>. 탭도 사이드바도 아직 없다. 답을 적는 것 말고 할 수 있는 게 없으니 헤맬 곳도 없다."
+    },
+    {
+      day:"DAY 0 · 00:20",
+      h:"뭘 만들고 있는지 한 줄 적는다",
+      p:"거창한 기획이 아니라 지금 팀이 붙어 있는 일 하나. 이름은 나중에 알려준다.",
+      known:["feat"],
+      body:"ob1",
+      cmpB:"피처를 만들려면 <b>제목·설명·색상·담당자·시작일·마감일</b>을 한 번에 요구한다. 아직 아무것도 모르는 사람에게 날짜부터 묻는다.",
+      cmpA:"입력칸 하나. 다 적고 나서야 \"방금 만든 게 <b>묶음</b>입니다\"라고 알려준다. <b>만들고 나서 이름을 배우는</b> 순서."
+    },
+    {
+      day:"DAY 0 · 00:40",
+      h:"할 일 세 개와 담당자",
+      p:"떠오르는 대로. 순서도 크기도 신경 쓰지 않는다.",
+      known:["feat","task","check"],
+      body:"ob2",
+      cmpB:"카드는 만들어지지만 보이지 않는 곳에서 <b>블록(칸반 컬럼)이 자동으로 붙는다</b> — 나중에 칸반 탭을 열면 손댄 적 없는 상태가 이미 정해져 있다. 담당자는 태스크에 없고 체크리스트에만 있는데, 그 차이를 설명해주는 곳이 없다.",
+      cmpA:"제목만 적으면 카드가 생기고, 사람은 <b>할 일 줄</b>에 붙는다. \"책임은 줄에 붙는다\"를 만들면서 체감한다 — 이 설계는 그대로 두고 순서만 바꿨다."
+    },
+    {
+      day:"DAY 0 · 01:00",
+      h:"첫 보드 — 개념 세 개로 끝",
+      p:"만든 것이 그대로 화면이 된다. 날짜도, 주기도, 단계도 아직 없다.",
+      known:["feat","task","check"],
+      body:"board1",
+      cmpB:"같은 시점에 현재 제품은 마일스톤 탭·스프린트 헤더·블록 컬럼·필터 6종·플로팅 뷰 전환을 전부 보여준다. 만든 카드 3장을 찾는 것부터 일이다.",
+      cmpA:"컬럼 하나, 카드 세 장, 체크박스. 이 화면에서 배울 게 더 없다. <b>기간 배지도 단계 칩도 아직 안 나온다.</b>"
+    },
+    {
+      day:"DAY 7",
+      h:"일주일 뒤 — 이번 주에 할 것만 고른다",
+      p:"카드를 담아보세요. 담는 순간 무슨 일이 일어나는지가 이 장면의 전부입니다.",
+      known:["feat","task","check","sprint"],
+      body:"board2",
+      cmpB:"스프린트를 쓰려면 먼저 <b>마일스톤 설정에서 sprintEnabled를 켜고</b>, 스프린트를 만들고, 기간을 정하고, 카드를 옮겨야 한다. \"담김 0\" 같은 표기가 나오는데 뜻은 어디에도 없다.",
+      cmpA:"레일에서 끌어다 놓거나 <b>담기 →</b> 를 누르면 끝. 그 순간 카드에 <code>⤣ 7/27~8/14</code>가 붙는다 — <b>날짜를 물어본 적이 없는데 일정이 생겼다.</b>"
+    },
+    {
+      day:"DAY 30",
+      h:"한 달 뒤 — 단계와 사람",
+      p:"주기를 네 번 돌리고 나서야 그것들을 묶는 상자와, 사람별 보기가 열린다.",
+      known:["feat","task","check","sprint","ms","member"],
+      body:"board3",
+      cmpB:"이 여섯 개를 <b>첫날 한꺼번에</b> 마주쳤다. 개념 간 관계는 화면 어디에도 안 적혀 있어서, 결국 옆자리 사람에게 물어보고 배운다.",
+      cmpA:"여섯 번째 개념이 등장하는 시점이 <b>30일째</b>다. 그 사이 카드 브레드크럼을 수백 번 봤기 때문에, \"단계 안에 주기가 있다\"는 한 문장으로 끝난다."
+    }
+  ];
+
+  var J = { i:0, prevKnown:[], group:"feature", sel:null };
+
+  var kcount = document.getElementById("kcount");
+  var klist  = document.getElementById("klist");
+  var jsteps = document.getElementById("jsteps");
+  var jhead  = document.getElementById("jhead");
+  var jbody  = document.getElementById("jbody");
+  var jcomp  = document.getElementById("jcompare");
+  var jprev  = document.getElementById("jprev");
+  var jnext  = document.getElementById("jnext");
+
+  function jtoast(el, html) {
+    var t = el.querySelector(".toast");
+    if (!t) return;
+    t.innerHTML = html;
+    t.classList.add("show");
+    setTimeout(function () { t.classList.remove("show"); }, 4200);
+  }
+
+  function jcard(t, scopeMember, level) {
+    var lines = scopeMember ? t.checks.filter(function (c) { return c.u === scopeMember; }) : t.checks;
+    var owners = [];
+    t.checks.forEach(function (c) { if (owners.indexOf(c.u) < 0) owners.push(c.u); });
+    var others = owners.filter(function (u) { return u !== scopeMember; });
+    var d = 0; lines.forEach(function (c) { if (c.d) d += 1; });
+
+    var h = '<article class="card'+(t.stage==="done"?" done-card":"")+'" data-jcard="'+t.id+'">';
+    if (level >= 3) h += '<span class="crumb">테스트런칭 › Sprint 4 › '+JF.n+"</span>";
+    else if (level === 2) h += '<span class="crumb">Sprint 4 › '+JF.n+"</span>";
+    h += '<span class="ctitle">'+t.title+"</span>";
+    if (level >= 2 && t.committed) {
+      h += '<span class="row-mid"><span class="dbadge"><i>⤣</i>8/3 ~ 8/14</span>' +
+           '<span class="stagechip st-'+(t.stage==="done"?"done":"doing")+'">'+
+           (t.stage==="done"?"완료":"진행")+"</span></span>";
+    }
+    h += '<div class="checks">';
+    lines.forEach(function (c, ix) {
+      h += '<button type="button" class="chk'+(c.d?" done":"")+'" data-jchk="'+t.id+":"+ix+'">' +
+             "<i>"+(c.d?"✓":"")+"</i>"+av(c.u) +
+             '<span class="cx">'+c.t+
+               (level>=3 && c.b ? ' <span class="blk'+(c.out?" outside":"")+'">· '+c.b+"</span>" : "") +
+             "</span></button>";
+    });
+    h += "</div>";
+    h += '<div class="cfoot">';
+    if (scopeMember) {
+      h += '<span class="mine-note">내 몫 '+d+"/"+lines.length+"</span>";
+      if (others.length) {
+        h += '<span class="share-note">함께 '+others.length+'명</span><span class="avstack">';
+        others.forEach(function (u) { h += av(u,"x"); });
+        h += "</span>";
+      }
+    } else {
+      h += "<span>할 일 "+d+"/"+lines.length+"</span>";
+      h += '<span class="avstack">';
+      owners.forEach(function (u) { h += av(u,"x"); });
+      h += "</span>";
+    }
+    h += "</div></article>";
+    return h;
+  }
+
+  function jboard(level) {
+    var committed = JT.filter(function (t) { return t.committed; });
+    var pending   = JT.filter(function (t) { return !t.committed; });
+    var tot = 0, dn = 0;
+    (level === 1 ? JT : committed).forEach(function (t) {
+      tot += t.checks.length; t.checks.forEach(function (c) { if (c.d) dn += 1; });
+    });
+    var pct = tot ? Math.round(dn/tot*100) : 0;
+
+    var h = '<div class="shell after" style="border-color:var(--line-strong)">';
+
+    if (level >= 3) {
+      h += '<div class="navrow"><span class="nl">보드</span><span class="nt on">보드</span>' +
+           '<span class="nt">일정</span><span class="nt">회의</span><span class="nt">자료실</span>' +
+           '<span class="nt">보고서</span><span class="lens">▦ 칸반으로 보기 ▾</span></div>';
+      h += '<div class="navrow sub"><span class="nl">단계</span>' +
+           '<span class="nt">1. 준비</span><span class="nt ms on">2. 테스트런칭 7/1~9/30</span>' +
+           '<span class="nt">3. 정식오픈</span></div>';
+    } else {
+      h += '<div class="navrow"><span class="nl">보드</span><span class="nt on">보드</span>' +
+           '<span class="nt">일정</span><span class="nt">회의</span><span class="nt">자료실</span>' +
+           '<span class="nt">보고서</span></div>';
+    }
+
+    if (level === 2 && pending.length) {
+      h += '<div class="banner"><span class="bi">◷</span>' +
+           "지난주에 만든 카드 중 "+pending.length+"개가 아직 안 끝났어요. 이번 주에 할 것만 골라주세요.</div>";
+    }
+
+    h += '<div class="shead"><div class="r1">';
+    h += '<span class="sname">'+(level===1?"이번 주":"Sprint 4")+"</span>";
+    h += '<span class="spct">'+pct+"%</span>";
+    if (level >= 2) h += '<span class="sdate">8/3 ~ 8/14</span>';
+    h += '<span class="sinfo">할 일 '+dn+" / "+tot+"</span>";
+    if (level >= 3) {
+      h += '<span class="grp" style="margin-left:auto;display:flex;align-items:center;gap:4px;' +
+           'background:var(--sunken);border:1px solid var(--line);border-radius:999px;padding:3px">' +
+           '<button type="button" class="jgrp" data-grp="feature" aria-pressed="'+(J.group==="feature")+'">묶음</button>' +
+           '<button type="button" class="jgrp" data-grp="member" aria-pressed="'+(J.group==="member")+'">구성원</button>' +
+           "</span>";
+    }
+    h += '</div><div class="bar"><i style="width:'+pct+'%"></i></div></div>';
+
+    h += '<div class="stage">';
+
+    if (level >= 2) {
+      h += '<aside class="rail"><span class="rail-h">아직 안 담음</span>';
+      if (!pending.length) {
+        h += '<p class="rail-empty">전부 담겼습니다. 새 작업을 만들면 여기 쌓입니다.</p>';
+      }
+      pending.forEach(function (t) {
+        h += '<div class="rail-item" draggable="true" data-jdrag="'+t.id+'">' +
+               '<span class="rfeat" style="background:'+JF.c+'22;color:'+JF.c+'">'+JF.n+"</span>" +
+               '<span class="rt">'+t.title+"</span>" +
+               '<span class="rm">할 일 0/'+t.checks.length+"</span>" +
+               '<button type="button" class="commit-btn" data-jcommit="'+t.id+'">담기 →</button>' +
+             "</div>";
+      });
+      h += "</aside>";
+    }
+
+    h += '<div class="cols">';
+    if (level >= 3 && J.group === "member") {
+      ["u1","u2","u3","u4"].forEach(function (uk) {
+        var m = MEM[uk];
+        var mine = committed.filter(function (t) {
+          return t.checks.some(function (c) { return c.u === uk; });
+        });
+        if (!mine.length) return;
+        var mt = 0, md = 0;
+        mine.forEach(function (t) { t.checks.forEach(function (c) { if (c.u===uk) { mt+=1; if (c.d) md+=1; } }); });
+        h += '<div class="col" style="--ck:'+m.c+'"><div class="col-h">' +
+               '<span class="cav" style="background:'+m.c+'">'+m.s+"</span>" +
+               '<span class="cn">'+m.n+'</span><span class="cc">'+md+"/"+mt+"</span></div>";
+        mine.forEach(function (t) { h += jcard(t, uk, level); });
+        h += "</div>";
+      });
+    } else {
+      var shown = level === 1 ? JT : committed;
+      var st = 0, sd = 0;
+      shown.forEach(function (t) { st += t.checks.length; t.checks.forEach(function (c) { if (c.d) sd += 1; }); });
+      h += '<div class="col" style="--ck:'+JF.c+';width:330px" data-jdrop="1"><div class="col-h">' +
+             '<span class="cn">'+JF.n+'</span><span class="cc">'+sd+"/"+st+"</span></div>";
+      if (!shown.length) {
+        h += '<p class="rail-empty">오른쪽 레일에서 카드를 끌어다 놓거나 <b>담기</b>를 누르세요.</p>';
+      }
+      shown.forEach(function (t) { h += jcard(t, null, level); });
+      h += "</div>";
+    }
+    h += "</div></div>";
+    h += '<div class="toast"></div>';
+    h += "</div>";
+    return h;
+  }
+
+  function obScreen(step) {
+    if (step === "invite") {
+      return '<div class="ob">' +
+        '<span class="oq">지금 팀이 붙어 있는 일이 뭔가요?</span>' +
+        '<p class="osub">한 가지만 적어주세요. 나중에 얼마든지 바꿀 수 있습니다.</p>' +
+        '<div class="obin ghost">예: 튜토리얼 개편</div>' +
+        '<div class="learned"><span class="tg">이 화면에</span>' +
+        "<span>탭도, 사이드바도, 설정도 없습니다. <b>배워야 할 개념 0개.</b> " +
+        "할 수 있는 일이 하나뿐이라 잘못 누를 곳도 없습니다.</span></div></div>";
+    }
+    if (step === "ob1") {
+      return '<div class="ob">' +
+        '<span class="oq">지금 팀이 붙어 있는 일이 뭔가요?</span>' +
+        '<div class="obin">튜토리얼 개편</div>' +
+        '<div class="learned"><span class="tg">방금 만든 것</span>' +
+        "<span><b>묶음</b>이 하나 생겼습니다. 같은 목적의 일을 모아두는 서랍이고, " +
+        "안의 일이 전부 끝나면 알아서 닫힙니다. — <b>날짜는 묻지 않았습니다.</b> 묶음은 시간 축에 있지 않으니까요.</span></div></div>";
+    }
+    if (step === "ob2") {
+      return '<div class="ob">' +
+        '<span class="oq">그러려면 뭘 해야 하죠?</span>' +
+        '<p class="osub">떠오르는 대로 적고, 할 사람을 골라주세요.</p>' +
+        '<div class="oblist">' +
+          '<div class="obrow"><span class="ot">튜토리얼 기획서 정리</span>'+av("u1","oav")+"</div>" +
+          '<div class="obrow"><span class="ot">기존 데이터 변경</span>'+av("u2","oav")+"</div>" +
+          '<div class="obrow"><span class="ot">인게임 튜토리얼 폴리싱</span>'+av("u4","oav")+"</div>" +
+          '<div class="obrow ghost"><span class="ot">+ 더 적기</span></div>' +
+        "</div>" +
+        '<div class="learned"><span class="tg">방금 만든 것</span>' +
+        "<span><b>작업</b> 카드 3장과, 그 안의 <b>할 일</b>입니다. 사람은 작업이 아니라 " +
+        "<b>할 일 한 줄</b>에 붙었습니다 — 한 카드를 여러 명이 나눠 미는 게 기본이기 때문입니다.</span></div></div>";
+    }
+    return "";
+  }
+
+  function renderJourney(fresh) {
+    var sc = SCENES[J.i];
+
+    // 카운터
+    kcount.innerHTML = sc.known.length + "<span> / 6</span>";
+    klist.innerHTML = KEYS.map(function (k) {
+      var on = sc.known.indexOf(k.k) >= 0;
+      var isFresh = on && fresh && J.prevKnown.indexOf(k.k) < 0;
+      return '<div class="kitem'+(on?" on":"")+(isFresh?" fresh":"")+'"><i></i>'+k.n+"</div>";
+    }).join("");
+
+    // 스텝
+    jsteps.innerHTML = SCENES.map(function (s, ix) {
+      return '<button type="button" class="jstep" data-jstep="'+ix+'" aria-current="'+(ix===J.i)+'">'+
+             s.day.split(" · ")[0]+"</button>";
+    }).join("");
+
+    jhead.innerHTML = '<span class="jday">'+sc.day+"</span><h3>"+sc.h+"</h3><p>"+sc.p+"</p>";
+
+    if (sc.body === "board1") jbody.innerHTML = jboard(1);
+    else if (sc.body === "board2") jbody.innerHTML = jboard(2);
+    else if (sc.body === "board3") jbody.innerHTML = jboard(3);
+    else jbody.innerHTML = obScreen(sc.body);
+
+    jcomp.innerHTML =
+      '<div class="cl b"><span class="lb">지금 제품이라면</span><p>'+sc.cmpB+"</p></div>" +
+      '<div class="cl a"><span class="lb">개선안</span><p>'+sc.cmpA+"</p></div>";
+
+    jprev.disabled = J.i === 0;
+    jnext.disabled = J.i === SCENES.length - 1;
+    J.prevKnown = sc.known.slice();
+  }
+
+  function goScene(i) {
+    if (i < 0 || i >= SCENES.length) return;
+    // 장면 진입 시 데이터 상태를 그 시점에 맞춘다
+    if (i <= 3) {
+      JT.forEach(function (t) { t.committed = false; t.stage = null;
+        t.checks.forEach(function (c) { c.d = false; }); });
+      J.group = "feature";
+    } else if (i === 4) {
+      JT.forEach(function (t) { t.committed = false; t.stage = null;
+        t.checks.forEach(function (c) { c.d = false; }); });
+      J.group = "feature";
+    } else if (i === 5) {
+      JT.forEach(function (t, ix) {
+        t.committed = true;
+        t.checks.forEach(function (c, cx) { c.d = (ix + cx) % 3 !== 0; });
+        t.stage = t.checks.every(function (c) { return c.d; }) ? "done" : "doing";
+      });
+    }
+    J.i = i;
+    renderJourney(true);
+  }
+
+  jprev.addEventListener("click", function () { goScene(J.i - 1); });
+  jnext.addEventListener("click", function () { goScene(J.i + 1); });
+  jsteps.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-jstep]");
+    if (b) goScene(Number(b.dataset.jstep));
+  });
+
+  jbody.addEventListener("click", function (e) {
+    var shell = jbody.querySelector(".shell");
+
+    var cb = e.target.closest("[data-jcommit]");
+    if (cb) {
+      var t = null;
+      JT.forEach(function (x) { if (x.id === cb.dataset.jcommit) t = x; });
+      if (!t) return;
+      t.committed = true;
+      t.stage = "doing";
+      renderJourney(false);
+      jtoast(jbody.querySelector(".shell"),
+        "<b>기간이 붙었습니다.</b> " + t.title + " → Sprint 4 · 8/3 ~ 8/14 — 날짜를 물어본 적이 없습니다.");
+      return;
+    }
+
+    var gb = e.target.closest("[data-grp]");
+    if (gb) {
+      J.group = gb.dataset.grp;
+      renderJourney(false);
+      if (J.group === "member") {
+        jtoast(jbody.querySelector(".shell"),
+          "같은 카드가 여러 컬럼에 섭니다 — <b>사양입니다.</b> 각 컬럼은 그 사람 몫만 세고, 나머지는 아바타로 접힙니다.");
+      }
+      return;
+    }
+
+    var ck = e.target.closest("[data-jchk]");
+    if (ck) {
+      var p = ck.dataset.jchk.split(":");
+      var tt = null;
+      JT.forEach(function (x) { if (x.id === p[0]) tt = x; });
+      if (!tt) return;
+      var line = tt.checks[Number(p[1])];
+      line.d = !line.d;
+      var allDone = tt.checks.every(function (c) { return c.d; });
+      var was = tt.stage;
+      if (tt.committed) tt.stage = allDone ? "done" : "doing";
+      renderJourney(false);
+      if (allDone && was !== "done" && tt.committed) {
+        jtoast(jbody.querySelector(".shell"),
+          "<b>"+tt.title+" 완료.</b> 마지막 줄이 체크되면서 단계가 자동으로 넘어갔습니다.");
+      }
+      return;
+    }
+  });
+
+  // 레일 → 컬럼 드래그
+  jbody.addEventListener("dragstart", function (e) {
+    var it = e.target.closest("[data-jdrag]");
+    if (!it) return;
+    J.drag = it.dataset.jdrag;
+    it.classList.add("dragging");
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      try { e.dataTransfer.setData("text/plain", it.dataset.jdrag); } catch (err) {}
+    }
+  });
+  jbody.addEventListener("dragend", function () {
+    J.drag = null;
+    jbody.querySelectorAll(".col").forEach(function (c) { c.classList.remove("dropok"); });
+  });
+  jbody.addEventListener("dragover", function (e) {
+    var col = e.target.closest("[data-jdrop]");
+    if (!col || !J.drag) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    col.classList.add("dropok");
+  });
+  jbody.addEventListener("dragleave", function (e) {
+    var col = e.target.closest("[data-jdrop]");
+    if (col && !col.contains(e.relatedTarget)) col.classList.remove("dropok");
+  });
+  jbody.addEventListener("drop", function (e) {
+    var col = e.target.closest("[data-jdrop]");
+    if (!col) return;
+    e.preventDefault();
+    var id = J.drag || (e.dataTransfer && e.dataTransfer.getData("text/plain"));
+    if (!id) return;
+    var t = null;
+    JT.forEach(function (x) { if (x.id === id) t = x; });
+    J.drag = null;
+    if (!t) return;
+    t.committed = true;
+    t.stage = "doing";
+    renderJourney(false);
+    jtoast(jbody.querySelector(".shell"),
+      "<b>기간이 붙었습니다.</b> " + t.title + " → Sprint 4 · 8/3 ~ 8/14 — 날짜를 물어본 적이 없습니다.");
+  });
+
+  // 그룹 토글 버튼 스타일 (동적 생성이라 여기서 클래스 부여)
+  var style = document.createElement("style");
+  style.textContent =
+    ".jgrp{font:inherit;font-size:.74rem;border:0;background:transparent;color:var(--ink-3);" +
+    "padding:4px 11px;border-radius:999px;cursor:pointer;font-family:var(--kr)}" +
+    ".jgrp[aria-pressed='true']{background:var(--accent);color:#fff}" +
+    ".jgrp:focus-visible{outline:2px solid var(--accent);outline-offset:2px}";
+  document.head.appendChild(style);
+
+  goScene(0);
+})();
+</script>

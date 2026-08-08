@@ -40,15 +40,12 @@ import {
   PanelCount,
   PanelFooterHint,
   PanelShell,
-  panelTabClass,
 } from "./DashboardCard";
 
 /** 백로그 제목 최대 길이 — 백엔드 @Size(max = 200)과 같은 값 */
 const TITLE_MAX = 200;
 /** 이 길이부터 카운터를 노출한다 (평소엔 숨긴다) */
 const COUNTER_FROM = 190;
-
-type RailTab = "open" | "promoted";
 
 /** 저장에 실패해 아직 서버에 없는 항목 — 카드로는 보이되 드래그·승격은 잠근다 */
 interface PendingItem {
@@ -138,7 +135,6 @@ export function BacklogRail({
   const [pending, setPending] = useState<PendingItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<RailTab>("open");
 
   const [draft, setDraft] = useState("");
   // 줄바꿈이 섞인 붙여넣기 — 나눌지 한 번만 묻는다
@@ -225,21 +221,18 @@ export function BacklogRail({
   /**
    * 오래된 것부터 앞에 둔다 — 방치가 목록 순서로 드러난다.
    * 백로그를 다시 열게 만드는 건 개수가 아니라 "가장 오래된 게 맨 앞에 있다"는 사실이다.
+   *
+   * 승격된 항목은 애초에 오지 않는다 — 서버가 승격과 동시에 목록에서 닫는다.
    */
   const openItems = useMemo(
     () =>
-      items
-        .filter((i) => !i.promoted_type)
-        .sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? "")),
+      [...items].sort((a, b) =>
+        (a.created_at ?? "").localeCompare(b.created_at ?? ""),
+      ),
     [items],
   );
-  const promotedItems = useMemo(
-    () => items.filter((i) => !!i.promoted_type),
-    [items],
-  );
-  const visible = tab === "open" ? openItems : promotedItems;
 
-  /** 가장 오래된 미승격 항목의 방치 일수 — 헤더에 띄우는 압력 신호 */
+  /** 가장 오래된 항목의 방치 일수 — 헤더에 띄우는 압력 신호 */
   const oldestDays = useMemo(
     () => (openItems.length > 0 ? daysSince(openItems[0].created_at) : null),
     [openItems],
@@ -283,7 +276,6 @@ export function BacklogRail({
       if (!fresh.length) return;
 
       setPending((prev) => [...fresh, ...prev]);
-      setTab("open");
       fresh.forEach((p) => void persist(p.localId, p.title));
     },
     [persist],
@@ -334,7 +326,6 @@ export function BacklogRail({
 
   const focusAdd = useCallback(() => {
     applyCollapsed(false);
-    setTab("open");
     // 열이 펼쳐진 뒤에 입력칸으로 간다 — 입력칸은 트랙 맨 앞이라 양쪽 축을 되감는다
     // (xl 이상에서는 세로로, 그 미만에서는 가로로 흐른다)
     window.requestAnimationFrame(() => {
@@ -375,7 +366,7 @@ export function BacklogRail({
     const onDrop = (e: Event) => {
       const detail = (e as CustomEvent<BacklogDropDetail>).detail;
       if (!detail?.id) return;
-      const item = items.find((i) => i.id === detail.id && !i.promoted_type);
+      const item = items.find((i) => i.id === detail.id);
       if (!item) return;
       // 놓은 자리가 날짜를 정했으니 붙일 곳만 고르면 된다.
       // 간트 바는 체크리스트 항목이므로 CHECKLIST_ITEM으로 승격해야 그 날짜에 바가 생긴다.
@@ -386,9 +377,14 @@ export function BacklogRail({
   }, [items, readOnly]);
 
   /* ── 승격 ── */
+  /**
+   * 승격된 항목은 목록에서 사라진다 — 타임블록·태스크·체크리스트로 실체가 옮겨갔고,
+   * 백로그에 남은 카드는 같은 일을 두 번 보여줄 뿐이다.
+   * (되돌리려면 만들어진 쪽을 백로그로 다시 끌어 내리면 된다 — 강등 경로가 그대로 있다)
+   */
   const handlePromoted = useCallback(
-    (updated: PersonalTask) => {
-      setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+    (promotedItem: PersonalTask) => {
+      setItems((prev) => prev.filter((i) => i.id !== promotedItem.id));
       setPromoting(null);
       onPromoted?.();
       // 승격 결과(체크리스트 항목)가 위 두 존에 나타나야 한다
@@ -396,15 +392,6 @@ export function BacklogRail({
     },
     [onPromoted],
   );
-
-  const handleUnpromote = useCallback(async (item: PersonalTask) => {
-    try {
-      const updated = await personalTaskAPI.unpromote(item.id);
-      setItems((prev) => prev.map((i) => (i.id === item.id ? updated : i)));
-    } catch {
-      /* 되돌리기 실패는 목록 갱신으로 흡수된다 */
-    }
-  }, []);
 
   const handleDelete = useCallback(
     async (item: PersonalTask) => {
@@ -489,7 +476,6 @@ export function BacklogRail({
       }
 
       setItems((prev) => [created, ...prev]);
-      setTab("open");
       showDemoted({ backlogId: created.id, source, item });
       // 간트·배치 레일에서 원본이 빠진 걸 반영시킨다
       requestAxisRefresh();
@@ -532,22 +518,10 @@ export function BacklogRail({
     // 백로그 → 미배치. 날짜 없이 태스크에만 붙이면 되므로 붙일 곳만 고른다.
     // (간트 바·배치 카드는 체크리스트 항목이라 CHECKLIST_ITEM으로 승격해야 그 줄에 나타난다)
     if (detail.from === "backlog" && detail.to === "placement") {
-      const target = items.find(
-        (i) => i.id === detail.item.id && !i.promoted_type,
-      );
+      const target = items.find((i) => i.id === detail.item.id);
       if (target) setPromoting({ item: target, target: "CHECKLIST_ITEM" });
     }
   });
-
-  const promotedLabel = (item: PersonalTask) => {
-    const kind =
-      item.promoted_type === "TASK"
-        ? t("backlog.kindTask", "태스크")
-        : item.promoted_type === "CHECKLIST_ITEM"
-          ? t("backlog.kindChecklist", "체크리스트")
-          : t("backlog.kindTimeblock", "타임블록");
-    return item.promoted_label ? `${kind} · ${item.promoted_label}` : kind;
-  };
 
   /**
    * 2단 압축 카드 — 제목 한 덩이 + 아래 한 줄이 전부다.
@@ -624,52 +598,13 @@ export function BacklogRail({
       subtitle={
         readOnly
           ? t("backlog.hintReadOnly", "읽기 전용")
-          : t("backlog.hintShort", "보드 멤버가 볼 수 있습니다 · b 로 적기")
+          : t("backlog.hintShort", "보드 멤버가 볼 수 있습니다")
       }
-      tabs={
-        <div
-          className="flex-none flex items-center gap-1"
-          role="tablist"
-          aria-label={t("backlog.tabsLabel", "백로그 목록")}
-        >
-          {(
-            [
-              {
-                key: "open" as const,
-                label: t("backlog.openTab", "대기"),
-                count: openCount,
-              },
-              {
-                key: "promoted" as const,
-                label: t("backlog.promotedTab", "승격됨"),
-                count: promotedItems.length,
-              },
-            ] satisfies { key: RailTab; label: string; count: number }[]
-          ).map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              role="tab"
-              id={`backlog-rail-tab-${item.key}`}
-              aria-selected={tab === item.key}
-              aria-controls="backlog-rail-panel"
-              onClick={() => setTab(item.key)}
-              className={panelTabClass(tab === item.key)}
-            >
-              {item.label}
-              <PanelCount
-                value={item.count}
-                tone={item.key === "promoted" ? "teal" : "muted"}
-              />
-            </button>
-          ))}
-        </div>
-      }
+      /* 목록이 하나뿐이라 탭이 없다 — 제목 옆은 개수 하나로 끝난다 */
+      tabs={openCount > 0 ? <PanelCount value={openCount} /> : undefined}
       headerExtra={
-        /* 방치 신호 — 개수는 이미 탭에 있다. 다시 열게 만드는 건 이 숫자다 */
-        tab === "open" &&
-        oldestDays !== null &&
-        oldestDays >= BACKLOG_STALE_DAYS ? (
+        /* 방치 신호 — 다시 열게 만드는 건 개수가 아니라 이 숫자다 */
+        oldestDays !== null && oldestDays >= BACKLOG_STALE_DAYS ? (
           <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
             {t("backlog.oldestDays", "가장 오래된 것 {{count}}일", {
               count: oldestDays,
@@ -756,12 +691,7 @@ export function BacklogRail({
             : undefined
       }
     >
-      <div
-        id="backlog-rail-panel"
-        role="tabpanel"
-        aria-labelledby={`backlog-rail-tab-${tab}`}
-        className="flex-1 min-h-0 flex flex-col"
-      >
+      <div className="flex-1 min-h-0 flex flex-col">
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center py-6">
             <Loader2
@@ -785,7 +715,7 @@ export function BacklogRail({
           >
             {/* 입력 카드는 항상 맨 앞. 스냅 대상으로 잡아두지 않으면 마운트 시
                 레일이 첫 카드로 스냅해 입력칸을 지나쳐 버린다. */}
-            {tab === "open" && !readOnly && (
+            {!readOnly && (
               // 카드가 2단으로 얇아진 만큼 입력칸도 한 줄로 눕힌다 —
               // 여기가 두꺼우면 트랙 높이가 입력칸에 끌려간다
               <div className="flex-none w-[208px] xl:w-full snap-start rounded-xl border border-dashed border-foreground/10 flex items-center gap-1.5 px-2.5 focus-within:ring-2 focus-within:ring-bridge-accent/50 transition-all">
@@ -826,7 +756,7 @@ export function BacklogRail({
             )}
 
             {/* 여러 줄 붙여넣기 확인 */}
-            {tab === "open" && pastedLines && (
+            {pastedLines && (
               <div className="flex-none w-[270px] xl:w-full snap-start rounded-xl border border-dashed border-bridge-accent bg-bridge-accent/[0.08] p-2.5 flex flex-col gap-2">
                 <p className="text-xs font-bold text-foreground">
                   {t("backlog.pasteAsk", "{{count}}개 항목으로 나눌까요?", {
@@ -868,107 +798,98 @@ export function BacklogRail({
             )}
 
             {/* 저장 중 · 실패 카드 */}
-            {tab === "open" &&
-              pending.map((p) => (
-                <div
-                  key={p.localId}
-                  className={`${cardBase} ${
-                    p.state === "failed"
-                      ? "border-rose-500/60 bg-rose-500/[0.06]"
-                      : "border-foreground/[0.08] opacity-60"
+            {pending.map((p) => (
+              <div
+                key={p.localId}
+                className={`${cardBase} ${
+                  p.state === "failed"
+                    ? "border-rose-500/60 bg-rose-500/[0.06]"
+                    : "border-foreground/[0.08] opacity-60"
+                }`}
+              >
+                <span
+                  className={`flex-none w-[2px] self-stretch rounded-full ${
+                    p.state === "failed" ? "bg-rose-500" : "bg-slate-600"
                   }`}
-                >
-                  <span
-                    className={`flex-none w-[2px] self-stretch rounded-full ${
-                      p.state === "failed" ? "bg-rose-500" : "bg-slate-600"
-                    }`}
-                    aria-hidden="true"
-                  />
-                  <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                    <p className="text-xs font-medium text-foreground leading-snug line-clamp-2">
-                      {p.title}
+                  aria-hidden="true"
+                />
+                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                  <p className="text-xs font-medium text-foreground leading-snug line-clamp-2">
+                    {p.title}
+                  </p>
+                  {p.state === "sending" ? (
+                    <p className="flex items-center min-h-[22px] text-xs text-slate-500">
+                      {t("backlog.saving", "저장 중…")}
                     </p>
-                    {p.state === "sending" ? (
-                      <p className="flex items-center min-h-[22px] text-xs text-slate-500">
-                        {t("backlog.saving", "저장 중…")}
-                      </p>
-                    ) : (
-                      // 실패는 숨기지 않는다 — 호버로 접는 건 성공한 카드의 액션뿐이다
-                      <div className="flex items-center gap-1 min-h-[22px] -ml-1">
-                        {/* 두 줄에 문장을 놓을 자리가 없다 — 「적어둔 건 남아 있다」는
+                  ) : (
+                    // 실패는 숨기지 않는다 — 호버로 접는 건 성공한 카드의 액션뿐이다
+                    <div className="flex items-center gap-1 min-h-[22px] -ml-1">
+                      {/* 두 줄에 문장을 놓을 자리가 없다 — 「적어둔 건 남아 있다」는
                             이 아이콘의 툴팁과 보조기기용 문장으로 옮긴다 */}
-                        <span
-                          className="ml-1 flex-none"
-                          title={t(
+                      <span
+                        className="ml-1 flex-none"
+                        title={t(
+                          "backlog.savedLocally",
+                          "저장 안 됨 · 로컬에 보관됨",
+                        )}
+                      >
+                        <TriangleAlert
+                          size={12}
+                          className="text-rose-600 dark:text-rose-400"
+                          aria-hidden="true"
+                        />
+                        <span className="sr-only">
+                          {t(
                             "backlog.savedLocally",
                             "저장 안 됨 · 로컬에 보관됨",
                           )}
-                        >
-                          <TriangleAlert
-                            size={12}
-                            className="text-rose-600 dark:text-rose-400"
-                            aria-hidden="true"
-                          />
-                          <span className="sr-only">
-                            {t(
-                              "backlog.savedLocally",
-                              "저장 안 됨 · 로컬에 보관됨",
-                            )}
-                          </span>
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPending((prev) =>
-                              prev.map((x) =>
-                                x.localId === p.localId
-                                  ? { ...x, state: "sending" }
-                                  : x,
-                              ),
-                            );
-                            void persist(p.localId, p.title);
-                          }}
-                          className="px-1.5 py-1 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                        >
-                          {t("backlog.retry", "재시도")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPending((prev) =>
-                              prev.filter((x) => x.localId !== p.localId),
-                            )
-                          }
-                          className="px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-                        >
-                          {t("backlog.discard", "버리기")}
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPending((prev) =>
+                            prev.map((x) =>
+                              x.localId === p.localId
+                                ? { ...x, state: "sending" }
+                                : x,
+                            ),
+                          );
+                          void persist(p.localId, p.title);
+                        }}
+                        className="px-1.5 py-1 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                      >
+                        {t("backlog.retry", "재시도")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPending((prev) =>
+                            prev.filter((x) => x.localId !== p.localId),
+                          )
+                        }
+                        className="px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                      >
+                        {t("backlog.discard", "버리기")}
+                      </button>
+                    </div>
+                  )}
                 </div>
-              ))}
+              </div>
+            ))}
 
-            {visible.length === 0 && pending.length === 0 && (
+            {openItems.length === 0 && pending.length === 0 && (
               <p className="flex-none w-[208px] xl:w-full text-xs text-slate-500 py-4 leading-relaxed">
-                {tab === "open"
-                  ? t("backlog.empty", "백로그가 비었습니다.")
-                  : t(
-                      "backlog.emptyPromoted",
-                      "아직 승격시킨 항목이 없습니다. 카드를 왼쪽으로 끌어 보세요.",
-                    )}
+                {t("backlog.empty", "백로그가 비었습니다.")}
               </p>
             )}
 
-            {visible.map((item, index) => {
-              const draggable = !readOnly && !item.promoted_type;
+            {openItems.map((item, index) => {
+              const draggable = !readOnly;
               const age = daysSince(item.created_at);
               // 방치는 읽기 전용에서도 보여야 한다 — 드래그 가능 여부와 별개다.
               // 오래된 순으로 정렬돼 있으므로 방치 1등은 언제나 첫 카드다
-              const stale =
-                !item.promoted_type &&
-                age !== null &&
-                age >= BACKLOG_STALE_DAYS;
+              const stale = age !== null && age >= BACKLOG_STALE_DAYS;
               const isOldest = stale && index === 0;
               return (
                 <div
@@ -988,23 +909,14 @@ export function BacklogRail({
                   }}
                   onDragEnd={endAxisDrag}
                   className={`${cardBase} border-foreground/[0.08] hover:border-foreground/[0.12] ${
-                    draggable
-                      ? "cursor-grab active:cursor-grabbing"
-                      : // 승격된 항목만 흐리게 둔다 — 읽기 전용은 "끝난 일"이 아니다
-                        item.promoted_type
-                        ? "opacity-75"
-                        : ""
+                    draggable ? "cursor-grab active:cursor-grabbing" : ""
                   }`}
                 >
-                  {/* 배지를 대신하는 색 레일 — 승격됨(틸) · 방치(호박) · 평상(인디고)을
+                  {/* 배지를 대신하는 색 레일 — 방치(호박) · 평상(인디고)을
                       한 자리에서 말한다. 카드마다 「백로그」를 다시 적지 않는다. */}
                   <span
                     className={`flex-none w-[2px] self-stretch rounded-full ${
-                      item.promoted_type
-                        ? "bg-bridge-secondary"
-                        : stale
-                          ? "bg-amber-500"
-                          : "bg-bridge-accent"
+                      stale ? "bg-amber-500" : "bg-bridge-accent"
                     }`}
                     aria-hidden="true"
                   />
@@ -1031,10 +943,6 @@ export function BacklogRail({
                                   count: age as number,
                                 })}
                           </span>
-                        ) : item.promoted_type ? (
-                          <span className="min-w-0 truncate text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
-                            → {promotedLabel(item)}
-                          </span>
                         ) : (
                           <span className="truncate text-xs text-slate-500">
                             {formatRelativeTime(item.created_at)}
@@ -1053,45 +961,30 @@ export function BacklogRail({
                           className="pointer-events-none absolute right-full top-0 h-full w-6 bg-gradient-to-l from-bridge-dark to-transparent"
                           aria-hidden="true"
                         />
-                        {item.promoted_type ? (
-                          <button
-                            type="button"
-                            onClick={() => void handleUnpromote(item)}
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-                          >
-                            <RotateCcw size={11} aria-hidden="true" />
-                            {t("backlog.undo", "되돌리기")}
-                          </button>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setPromoting({ item, target: "TIMEBLOCK" })
-                              }
-                              className="px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-                            >
-                              {t("backlog.kindTimeblock", "타임블록")}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setPromoting({ item, target: "TASK" })
-                              }
-                              className="px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-                            >
-                              {t("backlog.kindTask", "태스크")}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleDelete(item)}
-                              aria-label={t("common.delete", "삭제")}
-                              className="px-1.5 py-1 rounded-lg text-xs font-bold text-slate-600 hover:text-rose-500 hover:bg-foreground/5 transition-colors"
-                            >
-                              ×
-                            </button>
-                          </>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPromoting({ item, target: "TIMEBLOCK" })
+                          }
+                          className="px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                        >
+                          {t("backlog.kindTimeblock", "타임블록")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPromoting({ item, target: "TASK" })}
+                          className="px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                        >
+                          {t("backlog.kindTask", "태스크")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDelete(item)}
+                          aria-label={t("common.delete", "삭제")}
+                          className="px-1.5 py-1 rounded-lg text-xs font-bold text-slate-600 hover:text-rose-500 hover:bg-foreground/5 transition-colors"
+                        >
+                          ×
+                        </button>
                       </div>
                     </div>
                   </div>

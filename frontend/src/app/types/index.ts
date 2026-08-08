@@ -205,6 +205,10 @@ export interface Board {
   tier?: BoardTier;
   trial_ends_at?: string | null;
   selected_milestone_id?: string | null;
+  /** 화면 복잡도 — 시간 묶음 깊이. 1=안 묶음 / 2=주기 / 3=단계▸주기 (useBoardFeatures) */
+  ui_level?: number | null;
+  /** 레벨과 무관한 직교 옵션(쉼표 구분): members,review,timeblock,jira */
+  ui_options?: string | null;
   organization_id?: string | null;
   organization_name?: string | null;
   is_org_member_viewer?: boolean;

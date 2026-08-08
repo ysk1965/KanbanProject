@@ -79,12 +79,48 @@ public class SprintService {
     public SprintResponse.Board getSprintBoard(String boardId, String milestoneId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
         Milestone milestone = loadMilestone(boardId, milestoneId);
-        // 마일스톤 = 스프린트 자동 소유: 활성화 상태면 컬럼/스프린트를 자동 프로비저닝
-        if (Boolean.TRUE.equals(milestone.getSprintEnabled())) {
+
+        // 레벨 1(시간 묶음 없음)에도 흐름 컬럼(In Review·Done)은 있어야 한다 —
+        // 일은 마감이 없어도 흐른다. 흐름 컬럼이 SprintColumn이므로 레벨과 무관하게 프로비저닝한다.
+        // sprintEnabled는 이제 사용자 개념이 아니라 내부 값이고, 사용자에게 보이는 건 boards.ui_level뿐이다.
+        int uiLevel = resolveUiLevel(milestone);
+        if (uiLevel <= 1 || Boolean.TRUE.equals(milestone.getSprintEnabled())) {
             ensureColumns(milestone);
             ensureActiveSprint(milestone);
         }
+        if (uiLevel <= 1) {
+            adoptBacklogForLevelOne(milestone);
+        }
         return buildBoard(milestone, userId);
+    }
+
+    private int resolveUiLevel(Milestone milestone) {
+        Integer level = milestone.getBoard().getUiLevel();
+        return level == null ? Board.MAX_UI_LEVEL : level;
+    }
+
+    /**
+     * 레벨 1 자동 담기 — 백로그에 남은 태스크를 활성 스프린트의 START 컬럼으로 끌어올린다.
+     *
+     * <p>레벨 1에는 "담기"가 없어 백로그 레일이 화면에 없다. 그대로 두면 사용자가 만든 태스크가
+     * 어디에도 안 보이므로, 보드를 열 때마다 멱등하게 흡수한다.
+     * 레벨 2로 올라가면 승급 마법사가 "이번 주기에 할 것"만 남기고 나머지를 백로그로 되돌린다.
+     */
+    private void adoptBacklogForLevelOne(Milestone milestone) {
+        List<Task> backlog = taskRepository.findBacklogByMilestoneId(milestone.getId());
+        if (backlog.isEmpty()) {
+            return;
+        }
+        Sprint active = sprintRepository.findByMilestoneIdOrderBySequenceNoAsc(milestone.getId()).stream()
+                .filter(Sprint::isActive)
+                .reduce((first, second) -> second)
+                .orElse(null);
+        if (active == null) {
+            return;
+        }
+        SprintColumn start = requireColumn(milestone, SprintColumnKind.START);
+        backlog.forEach(task -> task.assignToSprint(active, start));
+        log.info("Level-1 backlog adopted: milestone={} count={}", milestone.getId(), backlog.size());
     }
 
     // ==================== Toggle (관리자) ====================
@@ -127,6 +163,26 @@ public class SprintService {
         task.assignToSprint(sprint, requireColumn(milestone, SprintColumnKind.START));
         broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone, userId);
+    }
+
+    /**
+     * 주기 이름·기간 변경. 담긴 태스크의 날짜는 아직 주기를 따라가지 않는다 —
+     * 그 종속은 PR4(태스크 날짜 파생 전환)에서 붙인다.
+     */
+    @Transactional
+    public SprintResponse.Board updateSprint(String boardId, String sprintId, String name,
+                                             java.time.LocalDate startDate, java.time.LocalDate endDate,
+                                             String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+        Sprint sprint = loadSprint(boardId, sprintId);
+        if (name != null) {
+            sprint.rename(name);
+        }
+        if (startDate != null || endDate != null) {
+            sprint.updatePeriod(startDate, endDate);
+        }
+        broadcastSprintChanged(boardId, userId);
+        return buildBoard(sprint.getMilestone(), userId);
     }
 
     /** 태스크 빼기 (백로그로 복귀). 체크리스트는 태스크를 따라 함께 빠진다. */

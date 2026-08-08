@@ -585,6 +585,10 @@ export interface BoardDetail {
   member_count: number;
   subscription: BoardSubscription;
   selected_milestone_id: string | null;
+  /** 화면 복잡도 — 시간 묶음 깊이. 1=안 묶음 / 2=주기 / 3=단계▸주기 */
+  ui_level?: number | null;
+  /** 레벨과 무관한 직교 옵션(쉼표 구분): members,review,timeblock,jira */
+  ui_options?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -987,6 +991,10 @@ export interface BoardFullResponse {
     work_start_time: string;
   };
   selected_milestone_id: string | null;
+  /** 화면 복잡도 — 시간 묶음 깊이. 1=안 묶음 / 2=주기 / 3=단계▸주기 */
+  ui_level?: number | null;
+  /** 레벨과 무관한 직교 옵션(쉼표 구분): members,review,timeblock,jira */
+  ui_options?: string | null;
   created_at: string;
   updated_at: string;
 
@@ -1294,6 +1302,17 @@ export const boardAPI = {
         milestone_id: milestoneId,
       },
     );
+  },
+
+  /**
+   * 화면 복잡도 변경. 레벨만·옵션만 따로 보낼 수 있다 —
+   * 서랍의 옵션 토글 하나가 레벨을 건드리면 안 된다.
+   */
+  updateUiConfig: async (
+    boardId: string,
+    payload: { ui_level?: number; ui_options?: string },
+  ) => {
+    return apiClient.patch<BoardDetail>(`/boards/${boardId}/ui-config`, payload);
   },
 
   getBoardTier: async (boardId: string) => {
@@ -3732,6 +3751,18 @@ export const sprintAPI = {
     return apiClient.post<SprintBoard>(
       `/boards/${boardId}/sprints/${sprintId}/tasks`,
       { task_id: taskId },
+    );
+  },
+
+  /** 주기 이름·기간 변경 — 레벨 1→2 승급 마법사가 기간을 정할 때 쓴다 */
+  updateSprint: async (
+    boardId: string,
+    sprintId: string,
+    payload: { name?: string; start_date?: string; end_date?: string },
+  ) => {
+    return apiClient.patch<SprintBoard>(
+      `/boards/${boardId}/sprints/${sprintId}`,
+      payload,
     );
   },
 
@@ -8096,13 +8127,6 @@ export const personalTaskAPI = {
       `/personal/tasks/${taskId}/promote-suggestions`,
       data,
     );
-  },
-
-  /** 승격 되돌리기 — 만들어진 대상은 그대로 두고 항목만 대기로 되돌린다 */
-  unpromote: async (
-    taskId: string,
-  ): Promise<import("../types").PersonalTask> => {
-    return apiClient.delete(`/personal/tasks/${taskId}/promote`);
   },
 
   update: async (

@@ -116,6 +116,8 @@ export function useBoardDataLoader(boardId: string | undefined) {
         member_count: fullData.member_count,
         subscription: fullData.subscription,
         selected_milestone_id: fullData.selected_milestone_id,
+        ui_level: fullData.ui_level ?? null,
+        ui_options: fullData.ui_options ?? null,
         organization_id: fullData.organization_id || null,
         organization_name: fullData.organization_name || null,
         is_org_member_viewer: fullData.is_org_member_viewer || false,

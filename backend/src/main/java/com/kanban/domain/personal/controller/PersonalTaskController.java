@@ -124,14 +124,6 @@ public class PersonalTaskController {
                 promoteSuggestionService.suggest(principal.getUserId(), taskId, request));
     }
 
-    /** 승격 되돌리기 — 만들어진 대상은 그대로 두고 백로그 항목만 대기로 되돌린다 */
-    @DeleteMapping("/{taskId}/promote")
-    public ResponseEntity<PersonalTaskResponse.Detail> unpromote(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable String taskId) {
-        return ResponseEntity.ok(personalTaskService.unpromote(principal.getUserId(), taskId));
-    }
-
     @GetMapping("/categories")
     public ResponseEntity<List<String>> getCategories(
             @AuthenticationPrincipal UserPrincipal principal) {

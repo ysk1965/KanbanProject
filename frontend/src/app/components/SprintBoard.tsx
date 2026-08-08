@@ -41,6 +41,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { sprintAPI, checklistAPI, taskAPI, jiraAPI } from "../utils/api";
+import {
+  resolveBoardFeatures,
+  type BoardFeatures,
+} from "../hooks/useBoardFeatures";
 import type { JiraStatus, JiraMeta, JiraBlockStatusEntry } from "../utils/api";
 import type {
   SprintBoard as SprintBoardData,
@@ -109,6 +113,23 @@ interface SprintBoardProps {
    * 없으면 이름 해시 폴백이라 같은 사람이 칸반/모달과 다른 색으로 보인다 — 반드시 주입할 것.
    */
   memberColorMap?: Record<string, string | null>;
+  /**
+   * 보드 화면 복잡도 — 레벨(시간 묶음 깊이)과 직교 옵션.
+   * 미지정이면 전부 켜진 것으로 본다(useBoardFeatures의 폴백과 같은 이유).
+   * 설계: docs/Design/level-model.html
+   */
+  features?: BoardFeatures;
+  /**
+   * 구성원 전환이 꺼져 있을 때 그 자리에 세울 유령 슬롯.
+   * 유령 목록 계산(동시 2개 제한)이 페이지에 있어 노드를 통째로 주입받는다 —
+   * 이 컴포넌트가 유령 정책을 알 필요는 없다.
+   */
+  memberGhost?: React.ReactNode;
+  /**
+   * 리뷰 컬럼이 꺼져 있을 때 그 자리에 세울 유령 컬럼.
+   * 컬럼 줄은 `overflow-x-auto`가 y축까지 잘라내 팝오버가 못 뜨므로 인라인 변형을 받는다.
+   */
+  reviewGhost?: React.ReactNode;
 }
 
 /**
@@ -305,7 +326,12 @@ export function SprintBoard({
   taskTagsMap = {},
   memberOrder,
   memberColorMap,
+  features: boardFeatures,
+  memberGhost,
+  reviewGhost,
 }: SprintBoardProps) {
+  // 미지정 폴백 = 전부 켬. 값을 모를 때 화면이 줄어드는 쪽이 더 나쁘다.
+  const uiFeatures = boardFeatures ?? resolveBoardFeatures(null);
   /** 담당자 아바타 색 — 지정 색(assignee_color) 우선, 없으면 이름 해시 폴백. */
   const assigneeHex = (assignee: { id?: string; name: string }) =>
     getAssigneeHex(
@@ -333,8 +359,6 @@ export function SprintBoard({
   // 구성원 뷰는 같은 태스크가 여러 컬럼에 서기 때문에 컬럼 주인별로 따로 기억한다.
   // (태스크 모달로 나가지 않고 카드 자리에서 전체 항목을 보고 체크하기 위한 상태)
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-  // 구성원 뷰 전용 — 컬럼 주인 몫만(기본) ↔ 담당 외 항목까지 함께.
-  const [scopeAllCards, setScopeAllCards] = useState<Set<string>>(new Set());
   // 업무 리스트 헤더 "+" → 인라인 새 피쳐 입력. 제목만 받고 생성 후 상세 모달로 이어 작성한다.
   const [addingFeature, setAddingFeature] = useState(false);
   const [newFeatureTitle, setNewFeatureTitle] = useState("");
@@ -441,7 +465,13 @@ export function SprintBoard({
     }
   }, [groupPref]);
   // 아래 렌더/집계는 모두 이 값을 읽는다 — JIRA 화면이면 그룹 기준을 덮어쓴다.
-  const groupBy: "feature" | "member" | "jira" = jiraView ? "jira" : groupPref;
+  // 구성원 옵션이 꺼져 있으면 저장된 선택(localStorage)이 member여도 feature로 되돌린다 —
+  // 전환 버튼이 없는데 구성원 컬럼에 갇히면 빠져나올 길이 없다.
+  const groupBy: "feature" | "member" | "jira" = jiraView
+    ? "jira"
+    : groupPref === "member" && !uiFeatures.has("members")
+      ? "feature"
+      : groupPref;
 
   // 과거 스프린트를 미리보는 중에 JIRA 화면으로 넘어오면 스냅샷이 보드를 계속 점유한다.
   // 미리보기는 스프린트 화면의 상태이므로 화면을 떠날 때 푼다.
@@ -1032,31 +1062,12 @@ export function SprintBoard({
       return next;
     });
   };
-  // 카드 체크리스트 펼치기/접기. 접을 때 "담당 외 보기"도 함께 내려 상태가 어긋나지 않게 한다.
+  // 카드 체크리스트 펼치기/접기.
   const toggleCardExpand = (key: string) => {
     setExpandedCards((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-        setScopeAllCards((s) => {
-          if (!s.has(key)) return s;
-          const n = new Set(s);
-          n.delete(key);
-          return n;
-        });
-      } else next.add(key);
-      return next;
-    });
-  };
-  // 구성원 뷰 "담당 외 N개 보기" — 켜면 펼침도 함께 켠다(접힌 채로는 볼 자리가 없다).
-  const toggleCardScopeAll = (key: string) => {
-    setScopeAllCards((prev) => {
-      const next = new Set(prev);
       if (next.has(key)) next.delete(key);
-      else {
-        next.add(key);
-        setExpandedCards((e) => (e.has(key) ? e : new Set(e).add(key)));
-      }
+      else next.add(key);
       return next;
     });
   };
@@ -2147,10 +2158,34 @@ export function SprintBoard({
     // "진행 중"은 기간 칩·스트라이프와 겹치는 기본 상태라 별도 배지를 두지 않는다.
     const upcoming =
       !isDoneItem && !overdue && !!startDday && startDday.diff > 0;
+    // ── 기간의 출처 ─────────────────────────────────────────────────
+    // 목표 모델에서 태스크는 자기 날짜를 소유하지 않는다 — 담긴 주기의 기간을 물려받는다.
+    // 지금은 플래그가 없으니 "주기 기간과 같은가"로 추정한다.
+    // (PR4에서 tasks.date_override가 생기면 이 추정을 그 플래그로 교체한다.)
+    const day10 = (v?: string | null) => (v ? v.substring(0, 10) : null);
+    const sprintFrom = day10(activeSprint?.start_date);
+    const sprintTo = day10(activeSprint?.end_date);
+    const committed = !!it.sprint_column_id;
+    const sprintPeriod =
+      committed && sprintFrom && sprintTo
+        ? `${formatDate(sprintFrom, "M/d")} ~ ${formatDate(sprintTo, "M/d")}`
+        : null;
+    const hasOwnDates = !!it.start_date || !!it.due_date;
+    // 레벨 1에는 상속해줄 주기가 없다 — 기간 개념 자체가 화면에 없으므로 표식도 없다.
+    const dateSource: "sprint" | "override" | null =
+      isDoneItem || !sprintPeriod || !uiFeatures.showTaskPeriod
+        ? null
+        : !hasOwnDates ||
+            (day10(it.start_date) === sprintFrom &&
+              day10(it.due_date) === sprintTo)
+          ? "sprint"
+          : "override";
     // 리뷰 = 첫 MIDDLE(기본 "In Review")로 이동. 이미 그 컬럼이거나 완료면 숨김.
+    // 리뷰 옵션이 꺼져 있으면 새로 리뷰로 보낼 수 없다(이미 거기 있는 카드는 그대로 남는다).
     const showReview =
       canEdit &&
       !readOnly &&
+      uiFeatures.has("review") &&
       !!firstMiddleColumn &&
       !isDoneItem &&
       it.sprint_column_id !== firstMiddleColumn.id;
@@ -2174,7 +2209,6 @@ export function SprintBoard({
     // 펼침 키 — 구성원 뷰는 컬럼 주인별로, Feature 뷰는 카드별로 기억한다.
     const cardKey = `${memberScope?.id ?? "feat"}:${it.id}`;
     const expanded = expandedCards.has(cardKey);
-    const showOthers = scoped && scopeAllCards.has(cardKey);
     // 진척의 분모: 구성원 뷰는 "내 몫", Feature 뷰는 태스크 전체(서버 롤업).
     const baseLines = scoped ? myLines : lines;
     const cTotal = scoped
@@ -2183,8 +2217,26 @@ export function SprintBoard({
     const cDone = scoped
       ? myLines.filter((l) => l.completed).length
       : (it.checklist_done ?? 0);
-    const taskTotal = it.checklist_total ?? lines.length;
-    const taskDone = it.checklist_done ?? 0;
+    // 함께 미는 사람들 — 이 태스크의 줄 담당자 중 컬럼 주인이 아닌 사람.
+    // 태스크에 담당자가 없는 설계라 카드 하나가 여러 컬럼에 서는데, 그 사실을
+    // 숫자("담당 외 21개")가 아니라 얼굴로 말하게 한다. 실제 항목은 상세(↗)에서 본다.
+    const coOwners = scoped
+      ? (() => {
+          const seen = new Map<string, { id: string; name: string }>();
+          for (const l of lines) {
+            if (lineOwnedBy(l, memberScope!.id)) continue;
+            const a = l.assignee;
+            if (a && !seen.has(a.id)) seen.set(a.id, { id: a.id, name: a.name });
+            const cm = l.contractor?.manager_user_id;
+            if (cm && !seen.has(cm))
+              seen.set(cm, {
+                id: cm,
+                name: l.contractor?.manager_name ?? l.contractor?.name ?? "외주",
+              });
+          }
+          return Array.from(seen.values());
+        })()
+      : [];
     // 세그먼트 게이지 — 칸 수를 항목 수(최대 12)에 맞춰 비율과 규모를 한 번에 읽게 한다.
     // 7칸짜리와 24칸짜리가 칸 굵기로 구분되고, 반올림으로 "24/25가 100%처럼" 보이는 것도 막는다.
     const segTotal = Math.min(cTotal, 12);
@@ -2199,9 +2251,6 @@ export function SprintBoard({
         ? arr.filter((l) => (doneVis === "done" ? l.completed : !l.completed))
         : arr;
     const visibleBase = visibleOf(baseLines);
-    const otherCount = scoped
-      ? visibleOf(lines).length - visibleBase.length
-      : 0;
     // 미리보기 2줄 — "남은 것 하나 + 끝낸 것 하나"가 진행 상태를 가장 정확히 요약한다.
     // 한쪽만 있으면 그 종류로 채우고, 노출 순서는 원본 순서를 유지한다.
     // (보임 필터가 걸린 뒤 목록 위에서 골라야 진행중 모드에서 미리보기가 비지 않는다.)
@@ -2219,16 +2268,13 @@ export function SprintBoard({
         (a, b) => visibleBase.indexOf(a) - visibleBase.indexOf(b),
       );
     })();
-    // 실제로 그릴 줄 — 접힘이면 미리보기 2줄, 펼침이면 전체(구성원 뷰는 내 몫, 담당 외 보기면 전부).
-    const shownLines = expanded
-      ? showOthers
-        ? visibleOf(lines)
-        : visibleBase
-      : previewLines;
-    // 펼치기·담당 외 건수는 "필터를 통과한 것" 기준 — 눌렀는데 그만큼 안 나오면 안 된다.
+    // 실제로 그릴 줄 — 접힘이면 미리보기 2줄, 펼침이면 이 카드 스코프 전체
+    // (구성원 뷰는 내 몫만. 남의 몫은 카드가 아니라 상세에서 본다).
+    const shownLines = expanded ? visibleBase : previewLines;
+    // 펼치기 건수는 "필터를 통과한 것" 기준 — 눌렀는데 그만큼 안 나오면 안 된다.
     const hiddenCount = visibleBase.length - previewLines.length;
     // 줄 담당 아이콘은 "누구 것인지 섞여 있을 때"만 의미가 있다.
-    const showLineOwner = expanded && (!scoped || showOthers);
+    const showLineOwner = expanded && !scoped;
     return (
       <div
         key={it.id}
@@ -2346,6 +2392,28 @@ export function SprintBoard({
                 이월 {it.carry_over_count}
               </span>
             )}
+            {/* 주기에서 물려받은 기간 — 담겼는데 자기 날짜가 없는 카드는 지금까지 기간이
+                아예 안 보였다. 날짜를 입력한 적 없어도 일정이 있다는 걸 여기서 보여준다. */}
+            {dateSource === "sprint" && !upcoming && !dday && sprintPeriod && (
+              <span
+                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md font-bold tabular-nums bg-bridge-secondary/15 text-bridge-secondary"
+                title={`${activeSprint?.name ?? "이번 스프린트"}에서 상속 · ${sprintPeriod}`}
+              >
+                <Calendar className="w-3 h-3" />
+                {sprintPeriod}
+              </span>
+            )}
+            {/* 직접 지정 — 주기와 다른 기간을 들고 있는 예외. 이 표식이 붙은 카드는
+                주기가 바뀌어도 날짜가 따라가지 않는다. */}
+            {dateSource === "override" && sprintPeriod && (
+              <span
+                className="inline-grid place-items-center w-[18px] h-[18px] rounded-md bg-amber-500/15 text-amber-500 shrink-0"
+                title={`기간 직접 지정 · ${activeSprint?.name ?? "이번 스프린트"}은 ${sprintPeriod}`}
+                aria-label="기간 직접 지정"
+              >
+                <Pencil className="w-3 h-3" />
+              </span>
+            )}
             {/* 기간 칩 — 시작 전이면 시작 D-day, 아니면 마감 D-day.
                 지연은 스트라이프·배경 워시로도 신호하지만 D+n 텍스트를 함께 남겨
                 색 하나에만 의존하지 않게 한다. */}
@@ -2422,16 +2490,15 @@ export function SprintBoard({
                   />
                 ))}
               </span>
+              {/* 숫자는 하나만 — 구성원 뷰면 "내 몫", Feature 뷰면 태스크 전체.
+                  태스크 전체 수를 병기하던 "· 전체 N/M"은 걷어냈다:
+                  한 카드가 네 개의 숫자를 말하면 어느 게 내 것인지부터 배워야 한다. */}
               <span className="shrink-0 text-xs tabular-nums text-slate-500">
+                {scoped && (
+                  <span className="mr-1 font-medium text-slate-500">내 몫</span>
+                )}
                 <span className="font-bold text-slate-400">{cDone}</span>/
                 {cTotal}
-                {/* 구성원 뷰 — 분모가 "내 몫"이라 태스크 전체를 흐리게 병기해 맥락을 잃지 않게 한다. */}
-                {scoped && taskTotal !== cTotal && (
-                  <span className="text-slate-600">
-                    {" "}
-                    · 전체 {taskDone}/{taskTotal}
-                  </span>
-                )}
               </span>
             </div>
             <ul className="space-y-1">
@@ -2506,7 +2573,7 @@ export function SprintBoard({
             </ul>
             {/* 펼치기 — 태스크 모달로 나가지 않고 카드 자리에서 전체 항목을 보고 체크한다.
                 상세는 호버 액션(↗)에 그대로 남아 있다. */}
-            {(hiddenCount > 0 || expanded || otherCount > 0) && (
+            {(hiddenCount > 0 || expanded || coOwners.length > 0) && (
               <div className="flex items-center gap-2.5 flex-wrap">
                 {(hiddenCount > 0 || expanded) && (
                   <button
@@ -2526,19 +2593,39 @@ export function SprintBoard({
                     {expanded ? "접기" : `남은 ${hiddenCount}개 펼치기`}
                   </button>
                 )}
-                {otherCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleCardScopeAll(cardKey);
-                    }}
-                    aria-pressed={showOthers}
-                    title={`${memberScope?.name ?? ""} 담당이 아닌 체크리스트 ${otherCount}개`}
-                    className="text-xs font-medium text-slate-600 hover:text-bridge-accent focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 rounded transition-colors"
+                {/* 함께 미는 사람 — 이 카드가 다른 컬럼에도 서 있다는 사실을 얼굴로 알린다.
+                    건수를 세지 않는 이유: 남의 몫 개수는 이 컬럼에서 할 일이 아니다. */}
+                {coOwners.length > 0 && (
+                  <span
+                    className="ml-auto inline-flex items-center gap-1.5 text-xs text-slate-500"
+                    title={`함께 진행 · ${coOwners.map((o) => o.name).join(", ")}`}
                   >
-                    {showOthers ? "담당 외 숨기기" : `담당 외 ${otherCount}개`}
-                  </button>
+                    함께 {coOwners.length}명
+                    <span className="flex">
+                      {coOwners.slice(0, 3).map((o, i) => (
+                        <span
+                          key={o.id}
+                          className="w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold text-white ring-2 ring-sprint-card"
+                          style={{
+                            backgroundColor: assigneeHex(o),
+                            marginLeft: i === 0 ? 0 : -6,
+                          }}
+                          aria-hidden="true"
+                        >
+                          {getInitials(o.name)}
+                        </span>
+                      ))}
+                      {coOwners.length > 3 && (
+                        <span
+                          className="w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold text-slate-300 bg-foreground/20 ring-2 ring-sprint-card"
+                          style={{ marginLeft: -6 }}
+                          aria-hidden="true"
+                        >
+                          +{coOwners.length - 3}
+                        </span>
+                      )}
+                    </span>
+                  </span>
                 )}
               </div>
             )}
@@ -3432,6 +3519,26 @@ export function SprintBoard({
               </button>
             )}
           </div>
+        ) : !uiFeatures.showSprint ? (
+          /* 레벨 1 — 시간 묶음이 없다. 주기 이름·기간·종료 버튼·지난 주기 이력이 전부 빠지고
+             "지금 얼마나 됐나" 한 줄만 남는다. 데이터(스프린트 행)는 그대로 있고 화면에서만 감춘다. */
+          <div className="flex items-center gap-3 flex-wrap rounded-xl border border-foreground/[0.08] bg-foreground/[0.04] px-3 py-2.5">
+            <span className="text-sm font-bold tracking-tight text-foreground whitespace-nowrap">
+              전체 진행
+            </span>
+            <span className="text-lg font-bold tabular-nums text-bridge-secondary">
+              {board?.gauge?.percentage ?? 0}%
+            </span>
+            <span className="text-xs text-slate-500 tabular-nums whitespace-nowrap">
+              할 일 {board?.gauge?.done ?? 0} / {board?.gauge?.total ?? 0}
+            </span>
+            <span className="flex-1 min-w-[80px] h-1.5 rounded-full bg-foreground/10 overflow-hidden">
+              <span
+                className="block h-full rounded-full bg-bridge-secondary transition-[width] duration-300 motion-reduce:transition-none"
+                style={{ width: `${board?.gauge?.percentage ?? 0}%` }}
+              />
+            </span>
+          </div>
         ) : (
           <div className="flex items-stretch gap-2">
             {(board?.sprints ?? []).map((s) => {
@@ -3693,7 +3800,8 @@ export function SprintBoard({
                         {/* Feature ↔ 구성원 전환 — 둘 다 "지금 스프린트에 담긴 것"을 소유 축으로
                           자르는, 서로 교환 가능한 절단면이다. JIRA는 스코프도 축도 달라
                           여기가 아니라 화면 선택 줄(스프린트 | 블록 보드 | JIRA)에 있다. */}
-                        {groupBy !== "jira" && (
+                        {!uiFeatures.has("members") && memberGhost}
+                        {groupBy !== "jira" && uiFeatures.has("members") && (
                           <div
                             className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/[0.06] border border-foreground/10 shrink-0"
                             role="tablist"
@@ -3936,7 +4044,7 @@ export function SprintBoard({
             {!panelCollapsed && (
               <div className="px-4 py-2.5 border-b border-foreground/[0.06] flex items-center gap-2">
                 <span className="text-xs font-bold uppercase tracking-widest text-slate-400 truncate flex-1">
-                  업무 리스트
+                  {uiFeatures.showBacklog ? "업무 리스트" : "묶음 목록"}
                 </span>
                 {/* 보임 필터 — 정리된(완료·담김) 항목 숨기기/보이기 (상태 유지) */}
                 <button
@@ -4195,7 +4303,10 @@ export function SprintBoard({
                                   <span className="font-bold text-foreground">
                                     {feat.unitDone}
                                   </span>
-                                  /{feat.unitTotal} 체크 · 담김 {feat.taken}
+                                  /{feat.unitTotal} 체크
+                                  {uiFeatures.showBacklog
+                                    ? ` · 담김 ${feat.taken}`
+                                    : ""}
                                 </span>
                               </span>
                             </button>
@@ -4627,6 +4738,20 @@ export function SprintBoard({
             ) : (
               <div className="flex gap-3 p-3 md:p-4 h-full min-w-max">
                 {columns.map((col) => {
+                  // 리뷰 옵션이 꺼지면 MIDDLE 컬럼을 내린다 — 단, **비어 있을 때만**.
+                  // 카드가 남아 있는데 컬럼을 숨기면 그 카드가 화면에서 사라진다.
+                  // 옵션을 끄는 건 "새로 리뷰로 보내지 않겠다"이지 "있던 걸 버리겠다"가 아니다.
+                  if (
+                    col.kind === "MIDDLE" &&
+                    !uiFeatures.has("review") &&
+                    col.items.length === 0
+                  ) {
+                    // 내린 자리에 유령을 세운다 — 첫 번째 MIDDLE에만.
+                    // 중간 컬럼이 여럿이면 같은 제안이 여러 칸 반복된다.
+                    return col.id === firstMiddleColumn?.id ? (
+                      <Fragment key={col.id}>{reviewGhost}</Fragment>
+                    ) : null;
+                  }
                   // START("Sprint") 컬럼은 그룹 기준에 따라 Feature/담당자 단위 컬럼들로 확장.
                   // In Review / Done 등 나머지 컬럼은 두 뷰에서 그대로 유지(공유).
                   if (col.kind === "START") {

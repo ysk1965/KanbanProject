@@ -93,6 +93,20 @@ public class BoardController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * 화면 복잡도(레벨·옵션) 변경. 보드 단위 설정이며 데이터는 건드리지 않는다 —
+     * 레벨을 내려도 마일스톤·스프린트는 남고 화면에서만 빠진다.
+     */
+    @PatchMapping("/{boardId}/ui-config")
+    public ResponseEntity<BoardResponse.Detail> updateUiConfig(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody BoardRequest.UpdateUiConfig request) {
+        BoardResponse.Detail response = boardService.updateUiConfig(
+                boardId, principal.getUserId(), request.getUiLevel(), request.getUiOptions());
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/{boardId}/tier")
     public ResponseEntity<BoardResponse.TierInfo> getBoardTier(
             @PathVariable String boardId,

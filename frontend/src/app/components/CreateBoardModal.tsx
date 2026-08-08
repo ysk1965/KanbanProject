@@ -16,10 +16,39 @@ const BOARD_GRADIENTS = [
   { name: 'Violet Pink', value: 'linear-gradient(135deg, #8B5CF6 0%, #D946EF 100%)' },
 ];
 
+/**
+ * 시작 방식 3택 — 개념 이름("스프린트 쓰실래요?")이 아니라 **일하는 방식**을 묻는다.
+ * 스프린트를 아는 사람에게만 통하는 질문을 신규 유저에게 던지지 않기 위해서다.
+ * 설계: docs/Design/level-onboarding-plan.html
+ */
+const START_STYLES: { level: 1 | 2 | 3; q: string; e: string }[] = [
+  {
+    level: 1,
+    q: '할 일을 적고 하나씩 지워요',
+    e: '목록과 체크박스면 충분합니다. 기간도 담기도 아직 없습니다.',
+  },
+  {
+    level: 2,
+    q: '주 단위로 끊어서 굴려요',
+    e: '이번 주기에 할 것만 담고, 못 끝낸 건 다음 주기로 넘깁니다.',
+  },
+  {
+    level: 3,
+    q: '분기 계획이 있고 사람도 여럿이에요',
+    e: '단계 안에 주기가 있고, 사람별로 나눠 봐야 합니다.',
+  },
+];
+
 interface CreateBoardModalProps {
   open: boolean;
   onClose: () => void;
-  onCreateBoard: (name: string, description?: string, backgroundGradient?: string) => void;
+  /** uiLevel — 화면 복잡도. 생성 직후 보드 설정에 반영된다(기본 1). */
+  onCreateBoard: (
+    name: string,
+    description?: string,
+    backgroundGradient?: string,
+    uiLevel?: 1 | 2 | 3,
+  ) => void;
 }
 
 export function CreateBoardModal({
@@ -31,13 +60,15 @@ export function CreateBoardModal({
   const [boardName, setBoardName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedGradient, setSelectedGradient] = useState(BOARD_GRADIENTS[0].value);
+  const [uiLevel, setUiLevel] = useState<1 | 2 | 3>(1);
 
   const handleCreate = () => {
     if (boardName.trim()) {
-      onCreateBoard(boardName.trim(), description.trim() || undefined, selectedGradient);
+      onCreateBoard(boardName.trim(), description.trim() || undefined, selectedGradient, uiLevel);
       setBoardName('');
       setDescription('');
       setSelectedGradient(BOARD_GRADIENTS[0].value);
+      setUiLevel(1);
     }
   };
 
@@ -45,6 +76,7 @@ export function CreateBoardModal({
     setBoardName('');
     setDescription('');
     setSelectedGradient(BOARD_GRADIENTS[0].value);
+    setUiLevel(1);
     onClose();
   };
 
@@ -68,6 +100,33 @@ export function CreateBoardModal({
                     {boardName || 'Board name'}
                   </span>
                 </div>
+              </div>
+
+              {/* 시작 방식 — 나중에 언제든 바꿀 수 있으니 여기서 고민을 길게 만들지 않는다. */}
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">이 팀은 일을 어떻게 굴리나요?</Label>
+                <div className="grid gap-2" role="radiogroup" aria-label="시작 방식">
+                  {START_STYLES.map((s) => (
+                    <button
+                      key={s.level}
+                      type="button"
+                      role="radio"
+                      aria-checked={uiLevel === s.level}
+                      onClick={() => setUiLevel(s.level)}
+                      className={`text-left rounded-xl border p-3 transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                        uiLevel === s.level
+                          ? 'border-bridge-accent bg-bridge-accent/10'
+                          : 'border-foreground/10 hover:border-foreground/20 hover:bg-foreground/5'
+                      }`}
+                    >
+                      <span className="block text-sm font-bold text-foreground">{s.q}</span>
+                      <span className="block text-xs text-slate-500 mt-0.5">{s.e}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-600">
+                  나중에 언제든 바꿀 수 있습니다. 지금 고른 것 때문에 못 하게 되는 일은 없습니다.
+                </p>
               </div>
 
               {/* 보드 이름 */}

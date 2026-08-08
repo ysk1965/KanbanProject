@@ -111,6 +111,14 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query("SELECT t FROM Task t WHERE t.sprint.milestone.id = :milestoneId AND t.sprint IS NOT NULL")
     List<Task> findInSprintByMilestoneId(@Param("milestoneId") String milestoneId);
 
+    /**
+     * 레벨 1 자동 담기용: 마일스톤에 속하면서 아직 어느 스프린트에도 안 담긴 태스크.
+     * 레벨 1에는 "담기"라는 개념이 없어 백로그가 화면에 없으므로, 여기 남은 태스크는
+     * 사용자 눈에 보이지 않게 된다 — 그래서 보드를 열 때 활성 스프린트로 끌어올린다.
+     */
+    @Query("SELECT t FROM Task t WHERE t.milestone.id = :milestoneId AND t.sprint IS NULL")
+    List<Task> findBacklogByMilestoneId(@Param("milestoneId") String milestoneId);
+
     /** 특정 컬럼에 담긴 태스크 (컬럼 삭제 시 재배치용) */
     @Query("SELECT t FROM Task t WHERE t.sprintColumn.id = :columnId")
     List<Task> findBySprintColumnId(@Param("columnId") String columnId);

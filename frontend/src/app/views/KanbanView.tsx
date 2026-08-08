@@ -30,6 +30,7 @@ import {
 } from "@dnd-kit/sortable";
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { Feature, Task, Tag, Block, ChecklistItem } from "../types";
+import type { BoardFeatures } from "../hooks/useBoardFeatures";
 import { KanbanBlock } from "../components/KanbanBlock";
 import { SprintBoard } from "../components/SprintBoard";
 import { KanbanFilterToolbar } from "../components/KanbanFilterToolbar";
@@ -69,6 +70,12 @@ interface KanbanViewProps {
   hiddenBlocks: Block[];
   checklistDataMap: { [taskId: string]: ChecklistItem[] };
   memberColorMap: Record<string, string | null>;
+  /** 보드 화면 복잡도 — 레벨/옵션 게이팅. SprintBoard로 그대로 흘려보낸다. */
+  boardFeatures: BoardFeatures;
+  /** 구성원 전환이 꺼졌을 때 그 자리에 세울 유령 노드 (페이지가 정책을 소유). */
+  memberGhost?: React.ReactNode;
+  /** 리뷰 컬럼이 꺼졌을 때 그 자리에 세울 유령 컬럼. */
+  reviewGhost?: React.ReactNode;
   expandedChecklistTaskIds: Set<string>;
   scheduledTaskIds: Set<string>;
   recentlyCompletedTaskIds: Set<string>;
@@ -121,6 +128,9 @@ export const KanbanView = memo(function KanbanView({
   hiddenBlocks,
   checklistDataMap,
   memberColorMap,
+  boardFeatures,
+  memberGhost,
+  reviewGhost,
   expandedChecklistTaskIds,
   scheduledTaskIds,
   recentlyCompletedTaskIds,
@@ -201,22 +211,26 @@ export const KanbanView = memo(function KanbanView({
     setJiraFresh(fresh);
   }, []);
 
+  // JIRA 화면은 연동(jiraConnected)과 옵션(has("jira")) 둘 다 있어야 선다 —
+  // 연동은 "쓸 수 있나", 옵션은 "지금 쓰기로 했나"로 축이 다르다.
+  const jiraVisible = jiraConnected && boardFeatures.has("jira");
+
   // 저장값이 아니라 이 값으로 렌더한다 — 예전에 blocks로 저장해 둔 일반 멤버가
   // 토글 없는 블록 보드에 갇히지 않도록. 권한이 뒤늦게 도착해도 자동으로 맞춰진다.
-  // JIRA도 같은 이유로 연동이 끊기면 스프린트로 되돌린다.
+  // JIRA도 같은 이유로 연동이 끊기거나 옵션이 꺼지면 스프린트로 되돌린다.
   const effectiveBoardMode: BoardMode =
     boardMode === "blocks"
       ? isAdminOrOwner
         ? "blocks"
         : "sprint"
       : boardMode === "jira"
-        ? jiraConnected
+        ? jiraVisible
           ? "jira"
           : "sprint"
         : "sprint";
 
   // 화면 선택 줄 노출 조건 — 블록 보드는 관리자 전용이지만 JIRA는 뷰어 이상이면 볼 수 있다.
-  const showBoardModeBar = isAdminOrOwner || jiraConnected;
+  const showBoardModeBar = isAdminOrOwner || jiraVisible;
 
   // @dnd-kit 블록 드래그 상태
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
@@ -441,7 +455,7 @@ export const KanbanView = memo(function KanbanView({
                   블록 보드
                 </button>
               )}
-              {jiraConnected && (
+              {jiraVisible && (
                 <button
                   type="button"
                   role="tab"
@@ -499,6 +513,9 @@ export const KanbanView = memo(function KanbanView({
                 taskTagsMap={taskTagsMap}
                 memberOrder={boardMembersData.map((m) => m.userId)}
                 memberColorMap={memberColorMap}
+                features={boardFeatures}
+                memberGhost={memberGhost}
+                reviewGhost={reviewGhost}
               />
             </div>
           ) : (

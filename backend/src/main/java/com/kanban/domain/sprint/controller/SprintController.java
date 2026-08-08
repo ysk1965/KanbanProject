@@ -78,6 +78,18 @@ public class SprintController {
     }
 
     /** 태스크 빼기 (백로그로 복귀) */
+    /** 주기 이름·기간 변경 — 레벨 1→2 승급 마법사가 기간을 정할 때 쓴다. */
+    @PatchMapping("/sprints/{sprintId}")
+    public ResponseEntity<SprintResponse.Board> updateSprint(
+            @PathVariable String boardId,
+            @PathVariable String sprintId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody SprintRequest.UpdateSprint request) {
+        return ResponseEntity.ok(sprintService.updateSprint(
+                boardId, sprintId, request.getName(),
+                request.getStartDate(), request.getEndDate(), principal.getUserId()));
+    }
+
     @DeleteMapping("/sprints/{sprintId}/tasks/{taskId}")
     public ResponseEntity<SprintResponse.Board> removeTask(
             @PathVariable String boardId,
