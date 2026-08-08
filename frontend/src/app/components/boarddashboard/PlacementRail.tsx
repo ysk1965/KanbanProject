@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ArrowDownToLine, GripVertical, Loader2 } from "lucide-react";
 import {
-  ArrowDownToLine,
-  ExternalLink,
-  GripVertical,
-  Loader2,
-} from "lucide-react";
+  PanelCount,
+  PanelFooterHint,
+  PanelShell,
+  panelTabClass,
+} from "./DashboardCard";
 import {
   boardChecklistAPI,
   type BoardChecklistItemResponse,
@@ -79,7 +80,10 @@ function isCreatedToday(
 }
 
 /**
- * 배치 대기 — 워크로드 간트에 아직 자리가 없는 내 항목들. 큐 카드의 본문이다.
+ * 배치 대기 — 워크로드 간트에 아직 자리가 없는 내 항목들. 오른쪽 열의 가운데 카드다.
+ *
+ * 위(워크로드)와 아래(백로그)가 각자 높이를 갖고, 이 카드가 남는 만큼을 전부 가져간다 —
+ * 늘 자리가 모자란 쪽이 여기이기 때문이다.
  *
  * 간트 바는 체크리스트 항목 단위라 이 목록도 항목 단위로 담는다.
  * 행을 내 행의 날짜 칸에 떨구면 그 날짜로 시작·마감이 잡히고 바가 생긴다.
@@ -241,72 +245,60 @@ export function PlacementRail({
     ? baseList.filter((i) => isCreatedToday(i, today))
     : baseList;
 
-  const TABS: { key: RailTab; label: string; count: number; dot: string }[] = [
+  const TABS: { key: RailTab; label: string; count: number }[] = [
     {
       key: "unplaced",
       label: t("boardDashboard.railUnplaced", "미배치"),
       count: unplaced.length,
-      dot: "bg-bridge-secondary",
     },
     {
       key: "overdue",
       label: t("boardDashboard.railOverdue", "지연"),
       count: overdue.length,
-      dot: "bg-rose-500",
     },
   ];
 
   return (
-    <div
-      {...zoneProps}
-      className={`flex-1 min-h-0 flex flex-col transition-colors ${
-        dropOver
-          ? "bg-bridge-accent/[0.12]"
-          : dropActive
-            ? "bg-bridge-accent/[0.05]"
-            : ""
-      }`}
-    >
-      <div
-        className="flex-none flex items-center gap-1 px-3 py-2 border-b border-foreground/[0.08]"
-        role="tablist"
-        aria-label={t("boardDashboard.railTabsLabel", "배치 대기 항목")}
-      >
-        {TABS.map((item) => {
-          const active = tab === item.key;
-          return (
+    <PanelShell
+      /* 단계 도트는 보고 있는 탭을 따른다 — 지연을 보는 동안에는 이 카드가 지연 카드다 */
+      dot={tab === "overdue" ? "rose" : "amber"}
+      title={t("boardDashboard.placementTitle", "배치 대기")}
+      tabs={
+        <div
+          className="flex-none flex items-center gap-1"
+          role="tablist"
+          aria-label={t("boardDashboard.railTabsLabel", "배치 대기 항목")}
+        >
+          {TABS.map((item) => (
             <button
               key={item.key}
               type="button"
               role="tab"
               id={`placement-rail-tab-${item.key}`}
-              aria-selected={active}
+              aria-selected={tab === item.key}
               aria-controls="placement-rail-panel"
               onClick={() => setTab(item.key)}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-bold transition-colors ${
-                active
-                  ? "bg-foreground/[0.08] text-foreground"
-                  : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
-              }`}
+              className={panelTabClass(tab === item.key)}
             >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${item.dot}`}
-                aria-hidden="true"
-              />
               {item.label}
-              <span className="text-xs font-bold text-slate-500">
-                {item.count}
-              </span>
+              {/* 지연은 쉬고 있을 때도 붉게 둔다 — 탭을 눌러 보게 만드는 건 이 숫자다 */}
+              <PanelCount
+                value={item.count}
+                tone={
+                  item.key === "overdue" && item.count > 0 ? "rose" : "muted"
+                }
+              />
             </button>
-          );
-        })}
-
-        {todayCount > 0 && (
+          ))}
+        </div>
+      }
+      headerExtra={
+        todayCount > 0 ? (
           <button
             type="button"
             onClick={() => setOnlyToday((prev) => !prev)}
             aria-pressed={onlyToday}
-            className={`flex-none flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs font-bold transition-colors ${
+            className={`flex-none flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-xs font-bold transition-colors ${
               onlyToday
                 ? "border-bridge-secondary/40 bg-bridge-secondary/15 text-bridge-secondary"
                 : "border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/5"
@@ -320,13 +312,16 @@ export function PlacementRail({
               count: todayCount,
             })}
           </button>
-        )}
-
-        <p
-          className={`ml-auto hidden md:block text-xs truncate ${
-            dropActive ? "font-bold text-bridge-accent" : "text-slate-600"
-          }`}
-        >
+        ) : undefined
+      }
+      linkLabel={t("boardDashboard.myTasksLink", "칸반에서 보기")}
+      onLinkClick={onOpenKanban}
+      /*
+        힌트는 머리에서 내려온다. 머리 오른쪽은 링크 자리라 문구가 함께 서면
+        둘 중 하나가 밀리고, 무엇보다 "여기에 놓으면"은 놓을 자리 옆에 있어야 읽힌다.
+      */
+      footer={
+        <PanelFooterHint emphasized={dropActive}>
           {!canEdit
             ? t("boardDashboard.railReadOnly", "읽기 전용")
             : dropActive
@@ -338,18 +333,20 @@ export function PlacementRail({
                   "boardDashboard.railHint",
                   "끌어서 날짜 칸에 놓으면 배치 · 타임블록에 놓으면 그 시각까지",
                 )}
-        </p>
-
-        <button
-          type="button"
-          onClick={onOpenKanban}
-          className="ml-auto md:ml-3 flex-none flex items-center gap-1 text-xs text-slate-400 hover:text-foreground transition-colors"
-        >
-          {t("boardDashboard.myTasksLink", "칸반에서 보기")}
-          <ExternalLink size={11} aria-hidden="true" />
-        </button>
-      </div>
-
+        </PanelFooterHint>
+      }
+      padded={false}
+      bodyClassName="flex flex-col"
+      sectionProps={zoneProps}
+      className="flex-1"
+      overlayClassName={
+        dropOver
+          ? "bg-bridge-accent/[0.12] ring-2 ring-inset ring-bridge-accent"
+          : dropActive
+            ? "bg-bridge-accent/[0.05]"
+            : undefined
+      }
+    >
       <div
         ref={trackRef}
         id="placement-rail-panel"
@@ -367,7 +364,7 @@ export function PlacementRail({
         ) : error ? (
           <p className="text-xs text-slate-500 text-center py-6">{error}</p>
         ) : list.length === 0 ? (
-          <p className="text-xs text-slate-500 text-center py-6 px-3 leading-relaxed">
+          <p className="text-xs text-slate-500 text-center py-6 px-3.5 leading-relaxed">
             {tab === "unplaced"
               ? t("boardDashboard.railAllPlaced", "모두 배치했습니다.")
               : t("boardDashboard.railNoOverdue", "지연된 항목이 없습니다.")}
@@ -422,7 +419,7 @@ export function PlacementRail({
                     });
                   }}
                   onDragEnd={endAxisDrag}
-                  className={`group flex items-center gap-2 px-3 py-1.5 border-b border-foreground/[0.06] hover:bg-foreground/[0.03] transition-colors ${
+                  className={`group flex items-center gap-2 px-3.5 py-1.5 border-b border-foreground/[0.06] hover:bg-foreground/[0.03] transition-colors ${
                     draggable ? "cursor-grab active:cursor-grabbing" : ""
                   }`}
                 >
@@ -567,6 +564,6 @@ export function PlacementRail({
           </ul>
         )}
       </div>
-    </div>
+    </PanelShell>
   );
 }

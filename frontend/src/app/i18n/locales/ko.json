@@ -958,6 +958,7 @@
       "highlight": "하이라이트",
       "unhighlight": "하이라이트 해제",
       "clearSchedule": "일정에서 제거",
+      "toTimeblockNow": "지금 타임블록에 넣기",
       "demoteToBacklog": "백로그로 내리기"
     },
     "workloadCreate": {
@@ -5133,7 +5134,9 @@
     "reasonRelated": "관련도 높음",
     "oldestDays": "가장 오래된 것 {{count}}일",
     "staleDays": "{{count}}일",
-    "staleOldest": "{{count}}일 · 가장 오래됨"
+    "staleOldest": "{{count}}일 · 가장 오래됨",
+    "openTab": "대기",
+    "hintShort": "나만 보입니다 · b 로 적기"
   },
   "boardDashboard": {
     "scopePrefix": "대시보드",
@@ -5212,9 +5215,12 @@
     "railNow": "지금",
     "railNowTitle": "지금 시각부터 타임블록에 넣기",
     "timeblockedNotice": "「{{title}}」 {{date}} 타임블록에 배치됨 · 되돌리면 날짜만 풀립니다",
-    "splitWorkloadQueue": "워크로드와 큐 높이 조절",
+    "timeblockMovedNotice": "「{{title}}」 {{date}} 타임블록으로 옮김 · 되돌리면 날짜만 되돌아갑니다",
+    "splitWorkloadQueue": "워크로드와 배치 대기 높이 조절",
     "splitColumns": "타임블록 열 폭 조절",
     "splitHandleHint": "끌어서 조절 · 더블클릭 초기화",
-    "untimeblockedNotice": "「{{title}}」 타임블록에서 빠짐 · 되돌리면 날짜만 돌아옵니다"
+    "untimeblockedNotice": "「{{title}}」 타임블록에서 빠짐 · 되돌리면 날짜만 돌아옵니다",
+    "placementTitle": "배치 대기",
+    "splitQueueBacklog": "배치 대기와 백로그 높이 조절"
   }
 }

@@ -36,6 +36,13 @@ import {
 } from "../../utils/axisTransfer";
 import { PromoteBacklogModal, type PromoteTarget } from "./PromoteBacklogModal";
 import { BACKLOG_STALE_DAYS, daysSince } from "./dashboardUtils";
+import {
+  PanelBanner,
+  PanelCount,
+  PanelFooterHint,
+  PanelShell,
+  panelTabClass,
+} from "./DashboardCard";
 
 /** 백로그 제목 최대 길이 — 백엔드 @Size(max = 200)과 같은 값 */
 const TITLE_MAX = 200;
@@ -63,6 +70,11 @@ interface BacklogRailProps {
   selectedMilestoneId?: string | null;
   /** 승격 후 보드 데이터를 다시 읽게 한다 */
   onPromoted?: () => void;
+  /**
+   * 접힘이 바뀌었을 때 — 카드 높이와 손잡이를 들고 있는 건 부모(큐 스택)다.
+   * 접힘 자체는 여기가 소유한다(b 단축키·빠른 적기가 스스로 펼쳐야 하므로).
+   */
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
 /** 이 레일이 받아 주는 출발지 — 위쪽 두 존에서 내려오는 것만 */
@@ -83,10 +95,14 @@ const draftKey = (boardId: string) => `bridge.backlog.draft.${boardId}`;
 const collapseKey = (boardId: string) => `bridge.backlog.collapsed.${boardId}`;
 
 /**
- * 백로그 독 — 큐 카드 바닥에 붙는 개인 TODO.
+ * 내 백로그 — 오른쪽 열 맨 아래 카드. 개인 TODO다.
  *
  * 대시보드는 성숙도 순으로 쌓여 있다(타임블록·간트 = 확정 / 배치 대기 = 태스크는 됨).
  * 백로그는 그 아래 한 층, "아직 아무것도 아닌 일"을 담는다. 나만 보인다.
+ *
+ * 예전에는 배치 대기 카드 바닥에 붙은 틴트 영역이었다. 그러면 넷이 동등한 패널로
+ * 안 읽히고, 무엇보다 상시 인디고 틴트가 드래그 상태 색과 겹쳐 둘 다 안 보였다.
+ * 지금은 자기 카드를 갖고, 인디고는 드롭 상태일 때만 나타난다.
  *
  * 카드를 위로 끌어 놓는 자리가 곧 승격 대상이 된다. 드래그를 못 쓰는 환경을 위해
  * 카드마다 빠른 승격 버튼을 함께 둔다(배치 대기의 "오늘/내일"과 같은 패턴).
@@ -102,6 +118,7 @@ export function BacklogRail({
   milestones,
   selectedMilestoneId,
   onPromoted,
+  onCollapsedChange,
 }: BacklogRailProps) {
   const { t } = useTranslation();
 
@@ -116,6 +133,8 @@ export function BacklogRail({
   const [pastedLines, setPastedLines] = useState<string[] | null>(null);
   const [pastedRaw, setPastedRaw] = useState("");
 
+  // 접기는 높이 조절과 다른 일이다 — 손잡이가 "얼마나 볼까"라면 이건 "지금은 안 본다"다.
+  // 접으면 카드가 머리 한 줄만 남기고 손잡이도 사라진다(잡을 칸이 없으므로).
   const [collapsed, setCollapsed] = useState(false);
   const [promoting, setPromoting] = useState<{
     item: PersonalTask;
@@ -147,6 +166,11 @@ export function BacklogRail({
       // 프라이빗 모드 등에서 localStorage가 막혀도 기능 자체는 동작해야 한다
     }
   }, [boardId]);
+
+  // 부모가 카드 높이와 손잡이를 들고 있다 — 저장값 복구까지 포함해 여기 한 곳에서 알린다
+  useEffect(() => {
+    onCollapsedChange?.(collapsed);
+  }, [collapsed, onCollapsedChange]);
 
   useEffect(() => {
     try {
@@ -506,148 +530,79 @@ export function BacklogRail({
   const cardBase =
     "group flex-none w-[208px] snap-start bg-bridge-dark rounded-xl border pt-2 pb-1.5 pl-2 pr-2.5 flex items-start gap-2 transition-colors";
 
-  return (
-    <section
-      {...zoneProps}
-      className={`flex-none border-t transition-colors ${
-        dropOver
-          ? "border-bridge-accent bg-bridge-accent/[0.12]"
-          : dropActive
-            ? "border-bridge-accent/40 bg-bridge-accent/[0.05]"
-            : "border-bridge-accent/25 bg-bridge-accent/[0.04]"
-      }`}
-      aria-label={t("backlog.title", "내 백로그")}
-    >
-      {(demoted || transferError) && (
-        <div
-          role="status"
-          className="flex items-center gap-2 px-3 py-2 border-b border-foreground/[0.08] bg-foreground/[0.03]"
-        >
-          {transferError ? (
-            <p className="text-xs text-rose-600 dark:text-rose-400">
-              {transferError}
-            </p>
-          ) : (
-            <>
-              <p className="text-xs text-slate-400 truncate">
-                {/* 잃은 것을 그대로 쓴다 — 워크로드에서 왔을 때만 일정이 사라진다 */}
-                {demoted!.source === "workload"
-                  ? t("backlog.demotedNotice", {
-                      title: demoted!.item.title,
-                      defaultValue:
-                        "「{{title}}」 백로그로 내렸습니다 · 일정과 담당이 해제되고 나만 보입니다",
-                    })
-                  : t("backlog.demotedNoticeUnplaced", {
-                      title: demoted!.item.title,
-                      defaultValue:
-                        "「{{title}}」 백로그로 내렸습니다 · 태스크에서 빠지고 나만 보입니다",
-                    })}
-              </p>
-              <button
-                type="button"
-                onClick={() => void handleUndoDemote()}
-                className="ml-auto flex-none flex items-center gap-1 text-xs font-bold text-bridge-accent hover:underline"
-              >
-                <RotateCcw size={12} aria-hidden="true" />
-                {t("backlog.undo", "되돌리기")}
-              </button>
-            </>
-          )}
-        </div>
-      )}
+  const openCount = openItems.length + pending.length;
 
-      <div
-        className="flex items-center gap-1 px-3 py-2"
-        role="tablist"
-        aria-label={t("backlog.tabsLabel", "백로그 목록")}
-      >
-        {(
-          [
-            {
-              key: "open" as const,
-              label: t("backlog.title", "내 백로그"),
-              count: openItems.length + pending.length,
-              dot: "bg-bridge-accent",
-            },
-            {
-              key: "promoted" as const,
-              label: t("backlog.promotedTab", "승격됨"),
-              count: promotedItems.length,
-              dot: "bg-bridge-secondary",
-            },
-          ] satisfies {
-            key: RailTab;
-            label: string;
-            count: number;
-            dot: string;
-          }[]
-        ).map((item) => {
-          const active = tab === item.key;
-          return (
+  return (
+    <PanelShell
+      dot="slate"
+      title={t("backlog.title", "내 백로그")}
+      /* 정적 힌트는 부제 자리로 — 머리 오른쪽은 링크·접기 몫이라 문구가 서면 밀린다 */
+      subtitle={t("backlog.hintShort", "나만 보입니다 · b 로 적기")}
+      tabs={
+        <div
+          className="flex-none flex items-center gap-1"
+          role="tablist"
+          aria-label={t("backlog.tabsLabel", "백로그 목록")}
+        >
+          {(
+            [
+              {
+                key: "open" as const,
+                label: t("backlog.openTab", "대기"),
+                count: openCount,
+              },
+              {
+                key: "promoted" as const,
+                label: t("backlog.promotedTab", "승격됨"),
+                count: promotedItems.length,
+              },
+            ] satisfies { key: RailTab; label: string; count: number }[]
+          ).map((item) => (
             <button
               key={item.key}
               type="button"
               role="tab"
               id={`backlog-rail-tab-${item.key}`}
-              aria-selected={active}
+              aria-selected={tab === item.key}
               aria-controls="backlog-rail-panel"
               onClick={() => setTab(item.key)}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-bold transition-colors ${
-                active
-                  ? "bg-foreground/[0.08] text-foreground"
-                  : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
-              }`}
+              className={panelTabClass(tab === item.key)}
             >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${item.dot}`}
-                aria-hidden="true"
-              />
               {item.label}
-              <span className="text-xs font-bold text-slate-500">
-                {item.count}
-              </span>
+              <PanelCount
+                value={item.count}
+                tone={item.key === "promoted" ? "teal" : "muted"}
+              />
             </button>
-          );
-        })}
-
-        {/* 방치 신호 — 개수는 이미 탭에 있다. 다시 열게 만드는 건 이 숫자다 */}
-        {tab === "open" &&
-          oldestDays !== null &&
-          oldestDays >= BACKLOG_STALE_DAYS && (
-            <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
-              {t("backlog.oldestDays", "가장 오래된 것 {{count}}일", {
-                count: oldestDays,
-              })}
-            </span>
+          ))}
+        </div>
+      }
+      headerExtra={
+        <>
+          {/* 방치 신호 — 개수는 이미 탭에 있다. 다시 열게 만드는 건 이 숫자다 */}
+          {tab === "open" &&
+            oldestDays !== null &&
+            oldestDays >= BACKLOG_STALE_DAYS && (
+              <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                {t("backlog.oldestDays", "가장 오래된 것 {{count}}일", {
+                  count: oldestDays,
+                })}
+              </span>
+            )}
+          {/* 접힌 채로도 적을 수 있어야 한다 — 누르면 펼쳐지고 입력칸으로 간다 */}
+          {collapsed && (
+            <button
+              type="button"
+              onClick={focusAdd}
+              aria-label={t("backlog.addAria", "백로그 적기")}
+              className="flex-none p-1 rounded-lg text-bridge-accent hover:bg-foreground/5 transition-colors"
+            >
+              <Plus size={14} aria-hidden="true" />
+            </button>
           )}
-
-        <p
-          className={`ml-auto hidden lg:block text-xs truncate ${
-            dropActive ? "font-bold text-bridge-accent" : "text-slate-600"
-          }`}
-        >
-          {dropActive
-            ? t(
-                "backlog.dropHint",
-                "여기에 놓으면 일정·담당을 해제하고 나만 보이는 메모로 내려갑니다",
-              )
-            : t(
-                "backlog.hint",
-                "b 로 적기 · 위로 끌어 올리면 승격 · 나만 보입니다",
-              )}
-        </p>
-
-        {collapsed && (
-          <button
-            type="button"
-            onClick={focusAdd}
-            aria-label={t("backlog.addAria", "백로그 적기")}
-            className="ml-auto md:ml-2 flex-none p-1 rounded-lg text-bridge-accent hover:bg-foreground/5 transition-colors"
-          >
-            <Plus size={14} aria-hidden="true" />
-          </button>
-        )}
-
+        </>
+      }
+      headerTrailing={
         <button
           type="button"
           onClick={() => applyCollapsed(!collapsed)}
@@ -657,9 +612,7 @@ export function BacklogRail({
               ? t("backlog.expand", "백로그 레일 펼치기")
               : t("backlog.collapse", "백로그 레일 접기")
           }
-          className={`flex-none p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors ${
-            collapsed ? "" : "ml-auto md:ml-1"
-          }`}
+          className="flex-none p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
         >
           {collapsed ? (
             <ChevronUp size={14} aria-hidden="true" />
@@ -667,16 +620,81 @@ export function BacklogRail({
             <ChevronDown size={14} aria-hidden="true" />
           )}
         </button>
-      </div>
-
+      }
+      banner={
+        demoted || transferError ? (
+          <PanelBanner tone={transferError ? "error" : "info"}>
+            {transferError ? (
+              <p className="text-xs">{transferError}</p>
+            ) : (
+              <>
+                <p className="text-xs truncate">
+                  {/* 잃은 것을 그대로 쓴다 — 워크로드에서 왔을 때만 일정이 사라진다 */}
+                  {demoted!.source === "workload"
+                    ? t("backlog.demotedNotice", {
+                        title: demoted!.item.title,
+                        defaultValue:
+                          "「{{title}}」 백로그로 내렸습니다 · 일정과 담당이 해제되고 나만 보입니다",
+                      })
+                    : t("backlog.demotedNoticeUnplaced", {
+                        title: demoted!.item.title,
+                        defaultValue:
+                          "「{{title}}」 백로그로 내렸습니다 · 태스크에서 빠지고 나만 보입니다",
+                      })}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void handleUndoDemote()}
+                  className="ml-auto flex-none flex items-center gap-1 text-xs font-bold text-bridge-accent hover:underline"
+                >
+                  <RotateCcw size={12} aria-hidden="true" />
+                  {t("backlog.undo", "되돌리기")}
+                </button>
+              </>
+            )}
+          </PanelBanner>
+        ) : undefined
+      }
+      /* 무엇이 일어날지는 놓는 순간에만 말한다 — 평소엔 카드 한 줄을 더 보여 준다 */
+      footer={
+        dropActive ? (
+          <PanelFooterHint emphasized>
+            {t(
+              "backlog.dropHint",
+              "여기에 놓으면 일정·담당을 해제하고 나만 보이는 메모로 내려갑니다",
+            )}
+          </PanelFooterHint>
+        ) : undefined
+      }
+      padded={false}
+      bodyClassName="flex flex-col"
+      sectionProps={zoneProps}
+      className="h-full"
+      /*
+        상시 틴트를 걷어낸다 — 인디고는 드래그 상태 전용이다.
+        같은 색을 정체성과 상태가 나눠 쓰면 지금 무엇이 걸린 건지 읽히지 않는다.
+      */
+      overlayClassName={
+        dropOver
+          ? "bg-bridge-accent/[0.12] ring-2 ring-inset ring-bridge-accent"
+          : dropActive
+            ? "bg-bridge-accent/[0.05] ring-1 ring-inset ring-bridge-accent/40"
+            : undefined
+      }
+    >
+      {/*
+        hidden 속성만으로는 안 접힌다 — Tailwind의 flex(display:flex)가
+        UA 스타일시트의 [hidden]{display:none}을 이긴다. 그래서 display도 함께 바꾼다.
+      */}
       <div
         id="backlog-rail-panel"
         role="tabpanel"
         aria-labelledby={`backlog-rail-tab-${tab}`}
         hidden={collapsed}
+        className={`flex-1 min-h-0 flex-col ${collapsed ? "hidden" : "flex"}`}
       >
         {isLoading ? (
-          <div className="flex items-center justify-center py-6">
+          <div className="flex-1 flex items-center justify-center py-6">
             <Loader2
               className="w-5 h-5 animate-spin text-bridge-accent"
               aria-label={t("common.loading", "불러오는 중")}
@@ -685,16 +703,21 @@ export function BacklogRail({
         ) : error ? (
           <p className="text-xs text-slate-500 text-center py-6">{error}</p>
         ) : (
+          /*
+            세로로 채우고 넘치면 다음 열로 넘긴다 — 카드는 가로 트랙 그대로지만,
+            손잡이로 카드를 키우면 그 높이가 곧 한 열에 들어오는 개수가 된다.
+            (예전에는 늘 한 줄이라 높이를 늘려도 빈 공간만 늘었다)
+          */
           <div
             ref={trackRef}
-            className="flex items-stretch gap-2 px-3 pb-3 overflow-x-auto custom-scrollbar snap-x"
+            className="flex-1 min-h-0 flex flex-col flex-wrap content-start gap-2 px-3.5 pt-2.5 pb-3 overflow-x-auto overflow-y-hidden custom-scrollbar snap-x"
           >
             {/* 입력 카드는 항상 맨 앞. 스냅 대상으로 잡아두지 않으면 마운트 시
                 레일이 첫 카드로 스냅해 입력칸을 지나쳐 버린다. */}
             {tab === "open" && (
               // 카드가 2단으로 얇아진 만큼 입력칸도 한 줄로 눕힌다 —
               // 여기가 두꺼우면 트랙 높이가 입력칸에 끌려간다
-              <div className="flex-none w-[220px] snap-start rounded-xl border border-dashed border-foreground/10 flex items-center gap-1.5 px-2.5 focus-within:ring-2 focus-within:ring-bridge-accent/50 transition-all">
+              <div className="flex-none w-[208px] snap-start rounded-xl border border-dashed border-foreground/10 flex items-center gap-1.5 px-2.5 focus-within:ring-2 focus-within:ring-bridge-accent/50 transition-all">
                 <input
                   ref={inputRef}
                   type="text"
@@ -856,7 +879,7 @@ export function BacklogRail({
               ))}
 
             {visible.length === 0 && pending.length === 0 && (
-              <p className="text-xs text-slate-500 py-6 px-3 leading-relaxed">
+              <p className="flex-none w-[208px] text-xs text-slate-500 py-4 leading-relaxed">
                 {tab === "open"
                   ? t("backlog.empty", "백로그가 비었습니다.")
                   : t(
@@ -1010,6 +1033,6 @@ export function BacklogRail({
           onPromoted={handlePromoted}
         />
       )}
-    </section>
+    </PanelShell>
   );
 }

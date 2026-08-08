@@ -957,6 +957,7 @@
       "highlight": "Highlight",
       "unhighlight": "Remove highlight",
       "clearSchedule": "Remove from schedule",
+      "toTimeblockNow": "Add to timeblock now",
       "demoteToBacklog": "Move down to backlog"
     },
     "workloadCreate": {
@@ -5108,7 +5109,9 @@
     "reasonRelated": "Closely related",
     "oldestDays": "Oldest {{count}}d",
     "staleDays": "{{count}}d",
-    "staleOldest": "{{count}}d · oldest"
+    "staleOldest": "{{count}}d · oldest",
+    "openTab": "Open",
+    "hintShort": "Only you can see this · press b to jot"
   },
   "boardDashboard": {
     "scopePrefix": "Dashboard",
@@ -5184,6 +5187,11 @@
     "unscheduleFailed": "Could not clear the schedule.",
     "unscheduledNotice": "“{{title}}” schedule cleared · assignee and checklist are unchanged",
     "railToBacklogAria": "Move to backlog",
-    "untimeblockedNotice": "“{{title}}” removed from the time block · undo restores the dates only"
+    "untimeblockedNotice": "“{{title}}” removed from the time block · undo restores the dates only",
+    "timeblockedNotice": "“{{title}}” placed in the {{date}} time block · undo clears the dates only",
+    "timeblockMovedNotice": "“{{title}}” moved into the {{date}} time block · undo restores the dates only",
+    "placementTitle": "To place",
+    "splitWorkloadQueue": "Resize workload and to-place panes",
+    "splitQueueBacklog": "Resize to-place and backlog panes"
   }
 }

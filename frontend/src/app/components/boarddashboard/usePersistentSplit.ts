@@ -26,6 +26,15 @@ export interface PersistentSplitOptions {
   /** 손잡이가 차지하는 두께 */
   handleSize: number;
   /**
+   * 손잡이가 어느 칸을 잡고 있는지.
+   *   "start" (기본) — 앞 칸의 크기를 잡는다. 손잡이를 끌어내리면 앞 칸이 커진다.
+   *   "end"          — 뒤 칸의 크기를 잡는다. 손잡이를 끌어내리면 뒤 칸이 작아진다.
+   *
+   * 세 칸으로 쌓인 스택에서 가운데 칸을 "남는 만큼"으로 두려면 아래 칸은 자기 크기를
+   * 갖되 손잡이가 그 위에 놓인다 — 그때 드래그 방향이 뒤집히므로 이 값이 필요하다.
+   */
+  anchor?: "start" | "end";
+  /**
    * 드래그 중 DOM에 직접 값을 쓰는 방법. 기본은 paneRef의 width/height.
    * 그리드처럼 크기가 부모에 적혀 있으면 여기서 CSS 변수를 대신 쓴다.
    */
@@ -59,6 +68,7 @@ export function usePersistentSplit({
   minSize,
   minOtherSize,
   handleSize,
+  anchor = "start",
   applyDragSize,
   containerRef: externalContainerRef,
 }: PersistentSplitOptions) {
@@ -136,8 +146,12 @@ export function usePersistentSplit({
       document.body.style.cursor = axis === "x" ? "col-resize" : "row-resize";
       document.body.style.userSelect = "none";
 
+      // 뒤 칸을 잡고 있으면 손잡이가 나아가는 쪽이 곧 그 칸이 줄어드는 쪽이다
+      const dir = anchor === "end" ? -1 : 1;
       const sizeAt = (ev: PointerEvent) =>
-        clamp(startSize + ((axis === "x" ? ev.clientX : ev.clientY) - start));
+        clamp(
+          startSize + dir * ((axis === "x" ? ev.clientX : ev.clientY) - start),
+        );
 
       // 매 프레임 setState하면 간트·타임블록이 통째로 다시 그려진다.
       // 드래그 동안에는 DOM만 만지고, 손을 뗄 때 한 번 커밋한다.
@@ -161,15 +175,18 @@ export function usePersistentSplit({
       window.addEventListener("pointerup", handleUp);
       window.addEventListener("pointercancel", handleUp);
     },
-    [applyDragSize, axis, clamp, commit, size],
+    [anchor, applyDragSize, axis, clamp, commit, size],
   );
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       const step = e.shiftKey ? KEY_STEP * 3 : KEY_STEP;
-      // 세로 축은 ↑↓, 가로 축은 ←→ (읽는 방향과 손이 맞아야 한다)
-      const decrease = axis === "x" ? "ArrowLeft" : "ArrowUp";
-      const increase = axis === "x" ? "ArrowRight" : "ArrowDown";
+      // 세로 축은 ↑↓, 가로 축은 ←→ (읽는 방향과 손이 맞아야 한다).
+      // 뒤 칸을 잡고 있으면 손잡이가 가는 쪽과 칸이 커지는 쪽이 반대다.
+      const back = axis === "x" ? "ArrowLeft" : "ArrowUp";
+      const forward = axis === "x" ? "ArrowRight" : "ArrowDown";
+      const decrease = anchor === "end" ? forward : back;
+      const increase = anchor === "end" ? back : forward;
 
       switch (e.key) {
         case decrease:
@@ -198,7 +215,7 @@ export function usePersistentSplit({
         default:
       }
     },
-    [axis, commit, maxSize, minSize, reset, size],
+    [anchor, axis, commit, maxSize, minSize, reset, size],
   );
 
   return {

@@ -171,7 +171,13 @@ cleanup() {
     if [ -d "$PROJECT_DIR/.git" ]; then
       git -C "$PROJECT_DIR" reset --hard >/dev/null 2>&1
       git -C "$PROJECT_DIR" clean -fd -e Library -e Temp -e obj >/dev/null 2>&1
-      git -C "$PROJECT_DIR" checkout "$BASE_REF" >/dev/null 2>&1
+      # 기준 브랜치를 origin에 맞춰 둔다. 다음 작업은 어차피 origin/BASE_REF에서 브랜치를
+      # 끊지만, 작업 **사이**에 Editor가 열고 있는 것은 이 로컬 브랜치다 — 낡은 채로 두면
+      # 사람이 화면에서 보는 코드와 러너가 고치는 코드가 며칠씩 어긋나고, 밀린 재임포트가
+      # 다음 작업 도중에 한꺼번에 일어나 그 건의 시간을 잡아먹는다.
+      # origin/BASE_REF가 없으면(fetch 전에 실패한 경우) 종전대로 로컬 브랜치로만 돌아간다.
+      git -C "$PROJECT_DIR" checkout -B "$BASE_REF" "origin/$BASE_REF" >/dev/null 2>&1 \
+        || git -C "$PROJECT_DIR" checkout "$BASE_REF" >/dev/null 2>&1
     fi
     rm -rf "$LOCK_DIR" 2>/dev/null
   fi
@@ -354,6 +360,93 @@ revert_editor_churn() {
     if [ "${entry:0:2}" = "??" ]; then rm -f "$path"; else git checkout -- "$path" 2>/dev/null; fi
     log "에디터가 만든 변경으로 보고 되돌렸다: $path"
   done < <(git status --porcelain -z)
+}
+
+# ── 시작 전 초기화 ─────────────────────────────
+#
+# 매 건을 같은 출발선에서 시작한다: 추적 파일은 origin의 기준 브랜치 그대로, 추적되지 않는
+# 잔재는 없음. 「최신 풀」쪽은 아래 브랜치 절이 이미 보장한다(fetch → checkout -B origin/BASE_REF).
+# 여기서 맡는 것은 **그 앞에 남아 있는 것을 치우는** 일이다.
+#
+# 예전에는 트리가 더러우면 실패로 끝냈다. 그 판단이 틀린 이유는, 락을 이미 잡은 이 시점의
+# 더러움은 "지금 누가 쓰고 있다"가 아니라 대부분 **이전 실행이 cleanup을 못 돌리고 죽은 흔적**
+# (SIGKILL·맥 강제종료·스크립트 문법 오류)이라는 것이다. 그런데 그 대가는 엉뚱한 다음 작업이
+# 치른다 — 실패한 작업의 대상은 existsActiveForIssue 때문에 사람이 취소하기 전까지 다시 큐에
+# 담기지 않으므로, 남이 남긴 파일 한 줄에 멀쩡한 이슈가 하나 타 버린다. 치우는 편이 옳다.
+#
+# 지우기 전에 stash로 한 번 건진다. 이 맥은 Editor를 열어둔 사람의 기계이기도 해서 손으로
+# 만들던 수정이 여기 걸릴 수 있고, 되돌릴 길 없이 날리는 것과 stash에 남기는 것의 비용 차이는
+# 크다. stash는 작업 트리를 비우므로 다음 작업을 막지도 않는다.
+#
+# `-u`(untracked 포함)는 쓰지 않는다. Library·Temp가 통째로 stash에 들어가 몇 GB가 쌓인다.
+# 추적되지 않는 잔재는 clean이 지우되 `-x`는 주지 않는다 — ignore된 Library가 날아가면
+# 다음 임포트에 몇십 분이 든다. 그것은 「잡다한 것」이 아니라 이 맥의 자산이다.
+reset_worktree() {
+  revert_editor_churn
+  [ -n "$(git status --porcelain)" ] || return 0
+
+  log "이전 실행의 잔재가 남아 있다 — 정리하고 시작한다:"
+  git status --porcelain | head -20
+
+  local before after
+  before=$(git stash list 2>/dev/null | wc -l | tr -d ' ')
+  git stash push -q -m "autofix-rescue $(date -u +%Y%m%dT%H%M%SZ) ${JOB_KEY:-unknown}" >/dev/null 2>&1
+  after=$(git stash list 2>/dev/null | wc -l | tr -d ' ')
+  if [ "${after:-0}" -gt "${before:-0}" ] 2>/dev/null; then
+    log "  추적 파일의 수정은 stash@{0} 에 남겼다 (git stash list 로 확인·복구)"
+  fi
+
+  git reset --hard --quiet
+  git clean -qfd -e Library -e Temp -e obj
+
+  # 여기서도 안 지워지면 사람이 봐야 한다(권한 문제·Editor가 잡고 있는 파일 등).
+  # 더러운 채로 진행하면 그 파일이 이번 PR에 섞여 들어간다.
+  if [ -n "$(git status --porcelain)" ]; then
+    git status --porcelain | head -20
+    fail "작업 트리를 정리하지 못했습니다. 맥에서 직접 확인해야 합니다"
+  fi
+}
+
+# 지난 작업의 로컬 브랜치는 아무도 지우지 않는다 — checkout -B 로 만들기만 하고 끝난다.
+# 몇 달이면 수백 개가 쌓이고, 그중에는 push 직전에 죽은 실행이 남긴 커밋도 섞여 있어 사람이
+# 이 저장소를 열었을 때 무엇이 살아 있는 작업인지 분간할 수 없게 된다.
+#
+# 기준은 브랜치 끝 커밋의 시각이다. 커밋까지 간 건(=PR이 열린 건)은 봇 커밋 시각이 찍혀
+# 보관 기간만큼 남고, 아무것도 못 고치고 죽은 건은 base 커밋 시각이라 곧바로 지워진다 —
+# 남길 값이 있는 쪽만 남는다는 뜻이라 의도한 대로다. 원격에 push된 것은 원격에 남아 있다.
+prune_stale_branches() {
+  local keep_days="${AUTOFIX_BRANCH_KEEP_DAYS:-7}" cutoff name ts pruned=0
+  cutoff=$(( $(date -u +%s) - keep_days * 86400 ))
+
+  while read -r name ts; do
+    [ -n "$name" ] || continue
+    [ "$name" = "$BRANCH" ] && continue
+    [ "${ts:-0}" -lt "$cutoff" ] 2>/dev/null || continue
+    git branch -D "$name" >/dev/null 2>&1 && pruned=$((pruned + 1))
+  done < <(git for-each-ref --format='%(refname:short) %(committerdate:unix)' refs/heads/autofix/ 2>/dev/null)
+
+  [ "$pruned" -gt 0 ] && log "오래된 로컬 autofix 브랜치 ${pruned}개 삭제(${keep_days}일 경과)"
+
+  # push -u 가 만든 원격 추적 ref도 같이 쌓인다. PR이 머지되며 GitHub에서 지워진 브랜치가
+  # 이 맥에는 그대로 남아 있어, git branch -a 가 죽은 브랜치 목록이 된다.
+  # fetch 직후라 네트워크는 살아 있다. 실패해도 작업과는 무관하므로 무시한다.
+  git remote prune origin >/dev/null 2>&1 || true
+  return 0
+}
+
+# 건져 둔 stash가 무한정 쌓이면 그것도 잡동사니다. autofix-rescue 만 최근 것을 남긴다 —
+# 사람이 직접 만든 stash는 세지도 지우지도 않는다. 남의 물건이다.
+prune_rescue_stashes() {
+  local keep="${AUTOFIX_RESCUE_STASH_KEEP:-5}" refs ref
+  refs=$(git stash list 2>/dev/null | grep -F 'autofix-rescue' \
+         | sed -E 's/^(stash@\{[0-9]+\}).*/\1/' | awk -v k="$keep" 'NR>k')
+  [ -n "$refs" ] || return 0
+
+  # drop 하면 그 뒤 인덱스가 앞으로 밀린다. 큰 인덱스부터 지워야 엉뚱한 것을 지우지 않는다.
+  for ref in $(printf '%s\n' "$refs" | sort -t'{' -k2 -rn); do
+    git stash drop -q "$ref" >/dev/null 2>&1 && log "오래된 구조 stash 삭제: $ref"
+  done
+  return 0
 }
 
 # 로케일 테이블 변경이 예외 범위 안인지 판정한다. 벗어나면 실패로 끝낸다 — 조용히 되돌리면
@@ -570,12 +663,8 @@ if ! pgrep -x Unity >/dev/null; then
   log "경고: Unity Editor가 실행 중이 아니다. MCP 진단 없이 소스만 보고 수정하게 된다."
 fi
 
-# 이전 실행이 남긴 변경이 있으면 이번 수정과 섞여 잘못된 PR이 나간다.
-revert_editor_churn
-if [ -n "$(git status --porcelain)" ]; then
-  git status --porcelain | head -20
-  fail "작업 트리가 더럽습니다. 이전 실행이 정리되지 않았습니다"
-fi
+# 이전 실행이 남긴 변경이 있으면 이번 수정과 섞여 잘못된 PR이 나간다. 치우고 시작한다.
+reset_worktree
 
 # 검증 스크립트는 러너 쪽(~/bridge-autofix)에 두는 것이 기본이다 — 대상 게임 저장소에
 # 파일을 심지 않아도 되고, 러너를 고칠 때 게임 저장소에 PR을 올릴 필요가 없다.
@@ -634,8 +723,16 @@ fi
 
 # ── 브랜치 ────────────────────────────────────
 
+# 로컬 브랜치 상태와 무관하게 매번 origin에서 기준을 새로 받는다 — 이 두 줄이 「최신 풀」이다.
+# (로컬 BASE_REF가 몇 주 낡아 있어도 결과는 같다. 그것을 보는 것은 사람과 Editor뿐이라
+#  cleanup에서 따로 맞춰 둔다.)
 git fetch origin "$BASE_REF" --quiet || fail "origin/$BASE_REF 를 가져오지 못했습니다"
 git checkout -B "$BRANCH" "origin/$BASE_REF" --quiet || fail "브랜치 $BRANCH 를 만들지 못했습니다"
+
+# 새 브랜치로 옮겨 온 뒤에 치운다 — 방금 만든 브랜치를 지우지 않기 위해서다.
+# 둘 다 실패해도 작업은 계속한다. 청소가 수리를 막으면 안 된다.
+prune_stale_branches
+prune_rescue_stashes
 
 # ── 수정 시도 ──────────────────────────────────
 #

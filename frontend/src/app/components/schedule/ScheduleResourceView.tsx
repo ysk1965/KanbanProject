@@ -23,6 +23,7 @@ import {
   ZoomOut,
   Settings,
   CalendarPlus,
+  Clock,
 } from "lucide-react";
 import { BoardMember } from "../ShareBoardModal";
 import { BoardContractor, Feature, JobRole, Milestone } from "../../types";
@@ -31,6 +32,8 @@ import {
   dispatchAxisDrop,
   endAxisDrag,
   findAxisZoneAt,
+  requestAxisRefresh,
+  requestTimeblockPlacement,
   updateAxisDragOver,
   type AxisZone,
 } from "../../utils/axisTransfer";
@@ -503,8 +506,12 @@ export function ScheduleResourceView({
     x: number;
     y: number;
     item: AssigneeItemResponse;
+    /** 어느 행의 바인지 — 타임블록에 넣을 때 누구의 열인지 알아야 한다 */
+    assigneeId: string | null;
     /** 화면에 백로그 레일이 있는지 — 일정 탭에는 없으므로 메뉴에서 감춘다 */
     hasBacklogZone: boolean;
+    /** 화면에 타임블록이 있는지 — 리소스 뷰 단독 화면에는 없으므로 메뉴에서 감춘다 */
+    hasTimeblockZone: boolean;
   } | null>(null);
 
   // ─── Timeline range: wide fixed range (12 weeks before + 40 weeks after today) ───
@@ -1600,6 +1607,10 @@ export function ScheduleResourceView({
               ds.itemId,
               payload,
             );
+            // 축을 넘지 않는 이동이라 dispatchAxisDrop이 안 나간다 — 그래도 같은 항목을
+            // 보고 있는 다른 존은 낡는다. 바뀐 건 날짜뿐이지만 배치 레일의 지연 판정과
+            // 타임블록 블록의 마감 색이 그 날짜를 쓴다. (듣는 쪽이 없는 일정 탭에서는 무해)
+            requestAxisRefresh();
             const result = await boardChecklistAPI.getItemsByAssignee(boardId, {
               start_date: rangeStart,
               end_date: rangeEnd,
@@ -1796,6 +1807,8 @@ export function ScheduleResourceView({
             unassigned: remove(prev.unassigned),
           };
         });
+        // 날짜가 풀렸으니 이 항목은 배치 레일의 미배치 탭으로 올라와야 한다
+        requestAxisRefresh();
       } catch (err) {
         console.warn("Failed to clear bar schedule", err);
         fetchData(true);
@@ -3187,8 +3200,15 @@ export function ScheduleResourceView({
                                 x: e.clientX,
                                 y: e.clientY,
                                 item,
+                                assigneeId:
+                                  row.id && row.id !== "__unassigned__"
+                                    ? row.id
+                                    : null,
                                 hasBacklogZone: !!document.querySelector(
                                   '[data-axis-zone="backlog"]',
+                                ),
+                                hasTimeblockZone: !!document.querySelector(
+                                  '[data-axis-zone="timeblock"]',
                                 ),
                               });
                             }}
@@ -3608,6 +3628,32 @@ export function ScheduleResourceView({
               <CalendarX className="w-4 h-4 shrink-0" />
               {t("schedule.resource.clearSchedule", "일정에서 제거")}
             </button>
+            {/* 드래그를 못 쓰는 환경(터치·키보드)의 상향 경로 — 바를 타임블록으로.
+                시각은 타임블록이 정한다(지금 시각부터). 듣는 타임블록이 있을 때만 보인다 */}
+            {barContextMenu.item.task && barContextMenu.hasTimeblockZone && (
+              <button
+                type="button"
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-foreground hover:bg-foreground/5 transition-colors"
+                onClick={() => {
+                  const item = barContextMenu.item;
+                  const assigneeId = barContextMenu.assigneeId;
+                  setBarContextMenu(null);
+                  if (!item.task) return;
+                  requestTimeblockPlacement({
+                    id: item.id,
+                    task_id: item.task.id,
+                    title: item.title,
+                    start_date: item.start_date ?? null,
+                    due_date: item.due_date ?? null,
+                    assignee_id: assigneeId,
+                  });
+                }}
+              >
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                {t("schedule.resource.toTimeblockNow", "지금 타임블록에 넣기")}
+              </button>
+            )}
+
             {/* 드래그를 못 쓰는 환경의 하향 경로. 듣는 백로그 레일이 있을 때만 보인다
                 — 일정 탭에는 백로그가 없어 여기서만 노출된다 */}
             {barContextMenu.item.task && barContextMenu.hasBacklogZone && (

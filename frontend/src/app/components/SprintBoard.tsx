@@ -81,8 +81,17 @@ interface SprintBoardProps {
   onOpenFeature?: (featureId: string) => void;
   /** 좌측 업무 리스트 헤더 "+" → 새 피쳐 생성(제목만). 반환된 피쳐는 곧바로 상세 모달로 이어진다. */
   onCreateFeature?: (data: { title: string }) => Promise<{ id: string } | null>;
-  /** 칸반 탭 필터바 전체(담당자·피쳐·라벨·상태·검색). 스프린트 뷰 3종(Feature/구성원/JIRA) 공용 적용 */
+  /** 칸반 탭 필터바 전체(담당자·피쳐·라벨·상태·검색). 스프린트/JIRA 화면 공용 적용 */
   filterOptions?: FilterOptions;
+  /**
+   * JIRA 화면으로 렌더한다. 스프린트 안의 그룹 기준(Feature/구성원)이 아니라
+   * "스프린트 | 블록 보드 | JIRA" 형제 화면 선택의 결과 — 부모(KanbanView)가 켠다.
+   * 스코프(보드 전체)·컬럼 축(진행 단계)·드롭 결과(외부 시스템 쓰기)가 스프린트와 달라
+   * 그룹 기준 토글에 섞이지 않는다.
+   */
+  jiraView?: boolean;
+  /** 새로 유입된 JIRA 이슈 수 — 부모의 JIRA 화면 버튼 뱃지용(집계 근거가 이 컴포넌트에만 있다) */
+  onJiraFreshChange?: (fresh: number) => void;
   /** 라벨 필터 판정용 — feature_id → 태그 id 배열. SprintItemCard/JiraTask에 태그가 없어 부모가 주입 */
   featureTagsMap?: Record<string, string[]>;
   /** 라벨 필터 판정용 — task_id → 태그 id 배열. */
@@ -284,6 +293,8 @@ export function SprintBoard({
   onOpenFeature,
   onCreateFeature,
   filterOptions,
+  jiraView = false,
+  onJiraFreshChange,
   featureTagsMap = {},
   taskTagsMap = {},
   memberOrder,
@@ -405,22 +416,32 @@ export function SprintBoard({
   // 진행 컬럼 그룹 기준: Feature별 컬럼(기본) ↔ 담당자별 컬럼.
   // In Review·Done 고정 컬럼은 두 뷰에서 그대로 공유되고, 카드/데이터는 변하지 않는다.
   // (순수 클라이언트 표시 전환 — 서버/드래그 상태는 두 뷰가 동일하게 공유)
-  const [groupBy, setGroupBy] = useState<"feature" | "member" | "jira">(() => {
+  // JIRA는 여기 들어오지 않는다 — 화면 자체가 바뀌는 물건이라 부모의 화면 선택(jiraView)이 정한다.
+  const [groupPref, setGroupPref] = useState<"feature" | "member">(() => {
     try {
-      const saved = localStorage.getItem(SPRINT_VIEW_KEY);
-      if (saved === "member" || saved === "jira") return saved;
-      return "feature";
+      // 레거시: 예전엔 "jira"도 이 키에 저장됐다. 화면 선택으로 옮겨갔으니 Feature로 되돌린다.
+      return localStorage.getItem(SPRINT_VIEW_KEY) === "member"
+        ? "member"
+        : "feature";
     } catch {
       return "feature";
     }
   });
   useEffect(() => {
     try {
-      localStorage.setItem(SPRINT_VIEW_KEY, groupBy);
+      localStorage.setItem(SPRINT_VIEW_KEY, groupPref);
     } catch {
       /* 프라이빗 모드 등 localStorage 접근 불가 시 무시 */
     }
-  }, [groupBy]);
+  }, [groupPref]);
+  // 아래 렌더/집계는 모두 이 값을 읽는다 — JIRA 화면이면 그룹 기준을 덮어쓴다.
+  const groupBy: "feature" | "member" | "jira" = jiraView ? "jira" : groupPref;
+
+  // 과거 스프린트를 미리보는 중에 JIRA 화면으로 넘어오면 스냅샷이 보드를 계속 점유한다.
+  // 미리보기는 스프린트 화면의 상태이므로 화면을 떠날 때 푼다.
+  useEffect(() => {
+    if (jiraView) setPreviewSprintId(null);
+  }, [jiraView]);
 
   // 구성원 뷰 보임 필터. 기본은 "진행중" — 이 뷰를 여는 이유가 "이 사람 지금 뭐 남았지"라서다.
   // 숨긴 만큼은 컬럼 하단에 건수로 고지해, 카드가 조용히 사라진 것처럼 보이지 않게 한다.
@@ -485,7 +506,7 @@ export function SprintBoard({
     [jiraSeenBaseline],
   );
 
-  // 탭 뱃지 집계 — jiraColumns는 groupBy==='jira'일 때만 계산되므로 별도로 보드 전체를 센다.
+  // 화면 버튼 뱃지 집계 — jiraColumns는 groupBy==='jira'일 때만 계산되므로 별도로 보드 전체를 센다.
   const jiraBadge = useMemo(() => {
     // 연동이 끊긴(JIRA 삭제) 카드는 연동 건수에서 제외 — 카드 자체는 목록에 그대로 보인다.
     const list = (board?.jira_tasks ?? []).filter((t) => !t.jira_deleted);
@@ -495,6 +516,11 @@ export function SprintBoard({
     }
     return { total: list.length, fresh };
   }, [board, isNewJiraLink]);
+
+  // 뱃지가 붙는 버튼은 이제 부모(화면 선택 줄)에 있다 — 집계 결과만 올려 보낸다.
+  useEffect(() => {
+    onJiraFreshChange?.(jiraConnected ? jiraBadge.fresh : 0);
+  }, [jiraBadge.fresh, jiraConnected, onJiraFreshChange]);
 
   // JIRA 탭을 벗어나면 확인 처리 → 서버 기준선을 민 뒤 무음 재조회로 뱃지를 즉시 정리한다.
   const wasOnJiraRef = useRef(false);
@@ -548,7 +574,7 @@ export function SprintBoard({
     };
   }, [boardId]);
 
-  // JIRA 탭 진입 시 메타(상태·블록명) 로드 (최초 1회)
+  // JIRA 화면 진입 시 메타(상태·블록명) 로드 (최초 1회)
   useEffect(() => {
     if (groupBy !== "jira" || !jiraConnected || jiraMeta || jiraMetaLoading)
       return;
@@ -562,12 +588,7 @@ export function SprintBoard({
       .finally(() => setJiraMetaLoading(false));
   }, [groupBy, jiraConnected, jiraMeta, jiraMetaLoading, boardId]);
 
-  // JIRA 탭이 저장돼 있었는데 연동이 끊긴 경우 Feature로 폴백
-  useEffect(() => {
-    if (groupBy === "jira" && jiraStatus && !jiraConnected) {
-      setGroupBy("feature");
-    }
-  }, [groupBy, jiraStatus, jiraConnected]);
+  // (연동이 끊긴 채 JIRA 화면이 열려 있는 경우의 폴백은 화면 선택을 쥔 부모가 처리한다)
 
   // 좌측 업무 리스트 패널: 접힘 여부 + 폭(px). 둘 다 localStorage에서 복원해 새로고침 유지.
   const [panelCollapsed, setPanelCollapsed] = useState<boolean>(() => {
@@ -3290,459 +3311,464 @@ export function SprintBoard({
           </div>
         )}
 
-        {/* 스프린트 타임라인 — 과거는 압축 세그먼트, 진행중·미리보기는 확장(게이지·액션 내장) */}
-        <div className="flex items-stretch gap-2">
-          {(board?.sprints ?? []).map((s) => {
-            const isActive = s.status === "ACTIVE";
-            const isPreviewing = s.id === previewSprintId;
-            // 확장: (진행중 && 미리보기 아님) 또는 (이 스프린트를 미리보기 중)
-            const expandedActive = isActive && !previewSprintId;
-            const expanded = expandedActive || isPreviewing;
-            // 클릭: 과거 → 미리보기 진입 / 축소된 진행중(미리보기 중) → 복귀
-            const handleClick = isActive
-              ? previewSprintId
-                ? () => setPreviewSprintId(null)
-                : undefined
-              : isPreviewing
-                ? undefined
-                : () => setPreviewSprintId(s.id);
-            // 진행중 확장은 담당자필터 반영 gauge, 그 외는 스프린트 자체 값
-            const pct =
-              expandedActive && gauge
-                ? gauge.percentage
-                : s.progress_percentage;
-            const doneN =
-              expandedActive && gauge ? gauge.done : s.completed_count;
-            const totalN =
-              expandedActive && gauge ? gauge.total : s.total_count;
-            const remaining = remainingTasks; // 이월 대상 = Done에 닿지 못한 태스크 수
-
-            return (
-              <div
-                key={s.id}
-                onClick={handleClick}
-                className={`group relative flex flex-col gap-2 rounded-xl border p-3 transition-[flex-basis,background-color,border-color] duration-300 ${
-                  expanded ? "grow basis-[480px]" : "grow-0 basis-[132px]"
-                } ${
-                  isPreviewing
-                    ? "border-dashed border-bridge-secondary/40 bg-gradient-to-br from-bridge-secondary/[0.12] to-transparent cursor-default"
-                    : expandedActive
-                      ? "border-bridge-accent/35 bg-gradient-to-br from-bridge-accent/[0.13] via-bridge-secondary/[0.04] to-transparent cursor-default"
-                      : "border-foreground/[0.08] bg-foreground/[0.04] hover:bg-foreground/[0.08] " +
-                        (handleClick ? "cursor-pointer" : "cursor-default")
-                }`}
-                title={
-                  isPreviewing
-                    ? "미리보기 중 · 읽기 전용"
-                    : isActive
-                      ? previewSprintId
-                        ? "클릭해서 진행중으로 돌아가기"
-                        : "진행 중"
-                      : "클릭해서 미리보기 (읽기 전용)"
-                }
+        {/* JIRA 화면은 스코프가 보드 전체라 스프린트 타임라인·진척을 세우지 않는다 —
+            모수가 다른 진행률 두 개(스프린트 체크리스트 vs JIRA 이슈)가 한 화면에 겹치면
+            어느 쪽도 못 믿는다. 대신 이 화면이 무엇을 세고 있는지 밝히는 머리말만 둔다. */}
+        {groupBy === "jira" ? (
+          <div className="flex items-center gap-3 flex-wrap rounded-xl border border-foreground/[0.08] bg-foreground/[0.04] px-3 py-2.5">
+            <span className="inline-flex items-center gap-1.5 text-sm font-bold text-foreground whitespace-nowrap">
+              <Diamond className="w-3.5 h-3.5 text-bridge-accent" />
+              JIRA 보드
+            </span>
+            <span className="text-xs text-slate-500 tabular-nums whitespace-nowrap">
+              연동 {jiraBadge.total}건 · 스프린트와 무관하게 보드 전체를 봅니다
+            </span>
+            {jiraBadge.fresh > 0 && (
+              <span
+                className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent tabular-nums shrink-0"
+                title="마지막으로 확인한 뒤 새로 링크된 이슈"
               >
-                {/* 라벨 행 — 축소 세그먼트 상단. 확장(진행중·미리보기)은 각자 2행 레이아웃에 이름·배지를 통합 */}
-                {!expanded && (
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className={`font-bold tracking-tight whitespace-nowrap ${
-                        expanded
-                          ? "text-sm text-foreground"
-                          : "text-[13px] text-slate-300"
-                      }`}
-                    >
-                      {s.name}
-                    </span>
-                    {isPreviewing ? (
-                      <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-bridge-secondary whitespace-nowrap">
-                        <Eye className="w-3 h-3" /> 미리보기
-                      </span>
-                    ) : isActive ? (
-                      <span className="inline-flex items-center gap-1.5 text-[10.5px] font-bold text-bridge-secondary whitespace-nowrap">
-                        <span className="w-1.5 h-1.5 rounded-full bg-bridge-secondary animate-pulse" />
-                        진행중
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-bridge-secondary whitespace-nowrap">
-                        <Check className="w-3 h-3" /> 완료
-                      </span>
-                    )}
-                  </div>
-                )}
+                신규 {jiraBadge.fresh}
+              </span>
+            )}
+            <span className="flex-1" />
+            {jiraStatus && (
+              <JiraSyncIndicator
+                boardId={boardId}
+                status={jiraStatus}
+                onStatusRefetch={setJiraStatus}
+              />
+            )}
+            {isAdminOrOwner && (
+              <button
+                type="button"
+                onClick={() => setShowJiraModal(true)}
+                className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-colors shrink-0"
+                title="JIRA 연동 관리 (미러 보드·해제)"
+                aria-label="JIRA 연동 관리"
+              >
+                <Settings2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-stretch gap-2">
+            {(board?.sprints ?? []).map((s) => {
+              const isActive = s.status === "ACTIVE";
+              const isPreviewing = s.id === previewSprintId;
+              // 확장: (진행중 && 미리보기 아님) 또는 (이 스프린트를 미리보기 중)
+              const expandedActive = isActive && !previewSprintId;
+              const expanded = expandedActive || isPreviewing;
+              // 클릭: 과거 → 미리보기 진입 / 축소된 진행중(미리보기 중) → 복귀
+              const handleClick = isActive
+                ? previewSprintId
+                  ? () => setPreviewSprintId(null)
+                  : undefined
+                : isPreviewing
+                  ? undefined
+                  : () => setPreviewSprintId(s.id);
+              // 진행중 확장은 담당자필터 반영 gauge, 그 외는 스프린트 자체 값
+              const pct =
+                expandedActive && gauge
+                  ? gauge.percentage
+                  : s.progress_percentage;
+              const doneN =
+                expandedActive && gauge ? gauge.done : s.completed_count;
+              const totalN =
+                expandedActive && gauge ? gauge.total : s.total_count;
+              const remaining = remainingTasks; // 이월 대상 = Done에 닿지 못한 태스크 수
 
-                {/* 진척 막대 — 축소 세그먼트용 단색. 확장(진행중·미리보기)은 각자 Row 2로 이동 */}
-                {!expanded && (
-                  <div className="h-[5px] rounded-full bg-foreground/10 overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500 bg-bridge-secondary"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                )}
-
-                {/* 축소 상태: 퍼센트 요약 */}
-                {!expanded && (
-                  <div className="text-[11px] font-bold text-bridge-secondary tabular-nums">
-                    {pct}%
-                  </div>
-                )}
-
-                {/* 진행중 확장: 투톤 2행 컴팩트 레이아웃 */}
-                {expandedActive && (
-                  <div className="flex flex-col gap-2">
-                    {/* Row 1 — 이름 · 진행중 · 게이지 · 메타 · 오늘완료 · D-day */}
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <span className="text-sm font-bold tracking-tight text-foreground whitespace-nowrap">
+              return (
+                <div
+                  key={s.id}
+                  onClick={handleClick}
+                  className={`group relative flex flex-col gap-2 rounded-xl border p-3 transition-[flex-basis,background-color,border-color] duration-300 ${
+                    expanded ? "grow basis-[480px]" : "grow-0 basis-[132px]"
+                  } ${
+                    isPreviewing
+                      ? "border-dashed border-bridge-secondary/40 bg-gradient-to-br from-bridge-secondary/[0.12] to-transparent cursor-default"
+                      : expandedActive
+                        ? "border-bridge-accent/35 bg-gradient-to-br from-bridge-accent/[0.13] via-bridge-secondary/[0.04] to-transparent cursor-default"
+                        : "border-foreground/[0.08] bg-foreground/[0.04] hover:bg-foreground/[0.08] " +
+                          (handleClick ? "cursor-pointer" : "cursor-default")
+                  }`}
+                  title={
+                    isPreviewing
+                      ? "미리보기 중 · 읽기 전용"
+                      : isActive
+                        ? previewSprintId
+                          ? "클릭해서 진행중으로 돌아가기"
+                          : "진행 중"
+                        : "클릭해서 미리보기 (읽기 전용)"
+                  }
+                >
+                  {/* 라벨 행 — 축소 세그먼트 상단. 확장(진행중·미리보기)은 각자 2행 레이아웃에 이름·배지를 통합 */}
+                  {!expanded && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={`font-bold tracking-tight whitespace-nowrap ${
+                          expanded
+                            ? "text-sm text-foreground"
+                            : "text-[13px] text-slate-300"
+                        }`}
+                      >
                         {s.name}
                       </span>
-                      <span className="inline-flex items-center gap-1.5 text-[10.5px] font-bold text-bridge-secondary whitespace-nowrap">
-                        <span className="w-1.5 h-1.5 rounded-full bg-bridge-secondary animate-pulse" />
-                        진행중
-                      </span>
-                      {/* 스프린트 진척은 탭과 무관하게 한 잣대(체크리스트 줄)로 잰다.
-                          JIRA 이슈가 어디까지 갔는지는 층위가 달라 보드 바닥 스트립(jiraFlow)이 전담. */}
-                      <span className="text-2xl font-bold text-foreground tabular-nums leading-none">
-                        {pct}
-                        <span className="text-sm text-slate-400">%</span>
-                      </span>
-                      <span className="text-xs font-medium text-slate-400 tabular-nums">
-                        체크리스트 {doneN} / {totalN}
-                      </span>
-                      {sprintProgress.nToday > 0 && (
-                        <span
-                          className="text-[10.5px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0 tabular-nums"
-                          title={`오늘 Done에 도달한 태스크 ${sprintProgress.nToday}건`}
-                        >
-                          ▲ {sprintProgress.nToday}
+                      {isPreviewing ? (
+                        <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-bridge-secondary whitespace-nowrap">
+                          <Eye className="w-3 h-3" /> 미리보기
+                        </span>
+                      ) : isActive ? (
+                        <span className="inline-flex items-center gap-1.5 text-[10.5px] font-bold text-bridge-secondary whitespace-nowrap">
+                          <span className="w-1.5 h-1.5 rounded-full bg-bridge-secondary animate-pulse" />
+                          진행중
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-bridge-secondary whitespace-nowrap">
+                          <Check className="w-3 h-3" /> 완료
                         </span>
                       )}
-                      <span className="flex-1" />
-                      {s.end_date &&
-                        (() => {
-                          const d = getDDay(s.end_date);
-                          return (
-                            <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums ${
-                                DDAY_BADGE[d.urgency] ||
-                                "bg-bridge-secondary/15 text-bridge-secondary"
-                              }`}
-                              title={`종료 예정 ${formatDate(s.end_date)}`}
-                            >
-                              <Clock className="w-3 h-3" />
-                              종료 {d.text}
-                            </span>
-                          );
-                        })()}
                     </div>
+                  )}
 
-                    {/* Row 2 — 진척바(클릭:진행현황) · 그룹 토글 · 종료 */}
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setProgressTab(
-                            sprintProgress.nToday > 0
-                              ? "todayDone"
-                              : "inProgress",
-                          );
-                          setProgressOpen(true);
-                        }}
-                        aria-haspopup="dialog"
-                        aria-label="진행 현황 보기"
-                        title="진행 현황 자세히 보기"
-                        className="group/bar flex-1 min-w-[80px] flex items-center -mx-0.5 px-0.5 py-1 rounded"
-                      >
-                        {/* 이전 완료 · 오늘 완료 · 진행중 3색 — 탭과 무관하게 같은 세그먼트를 쓴다 */}
-                        <div className="flex-1 h-[5px] rounded-full bg-slate-600 overflow-hidden relative">
-                          <div
-                            className="absolute left-0 top-0 h-full bg-bridge-accent transition-all duration-500"
-                            style={{
-                              width: `${sprintProgress.segEarlier}%`,
-                            }}
-                          />
-                          {sprintProgress.segToday > 0 && (
-                            <div
-                              className="absolute top-0 h-full bg-bridge-secondary transition-all duration-500"
-                              style={{
-                                left: `${sprintProgress.segEarlier}%`,
-                                width: `${sprintProgress.segToday}%`,
-                                boxShadow: "0 0 8px var(--bridge-secondary)",
-                              }}
-                            />
-                          )}
-                          {sprintProgress.segProg > 0 && (
-                            <div
-                              className="absolute top-0 h-full bg-amber-500 transition-all duration-500"
-                              style={{
-                                left: `${sprintProgress.segEarlier + sprintProgress.segToday}%`,
-                                width: `${sprintProgress.segProg}%`,
-                              }}
-                            />
-                          )}
-                        </div>
-                      </button>
-
-                      {/* Feature ↔ 구성원 전환 */}
+                  {/* 진척 막대 — 축소 세그먼트용 단색. 확장(진행중·미리보기)은 각자 Row 2로 이동 */}
+                  {!expanded && (
+                    <div className="h-[5px] rounded-full bg-foreground/10 overflow-hidden">
                       <div
-                        className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/[0.06] border border-foreground/10 shrink-0"
-                        role="tablist"
-                        aria-label="보드 그룹 기준"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          type="button"
-                          role="tab"
-                          aria-selected={groupBy === "feature"}
-                          onClick={() => setGroupBy("feature")}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
-                            groupBy === "feature"
-                              ? "bg-bridge-accent text-white"
-                              : "text-slate-400 hover:text-foreground"
-                          }`}
-                          title="Feature 단위로 컬럼 보기"
-                        >
-                          <Layers className="w-3 h-3" />
-                          Feature
-                        </button>
-                        <button
-                          type="button"
-                          role="tab"
-                          aria-selected={groupBy === "member"}
-                          onClick={() => setGroupBy("member")}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
-                            groupBy === "member"
-                              ? "bg-bridge-accent text-white"
-                              : "text-slate-400 hover:text-foreground"
-                          }`}
-                          title="구성원(담당자) 단위로 컬럼 보기"
-                        >
-                          <Users className="w-3 h-3" />
-                          구성원
-                        </button>
-                        {jiraConnected && (
-                          <button
-                            type="button"
-                            role="tab"
-                            aria-selected={groupBy === "jira"}
-                            onClick={() => setGroupBy("jira")}
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
-                              groupBy === "jira"
-                                ? "bg-bridge-accent text-white"
-                                : "text-slate-400 hover:text-foreground"
-                            }`}
-                            title={
-                              jiraBadge.fresh > 0
-                                ? `새로 들어온 JIRA 이슈 ${jiraBadge.fresh}건 (연동 ${jiraBadge.total}건)`
-                                : "JIRA 상태 단위로 컬럼 보기 (연동 항목만)"
-                            }
+                        className="h-full rounded-full transition-all duration-500 bg-bridge-secondary"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  )}
+
+                  {/* 축소 상태: 퍼센트 요약 */}
+                  {!expanded && (
+                    <div className="text-[11px] font-bold text-bridge-secondary tabular-nums">
+                      {pct}%
+                    </div>
+                  )}
+
+                  {/* 진행중 확장: 투톤 2행 컴팩트 레이아웃 */}
+                  {expandedActive && (
+                    <div className="flex flex-col gap-2">
+                      {/* Row 1 — 이름 · 진행중 · 게이지 · 메타 · 오늘완료 · D-day */}
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <span className="text-sm font-bold tracking-tight text-foreground whitespace-nowrap">
+                          {s.name}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 text-[10.5px] font-bold text-bridge-secondary whitespace-nowrap">
+                          <span className="w-1.5 h-1.5 rounded-full bg-bridge-secondary animate-pulse" />
+                          진행중
+                        </span>
+                        {/* 스프린트 진척은 탭과 무관하게 한 잣대(체크리스트 줄)로 잰다.
+                          JIRA 이슈가 어디까지 갔는지는 층위가 달라 보드 바닥 스트립(jiraFlow)이 전담. */}
+                        <span className="text-2xl font-bold text-foreground tabular-nums leading-none">
+                          {pct}
+                          <span className="text-sm text-slate-400">%</span>
+                        </span>
+                        <span className="text-xs font-medium text-slate-400 tabular-nums">
+                          체크리스트 {doneN} / {totalN}
+                        </span>
+                        {sprintProgress.nToday > 0 && (
+                          <span
+                            className="text-[10.5px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0 tabular-nums"
+                            title={`오늘 Done에 도달한 태스크 ${sprintProgress.nToday}건`}
                           >
-                            <Diamond className="w-3 h-3" />
-                            JIRA
-                            {jiraBadge.fresh > 0 && (
-                              <span
-                                className={`ml-0.5 min-w-[1.15rem] px-1 py-[1px] rounded-full text-[11px] font-bold tabular-nums text-center ${
-                                  groupBy === "jira"
-                                    ? "bg-white/20 text-white"
-                                    : "bg-bridge-accent/15 text-bridge-accent"
-                                }`}
-                                aria-label={`새 이슈 ${jiraBadge.fresh}건`}
-                              >
-                                {jiraBadge.fresh > 99 ? "99+" : jiraBadge.fresh}
-                              </span>
-                            )}
-                          </button>
+                            ▲ {sprintProgress.nToday}
+                          </span>
                         )}
+                        <span className="flex-1" />
+                        {s.end_date &&
+                          (() => {
+                            const d = getDDay(s.end_date);
+                            return (
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums ${
+                                  DDAY_BADGE[d.urgency] ||
+                                  "bg-bridge-secondary/15 text-bridge-secondary"
+                                }`}
+                                title={`종료 예정 ${formatDate(s.end_date)}`}
+                              >
+                                <Clock className="w-3 h-3" />
+                                종료 {d.text}
+                              </span>
+                            );
+                          })()}
                       </div>
 
-                      {/* 보임 필터 — 구성원 뷰 전용. 뷰 전환 세그먼트와 붙이지 않고 라벨을 앞세워
-                          "네 번째 뷰 탭"으로 오독되지 않게 하고, 선택 상태는 틸(secondary)로 칠해
-                          바로 옆 인디고 세그먼트와 한 덩어리로 보이지 않게 한다. */}
-                      {groupBy === "member" && (
-                        <div
-                          className="flex items-center gap-1.5 shrink-0 ml-1"
-                          onClick={(e) => e.stopPropagation()}
+                      {/* Row 2 — 진척바(클릭:진행현황) · 그룹 토글 · 종료 */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setProgressTab(
+                              sprintProgress.nToday > 0
+                                ? "todayDone"
+                                : "inProgress",
+                            );
+                            setProgressOpen(true);
+                          }}
+                          aria-haspopup="dialog"
+                          aria-label="진행 현황 보기"
+                          title="진행 현황 자세히 보기"
+                          className="group/bar flex-1 min-w-[80px] flex items-center -mx-0.5 px-0.5 py-1 rounded"
                         >
-                          <span className="hidden lg:inline text-xs font-bold uppercase tracking-widest text-slate-500">
-                            보임
-                          </span>
-                          <div
-                            className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/[0.06] border border-foreground/10"
-                            role="group"
-                            aria-label="완료 항목 보임"
-                          >
-                            {DONE_VIS_OPTIONS.map((opt) => (
-                              <button
-                                key={opt.key}
-                                type="button"
-                                aria-pressed={doneVis === opt.key}
-                                onClick={() => setDoneVis(opt.key)}
-                                title={opt.hint}
-                                className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
-                                  doneVis === opt.key
-                                    ? "bg-bridge-secondary text-white"
-                                    : "text-slate-400 hover:text-foreground"
-                                }`}
-                              >
-                                {opt.label}
-                              </button>
-                            ))}
+                          {/* 이전 완료 · 오늘 완료 · 진행중 3색 — 탭과 무관하게 같은 세그먼트를 쓴다 */}
+                          <div className="flex-1 h-[5px] rounded-full bg-slate-600 overflow-hidden relative">
+                            <div
+                              className="absolute left-0 top-0 h-full bg-bridge-accent transition-all duration-500"
+                              style={{
+                                width: `${sprintProgress.segEarlier}%`,
+                              }}
+                            />
+                            {sprintProgress.segToday > 0 && (
+                              <div
+                                className="absolute top-0 h-full bg-bridge-secondary transition-all duration-500"
+                                style={{
+                                  left: `${sprintProgress.segEarlier}%`,
+                                  width: `${sprintProgress.segToday}%`,
+                                  boxShadow: "0 0 8px var(--bridge-secondary)",
+                                }}
+                              />
+                            )}
+                            {sprintProgress.segProg > 0 && (
+                              <div
+                                className="absolute top-0 h-full bg-amber-500 transition-all duration-500"
+                                style={{
+                                  left: `${sprintProgress.segEarlier + sprintProgress.segToday}%`,
+                                  width: `${sprintProgress.segProg}%`,
+                                }}
+                              />
+                            )}
                           </div>
-                        </div>
-                      )}
+                        </button>
 
-                      {/* JIRA 연결/관리 — 스프린트에서 직접 연결·미러보드 선택·해제 (관리 권한자만) */}
-                      {isAdminOrOwner &&
-                        (jiraConnected ? (
-                          <button
-                            type="button"
-                            onClick={() => setShowJiraModal(true)}
-                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-colors shrink-0"
-                            title="JIRA 연동 관리 (미러 보드·해제)"
-                            aria-label="JIRA 연동 관리"
+                        {/* Feature ↔ 구성원 전환 — 둘 다 "지금 스프린트에 담긴 것"을 소유 축으로
+                          자르는, 서로 교환 가능한 절단면이다. JIRA는 스코프도 축도 달라
+                          여기가 아니라 화면 선택 줄(스프린트 | 블록 보드 | JIRA)에 있다. */}
+                        {groupBy !== "jira" && (
+                          <div
+                            className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/[0.06] border border-foreground/10 shrink-0"
+                            role="tablist"
+                            aria-label="보드 그룹 기준"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <Settings2 className="w-3.5 h-3.5" />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setShowJiraModal(true)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-bridge-accent bg-bridge-accent/15 hover:bg-bridge-accent/25 transition-colors shrink-0"
-                            title="이 스프린트 보드에 JIRA를 연결합니다"
+                            <button
+                              type="button"
+                              role="tab"
+                              aria-selected={groupBy === "feature"}
+                              onClick={() => setGroupPref("feature")}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
+                                groupBy === "feature"
+                                  ? "bg-bridge-accent text-white"
+                                  : "text-slate-400 hover:text-foreground"
+                              }`}
+                              title="Feature 단위로 컬럼 보기"
+                            >
+                              <Layers className="w-3 h-3" />
+                              Feature
+                            </button>
+                            <button
+                              type="button"
+                              role="tab"
+                              aria-selected={groupBy === "member"}
+                              onClick={() => setGroupPref("member")}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
+                                groupBy === "member"
+                                  ? "bg-bridge-accent text-white"
+                                  : "text-slate-400 hover:text-foreground"
+                              }`}
+                              title="구성원(담당자) 단위로 컬럼 보기"
+                            >
+                              <Users className="w-3 h-3" />
+                              구성원
+                            </button>
+                          </div>
+                        )}
+
+                        {/* 보임 필터 — 구성원 뷰 전용. 그룹 기준 세그먼트와 붙이지 않고 라벨을 앞세워
+                          "또 하나의 그룹 기준"으로 오독되지 않게 하고, 선택 상태는 틸(secondary)로 칠해
+                          바로 옆 인디고 세그먼트와 한 덩어리로 보이지 않게 한다. */}
+                        {groupBy === "member" && (
+                          <div
+                            className="flex items-center gap-1.5 shrink-0 ml-1"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <Diamond className="w-3 h-3" />
-                            JIRA 연결
-                          </button>
-                        ))}
+                            <span className="hidden lg:inline text-xs font-bold uppercase tracking-widest text-slate-500">
+                              보임
+                            </span>
+                            <div
+                              className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/[0.06] border border-foreground/10"
+                              role="group"
+                              aria-label="완료 항목 보임"
+                            >
+                              {DONE_VIS_OPTIONS.map((opt) => (
+                                <button
+                                  key={opt.key}
+                                  type="button"
+                                  aria-pressed={doneVis === opt.key}
+                                  onClick={() => setDoneVis(opt.key)}
+                                  title={opt.hint}
+                                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                                    doneVis === opt.key
+                                      ? "bg-bridge-secondary text-white"
+                                      : "text-slate-400 hover:text-foreground"
+                                  }`}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
-                      {/* JIRA 뷰: 2분 폴링 동기화 상태 인디케이터 (남은개수·종료 대신 노출) */}
-                      {groupBy === "jira" && jiraConnected && jiraStatus && (
-                        <JiraSyncIndicator
-                          boardId={boardId}
-                          status={jiraStatus}
-                          onStatusRefetch={setJiraStatus}
-                        />
-                      )}
+                        {/* JIRA 연결/관리 — 스프린트에서 직접 연결·미러보드 선택·해제 (관리 권한자만) */}
+                        {isAdminOrOwner &&
+                          (jiraConnected ? (
+                            <button
+                              type="button"
+                              onClick={() => setShowJiraModal(true)}
+                              className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-colors shrink-0"
+                              title="JIRA 연동 관리 (미러 보드·해제)"
+                              aria-label="JIRA 연동 관리"
+                            >
+                              <Settings2 className="w-3.5 h-3.5" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setShowJiraModal(true)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-bridge-accent bg-bridge-accent/15 hover:bg-bridge-accent/25 transition-colors shrink-0"
+                              title="이 스프린트 보드에 JIRA를 연결합니다"
+                            >
+                              <Diamond className="w-3 h-3" />
+                              JIRA 연결
+                            </button>
+                          ))}
 
-                      {isAdminOrOwner && groupBy !== "jira" && (
-                        <>
-                          <span className="hidden text-[11px] text-slate-500 tabular-nums whitespace-nowrap lg:inline">
-                            {remaining > 0
-                              ? `남은 ${remaining}개 · 이월`
-                              : "전부 완료"}
-                          </span>
-                          {inReactivation && (
+                        {/* (JIRA 동기화 인디케이터는 JIRA 화면 머리말로 옮겼다) */}
+
+                        {isAdminOrOwner && (
+                          <>
+                            <span className="hidden text-[11px] text-slate-500 tabular-nums whitespace-nowrap lg:inline">
+                              {remaining > 0
+                                ? `남은 ${remaining}개 · 이월`
+                                : "전부 완료"}
+                            </span>
+                            {inReactivation && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  cancelReactivation();
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 hover:bg-bridge-secondary/25 transition-colors whitespace-nowrap shrink-0"
+                                title="재활성화를 취소하고 최신 스프린트로 되돌립니다"
+                              >
+                                재활성화 취소
+                              </button>
+                            )}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                cancelReactivation();
+                                closeSprint();
                               }}
-                              className="px-3 py-1.5 rounded-lg text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 hover:bg-bridge-secondary/25 transition-colors whitespace-nowrap shrink-0"
-                              title="재활성화를 취소하고 최신 스프린트로 되돌립니다"
+                              disabled={!canClose}
+                              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap shrink-0 ${
+                                canClose
+                                  ? "bg-bridge-accent text-white hover:bg-bridge-accent/90"
+                                  : "bg-foreground/[0.05] text-slate-500 cursor-not-allowed"
+                              }`}
+                              title={
+                                remaining > 0
+                                  ? `스프린트 종료 · 미완료 ${remaining}개는 다음 스프린트로 이월됩니다`
+                                  : "스프린트 종료"
+                              }
                             >
-                              재활성화 취소
+                              {inReactivation ? "재동결" : "스프린트 종료"}
                             </button>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              closeSprint();
-                            }}
-                            disabled={!canClose}
-                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap shrink-0 ${
-                              canClose
-                                ? "bg-bridge-accent text-white hover:bg-bridge-accent/90"
-                                : "bg-foreground/[0.05] text-slate-500 cursor-not-allowed"
-                            }`}
-                            title={
-                              remaining > 0
-                                ? `스프린트 종료 · 미완료 ${remaining}개는 다음 스프린트로 이월됩니다`
-                                : "스프린트 종료"
-                            }
-                          >
-                            {inReactivation ? "재동결" : "스프린트 종료"}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* 미리보기 확장: 종료 시점 스냅샷 — 진행중 확장과 동일한 2행 구조·높이 */}
-                {isPreviewing && (
-                  <div className="flex flex-col gap-2">
-                    {/* Row 1 — 이름 · 미리보기 · 퍼센트 · 카운트 · 기간 · (우) 읽기전용 힌트 */}
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <span className="text-sm font-bold tracking-tight text-foreground whitespace-nowrap">
-                        {s.name}
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-bridge-secondary whitespace-nowrap">
-                        <Eye className="w-3 h-3" /> 미리보기
-                      </span>
-                      <span className="text-2xl font-bold text-foreground tabular-nums leading-none">
-                        {pct}
-                        <span className="text-sm text-slate-400">%</span>
-                      </span>
-                      <span className="text-xs font-medium text-slate-400 tabular-nums">
-                        {doneN} / {totalN} 항목
-                      </span>
-                      {s.start_date && (
-                        <span className="text-[11px] text-slate-500 tabular-nums">
-                          {formatDate(s.start_date)} ~{" "}
-                          {s.end_date ? formatDate(s.end_date) : "진행"}
-                        </span>
-                      )}
-                      <span className="flex-1" />
-                      <span
-                        className="inline-flex items-center gap-1 text-[11px] font-medium text-bridge-secondary whitespace-nowrap"
-                        title="읽기 전용으로 열람 중입니다. 편집하려면 재활성화하세요."
-                      >
-                        <Eye className="w-3 h-3 shrink-0" /> 읽기 전용 스냅샷
-                      </span>
-                    </div>
-
-                    {/* Row 2 — 진척바(스냅샷) · 재활성화 · 진행중으로 돌아가기 */}
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 min-w-[80px] h-[5px] rounded-full bg-foreground/10 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-bridge-secondary transition-all duration-500"
-                          style={{ width: `${pct}%` }}
-                        />
+                          </>
+                        )}
                       </div>
-                      {isAdminOrOwner &&
-                        (inReactivation ? (
-                          <span className="text-[11px] text-slate-500 whitespace-nowrap shrink-0">
-                            재활성화 취소 후 이용 가능
-                          </span>
-                        ) : (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openReactivateModal(s);
-                            }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 hover:bg-bridge-secondary/25 transition-colors whitespace-nowrap shrink-0"
-                            title="이 스프린트를 다시 진행중으로 되살립니다"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            재활성화
-                          </button>
-                        ))}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPreviewSprintId(null);
-                        }}
-                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-foreground bg-foreground/5 hover:bg-foreground/10 transition-colors whitespace-nowrap shrink-0"
-                      >
-                        진행중으로 돌아가기
-                      </button>
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  )}
+
+                  {/* 미리보기 확장: 종료 시점 스냅샷 — 진행중 확장과 동일한 2행 구조·높이 */}
+                  {isPreviewing && (
+                    <div className="flex flex-col gap-2">
+                      {/* Row 1 — 이름 · 미리보기 · 퍼센트 · 카운트 · 기간 · (우) 읽기전용 힌트 */}
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <span className="text-sm font-bold tracking-tight text-foreground whitespace-nowrap">
+                          {s.name}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-bridge-secondary whitespace-nowrap">
+                          <Eye className="w-3 h-3" /> 미리보기
+                        </span>
+                        <span className="text-2xl font-bold text-foreground tabular-nums leading-none">
+                          {pct}
+                          <span className="text-sm text-slate-400">%</span>
+                        </span>
+                        <span className="text-xs font-medium text-slate-400 tabular-nums">
+                          {doneN} / {totalN} 항목
+                        </span>
+                        {s.start_date && (
+                          <span className="text-[11px] text-slate-500 tabular-nums">
+                            {formatDate(s.start_date)} ~{" "}
+                            {s.end_date ? formatDate(s.end_date) : "진행"}
+                          </span>
+                        )}
+                        <span className="flex-1" />
+                        <span
+                          className="inline-flex items-center gap-1 text-[11px] font-medium text-bridge-secondary whitespace-nowrap"
+                          title="읽기 전용으로 열람 중입니다. 편집하려면 재활성화하세요."
+                        >
+                          <Eye className="w-3 h-3 shrink-0" /> 읽기 전용 스냅샷
+                        </span>
+                      </div>
+
+                      {/* Row 2 — 진척바(스냅샷) · 재활성화 · 진행중으로 돌아가기 */}
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 min-w-[80px] h-[5px] rounded-full bg-foreground/10 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-bridge-secondary transition-all duration-500"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        {isAdminOrOwner &&
+                          (inReactivation ? (
+                            <span className="text-[11px] text-slate-500 whitespace-nowrap shrink-0">
+                              재활성화 취소 후 이용 가능
+                            </span>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openReactivateModal(s);
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 hover:bg-bridge-secondary/25 transition-colors whitespace-nowrap shrink-0"
+                              title="이 스프린트를 다시 진행중으로 되살립니다"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              재활성화
+                            </button>
+                          ))}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewSprintId(null);
+                          }}
+                          className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-foreground bg-foreground/5 hover:bg-foreground/10 transition-colors whitespace-nowrap shrink-0"
+                        >
+                          진행중으로 돌아가기
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
         {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
       </div>
 
@@ -4344,12 +4370,11 @@ export function SprintBoard({
             groupBy === "jira" && jiraConnected ? "pb-[102px] md:pb-[38px]" : ""
           }`}
         >
-          {/* JIRA 흐름 게이지 — 스프린트 게이지(체크리스트 진척)와 보드 사이. 헤더 게이지가
-              스프린트 진척이라 "연동 이슈가 마지막 단계까지 얼마나 갔나"는 이 자리에서만 읽힌다.
-              보드 바로 위에 두어 컬럼 분포와 눈이 이어지고, 바닥 고정 도크와도 겹치지 않는다. */}
+          {/* JIRA 흐름 게이지 — 이 화면의 유일한 진행률이다("연동 이슈가 마지막 단계까지
+              얼마나 갔나"). 보드 바로 위에 두어 컬럼 분포와 눈이 이어지고, 바닥 고정 도크와도
+              겹치지 않는다. 스프린트 스코프가 아니라 활성 스프린트 유무는 따지지 않는다. */}
           {!previewColumns &&
             !previewLoading &&
-            !!activeSprint &&
             groupBy === "jira" &&
             (jiraMirrorReady || hasBlockMapping) &&
             jiraFlow.total > 0 && (
@@ -4475,11 +4500,9 @@ export function SprintBoard({
               <div className="flex items-center justify-center h-full">
                 <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
               </div>
-            ) : !activeSprint ? (
-              <div className="flex items-center justify-center h-full text-slate-500 text-sm">
-                진행 중인 스프린트가 없습니다.
-              </div>
-            ) : groupBy === "jira" ? (
+            ) : /* JIRA 화면은 스프린트 스코프가 아니다 — 진행 중인 스프린트가 없어도
+                   연동 이슈는 그대로 보여야 하므로 활성 스프린트 검사보다 앞에 둔다. */
+            groupBy === "jira" ? (
               jiraMetaLoading && !jiraMeta ? (
                 <div className="flex items-center justify-center h-full">
                   <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
@@ -4497,6 +4520,10 @@ export function SprintBoard({
                   {jiraColumns.map((col) => renderJiraColumn(col))}
                 </div>
               )
+            ) : !activeSprint ? (
+              <div className="flex items-center justify-center h-full text-slate-500 text-sm">
+                진행 중인 스프린트가 없습니다.
+              </div>
             ) : (
               <div className="flex gap-3 p-3 md:p-4 h-full min-w-max">
                 {columns.map((col) => {

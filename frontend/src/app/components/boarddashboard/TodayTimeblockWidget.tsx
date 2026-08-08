@@ -1,11 +1,10 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ExternalLink } from "lucide-react";
 import type { BoardWebSocketEvent } from "../../types";
 import type { MilestoneColorMap } from "../../utils/milestoneColor";
 import { DailyScheduleView } from "../DailyScheduleView";
 import type { BoardMember as ShareBoardMember } from "../ShareBoardModal";
-import { DashboardEmpty } from "./DashboardCard";
+import { DashboardEmpty, PanelShell } from "./DashboardCard";
 
 interface TodayTimeblockWidgetProps {
   boardId: string;
@@ -60,55 +59,42 @@ export function TodayTimeblockWidget({
 
   return (
     // 높이는 부모가 준 만큼 다 쓴다 — 하루가 안 들어오면 이 안에서만 스크롤한다
-    <section className="h-full min-h-0 bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden flex flex-col">
-      <header className="flex items-center gap-2 px-4 py-3 border-b border-foreground/[0.08] flex-none">
-        <h2 className="text-xs md:text-sm font-bold text-foreground truncate">
-          {t("boardDashboard.timeblockTitle", "오늘의 타임블록")}
-          {scopeName && (
-            <span className="ml-1 font-normal text-slate-400">
-              · {scopeName}
-            </span>
+    <PanelShell
+      dot="teal"
+      title={t("boardDashboard.timeblockTitle", "오늘의 타임블록")}
+      subtitle={scopeName}
+      linkLabel={t("boardDashboard.timeblockLink", "주간 타임블록")}
+      onLinkClick={onOpenSchedule}
+      padded={false}
+      className="h-full"
+    >
+      {myMembers.length === 0 ? (
+        <DashboardEmpty
+          message={t(
+            "boardDashboard.notBoardMember",
+            "이 보드의 멤버로 등록되어 있지 않습니다.",
           )}
-        </h2>
-        <button
-          type="button"
-          onClick={onOpenSchedule}
-          className="ml-auto flex items-center gap-1 text-xs text-slate-400 hover:text-foreground transition-colors"
-        >
-          {t("boardDashboard.timeblockLink", "주간 타임블록")}
-          <ExternalLink size={12} aria-hidden="true" />
-        </button>
-      </header>
-
-      <div className="flex-1 min-h-0">
-        {myMembers.length === 0 ? (
-          <DashboardEmpty
-            message={t(
-              "boardDashboard.notBoardMember",
-              "이 보드의 멤버로 등록되어 있지 않습니다.",
-            )}
-          />
-        ) : (
-          <DailyScheduleView
-            boardId={boardId}
-            boardMembers={myMembers}
-            organizationId={organizationId}
-            memberColorMap={memberColorMap}
-            milestoneColorMap={milestoneColorMap}
-            onViewFeature={onViewFeature}
-            onViewTask={onViewTask}
-            onViewMeeting={onViewMeeting}
-            refreshTrigger={refreshTrigger}
-            wsChecklistEvent={wsChecklistEvent}
-            currentUserRole={currentUserRole}
-            initialSubTab="timeblock"
-            embedded
-            hideDailyChecklist
-            // 오른쪽 큐의 배치 레일이 같이 떠 있는 화면이라 블록을 되돌려 보낼 자리가 있다
-            canUnplace
-          />
-        )}
-      </div>
-    </section>
+        />
+      ) : (
+        <DailyScheduleView
+          boardId={boardId}
+          boardMembers={myMembers}
+          organizationId={organizationId}
+          memberColorMap={memberColorMap}
+          milestoneColorMap={milestoneColorMap}
+          onViewFeature={onViewFeature}
+          onViewTask={onViewTask}
+          onViewMeeting={onViewMeeting}
+          refreshTrigger={refreshTrigger}
+          wsChecklistEvent={wsChecklistEvent}
+          currentUserRole={currentUserRole}
+          initialSubTab="timeblock"
+          embedded
+          hideDailyChecklist
+          // 오른쪽 큐의 배치 레일이 같이 떠 있는 화면이라 블록을 되돌려 보낼 자리가 있다
+          canUnplace
+        />
+      )}
+    </PanelShell>
   );
 }

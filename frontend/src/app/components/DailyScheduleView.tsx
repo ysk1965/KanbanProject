@@ -54,6 +54,7 @@ import {
   dispatchAxisDrop,
   endAxisDrag,
   useAxisDropZone,
+  useAxisTransfer,
   useTimeblockRequest,
   type AxisItem,
   type AxisZone,
@@ -968,21 +969,27 @@ export function DailyScheduleView({
     setPendingBlock(null);
   };
 
-  /* ── 배치 레일 → 타임블록 ─────────────────────────────
-     미배치 행을 시간 칸에 떨어뜨리면 그 시각에 블록이 생긴다.
+  /* ── 배치 레일·워크로드 간트 → 타임블록 ───────────────
+     미배치 행이나 간트 바를 시간 칸에 떨어뜨리면 그 시각에 블록이 생긴다.
      날짜(시작·마감) 배치는 항목의 주인인 MyWorkloadWidget이 이어받는다 —
      블록 생성이 성공했을 때만 축 이동 이벤트를 쏘므로 "블록만 있고 미배치인" 상태가 안 생긴다. */
 
   // 존 등록용. 실제 드롭은 시간 칸이 받는다(몇 시인지는 칸만 안다).
-  const { active: placementDragActive, zoneProps: timeblockZoneProps } =
+  const { active: axisDragActive, zoneProps: timeblockZoneProps } =
     useAxisDropZone({
       zone: "timeblock",
-      accepts: ["placement"],
+      accepts: ["placement", "workload"],
       disabled: isViewer,
     });
 
   const placeDroppedItem = useCallback(
-    async (item: AxisItem, userId: string, startSlotIndex: number) => {
+    async (
+      item: AxisItem,
+      userId: string,
+      startSlotIndex: number,
+      /** 어디서 온 항목인지 — 뒤이어 날짜를 잡는 쪽이 되돌리기 문구를 고르는 데 쓴다 */
+      from: AxisZone = "placement",
+    ) => {
       if (!item.task_id) return;
 
       const dateStr = format(selectedDate, "yyyy-MM-dd");
@@ -1026,9 +1033,10 @@ export function DailyScheduleView({
         }
 
         setDropError(null);
-        // 여기서부터는 항목의 주인이 처리한다 — 날짜 배치 · 되돌리기 · 레일 갱신
+        // 여기서부터는 항목의 주인이 처리한다 — 날짜 배치 · 되돌리기 · 레일 갱신.
+        // targetDate가 실려 있다는 것이 "블록은 이미 만들었다"는 표시다(아래 수신부 참고).
         dispatchAxisDrop({
-          from: "placement",
+          from,
           to: "timeblock",
           targetDate: dateStr,
           item,
@@ -1106,6 +1114,90 @@ export function DailyScheduleView({
     },
     [isBreakSlot, isViewer, placeDroppedItem, t, timeSlots],
   );
+
+  /* ── 워크로드 간트 바 → 타임블록 ───────────────────────
+     간트 바는 HTML5 드래그가 아니라 마우스 기반 커스텀 드래그다. dataTransfer도 dragover도
+     없으므로 칸이 스스로 드롭을 받을 수 없다 — 그래서 커서가 지나는 칸을 mousemove로 붙잡아
+     두었다가, 바를 놓을 때 오는 축 이동 이벤트에서 그 칸을 꺼내 쓴다.
+
+     "며칠에 한다"까지만 정해진 바를 "몇 시에 한다"로 끌어올리는 길이고,
+     반대 방향(블록 → 배치 레일)은 unplaceBlock이 이미 맡고 있다. */
+
+  /** 마우스 기반 드래그가 마지막으로 지난 칸 — 놓는 순간에는 좌표가 오지 않기 때문에 붙잡아 둔다 */
+  const mouseDropSlotRef = useRef<{
+    userId: string;
+    startSlotIndex: number;
+  } | null>(null);
+
+  const clearMouseDropSlot = useCallback(() => {
+    mouseDropSlotRef.current = null;
+    setDropPreview(null);
+  }, []);
+
+  /**
+   * 그리드 위를 지나는 커서를 따라 놓일 자리를 그린다.
+   * HTML5 드래그(배치 레일) 중에는 mousemove가 아예 오지 않으므로 두 경로가 서로 안 밟는다.
+   */
+  const handleGridMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!axisDragActive || isViewer) return;
+
+      const cell = (e.target as HTMLElement).closest(
+        "[data-slotinfo]",
+      ) as HTMLElement | null;
+      const info = cell?.dataset.slotinfo;
+      if (!info) {
+        clearMouseDropSlot();
+        return;
+      }
+
+      const [userId, slotIndexStr] = info.split(":");
+      const slotIndex = parseInt(slotIndexStr, 10);
+      // 점심시간은 빈 곳 드래그로도 못 만드는 자리다 — 받는 척하지 않는다
+      if (
+        !userId ||
+        Number.isNaN(slotIndex) ||
+        isBreakSlot(timeSlots[slotIndex] ?? "")
+      ) {
+        clearMouseDropSlot();
+        return;
+      }
+
+      mouseDropSlotRef.current = { userId, startSlotIndex: slotIndex };
+      setDropPreview((prev) =>
+        prev?.userId === userId && prev.startSlotIndex === slotIndex
+          ? prev
+          : {
+              userId,
+              startSlotIndex: slotIndex,
+              endSlotIndex: Math.min(
+                slotIndex + DROP_SLOT_SPAN - 1,
+                timeSlots.length - 1,
+              ),
+            },
+      );
+    },
+    [axisDragActive, clearMouseDropSlot, isBreakSlot, isViewer, timeSlots],
+  );
+
+  useAxisTransfer((detail) => {
+    if (detail.to !== "timeblock" || detail.from !== "workload") return;
+    // targetDate가 실린 건 블록을 만든 뒤 우리가 되쏜 이벤트다 — 되받으면 블록이 두 번 생긴다
+    if (detail.targetDate) return;
+
+    const slot = mouseDropSlotRef.current;
+    mouseDropSlotRef.current = null;
+    setDropPreview(null);
+    // 시간 칸이 아닌 곳(시간 라벨 열 등)에서 놓았다면 몇 시인지 알 수 없다.
+    // 이때는 아무것도 하지 않는다 — 이벤트를 안 쏘므로 바의 날짜도 그대로다.
+    if (isViewer || !slot) return;
+    void placeDroppedItem(
+      detail.item,
+      slot.userId,
+      slot.startSlotIndex,
+      "workload",
+    );
+  });
 
   /* ── 타임블록 → 배치 레일 ─────────────────────────────
      들어온 길의 반대 방향이다. 그 날의 블록을 지우고 오늘의 체크리스트에서도 뺀 뒤,
@@ -1239,9 +1331,14 @@ export function DailyScheduleView({
 
   // 드래그가 끝나면(놓았든 취소했든) 미리보기를 지운다.
   // 칸마다 dragleave로 지우면 칸을 옮길 때마다 깜빡인다 — 끝날 때 한 번만 지운다.
+  // 붙잡아 둔 칸도 같이 버린다. 드롭 이벤트는 끝 알림 직후 같은 턴에 동기로 오므로
+  // (렌더 → 이 effect보다 먼저다) 실제로 놓은 건은 이미 처리된 뒤다.
   useEffect(() => {
-    if (!placementDragActive) setDropPreview(null);
-  }, [placementDragActive]);
+    if (!axisDragActive) {
+      mouseDropSlotRef.current = null;
+      setDropPreview(null);
+    }
+  }, [axisDragActive]);
 
   // 안내는 잠깐만 띄운다 — 배치 레일의 안내와 같은 수명
   useEffect(() => {
@@ -1895,6 +1992,8 @@ export function DailyScheduleView({
               <div
                 ref={timeGridRef}
                 {...timeblockZoneProps}
+                onMouseMove={handleGridMouseMove}
+                onMouseLeave={clearMouseDropSlot}
                 className="relative select-none"
               >
                 {timeSlots.map((time, slotIndex) => {
@@ -2022,13 +2121,14 @@ export function DailyScheduleView({
 
                 {/*
                   스케줄 블록들 (각 멤버 컬럼 위에 absolute로 배치).
-                  블록은 스스로 pointer-events-auto라 미배치 드래그를 가로챈다 —
+                  블록은 스스로 pointer-events-auto라 들어오는 드래그를 가로챈다 —
                   드래그 중에만 통째로 꺼서 아래 시간 칸이 드롭을 받게 한다
                   (겹치는 시간은 computeSegments가 알아서 피해 준다).
+                  간트 바를 끌어올 때도 같은 이유로 꺼야 한다 — 커서 아래 칸을 못 찾는다.
                 */}
                 <div
                   className={`absolute top-0 left-14 md:left-20 right-0 pointer-events-none ${
-                    placementDragActive ? "[&_*]:pointer-events-none" : ""
+                    axisDragActive ? "[&_*]:pointer-events-none" : ""
                   }`}
                 >
                   <div className="flex">

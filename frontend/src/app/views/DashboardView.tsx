@@ -15,6 +15,7 @@ import type {
 } from "../types";
 import type { BoardMember as ShareBoardMember } from "../components/ShareBoardModal";
 import { buildMilestoneColorMap } from "../utils/milestoneColor";
+import { useAxisRefresh } from "../utils/axisTransfer";
 import { DashboardScopeRow } from "../components/boarddashboard/DashboardScopeRow";
 import { MyWorkloadWidget } from "../components/boarddashboard/MyWorkloadWidget";
 import { TodayTimeblockWidget } from "../components/boarddashboard/TodayTimeblockWidget";
@@ -68,8 +69,12 @@ interface DashboardViewProps {
 /**
  * 보드 > 대시보드 — 개인 관점의 진입 화면.
  *
- * 레이아웃
- *  왼쪽 = 오늘의 타임블록 / 오른쪽 = 내 워크로드(간트 + 배치 레일)
+ * 레이아웃 — 패널 넷, 카드 넷.
+ *  왼쪽  = 오늘의 타임블록
+ *  오른쪽 = 내 워크로드 · 배치 대기 · 내 백로그 (위에서 아래로 성숙도 역순)
+ *
+ * 넷 다 같은 셸(PanelShell)을 쓴다 — 머리 높이·좌우 여백·링크 자리·배너 위치가 같다.
+ * 경계는 셋(좌우 하나 + 오른쪽 열 안에 둘) 모두 손잡이라, 배분은 전부 사용자가 정한다.
  */
 export function DashboardView({
   boardId,
@@ -110,6 +115,21 @@ export function DashboardView({
     onKeyDown: onColumnKeyDown,
     reset: resetColumnSplit,
   } = useTimeblockColumnSplit();
+
+  /*
+    세 패널은 같은 체크리스트 항목을 서로 다른 각도로 보여 준다 — 타임블록은 그 항목의
+    마감으로 블록 색을 칠하고, 간트는 기간 바로, 배치 레일은 미배치·지연 판정으로.
+    그래서 어느 한 곳에서 날짜가 바뀌면 나머지 둘이 곧바로 낡는다.
+
+    변경 주체가 축을 넘나드는 이동(레일↔간트↔백로그↔타임블록)일 수도, 간트 안에서의
+    바 드래그일 수도 있어 소유자가 제각각이다. 그래서 신호를 이 한 곳으로 모은다 —
+    누가 고쳤든 requestAxisRefresh 한 번이면 세 패널이 같이 따라온다.
+
+    페이지의 두 카운터(WS 계통 panel · 로컬 액션 계통 key)는 일부러 합치지 않는다.
+    합치면 지금은 조용한 타임블록이 WS 이벤트 12경로에 전부 물려 남의 변경마다 재조회한다.
+  */
+  const [axisRefreshTick, setAxisRefreshTick] = useState(0);
+  useAxisRefresh(useCallback(() => setAxisRefreshTick((v) => v + 1), []));
 
   // 마일스톤 id → 색 (일정 탭과 같은 규칙으로 만들어 색 일관성 유지)
   const milestoneColorMap = useMemo(
@@ -188,7 +208,7 @@ export function DashboardView({
             selectableMembers.length > 1 ? "" : "pt-3 md:pt-5"
           }`}
         >
-          {/* 오늘 │ 워크로드 + 큐(바닥에 백로그 독) */}
+          {/* 오늘 │ 워크로드 + 배치 대기 + 백로그 */}
           {/*
             왼쪽 폭은 CSS 변수로 들어간다 — 드래그 중에는 이 변수만 갈아 끼워
             리렌더 없이 폭이 따라오고, xl 미만의 한 줄 배치는 그대로 남는다.
@@ -212,7 +232,7 @@ export function DashboardView({
                 memberColorMap={memberColorMap}
                 milestoneColorMap={milestoneColorMap}
                 currentUserRole={effectiveRole}
-                refreshTrigger={scheduleRefreshKey}
+                refreshTrigger={scheduleRefreshKey + axisRefreshTick}
                 wsChecklistEvent={wsChecklistEvent}
                 onViewFeature={onViewFeatureById}
                 onViewTask={onViewTaskWithChecklist}
@@ -234,7 +254,8 @@ export function DashboardView({
               className="hidden xl:flex"
             />
 
-            <div className="min-w-0 min-h-0 h-[640px] xl:h-full">
+            {/* 한 줄로 접힌 화면에서는 카드 셋이 이 높이를 나눠 갖는다 (하한 합 = 524) */}
+            <div className="min-w-0 min-h-0 h-[720px] xl:h-full">
               <MyWorkloadWidget
                 boardId={boardId}
                 boardMembers={boardMembersData}
@@ -245,7 +266,7 @@ export function DashboardView({
                 memberColorMap={memberColorMap}
                 jobRoles={jobRoles}
                 features={allFeatures}
-                refreshTrigger={scheduleRefreshPanel}
+                refreshTrigger={scheduleRefreshPanel + axisRefreshTick}
                 currentUserRole={effectiveRole}
                 onViewTask={onViewTaskWithChecklist}
                 onMilestoneClick={onMilestoneClick}

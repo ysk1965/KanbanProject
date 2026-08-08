@@ -42,6 +42,22 @@ LOG_DIR=/Users/you/bridge-autofix/logs
 # 비워 두면 이 경로를 쓴다. 이 디렉터리에 파일이 계속 남아 있으면 BRIDGE에 못 닿고 있는 것이다.
 SPOOL_DIR=/Users/you/bridge-autofix/spool
 
+# ── 작업 시작 전 정리 ──────────────────────────
+#
+# 러너는 매 건을 같은 출발선에서 시작한다 — 추적 파일은 origin의 기준 브랜치 그대로,
+# 추적되지 않는 잔재는 없음. 이 동작 자체는 끌 수 없다(꺼 두면 이전 실행이 죽은 흔적이
+# 다음 작업의 PR에 섞여 들어간다). 아래는 정리하며 남기는 것들의 보관 기간이다.
+#
+# ⚠️ 지우기 전에 추적 파일의 수정은 stash로 건져 두지만, ignore되지 않은 untracked 파일은
+#    복구되지 않는다. 이 맥에서 손으로 작업할 때는 반드시 커밋하거나 다른 클론에서 할 것.
+#    (Library·Temp·obj 는 건드리지 않는다. 지우면 다음 임포트에 수십 분이 든다.)
+
+# 지난 작업의 로컬 autofix/* 브랜치를 며칠 뒤에 지울지. push된 것은 원격에 남아 있다.
+AUTOFIX_BRANCH_KEEP_DAYS=7
+
+# 잔재를 건져 둔 autofix-rescue stash를 몇 개까지 남길지. 사람이 만든 stash는 세지 않는다.
+AUTOFIX_RESCUE_STASH_KEEP=5
+
 # Claude Code 헤드리스 실행용 키
 ANTHROPIC_API_KEY=
 
