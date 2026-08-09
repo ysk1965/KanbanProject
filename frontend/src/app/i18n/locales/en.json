@@ -5107,8 +5107,7 @@
     "reasonRelated": "Closely related",
     "oldestDays": "Oldest {{count}}d",
     "staleDays": "{{count}}d",
-    "staleOldest": "{{count}}d · oldest",
-    "hintShort": "Visible to board members"
+    "staleOldest": "{{count}}d · oldest"
   },
   "boardDashboard": {
     "scopePrefix": "Dashboard",

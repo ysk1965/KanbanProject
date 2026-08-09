@@ -404,6 +404,11 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
                 // 나가는 중엔 겹침 경고를 끈다 — 이 드래그는 시간을 바꾸지 않는다
                 setOverlapType('none');
                 overlapTypeRef.current = 'none';
+                // 원래 시각으로 되돌린다. 여기서 놓으면 시간은 저장되지 않으므로
+                // (아래 handleDragEnd의 finalAxisZone 분기) 옮겨진 자리에 머물러 있으면
+                // 지키지 못할 약속이 된다 — 비울 자리는 원래 자리다.
+                setDragOffset(0);
+                dragOffsetRef.current = 0;
               }
               updateAxisDragOver(SELF_ZONE, zone);
             }
@@ -577,7 +582,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       className={`absolute left-1 right-1 rounded-lg border-l-4 px-2.5 py-1.5 pointer-events-auto
         overflow-hidden ${getBackgroundColor()} ${isResizing || isDragging ? 'z-20' : ''}
         ${axisZone ? 'cursor-grabbing shadow-2xl ring-2 ring-bridge-accent opacity-50' : (isDragging || isResizing) && overlapType === 'block' ? 'cursor-not-allowed shadow-2xl ring-2 ring-red-500 bg-red-500/30' : (isDragging || isResizing) && overlapType === 'split' ? 'cursor-grab shadow-2xl ring-2 ring-amber-400 bg-amber-500/20' : isDragging ? 'cursor-grabbing shadow-2xl ring-2 ring-white/50' : isResizing ? 'cursor-ns-resize shadow-lg' : 'cursor-pointer hover:shadow-lg'}
-        ${isDragging || isResizing ? '' : 'transition-shadow'}`}
+        ${axisZone ? 'transition-[top] duration-150 ease-out' : isDragging || isResizing ? '' : 'transition-shadow'}`}
       style={{ top: `${displayTop}px`, height: `${Math.max(displayHeight, MIN_BLOCK_VIS)}px`, ...getInlineStyle() }}
       onClick={() => {
         if (isResizing || isDragging || wasDraggedOrResizedRef.current) {

@@ -594,11 +594,9 @@ export function BacklogRail({
     <PanelShell
       dot="slate"
       title={title}
-      /* 정적 힌트는 부제 자리로 — 머리 오른쪽은 링크·접기 몫이라 문구가 서면 밀린다 */
+      /* 부제는 읽기 전용 안내만 — 평상시엔 제목만으로 충분하다 */
       subtitle={
-        readOnly
-          ? t("backlog.hintReadOnly", "읽기 전용")
-          : t("backlog.hintShort", "보드 멤버가 볼 수 있습니다")
+        readOnly ? t("backlog.hintReadOnly", "읽기 전용") : undefined
       }
       /* 목록이 하나뿐이라 탭이 없다 — 제목 옆은 개수 하나로 끝난다 */
       tabs={openCount > 0 ? <PanelCount value={openCount} /> : undefined}

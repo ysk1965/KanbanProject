@@ -3099,7 +3099,7 @@ export function KanbanBoardPage() {
 
         {/* 보드 상단 서브탭 바 (칸반 / 마일스톤) */}
         {BOARD_SUB_MODES.includes(viewMode) && (
-          <div className="flex items-center justify-center gap-2">
+          <div className="relative flex items-center justify-center gap-2">
             <BoardSubTabs
               viewMode={viewMode}
               onViewModeChange={(mode) => handleViewModeChange(mode)}
@@ -3120,10 +3120,11 @@ export function KanbanBoardPage() {
               uiConfig={uiConfig}
               onMute={muteFeatureGhost}
             />
+            {/* 기능 설정은 탭이 아니다 — 가운데 탭 묶음에서 떼어 오른쪽 끝에 세운다. */}
             <button
               type="button"
               onClick={() => setShowFeatureDrawer(true)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+              className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
               title="이 보드에서 쓰는 기능 — 레벨과 옵션"
             >
               <Settings2 className="w-3.5 h-3.5" />

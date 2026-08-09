@@ -4,6 +4,7 @@ import {
   useCallback,
   useRef,
   useEffect,
+  useLayoutEffect,
   Fragment,
 } from "react";
 import { useTranslation } from "react-i18next";
@@ -196,6 +197,14 @@ interface DragState {
   targetRowIndex: number;
   /** Cross-row drag: target row's assignee ID */
   targetAssigneeId: string | null;
+  /**
+   * 커서가 그리드 밖 존(백로그·배치 대기·타임블록) 위에 있는 동안 채워진다.
+   * 이 값이 있으면 이 드래그는 날짜 이동이 아니라 확정도 축 이동이다 —
+   * 바는 원래 칸을 지키고(currentDeltaDays 0), 자리를 비울 모습으로 그려진다.
+   */
+  axisZone: AxisZone | null;
+  /** 축 이동 칩의 첫 프레임 위치. 이후 좌표는 칩이 스스로 따라간다 */
+  axisCursor: { x: number; y: number } | null;
 }
 
 /** 상단 밴드(마일스톤/이벤트) 바 이동·리사이즈 드래그 상태 */
@@ -287,6 +296,68 @@ function getDayLabel(date: Date, locale: string): string {
   };
   const arr = days[locale] || days.en;
   return arr[date.getDay()];
+}
+
+/**
+ * 축 이동 중 커서를 따라다니는 칩.
+ *
+ * 간트 바는 마우스 기반 커스텀 드래그라 브라우저 드래그 잔상이 없다 —
+ * 바가 원래 칸으로 돌아간 뒤엔 "무엇을 어디로 옮기는 중인지" 커서 쪽에 단서가 남지 않는다.
+ * 모양은 카드 드래그의 잔상(axisTransfer의 setAxisDragGhost)과 맞춰 둘이 같은 물건으로 읽히게 한다.
+ *
+ * 좌표를 부모 state에 두면 매 픽셀마다 간트 전체가 다시 그려지므로 자기 좌표는 자기가 듣는다.
+ */
+function AxisDragChip({
+  title,
+  zoneLabel,
+  accentHex,
+  initialX,
+  initialY,
+}: {
+  title: string;
+  zoneLabel: string;
+  accentHex: string;
+  initialX: number;
+  initialY: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  // 좌표는 style prop이 아니라 DOM에 직접 쓴다 — prop으로 두면 부모가 다시 그릴 때마다
+  // 진입 시점 좌표로 되돌아가 칩이 튄다. 첫 위치는 paint 전에(useLayoutEffect) 잡는다.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el) {
+      el.style.transform = `translate3d(${initialX + 12}px, ${initialY + 12}px, 0)`;
+    }
+  }, [initialX, initialY]);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      const el = ref.current;
+      if (el) {
+        el.style.transform = `translate3d(${e.clientX + 12}px, ${e.clientY + 12}px, 0)`;
+      }
+    };
+    document.addEventListener("mousemove", onMove);
+    return () => document.removeEventListener("mousemove", onMove);
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className="fixed top-0 left-0 z-50 pointer-events-none max-w-[280px]
+        flex items-center gap-2 px-3 py-2 rounded-xl
+        bg-bridge-obsidian border border-foreground/10 shadow-2xl
+        text-xs font-bold text-foreground"
+    >
+      <span
+        className="w-1.5 h-3.5 rounded-sm shrink-0"
+        style={{ backgroundColor: accentHex }}
+      />
+      <span className="truncate">{title}</span>
+      <span className="shrink-0 text-bridge-accent">→ {zoneLabel}</span>
+    </div>
+  );
 }
 
 // ========================================
@@ -1360,6 +1431,8 @@ export function ScheduleResourceView({
         originRowIndex: assigneeIndex,
         targetRowIndex: assigneeIndex,
         targetAssigneeId: initialAssigneeId,
+        axisZone: null,
+        axisCursor: null,
       };
 
       setDragState(newDragState);
@@ -1433,17 +1506,39 @@ export function ScheduleResourceView({
           }
         }
 
+        // 레일 위에 있는 동안은 날짜·행 미리보기를 접고 원래 자리로 되돌린다.
+        // 여기서 놓으면 handleMouseUp이 축 이동으로 처리해 날짜를 저장하지 않으므로,
+        // 옮겨진 모습을 계속 보여 주면 지키지 못할 약속이 된다.
+        const axisZone = ds.dragType === "move" ? axisZoneRef.current : null;
+        const effectiveDelta = axisZone ? 0 : deltaDays;
+        const effectiveRowIndex = axisZone
+          ? ds.originRowIndex
+          : newTargetRowIndex;
+        const effectiveAssigneeId = axisZone
+          ? ds.assigneeId
+          : newTargetAssigneeId;
+
         const hasChanged =
-          deltaDays !== ds.currentDeltaDays ||
-          newTargetRowIndex !== ds.targetRowIndex;
+          effectiveDelta !== ds.currentDeltaDays ||
+          effectiveRowIndex !== ds.targetRowIndex ||
+          axisZone !== ds.axisZone;
 
         if (hasChanged) {
           wasDraggedRef.current = true;
           const updated = {
             ...ds,
-            currentDeltaDays: deltaDays,
-            targetRowIndex: newTargetRowIndex,
-            targetAssigneeId: newTargetAssigneeId,
+            currentDeltaDays: effectiveDelta,
+            targetRowIndex: effectiveRowIndex,
+            targetAssigneeId: effectiveAssigneeId,
+            axisZone,
+            // 존이 바뀌는 프레임에만 좌표를 새로 잡는다 — 칩의 첫 위치용이라
+            // 매 픽셀 갱신하면 간트 전체가 다시 그려진다
+            axisCursor:
+              axisZone && axisZone !== ds.axisZone
+                ? { x: moveEvent.clientX, y: moveEvent.clientY }
+                : axisZone
+                  ? ds.axisCursor
+                  : null,
           };
           dragStateRef.current = updated;
           setDragState(updated);
@@ -1919,6 +2014,27 @@ export function ScheduleResourceView({
       return getBarPosition(startDate, dueDate);
     },
     [dragState, getBarPosition],
+  );
+
+  /**
+   * 축 이동 칩에 적는 목적지 이름.
+   * 각 패널이 자기 헤더에 쓰는 키를 그대로 빌린다 — 칩이 가리키는 곳과
+   * 화면에 적힌 이름이 어긋나면 어디로 가는지 읽히지 않는다.
+   */
+  const axisZoneLabel = useCallback(
+    (zone: AxisZone) => {
+      switch (zone) {
+        case "backlog":
+          return t("backlog.title", "내 백로그");
+        case "placement":
+          return t("boardDashboard.placementTitle", "배치 대기");
+        case "timeblock":
+          return t("schedule.subTab.timeblock", "타임블록");
+        default:
+          return "";
+      }
+    },
+    [t],
   );
 
   // ─── 상단 밴드(마일스톤/이벤트) 바 이동·리사이즈 ───
@@ -3166,6 +3282,9 @@ export function ScheduleResourceView({
                         const isTaskHighlighted =
                           !!highlightedTaskId &&
                           item.task?.id === highlightedTaskId;
+                        // 축 이동 판정 중 — 바는 원래 칸에 남아 자리를 비울 모습이 된다
+                        const isVacating =
+                          isItemDragging && !!dragState?.axisZone;
 
                         return (
                           <div
@@ -3175,12 +3294,14 @@ export function ScheduleResourceView({
                           cursor-pointer hover:brightness-110 hover:shadow-lg transition-all text-white
                           ${item.completed ? "opacity-50" : ""}
                           ${
-                            isItemDragging
-                              ? dragState?.targetRowIndex !==
-                                dragState?.originRowIndex
-                                ? "z-20 opacity-30"
-                                : "z-20 shadow-2xl ring-2 ring-white/30"
-                              : ""
+                            isVacating
+                              ? "z-20 opacity-40 shadow-none"
+                              : isItemDragging
+                                ? dragState?.targetRowIndex !==
+                                  dragState?.originRowIndex
+                                  ? "z-20 opacity-30"
+                                  : "z-20 shadow-2xl ring-2 ring-white/30"
+                                : ""
                           }
                           ${isHighlightTarget ? "z-30 ring-2 ring-white/70 shadow-[0_0_16px_rgba(255,255,255,0.4)] animate-pulse" : ""}
                           ${isTaskHighlighted && !isHighlightTarget ? "z-20 ring-2 ring-bridge-accent shadow-[0_0_16px_rgba(99,102,241,0.5)]" : ""}`}
@@ -3190,6 +3311,13 @@ export function ScheduleResourceView({
                               top: barTop,
                               height: BAR_HEIGHT,
                               backgroundColor: featureColor,
+                              // 점선 = 곧 비는 자리. ring 유틸엔 점선이 없어 outline으로 그린다
+                              ...(isVacating
+                                ? {
+                                    outline: "2px dashed rgba(255,255,255,0.9)",
+                                    outlineOffset: "-2px",
+                                  }
+                                : null),
                             }}
                             onClick={() => handleBarClick(item)}
                             onContextMenu={(e) => {
@@ -3416,6 +3544,26 @@ export function ScheduleResourceView({
           })}
         </div>
       </div>
+
+      {/* ─── 축 이동 칩 (레일 위로 끌어내는 중) ─── */}
+      {dragState?.axisZone &&
+        dragState.axisCursor &&
+        (() => {
+          const draggedItem = rows[dragState.originRowIndex]?.items.find(
+            (i) => i.id === dragState.itemId,
+          );
+          const label = axisZoneLabel(dragState.axisZone);
+          if (!draggedItem || !label) return null;
+          return (
+            <AxisDragChip
+              title={draggedItem.title}
+              zoneLabel={label}
+              accentHex={dragState.featureColor}
+              initialX={dragState.axisCursor.x}
+              initialY={dragState.axisCursor.y}
+            />
+          );
+        })()}
 
       {/* ─── Tooltip ─── */}
       {tooltip &&

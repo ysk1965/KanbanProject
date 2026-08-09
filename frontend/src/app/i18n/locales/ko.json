@@ -5132,8 +5132,7 @@
     "reasonRelated": "관련도 높음",
     "oldestDays": "가장 오래된 것 {{count}}일",
     "staleDays": "{{count}}일",
-    "staleOldest": "{{count}}일 · 가장 오래됨",
-    "hintShort": "보드 멤버가 볼 수 있습니다"
+    "staleOldest": "{{count}}일 · 가장 오래됨"
   },
   "boardDashboard": {
     "scopePrefix": "대시보드",
