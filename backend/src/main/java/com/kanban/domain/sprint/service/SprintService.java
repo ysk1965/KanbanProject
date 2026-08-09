@@ -83,12 +83,14 @@ public class SprintService {
         // 레벨 1(시간 묶음 없음)에도 흐름 컬럼(In Review·Done)은 있어야 한다 —
         // 일은 마감이 없어도 흐른다. 흐름 컬럼이 SprintColumn이므로 레벨과 무관하게 프로비저닝한다.
         // sprintEnabled는 이제 사용자 개념이 아니라 내부 값이고, 사용자에게 보이는 건 boards.ui_level뿐이다.
-        int uiLevel = resolveUiLevel(milestone);
-        if (uiLevel <= 1 || Boolean.TRUE.equals(milestone.getSprintEnabled())) {
-            ensureColumns(milestone);
-            ensureActiveSprint(milestone);
-        }
-        if (uiLevel <= 1) {
+        //
+        // 그래서 프로비저닝에는 어떤 게이트도 두지 않는다. 예전엔 `uiLevel <= 1 || sprintEnabled`로 막았는데,
+        // 신규 마일스톤이 sprintEnabled=false로 생성되는 탓에 **레벨 2·3 보드에서 만든 마일스톤은 영영
+        // 스프린트를 못 갖는** 상태가 됐다. "스프린트 0개"는 도달할 수 없어야 하는 상태다 —
+        // 마일스톤은 스프린트를 자동으로 소유한다(V20260713_030914 마이그레이션의 원래 의도).
+        ensureColumns(milestone);
+        ensureActiveSprint(milestone);
+        if (resolveUiLevel(milestone) <= 1) {
             adoptBacklogForLevelOne(milestone);
         }
         return buildBoard(milestone, userId);

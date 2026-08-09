@@ -45,10 +45,17 @@ public class Milestone extends BaseTimeEntity {
     @Builder.Default
     private Double defaultHoursPerDay = 6.0;
 
-    /** A안: 스프린트 레이어 노출 토글. false면 마일스톤 단일 진행률로만 관리. */
+    /**
+     * 스프린트 레이어 노출 토글.
+     *
+     * <p>기본값은 <b>true</b> — 마일스톤은 스프린트를 자동으로 소유한다. DDL도 {@code DEFAULT TRUE}인데
+     * 여기서 false로 두는 바람에(엔티티에 @DynamicInsert가 없어 매 INSERT마다 false가 명시적으로 실린다)
+     * DB 기본값이 한 번도 먹지 않았고, 레벨 2·3 보드에서 만든 마일스톤이 스프린트를 0개로 갖는
+     * 도달 불가능해야 할 상태가 생겼다. 프로비저닝 게이트는 제거됐으므로 이 값은 이제 읽는 곳이 없다.
+     */
     @Column(name = "sprint_enabled", nullable = false)
     @Builder.Default
-    private Boolean sprintEnabled = false;
+    private Boolean sprintEnabled = true;
 
     /**
      * 보드 생성 시 시스템이 자동으로 만든 "기본 마일스톤" 여부.
@@ -68,7 +75,7 @@ public class Milestone extends BaseTimeEntity {
             this.defaultHoursPerDay = 6.0;
         }
         if (this.sprintEnabled == null) {
-            this.sprintEnabled = false;
+            this.sprintEnabled = true;
         }
         if (this.isDefault == null) {
             this.isDefault = false;
