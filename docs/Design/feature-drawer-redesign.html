@@ -1,0 +1,855 @@
+<title>기능 서랍 개편안 — 이 보드에서 쓰는 기능</title>
+<style>
+  :root {
+    --ground:#12172a; --panel:#1a2038; --raised:#232b48; --sunken:#0e1324;
+    --line:rgba(226,232,255,0.10); --line-strong:rgba(226,232,255,0.20);
+    --ink:#eef1fb; --ink-2:#a8b0cc; --ink-3:#6f789a;
+    --accent:#7c7ef4; --accent-soft:rgba(124,126,244,0.16); --accent-line:rgba(124,126,244,0.42);
+    --teal:#2DD4BF; --teal-soft:rgba(45,212,191,0.14);
+    --amber:#F5A623; --amber-soft:rgba(245,166,35,0.14);
+    --rose:#FB6E8A; --rose-soft:rgba(251,110,138,0.14);
+    --emerald:#45D9A0; --emerald-soft:rgba(69,217,160,0.14);
+    --shadow:0 20px 52px rgba(4,7,20,0.55);
+    --kr:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,"Cascadia Mono","D2Coding",monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground:#fffcf8; --panel:#f7f1e7; --raised:#efe6d8; --sunken:#f2ebe0;
+      --line:rgba(61,46,31,0.13); --line-strong:rgba(61,46,31,0.24);
+      --ink:#2b2317; --ink-2:#6b6152; --ink-3:#948a79;
+      --accent:#5457e0; --accent-soft:rgba(84,87,224,0.12); --accent-line:rgba(84,87,224,0.42);
+      --teal:#0e9c8c; --teal-soft:rgba(14,156,140,0.13);
+      --amber:#b6720a; --amber-soft:rgba(182,114,10,0.14);
+      --rose:#cf3f5f; --rose-soft:rgba(207,63,95,0.12);
+      --emerald:#0f9e6d; --emerald-soft:rgba(15,158,109,0.13);
+      --shadow:0 16px 40px rgba(61,46,31,0.13);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#12172a; --panel:#1a2038; --raised:#232b48; --sunken:#0e1324;
+    --line:rgba(226,232,255,0.10); --line-strong:rgba(226,232,255,0.20);
+    --ink:#eef1fb; --ink-2:#a8b0cc; --ink-3:#6f789a;
+    --accent:#7c7ef4; --accent-soft:rgba(124,126,244,0.16); --accent-line:rgba(124,126,244,0.42);
+    --teal:#2DD4BF; --teal-soft:rgba(45,212,191,0.14);
+    --amber:#F5A623; --amber-soft:rgba(245,166,35,0.14);
+    --rose:#FB6E8A; --rose-soft:rgba(251,110,138,0.14);
+    --emerald:#45D9A0; --emerald-soft:rgba(69,217,160,0.14);
+    --shadow:0 20px 52px rgba(4,7,20,0.55);
+  }
+  :root[data-theme="light"] {
+    --ground:#fffcf8; --panel:#f7f1e7; --raised:#efe6d8; --sunken:#f2ebe0;
+    --line:rgba(61,46,31,0.13); --line-strong:rgba(61,46,31,0.24);
+    --ink:#2b2317; --ink-2:#6b6152; --ink-3:#948a79;
+    --accent:#5457e0; --accent-soft:rgba(84,87,224,0.12); --accent-line:rgba(84,87,224,0.42);
+    --teal:#0e9c8c; --teal-soft:rgba(14,156,140,0.13);
+    --amber:#b6720a; --amber-soft:rgba(182,114,10,0.14);
+    --rose:#cf3f5f; --rose-soft:rgba(207,63,95,0.12);
+    --emerald:#0f9e6d; --emerald-soft:rgba(15,158,109,0.13);
+    --shadow:0 16px 40px rgba(61,46,31,0.13);
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--ground); color:var(--ink); font-family:var(--kr);
+    -webkit-font-smoothing:antialiased; line-height:1.6; }
+  .wrap { max-width:1080px; margin:0 auto; padding:56px 24px 96px; }
+
+  .masthead { border-bottom:1px solid var(--line-strong); padding-bottom:28px; margin-bottom:44px; }
+  .eyebrow { margin:0 0 10px; font-family:var(--mono); font-size:11px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--ink-3); }
+  h1 { margin:0 0 14px; font-size:clamp(26px,4vw,38px); font-weight:700; letter-spacing:-.02em;
+    text-wrap:balance; line-height:1.22; }
+  .lede { margin:0; max-width:62ch; color:var(--ink-2); font-size:15px; }
+  .lede b { color:var(--ink); font-weight:700; }
+
+  section { margin-top:56px; }
+  .sec-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+    border-bottom:1px solid var(--line); padding-bottom:10px; margin-bottom:22px; }
+  .sec-head h2 { margin:0; font-size:19px; font-weight:700; letter-spacing:-.01em; }
+  .sec-head .eyebrow { margin:0; }
+  .note { color:var(--ink-2); font-size:14px; max-width:66ch; margin:0 0 20px; }
+  .note b { color:var(--ink); }
+
+  /* ── 진단 ─────────────────────────────────── */
+  .diag { display:grid; grid-template-columns:minmax(0,430px) minmax(0,1fr); gap:32px; align-items:start; }
+  @media (max-width:860px){ .diag { grid-template-columns:1fr; } }
+
+  .frame { border:1px solid var(--line); border-radius:16px; background:var(--sunken);
+    padding:18px; overflow-x:auto; }
+  .frame-cap { display:flex; align-items:center; gap:8px; margin:0 0 14px;
+    font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); }
+  .frame-cap i { width:6px; height:6px; border-radius:50%; background:var(--rose); font-style:normal; }
+  .frame-cap.ok i { background:var(--emerald); }
+
+  /* 현재 화면 재현 */
+  .repro { width:392px; margin:0 auto; background:var(--panel); border:1px solid var(--line);
+    border-radius:14px; overflow:hidden; box-shadow:var(--shadow); }
+  .repro .topline { height:2px; background:linear-gradient(90deg,var(--accent),var(--teal),transparent); }
+  .repro-h { padding:12px 16px 10px; border-bottom:1px solid var(--line); font-size:15px; font-weight:700; }
+  .repro-b { padding:12px 16px 16px; display:flex; flex-direction:column; gap:9px;
+    height:352px; overflow:hidden; position:relative; }
+  .repro-b::after { content:""; position:absolute; left:0; right:0; bottom:0; height:52px;
+    background:linear-gradient(to top,var(--panel),transparent); pointer-events:none; }
+  .rcard { border:1px solid var(--line); border-radius:11px; padding:10px 11px; }
+  .rcard.on { border-color:var(--accent-line); background:var(--accent-soft); }
+  .rcard .rt { font-size:13px; font-weight:700; display:flex; align-items:center; gap:6px; }
+  .rcard .rt em { font-style:normal; font-size:11px; color:var(--ink-3); font-weight:400; }
+  .rcard .rd { font-size:11.5px; color:var(--ink-3); margin-top:3px; line-height:1.55; }
+  .rcard .rw { font-size:11.5px; color:var(--teal); margin-top:3px; }
+  .rrow { display:flex; gap:10px; align-items:flex-start; }
+  .rlabel { font-family:var(--mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--ink-3); margin-top:4px; }
+  .sw { width:38px; height:21px; border-radius:999px; background:var(--accent); position:relative; flex:none; margin-top:2px; }
+  .sw::after { content:""; position:absolute; top:3px; right:3px; width:15px; height:15px; border-radius:50%; background:#fff; }
+  .cutoff { font-size:11px; color:var(--rose); text-align:center; font-family:var(--mono); }
+
+  .pin { display:inline-flex; align-items:center; justify-content:center; width:17px; height:17px;
+    border-radius:50%; background:var(--rose); color:#fff; font-family:var(--mono); font-size:10px;
+    font-weight:700; flex:none; vertical-align:middle; }
+  .pin.q { background:var(--amber); color:#20170a; }
+
+  ol.probs { list-style:none; counter-reset:p; margin:0; padding:0;
+    display:flex; flex-direction:column; gap:2px; }
+  ol.probs li { counter-increment:p; display:grid; grid-template-columns:22px minmax(0,1fr);
+    gap:12px; padding:11px 0; border-bottom:1px solid var(--line); }
+  ol.probs li::before { content:counter(p); font-family:var(--mono); font-size:10px; font-weight:700;
+    width:19px; height:19px; border-radius:50%; background:var(--rose-soft); color:var(--rose);
+    display:flex; align-items:center; justify-content:center; margin-top:2px; }
+  ol.probs h3 { margin:0 0 2px; font-size:14px; font-weight:700; }
+  ol.probs p { margin:0; font-size:13px; color:var(--ink-2); line-height:1.6; }
+  ol.probs code { font-family:var(--mono); font-size:11.5px; background:var(--raised);
+    border:1px solid var(--line); border-radius:4px; padding:1px 5px; color:var(--ink-2); }
+
+  /* ── 원칙 ─────────────────────────────────── */
+  .prins { display:grid; grid-template-columns:repeat(auto-fit,minmax(228px,1fr)); gap:14px; }
+  .prin { border:1px solid var(--line); border-radius:14px; padding:16px; background:var(--panel);
+    border-left:3px solid var(--accent); }
+  .prin h3 { margin:0 0 6px; font-size:14px; font-weight:700; }
+  .prin p { margin:0; font-size:13px; color:var(--ink-2); }
+  .prin .swap { font-family:var(--mono); font-size:11px; color:var(--ink-3); margin-top:9px;
+    display:block; letter-spacing:.01em; }
+  .prin .swap b { color:var(--emerald); font-weight:400; }
+  .prin .swap s { color:var(--rose); opacity:.75; }
+
+  /* ── 프로토타입 ───────────────────────────── */
+  .stage { border:1px solid var(--line); border-radius:18px; background:var(--sunken);
+    padding:26px 22px; overflow-x:auto; }
+  .modal { width:760px; margin:0 auto; background:var(--panel); border:1px solid var(--line-strong);
+    border-radius:16px; overflow:hidden; box-shadow:var(--shadow); }
+  .modal .topline { height:2px; background:linear-gradient(90deg,var(--accent),rgba(45,212,191,.5),transparent); }
+
+  .mhead { display:flex; align-items:center; gap:12px; padding:13px 18px 12px;
+    border-bottom:1px solid var(--line); }
+  .mhead h3 { margin:0; font-size:16px; font-weight:700; letter-spacing:-.01em; }
+  .sumbar { display:flex; align-items:center; gap:6px; margin-left:auto; }
+  .chip { font-family:var(--mono); font-size:11px; padding:3px 9px; border-radius:999px;
+    background:var(--accent-soft); color:var(--accent); border:1px solid var(--accent-line);
+    white-space:nowrap; }
+  .chip.mute { background:transparent; color:var(--ink-3); border-color:var(--line); }
+
+  .mbody { display:grid; grid-template-columns:minmax(0,1fr) 268px; }
+  .mcol { padding:16px 18px 18px; display:flex; flex-direction:column; gap:18px; }
+  .mprev { border-left:1px solid var(--line); background:var(--sunken); padding:14px 14px 16px;
+    display:flex; flex-direction:column; gap:10px; }
+
+  .grp-label { font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--ink-3); display:block; margin-bottom:9px; }
+
+  /* 레벨 사다리 */
+  .ladder { display:grid; grid-template-columns:repeat(3,1fr); gap:0; border:1px solid var(--line);
+    border-radius:11px; overflow:hidden; background:var(--sunken); }
+  .rung { appearance:none; border:0; background:transparent; color:var(--ink-2); font-family:var(--kr);
+    padding:9px 6px 10px; cursor:pointer; text-align:center; display:flex; flex-direction:column;
+    gap:3px; align-items:center; border-right:1px solid var(--line); transition:background .14s,color .14s; }
+  .rung:last-child { border-right:0; }
+  .rung:hover { background:rgba(124,126,244,.07); color:var(--ink); }
+  .rung:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+  .rung b { font-size:13px; font-weight:700; }
+  .rung .dep { font-family:var(--mono); font-size:10px; color:var(--ink-3); letter-spacing:.04em; }
+  .rung .bars { display:flex; gap:2px; height:7px; align-items:flex-end; }
+  .rung .bars i { width:13px; border-radius:1.5px; background:var(--line-strong); font-style:normal; }
+  .rung[aria-checked="true"] { background:var(--accent-soft); color:var(--ink); }
+  .rung[aria-checked="true"] b { color:var(--accent); }
+  .rung[aria-checked="true"] .bars i.f { background:var(--accent); }
+
+  .lvl-say { margin:9px 0 0; font-size:12.5px; color:var(--ink-2); line-height:1.6; }
+  .delta { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+  .dchip { font-family:var(--mono); font-size:10.5px; padding:2px 8px; border-radius:999px; border:1px solid; }
+  .dchip.add { color:var(--emerald); border-color:rgba(69,217,160,.4); background:var(--emerald-soft); }
+  .dchip.hide { color:var(--ink-3); border-color:var(--line); background:transparent; }
+
+  /* 옵션 행 */
+  .opts { display:flex; flex-direction:column; border:1px solid var(--line); border-radius:11px; overflow:hidden; }
+  .opt { display:grid; grid-template-columns:3px minmax(0,1fr) auto; align-items:center;
+    border-bottom:1px solid var(--line); background:transparent; transition:background .14s; }
+  .opt:last-child { border-bottom:0; }
+  .opt:hover { background:rgba(124,126,244,.05); }
+  .rail { align-self:stretch; background:transparent; transition:background .14s; }
+  .opt.on .rail { background:var(--accent); }
+  .opt-main { padding:9px 12px; min-width:0; cursor:default; }
+  .opt-name { font-size:13px; font-weight:700; display:flex; align-items:center; gap:7px; }
+  .opt-name .lk { font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; color:var(--ink-3);
+    border:1px solid var(--line); border-radius:4px; padding:1px 5px; text-transform:uppercase; }
+  .opt-sub { font-size:11.5px; color:var(--ink-3); margin-top:1px; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; }
+  .opt-why { display:none; font-size:12px; color:var(--ink-2); line-height:1.6; margin-top:6px;
+    padding-top:6px; border-top:1px dashed var(--line); }
+  .opt.open .opt-why { display:block; }
+  .opt.open .opt-sub { white-space:normal; }
+  .opt-act { display:flex; align-items:center; gap:8px; padding:0 12px 0 8px; }
+  .more { appearance:none; background:transparent; border:1px solid var(--line); color:var(--ink-3);
+    width:20px; height:20px; border-radius:6px; cursor:pointer; font-size:11px; line-height:1;
+    font-family:var(--mono); display:flex; align-items:center; justify-content:center; }
+  .more:hover { color:var(--ink); border-color:var(--line-strong); }
+  .more:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+
+  .tg { appearance:none; border:0; padding:0; width:38px; height:21px; border-radius:999px;
+    background:var(--line-strong); position:relative; cursor:pointer; flex:none; transition:background .16s; }
+  .tg::after { content:""; position:absolute; top:3px; left:3px; width:15px; height:15px; border-radius:50%;
+    background:#fff; transition:transform .16s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+  .tg[aria-checked="true"] { background:var(--accent); }
+  .tg[aria-checked="true"]::after { transform:translateX(17px); }
+  .tg:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .tg.locked { background:var(--line); cursor:not-allowed; }
+  .tg.locked::after { transform:translateX(17px); background:var(--ink-3); }
+
+  .opt.lock .opt-name { color:var(--ink-2); }
+  .locknote { font-size:11.5px; color:var(--ink-3); margin:8px 0 0; line-height:1.6; }
+
+  /* 미리보기 미니보드 */
+  .pv-cap { font-family:var(--mono); font-size:10px; letter-spacing:.13em; text-transform:uppercase;
+    color:var(--ink-3); display:flex; align-items:center; gap:6px; }
+  .pv-cap i { width:5px; height:5px; border-radius:50%; background:var(--teal); font-style:normal; }
+  .board { border:1px solid var(--line); border-radius:10px; background:var(--panel); padding:8px;
+    display:flex; flex-direction:column; gap:7px; }
+  .tabs { display:flex; gap:4px; }
+  .tab { font-size:10px; padding:2.5px 7px; border-radius:6px; border:1px solid var(--line);
+    color:var(--ink-3); white-space:nowrap; }
+  .tab.sel { background:var(--accent-soft); color:var(--accent); border-color:var(--accent-line); }
+  .phase { display:flex; gap:4px; }
+  .phase span { flex:1; font-size:9.5px; text-align:center; padding:3px 0; border-radius:5px;
+    background:var(--amber-soft); color:var(--amber); border:1px solid rgba(245,166,35,.3); }
+  .sprint { display:flex; align-items:center; gap:6px; padding:4px 7px; border-radius:6px;
+    background:var(--teal-soft); border:1px solid rgba(45,212,191,.28); }
+  .sprint b { font-size:10px; color:var(--teal); font-weight:700; }
+  .sprint .due { font-family:var(--mono); font-size:9px; color:var(--ink-3); margin-left:auto; }
+  .sprint .mv { font-size:9px; color:var(--accent); border:1px solid var(--accent-line);
+    border-radius:999px; padding:1px 6px; }
+  .cols { display:flex; gap:5px; }
+  .col { flex:1; min-width:0; border:1px solid var(--line); border-radius:7px; padding:5px 4px;
+    display:flex; flex-direction:column; gap:4px; background:var(--sunken); }
+  .col .ch { font-size:9.5px; color:var(--ink-3); text-align:center; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; }
+  .col .ch b { color:var(--ink-2); font-weight:700; }
+  .mini { border:1px solid var(--line); border-radius:5px; background:var(--panel); padding:4px; }
+  .mini .l1 { height:3px; border-radius:2px; background:var(--line-strong); }
+  .mini .l2 { height:3px; border-radius:2px; background:var(--line); margin-top:3px; width:64%; }
+  .mini .tb { display:inline-flex; align-items:center; gap:2px; margin-top:4px;
+    font-family:var(--mono); font-size:8px; color:var(--teal); border:1px solid rgba(45,212,191,.3);
+    background:var(--teal-soft); border-radius:3px; padding:0 3px; }
+  .flash { animation:fl 1s ease; }
+  @keyframes fl { 0%,100%{ box-shadow:0 0 0 0 rgba(124,126,244,0); } 30%{ box-shadow:0 0 0 3px rgba(124,126,244,.45); } }
+  @media (prefers-reduced-motion:reduce) { .flash { animation:none; outline:2px solid var(--accent); } .tg::after,.tg,.rung,.opt{transition:none;} }
+  .pv-why { font-size:11px; color:var(--ink-3); line-height:1.6; margin:0; }
+
+  .mfoot { display:flex; align-items:center; gap:10px; padding:10px 18px; border-top:1px solid var(--line); }
+  .mfoot .esc { font-size:11.5px; color:var(--ink-3); }
+  .saved { font-size:11.5px; color:var(--emerald); display:flex; align-items:center; gap:5px; }
+  .saved i { width:5px; height:5px; border-radius:50%; background:var(--emerald); font-style:normal; }
+  .btn { margin-left:auto; appearance:none; border:0; font-family:var(--kr); font-size:12px; font-weight:700;
+    color:#fff; background:var(--accent); border-radius:8px; padding:7px 16px; cursor:pointer; }
+  .btn:hover { filter:brightness(1.08); }
+  .btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  .mobile-note { display:grid; grid-template-columns:200px minmax(0,1fr); gap:24px; align-items:start; margin-top:26px; }
+  @media (max-width:720px){ .mobile-note { grid-template-columns:1fr; } }
+  .phone { border:1px solid var(--line-strong); border-radius:18px; background:var(--panel);
+    padding:8px; box-shadow:var(--shadow); }
+  .phone .sheet { border-radius:12px; background:var(--sunken); overflow:hidden; }
+  .phone .sh { padding:8px 10px; border-bottom:1px solid var(--line); font-size:11px; font-weight:700;
+    display:flex; align-items:center; gap:6px; }
+  .phone .sh .chip { font-size:9px; padding:2px 6px; }
+  .phone .sb { padding:8px 10px 10px; display:flex; flex-direction:column; gap:7px; }
+  .phone .fold { font-size:10px; color:var(--ink-3); border:1px dashed var(--line-strong);
+    border-radius:7px; padding:5px 7px; display:flex; align-items:center; gap:5px; }
+  .phone .fold::before { content:"▸"; color:var(--teal); }
+  .phone .lad { display:grid; grid-template-columns:repeat(3,1fr); gap:0; border:1px solid var(--line);
+    border-radius:7px; overflow:hidden; }
+  .phone .lad span { font-size:9.5px; text-align:center; padding:5px 0; border-right:1px solid var(--line); color:var(--ink-3); }
+  .phone .lad span:last-child { border-right:0; }
+  .phone .lad span.s { background:var(--accent-soft); color:var(--accent); font-weight:700; }
+  .phone .orow { display:flex; align-items:center; gap:6px; font-size:10px; color:var(--ink-2);
+    border:1px solid var(--line); border-radius:7px; padding:6px 7px; }
+  .phone .orow .m { margin-left:auto; width:24px; height:14px; border-radius:999px; background:var(--accent); position:relative; flex:none; }
+  .phone .orow .m::after { content:""; position:absolute; top:2px; right:2px; width:10px; height:10px; border-radius:50%; background:#fff; }
+  .phone .orow.off .m { background:var(--line-strong); }
+  .phone .orow.off .m::after { right:auto; left:2px; }
+
+  /* ── 대조표 ───────────────────────────────── */
+  .tbl { border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .trow { display:grid; grid-template-columns:1.15fr 1fr 1fr; border-bottom:1px solid var(--line); }
+  .trow:last-child { border-bottom:0; }
+  .trow > div { padding:10px 13px; font-size:13px; border-right:1px solid var(--line); }
+  .trow > div:last-child { border-right:0; }
+  .trow.head > div { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--ink-3); background:var(--panel); }
+  .trow .lab { color:var(--ink-2); }
+  .was { color:var(--rose); font-variant-numeric:tabular-nums; }
+  .now { color:var(--emerald); font-variant-numeric:tabular-nums; }
+
+  /* ── 구현 노트 ────────────────────────────── */
+  .impl { display:flex; flex-direction:column; gap:2px; }
+  .irow { display:grid; grid-template-columns:150px minmax(0,1fr); gap:14px; padding:11px 0;
+    border-bottom:1px solid var(--line); font-size:13px; }
+  @media (max-width:640px){ .irow { grid-template-columns:1fr; gap:4px; } }
+  .irow .k { font-family:var(--mono); font-size:11.5px; color:var(--accent); padding-top:1px; }
+  .irow .v { color:var(--ink-2); }
+  .irow .v b { color:var(--ink); font-weight:700; }
+  .irow .v code { font-family:var(--mono); font-size:11.5px; background:var(--raised);
+    border:1px solid var(--line); border-radius:4px; padding:1px 5px; }
+
+  footer { margin-top:64px; padding-top:20px; border-top:1px solid var(--line);
+    font-family:var(--mono); font-size:11px; color:var(--ink-3); display:flex; gap:14px; flex-wrap:wrap; }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Bridge · Board Feature Drawer · 레이아웃 개편안</p>
+    <h1>설정 화면인데 목록이 안 보인다</h1>
+    <p class="lede">
+      지금 <b>기능 서랍</b>은 7개 항목을 전부 같은 크기의 큰 카드로 세로 한 줄에 쌓는다.
+      열자마자 위아래가 잘려 있고, <b>택1(레벨)</b>과 <b>각각 토글(옵션)</b>이 같은 모양이라
+      두 규칙이 구분되지 않는다. 무엇보다 <b>켜면 화면이 어떻게 바뀌는지를 글로만 설명한다</b>.
+      아래는 진단과, 그림으로 답하는 개편안이다. 프로토타입은 실제로 눌린다.
+    </p>
+  </header>
+
+  <!-- ══ 1. 진단 ══════════════════════════════ -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">진단</p>
+      <h2>지금 화면이 하는 일과 못 하는 일</h2>
+    </div>
+
+    <div class="diag">
+      <div class="frame">
+        <p class="frame-cap"><i></i>현재 · FeatureDrawer.tsx · sm:max-w-lg</p>
+        <div class="repro">
+          <div class="topline"></div>
+          <div class="repro-h">이 보드에서 쓰는 기능</div>
+          <div class="repro-b">
+            <p class="cutoff">↑ 위로 잘려 있음 — 1. 안 묶음 <span class="pin">1</span></p>
+            <div class="rcard">
+              <span class="rt">2. 주기 <em>1겹</em></span>
+              <div class="rd">이번 주기에 할 것만 담고 종료일에 끊습니다. 못 끝낸 건 다음 주기로 넘어갑니다.</div>
+            </div>
+            <div class="rcard on">
+              <span class="rt">3. 단계 ▸ 주기 <em>2겹</em> <span class="pin" style="margin-left:auto">2</span></span>
+              <div class="rd">여러 주기를 단계로 묶습니다. 로드맵과 간트가 여기서 제 값을 합니다.</div>
+            </div>
+            <div class="rlabel">레벨과 상관없이 켜고 끄는 것</div>
+            <div class="rcard on">
+              <div class="rrow">
+                <div style="min-width:0">
+                  <span class="rt">구성원별 보기 <span class="pin">3</span></span>
+                  <div class="rd">컬럼을 사람으로 세웁니다. 한 작업을 여러 명이 나눠 밀기 때문에 같은 카드가 여러 컬럼에 섭니다. <span class="pin">4</span></div>
+                  <div class="rw">나타나는 자리 · 스프린트 헤더 오른쪽 <span class="pin q">5</span></div>
+                </div>
+                <span class="sw"></span>
+              </div>
+            </div>
+            <div class="rcard on">
+              <div class="rrow">
+                <div style="min-width:0">
+                  <span class="rt">리뷰 단계</span>
+                  <div class="rd">끝내기 전에 누가 봐줘야 하는 일을 따로 세웁니다. 끄면 진행 → 완료 두 칸이 됩니다.</div>
+                  <div class="rw">나타나는 자리 · 보드 컬럼 · 카드 호버 액션</div>
+                </div>
+                <span class="sw"></span>
+              </div>
+            </div>
+          </div>
+          <div class="mfoot" style="padding:8px 14px">
+            <span class="esc">Esc 닫기</span>
+            <button class="btn" type="button" tabindex="-1" style="font-size:11px;padding:5px 13px">닫기</button>
+            <span class="pin" style="margin-left:8px">9</span>
+          </div>
+        </div>
+      </div>
+
+      <ol class="probs">
+        <li>
+          <div>
+            <h3>스크롤 안에서만 존재하는 목록</h3>
+            <p>본문이 <code>max-h-[70vh] overflow-y-auto</code>인데 카드 7장 × 100px+ = 약 900px. 뷰포트에 3.5장만 들어가고 첫 항목이 반쯤 잘린 채 열린다. 설정 화면의 첫 임무 — <b>선택지 전체를 한눈에 보여주는 것</b> — 을 못 한다.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>두 축이 같은 모양</h3>
+            <p>레벨은 <b>택1 사다리</b>, 옵션은 <b>각각 독립 스위치</b>인데 둘 다 같은 <code>rounded-xl</code> 카드 + 같은 인디고 테두리·틴트를 쓴다. 규칙이 다른 것은 모양도 달라야 한다.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>인디고가 다섯 곳</h3>
+            <p>선택된 레벨 1개 + 켜진 옵션 4개 = 강조색 블록이 5개. <b>강조가 다섯이면 강조가 아니다.</b> 켜진 상태를 카드 전체 틴트로 칠하니 목록이 색 덩어리로 읽힌다.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>항상 펼쳐진 3줄 설명</h3>
+            <p>설명은 <b>처음 한 번</b> 읽는 문장인데 매 방문마다 카드 높이의 70%를 먹는다. 이미 아는 사람에게는 소음, 스크롤의 주범.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>눌리지 않는 링크색</h3>
+            <p>“나타나는 자리 · …”가 teal(<code>text-bridge-secondary</code>)이라 링크로 보이는데 아무 일도 안 난다. 가짜 어포던스이고, 자리를 <b>글로 지목</b>하는 것 자체가 그림으로 대체돼야 할 신호다.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>사다리가 사다리로 안 보임</h3>
+            <p>3이 2를 포함한다는 누적 구조를 <code>1./2./3.</code> 숫자와 “0겹/1겹/2겹” 글자로만 전달한다. 세로로 쌓인 카드 3장은 사다리가 아니라 그냥 목록이다.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>결과 미리보기가 없다</h3>
+            <p>“컬럼을 사람으로 세웁니다”를 <b>말로</b> 설명한다. 이 모달이 바꾸는 건 화면 구조인데, 그 화면을 보여주지 않는다. 가장 큰 손실.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>현재 조합 요약이 없다</h3>
+            <p>헤더가 제목 한 줄뿐. “지금 이 보드가 무슨 설정인지”를 알려면 스크롤해서 체크 표시를 찾아야 한다.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>즉시 저장인데 저장 신호가 없다</h3>
+            <p>토글은 optimistic 즉시 반영인데 푸터 버튼은 “닫기”뿐. <b>저장 안 하고 닫는 건가?</b> 하는 불안을 매번 만든다. 저장 표시는 토글 위 스피너 한 순간이 전부.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>권한 없는 상태가 죽어 보이지 않음</h3>
+            <p><code>canEdit=false</code>면 레벨 버튼이 <code>disabled</code>지만 시각적 변화가 없다(토글에만 <code>opacity-40</code>). 눌러도 반응 없는 UI가 된다.</p>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ══ 2. 원칙 ══════════════════════════════ -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">개편 원칙</p>
+      <h2>네 가지만 바꾼다</h2>
+    </div>
+    <div class="prins">
+      <div class="prin">
+        <h3>말 대신 그림</h3>
+        <p>오른쪽에 미니 보드를 붙인다. 레벨·옵션을 건드리면 그 자리에서 행과 열이 늘고 준다. 설명문을 읽을 필요가 사라진다.</p>
+        <span class="swap"><s>“컬럼을 사람으로 세웁니다”</s> → <b>컬럼이 사람으로 서는 그림</b></span>
+      </div>
+      <div class="prin">
+        <h3>사다리는 가로로</h3>
+        <p>택1은 세그먼트 한 줄로. 3칸이 나란히 서고 겹 수가 막대로 쌓인다. 카드 3장(≈300px)이 한 줄(≈52px)이 된다.</p>
+        <span class="swap"><s>세로 카드 3장</s> → <b>가로 세그먼트 + 델타 칩</b></span>
+      </div>
+      <div class="prin">
+        <h3>옵션은 행으로, 설명은 접어서</h3>
+        <p>이름 + 한 줄 요약 + 토글로 44px 행. 긴 설명은 <code>?</code>로 펼친다. 켜짐은 왼쪽 3px 레일로만 — 틴트를 걷어낸다.</p>
+        <span class="swap"><s>104px 카드 × 4</s> → <b>44px 행 × 7 (잠긴 것 포함)</b></span>
+      </div>
+      <div class="prin">
+        <h3>못 끄는 것도 목록 안에</h3>
+        <p>완료 컬럼·구조·담당자를 문단으로 밀어두지 않고 <b>잠긴 행</b>으로 같은 목록에 세운다. 빠진 게 아니라 고정된 것으로 읽힌다.</p>
+        <span class="swap"><s>하단 3줄 설명문</s> → <b>ALWAYS 배지 붙은 행 3개</b></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 3. 프로토타입 ════════════════════════ -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">개편안 · 동작</p>
+      <h2>레벨과 토글을 눌러보세요 — 오른쪽 보드가 따라 바뀝니다</h2>
+    </div>
+    <p class="note">
+      데스크톱 <b>760px 2단</b>. 왼쪽이 컨트롤, 오른쪽이 결과. 스크롤 없이 전부 한 화면에 들어온다.
+      옵션 행의 <code>?</code>를 누르면 원래의 긴 설명이 펼쳐지고, 토글을 만지면 미리보기의 해당 부분이 한 번 반짝인다.
+    </p>
+
+    <div class="stage">
+      <div class="modal" role="group" aria-label="기능 서랍 개편안 프로토타입">
+        <div class="topline"></div>
+
+        <div class="mhead">
+          <h3>이 보드에서 쓰는 기능</h3>
+          <div class="sumbar">
+            <span class="chip" id="sumLevel">단계 ▸ 주기</span>
+            <span class="chip mute" id="sumOpts">옵션 4 / 4</span>
+          </div>
+        </div>
+
+        <div class="mbody">
+          <div class="mcol">
+
+            <div>
+              <span class="grp-label">시간을 몇 겹으로 묶을까요</span>
+              <div class="ladder" role="radiogroup" aria-label="시간 묶음 깊이">
+                <button class="rung" type="button" role="radio" aria-checked="false" data-level="1">
+                  <span class="bars"><i class="f" style="height:3px"></i></span>
+                  <b>안 묶음</b><span class="dep">0겹</span>
+                </button>
+                <button class="rung" type="button" role="radio" aria-checked="false" data-level="2">
+                  <span class="bars"><i class="f" style="height:3px"></i><i class="f" style="height:5px"></i></span>
+                  <b>주기</b><span class="dep">1겹</span>
+                </button>
+                <button class="rung" type="button" role="radio" aria-checked="true" data-level="3">
+                  <span class="bars"><i class="f" style="height:3px"></i><i class="f" style="height:5px"></i><i class="f" style="height:7px"></i></span>
+                  <b>단계 ▸ 주기</b><span class="dep">2겹</span>
+                </button>
+              </div>
+              <p class="lvl-say" id="lvlSay"></p>
+              <div class="delta" id="lvlDelta"></div>
+            </div>
+
+            <div>
+              <span class="grp-label">레벨과 상관없이 켜고 끄는 것</span>
+              <div class="opts" id="optList"></div>
+              <p class="locknote">
+                <b style="color:var(--ink-2)">ALWAYS</b> 표시는 끌 수 없습니다. 끝난 일이 갈 곳이 없으면 컬럼이 무한정 길어지기 때문입니다.
+              </p>
+            </div>
+
+          </div>
+
+          <aside class="mprev">
+            <p class="pv-cap"><i></i>이 설정의 보드</p>
+            <div class="board" id="board"></div>
+            <p class="pv-why" id="pvWhy"></p>
+            <p class="pv-why" style="border-top:1px solid var(--line); padding-top:9px; margin-top:2px">
+              끄면 화면에서 사라질 뿐 <b style="color:var(--ink-2)">데이터는 그대로</b> 남습니다. 다시 켜면 있던 그대로 돌아옵니다.
+            </p>
+          </aside>
+        </div>
+
+        <div class="mfoot">
+          <span class="esc">Esc 닫기</span>
+          <span class="saved" id="saved" hidden><i></i>저장됨</span>
+          <button class="btn" type="button" id="doneBtn">완료</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-note">
+      <div class="phone" aria-hidden="true">
+        <div class="sheet">
+          <div class="sh">이 보드에서 쓰는 기능 <span class="chip">단계 ▸ 주기</span></div>
+          <div class="sb">
+            <div class="fold">이 설정의 보드 보기</div>
+            <div class="lad"><span>안 묶음</span><span>주기</span><span class="s">단계 ▸ 주기</span></div>
+            <div class="orow">구성원별 보기 <span class="m"></span></div>
+            <div class="orow">리뷰 단계 <span class="m"></span></div>
+            <div class="orow off">개인 시간 블록 <span class="m"></span></div>
+            <div class="orow">JIRA 연동 화면 <span class="m"></span></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h3 style="margin:0 0 8px;font-size:15px;font-weight:700">모바일 — 프리뷰를 접는다</h3>
+        <p class="note" style="margin:0">
+          768px 미만에서는 2단을 쌓지 않는다. 미리보기는 <b>“이 설정의 보드 보기”</b> 한 줄로 접히고,
+          펼치면 컨트롤 위에 미니 보드가 나온다. 컨트롤만 남으면 사다리 1줄 + 옵션 7행 = <b>약 400px</b>,
+          바텀 시트 기본 높이에 스크롤 없이 들어간다. 지금은 이 화면에서 3.5개 항목만 보인다.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 4. 대조 ══════════════════════════════ -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">전 · 후</p>
+      <h2>수치로 보는 차이</h2>
+    </div>
+    <div class="tbl">
+      <div class="trow head"><div>항목</div><div>현재</div><div>개편안</div></div>
+      <div class="trow"><div class="lab">본문 높이</div><div class="was">약 900px (70vh 스크롤)</div><div class="now">약 430px (스크롤 없음)</div></div>
+      <div class="trow"><div class="lab">첫 화면에 보이는 항목</div><div class="was">3.5 / 7</div><div class="now">7 / 7 + 잠긴 3</div></div>
+      <div class="trow"><div class="lab">옵션 1행 높이</div><div class="was">104px</div><div class="now">44px (펼치면 96px)</div></div>
+      <div class="trow"><div class="lab">강조색 블록 수</div><div class="was">5</div><div class="now">1 (선택 레벨) + 3px 레일</div></div>
+      <div class="trow"><div class="lab">결과 확인 방법</div><div class="was">설명문 읽기</div><div class="now">미니 보드 실시간</div></div>
+      <div class="trow"><div class="lab">현재 조합 파악</div><div class="was">스크롤 + 체크 찾기</div><div class="now">헤더 요약 칩</div></div>
+      <div class="trow"><div class="lab">저장 신호</div><div class="was">토글 위 스피너뿐</div><div class="now">푸터 “저장됨” + 완료 버튼</div></div>
+      <div class="trow"><div class="lab">못 끄는 기능</div><div class="was">하단 문단 3줄</div><div class="now">목록 안 ALWAYS 행 3개</div></div>
+      <div class="trow"><div class="lab">모달 폭</div><div class="was">sm:max-w-lg (512px)</div><div class="now">sm:max-w-3xl (768px) · 모바일 1단</div></div>
+    </div>
+  </section>
+
+  <!-- ══ 5. 구현 ══════════════════════════════ -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">구현</p>
+      <h2>FeatureDrawer.tsx 에서 바뀌는 지점</h2>
+    </div>
+    <p class="note">
+      데이터 계약(<code>BoardUiConfig</code> · <code>useBoardFeatures</code>)은 그대로다. 바뀌는 건 이 파일의 마크업과,
+      <code>OPTIONS</code> 스펙에 <b>한 줄 요약</b>과 <b>프리뷰 타깃 키</b>를 추가하는 것뿐이다.
+    </p>
+    <div class="impl">
+      <div class="irow"><div class="k">OptionSpec</div><div class="v"><code>desc</code> 옆에 <code>summary</code>(≤22자 한 줄) 추가. <code>where</code>는 문자열 표시용에서 <b>프리뷰 하이라이트 타깃</b>으로 역할 변경 — <code>target: 'sprintHeader' | 'columns' | 'checklist' | 'viewTabs'</code>.</div></div>
+      <div class="irow"><div class="k">LEVELS</div><div class="v">세로 <code>button</code> 3개 → <code>role="radiogroup"</code> 안 가로 세그먼트 3칸. <code>desc</code>는 카드 안이 아니라 <b>선택된 것 하나만</b> 사다리 아래 한 줄로. 겹 수는 막대 <code>i</code> 개수로 시각화.</div></div>
+      <div class="irow"><div class="k">델타 칩</div><div class="v"><code>LEVEL_DELTA[level] = { adds: [...], hides: [...] }</code> 상수 추가. 레벨을 내릴 때 <b>무엇이 숨는지</b>를 칩으로 미리 말한다 — “마음 놓고 내리게 한다”는 원 설계 의도를 글이 아니라 UI로.</div></div>
+      <div class="irow"><div class="k">옵션 행</div><div class="v"><code>grid-cols-[3px_1fr_auto]</code> — 레일 / 본문 / 토글. 틴트(<code>bg-bridge-accent/[0.07]</code>)와 테두리 강조 제거, 켜짐은 <b>레일 + 토글 색</b>만. 설명은 <code>useState&lt;Set&gt;</code>로 행 단위 펼침.</div></div>
+      <div class="irow"><div class="k">잠긴 행</div><div class="v">하단 문단 삭제. <code>LOCKED</code> 상수 3건(완료 컬럼 / 묶음▸작업▸할 일 / 할 일 담당자)을 같은 목록에 <code>aria-disabled</code> 행으로. 토글은 켜진 채 <code>cursor-not-allowed</code>.</div></div>
+      <div class="irow"><div class="k">BoardPreview</div><div class="v"><b>신규 컴포넌트</b> <code>components/board/BoardMiniPreview.tsx</code>. props = <code>{ level, options, highlight? }</code>. 순수 프레젠테이션, 데이터 접근 없음. 옵션 행 hover 시 <code>highlight</code>로 해당 영역 링 애니메이션(<code>useReducedMotion</code> 분기).</div></div>
+      <div class="irow"><div class="k">헤더</div><div class="v">제목 오른쪽에 요약 칩 2개 — 레벨명 / <code>옵션 n / 4</code>. <code>canEdit=false</code>면 자물쇠 칩은 유지하되 <b>컨트롤 전체를 <code>opacity-50 pointer-events-none</code></b> 로 감싸 죽은 UI를 죽어 보이게.</div></div>
+      <div class="irow"><div class="k">푸터</div><div class="v"><code>saving</code>이 끝난 뒤 2초간 “저장됨” 표시(<code>useEffect</code> 타이머). 버튼 문구 <code>닫기</code> → <b><code>완료</code></b> — 즉시 저장이라는 사실과 어긋나지 않는 말.</div></div>
+      <div class="irow"><div class="k">폭</div><div class="v"><code>sm:max-w-lg</code> → <code>sm:max-w-3xl</code>. 본문 <code>max-h-[70vh] overflow-y-auto</code>는 남기되 실제로는 걸리지 않는다(모바일 안전장치). 프리뷰는 <code>hidden md:flex</code> + 모바일 접이식.</div></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>docs/Design/feature-drawer-redesign.html</span>
+    <span>대상 · frontend/src/app/components/FeatureDrawer.tsx</span>
+    <span>선행 설계 · level-model.html · level-onboarding-plan.html</span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  var OPTIONS = [
+    { key:'members', name:'구성원별 보기', sum:'컬럼을 사람으로 세웁니다',
+      why:'한 작업을 여러 명이 나눠 밀기 때문에 같은 카드가 여러 컬럼에 섭니다.', target:'sprint' },
+    { key:'review', name:'리뷰 단계', sum:'끝내기 전 확인 칸을 세웁니다',
+      why:'끄면 진행 → 완료 두 칸이 됩니다. 카드 호버 액션도 함께 줄어듭니다.', target:'cols' },
+    { key:'timeblock', name:'개인 시간 블록', sum:'할 일마다 개인 캘린더에 시간을 잡습니다',
+      why:'팀 마감이 아니라 개인 일정입니다. 카드 안 할 일 줄에 시간 칩이 붙습니다.', target:'card' },
+    { key:'jira', name:'JIRA 연동 화면', sum:'JIRA 이슈를 카드로 가져옵니다',
+      why:'연동이 붙어 있어야 화면이 뜹니다. 보드 화면 선택 줄에 탭이 하나 늘어납니다.', target:'tabs' }
+  ];
+  var LOCKED = [
+    { name:'완료(Done) 컬럼', sum:'끝난 일이 갈 곳' },
+    { name:'묶음 ▸ 작업 ▸ 할 일', sum:'모든 레벨의 공통 바닥' },
+    { name:'할 일 줄 담당자', sum:'레벨과 무관하게 항상' }
+  ];
+  var LEVELS = {
+    1:{ name:'안 묶음', say:'할 일을 적고 하나씩 지웁니다. 마감도 담기도 없습니다.',
+        adds:[], hides:['주기 바','단계 레일','로드맵 · 간트'] },
+    2:{ name:'주기', say:'이번 주기에 할 것만 담고 종료일에 끊습니다. 못 끝낸 건 다음 주기로 넘어갑니다.',
+        adds:['주기 바 · 종료일'], hides:['단계 레일','로드맵 · 간트'] },
+    3:{ name:'단계 ▸ 주기', say:'여러 주기를 단계로 묶습니다. 로드맵과 간트가 여기서 제 값을 합니다.',
+        adds:['단계 레일','주기 바 · 종료일','로드맵 · 간트'], hides:[] }
+  };
+
+  var state = { level:3, on:{ members:true, review:true, timeblock:true, jira:true } };
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var optList = document.getElementById('optList');
+  var board = document.getElementById('board');
+  var lvlSay = document.getElementById('lvlSay');
+  var lvlDelta = document.getElementById('lvlDelta');
+  var sumLevel = document.getElementById('sumLevel');
+  var sumOpts = document.getElementById('sumOpts');
+  var pvWhy = document.getElementById('pvWhy');
+  var saved = document.getElementById('saved');
+  var savedTimer = null;
+
+  function el(tag, cls, txt) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (txt != null) n.textContent = txt;
+    return n;
+  }
+
+  function flashSaved() {
+    saved.hidden = false;
+    clearTimeout(savedTimer);
+    savedTimer = setTimeout(function () { saved.hidden = true; }, 2000);
+  }
+
+  /* ── 옵션 목록 (한 번만 그린다) ── */
+  OPTIONS.forEach(function (o) {
+    var row = el('div', 'opt' + (state.on[o.key] ? ' on' : ''));
+    row.dataset.key = o.key;
+    row.appendChild(el('span', 'rail'));
+
+    var main = el('div', 'opt-main');
+    var nm = el('div', 'opt-name');
+    nm.appendChild(document.createTextNode(o.name));
+    main.appendChild(nm);
+    main.appendChild(el('div', 'opt-sub', o.sum));
+    main.appendChild(el('div', 'opt-why', o.why));
+    row.appendChild(main);
+
+    var act = el('div', 'opt-act');
+    var more = el('button', 'more', '?');
+    more.type = 'button';
+    more.setAttribute('aria-expanded', 'false');
+    more.setAttribute('aria-label', o.name + ' 자세히');
+    more.addEventListener('click', function () {
+      var open = row.classList.toggle('open');
+      more.setAttribute('aria-expanded', String(open));
+      more.textContent = open ? '×' : '?';
+    });
+    act.appendChild(more);
+
+    var tg = el('button', 'tg');
+    tg.type = 'button';
+    tg.setAttribute('role', 'switch');
+    tg.setAttribute('aria-checked', String(!!state.on[o.key]));
+    tg.setAttribute('aria-label', o.name);
+    tg.addEventListener('click', function () {
+      state.on[o.key] = !state.on[o.key];
+      tg.setAttribute('aria-checked', String(state.on[o.key]));
+      row.classList.toggle('on', state.on[o.key]);
+      render(o.target);
+      flashSaved();
+    });
+    act.appendChild(tg);
+    row.appendChild(act);
+
+    row.addEventListener('mouseenter', function () { hint(o.target); });
+    row.addEventListener('mouseleave', function () { hint(null); });
+    optList.appendChild(row);
+  });
+
+  LOCKED.forEach(function (l) {
+    var row = el('div', 'opt lock');
+    row.setAttribute('aria-disabled', 'true');
+    row.appendChild(el('span', 'rail'));
+    var main = el('div', 'opt-main');
+    var nm = el('div', 'opt-name');
+    nm.appendChild(document.createTextNode(l.name));
+    nm.appendChild(el('span', 'lk', 'always'));
+    main.appendChild(nm);
+    main.appendChild(el('div', 'opt-sub', l.sum));
+    row.appendChild(main);
+    var act = el('div', 'opt-act');
+    var tg = el('span', 'tg locked');
+    tg.setAttribute('role', 'switch');
+    tg.setAttribute('aria-checked', 'true');
+    tg.setAttribute('aria-disabled', 'true');
+    act.appendChild(tg);
+    row.appendChild(act);
+    optList.appendChild(row);
+  });
+
+  /* ── 레벨 사다리 ── */
+  Array.prototype.forEach.call(document.querySelectorAll('.rung'), function (r) {
+    r.addEventListener('click', function () {
+      state.level = Number(r.dataset.level);
+      Array.prototype.forEach.call(document.querySelectorAll('.rung'), function (x) {
+        x.setAttribute('aria-checked', String(Number(x.dataset.level) === state.level));
+      });
+      render('level');
+      flashSaved();
+    });
+  });
+
+  document.getElementById('doneBtn').addEventListener('click', flashSaved);
+
+  /* ── 미리보기 ── */
+  var hintTarget = null;
+  function hint(t) { hintTarget = t; paintHint(); }
+  function paintHint() {
+    Array.prototype.forEach.call(board.querySelectorAll('[data-zone]'), function (z) {
+      z.style.outline = (hintTarget && z.dataset.zone === hintTarget)
+        ? '1.5px dashed var(--accent)' : 'none';
+      z.style.outlineOffset = '2px';
+    });
+  }
+
+  function render(flashZone) {
+    var L = LEVELS[state.level];
+    lvlSay.textContent = L.say;
+
+    lvlDelta.innerHTML = '';
+    L.adds.forEach(function (a) { lvlDelta.appendChild(el('span', 'dchip add', '＋ ' + a)); });
+    L.hides.forEach(function (h) { lvlDelta.appendChild(el('span', 'dchip hide', '숨김 · ' + h)); });
+
+    sumLevel.textContent = L.name;
+    var n = OPTIONS.filter(function (o) { return state.on[o.key]; }).length;
+    sumOpts.textContent = '옵션 ' + n + ' / 4';
+
+    board.innerHTML = '';
+
+    // 화면 선택 줄
+    var tabs = el('div', 'tabs');
+    tabs.dataset.zone = 'tabs';
+    tabs.appendChild(el('span', 'tab sel', '보드'));
+    if (state.level === 3) {
+      tabs.appendChild(el('span', 'tab', '로드맵'));
+      tabs.appendChild(el('span', 'tab', '간트'));
+    }
+    if (state.on.jira) tabs.appendChild(el('span', 'tab', 'JIRA'));
+    board.appendChild(tabs);
+
+    // 단계 레일
+    if (state.level === 3) {
+      var ph = el('div', 'phase');
+      ph.dataset.zone = 'phase';
+      ['기획', '제작', '검수'].forEach(function (p) { ph.appendChild(el('span', null, p)); });
+      board.appendChild(ph);
+    }
+
+    // 주기 바
+    if (state.level >= 2) {
+      var sp = el('div', 'sprint');
+      sp.dataset.zone = 'sprint';
+      sp.appendChild(el('b', null, '스프린트 7'));
+      if (state.on.members) sp.appendChild(el('span', 'mv', '구성원별'));
+      sp.appendChild(el('span', 'due', '~03.14'));
+      board.appendChild(sp);
+    }
+
+    // 컬럼
+    var cols = el('div', 'cols');
+    cols.dataset.zone = 'cols';
+    var heads = state.on.members
+      ? [['수현', '3'], ['도윤', '2'], ['민아', '4']]
+      : (state.on.review ? [['진행', '5'], ['리뷰', '2'], ['완료', '9']] : [['진행', '5'], ['완료', '9']]);
+    heads.forEach(function (h, i) {
+      var c = el('div', 'col');
+      var ch = el('div', 'ch');
+      var b = el('b', null, h[0]);
+      ch.appendChild(b);
+      ch.appendChild(document.createTextNode(' ' + h[1]));
+      c.appendChild(ch);
+      var cards = i === 0 ? 2 : 1;
+      for (var k = 0; k < cards; k++) {
+        var m = el('div', 'mini');
+        if (i === 0 && k === 0) m.dataset.zone = 'card';
+        m.appendChild(el('div', 'l1'));
+        m.appendChild(el('div', 'l2'));
+        if (state.on.timeblock && i === 0 && k === 0) m.appendChild(el('span', 'tb', '◷ 14:00'));
+        c.appendChild(m);
+      }
+      cols.appendChild(c);
+    });
+    board.appendChild(cols);
+
+    var lines = [];
+    if (state.on.members) lines.push('구성원별 보기가 켜져 컬럼이 사람으로 섰습니다.');
+    else if (state.on.review) lines.push('진행 → 리뷰 → 완료 세 칸입니다.');
+    else lines.push('진행 → 완료 두 칸입니다.');
+    if (state.level === 1) lines.push('묶음이 없어 컬럼만 남습니다.');
+    pvWhy.textContent = lines.join(' ');
+
+    paintHint();
+
+    if (flashZone && !reduce) {
+      var z = board.querySelector('[data-zone="' + flashZone + '"]');
+      if (z) { z.classList.remove('flash'); void z.offsetWidth; z.classList.add('flash'); }
+    }
+  }
+
+  render(null);
+})();
+</script>
