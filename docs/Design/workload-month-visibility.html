@@ -1,0 +1,1126 @@
+<title>워크로드 타임라인 · 월 인지 개선안</title>
+<style>
+  :root {
+    --ground: #0f141f;
+    --panel: #161d2b;
+    --panel-2: #1b2434;
+    --line: rgba(148, 163, 184, 0.16);
+    --line-strong: rgba(148, 163, 184, 0.32);
+    --ink: #e8ecf5;
+    --ink-2: #9aa8bf;
+    --ink-3: #6b7a93;
+    --accent: #6366f1;
+    --accent-soft: rgba(99, 102, 241, 0.16);
+    --teal: #2dd4bf;
+    --amber: #f5a524;
+    --rose: #f43f5e;
+    --shadow: 0 18px 40px -28px rgba(0, 0, 0, 0.9);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground: #fffcf8;
+      --panel: #f6efe4;
+      --panel-2: #efe6d8;
+      --line: rgba(61, 46, 31, 0.14);
+      --line-strong: rgba(61, 46, 31, 0.3);
+      --ink: #33281c;
+      --ink-2: #6d6151;
+      --ink-3: #90867a;
+      --accent: #4f46e5;
+      --accent-soft: rgba(79, 70, 229, 0.12);
+      --teal: #0d9488;
+      --amber: #b45309;
+      --rose: #be123c;
+      --shadow: 0 18px 40px -30px rgba(61, 46, 31, 0.45);
+    }
+  }
+
+  :root[data-theme="light"] {
+    --ground: #fffcf8;
+    --panel: #f6efe4;
+    --panel-2: #efe6d8;
+    --line: rgba(61, 46, 31, 0.14);
+    --line-strong: rgba(61, 46, 31, 0.3);
+    --ink: #33281c;
+    --ink-2: #6d6151;
+    --ink-3: #90867a;
+    --accent: #4f46e5;
+    --accent-soft: rgba(79, 70, 229, 0.12);
+    --teal: #0d9488;
+    --amber: #b45309;
+    --rose: #be123c;
+    --shadow: 0 18px 40px -30px rgba(61, 46, 31, 0.45);
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0f141f;
+    --panel: #161d2b;
+    --panel-2: #1b2434;
+    --line: rgba(148, 163, 184, 0.16);
+    --line-strong: rgba(148, 163, 184, 0.32);
+    --ink: #e8ecf5;
+    --ink-2: #9aa8bf;
+    --ink-3: #6b7a93;
+    --accent: #6366f1;
+    --accent-soft: rgba(99, 102, 241, 0.16);
+    --teal: #2dd4bf;
+    --amber: #f5a524;
+    --rose: #f43f5e;
+    --shadow: 0 18px 40px -28px rgba(0, 0, 0, 0.9);
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+      "Pretendard", "Segoe UI", "Noto Sans KR", sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+
+  .wrap {
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 0 24px 96px;
+  }
+
+  /* ── ruler motif ───────────────────────────────────────── */
+  .ruler {
+    height: 10px;
+    background-image: repeating-linear-gradient(
+      to right,
+      var(--line-strong) 0 1px,
+      transparent 1px 22px
+    );
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* ── masthead ──────────────────────────────────────────── */
+  header.masthead {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 56px 0 32px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .eyebrow {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  h1 {
+    font-size: clamp(30px, 5vw, 44px);
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+    font-weight: 700;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .lede {
+    max-width: 62ch;
+    color: var(--ink-2);
+    font-size: 16px;
+    margin: 0;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    align-items: center;
+  }
+
+  .tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--ink-2);
+    background: var(--panel);
+  }
+
+  /* ── sections ──────────────────────────────────────────── */
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-top: 56px;
+  }
+
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    margin: 0;
+  }
+
+  .sec-note {
+    color: var(--ink-3);
+    font-size: 13.5px;
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  p {
+    margin: 0;
+    max-width: 68ch;
+  }
+
+  .dim {
+    color: var(--ink-2);
+  }
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.87em;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 1px 5px;
+    color: var(--ink);
+  }
+
+  a {
+    color: var(--accent);
+  }
+
+  /* ── cause cards ───────────────────────────────────────── */
+  .causes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+  }
+
+  .cause {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 18px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .cause-top {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .sev {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    flex: none;
+  }
+
+  .sev-hi {
+    background: var(--rose);
+    box-shadow: 0 0 0 4px rgba(244, 63, 94, 0.14);
+  }
+
+  .sev-mid {
+    background: var(--amber);
+    box-shadow: 0 0 0 4px rgba(245, 165, 36, 0.14);
+  }
+
+  .cause p {
+    font-size: 14px;
+    color: var(--ink-2);
+  }
+
+  .ref {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px;
+    color: var(--ink-3);
+    border-top: 1px dashed var(--line);
+    padding-top: 9px;
+    margin-top: auto;
+    word-break: break-all;
+  }
+
+  /* ── mock (gantt header preview) ───────────────────────── */
+  .mockset {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .mock {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--panel);
+  }
+
+  .mock-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--line);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .mock-verdict {
+    letter-spacing: 0.02em;
+    text-transform: none;
+    font-size: 12px;
+  }
+
+  .bad {
+    color: var(--rose);
+  }
+
+  .good {
+    color: var(--teal);
+  }
+
+  .mock-scroll {
+    overflow-x: auto;
+    background: #131a27;
+  }
+
+  :root[data-theme="light"] .mock-scroll,
+  :root[data-theme="light"] .g-side {
+    background: #efe6d8;
+  }
+
+  @media (prefers-color-scheme: light) {
+    .mock-scroll,
+    .g-side {
+      background: #efe6d8;
+    }
+  }
+
+  :root[data-theme="dark"] .mock-scroll {
+    background: #131a27;
+  }
+
+  .gantt {
+    min-width: 700px;
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    font-size: 12px;
+  }
+
+  .g-side {
+    background: #171f2e;
+    border-right: 1px solid var(--line);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    color: var(--ink-3);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  :root[data-theme="dark"] .g-side {
+    background: #171f2e;
+  }
+
+  .g-days {
+    display: flex;
+  }
+
+  .g-day {
+    width: 46px;
+    flex: none;
+    border-right: 1px solid var(--line);
+    padding: 6px 0 7px;
+    text-align: center;
+    position: relative;
+  }
+
+  .g-day .dow {
+    display: block;
+    color: var(--ink-3);
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .g-day .num {
+    display: block;
+    color: var(--ink);
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  .g-day.we {
+    background: rgba(148, 163, 184, 0.05);
+  }
+
+  .g-day.we .num,
+  .g-day.we .dow {
+    color: var(--ink-3);
+  }
+
+  .g-day.mstart {
+    border-left: 1px solid var(--line-strong);
+  }
+
+  /* current: cramped month label */
+  .m-old {
+    position: absolute;
+    top: 1px;
+    left: 3px;
+    font-size: 11px;
+    color: var(--ink-3);
+    white-space: nowrap;
+  }
+
+  /* proposed: month band */
+  .g-band {
+    display: flex;
+    border-bottom: 1px solid var(--line);
+    background: rgba(99, 102, 241, 0.06);
+  }
+
+  .g-seg {
+    flex: none;
+    border-right: 1px solid var(--line-strong);
+    padding: 4px 10px;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .g-seg .yr {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10.5px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    color: var(--ink-3);
+  }
+
+  .g-seg.now {
+    background: var(--accent-soft);
+  }
+
+  .g-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 11.5px;
+    letter-spacing: 0.01em;
+    text-transform: none;
+  }
+
+  .g-bars {
+    display: flex;
+    padding: 8px 0 10px;
+    position: relative;
+  }
+
+  .g-bar {
+    height: 20px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    font-size: 11px;
+    color: #0b1018;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  /* ── proposals ─────────────────────────────────────────── */
+  .props {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .prop {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--panel);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .prop-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .rank {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    flex: none;
+  }
+
+  .rank.sub {
+    background: var(--panel-2);
+    color: var(--ink-2);
+  }
+
+  .prop-head h3 {
+    flex: 1 1 auto;
+  }
+
+  .cost {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .cost span {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 2px 8px;
+  }
+
+  .prop-body {
+    padding: 18px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  ul.bul {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    color: var(--ink-2);
+    font-size: 14.5px;
+    max-width: 68ch;
+  }
+
+  ul.bul strong {
+    color: var(--ink);
+    font-weight: 700;
+  }
+
+  pre {
+    margin: 0;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--ink-2);
+    tab-size: 2;
+  }
+
+  pre .c {
+    color: var(--ink-3);
+  }
+
+  pre .k {
+    color: var(--accent);
+  }
+
+  pre .s {
+    color: var(--teal);
+  }
+
+  pre .add {
+    color: var(--ink);
+    display: block;
+    background: rgba(45, 212, 191, 0.08);
+    margin: 0 -16px;
+    padding: 0 16px;
+    border-left: 2px solid var(--teal);
+  }
+
+  pre .del {
+    color: var(--ink-3);
+    display: block;
+    background: rgba(244, 63, 94, 0.07);
+    margin: 0 -16px;
+    padding: 0 16px;
+    border-left: 2px solid var(--rose);
+    text-decoration: line-through;
+    text-decoration-color: rgba(244, 63, 94, 0.5);
+  }
+
+  .caution {
+    border-left: 2px solid var(--amber);
+    background: rgba(245, 165, 36, 0.07);
+    border-radius: 0 10px 10px 0;
+    padding: 11px 14px;
+    font-size: 13.5px;
+    color: var(--ink-2);
+    max-width: 68ch;
+  }
+
+  .caution b {
+    color: var(--ink);
+  }
+
+  /* ── plan table ────────────────────────────────────────── */
+  .tablewrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    min-width: 560px;
+  }
+
+  th,
+  td {
+    text-align: left;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+
+  th {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    background: var(--panel);
+    font-weight: 400;
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  td.num {
+    font-variant-numeric: tabular-nums;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+
+  footer {
+    margin-top: 64px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-3);
+    font-size: 12.5px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+  }
+
+  @media (max-width: 640px) {
+    .wrap {
+      padding: 0 16px 72px;
+    }
+    section {
+      padding-top: 44px;
+    }
+  }
+</style>
+
+<div class="ruler"></div>
+
+<div class="wrap">
+  <header class="masthead">
+    <span class="eyebrow">ScheduleResourceView · 일정 &gt; 워크로드</span>
+    <h1>타임라인에서 “지금 몇 월인지”가 안 보이는 이유와 고치는 법</h1>
+    <p class="lede">
+      워크로드 간트는 오늘 기준 –84일 ~ +280일, 총 365칸을 한 줄로 펼칩니다.
+      그런데 월 표기는 매달 1일 칸 하나에만, 가장 흐린 글자로 붙어 있습니다.
+      나머지 29일 구간을 보고 있으면 화면 어디에도 월·연도 정보가 없습니다.
+    </p>
+    <div class="meta">
+      <span class="tag mono">frontend/src/app/components/schedule/ScheduleResourceView.tsx</span>
+      <span class="tag mono">3,891 LOC</span>
+      <span class="tag mono">원인 5 · 개선안 4</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <h2>1. 진단</h2>
+      <span class="sec-note">스크린샷의 “9월”이 왜 눈에 안 들어오는가</span>
+    </div>
+
+    <div class="causes">
+      <article class="cause">
+        <div class="cause-top">
+          <span class="sev sev-hi"></span>
+          <h3>월 라벨이 1일 칸에만 존재</h3>
+        </div>
+        <p>
+          365칸 중 월 표기가 붙는 칸은 13개뿐입니다. 스크롤 위치가 월 중순이면
+          화면에 월 정보가 <b>0개</b>입니다. 스크린샷도 8월 31일과 9월 1일
+          경계라 우연히 보이는 상태입니다.
+        </p>
+        <div class="ref">:2445 &nbsp;showMonth = dayNum === 1 || idx === 0</div>
+      </article>
+
+      <article class="cause">
+        <div class="cause-top">
+          <span class="sev sev-hi"></span>
+          <h3>연도가 어디에도 없다</h3>
+        </div>
+        <p>
+          타임라인 범위가 13개월이라 최대 3개 연도를 가로지릅니다.
+          그런데 표기는 <code>month: "short"</code> 뿐이라 “1월”이 두 번 나와도
+          구분할 방법이 없습니다.
+        </p>
+        <div class="ref">:593-596 &nbsp;–84d ~ +280d &nbsp;/&nbsp; :2498 month:"short"</div>
+      </article>
+
+      <article class="cause">
+        <div class="cause-top">
+          <span class="sev sev-hi"></span>
+          <h3>화면에서 가장 약한 우선순위</h3>
+        </div>
+        <p>
+          날짜 숫자는 <code>text-foreground font-medium</code>인데 월 라벨은
+          <code>text-slate-500</code> + <code>absolute top-0.5 left-1</code>.
+          가장 중요한 문맥 정보가 가장 흐리고, 셀 좌상단 모서리에 눌려 있습니다.
+        </p>
+        <div class="ref">:2496-2499</div>
+      </article>
+
+      <article class="cause">
+        <div class="cause-top">
+          <span class="sev sev-mid"></span>
+          <h3>축소하면 더 무너진다</h3>
+        </div>
+        <p>
+          줌 최소값은 셀 폭 32px. “9월”·“Sep” 라벨이 셀보다 넓어 옆 칸을 침범하고,
+          44px 미만에서는 요일 라벨까지 숨겨져 문맥이 한 번 더 사라집니다.
+        </p>
+        <div class="ref">:68 ZOOM_PRESETS [32,44,60,80,100] &nbsp;/&nbsp; :2472 dayWidth &gt;= 44</div>
+      </article>
+
+      <article class="cause">
+        <div class="cause-top">
+          <span class="sev sev-mid"></span>
+          <h3>본문 그리드에 월 경계가 없다</h3>
+        </div>
+        <p>
+          주말·공휴일 음영은 있지만 월 구분선은 없습니다. 바 하나가 “한 달짜리
+          작업인지” 눈으로 셀 수 없어, 헤더를 놓치면 길이 감각도 같이 잃습니다.
+        </p>
+        <div class="ref">:2513-2530 주말/공휴일 컬럼 렌더 루프</div>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>2. 현재 vs 제안</h2>
+      <span class="sec-note">실제 헤더 구조를 그대로 축소한 목업 — 가로로 밀어보세요</span>
+    </div>
+
+    <div class="mockset">
+      <div class="mock">
+        <div class="mock-label">
+          <span>현재</span>
+          <span class="mock-verdict bad">월 표기 1칸 · 연도 없음 · 경계선 없음</span>
+        </div>
+        <div class="mock-scroll">
+          <div class="gantt">
+            <div class="g-side">직군별</div>
+            <div>
+              <div class="g-days">
+                <div class="g-day we"><span class="dow">Sat</span><span class="num">29</span></div>
+                <div class="g-day we"><span class="dow">Sun</span><span class="num">30</span></div>
+                <div class="g-day"><span class="dow">Mon</span><span class="num">31</span></div>
+                <div class="g-day"><span class="m-old">9월</span><span class="dow">Tue</span><span class="num">1</span></div>
+                <div class="g-day"><span class="dow">Wed</span><span class="num">2</span></div>
+                <div class="g-day"><span class="dow">Thu</span><span class="num">3</span></div>
+                <div class="g-day"><span class="dow">Fri</span><span class="num">4</span></div>
+                <div class="g-day we"><span class="dow">Sat</span><span class="num">5</span></div>
+                <div class="g-day we"><span class="dow">Sun</span><span class="num">6</span></div>
+                <div class="g-day"><span class="dow">Mon</span><span class="num">7</span></div>
+                <div class="g-day"><span class="dow">Tue</span><span class="num">8</span></div>
+                <div class="g-day"><span class="dow">Wed</span><span class="num">9</span></div>
+                <div class="g-day"><span class="dow">Thu</span><span class="num">10</span></div>
+              </div>
+              <div class="g-bars">
+                <div class="g-bar" style="margin-left: 92px; width: 322px; background: #4fd1c5">
+                  [개발] 시련던전 인게임 개발
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mock">
+        <div class="mock-label">
+          <span>제안 — 월 밴드 + 고정 라벨</span>
+          <span class="mock-verdict good">항상 보이는 연·월 · 월 경계선 · 좌측 현재 월 칩</span>
+        </div>
+        <div class="mock-scroll">
+          <div class="gantt">
+            <div class="g-side"><span class="g-chip">2026년 9월</span></div>
+            <div>
+              <div class="g-band">
+                <div class="g-seg" style="width: 138px"><span class="yr">2026</span>8월</div>
+                <div class="g-seg now" style="width: 460px"><span class="yr">2026</span>9월</div>
+              </div>
+              <div class="g-days">
+                <div class="g-day we"><span class="dow">Sat</span><span class="num">29</span></div>
+                <div class="g-day we"><span class="dow">Sun</span><span class="num">30</span></div>
+                <div class="g-day"><span class="dow">Mon</span><span class="num">31</span></div>
+                <div class="g-day mstart"><span class="dow">Tue</span><span class="num">1</span></div>
+                <div class="g-day"><span class="dow">Wed</span><span class="num">2</span></div>
+                <div class="g-day"><span class="dow">Thu</span><span class="num">3</span></div>
+                <div class="g-day"><span class="dow">Fri</span><span class="num">4</span></div>
+                <div class="g-day we"><span class="dow">Sat</span><span class="num">5</span></div>
+                <div class="g-day we"><span class="dow">Sun</span><span class="num">6</span></div>
+                <div class="g-day"><span class="dow">Mon</span><span class="num">7</span></div>
+                <div class="g-day"><span class="dow">Tue</span><span class="num">8</span></div>
+                <div class="g-day"><span class="dow">Wed</span><span class="num">9</span></div>
+                <div class="g-day"><span class="dow">Thu</span><span class="num">10</span></div>
+              </div>
+              <div class="g-bars">
+                <div class="g-bar" style="margin-left: 92px; width: 322px; background: #4fd1c5">
+                  [개발] 시련던전 인게임 개발
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="dim">
+      핵심 차이는 정보량이 아니라 <b>지속성</b>입니다. 월 표기가 “한 칸에 찍힌
+      점”에서 “구간 전체를 덮는 띠”로 바뀌면, 스크롤 위치와 무관하게 항상
+      화면 안에 남습니다.
+    </p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>3. 개선안</h2>
+      <span class="sec-note">우선순위 순 · A와 B는 서로 독립적으로 적용 가능</span>
+    </div>
+
+    <div class="props">
+      <!-- A -->
+      <article class="prop">
+        <div class="prop-head">
+          <span class="rank">안 A · 권장</span>
+          <h3>2단 헤더 — 월 밴드를 헤더 위쪽에 추가</h3>
+          <div class="cost">
+            <span>작업량 中</span><span>영향 헤더 전역</span>
+          </div>
+        </div>
+        <div class="prop-body">
+          <ul class="bul">
+            <li>
+              <strong>높이 배분</strong> — <code>HEADER_HEIGHT 48</code>을
+              월 밴드 18px + 일 밴드 30px으로 나눕니다. 총합을 48로 유지하면
+              마일스톤 행 <code>sticky top</code>, <code>minHeight</code> 등
+              기존 계산을 건드릴 필요가 없습니다.
+            </li>
+            <li>
+              <strong>세그먼트 계산</strong> — <code>timelineDays</code>를 한 번
+              훑어 월별 <code>{ startIdx, days, year, month }</code>를 만들고
+              <code>useMemo</code>로 캐시합니다. (365칸 → 13개 세그먼트)
+            </li>
+            <li>
+              <strong>라벨 고정</strong> — 세그먼트 안의 라벨에
+              <code>position: sticky; left: 200px</code>를 주면, 세그먼트가
+              절반쯤 스크롤아웃돼도 라벨은 좌측 컬럼 바로 옆에 붙어 남습니다.
+              간트 표준 동작입니다.
+            </li>
+            <li>
+              <strong>표기 포맷</strong> — <code>2026년 9월</code>. 세그먼트 폭이
+              좁으면(<code>days * dayWidth &lt; 90</code>) 연도를 떨어뜨리고
+              <code>9월</code>만, 단 1월과 연도가 바뀌는 첫 세그먼트는 항상
+              연도를 붙입니다.
+            </li>
+            <li>
+              <strong>현재 월 강조</strong> — 오늘이 포함된 세그먼트에
+              <code>bg-bridge-accent/10</code>.
+            </li>
+          </ul>
+
+          <pre><span class="c">// ScheduleResourceView.tsx — 상수 (:83 부근)</span>
+<span class="del">const HEADER_HEIGHT = 48;</span>
+<span class="add">const MONTH_BAND_HEIGHT = 18;</span>
+<span class="add">const DAY_BAND_HEIGHT = 30;</span>
+<span class="add">const HEADER_HEIGHT = MONTH_BAND_HEIGHT + DAY_BAND_HEIGHT; // 48 유지</span>
+
+<span class="c">// 월 세그먼트 (timelineDays 메모 아래)</span>
+<span class="k">const</span> monthSegments = useMemo(() => {
+  <span class="k">const</span> segs: { startIdx: number; days: number; y: number; m: number }[] = [];
+  timelineDays.forEach((d, i) => {
+    <span class="k">const</span> last = segs[segs.length - 1];
+    <span class="k">if</span> (last && last.y === d.getFullYear() && last.m === d.getMonth()) last.days++;
+    <span class="k">else</span> segs.push({ startIdx: i, days: 1, y: d.getFullYear(), m: d.getMonth() });
+  });
+  <span class="k">return</span> segs;
+}, [timelineDays]);</pre>
+
+          <pre><span class="c">// 헤더 렌더 (:2433 "Day headers" 블록 바로 위에 밴드 추가)</span>
+&lt;div className=<span class="s">"relative"</span> style={{ width: totalTimelineWidth, height: MONTH_BAND_HEIGHT }}&gt;
+  {monthSegments.map((s) =&gt; {
+    <span class="k">const</span> w = s.days * dayWidth;
+    <span class="k">const</span> isNow = todayIndex &gt;= s.startIdx && todayIndex &lt; s.startIdx + s.days;
+    <span class="k">const</span> withYear = w &gt;= <span class="s">90</span> || s.m === <span class="s">0</span> || s.startIdx === <span class="s">0</span>;
+    <span class="k">return</span> (
+      &lt;div key={`${s.y}-${s.m}`} className={`absolute top-0 h-full border-l border-foreground/[0.14]
+        ${isNow ? <span class="s">"bg-bridge-accent/10"</span> : <span class="s">""</span>}`}
+        style={{ left: s.startIdx * dayWidth, width: w }}&gt;
+        &lt;span className=<span class="s">"sticky inline-block px-2 text-xs font-bold text-foreground whitespace-nowrap"</span>
+          style={{ left: LEFT_COL_WIDTH }}&gt;
+          {withYear ? t(<span class="s">"schedule.resource.ymLabel"</span>, <span class="s">"{{y}}년 {{m}}월"</span>, { y: s.y, m: s.m + 1 })
+                    : t(<span class="s">"schedule.resource.mLabel"</span>, <span class="s">"{{m}}월"</span>, { m: s.m + 1 })}
+        &lt;/span&gt;
+      &lt;/div&gt;
+    );
+  })}
+&lt;/div&gt;</pre>
+
+          <div class="caution">
+            <b>주의 2가지.</b> ① 일 밴드 셀의 <code>height</code>는
+            <code>HEADER_HEIGHT</code>가 아니라 <code>DAY_BAND_HEIGHT</code>로
+            바꿔야 합니다(:2466 부근 style). ② sticky 라벨의 z-index는 좌측 코너
+            셀(<code>z-30</code>)보다 낮게 둬야 라벨이 코너를 덮지 않습니다.
+            밴드 컨테이너는 <code>z-0~10</code> 범위로.
+          </div>
+        </div>
+      </article>
+
+      <!-- B -->
+      <article class="prop">
+        <div class="prop-head">
+          <span class="rank">안 B · 즉시</span>
+          <h3>좌측 코너에 “현재 보이는 달” 칩</h3>
+          <div class="cost">
+            <span>작업량 小</span><span>레이아웃 변경 없음</span>
+          </div>
+        </div>
+        <div class="prop-body">
+          <p class="dim">
+            이미 스크롤할 때마다 <code>visibleDayRange</code>를 rAF로 측정하고
+            있습니다(:763-772). 이 값만 재활용하면 코드 20줄로 “지금 몇 월”을
+            항상 고정 노출할 수 있습니다. 200px 좌측 코너는 sticky라 절대
+            화면 밖으로 나가지 않습니다.
+          </p>
+          <pre><span class="k">const</span> visibleMonthLabel = useMemo(() =&gt; {
+  <span class="k">const</span> r = visibleDayRange;
+  <span class="k">if</span> (!r) <span class="k">return</span> <span class="s">null</span>;
+  <span class="k">const</span> a = timelineDays[Math.max(<span class="s">0</span>, r.start)];
+  <span class="k">const</span> b = timelineDays[Math.min(timelineDays.length - <span class="s">1</span>, r.end)];
+  <span class="k">if</span> (!a || !b) <span class="k">return</span> <span class="s">null</span>;
+  <span class="k">const</span> sameY = a.getFullYear() === b.getFullYear();
+  <span class="k">const</span> sameM = sameY && a.getMonth() === b.getMonth();
+  <span class="k">if</span> (sameM) <span class="k">return</span> `${a.getFullYear()}년 ${a.getMonth() + <span class="s">1</span>}월`;
+  <span class="k">if</span> (sameY) <span class="k">return</span> `${a.getFullYear()}년 ${a.getMonth() + <span class="s">1</span>}–${b.getMonth() + <span class="s">1</span>}월`;
+  <span class="k">return</span> `${a.getFullYear()}.${a.getMonth() + <span class="s">1</span>} – ${b.getFullYear()}.${b.getMonth() + <span class="s">1</span>}`;
+}, [visibleDayRange, timelineDays]);
+
+<span class="c">// 좌측 코너 (:2308 "직군별" 라벨 자리) — 임베드 모드에선 텍스트가 없으므로 칩만 표시</span>
+&lt;span className=<span class="s">"text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent whitespace-nowrap"</span>&gt;
+  {visibleMonthLabel}
+&lt;/span&gt;</pre>
+          <div class="caution">
+            좌측 코너는 이미 <b>직군별 · 특별일 · ⚙</b> 3개가 200px를 나눠 쓰고
+            있습니다. 칩을 넣으려면 “직군별” 텍스트를 아이콘+툴팁으로 줄이거나
+            (그룹 기준은 설정 팝오버에도 있음), <code>LEFT_COL_WIDTH</code>를
+            220~240으로 올리는 편이 안전합니다.
+          </div>
+        </div>
+      </article>
+
+      <!-- C -->
+      <article class="prop">
+        <div class="prop-head">
+          <span class="rank sub">안 C</span>
+          <h3>본문에도 월 경계선 + 홀짝 월 미세 틴트</h3>
+          <div class="cost"><span>작업량 小</span><span>가독성 이득 큼</span></div>
+        </div>
+        <div class="prop-body">
+          <ul class="bul">
+            <li>
+              주말·공휴일 컬럼을 그리는 기존 루프(:2513-2530, 각 행 배경)에
+              <code>day.getDate() === 1</code>일 때 <code>border-l border-foreground/[0.14]</code>
+              한 줄을 추가합니다. 헤더의 월 밴드 구분선과 세로로 이어져
+              타임라인 전체가 월 단위로 분절됩니다.
+            </li>
+            <li>
+              선택 사항 — 짝수 월 구간에 <code>bg-foreground/[0.015]</code>
+              수준의 극미세 틴트. 주말 음영(<code>/[0.02]</code>)보다 옅게 둬야
+              두 신호가 싸우지 않습니다.
+            </li>
+            <li>
+              바를 드래그해 날짜를 바꿀 때, 커서 옆 칩의 날짜 표기에도
+              <code>M월 D일</code>로 월을 포함시키면 이동 중에도 문맥이 유지됩니다.
+            </li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- D -->
+      <article class="prop">
+        <div class="prop-head">
+          <span class="rank sub">안 D</span>
+          <h3>월 점프 · 접근성 마감</h3>
+          <div class="cost"><span>작업량 小</span><span>후속</span></div>
+        </div>
+        <div class="prop-body">
+          <ul class="bul">
+            <li>
+              <strong>월 점프</strong> — 안 B의 칩을 버튼으로 만들고 클릭 시
+              13개월 드롭다운. 선택하면
+              <code>scrollLeft = seg.startIdx * dayWidth</code>.
+              “오늘” 버튼은 마운트 시 스크롤 로직(:741-745)을 그대로 재사용합니다.
+            </li>
+            <li>
+              <strong>날짜 셀 aria</strong> — 현재 <code>title</code>은 공휴일명
+              또는 “우클릭: 휴무일/근무일 지정”뿐입니다.
+              <code>aria-label="2026년 9월 7일 월요일"</code>를 추가하면
+              스크린리더에서 월을 알 수 있습니다.
+            </li>
+            <li>
+              <strong>토큰 정합</strong> — 월 라벨은 CLAUDE.md의 라벨 토큰
+              (<code>text-xs font-bold</code>)을 따르고, 현재의
+              <code>text-slate-500</code>은 본문 힌트용으로만 남깁니다.
+              최소 크기 <code>text-xs</code> 규칙도 그대로 지켜집니다.
+            </li>
+          </ul>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>4. 적용 순서</h2>
+      <span class="sec-note">모두 단일 파일 · 백엔드 변경 없음</span>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>순서</th>
+            <th>작업</th>
+            <th>수정 위치</th>
+            <th>확인 포인트</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="num">1</td>
+            <td>월 세그먼트 <code>useMemo</code> 추가</td>
+            <td class="num">:589 이후</td>
+            <td>13개 세그먼트, 합계 365일</td>
+          </tr>
+          <tr>
+            <td class="num">2</td>
+            <td>헤더 상수 분리 + 월 밴드 렌더</td>
+            <td class="num">:83, :2433</td>
+            <td>마일스톤 행 sticky 어긋남 없음</td>
+          </tr>
+          <tr>
+            <td class="num">3</td>
+            <td>일 셀 height를 <code>DAY_BAND_HEIGHT</code>로</td>
+            <td class="num">:2466</td>
+            <td>줌 32/44/60/80/100 전부 클리핑 없음</td>
+          </tr>
+          <tr>
+            <td class="num">4</td>
+            <td>기존 1일 칸 월 라벨 제거</td>
+            <td class="num">:2496-2500</td>
+            <td>중복 표기 사라짐</td>
+          </tr>
+          <tr>
+            <td class="num">5</td>
+            <td>본문 월 경계선</td>
+            <td class="num">:2513-2530 및 행 배경 루프</td>
+            <td>헤더 구분선과 세로 정렬</td>
+          </tr>
+          <tr>
+            <td class="num">6</td>
+            <td>좌측 현재 월 칩 (+ 폭 조정)</td>
+            <td class="num">:2305-2320</td>
+            <td>임베드 모드에서 겹침 없음</td>
+          </tr>
+          <tr>
+            <td class="num">7</td>
+            <td>i18n 키 <code>ymLabel</code> / <code>mLabel</code></td>
+            <td class="num">i18n/locales × 10</td>
+            <td>en은 <code>Sep 2026</code> 어순</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="caution">
+      <b>검증.</b> 줌 5단계 × (연말 경계 스크롤 / 오늘 위치 / 임베드 모드)
+      조합을 눈으로 확인하고, <code>cd frontend &amp;&amp; npm run build</code>로
+      타입체크까지 통과시키면 됩니다. 특히 12월→1월 경계에서 연도가 두 번
+      바뀌는 지점을 꼭 보세요.
+    </div>
+  </section>
+
+  <footer>
+    <span>BRIDGE · 워크로드 타임라인 개선 검토</span>
+    <span class="mono">ScheduleResourceView.tsx</span>
+    <span class="mono">2026-08-10</span>
+  </footer>
+</div>

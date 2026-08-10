@@ -1,0 +1,690 @@
+<title>마일스톤 콘솔 · 피쳐 칩 → 탭 개선안</title>
+<style>
+  :root {
+    --ground: #0f141f;
+    --panel: #161d2b;
+    --panel-2: #1b2434;
+    --line: rgba(148, 163, 184, 0.16);
+    --line-strong: rgba(148, 163, 184, 0.32);
+    --ink: #e8ecf5;
+    --ink-2: #9aa8bf;
+    --ink-3: #6b7a93;
+    --accent: #6366f1;
+    --accent-soft: rgba(99, 102, 241, 0.16);
+    --teal: #2dd4bf;
+    --amber: #f5a524;
+    --rose: #f43f5e;
+    --good: #10b981;
+    --shadow: 0 18px 40px -28px rgba(0, 0, 0, 0.9);
+    --code-bg: #101624;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --ground: #fffcf8;
+      --panel: #f6efe4;
+      --panel-2: #efe6d8;
+      --line: rgba(61, 46, 31, 0.14);
+      --line-strong: rgba(61, 46, 31, 0.3);
+      --ink: #33281c;
+      --ink-2: #6d6151;
+      --ink-3: #90867a;
+      --accent: #4f46e5;
+      --accent-soft: rgba(79, 70, 229, 0.12);
+      --teal: #0d9488;
+      --amber: #b45309;
+      --rose: #be123c;
+      --good: #047857;
+      --shadow: 0 18px 40px -30px rgba(61, 46, 31, 0.45);
+      --code-bg: #f1e9db;
+    }
+  }
+
+  :root[data-theme="light"] {
+    --ground: #fffcf8;
+    --panel: #f6efe4;
+    --panel-2: #efe6d8;
+    --line: rgba(61, 46, 31, 0.14);
+    --line-strong: rgba(61, 46, 31, 0.3);
+    --ink: #33281c;
+    --ink-2: #6d6151;
+    --ink-3: #90867a;
+    --accent: #4f46e5;
+    --accent-soft: rgba(79, 70, 229, 0.12);
+    --teal: #0d9488;
+    --amber: #b45309;
+    --rose: #be123c;
+    --good: #047857;
+    --shadow: 0 18px 40px -30px rgba(61, 46, 31, 0.45);
+    --code-bg: #f1e9db;
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0f141f;
+    --panel: #161d2b;
+    --panel-2: #1b2434;
+    --line: rgba(148, 163, 184, 0.16);
+    --line-strong: rgba(148, 163, 184, 0.32);
+    --ink: #e8ecf5;
+    --ink-2: #9aa8bf;
+    --ink-3: #6b7a93;
+    --accent: #6366f1;
+    --accent-soft: rgba(99, 102, 241, 0.16);
+    --teal: #2dd4bf;
+    --amber: #f5a524;
+    --rose: #f43f5e;
+    --good: #10b981;
+    --shadow: 0 18px 40px -28px rgba(0, 0, 0, 0.9);
+    --code-bg: #101624;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+      "Pretendard", "Segoe UI", "Noto Sans KR", sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+  }
+
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+
+  h1 {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+    margin: 0 0 8px;
+    text-wrap: balance;
+  }
+
+  .lede {
+    color: var(--ink-2);
+    max-width: 62ch;
+    margin: 0 0 6px;
+  }
+
+  .meta {
+    font-size: 12px;
+    color: var(--ink-3);
+    margin: 0 0 48px;
+  }
+
+  h2 {
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 56px 0 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  h2 .no {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sub {
+    color: var(--ink-2);
+    font-size: 14px;
+    margin: 0 0 20px;
+    max-width: 68ch;
+  }
+
+  /* ── 목업 스테이지 ─────────────────────────── */
+  .stage {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin: 0 0 14px;
+  }
+
+  .stage-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border-bottom: 1px solid var(--line);
+    background: var(--panel-2);
+  }
+
+  .stage-label .tag {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    padding: 1px 8px;
+    border-radius: 999px;
+    text-transform: none;
+  }
+  .tag.now { background: rgba(244, 63, 94, 0.15); color: var(--rose); }
+  .tag.next { background: rgba(45, 212, 191, 0.15); color: var(--teal); }
+
+  .stage-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 18px;
+    overflow-x: auto;
+  }
+
+  .row-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    flex-shrink: 0;
+  }
+
+  .bulk {
+    display: flex;
+    gap: 6px;
+    padding-right: 10px;
+    margin-right: 4px;
+    border-right: 1px solid var(--line);
+    flex-shrink: 0;
+  }
+
+  .bulk button {
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-2);
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 3px 9px;
+    cursor: pointer;
+  }
+  .bulk button:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* Before: 칩 */
+  .chip {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--ink) 3%, transparent);
+    color: var(--ink-2);
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .chip .box {
+    width: 14px; height: 14px;
+    border: 1.5px solid var(--c);
+    border-radius: 3px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    color: transparent;
+    font-size: 10px;
+    line-height: 1;
+  }
+  .chip .cnt { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px; opacity: 0.75; font-variant-numeric: tabular-nums; }
+  .chip.on {
+    background: var(--c);
+    border-color: transparent;
+    color: #fff;
+    font-weight: 700;
+  }
+  .chip.on .box { border-color: rgba(255,255,255,0.85); color: #fff; }
+
+  /* After: 탭 */
+  .tabrow {
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    padding: 0 18px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--line);
+  }
+  .tabrow .row-label, .tabrow .bulk { align-self: center; }
+  .tabrow .bulk { border-right: none; padding-right: 6px; }
+
+  .ftab {
+    position: relative;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 14px 12px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-2);
+    background: none;
+    border: none;
+    border-radius: 10px 10px 0 0;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+  }
+  .ftab:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 5%, transparent); }
+  .ftab .dot {
+    width: 8px; height: 8px;
+    border-radius: 999px;
+    background: var(--c);
+    flex-shrink: 0;
+    opacity: 0.55;
+    transition: opacity 0.15s, box-shadow 0.15s;
+  }
+  .ftab .cnt {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11.5px;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .ftab .cnt.done { color: var(--teal); }
+  .ftab::after {
+    content: "";
+    position: absolute;
+    left: 10px; right: 10px; bottom: -1px;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: var(--c);
+    opacity: 0;
+    transform: scaleX(0.6);
+    transition: opacity 0.18s, transform 0.18s;
+  }
+  .ftab.on { color: var(--ink); font-weight: 700; }
+  .ftab.on .dot { opacity: 1; box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 22%, transparent); }
+  .ftab.on .cnt { color: var(--ink-2); }
+  .ftab.on .cnt.done { color: var(--teal); }
+  .ftab.on::after { opacity: 1; transform: scaleX(1); }
+
+  .ftab.add {
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .ftab.add:hover { color: var(--accent); }
+
+  .stage-hint {
+    padding: 10px 18px 14px;
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ftab, .ftab::after, .ftab .dot, .chip { transition: none; }
+  }
+
+  /* ── 문제/원칙 카드 ─────────────────────────── */
+  .grid2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+    margin: 18px 0 0;
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 18px;
+  }
+
+  .card h3 {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card p { font-size: 13.5px; color: var(--ink-2); margin: 0; }
+
+  .pip {
+    width: 8px; height: 8px;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+  .pip.bad { background: var(--rose); }
+  .pip.ok { background: var(--teal); }
+
+  /* ── 스펙 표 ─────────────────────────── */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; margin-top: 18px; }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 13.5px; }
+  th, td { text-align: left; padding: 10px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    background: var(--panel-2);
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { font-weight: 700; white-space: nowrap; }
+  td { color: var(--ink-2); }
+  td code, li code, p code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    background: color-mix(in srgb, var(--ink) 7%, transparent);
+    border-radius: 5px;
+    padding: 1px 5px;
+    color: var(--ink);
+  }
+
+  /* ── 코드 블록 ─────────────────────────── */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.75;
+    color: var(--ink);
+    margin: 14px 0 0;
+  }
+  pre .cm { color: var(--ink-3); }
+  pre .del { color: var(--rose); }
+  pre .add { color: var(--teal); }
+
+  ul.list { margin: 10px 0 0; padding-left: 20px; color: var(--ink-2); font-size: 14px; }
+  ul.list li { margin-bottom: 8px; }
+  ul.list li strong { color: var(--ink); font-weight: 700; }
+
+  .note {
+    margin-top: 18px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    background: var(--accent-soft);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    font-size: 13.5px;
+    color: var(--ink-2);
+  }
+  .note strong { color: var(--ink); }
+
+  button:focus-visible, .ftab:focus-visible, .chip:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">BRIDGE · Milestone Console</p>
+  <h1>피쳐 필터, 칩에서 탭으로</h1>
+  <p class="lede">
+    마일스톤 관리 콘솔의 피쳐 선택 UI를 on/off 칩에서 <b>단일 선택 언더라인 탭</b>으로 전환한다.
+    선택은 "필터를 켠다"가 아니라 "이 화면의 스코프를 정한다"이기 때문이다.
+    다중 선택을 없애면서 "피쳐" 라벨과 모두/해제 버튼도 함께 제거한다 — 탭은 언제나 정확히 하나가 선택되어 있다.
+    인라인 피쳐 추가(＋)는 유지한다.
+  </p>
+  <p class="meta">2026-08-10 · 대상: <code>frontend/src/app/components/MilestoneConsoleModal.tsx</code> (859–971행 피쳐 칩 영역)</p>
+
+  <h2><span class="no">01</span>현재 UI와 문제 진단</h2>
+  <p class="sub">현재 구현을 그대로 재현한 목업. 칩을 클릭해 켜고 꺼 보면 문제가 바로 보인다.</p>
+
+  <div class="stage">
+    <div class="stage-label">Before <span class="tag now">현재</span></div>
+    <div class="stage-row" id="beforeRow">
+      <span class="row-label">피쳐</span>
+      <span class="bulk"><button type="button" data-all="before">모두</button><button type="button" data-none="before">해제</button></span>
+    </div>
+    <div class="stage-hint">칩 클릭 = 토글 (인터랙티브 목업)</div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3><span class="pip bad"></span>스코프가 필터처럼 읽힌다</h3>
+      <p>체크박스 아이콘 + pill 형태는 바로 위 필터 행(지연만·미배정·완료)과 같은 문법이다.
+      하지만 피쳐 선택은 필터가 아니라 <b>아래 보드 전체의 범위</b>를 정하는 상위 결정이라, 위계가 구분되지 않는다.</p>
+    </div>
+    <div class="card">
+      <h3><span class="pip bad"></span>켜질수록 시끄러워진다</h3>
+      <p>선택 상태가 피쳐 색 <b>배경 전체 채움</b>이라, 기본 동작(전체 선택)만으로 헤더가 알록달록해진다.
+      정작 중요한 진행률 숫자는 색 배경 위에서 대비가 떨어진다.</p>
+    </div>
+    <div class="card">
+      <h3><span class="pip bad"></span>기본 상태가 가장 나쁜 상태</h3>
+      <p>최초 로드 시 전체 선택인데, 이는 곧 모든 칩이 최대 채도로 켜진 화면이 <b>기본 화면</b>이라는 뜻이다.
+      강조는 예외 상태여야 하는데 현재는 상시 상태다.</p>
+    </div>
+    <div class="card">
+      <h3><span class="pip bad"></span>보드와의 연결이 약하다</h3>
+      <p>둥근 칩은 공중에 떠 있는 개별 토큰처럼 보인다. 선택 결과가 바로 아래 보드에 반영된다는
+      <b>"이 행이 아래 내용을 지배한다"</b>는 관계가 형태로 드러나지 않는다.</p>
+    </div>
+  </div>
+
+  <h2><span class="no">02</span>개선 방향: 단일 선택 언더라인 탭</h2>
+  <p class="sub">
+    탭 행을 하단 보더에 앵커하고, 선택 상태를 배경 채움 대신 <b>피쳐 색 언더라인 + 텍스트 강조</b>로 표현한다.
+    피쳐 색은 상시 노출되는 8px 도트로 축소해 색상 소음을 없앤다.
+    클릭하면 그 피쳐 하나만 선택된다 — "피쳐" 라벨, 모두/해제 버튼은 존재 이유가 사라지므로 제거한다.
+  </p>
+
+  <div class="stage">
+    <div class="stage-label">After <span class="tag next">개선안</span></div>
+    <div class="tabrow" id="afterRow"></div>
+    <div class="stage-hint">탭 클릭 = 해당 피쳐만 선택 · 완료된 피쳐(17/17)는 카운트가 틸 색으로 표시</div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3><span class="pip ok"></span>탭 문법 = 스코프 문법</h3>
+      <p>보더에 붙은 탭은 "지금 보고 있는 것"을 뜻하는 보편 문법이다.
+      위 필터 행(pill)과 형태가 달라져 <b>필터 ↔ 스코프의 위계</b>가 한눈에 갈린다.</p>
+    </div>
+    <div class="card">
+      <h3><span class="pip ok"></span>색은 식별자로만</h3>
+      <p>피쳐 색은 도트와 2px 언더라인에만 쓴다. 전체 선택 상태에서도 화면이 조용하고,
+      텍스트·진행률은 항상 <code>foreground</code> 대비를 유지한다.</p>
+    </div>
+    <div class="card">
+      <h3><span class="pip ok"></span>빈 상태가 사라진다</h3>
+      <p>단일 선택 탭은 언제나 하나가 선택되어 있다. "칩을 하나 이상 선택하세요" 빈 화면이 구조적으로
+      불가능해지고, 최초 로드도 <b>첫 피쳐 자동 선택</b>으로 바로 보드를 보여준다.</p>
+    </div>
+    <div class="card">
+      <h3><span class="pip ok"></span>완료 상태가 공짜로 생긴다</h3>
+      <p>배경색에서 해방된 카운트에 의미를 실을 수 있다.
+      <code>done === total</code>이면 카운트를 틸로 — 런칭 체크 콘솔에서 가장 보고 싶은 신호다.</p>
+    </div>
+  </div>
+
+  <h2><span class="no">03</span>상태 스펙</h2>
+  <div class="tablewrap">
+    <table>
+      <tr><th>상태</th><th>표현</th><th>Tailwind (프로젝트 토큰)</th></tr>
+      <tr>
+        <td>비선택</td>
+        <td>흐린 텍스트, 도트 55% 불투명, 언더라인 없음</td>
+        <td><code>text-slate-400 font-medium</code></td>
+      </tr>
+      <tr>
+        <td>호버</td>
+        <td>텍스트 상승 + 상단 라운드 옅은 배경</td>
+        <td><code>hover:text-foreground hover:bg-foreground/5 rounded-t-lg</code></td>
+      </tr>
+      <tr>
+        <td>선택</td>
+        <td>볼드 + 피쳐 색 2px 언더라인 + 도트 100% + 도트 링</td>
+        <td><code>text-foreground font-bold</code> + 언더라인 <code>span</code>에 inline <code>background: color</code></td>
+      </tr>
+      <tr>
+        <td>완료 피쳐</td>
+        <td>카운트만 틸 (선택 여부 무관)</td>
+        <td><code>text-bridge-secondary</code> (done === total 일 때)</td>
+      </tr>
+      <tr>
+        <td>피쳐 라벨 · 모두/해제</td>
+        <td><b>제거</b> — 단일 선택 탭에서는 역할이 없다</td>
+        <td><code>selectAll</code> / <code>clearAll</code> 핸들러와 함께 삭제</td>
+      </tr>
+      <tr>
+        <td>＋ 피쳐</td>
+        <td>맨 뒤 고스트 탭 (dashed 보더 제거, 텍스트만) · 생성 완료 시 새 피쳐를 즉시 선택</td>
+        <td><code>text-slate-500 hover:text-bridge-accent</code> · 인라인 폼은 기존 유지</td>
+      </tr>
+      <tr>
+        <td>접근성</td>
+        <td>진짜 단일 선택이므로 <code>role="tablist"</code> / <code>role="tab"</code> + <code>aria-selected</code></td>
+        <td>터치 타겟 <code>min-h-[44px]</code>, 포커스 링 <code>focus-visible:ring-2 ring-bridge-accent/50</code>, 선택 탭만 <code>tabIndex=0</code>(roving)</td>
+      </tr>
+    </table>
+  </div>
+
+  <h2><span class="no">04</span>구현 가이드</h2>
+  <p class="sub"><code>MilestoneConsoleModal.tsx</code> 859–971행 피쳐 칩 영역 교체. 상태 모델이 <code>Set&lt;string&gt;</code> → 단일 <code>string</code>으로 바뀌는 것이 핵심이고, 컨테이너의 <code>border-b</code> 위에 탭이 <code>-mb-px</code>로 얹히는 구조.</p>
+
+  <pre><span class="cm">{/* 1. 상태 모델: 다중 → 단일 */}</span>
+<span class="del">- const [selected, setSelected] = useState&lt;Set&lt;string&gt;&gt;(new Set());
+- const toggleFeature = (id) =&gt; ...;  const selectAll = ...;  const clearAll = ...;</span>
+<span class="add">+ const [selectedId, setSelectedId] = useState&lt;string | null&gt;(null);
++ <span class="cm">// 최초 로드: 전체 선택 → 첫 피쳐 자동 선택 (287행 부근)</span>
++ useEffect(() =&gt; { if (!selectedId &amp;&amp; features.length) setSelectedId(features[0].featureId); }, [features]);</span>
+
+<span class="cm">{/* 2. 컨테이너: 라벨·모두/해제 삭제, 탭이 border-b에 앵커 */}</span>
+<span class="del">- &lt;div className="flex items-center gap-2 px-5 py-2.5 border-b ..."&gt;
+-   &lt;span&gt;피쳐&lt;/span&gt; &lt;button&gt;모두&lt;/button&gt; &lt;button&gt;해제&lt;/button&gt;</span>
+<span class="add">+ &lt;div role="tablist" aria-label="피쳐"
++   className="flex items-end gap-1 px-5 border-b border-foreground/[0.08]
++   overflow-x-auto shrink-0 custom-scrollbar"&gt;</span>
+
+<span class="cm">{/* 3. 칩 → 탭 버튼 */}</span>
+&lt;button
+  role="tab"
+  aria-selected={on}
+  tabIndex={on ? 0 : -1}
+<span class="del">-   onClick={() =&gt; toggleFeature(f.featureId)}
+-   className={`... min-h-[40px] px-3.5 py-2 rounded-full border ${on
+-     ? "text-white border-transparent font-bold" : "bg-foreground/[0.03] ..."}`}
+-   style={on ? { background: color } : undefined}</span>
+<span class="add">+   onClick={() =&gt; setSelectedId(f.featureId)}
++   className={`relative shrink-0 inline-flex items-center gap-2 min-h-[44px]
++     px-3.5 pt-2 pb-2.5 -mb-px rounded-t-lg text-[13px] transition-colors ${on
++       ? "text-foreground font-bold"
++       : "text-slate-400 font-medium hover:text-foreground hover:bg-foreground/5"}`}</span>
+&gt;
+<span class="del">-   {on ? &lt;CheckSquare className="w-4 h-4" /&gt; : &lt;Square ... /&gt;}</span>
+<span class="add">+   &lt;span className={`w-2 h-2 rounded-full ${on ? "" : "opacity-50"}`}
++     style={{ background: color }} /&gt;</span>
+    {f.featureTitle}
+<span class="add">+   &lt;span className={`font-mono text-xs tabular-nums ${
++     f.total &gt; 0 &amp;&amp; f.done === f.total ? "text-bridge-secondary" : "opacity-70"}`}&gt;</span>
+      {f.done}/{f.total}
+    &lt;/span&gt;
+<span class="add">+   {on &amp;&amp; &lt;span className="absolute left-2.5 right-2.5 bottom-0 h-[2px]
++     rounded-t-full" style={{ background: color }} /&gt;}</span>
+&lt;/button&gt;</pre>
+
+  <ul class="list">
+    <li><strong>파생 로직 정리</strong> — <code>selectedFeatures</code>(배열) 참조부는 <code>features.find(f =&gt; f.featureId === selectedId)</code> 단일 참조로 축소. 보드는 항상 피쳐 하나의 태스크 컬럼만 렌더링한다.</li>
+    <li><strong>빈 상태 축소</strong> — 981행 "위에서 피쳐 칩을 하나 이상 선택하세요"는 삭제. 남는 빈 상태는 <b>피쳐가 0개일 때</b>뿐이며, 이때는 "＋ 피쳐로 첫 피쳐를 만들어 보세요"로 생성을 유도한다.</li>
+    <li><strong>피쳐 생성 직후</strong> — <code>createFeatureInline</code> 성공 시 <code>setSelectedId(새 id)</code>로 즉시 그 탭으로 전환.</li>
+    <li><strong>피쳐 삭제/이탈 시</strong> — 선택된 피쳐가 목록에서 사라지면 첫 피쳐로 폴백.</li>
+    <li><strong>아이콘·핸들러 제거</strong> — <code>CheckSquare</code>/<code>Square</code> import, <code>selectAll</code>/<code>clearAll</code> 삭제.</li>
+    <li><strong>스크롤 시 언더라인 정합</strong> — 컨테이너 <code>border-b</code> + 탭 <code>-mb-px</code> 조합이면 가로 스크롤 중에도 언더라인이 보더에 정확히 붙는다. 선택 탭은 마운트 시 <code>scrollIntoView({ inline: "nearest" })</code>로 가시 영역 보장.</li>
+  </ul>
+
+  <div class="note">
+    <strong>다중 선택 제거로 얻는 것:</strong> "여러 피쳐를 겹쳐 보는 화면"이라는 중간 상태가 사라지면서
+    상태 모델(Set → id 하나), 빈 상태 분기, 모두/해제 UI가 통째로 삭제된다.
+    화면은 항상 "피쳐 하나 = 보드 하나"로 예측 가능해지고, 여러 피쳐를 아우르는 조망은
+    상단 헤더의 전체 카운트(피쳐 12 · 태스크 281 · 항목 928)가 이미 담당하고 있다.
+  </div>
+</div>
+
+<script>
+  const FEATURES = [
+    { name: "텍틱스 모드", done: 176, total: 192, c: "#6366f1" },
+    { name: "불 챕터 작업", done: 17, total: 17, c: "#8b5cf6" },
+    { name: "라이브 옵스", done: 9, total: 18, c: "#2dd4bf" },
+    { name: "[QA] 스텔라나이츠", done: 197, total: 239, c: "#f5a524" },
+    { name: "로비 작업", done: 69, total: 77, c: "#6366f1" },
+    { name: "스토리 모드", done: 111, total: 112, c: "#f43f5e" },
+    { name: "게임 플로우 작업", done: 26, total: 29, c: "#10b981" },
+  ];
+
+  function build(rowId, mode) {
+    const row = document.getElementById(rowId);
+    FEATURES.forEach((f, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      const on = mode === "chip" ? i < 3 : i === 0;
+      b.className = (mode === "chip" ? "chip" : "ftab") + (on ? " on" : "");
+      b.style.setProperty("--c", f.c);
+      const doneCls = f.done === f.total ? " done" : "";
+      if (mode === "chip") {
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+        b.innerHTML = '<span class="box">✓</span>' + f.name +
+          ' <span class="cnt">' + f.done + "/" + f.total + "</span>";
+        b.addEventListener("click", () => {
+          b.classList.toggle("on");
+          b.setAttribute("aria-pressed", b.classList.contains("on") ? "true" : "false");
+        });
+      } else {
+        b.setAttribute("role", "tab");
+        b.setAttribute("aria-selected", on ? "true" : "false");
+        b.innerHTML = '<span class="dot"></span>' + f.name +
+          ' <span class="cnt' + doneCls + '">' + f.done + "/" + f.total + "</span>";
+        b.addEventListener("click", () => {
+          row.querySelectorAll(".ftab:not(.add)").forEach((el) => {
+            el.classList.remove("on");
+            el.setAttribute("aria-selected", "false");
+          });
+          b.classList.add("on");
+          b.setAttribute("aria-selected", "true");
+        });
+      }
+      row.appendChild(b);
+    });
+    if (mode === "tab") {
+      const add = document.createElement("button");
+      add.type = "button";
+      add.className = "ftab add";
+      add.innerHTML = "＋ 피쳐";
+      row.appendChild(add);
+    }
+  }
+
+  build("beforeRow", "chip");
+  build("afterRow", "tab");
+
+  function setAll(rowId, on) {
+    document.querySelectorAll("#" + rowId + " .chip").forEach((el) => {
+      el.classList.toggle("on", on);
+      el.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+  document.querySelector('[data-all="before"]').addEventListener("click", () => setAll("beforeRow", true));
+  document.querySelector('[data-none="before"]').addEventListener("click", () => setAll("beforeRow", false));
+</script>

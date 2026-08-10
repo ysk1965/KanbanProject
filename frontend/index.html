@@ -41,6 +41,53 @@
     <!-- Google -->
     <meta name="google-site-verification" content="EN9onB1fUDfttxLZcLP_eFjry7DXpQstArq4xycMArI" />
 
+    <!-- Structured Data (JSON-LD) — 브랜드 문자열은 generateBrandedIndex 플러그인이 치환 -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://milkyway.pe.kr/#organization",
+          "name": "Milkyway",
+          "url": "https://milkyway.pe.kr",
+          "logo": "https://milkyway.pe.kr/MilkyWay.png",
+          "email": "support@bridgespots.com",
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "contactType": "customer support",
+            "email": "support@bridgespots.com",
+            "availableLanguage": ["ko", "en"]
+          },
+          "sameAs": ["https://bridgespots.com"]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://milkyway.pe.kr/#website",
+          "name": "Milkyway",
+          "url": "https://milkyway.pe.kr",
+          "publisher": { "@id": "https://milkyway.pe.kr/#organization" },
+          "inLanguage": "ko"
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "Milkyway",
+          "url": "https://milkyway.pe.kr",
+          "description": "팀 프로젝트를 효율적으로 관리하는 스마트 협업 플랫폼",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "featureList": "칸반 보드, 간트 차트, 데일리 스케줄링, 미팅 AI 요약, 실시간 협업 노트, 주간 리포트, 슬랙 연동",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "KRW"
+          },
+          "publisher": { "@id": "https://milkyway.pe.kr/#organization" }
+        }
+      ]
+    }
+    </script>
+
     <!-- Google Fonts: Plus Jakarta Sans + Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -53,6 +100,20 @@
 
   <body>
     <div id="root"></div>
+    <!-- JS 미실행 크롤러(GPTBot, ClaudeBot 등)와 noscript 환경용 정적 콘텐츠 -->
+    <noscript>
+      <main>
+        <h1>Milkyway</h1>
+        <p>팀 프로젝트를 효율적으로 관리하는 스마트 협업 플랫폼</p>
+        <p>칸반 보드, 간트 차트, 데일리 스케줄링, 미팅 AI 요약, 실시간 협업 노트, 주간 리포트를 하나의 워크스페이스에서 제공합니다. 무료로 시작할 수 있습니다.</p>
+        <ul>
+          <li><a href="/landing">서비스 소개</a></li>
+          <li><a href="/announcements">공지사항</a></li>
+          <li><a href="/terms">이용약관</a></li>
+          <li><a href="/privacy">개인정보처리방침</a></li>
+        </ul>
+      </main>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

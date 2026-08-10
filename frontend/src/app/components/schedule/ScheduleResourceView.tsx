@@ -79,8 +79,11 @@ const ROW_HEIGHT = 80;
 const MILESTONE_ROW_HEIGHT = 48;
 const BAR_HEIGHT = 32;
 const BAR_TOP_OFFSET = 4;
-const LEFT_COL_WIDTH = 200;
-const HEADER_HEIGHT = 48;
+const LEFT_COL_WIDTH = 240;
+/** 헤더 2단 구성: 월 밴드 + 일 밴드. 합계가 HEADER_HEIGHT — 마일스톤/이벤트 행 sticky top이 이 값을 참조한다 */
+const MONTH_BAND_HEIGHT = 16;
+const DAY_BAND_HEIGHT = 32;
+const HEADER_HEIGHT = MONTH_BAND_HEIGHT + DAY_BAND_HEIGHT;
 const MIN_BAR_WIDTH = 20;
 /** Maximum number of visible bar lanes before collapsing with "+N more" */
 const MAX_VISIBLE_LANES = 4;
@@ -613,6 +616,34 @@ export function ScheduleResourceView({
     };
   }, []);
 
+  // ─── 월 세그먼트 — 헤더 월 밴드 + 본문 월 경계선 공용 (365칸 → 13개 내외) ───
+  const monthSegments = useMemo(() => {
+    const segs: {
+      startIdx: number;
+      days: number;
+      year: number;
+      month: number;
+    }[] = [];
+    timelineDays.forEach((d, i) => {
+      const last = segs[segs.length - 1];
+      if (
+        last &&
+        last.year === d.getFullYear() &&
+        last.month === d.getMonth()
+      ) {
+        last.days += 1;
+      } else {
+        segs.push({
+          startIdx: i,
+          days: 1,
+          year: d.getFullYear(),
+          month: d.getMonth(),
+        });
+      }
+    });
+    return segs;
+  }, [timelineDays]);
+
   // ─── Holidays (covers ~52w timeline crossing up to 3 calendar years) ───
   const currentYear = new Date().getFullYear();
   const { holidayMap: hPrev } = useHolidays(i18n.language, currentYear - 1);
@@ -793,6 +824,25 @@ export function ScheduleResourceView({
       }
     };
   }, [measureVisibleRange, loading]);
+
+  // ─── 좌측 코너 "현재 보이는 달" 칩 라벨 — 스크롤 위치와 무관하게 항상 노출 ───
+  const visibleMonthLabel = useMemo(() => {
+    const r = visibleDayRange;
+    if (!r) return null;
+    const clamp = (i: number) =>
+      Math.max(0, Math.min(i, timelineDays.length - 1));
+    const a = timelineDays[clamp(r.start)];
+    const b = timelineDays[clamp(r.end)];
+    if (!a || !b) return null;
+    // Intl이 로케일별 어순(예: en "Aug – Sep 2026", ko "2026년 8월~9월")을 처리한다
+    const fmt = new Intl.DateTimeFormat(i18n.language || "en", {
+      year: "numeric",
+      month: "short",
+    });
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()
+      ? fmt.format(a)
+      : fmt.formatRange(a, b);
+  }, [visibleDayRange, timelineDays, i18n.language]);
 
   // ─── External DnD drop tracking (from ChecklistItemPanel) ───
   const externalDropRef = useRef<{ rowId: string; dayIndex: number } | null>(
@@ -2279,6 +2329,7 @@ export function ScheduleResourceView({
   }
 
   const totalTimelineWidth = timelineDays.length * dayWidth;
+  const locale = i18n.language || "en";
   // 밴드는 겹치는 바 수(레인)에 따라 높이가 늘어난다.
   const milestoneBandHeight = bandHeightForLanes(milestoneLaneCount);
   const eventBandHeight = bandHeightForLanes(teamEventLaneCount);
@@ -2308,11 +2359,12 @@ export function ScheduleResourceView({
               className="shrink-0 sticky left-0 z-30 bg-bridge-obsidian border-r border-foreground/[0.08] flex items-center justify-between gap-1 px-3"
               style={{ width: LEFT_COL_WIDTH, height: HEADER_HEIGHT }}
             >
-              {!embedded && (
-                <span className="text-xs font-bold uppercase tracking-widest text-slate-400 truncate">
-                  {groupByJobRole
-                    ? t("schedule.resource.groupByJobRole", "직군별")
-                    : t("schedule.resource.groupByMember", "멤버별")}
+              {visibleMonthLabel && (
+                <span
+                  className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent whitespace-nowrap truncate min-w-0"
+                  title={visibleMonthLabel}
+                >
+                  {visibleMonthLabel}
                 </span>
               )}
               <button
@@ -2430,77 +2482,126 @@ export function ScheduleResourceView({
               </div>
             </div>
 
-            {/* Day headers — drag to scroll */}
+            {/* Month band + Day headers — drag to scroll */}
             <div
-              className="relative cursor-grab active:cursor-grabbing"
+              className="cursor-grab active:cursor-grabbing"
               style={{ width: totalTimelineWidth, height: HEADER_HEIGHT }}
               onMouseDown={handleHeaderMouseDown}
             >
-              {timelineDays.map((day, idx) => {
-                const dateStr = formatDateStr(day);
-                const forcedWork = forcedWorkdaySet.has(dateStr);
-                const weekend = isWeekend(day) && !forcedWork;
-                const isToday = idx === todayIndex;
-                const dayNum = day.getDate();
-                const showMonth = dayNum === 1 || idx === 0;
-                const locale = i18n.language || "en";
-                const holidays = mergedHolidayMap.get(dateStr);
-                const isHoliday = !!holidays && holidays.length > 0;
-                const holidayName = isHoliday
-                  ? holidays!.map((h) => h.name).join(", ")
-                  : undefined;
+              {/* Month band — 구간 전체를 덮는 띠라 스크롤 위치와 무관하게 항상 보인다 */}
+              <div
+                className="relative border-b border-foreground/[0.06]"
+                style={{ width: totalTimelineWidth, height: MONTH_BAND_HEIGHT }}
+              >
+                {monthSegments.map((s) => {
+                  const w = s.days * dayWidth;
+                  const isNow =
+                    todayIndex >= s.startIdx &&
+                    todayIndex < s.startIdx + s.days;
+                  // 좁은 세그먼트는 연도를 떨구되, 1월과 첫 세그먼트는 항상 연도 표기
+                  const withYear = w >= 90 || s.month === 0 || s.startIdx === 0;
+                  const label = new Date(s.year, s.month, 1).toLocaleDateString(
+                    locale,
+                    withYear
+                      ? { year: "numeric", month: "short" }
+                      : { month: "short" },
+                  );
+                  return (
+                    <div
+                      key={`${s.year}-${s.month}`}
+                      className={`absolute top-0 h-full ${
+                        s.startIdx > 0
+                          ? "border-l border-foreground/[0.14]"
+                          : ""
+                      } ${isNow ? "bg-bridge-accent/10" : ""}`}
+                      style={{ left: s.startIdx * dayWidth, width: w }}
+                    >
+                      {/* sticky 라벨 — 세그먼트가 스크롤아웃돼도 좌측 컬럼 옆에 붙어 남는다 */}
+                      <span
+                        className="sticky inline-block px-2 text-xs font-bold text-foreground whitespace-nowrap"
+                        style={{
+                          left: LEFT_COL_WIDTH,
+                          lineHeight: `${MONTH_BAND_HEIGHT}px`,
+                        }}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
 
-                return (
-                  <div
-                    key={idx}
-                    title={holidayName || "우클릭: 휴무일/근무일 지정"}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      openEventModal({ category: "CALENDAR", date: dateStr });
-                    }}
-                    className={`absolute top-0 flex flex-col items-center justify-center border-r border-foreground/[0.04]
+              {/* Day band */}
+              <div
+                className="relative"
+                style={{ width: totalTimelineWidth, height: DAY_BAND_HEIGHT }}
+              >
+                {timelineDays.map((day, idx) => {
+                  const dateStr = formatDateStr(day);
+                  const forcedWork = forcedWorkdaySet.has(dateStr);
+                  const weekend = isWeekend(day) && !forcedWork;
+                  const isToday = idx === todayIndex;
+                  const dayNum = day.getDate();
+                  const holidays = mergedHolidayMap.get(dateStr);
+                  const isHoliday = !!holidays && holidays.length > 0;
+                  const holidayName = isHoliday
+                    ? holidays!.map((h) => h.name).join(", ")
+                    : undefined;
+
+                  return (
+                    <div
+                      key={idx}
+                      title={holidayName || "우클릭: 휴무일/근무일 지정"}
+                      aria-label={day.toLocaleDateString(locale, {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                        weekday: "long",
+                      })}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        openEventModal({ category: "CALENDAR", date: dateStr });
+                      }}
+                      className={`absolute top-0 flex flex-col items-center justify-center border-r border-foreground/[0.04]
+                      ${dayNum === 1 && idx > 0 ? "border-l border-foreground/[0.14]" : ""}
                       ${isHoliday ? "bg-red-500/[0.04]" : weekend ? "bg-foreground/[0.02]" : ""}
                       ${isToday ? "bg-bridge-accent/5" : ""}`}
-                    style={{
-                      left: idx * dayWidth,
-                      width: dayWidth,
-                      height: HEADER_HEIGHT,
-                    }}
-                  >
-                    {dayWidth >= 44 && (
+                      style={{
+                        left: idx * dayWidth,
+                        width: dayWidth,
+                        height: DAY_BAND_HEIGHT,
+                      }}
+                    >
+                      {dayWidth >= 44 && (
+                        <span
+                          className={`text-xs leading-none mb-0.5 ${
+                            isHoliday
+                              ? "text-red-400"
+                              : weekend
+                                ? "text-slate-500"
+                                : "text-slate-400"
+                          }`}
+                        >
+                          {getDayLabel(day, locale)}
+                        </span>
+                      )}
                       <span
-                        className={`text-xs ${
-                          isHoliday
-                            ? "text-red-400"
-                            : weekend
-                              ? "text-slate-500"
-                              : "text-slate-400"
+                        className={`text-xs font-medium ${
+                          isToday
+                            ? "w-[18px] h-[18px] rounded-full bg-bridge-accent text-white flex items-center justify-center"
+                            : isHoliday
+                              ? "text-red-400 leading-none"
+                              : weekend
+                                ? "text-slate-500 leading-none"
+                                : "text-foreground leading-none"
                         }`}
                       >
-                        {getDayLabel(day, locale)}
+                        {dayNum}
                       </span>
-                    )}
-                    <span
-                      className={`text-xs font-medium ${
-                        isToday
-                          ? "w-6 h-6 rounded-full bg-bridge-accent text-white flex items-center justify-center"
-                          : isHoliday
-                            ? "text-red-400"
-                            : weekend
-                              ? "text-slate-500"
-                              : "text-foreground"
-                      }`}
-                    >
-                      {dayNum}
-                    </span>
-                    {showMonth && (
-                      <span className="text-xs text-slate-500 absolute top-0.5 left-1">
-                        {day.toLocaleDateString(locale, { month: "short" })}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -2547,6 +2648,17 @@ export function ScheduleResourceView({
                     />
                   );
                 })}
+
+                {/* 월 경계선 — 헤더 월 밴드 구분선과 세로 정렬 */}
+                {monthSegments.map((s) =>
+                  s.startIdx === 0 ? null : (
+                    <div
+                      key={`mmb-${s.year}-${s.month}`}
+                      className="absolute top-0 bottom-0 w-px bg-foreground/[0.14] pointer-events-none"
+                      style={{ left: s.startIdx * dayWidth }}
+                    />
+                  ),
+                )}
 
                 {/* Milestone bars */}
                 {milestoneBarData.map(({ milestone, startDate, endDate }) => {
@@ -2726,6 +2838,17 @@ export function ScheduleResourceView({
                     />
                   );
                 })}
+
+                {/* 월 경계선 — 헤더 월 밴드 구분선과 세로 정렬 */}
+                {monthSegments.map((s) =>
+                  s.startIdx === 0 ? null : (
+                    <div
+                      key={`emb-${s.year}-${s.month}`}
+                      className="absolute top-0 bottom-0 w-px bg-foreground/[0.14] pointer-events-none"
+                      style={{ left: s.startIdx * dayWidth }}
+                    />
+                  ),
+                )}
 
                 {/* Event chips */}
                 {teamEventBarData.map(({ event }) => {
@@ -3205,6 +3328,17 @@ export function ScheduleResourceView({
                         />
                       );
                     })}
+
+                    {/* 월 경계선 — 헤더 월 밴드 구분선과 세로 정렬 */}
+                    {monthSegments.map((s) =>
+                      s.startIdx === 0 ? null : (
+                        <div
+                          key={`rmb-${s.year}-${s.month}`}
+                          className="absolute top-0 bottom-0 w-px bg-foreground/[0.14] pointer-events-none"
+                          style={{ left: s.startIdx * dayWidth }}
+                        />
+                      ),
+                    )}
 
                     {/* Contract period background bars for contractor rows (기간마다 1개) */}
                     {row.kind === "contractor" &&

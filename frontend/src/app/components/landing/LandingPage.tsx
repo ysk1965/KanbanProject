@@ -125,7 +125,7 @@ const AnimatedTitle = ({ text }: { text: string }) => {
     },
   };
   return (
-    <motion.div
+    <motion.h1
       style={{
         overflow: "hidden",
         display: "flex",
@@ -154,7 +154,7 @@ const AnimatedTitle = ({ text }: { text: string }) => {
         variants={child}
         className="spot-dot mb-4 lg:mb-8 ml-2 lg:ml-6 scale-150 lg:scale-[2.5]"
       />
-    </motion.div>
+    </motion.h1>
   );
 };
 

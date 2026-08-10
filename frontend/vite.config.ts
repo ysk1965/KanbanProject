@@ -31,6 +31,8 @@ function generateBrandedIndex(): Plugin {
 
       // Title & meta tags → BRIDGE SPOTS
       html = html
+        // JSON-LD sameAs의 상대 도메인은 아래 도메인 전역 치환에서 제외 (bridgespots 버전은 milkyway를 가리켜야 함)
+        .replace(/https:\/\/bridgespots\.com/g, "__ALTERNATE_DOMAIN__")
         .replace(
           /<title>Milkyway - Smart Project Management<\/title>/g,
           "<title>BRIDGE SPOTS - The Intelligent PM Orchestration</title>",
@@ -61,7 +63,16 @@ function generateBrandedIndex(): Plugin {
         // Favicon
         .replace(/href="\/MilkyWay\.png"/g, 'href="/BridgeSpotsIcon.png"')
         // PWA manifest → BRIDGE SPOTS 버전
-        .replace(/manifest\.webmanifest/g, "manifest-bridgespots.webmanifest");
+        .replace(/manifest\.webmanifest/g, "manifest-bridgespots.webmanifest")
+        // JSON-LD + noscript 전역 치환 (위의 개별 규칙이 처리한 뒤 남은 브랜드 문자열)
+        .replace(/https:\/\/milkyway\.pe\.kr/g, "https://bridgespots.com")
+        .replace(/__ALTERNATE_DOMAIN__/g, "https://milkyway.pe.kr")
+        .replace(/\/MilkyWay\.png/g, "/BridgeSpotsIcon.png")
+        .replace(/Milkyway/g, "BRIDGE SPOTS")
+        .replace(
+          /팀 프로젝트를 효율적으로 관리하는 스마트 협업 플랫폼/g,
+          "칸반 보드, 간트 차트, 데일리 스케줄링을 하나로. 팀 협업의 흐름을 정밀하게 조율하는 프로젝트 관리 플랫폼.",
+        );
 
       fs.writeFileSync(path.join(distDir, "index-bridgespots.html"), html);
       console.log("✅ Generated index-bridgespots.html");

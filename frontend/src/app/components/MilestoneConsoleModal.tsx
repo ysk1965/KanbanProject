@@ -10,11 +10,16 @@ import {
   Square,
   Check,
   ChevronDown,
+  Plus,
 } from "lucide-react";
 import { MotionModal } from "./ui/MotionModal";
 import type { SprintItemCard } from "../types";
-import { sprintAPI, memberAPI } from "../utils/api";
-import { checklistService } from "../utils/services";
+import { sprintAPI, memberAPI, milestoneAPI } from "../utils/api";
+import {
+  checklistService,
+  featureService,
+  taskService,
+} from "../utils/services";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
 import { getDDay } from "../utils/dateUtils";
 
@@ -27,7 +32,7 @@ interface ConsoleMember {
 
 /**
  * 마일스톤 관리 콘솔
- * - 상단 필터(검색·지연·미배정·담당자) + 피쳐 칩(다중 선택)
+ * - 상단 필터(검색·지연·미배정·담당자) + 피쳐 탭(단일 선택)
  * - 하단은 선택한 피쳐들의 Task = 칸반 컬럼, 컬럼 안 체크리스트 = 카드
  * - 카드를 다른 Task 컬럼으로 드래그하면 소속 Task(및 피쳐)가 이동한다.
  * 데이터는 마일스톤 전체(스프린트 담김 여부 무관)를 GET /console 로 로드한다.
@@ -68,6 +73,7 @@ const FALLBACK_PALETTE = [
   "#0ea5e9",
   "#ec4899",
 ];
+const FEATURE_COLORS = FALLBACK_PALETTE.slice(0, 6);
 
 function assigneeName(it: SprintItemCard): string | null {
   return (
@@ -90,7 +96,7 @@ export function MilestoneConsoleModal({
   const [items, setItems] = useState<SprintItemCard[]>([]);
   const [members, setMembers] = useState<ConsoleMember[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
 
   // 필터
@@ -111,6 +117,27 @@ export function MilestoneConsoleModal({
   const dragRef = useRef<{ id: string; taskId: string } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverTask, setDragOverTask] = useState<string | null>(null);
+
+  // ── 생성 UI 상태 (피쳐 / 태스크 / 체크리스트 항목) ──
+  const [featFormOpen, setFeatFormOpen] = useState(false);
+  const [featName, setFeatName] = useState("");
+  const [featColor, setFeatColor] = useState(FEATURE_COLORS[0]);
+  const [creatingFeature, setCreatingFeature] = useState(false);
+  const [taskFormOpen, setTaskFormOpen] = useState(false);
+  const [taskFeatureId, setTaskFeatureId] = useState("");
+  const [taskTitle, setTaskTitle] = useState("");
+  const [creatingTask, setCreatingTask] = useState(false);
+  const [addingItemTask, setAddingItemTask] = useState<string | null>(null);
+  const [itemTitle, setItemTitle] = useState("");
+  const [savingItem, setSavingItem] = useState(false);
+  // 콘솔 트리는 체크리스트 행 기반이라, 항목이 아직 없는 신규 피쳐/태스크는
+  // 서버 응답에서 사라진다. 로컬로 들고 있다가 트리에 머지해 빈 탭/컬럼을 유지한다.
+  const [localFeatures, setLocalFeatures] = useState<
+    { featureId: string; featureTitle: string; featureColor: string }[]
+  >([]);
+  const [localTasks, setLocalTasks] = useState<
+    { taskId: string; taskTitle: string; featureId: string }[]
+  >([]);
 
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -178,6 +205,11 @@ export function MilestoneConsoleModal({
   useEffect(() => {
     if (open) {
       setInitialized(false);
+      setLocalFeatures([]);
+      setLocalTasks([]);
+      setFeatFormOpen(false);
+      setTaskFormOpen(false);
+      setAddingItemTask(null);
       load();
       if (members.length === 0) loadMembers();
     }
@@ -219,8 +251,28 @@ export function MilestoneConsoleModal({
       feat.total += 1;
       if (it.completed) feat.done += 1;
     }
+    // 아직 체크리스트가 없는 로컬 생성분 — 서버 행이 생기면 위 루프가 대체
+    for (const lf of localFeatures) {
+      if (!map.has(lf.featureId)) {
+        map.set(lf.featureId, {
+          featureId: lf.featureId,
+          featureTitle: lf.featureTitle,
+          featureColor: lf.featureColor,
+          tasks: [],
+          total: 0,
+          done: 0,
+        });
+        order.push(lf.featureId);
+      }
+    }
+    for (const lt of localTasks) {
+      const feat = map.get(lt.featureId);
+      if (feat && !feat.tasks.some((t) => t.taskId === lt.taskId)) {
+        feat.tasks.push({ taskId: lt.taskId, taskTitle: lt.taskTitle, items: [] });
+      }
+    }
     return order.map((fid) => map.get(fid)!);
-  }, [items]);
+  }, [items, localFeatures, localTasks]);
 
   const featureColor = useCallback(
     (feat: ConsoleFeature): string => {
@@ -232,13 +284,18 @@ export function MilestoneConsoleModal({
     [features],
   );
 
-  // 최초 로드 시 전체 피쳐 선택
+  // 최초 로드 시 첫 피쳐 선택 · 선택된 피쳐가 사라지면 첫 피쳐로 폴백
   useEffect(() => {
-    if (open && !initialized && features.length > 0) {
-      setSelected(new Set(features.map((f) => f.featureId)));
+    if (!open || features.length === 0) return;
+    if (!initialized) {
+      setSelectedId(features[0].featureId);
       setInitialized(true);
+      return;
     }
-  }, [open, initialized, features]);
+    if (selectedId && !features.some((f) => f.featureId === selectedId)) {
+      setSelectedId(features[0].featureId);
+    }
+  }, [open, initialized, features, selectedId]);
 
   // 담당자 필터 후보 (등장하는 담당자만)
   const memberOptions = useMemo<string[]>(() => {
@@ -303,35 +360,21 @@ export function MilestoneConsoleModal({
     [overdueOnly, unassignedOnly, completionFilter, memberFilter, q],
   );
 
-  const selectedFeatures = useMemo(
-    () => features.filter((f) => selected.has(f.featureId)),
-    [features, selected],
+  const selectedFeature = useMemo(
+    () => features.find((f) => f.featureId === selectedId) ?? null,
+    [features, selectedId],
   );
-  const multi = selectedFeatures.length > 1;
 
   // 표시 카운트
   const { shown, total } = useMemo(() => {
     let s = 0,
       t = 0;
-    for (const f of selectedFeatures)
-      for (const task of f.tasks) {
-        t += task.items.length;
-        s += task.items.filter(match).length;
-      }
+    for (const task of selectedFeature?.tasks ?? []) {
+      t += task.items.length;
+      s += task.items.filter(match).length;
+    }
     return { shown: s, total: t };
-  }, [selectedFeatures, match]);
-
-  const toggleFeature = (fid: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(fid)) next.delete(fid);
-      else next.add(fid);
-      return next;
-    });
-  };
-  const selectAll = () =>
-    setSelected(new Set(features.map((f) => f.featureId)));
-  const clearAll = () => setSelected(new Set());
+  }, [selectedFeature, match]);
 
   // ── DnD: 카드를 다른 Task 컬럼으로 이동 ──
   const handleDrop = async (
@@ -432,6 +475,110 @@ export function MilestoneConsoleModal({
     } catch {
       setItems(prev);
       showToast("마감일 변경에 실패했습니다");
+    }
+  };
+
+  // ── 생성 (피쳐 → 마일스톤 연결 / 태스크 / 체크리스트 항목) ──
+  const createFeatureInline = async () => {
+    const title = featName.trim();
+    if (!title || creatingFeature) return;
+    setCreatingFeature(true);
+    try {
+      const feature = await featureService.createFeature(boardId, {
+        title,
+        color: featColor,
+      });
+      await milestoneAPI.addFeatures(boardId, milestoneId, [feature.id]);
+      setLocalFeatures((prev) => [
+        ...prev,
+        { featureId: feature.id, featureTitle: title, featureColor: featColor },
+      ]);
+      setSelectedId(feature.id);
+      setFeatName("");
+      setFeatFormOpen(false);
+      showToast(`피쳐 "${title}" 추가 · 마일스톤에 연결됨`);
+    } catch {
+      showToast("피쳐 생성에 실패했습니다");
+    } finally {
+      setCreatingFeature(false);
+    }
+  };
+
+  const openTaskForm = () => {
+    const real = features.filter((f) => f.featureId !== NO_FEATURE);
+    const preferred = real.find((f) => f.featureId === selectedId) ?? real[0];
+    setTaskFeatureId(preferred?.featureId ?? "");
+    setTaskTitle("");
+    setTaskFormOpen(true);
+  };
+
+  const createTaskInline = async () => {
+    const title = taskTitle.trim();
+    if (!title || !taskFeatureId || creatingTask) return;
+    setCreatingTask(true);
+    try {
+      const task = await taskService.createTask(boardId, taskFeatureId, {
+        title,
+        milestone_id: milestoneId,
+      });
+      setLocalTasks((prev) => [
+        ...prev,
+        { taskId: task.id, taskTitle: title, featureId: taskFeatureId },
+      ]);
+      setSelectedId(taskFeatureId);
+      setTaskTitle("");
+      setTaskFormOpen(false);
+      // 체크리스트가 없는 태스크는 리로드 시 트리에서 사라지므로 첫 항목 입력을 바로 연다
+      setAddingItemTask(task.id);
+      setItemTitle("");
+      showToast(`태스크 "${title}" 생성 — 첫 항목을 입력하세요`);
+    } catch {
+      showToast("태스크 생성에 실패했습니다");
+    } finally {
+      setCreatingTask(false);
+    }
+  };
+
+  const addChecklistItemInline = async (
+    task: ConsoleTask,
+    feat: ConsoleFeature,
+  ) => {
+    const title = itemTitle.trim();
+    if (!title || savingItem) return;
+    setSavingItem(true);
+    try {
+      const item = await checklistService.addItem(boardId, task.taskId, {
+        title,
+      });
+      setItems((prev) => [
+        ...prev,
+        {
+          id: item.id,
+          title,
+          completed: false,
+          sprint_column_id: null,
+          position: item.position,
+          due_date: null,
+          start_date: null,
+          done_date: null,
+          completed_at: null,
+          feature_id: feat.featureId === NO_FEATURE ? null : feat.featureId,
+          feature_title: feat.featureTitle,
+          feature_color: feat.featureColor,
+          feature_created_at: null,
+          task_id: task.taskId,
+          task_title: task.taskTitle,
+          checklist_done: 0,
+          checklist_total: 0,
+          assignee: null,
+          contractor: null,
+        },
+      ]);
+      setItemTitle(""); // 입력 유지 — Enter 연속 추가
+    } catch {
+      showToast("항목 추가에 실패했습니다");
+    } finally {
+      setSavingItem(false);
     }
   };
 
@@ -700,55 +847,113 @@ export function MilestoneConsoleModal({
         </span>
       </div>
 
-      {/* Feature chips */}
-      <div className="flex items-center gap-2 px-5 py-2.5 border-b border-foreground/[0.08] overflow-x-auto shrink-0 custom-scrollbar">
-        <span className="text-xs font-bold uppercase tracking-widest text-slate-400 shrink-0">
-          피쳐
-        </span>
-        <div className="flex items-center gap-1.5 shrink-0 pr-1.5 mr-0.5 border-r border-foreground/10">
-          <button
-            type="button"
-            onClick={selectAll}
-            className="text-xs font-medium px-2 py-1 rounded-lg border border-foreground/10 text-slate-400 hover:text-bridge-accent hover:border-bridge-accent/40 transition-colors"
-          >
-            모두
-          </button>
-          <button
-            type="button"
-            onClick={clearAll}
-            className="text-xs font-medium px-2 py-1 rounded-lg border border-foreground/10 text-slate-400 hover:text-bridge-accent hover:border-bridge-accent/40 transition-colors"
-          >
-            해제
-          </button>
-        </div>
+      {/* Feature tabs */}
+      <div
+        role="tablist"
+        aria-label="피쳐"
+        className="flex items-end gap-1 px-5 border-b border-foreground/[0.08] overflow-x-auto shrink-0 custom-scrollbar"
+      >
         {features.map((f) => {
-          const on = selected.has(f.featureId);
+          const on = f.featureId === selectedId;
           const color = featureColor(f);
+          const allDone = f.total > 0 && f.done === f.total;
           return (
             <button
               key={f.featureId}
               type="button"
-              onClick={() => toggleFeature(f.featureId)}
-              className={`shrink-0 inline-flex items-center gap-2 min-h-[40px] px-3.5 py-2 rounded-full text-[13px] border transition-colors ${
+              role="tab"
+              aria-selected={on}
+              onClick={() => setSelectedId(f.featureId)}
+              className={`relative shrink-0 inline-flex items-center gap-2 min-h-[44px] px-3.5 pt-2 pb-2.5 -mb-px rounded-t-lg text-[13px] transition-colors ${
                 on
-                  ? "text-white border-transparent font-bold"
-                  : "bg-foreground/[0.03] text-slate-400 border-foreground/10 hover:border-foreground/25 font-medium"
+                  ? "text-foreground font-bold"
+                  : "text-slate-400 font-medium hover:text-foreground hover:bg-foreground/5"
               }`}
-              style={on ? { background: color } : undefined}
-              aria-pressed={on}
             >
-              {on ? (
-                <CheckSquare className="w-4 h-4" />
-              ) : (
-                <Square className="w-4 h-4" style={{ color }} />
-              )}
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 transition-opacity ${on ? "" : "opacity-50"}`}
+                style={{ background: color }}
+              />
               {f.featureTitle}
-              <span className="font-mono text-xs tabular-nums opacity-80">
+              <span
+                className={`font-mono text-xs tabular-nums ${
+                  allDone ? "text-bridge-secondary" : "opacity-70"
+                }`}
+              >
                 {f.done}/{f.total}
               </span>
+              {on && (
+                <span
+                  className="absolute left-2.5 right-2.5 bottom-0 h-[2px] rounded-t-full"
+                  style={{ background: color }}
+                />
+              )}
             </button>
           );
         })}
+        {canEdit &&
+          (featFormOpen ? (
+            <div className="shrink-0 self-center inline-flex items-center gap-2 min-h-[36px] my-1 pl-3 pr-2 py-1 rounded-lg border border-bridge-accent/50 bg-bridge-accent/10">
+              <input
+                autoFocus
+                value={featName}
+                onChange={(e) => setFeatName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") createFeatureInline();
+                  if (e.key === "Escape") {
+                    e.stopPropagation();
+                    setFeatFormOpen(false);
+                  }
+                }}
+                placeholder="새 피쳐 이름…"
+                aria-label="새 피쳐 이름"
+                className="w-32 bg-transparent text-[13px] text-foreground placeholder-slate-500 focus:outline-none"
+              />
+              {FEATURE_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setFeatColor(c)}
+                  aria-label={`피쳐 색 ${c}`}
+                  aria-pressed={featColor === c}
+                  className={`w-4 h-4 rounded-full shrink-0 transition-transform ${
+                    featColor === c
+                      ? "ring-2 ring-foreground/70 scale-110"
+                      : "hover:scale-110"
+                  }`}
+                  style={{ background: c }}
+                />
+              ))}
+              <button
+                type="button"
+                onClick={createFeatureInline}
+                disabled={creatingFeature || !featName.trim()}
+                className="text-xs font-bold px-2.5 py-1 rounded-full bg-bridge-accent text-white disabled:opacity-40 transition-opacity"
+              >
+                추가
+              </button>
+              <button
+                type="button"
+                onClick={() => setFeatFormOpen(false)}
+                aria-label="피쳐 추가 취소"
+                className="text-slate-400 hover:text-foreground transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setFeatName("");
+                setFeatColor(FEATURE_COLORS[0]);
+                setFeatFormOpen(true);
+              }}
+              className="shrink-0 inline-flex items-center gap-1.5 min-h-[44px] px-3 -mb-px rounded-t-lg text-[13px] font-medium text-slate-500 hover:text-bridge-accent hover:bg-foreground/5 transition-colors"
+            >
+              <Plus className="w-4 h-4" /> 피쳐
+            </button>
+          ))}
       </div>
 
       {/* Board */}
@@ -757,14 +962,16 @@ export function MilestoneConsoleModal({
           <div className="h-full grid place-items-center">
             <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
           </div>
-        ) : selectedFeatures.length === 0 ? (
+        ) : !selectedFeature ? (
           <div className="h-full grid place-items-center text-sm text-slate-500">
-            위에서 피쳐 칩을 하나 이상 선택하세요
+            {canEdit
+              ? "＋ 피쳐를 눌러 첫 피쳐를 만들어 보세요"
+              : "이 마일스톤에 연결된 피쳐가 없습니다"}
           </div>
         ) : (
           <div className="flex gap-3 items-stretch h-full">
-            {selectedFeatures
-              .flatMap((f) => f.tasks.map((task) => ({ f, task })))
+            {selectedFeature.tasks
+              .map((task) => ({ f: selectedFeature, task }))
               .map((col) => ({ ...col, vis: col.task.items.filter(match) }))
               // 필터에 맞는 항목이 없는 컬럼은 뒤로 (안정 정렬로 원래 순서 유지)
               .sort(
@@ -811,18 +1018,6 @@ export function MilestoneConsoleModal({
                     style={{ borderTopColor: color, borderTopWidth: 3 }}
                   >
                     <div className="px-4 py-3 border-b border-foreground/[0.06] shrink-0">
-                      {multi && (
-                        <div
-                          className="flex items-center gap-1.5 text-[11px] font-bold mb-1.5"
-                          style={{ color }}
-                        >
-                          <span
-                            className="w-2 h-2 rounded-full"
-                            style={{ background: color }}
-                          />
-                          {f.featureTitle}
-                        </div>
-                      )}
                       <div className="text-[15px] font-bold text-foreground leading-snug tracking-tight">
                         {task.taskTitle}
                       </div>
@@ -837,7 +1032,7 @@ export function MilestoneConsoleModal({
                       </div>
                     </div>
                     <div className="p-2 flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-                      {vis.length === 0 ? (
+                      {vis.length === 0 && addingItemTask !== task.taskId ? (
                         <div className="text-xs text-slate-400 text-center py-3 border border-dashed border-foreground/10 rounded-lg">
                           {task.items.length
                             ? "필터에 맞는 항목 없음"
@@ -1010,10 +1205,137 @@ export function MilestoneConsoleModal({
                           );
                         })
                       )}
+                      {canEdit &&
+                        task.taskId !== "__no_task__" &&
+                        (addingItemTask === task.taskId ? (
+                          <div className="shrink-0 flex flex-col gap-1">
+                            <input
+                              autoFocus
+                              value={itemTitle}
+                              onChange={(e) => setItemTitle(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter")
+                                  addChecklistItemInline(task, f);
+                                if (e.key === "Escape") {
+                                  e.stopPropagation();
+                                  setAddingItemTask(null);
+                                  setItemTitle("");
+                                }
+                              }}
+                              disabled={savingItem}
+                              placeholder="체크리스트 항목 입력…"
+                              aria-label="체크리스트 항목 입력"
+                              className="w-full bg-bridge-dark border border-bridge-accent/50 rounded-lg px-3 py-2.5 text-[13px] text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/40 disabled:opacity-60"
+                            />
+                            <span className="text-xs text-slate-500 pl-0.5">
+                              Enter 추가 후 계속 · Esc 닫기
+                            </span>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddingItemTask(task.taskId);
+                              setItemTitle("");
+                            }}
+                            className="shrink-0 w-full flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-foreground/[0.15] text-[13px] font-medium text-slate-500 hover:text-bridge-accent hover:border-bridge-accent/40 hover:bg-bridge-accent/5 transition-colors"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> 항목 추가
+                          </button>
+                        ))}
                     </div>
                   </div>
                 );
               })}
+            {canEdit && (
+              <div
+                className={`w-72 shrink-0 rounded-xl border flex flex-col min-h-0 transition-colors ${
+                  taskFormOpen
+                    ? "border-bridge-accent/50 bg-bridge-obsidian"
+                    : "border-dashed border-foreground/[0.15] hover:border-bridge-accent/40"
+                }`}
+              >
+                {taskFormOpen ? (
+                  <div className="p-4 flex flex-col gap-3">
+                    <div>
+                      <label
+                        htmlFor="console-new-task-feature"
+                        className="text-xs font-bold uppercase tracking-widest text-slate-400"
+                      >
+                        피쳐
+                      </label>
+                      <select
+                        id="console-new-task-feature"
+                        value={taskFeatureId}
+                        onChange={(e) => setTaskFeatureId(e.target.value)}
+                        className="mt-1.5 w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg px-2.5 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                      >
+                        {features
+                          .filter((f) => f.featureId !== NO_FEATURE)
+                          .map((f) => (
+                            <option key={f.featureId} value={f.featureId}>
+                              {f.featureTitle}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="console-new-task-title"
+                        className="text-xs font-bold uppercase tracking-widest text-slate-400"
+                      >
+                        태스크 제목
+                      </label>
+                      <input
+                        id="console-new-task-title"
+                        autoFocus
+                        value={taskTitle}
+                        onChange={(e) => setTaskTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") createTaskInline();
+                          if (e.key === "Escape") {
+                            e.stopPropagation();
+                            setTaskFormOpen(false);
+                          }
+                        }}
+                        placeholder="태스크 제목 입력…"
+                        className="mt-1.5 w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg px-3 py-2 text-[13px] text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      생성 직후 새 컬럼에서 첫 체크리스트 항목 입력이 열립니다.
+                    </p>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setTaskFormOpen(false)}
+                        className="text-xs font-medium px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                      >
+                        취소
+                      </button>
+                      <button
+                        type="button"
+                        onClick={createTaskInline}
+                        disabled={
+                          creatingTask || !taskTitle.trim() || !taskFeatureId
+                        }
+                        className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-bridge-accent text-white disabled:opacity-40 hover:bg-bridge-accent/90 transition-all"
+                      >
+                        태스크 추가
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={openTaskForm}
+                    className="flex-1 min-h-[160px] flex flex-col items-center justify-center gap-2 rounded-xl text-sm font-medium text-slate-500 hover:text-bridge-accent hover:bg-bridge-accent/5 transition-colors"
+                  >
+                    <Plus className="w-6 h-6" /> 태스크 추가
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1022,7 +1344,7 @@ export function MilestoneConsoleModal({
       <div className="flex items-center gap-3 px-5 py-3 border-t border-foreground/[0.08] shrink-0">
         <span className="text-xs text-slate-500">
           {canEdit
-            ? "카드를 다른 태스크로 끌어 이동 · 클릭하면 상세 열기"
+            ? "카드를 다른 태스크로 끌어 이동 · 클릭하면 상세 열기 · ＋로 피쳐/태스크/항목 추가"
             : "읽기 전용 · 카드를 클릭하면 상세 열기"}
         </span>
         <span className="flex-1" />
