@@ -10,6 +10,7 @@ import com.kanban.domain.system.MonetizationService;
 import com.kanban.global.security.WebSocketAuthInterceptor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +38,7 @@ public class SubscriptionScheduler {
      * - 연관 Board → STANDARD tier로 다운그레이드
      */
     @Scheduled(cron = "0 0 * * * *")
+    @SchedulerLock(name = "SubscriptionScheduler.expireTrials", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     @Transactional
     public void expireTrials() {
         if (!monetizationService.isMonetizationEnabled()) {
@@ -72,6 +74,7 @@ public class SubscriptionScheduler {
      * - 만료된 Org Trial Subscription → FREE 플랜으로 다운그레이드
      */
     @Scheduled(cron = "0 15 * * * *")
+    @SchedulerLock(name = "SubscriptionScheduler.expireOrgTrials", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     @Transactional
     public void expireOrgTrials() {
         if (!monetizationService.isMonetizationEnabled()) {
@@ -91,6 +94,7 @@ public class SubscriptionScheduler {
      * - cancelRequestedAt이 설정되고 currentPeriodEnd가 지난 Org 구독 → CANCELED + 보드 복원
      */
     @Scheduled(cron = "0 20 * * * *")
+    @SchedulerLock(name = "SubscriptionScheduler.processCancellationRequests", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     @Transactional
     public void processCancellationRequests() {
         if (!monetizationService.isMonetizationEnabled()) {
@@ -140,6 +144,7 @@ public class SubscriptionScheduler {
      * - pastDueSince가 7일 이상 경과한 Board/Org 구독 → SUSPENDED 전환
      */
     @Scheduled(cron = "0 25 * * * *")
+    @SchedulerLock(name = "SubscriptionScheduler.escalatePastDueSubscriptions", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     @Transactional
     public void escalatePastDueSubscriptions() {
         if (!monetizationService.isMonetizationEnabled()) {
@@ -186,6 +191,7 @@ public class SubscriptionScheduler {
      * - 건별 트랜잭션 분리: 하나의 실패가 다른 구독에 영향 주지 않음
      */
     @Scheduled(cron = "0 5 * * * *")
+    @SchedulerLock(name = "SubscriptionScheduler.resetMonthlyAiCredits", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     public void resetMonthlyAiCredits() {
         if (!monetizationService.isMonetizationEnabled()) {
             log.debug("[Monetization OFF] Skipping resetMonthlyAiCredits");
@@ -223,6 +229,7 @@ public class SubscriptionScheduler {
      * - creditsResetDate가 현재 시각 이전인 OrgSubscription의 월간 크레딧을 리셋
      */
     @Scheduled(cron = "0 8 * * * *")
+    @SchedulerLock(name = "SubscriptionScheduler.resetOrgMonthlyAiCredits", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     public void resetOrgMonthlyAiCredits() {
         if (!monetizationService.isMonetizationEnabled()) {
             log.debug("[Monetization OFF] Skipping resetOrgMonthlyAiCredits");
@@ -260,6 +267,7 @@ public class SubscriptionScheduler {
      * - personalCreditsResetDate가 현재 시각 이전인 유저의 개인 크레딧을 리셋
      */
     @Scheduled(cron = "0 10 * * * *")
+    @SchedulerLock(name = "SubscriptionScheduler.resetUserPersonalAiCredits", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     public void resetUserPersonalAiCredits() {
         if (!monetizationService.isMonetizationEnabled()) {
             log.debug("[Monetization OFF] Skipping resetUserPersonalAiCredits");

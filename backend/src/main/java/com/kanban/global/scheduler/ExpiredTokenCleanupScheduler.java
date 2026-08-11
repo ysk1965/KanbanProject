@@ -5,6 +5,7 @@ import com.kanban.domain.user.PasswordResetTokenRepository;
 import com.kanban.domain.user.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ public class ExpiredTokenCleanupScheduler {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
 
     @Scheduled(cron = "0 0 2 * * *")
+    @SchedulerLock(name = "ExpiredTokenCleanupScheduler.cleanup", lockAtMostFor = "30m", lockAtLeastFor = "5m")
     @Transactional
     public void cleanup() {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);

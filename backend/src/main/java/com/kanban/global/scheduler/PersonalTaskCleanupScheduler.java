@@ -3,6 +3,7 @@ package com.kanban.global.scheduler;
 import com.kanban.domain.personal.PersonalTaskRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ public class PersonalTaskCleanupScheduler {
     private final PersonalTaskRepository personalTaskRepository;
 
     @Scheduled(cron = "0 30 3 * * *")
+    @SchedulerLock(name = "PersonalTaskCleanupScheduler.cleanup", lockAtMostFor = "30m", lockAtLeastFor = "5m")
     @Transactional
     public void cleanup() {
         LocalDateTime cutoff = LocalDateTime.now(ZoneOffset.UTC).minusDays(7);

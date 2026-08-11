@@ -5,6 +5,7 @@ import com.kanban.domain.integration.jira.JiraIntegrationConfigRepository;
 import com.kanban.domain.integration.jira.dto.JiraRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -27,6 +28,7 @@ public class JiraSyncScheduler {
 
     /** 매 2분 실행. */
     @Scheduled(cron = "0 */2 * * * *")
+    @SchedulerLock(name = "JiraSyncScheduler.syncWriteBack", lockAtMostFor = "4m", lockAtLeastFor = "30s")
     public void syncWriteBack() {
         List<JiraIntegrationConfig> configs = configRepository.findAllActiveWithWriteBack();
         if (configs.isEmpty()) return;
@@ -47,6 +49,7 @@ public class JiraSyncScheduler {
      * write-back(2분)과 주기를 정렬. 웹훅 미설정 보드(미러 포함)의 백업 반영 지연을 줄인다.
      */
     @Scheduled(cron = "0 */2 * * * *")
+    @SchedulerLock(name = "JiraSyncScheduler.pullSync", lockAtMostFor = "4m", lockAtLeastFor = "30s")
     public void pullSync() {
         List<JiraIntegrationConfig> configs = configRepository.findAllActivePollable();
         if (configs.isEmpty()) return;

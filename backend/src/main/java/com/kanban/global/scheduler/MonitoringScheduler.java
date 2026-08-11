@@ -4,6 +4,7 @@ import com.kanban.domain.monitoring.service.MonitoringAlertService;
 import com.kanban.domain.monitoring.service.MonitoringService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -23,6 +24,7 @@ public class MonitoringScheduler {
      * Periodically flushes in-memory API metrics to the database.
      */
     @Scheduled(fixedRateString = "${app.monitoring.metric-flush-interval:3600000}")
+    @SchedulerLock(name = "MonitoringScheduler.flushMetrics", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     public void flushMetrics() {
         if (!monitoringEnabled) {
             return;
@@ -39,6 +41,7 @@ public class MonitoringScheduler {
      * Periodically checks metrics against thresholds and sends alerts.
      */
     @Scheduled(fixedRateString = "${app.monitoring.alert-check-interval:300000}")
+    @SchedulerLock(name = "MonitoringScheduler.checkAlerts", lockAtMostFor = "4m", lockAtLeastFor = "30s")
     public void checkAlerts() {
         if (!monitoringEnabled) {
             return;
@@ -55,6 +58,7 @@ public class MonitoringScheduler {
      * Cleans up old metric snapshots daily at 3 AM UTC.
      */
     @Scheduled(cron = "0 0 3 * * *")
+    @SchedulerLock(name = "MonitoringScheduler.cleanupOldData", lockAtMostFor = "30m", lockAtLeastFor = "5m")
     public void cleanupOldData() {
         if (!monitoringEnabled) {
             return;

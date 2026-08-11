@@ -5,6 +5,10 @@ spring:
   profiles:
     active: local
 
+  # 무중단 배포: 인스턴스 교체 시 진행 중인 요청을 마치고 종료 (server.shutdown: graceful과 세트)
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
   # JPA
   jpa:
     open-in-view: false
@@ -32,6 +36,7 @@ spring:
 # Server
 server:
   port: 8080
+  shutdown: graceful
 
 # JWT
 jwt:

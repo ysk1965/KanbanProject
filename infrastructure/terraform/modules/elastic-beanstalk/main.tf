@@ -352,11 +352,27 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = "enhanced"
   }
 
-  # Deployment
+  # Deployment — 무중단: 배포 중에만 인스턴스 1대를 추가로 띄워 새 버전이
+  # 헬스체크를 통과한 뒤 구 인스턴스를 교체한다. 상시 인스턴스 수(min 1)는 그대로라
+  # 추가 비용은 배포 시간 몇 분간의 EC2 요금뿐. (min 1대 환경에서는 Rolling/AllAtOnce
+  # 모두 그 한 대를 내리므로 다운타임이 발생한다)
   setting {
     namespace = "aws:elasticbeanstalk:command"
     name      = "DeploymentPolicy"
-    value     = var.environment == "prod" ? "Rolling" : "AllAtOnce"
+    value     = "RollingWithAdditionalBatch"
+  }
+
+  # 추가 배치는 정확히 1대 — ASG max(2)를 넘지 않게 고정
+  setting {
+    namespace = "aws:elasticbeanstalk:command"
+    name      = "BatchSizeType"
+    value     = "Fixed"
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:command"
+    name      = "BatchSize"
+    value     = "1"
   }
 
   # CloudWatch Logs

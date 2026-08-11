@@ -11,6 +11,7 @@ import com.kanban.domain.standup.DailyStandupConfigRepository;
 import com.kanban.domain.standup.service.DailyStandupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -40,6 +41,7 @@ public class DailyStandupScheduler {
     private String frontendUrl;
 
     @Scheduled(cron = "0 * * * * *")
+    @SchedulerLock(name = "DailyStandupScheduler.processStandups", lockAtMostFor = "50s", lockAtLeastFor = "20s")
     @Transactional
     public void processStandups() {
         LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);

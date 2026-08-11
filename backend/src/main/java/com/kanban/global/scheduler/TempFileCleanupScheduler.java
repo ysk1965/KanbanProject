@@ -4,6 +4,7 @@ import com.kanban.global.service.FileUploadService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -38,6 +39,7 @@ public class TempFileCleanupScheduler {
     }
 
     @Scheduled(fixedRate = 1800000) // 30분
+    @SchedulerLock(name = "TempFileCleanupScheduler.cleanup", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     public void cleanup() {
         log.debug("Running temp file cleanup...");
         fileUploadService.cleanupExpiredTemp();
