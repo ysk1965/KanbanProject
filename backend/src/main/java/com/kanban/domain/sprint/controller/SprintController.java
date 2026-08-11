@@ -77,6 +77,33 @@ public class SprintController {
                 sprintService.addTask(boardId, sprintId, request.getTaskId(), userPrincipal.getUserId()));
     }
 
+    /**
+     * 피쳐 담기 — 담기의 단위. 소속 태스크 전체가 함께 들어오고, 태스크 0개인 빈 피쳐도 담긴다.
+     * feature_id가 "__none__"이면 피쳐 미지정 태스크 그룹을 담는다.
+     */
+    @PostMapping("/sprints/{sprintId}/features")
+    public ResponseEntity<SprintResponse.Board> addFeature(
+            @PathVariable String boardId,
+            @PathVariable String sprintId,
+            @Valid @RequestBody SprintRequest.AddFeature request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(
+                sprintService.addFeature(boardId, sprintId, request.getFeatureId(), userPrincipal.getUserId()));
+    }
+
+    /** 피쳐 빼기 — 매핑 삭제 + 담긴 태스크 전체 백로그 복귀. "__none__" = 미지정 그룹 */
+    @DeleteMapping("/sprints/{sprintId}/features/{featureId}")
+    public ResponseEntity<SprintResponse.Board> removeFeature(
+            @PathVariable String boardId,
+            @PathVariable String sprintId,
+            @PathVariable String featureId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(
+                sprintService.removeFeature(boardId, sprintId, featureId, userPrincipal.getUserId()));
+    }
+
     /** 태스크 빼기 (백로그로 복귀) */
     /** 주기 이름·기간 변경 — 레벨 1→2 승급 마법사가 기간을 정할 때 쓴다. */
     @PatchMapping("/sprints/{sprintId}")

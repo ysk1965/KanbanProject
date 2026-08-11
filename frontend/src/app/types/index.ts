@@ -736,6 +736,15 @@ export interface SprintJiraTask {
   jira_updated_at?: string | null;
 }
 
+// 피쳐 담기 단위 정보 — 담긴 피쳐 목록(sprint_features)과 담기 후보(board_features)에 공통 사용
+export interface SprintFeatureInfo {
+  id: string;
+  title: string;
+  color: string | null;
+  status: "ACTIVE" | "COMPLETED" | null;
+  created_at: string | null; // 생성 순서 정렬용
+}
+
 export interface SprintBoard {
   sprint_enabled: boolean;
   active_sprint: SprintInfo | null;
@@ -743,6 +752,10 @@ export interface SprintBoard {
   gauge: SprintGauge;
   columns: SprintColumn[]; // 동적 컬럼 (position 순, 앞뒤 고정 + 중간 자유)
   backlog: SprintItemCard[];
+  // 담기 단위 = 피쳐. 활성 스프린트에 담긴 피쳐(태스크 0개인 빈 피쳐 포함).
+  sprint_features?: SprintFeatureInfo[];
+  // 보드의 담기 후보 피쳐 전체 (인박스 제외) — 이 마일스톤에 태스크가 없는 피쳐도 담을 수 있게 내려온다.
+  board_features?: SprintFeatureInfo[];
   // JIRA 미연동 보드면 없음/빈 배열. JIRA 뷰는 스프린트 컬럼이 아니라 이 보드 전체 목록을 집계한다.
   jira_tasks?: SprintJiraTask[];
   // 이 사용자가 JIRA 뷰를 마지막으로 확인한 시각. 이보다 나중에 linked_at된 이슈 = 신규.

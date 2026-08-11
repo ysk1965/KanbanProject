@@ -11,12 +11,16 @@ import com.kanban.domain.integration.jira.JiraIntegrationConfigRepository;
 import com.kanban.domain.integration.jira.JiraIssueLink;
 import com.kanban.domain.integration.jira.JiraIssueLinkRepository;
 import com.kanban.domain.integration.jira.JiraLinkTargetType;
+import com.kanban.domain.feature.Feature;
+import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.sprint.Sprint;
 import com.kanban.domain.sprint.SprintColumn;
 import com.kanban.domain.sprint.SprintColumnKind;
 import com.kanban.domain.sprint.SprintColumnRepository;
+import com.kanban.domain.sprint.SprintFeature;
+import com.kanban.domain.sprint.SprintFeatureRepository;
 import com.kanban.domain.sprint.SprintRepository;
 import com.kanban.domain.sprint.SprintStatus;
 import com.kanban.domain.sprint.dto.SprintResponse;
@@ -57,6 +61,8 @@ public class SprintService {
 
     private final SprintRepository sprintRepository;
     private final SprintColumnRepository sprintColumnRepository;
+    private final SprintFeatureRepository sprintFeatureRepository;
+    private final FeatureRepository featureRepository;
     private final TaskRepository taskRepository;
     private final ChecklistItemRepository checklistItemRepository;
     private final MilestoneRepository milestoneRepository;
@@ -72,6 +78,9 @@ public class SprintService {
     private static final String COL_SPRINT = "Sprint";
     private static final String COL_REVIEW = "In Review";
     private static final String COL_DONE = "Done";
+
+    /** 피쳐 미지정 태스크 그룹의 가상 피쳐 id (FE 트리의 "기타" 그룹과 동일 센티널) */
+    private static final String UNASSIGNED_FEATURE = "__none__";
 
     // ==================== Read ====================
 
@@ -139,6 +148,7 @@ public class SprintService {
         } else {
             // 병합: 담긴 태스크를 모두 백로그로 되돌리고 스프린트 삭제 (컬럼 구성은 보존)
             taskRepository.findInSprintByMilestoneId(milestoneId).forEach(Task::removeFromSprint);
+            sprintFeatureRepository.deleteByMilestoneId(milestoneId);
             sprintRepository.deleteByMilestoneId(milestoneId);
         }
         broadcastSprintChanged(boardId, userId);
@@ -165,6 +175,63 @@ public class SprintService {
         task.assignToSprint(sprint, requireColumn(milestone, SprintColumnKind.START));
         broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone, userId);
+    }
+
+    /**
+     * 피쳐 담기 — 담기의 단위. 매핑을 기록하고, 그 피쳐의 (이 마일스톤) 백로그 태스크를 일괄로
+     * Sprint 컬럼에 넣는다. 태스크가 0개여도 담을 수 있다 — 보드에는 빈 컬럼으로 맨 뒤에 표시된다.
+     * featureId가 {@code __none__}이면 피쳐 미지정 태스크 그룹을 담는다(매핑 없이 태스크만).
+     */
+    @Transactional
+    public SprintResponse.Board addFeature(String boardId, String sprintId, String featureId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+        Sprint sprint = loadSprint(boardId, sprintId);
+        Milestone milestone = sprint.getMilestone();
+        ensureColumns(milestone);
+        SprintColumn start = requireColumn(milestone, SprintColumnKind.START);
+
+        if (UNASSIGNED_FEATURE.equals(featureId)) {
+            taskRepository.findBacklogByMilestoneId(milestone.getId()).stream()
+                    .filter(t -> t.getFeature() == null)
+                    .forEach(t -> t.assignToSprint(sprint, start));
+        } else {
+            Feature feature = featureRepository.findById(featureId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
+            if (!feature.getBoard().getId().equals(boardId)) {
+                throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
+            }
+            if (!sprintFeatureRepository.existsBySprintIdAndFeatureId(sprintId, featureId)) {
+                sprintFeatureRepository.save(SprintFeature.builder()
+                        .sprint(sprint)
+                        .feature(feature)
+                        .build());
+            }
+            taskRepository.findByFeatureIdAndMilestoneId(featureId, milestone.getId()).stream()
+                    .filter(t -> t.getSprint() == null)
+                    .forEach(t -> t.assignToSprint(sprint, start));
+        }
+        broadcastSprintChanged(boardId, userId);
+        return buildBoard(milestone, userId);
+    }
+
+    /** 피쳐 빼기 — 매핑을 지우고, 이 스프린트에 담긴 그 피쳐의 태스크를 모두 백로그로 되돌린다. */
+    @Transactional
+    public SprintResponse.Board removeFeature(String boardId, String sprintId, String featureId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+        Sprint sprint = loadSprint(boardId, sprintId);
+
+        if (UNASSIGNED_FEATURE.equals(featureId)) {
+            taskRepository.findBySprintId(sprintId).stream()
+                    .filter(t -> t.getFeature() == null)
+                    .forEach(Task::removeFromSprint);
+        } else {
+            sprintFeatureRepository.deleteBySprintIdAndFeatureId(sprintId, featureId);
+            taskRepository.findBySprintId(sprintId).stream()
+                    .filter(t -> t.getFeature() != null && featureId.equals(t.getFeature().getId()))
+                    .forEach(Task::removeFromSprint);
+        }
+        broadcastSprintChanged(boardId, userId);
+        return buildBoard(sprint.getMilestone(), userId);
     }
 
     /**
@@ -353,6 +420,20 @@ public class SprintService {
             next = latest;
         }
 
+        // 피쳐별 상태는 태스크 이월 전에 스냅샷 — carryOverTo가 컬럼을 START로 되돌리기 때문.
+        // [0]=담긴 태스크 수, [1]=Done 미도달 수
+        Map<String, int[]> featureStats = new HashMap<>();
+        for (Task t : taskRepository.findBySprintId(sprintId)) {
+            if (t.getFeature() == null) {
+                continue;
+            }
+            int[] stat = featureStats.computeIfAbsent(t.getFeature().getId(), k -> new int[2]);
+            stat[0]++;
+            if (!t.isSprintDone()) {
+                stat[1]++;
+            }
+        }
+
         // 미완료 태스크 이월 — Sprint(START) 컬럼부터 다시 시작한다.
         List<Task> carried = taskRepository.findNotDoneBySprintId(sprintId, SprintColumnKind.END);
         if (!carried.isEmpty()) {
@@ -360,6 +441,19 @@ public class SprintService {
             carried.forEach(t -> t.carryOverTo(next, start));
             log.info("Sprint {} closed — {} tasks carried over to {}",
                     sprint.getName(), carried.size(), next.getName());
+        }
+
+        // 피쳐 매핑 이월 — 미완 태스크가 남았거나(태스크와 함께 넘어감) 태스크가 아예 없던
+        // 빈 피쳐(아직 시작 전)는 다음 스프린트로 넘긴다. 전부 Done인 피쳐는 이 스프린트에서 마감.
+        for (SprintFeature sf : sprintFeatureRepository.findBySprintIdWithFeature(sprintId)) {
+            int[] stat = featureStats.get(sf.getFeature().getId());
+            boolean carry = stat == null || stat[1] > 0;
+            if (carry && !sprintFeatureRepository.existsBySprintIdAndFeatureId(next.getId(), sf.getFeature().getId())) {
+                sprintFeatureRepository.save(SprintFeature.builder()
+                        .sprint(next)
+                        .feature(sf.getFeature())
+                        .build());
+            }
         }
 
         broadcastSprintChanged(boardId, userId);
@@ -434,6 +528,14 @@ public class SprintService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.SPRINT_NOT_FOUND));
         ensureColumns(milestone);
         task.assignToSprint(active, requireColumn(milestone, SprintColumnKind.START));
+        // 담기 단위는 피쳐 — 재개한 태스크의 피쳐도 활성 스프린트에 담긴 상태를 유지한다.
+        if (task.getFeature() != null
+                && !sprintFeatureRepository.existsBySprintIdAndFeatureId(active.getId(), task.getFeature().getId())) {
+            sprintFeatureRepository.save(SprintFeature.builder()
+                    .sprint(active)
+                    .feature(task.getFeature())
+                    .build());
+        }
         broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone, userId);
     }
@@ -698,6 +800,18 @@ public class SprintService {
         String boardId = milestone.getBoard().getId();
         List<SprintResponse.JiraTask> jiraTasks = buildJiraTasks(boardId);
 
+        // 담기 단위 = 피쳐. 활성 스프린트에 담긴 피쳐(빈 피쳐 포함)와, 담기 후보인 보드 피쳐 전체.
+        List<SprintResponse.FeatureInfo> sprintFeatures = active == null
+                ? List.of()
+                : sprintFeatureRepository.findBySprintIdWithFeature(active.getId()).stream()
+                        .map(sf -> SprintResponse.FeatureInfo.of(sf.getFeature()))
+                        .toList();
+        List<SprintResponse.FeatureInfo> boardFeatures = featureRepository
+                .findByBoardIdOrderByPositionAsc(boardId).stream()
+                .filter(f -> !Boolean.TRUE.equals(f.getIsInbox()))
+                .map(SprintResponse.FeatureInfo::of)
+                .toList();
+
         return SprintResponse.Board.builder()
                 .sprintEnabled(Boolean.TRUE.equals(milestone.getSprintEnabled()))
                 .activeSprint(activeInfo)
@@ -705,6 +819,8 @@ public class SprintService {
                 .gauge(gauge)
                 .columns(columnDtos)
                 .backlog(backlog)
+                .sprintFeatures(sprintFeatures)
+                .boardFeatures(boardFeatures)
                 .jiraTasks(jiraTasks)
                 .jiraLastSeenAt(resolveJiraLastSeenAt(boardId, userId, jiraTasks.isEmpty()))
                 .build();

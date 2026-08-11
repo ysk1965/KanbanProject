@@ -3754,6 +3754,24 @@ export const sprintAPI = {
     );
   },
 
+  /**
+   * 피쳐 담기 — 담기의 단위. 소속 태스크 전체가 함께 들어오고, 태스크 0개인 빈 피쳐도 담긴다.
+   * featureId "__none__" = 피쳐 미지정 태스크 그룹.
+   */
+  addFeature: async (boardId: string, sprintId: string, featureId: string) => {
+    return apiClient.post<SprintBoard>(
+      `/boards/${boardId}/sprints/${sprintId}/features`,
+      { feature_id: featureId },
+    );
+  },
+
+  /** 피쳐 빼기 — 매핑 삭제 + 담긴 태스크 전체 백로그 복귀. "__none__" = 미지정 그룹 */
+  removeFeature: async (boardId: string, sprintId: string, featureId: string) => {
+    return apiClient.delete<SprintBoard>(
+      `/boards/${boardId}/sprints/${sprintId}/features/${encodeURIComponent(featureId)}`,
+    );
+  },
+
   /** 주기 이름·기간 변경 — 레벨 1→2 승급 마법사가 기간을 정할 때 쓴다 */
   updateSprint: async (
     boardId: string,

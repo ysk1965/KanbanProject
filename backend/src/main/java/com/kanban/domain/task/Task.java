@@ -260,6 +260,8 @@ public class Task extends BaseTimeEntity {
         this.block = newBlock;
         this.feature = newFeature;
         this.position = newPosition;
+        // 스프린트는 원래 보드의 마일스톤에 묶여 있다 — 보드를 떠나면 함께 빠진다.
+        removeFromSprint();
     }
 
     public void complete() {

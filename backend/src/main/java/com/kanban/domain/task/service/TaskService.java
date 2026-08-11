@@ -90,6 +90,7 @@ public class TaskService {
     private final JiraIssueLinkRepository jiraIssueLinkRepository;
     private final EntityManager entityManager;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final com.kanban.domain.sprint.service.SprintAutoScopeService sprintAutoScopeService;
 
     public TaskResponse.ListResponse getTasks(String boardId, String userId, String blockId, String featureId, String milestoneId) {
         // 뷰어 이상 권한 확인 (컨트롤러 경로 전용 — Facade는 멤버십을 1회 검증 후 internal 직접 호출)
@@ -255,6 +256,9 @@ public class TaskService {
 
         taskRepository.save(task);
 
+        // 피쳐가 활성 스프린트에 담겨 있으면 새 태스크도 자동으로 같은 스프린트에 편입 (담기 단위 = 피쳐)
+        sprintAutoScopeService.adoptIntoActiveSprint(task);
+
         // Feature의 totalTasks 증가
         feature.incrementTotalTasks();
 
@@ -311,6 +315,8 @@ public class TaskService {
                     ? null
                     : resolveAndLinkMilestone(task.getBoard(), task.getFeature(), request.getMilestoneId());
             task.assignMilestone(milestone);
+            // 옛 마일스톤의 스프린트에서 빼고, 새 마일스톤에서 피쳐 담김이면 자동 편입 (담기 단위 = 피쳐)
+            sprintAutoScopeService.syncMilestoneChange(task);
             // 옛 마일스톤에 이 피처의 태스크가 하나도 남지 않으면 비게 된 피처-마일스톤 링크 정리
             if (oldMilestone != null && !oldMilestone.equals(milestone)) {
                 cleanupEmptyMilestoneLink(task.getFeature(), oldMilestone);
