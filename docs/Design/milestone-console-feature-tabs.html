@@ -417,6 +417,139 @@
   pre .del { color: var(--rose); }
   pre .add { color: var(--teal); }
 
+  /* ── 좌측 탭 레일 목업 ─────────────────────────── */
+  .console {
+    display: flex;
+    align-items: stretch;
+    min-height: 340px;
+  }
+
+  .rail {
+    width: 218px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--line);
+    padding: 10px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-y: auto;
+    max-height: 420px;
+  }
+
+  .vtab {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 38px;
+    padding: 7px 10px 7px 14px;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-2);
+    text-align: left;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+  }
+  .vtab:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 5%, transparent); }
+  .vtab .dot {
+    width: 8px; height: 8px;
+    border-radius: 999px;
+    background: var(--c);
+    flex-shrink: 0;
+    opacity: 0.55;
+    transition: opacity 0.15s;
+  }
+  .vtab .name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .vtab .cnt {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+  .vtab .cnt.done { color: var(--teal); }
+  .vtab::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 8px; bottom: 8px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--c);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .vtab.on {
+    color: var(--ink);
+    font-weight: 700;
+    background: color-mix(in srgb, var(--c) 10%, transparent);
+  }
+  .vtab.on .dot { opacity: 1; }
+  .vtab.on .cnt { color: var(--ink-2); }
+  .vtab.on .cnt.done { color: var(--teal); }
+  .vtab.on::before { opacity: 1; }
+
+  .vtab.add { color: var(--ink-3); }
+  .vtab.add:hover { color: var(--accent); background: color-mix(in srgb, var(--ink) 5%, transparent); }
+
+  .mini-board {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    gap: 10px;
+    padding: 14px;
+    overflow-x: auto;
+    background: color-mix(in srgb, var(--ink) 2%, transparent);
+  }
+
+  .mini-col {
+    width: 168px;
+    flex-shrink: 0;
+    align-self: flex-start;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--c);
+    border-radius: 10px;
+    padding: 10px 12px 12px;
+  }
+  .mini-col h4 {
+    margin: 0 0 8px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .mini-col .bar {
+    height: 4px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ink) 10%, transparent);
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .mini-col .bar i {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent), var(--teal));
+  }
+  .mini-card {
+    height: 34px;
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--ink) 5%, transparent);
+    border: 1px solid var(--line);
+    margin-bottom: 6px;
+  }
+  .mini-card:last-child { margin-bottom: 0; }
+
   ul.list { margin: 10px 0 0; padding-left: 20px; color: var(--ink-2); font-size: 14px; }
   ul.list li { margin-bottom: 8px; }
   ul.list li strong { color: var(--ink); font-weight: 700; }
@@ -520,7 +653,43 @@
     </div>
   </div>
 
-  <h2><span class="no">03</span>상태 스펙</h2>
+  <h2><span class="no">03</span>변형 시안: 좌측 탭 레일</h2>
+  <p class="sub">
+    같은 단일 선택 모델을 세로 레일로 옮긴 변형. 탭이 좌측에 서고 선택 표시는 <b>레일 왼쪽 3px 컬러 바 + 피쳐 색 10% 배경 틴트</b>,
+    카운트는 우측 정렬로 표 형태처럼 읽힌다. 피쳐가 12개여도 스크롤 없이 한눈에 들어오는 것이 핵심 차이.
+  </p>
+
+  <div class="stage">
+    <div class="stage-label">After · Variant <span class="tag next">좌측 탭</span></div>
+    <div class="console">
+      <nav class="rail" id="railNav" aria-label="피쳐"></nav>
+      <div class="mini-board" id="railBoard"></div>
+    </div>
+    <div class="stage-hint">레일 항목 클릭 = 해당 피쳐의 태스크 컬럼으로 전환 (인터랙티브 목업 · 보드는 축약 렌더링)</div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3><span class="pip ok"></span>좌측 탭이 유리한 점</h3>
+      <p>피쳐 12개가 <b>스크롤 없이 전부 보인다</b> — 상단 탭의 가로 스크롤(잘린 마지막 탭)이 사라진다.
+      이름이 길어도 말줄임으로 수용하고, 카운트가 우측 정렬로 나란해 진행률 비교가 표처럼 읽힌다.
+      세로 공간을 쓰지 않아 보드가 한 줄 더 높아진다.</p>
+    </div>
+    <div class="card">
+      <h3><span class="pip bad"></span>좌측 탭의 비용</h3>
+      <p>보드 가로폭을 <b>약 220px 소모</b>한다 — 지금 화면 기준 컬럼 하나가 덜 보인다.
+      또 필터 행(상단)과 스코프(좌측)의 시선 축이 갈라져, "필터 아래 = 그 결과"라는 수직 흐름이 약해진다.
+      모바일에서는 레일을 접거나 상단 탭으로 폴백해야 한다.</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>판단 기준:</strong> 피쳐 수가 화면당 8개를 넘는 일이 흔하고 컬럼 가로폭에 여유가 있다면(와이드 모니터 중심) 좌측 레일이 낫다.
+    반대로 컬럼을 하나라도 더 보여주는 게 중요하면 상단 탭 유지. 두 안 모두 상태 모델(<code>selectedId</code>)은 동일해서
+    전환 비용은 마크업 교체 수준이다.
+  </div>
+
+  <h2><span class="no">04</span>상태 스펙</h2>
   <div class="tablewrap">
     <table>
       <tr><th>상태</th><th>표현</th><th>Tailwind (프로젝트 토큰)</th></tr>
@@ -562,7 +731,7 @@
     </table>
   </div>
 
-  <h2><span class="no">04</span>구현 가이드</h2>
+  <h2><span class="no">05</span>구현 가이드 (상단 탭 기준)</h2>
   <p class="sub"><code>MilestoneConsoleModal.tsx</code> 859–971행 피쳐 칩 영역 교체. 상태 모델이 <code>Set&lt;string&gt;</code> → 단일 <code>string</code>으로 바뀌는 것이 핵심이고, 컨테이너의 <code>border-b</code> 위에 탭이 <code>-mb-px</code>로 얹히는 구조.</p>
 
   <pre><span class="cm">{/* 1. 상태 모델: 다중 → 단일 */}</span>
@@ -678,6 +847,82 @@
 
   build("beforeRow", "chip");
   build("afterRow", "tab");
+
+  // ── 좌측 탭 레일 목업 ──
+  const RAIL_FEATURES = FEATURES.concat([
+    { name: "기타 작업", done: 184, total: 200, c: "#94a3b8" },
+    { name: "상점", done: 9, total: 19, c: "#f97316" },
+  ]);
+
+  const RAIL_COLS = {
+    "상점": [
+      { t: "타임딜 작업", d: 0, n: 3 },
+      { t: "상점 UI", d: 0, n: 4 },
+      { t: "IAP 기능", d: 0, n: 1 },
+      { t: "BM 기획", d: 1, n: 1 },
+      { t: "광고 수익화", d: 8, n: 8 },
+    ],
+  };
+
+  function railColumns(f) {
+    if (RAIL_COLS[f.name]) return RAIL_COLS[f.name];
+    // 정의 없는 피쳐는 카운트 기반 스켈레톤 컬럼
+    const nCols = Math.min(4, Math.max(2, Math.round(f.total / 60) + 2));
+    return Array.from({ length: nCols }, (_, i) => ({
+      t: "태스크 " + (i + 1),
+      d: Math.min(f.done, Math.ceil(f.total / nCols)),
+      n: Math.ceil(f.total / nCols),
+    }));
+  }
+
+  function renderRailBoard(f) {
+    const board = document.getElementById("railBoard");
+    board.innerHTML = railColumns(f)
+      .map((col) => {
+        const pct = col.n ? Math.round((col.d / col.n) * 100) : 0;
+        const cards = Math.min(3, Math.max(1, col.n));
+        return (
+          '<div class="mini-col" style="--c:' + f.c + '">' +
+          "<h4>" + col.t + "</h4>" +
+          '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
+          Array.from({ length: cards }, () => '<div class="mini-card"></div>').join("") +
+          "</div>"
+        );
+      })
+      .join("");
+  }
+
+  (function buildRail() {
+    const rail = document.getElementById("railNav");
+    const DEFAULT = RAIL_FEATURES.length - 1; // 상점
+    RAIL_FEATURES.forEach((f, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "vtab" + (i === DEFAULT ? " on" : "");
+      b.style.setProperty("--c", f.c);
+      b.setAttribute("aria-pressed", i === DEFAULT ? "true" : "false");
+      const doneCls = f.done === f.total ? " done" : "";
+      b.innerHTML =
+        '<span class="dot"></span><span class="name">' + f.name +
+        '</span><span class="cnt' + doneCls + '">' + f.done + "/" + f.total + "</span>";
+      b.addEventListener("click", () => {
+        rail.querySelectorAll(".vtab:not(.add)").forEach((el) => {
+          el.classList.remove("on");
+          el.setAttribute("aria-pressed", "false");
+        });
+        b.classList.add("on");
+        b.setAttribute("aria-pressed", "true");
+        renderRailBoard(f);
+      });
+      rail.appendChild(b);
+    });
+    const add = document.createElement("button");
+    add.type = "button";
+    add.className = "vtab add";
+    add.innerHTML = '<span class="name">＋ 피쳐</span>';
+    rail.appendChild(add);
+    renderRailBoard(RAIL_FEATURES[DEFAULT]);
+  })();
 
   function setAll(rowId, on) {
     document.querySelectorAll("#" + rowId + " .chip").forEach((el) => {

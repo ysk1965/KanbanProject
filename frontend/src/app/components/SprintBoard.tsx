@@ -213,6 +213,10 @@ const SPRINT_TREE_COLLAPSED_KEY = "bridge:sprint-tree:collapsed";
 const SPRINT_TREE_WIDTH_KEY = "bridge:sprint-tree:width";
 /** 하단 미분류 레일 접힘 상태 저장 키. 기본값은 접힘 — 평소엔 보드 세로 공간을 돌려준다. */
 const SPRINT_UNCAT_COLLAPSED_KEY = "bridge:sprint-uncategorized:collapsed";
+/** 우측 도크(In Review·Done) 컬럼별 펼침 상태 저장 키. 기본값은 접힘(레일). */
+const SPRINT_DOCK_EXPANDED_KEY = "bridge:sprint-dock:expanded";
+/** 드래그 중 접힌 도크 레일 위에 이만큼 머물면 자동으로 펼친다(ms). */
+const DOCK_HOVER_EXPAND_MS = 300;
 
 /**
  * JIRA 흐름 게이지 세그먼트 색 — 단계가 뒤로 갈수록 액센트가 진해지고,
@@ -421,6 +425,52 @@ export function SprintBoard({
   // 레일에서 시작된 드래그 — 구성원 컬럼 드롭을 "컬럼 이동"이 아니라 "담당 배정"으로 갈라내는 표식.
   // 렌더에 관여하지 않아(하이라이트는 draggingSource가 담당) state 대신 ref로 둔다.
   const uncatDragRef = useRef<SprintItemCard | null>(null);
+
+  // ── 우측 도크 (In Review·Done 고정 컬럼) ──
+  // MIDDLE·END 컬럼은 가로 스크롤 컨테이너 밖 우측 도크에 상주한다 — Feature 컬럼이
+  // 아무리 많아도 화면 밖으로 밀려나지 않는다. 평소엔 좁은 레일로 접혀 있고(수량·분포는
+  // 레일만으로도 읽힌다), 클릭 또는 드래그 호버로 펼친다. 컬럼 id별 펼침 상태를 저장.
+  const [dockExpanded, setDockExpanded] = useState<Record<string, boolean>>(
+    () => {
+      try {
+        const parsed = JSON.parse(
+          localStorage.getItem(SPRINT_DOCK_EXPANDED_KEY) ?? "null",
+        ) as unknown;
+        return parsed && typeof parsed === "object"
+          ? (parsed as Record<string, boolean>)
+          : {};
+      } catch {
+        return {};
+      }
+    },
+  );
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        SPRINT_DOCK_EXPANDED_KEY,
+        JSON.stringify(dockExpanded),
+      );
+    } catch {
+      /* 프라이빗 모드 등 localStorage 접근 불가 시 무시 */
+    }
+  }, [dockExpanded]);
+  // 드래그 중 접힌 레일 위에 머물면 자동 펼침 — 타이머는 렌더와 무관해 ref로 둔다.
+  const dockHoverTimer = useRef<Record<string, ReturnType<typeof setTimeout>>>(
+    {},
+  );
+  const clearDockHoverTimer = (colId: string) => {
+    const t = dockHoverTimer.current[colId];
+    if (t) {
+      clearTimeout(t);
+      delete dockHoverTimer.current[colId];
+    }
+  };
+  useEffect(
+    () => () => {
+      for (const t of Object.values(dockHoverTimer.current)) clearTimeout(t);
+    },
+    [],
+  );
 
   // 구성원 간트 모달 — 구성원 컬럼 헤더 클릭 시 해당 구성원 id. null이면 닫힘.
   const [ganttMemberId, setGanttMemberId] = useState<string | null>(null);
@@ -1143,6 +1193,19 @@ export function SprintBoard({
   const firstMiddleColumn = useMemo(
     () => columns.find((c) => c.kind === "MIDDLE") ?? null,
     [columns],
+  );
+
+  // 우측 도크에 상주하는 고정 컬럼(In Review·Done). 리뷰 옵션이 꺼진 채 비어 있는
+  // MIDDLE은 스크롤 영역의 유령 컬럼(reviewGhost)이 자리를 맡으므로 도크에서 뺀다.
+  const dockColumns = useMemo(
+    () =>
+      columns.filter(
+        (c) =>
+          c.kind === "END" ||
+          (c.kind === "MIDDLE" &&
+            (uiFeatures.has("review") || c.items.length > 0)),
+      ),
+    [columns, uiFeatures],
   );
 
   // 스프린트에 담긴 각 Feature = 하나의 컬럼. 카드는 태스크 1건이라 소그룹 없이 바로 나열된다.
@@ -2638,6 +2701,230 @@ export function SprintBoard({
   // Feature 단위 컬럼 (기존 "Sprint" 컬럼을 Feature별로 쪼갠 것).
   // 카드가 태스크 1건이라 소그룹 없이 평면 나열한다.
   // 보드 안 카드를 여기로 드롭하면 START 컬럼으로 이동한다(보드 내부 이동만 허용).
+  // 스테이지 컬럼(START·MIDDLE·END 공통) 안쪽 — 상단 색 레일 + 헤더(이름/편집) + 카드 스택.
+  // 바깥 껍데기(드롭 존 div)는 호출부가 소유한다: 스크롤 영역 컬럼은 고정 폭,
+  // 도크 컬럼은 접힘/펼침 폭 전환이 있어 같은 안쪽을 다른 껍데기에 끼운다.
+  const renderStageColumnInner = (col: SprintColumn, onCollapse?: () => void) => {
+    const accent = columnAccent(col);
+    const isAnchor = col.kind !== "MIDDLE";
+    return (
+      <>
+        {/* 컬럼 상단 상태 색 레일 */}
+        <div className="h-[3px] shrink-0" style={{ background: accent }} />
+        {/* 컬럼 헤더 */}
+        <div className="px-3 py-2.5 border-b border-foreground/[0.06] flex items-center gap-2">
+          <span
+            className="w-2 h-2 rounded-full shrink-0"
+            style={{ background: accent }}
+          />
+          {editingCol === col.id ? (
+            <input
+              autoFocus
+              value={editColName}
+              onChange={(e) => setEditColName(e.target.value)}
+              onBlur={() => submitRename(col)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitRename(col);
+                if (e.key === "Escape") setEditingCol(null);
+              }}
+              className="flex-1 min-w-0 bg-foreground/[0.05] border border-foreground/10 rounded px-2 py-0.5 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+            />
+          ) : (
+            <span className="text-xs font-bold text-foreground truncate flex-1">
+              {col.name}
+            </span>
+          )}
+          {isAnchor && (
+            <span className="text-[9px] font-bold text-slate-500 tracking-wide shrink-0">
+              고정
+            </span>
+          )}
+          <span className="text-[10px] font-bold text-slate-500 tabular-nums bg-bridge-dark rounded-full px-1.5 shrink-0">
+            {col.items.length}
+          </span>
+          {/* MIDDLE 컬럼 편집 (관리자) */}
+          {col.kind === "MIDDLE" &&
+            isAdminOrOwner &&
+            editingCol !== col.id && (
+              <div className="flex items-center gap-0.5 shrink-0">
+                <button
+                  onClick={() => moveColumn(col, -1)}
+                  className="p-1 rounded text-slate-500 hover:text-foreground hover:bg-foreground/5"
+                  aria-label="왼쪽으로"
+                >
+                  <ChevronLeft className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => moveColumn(col, 1)}
+                  className="p-1 rounded text-slate-500 hover:text-foreground hover:bg-foreground/5"
+                  aria-label="오른쪽으로"
+                >
+                  <ChevronRight className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingCol(col.id);
+                    setEditColName(col.name);
+                  }}
+                  className="p-1 rounded text-slate-500 hover:text-foreground hover:bg-foreground/5"
+                  aria-label="이름 변경"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => removeColumn(col)}
+                  className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-foreground/5"
+                  aria-label="삭제"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+          {onCollapse && (
+            <button
+              onClick={onCollapse}
+              className="p-1 rounded text-slate-500 hover:text-foreground hover:bg-foreground/5 shrink-0"
+              aria-label={`${col.name} 접기`}
+              title="접기"
+            >
+              <ChevronRight className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+
+        {/* 카드 스택 */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2 min-h-[120px]">
+          {col.items.length === 0 && (
+            <div className="h-full min-h-[80px] grid place-items-center text-[11px] text-slate-600">
+              {col.kind === "START" ? "← 왼쪽에서 끌어다 담기" : "비어 있음"}
+            </div>
+          )}
+          {col.items.map((it) => renderCard(it))}
+        </div>
+      </>
+    );
+  };
+
+  // 도크 컬럼 펼침/접힘 토글 — 지난 스프린트의 컬럼 id가 저장소에 쌓이지 않게
+  // 현재 도크 컬럼 몫만 남기고 정리한다.
+  const toggleDock = (colId: string) => {
+    setDockExpanded((prev) => {
+      const next: Record<string, boolean> = { ...prev, [colId]: !prev[colId] };
+      const valid = new Set(dockColumns.map((c) => c.id));
+      for (const k of Object.keys(next)) if (!valid.has(k)) delete next[k];
+      return next;
+    });
+  };
+
+  // 우측 도크 컬럼(In Review·Done) — 접힘(52px 레일) ↔ 펼침(기존 컬럼 UI) 전환.
+  // 접힌 레일도 그대로 드롭 존이고, 드래그 중 잠시 머물면 자동으로 펼쳐진다.
+  const renderDockColumn = (col: SprintColumn) => {
+    const accent = columnAccent(col);
+    const expanded = !!dockExpanded[col.id];
+    const isOver = dragOverCol === col.id;
+    // END 레일 훈장 — 오늘 완료 수(진행 현황 모달의 "오늘 완료" 기준과 동일: 로컬 자정 이후).
+    const todayCnt =
+      col.kind === "END"
+        ? (() => {
+            const now = new Date();
+            const startToday = new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate(),
+            ).getTime();
+            return col.items.filter((it) => {
+              const ts =
+                parseUTCDate(it.completed_at ?? it.done_date)?.getTime() ?? 0;
+              return ts >= startToday;
+            }).length;
+          })()
+        : 0;
+    const MAX_MINI = 12;
+    return (
+      <div
+        key={col.id}
+        onDragOver={(e) => {
+          if (canEdit && draggingSource === "sprint") {
+            e.preventDefault();
+            setDragOverCol(col.id);
+            // 접힌 레일 위에 머물면 자동 펼침 — 원하는 위치를 보며 놓을 수 있게.
+            if (!expanded && !dockHoverTimer.current[col.id]) {
+              dockHoverTimer.current[col.id] = setTimeout(() => {
+                delete dockHoverTimer.current[col.id];
+                setDockExpanded((prev) => ({ ...prev, [col.id]: true }));
+              }, DOCK_HOVER_EXPAND_MS);
+            }
+          }
+        }}
+        onDragLeave={() => {
+          clearDockHoverTimer(col.id);
+          setDragOverCol((c) => (c === col.id ? null : c));
+        }}
+        onDrop={(e) => {
+          clearDockHoverTimer(col.id);
+          void onDropColumn(e, col);
+        }}
+        style={isOver ? { borderColor: accent } : undefined}
+        className={`shrink-0 flex flex-col rounded-2xl border bg-sprint-col overflow-hidden border-sprint-border transition-[width,border-color] duration-300 ${
+          expanded ? "w-[260px]" : "w-[52px]"
+        }`}
+      >
+        {expanded ? (
+          renderStageColumnInner(col, () => toggleDock(col.id))
+        ) : (
+          <>
+            <div className="h-[3px] shrink-0" style={{ background: accent }} />
+            <button
+              type="button"
+              onClick={() => toggleDock(col.id)}
+              aria-label={`${col.name} 펼치기 (${col.items.length}건)`}
+              title={`${col.name} · ${col.items.length}건 — 클릭해서 펼치기`}
+              className="flex-1 min-h-0 w-full flex flex-col items-center gap-2.5 pt-2.5 pb-3 hover:bg-foreground/[0.04] transition-colors"
+            >
+              <span
+                className="text-xs font-bold tabular-nums px-1.5 py-0.5 rounded-full shrink-0"
+                style={{ background: `${accent}26`, color: accent }}
+              >
+                {col.items.length}
+              </span>
+              <span
+                className="text-[10px] font-bold tracking-[0.18em] text-slate-400 uppercase shrink-0"
+                style={{ writingMode: "vertical-rl" }}
+              >
+                {col.name}
+              </span>
+              {/* 카드 1건 = 미니 바 1개(좌측 색 = 피처 색) — 접힌 채로도 규모·분포가 보인다 */}
+              <span className="flex-1 min-h-0 w-full flex flex-col items-center gap-1 overflow-hidden pt-1">
+                {col.items.slice(0, MAX_MINI).map((it) => (
+                  <span
+                    key={it.id}
+                    className="w-[24px] h-[6px] rounded-[3px] bg-foreground/10 shrink-0"
+                    style={{
+                      borderLeft: `3px solid ${it.feature_color ?? "#6366F1"}`,
+                    }}
+                  />
+                ))}
+                {col.items.length > MAX_MINI && (
+                  <span className="text-[10px] font-bold text-slate-500 shrink-0">
+                    +{col.items.length - MAX_MINI}
+                  </span>
+                )}
+              </span>
+              {todayCnt > 0 && (
+                <span
+                  className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0"
+                  title={`오늘 완료 ${todayCnt}건`}
+                >
+                  +{todayCnt}
+                </span>
+              )}
+            </button>
+          </>
+        )}
+      </div>
+    );
+  };
+
   const renderFeatureColumn = (fc: (typeof featureColumns)[number]) => {
     const accent = fc.featureColor ?? "#6366F1";
     const key = `feat-${fc.featureId}`;
@@ -3109,9 +3396,9 @@ export function SprintBoard({
     const issueUrl = card.isDeleted
       ? null
       : jiraIssueUrl(jiraStatus?.base_url, card.jiraKey);
-    // 체크리스트 진행바는 "담당자 항목 하나"뿐인 카드에선 늘 100%라 정보가 없다.
-    // 실제로 쪼갠 카드에서만 세우고, 비운 자리는 JIRA 갱신 시각이 받는다.
-    const showProgress = card.total > 1;
+    // 체크리스트가 하나라도 있으면 게이지를 세운다 — 1개짜리도 0/1(미착수)과 1/1(완료)은
+    // 다른 상태다. 체크리스트가 아예 없는 카드만 그 자리를 JIRA 갱신 시각이 받는다.
+    const showProgress = card.total > 0;
     return (
       <div
         key={card.taskId}
@@ -4662,8 +4949,11 @@ export function SprintBoard({
                 </div>
               </div>
             )}
-          <div className="flex-1 min-h-0 overflow-x-auto custom-scrollbar">
+          {/* 좌: 가로 스크롤 컬럼 스트립 / 우: In Review·Done 고정 도크(스프린트 화면 전용).
+              도크는 스크롤 컨테이너 밖 flex 형제라 Feature 컬럼 수와 무관하게 항상 보인다. */}
+          <div className="flex-1 min-h-0 flex overflow-hidden">
             {previewColumns ? (
+              <div className="flex-1 min-w-0 overflow-x-auto custom-scrollbar">
               <div className="flex gap-3 p-3 md:p-4 h-full min-w-max">
                 {previewColumns.map((col) => {
                   const accent =
@@ -4707,190 +4997,114 @@ export function SprintBoard({
                   );
                 })}
               </div>
+              </div>
             ) : previewLoading ? (
-              <div className="flex items-center justify-center h-full">
+              <div className="flex-1 flex items-center justify-center h-full">
                 <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
               </div>
             ) : /* JIRA 화면은 스프린트 스코프가 아니다 — 진행 중인 스프린트가 없어도
                    연동 이슈는 그대로 보여야 하므로 활성 스프린트 검사보다 앞에 둔다. */
             groupBy === "jira" ? (
               jiraMetaLoading && !jiraMeta ? (
-                <div className="flex items-center justify-center h-full">
+                <div className="flex-1 flex items-center justify-center h-full">
                   <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
                 </div>
               ) : !(jiraMirrorReady || hasBlockMapping) ? (
                 // 미러 미준비(레거시 매핑도 없음) → 온보딩 가이드로 셋업 안내
-                <JiraOnboardingGuide
-                  boardId={boardId}
-                  status={jiraStatus}
-                  onOpenSettings={() => setShowJiraModal(true)}
-                  onReady={() => refreshJiraState(true)}
-                />
+                <div className="flex-1 min-w-0 overflow-x-auto custom-scrollbar">
+                  <JiraOnboardingGuide
+                    boardId={boardId}
+                    status={jiraStatus}
+                    onOpenSettings={() => setShowJiraModal(true)}
+                    onReady={() => refreshJiraState(true)}
+                  />
+                </div>
               ) : (
-                <div className="flex gap-3 p-3 md:p-4 h-full min-w-max">
-                  {jiraColumns.map((col) => renderJiraColumn(col))}
+                <div className="flex-1 min-w-0 overflow-x-auto custom-scrollbar">
+                  <div className="flex gap-3 p-3 md:p-4 h-full min-w-max">
+                    {jiraColumns.map((col) => renderJiraColumn(col))}
+                  </div>
                 </div>
               )
             ) : !activeSprint ? (
-              <div className="flex items-center justify-center h-full text-slate-500 text-sm">
+              <div className="flex-1 flex items-center justify-center h-full text-slate-500 text-sm">
                 진행 중인 스프린트가 없습니다.
               </div>
             ) : (
-              <div className="flex gap-3 p-3 md:p-4 h-full min-w-max">
-                {columns.map((col) => {
-                  // 리뷰 옵션이 꺼지면 MIDDLE 컬럼을 내린다 — 단, **비어 있을 때만**.
-                  // 카드가 남아 있는데 컬럼을 숨기면 그 카드가 화면에서 사라진다.
-                  // 옵션을 끄는 건 "새로 리뷰로 보내지 않겠다"이지 "있던 걸 버리겠다"가 아니다.
-                  if (
-                    col.kind === "MIDDLE" &&
-                    !uiFeatures.has("review") &&
-                    col.items.length === 0
-                  ) {
-                    // 내린 자리에 유령을 세운다 — 첫 번째 MIDDLE에만.
-                    // 중간 컬럼이 여럿이면 같은 제안이 여러 칸 반복된다.
-                    return col.id === firstMiddleColumn?.id ? (
-                      <Fragment key={col.id}>{reviewGhost}</Fragment>
-                    ) : null;
-                  }
-                  // START("Sprint") 컬럼은 그룹 기준에 따라 Feature/담당자 단위 컬럼들로 확장.
-                  // In Review / Done 등 나머지 컬럼은 두 뷰에서 그대로 유지(공유).
-                  if (col.kind === "START") {
-                    const grouped =
-                      groupBy === "member" ? memberColumns : featureColumns;
-                    if (grouped.length > 0) {
-                      return (
-                        <Fragment key={col.id}>
-                          {groupBy === "member"
-                            ? memberColumns.map((mc) => renderMemberColumn(mc))
-                            : featureColumns
-                                .filter(
-                                  (fc) =>
-                                    featureFilter.size === 0 ||
-                                    featureFilter.has(fc.featureId),
-                                )
-                                .map((fc) => renderFeatureColumn(fc))}
-                        </Fragment>
-                      );
-                    }
-                    // 활성 카드가 없으면(전부 In Review/Done·미담김) START 컬럼 자체를 노출(담기 안내)
-                  }
-                  const isAnchor = col.kind !== "MIDDLE";
-                  const accent =
-                    col.kind === "START"
-                      ? "#6366F1"
-                      : col.kind === "END"
-                        ? "#34d399"
-                        : (col.color ?? "#f59e0b");
-                  return (
-                    <div
-                      key={col.id}
-                      onDragOver={(e) => {
-                        if (canEdit && draggingSource === "sprint") {
-                          e.preventDefault();
-                          setDragOverCol(col.id);
-                        }
-                      }}
-                      onDragLeave={() =>
-                        setDragOverCol((c) => (c === col.id ? null : c))
+              <>
+                <div className="flex-1 min-w-0 overflow-x-auto custom-scrollbar">
+                  <div className="flex gap-3 p-3 md:p-4 h-full min-w-max">
+                    {columns.map((col) => {
+                      // 리뷰 옵션이 꺼지면 MIDDLE 컬럼을 내린다 — 단, **비어 있을 때만**.
+                      // 카드가 남아 있는데 컬럼을 숨기면 그 카드가 화면에서 사라진다.
+                      // 옵션을 끄는 건 "새로 리뷰로 보내지 않겠다"이지 "있던 걸 버리겠다"가 아니다.
+                      if (
+                        col.kind === "MIDDLE" &&
+                        !uiFeatures.has("review") &&
+                        col.items.length === 0
+                      ) {
+                        // 내린 자리에 유령을 세운다 — 첫 번째 MIDDLE에만.
+                        // 중간 컬럼이 여럿이면 같은 제안이 여러 칸 반복된다.
+                        return col.id === firstMiddleColumn?.id ? (
+                          <Fragment key={col.id}>{reviewGhost}</Fragment>
+                        ) : null;
                       }
-                      onDrop={(e) => onDropColumn(e, col)}
-                      className={`w-[260px] shrink-0 flex flex-col rounded-2xl border bg-sprint-col overflow-hidden transition-colors ${
-                        dragOverCol === col.id
-                          ? "border-bridge-accent/60"
-                          : "border-sprint-border"
-                      }`}
-                    >
-                      {/* 컬럼 상단 상태 색 레일 */}
-                      <div
-                        className="h-[3px] shrink-0"
-                        style={{ background: accent }}
-                      />
-                      {/* 컬럼 헤더 */}
-                      <div className="px-3 py-2.5 border-b border-foreground/[0.06] flex items-center gap-2">
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ background: accent }}
-                        />
-                        {editingCol === col.id ? (
-                          <input
-                            autoFocus
-                            value={editColName}
-                            onChange={(e) => setEditColName(e.target.value)}
-                            onBlur={() => submitRename(col)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") submitRename(col);
-                              if (e.key === "Escape") setEditingCol(null);
-                            }}
-                            className="flex-1 min-w-0 bg-foreground/[0.05] border border-foreground/10 rounded px-2 py-0.5 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-                          />
-                        ) : (
-                          <span className="text-xs font-bold text-foreground truncate flex-1">
-                            {col.name}
-                          </span>
-                        )}
-                        {isAnchor && (
-                          <span className="text-[9px] font-bold text-slate-500 tracking-wide shrink-0">
-                            고정
-                          </span>
-                        )}
-                        <span className="text-[10px] font-bold text-slate-500 tabular-nums bg-bridge-dark rounded-full px-1.5 shrink-0">
-                          {col.items.length}
-                        </span>
-                        {/* MIDDLE 컬럼 편집 (관리자) */}
-                        {col.kind === "MIDDLE" &&
-                          isAdminOrOwner &&
-                          editingCol !== col.id && (
-                            <div className="flex items-center gap-0.5 shrink-0">
-                              <button
-                                onClick={() => moveColumn(col, -1)}
-                                className="p-1 rounded text-slate-500 hover:text-foreground hover:bg-foreground/5"
-                                aria-label="왼쪽으로"
-                              >
-                                <ChevronLeft className="w-3 h-3" />
-                              </button>
-                              <button
-                                onClick={() => moveColumn(col, 1)}
-                                className="p-1 rounded text-slate-500 hover:text-foreground hover:bg-foreground/5"
-                                aria-label="오른쪽으로"
-                              >
-                                <ChevronRight className="w-3 h-3" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setEditingCol(col.id);
-                                  setEditColName(col.name);
-                                }}
-                                className="p-1 rounded text-slate-500 hover:text-foreground hover:bg-foreground/5"
-                                aria-label="이름 변경"
-                              >
-                                <Pencil className="w-3 h-3" />
-                              </button>
-                              <button
-                                onClick={() => removeColumn(col)}
-                                className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-foreground/5"
-                                aria-label="삭제"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          )}
-                      </div>
-
-                      {/* 카드 스택 */}
-                      <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2 min-h-[120px]">
-                        {col.items.length === 0 && (
-                          <div className="h-full min-h-[80px] grid place-items-center text-[11px] text-slate-600">
-                            {col.kind === "START"
-                              ? "← 왼쪽에서 끌어다 담기"
-                              : "비어 있음"}
-                          </div>
-                        )}
-                        {col.items.map((it) => renderCard(it))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                      // In Review·Done(MIDDLE·END)은 우측 도크(dockColumns)가 맡는다 —
+                      // 스크롤 스트립에서 그리면 Feature 컬럼에 밀려 화면 밖으로 사라진다.
+                      if (col.kind !== "START") return null;
+                      // START("Sprint") 컬럼은 그룹 기준에 따라 Feature/담당자 단위 컬럼들로 확장.
+                      const grouped =
+                        groupBy === "member" ? memberColumns : featureColumns;
+                      if (grouped.length > 0) {
+                        return (
+                          <Fragment key={col.id}>
+                            {groupBy === "member"
+                              ? memberColumns.map((mc) =>
+                                  renderMemberColumn(mc),
+                                )
+                              : featureColumns
+                                  .filter(
+                                    (fc) =>
+                                      featureFilter.size === 0 ||
+                                      featureFilter.has(fc.featureId),
+                                  )
+                                  .map((fc) => renderFeatureColumn(fc))}
+                          </Fragment>
+                        );
+                      }
+                      // 활성 카드가 없으면(전부 In Review/Done·미담김) START 컬럼 자체를 노출(담기 안내)
+                      return (
+                        <div
+                          key={col.id}
+                          onDragOver={(e) => {
+                            if (canEdit && draggingSource === "sprint") {
+                              e.preventDefault();
+                              setDragOverCol(col.id);
+                            }
+                          }}
+                          onDragLeave={() =>
+                            setDragOverCol((c) => (c === col.id ? null : c))
+                          }
+                          onDrop={(e) => onDropColumn(e, col)}
+                          className={`w-[260px] shrink-0 flex flex-col rounded-2xl border bg-sprint-col overflow-hidden transition-colors ${
+                            dragOverCol === col.id
+                              ? "border-bridge-accent/60"
+                              : "border-sprint-border"
+                          }`}
+                        >
+                          {renderStageColumnInner(col)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                {/* 우측 도크 — In Review·Done이 항상 여기 보인다(접힘/펼침은 renderDockColumn) */}
+                {dockColumns.length > 0 && (
+                  <div className="shrink-0 flex gap-2 py-3 md:py-4 pr-3 md:pr-4">
+                    {dockColumns.map((col) => renderDockColumn(col))}
+                  </div>
+                )}
+              </>
             )}
           </div>
           {/* 미분류 레일 — 구성원 뷰 전용. 미리보기(읽기 전용 스냅샷)에선 숨긴다. */}
