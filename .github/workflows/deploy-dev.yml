@@ -254,7 +254,11 @@ jobs:
           fi
 
           # Wait out any transient post-deploy health dip before declaring success.
-          for i in $(seq 1 12); do
+          # RollingWithAdditionalBatch는 배포 완료 직후 잉여 배치 인스턴스(구버전)가
+          # 회수되는 2~3분간 "Incorrect application version" Red가 떴다가 Green으로
+          # 돌아온다 — 3분(12회)만 기다리면 그 창에 걸려 성공 배포를 실패로 오탐하므로
+          # 6분(24회)까지 기다린다.
+          for i in $(seq 1 24); do
             HEALTH=$(aws elasticbeanstalk describe-environments \
               --environment-names "$ENV_NAME" \
               --query 'Environments[0].Health' --output text)
