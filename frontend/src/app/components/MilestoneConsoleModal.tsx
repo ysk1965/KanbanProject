@@ -10,9 +10,13 @@ import {
   Square,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Plus,
 } from "lucide-react";
+import { motion } from "framer-motion";
 import { MotionModal } from "./ui/MotionModal";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 import type { SprintItemCard } from "../types";
 import { sprintAPI, memberAPI, milestoneAPI } from "../utils/api";
 import {
@@ -38,12 +42,20 @@ interface ConsoleMember {
  * 데이터는 마일스톤 전체(스프린트 담김 여부 무관)를 GET /console 로 로드한다.
  */
 
+interface ConsoleMilestoneNav {
+  id: string;
+  title: string;
+  progress_percentage?: number;
+}
+
 interface MilestoneConsoleModalProps {
   open: boolean;
   onClose: () => void;
   boardId: string;
   milestoneId: string;
   milestoneTitle?: string;
+  /** 콘솔을 닫지 않고 좌우로 넘나들 마일스톤 목록(표시 순서 그대로). 2개 이상이면 페이저 활성 */
+  milestones?: ConsoleMilestoneNav[];
   canEdit: boolean;
   onOpenChecklistItem?: (taskId: string, checklistItemId?: string) => void;
 }
@@ -90,9 +102,27 @@ export function MilestoneConsoleModal({
   boardId,
   milestoneId,
   milestoneTitle,
+  milestones,
   canEdit,
   onOpenChecklistItem,
 }: MilestoneConsoleModalProps) {
+  // ── 마일스톤 페이저 — null이면 부모가 준 milestoneId를 따르고, 콘솔 안에서
+  //    이동한 동안만 값을 가진다. 닫으면 리셋되어 다음에 열 때 부모 선택으로 복귀.
+  const [navMilestoneId, setNavMilestoneId] = useState<string | null>(null);
+  const [slideDir, setSlideDir] = useState(0); // 보드 슬라이드 방향(-1 이전 / 1 다음)
+  const [msMenuOpen, setMsMenuOpen] = useState(false);
+  const msMenuRef = useRef<HTMLDivElement | null>(null);
+  // 마지막으로 로드를 마친 마일스톤 — 같은 곳 재로드는 이전 화면을 유지(깜빡임 방지),
+  // 다른 마일스톤으로 넘어갈 땐 이전 카드가 비치지 않게 비운다.
+  const loadedMilestoneRef = useRef<string | null>(null);
+  const reducedMotion = useReducedMotion();
+
+  const curMilestoneId = navMilestoneId ?? milestoneId;
+  const msList = milestones ?? [];
+  const msIndex = msList.findIndex((m) => m.id === curMilestoneId);
+  const hasPager = msList.length > 1 && msIndex >= 0;
+  const curTitle = msList[msIndex]?.title ?? milestoneTitle;
+
   const [items, setItems] = useState<SprintItemCard[]>([]);
   const [members, setMembers] = useState<ConsoleMember[]>([]);
   const [loading, setLoading] = useState(false);
@@ -148,10 +178,10 @@ export function MilestoneConsoleModal({
   }, []);
 
   const load = useCallback(async () => {
-    if (!milestoneId) return;
+    if (!curMilestoneId) return;
     setLoading(true);
     try {
-      const data = await sprintAPI.getMilestoneConsole(boardId, milestoneId);
+      const data = await sprintAPI.getMilestoneConsole(boardId, curMilestoneId);
       // 콘솔은 체크리스트 한 줄이 조작 단위(담당자·마감·태스크 간 이동)라,
       // 태스크 카드로 내려온 응답을 체크리스트 행으로 펼쳐서 쓴다.
       // 스프린트 담김 여부(sprint_column_id)는 부모 태스크 것을 그대로 물려받는다.
@@ -179,12 +209,13 @@ export function MilestoneConsoleModal({
         })),
       );
       setItems(rows);
+      loadedMilestoneRef.current = curMilestoneId;
     } catch {
       showToast("콘솔 데이터를 불러오지 못했습니다");
     } finally {
       setLoading(false);
     }
-  }, [boardId, milestoneId, showToast]);
+  }, [boardId, curMilestoneId, showToast]);
 
   const loadMembers = useCallback(async () => {
     try {
@@ -202,6 +233,8 @@ export function MilestoneConsoleModal({
     }
   }, [boardId]);
 
+  // load는 curMilestoneId에 의존하므로 페이저 이동 시에도 이 효과가 다시 돌아
+  // 리셋 + 재로드가 함께 일어난다.
   useEffect(() => {
     if (open) {
       setInitialized(false);
@@ -210,11 +243,66 @@ export function MilestoneConsoleModal({
       setFeatFormOpen(false);
       setTaskFormOpen(false);
       setAddingItemTask(null);
+      if (loadedMilestoneRef.current !== curMilestoneId) setItems([]);
       load();
       if (members.length === 0) loadMembers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, load, loadMembers]);
+
+  // 닫으면 페이저 상태 리셋 — 다음에 열 때 부모가 준 마일스톤에서 시작
+  useEffect(() => {
+    if (!open) {
+      setNavMilestoneId(null);
+      setSlideDir(0);
+      setMsMenuOpen(false);
+    }
+  }, [open]);
+
+  const goToMilestone = useCallback(
+    (idx: number) => {
+      const target = msList[idx];
+      if (!target || target.id === curMilestoneId) return;
+      setSlideDir(idx > msIndex ? 1 : -1);
+      setMsMenuOpen(false);
+      setNavMilestoneId(target.id);
+    },
+    [msList, msIndex, curMilestoneId],
+  );
+
+  // ⌥←/→ 로 마일스톤 이동 — 입력 중(word 단위 커서 이동)과 충돌하지 않게 폼 요소는 제외
+  useEffect(() => {
+    if (!open || !hasPager) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.altKey || e.metaKey || e.ctrlKey) return;
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      const t = e.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.tagName === "SELECT" ||
+          t.isContentEditable)
+      )
+        return;
+      e.preventDefault();
+      goToMilestone(msIndex + (e.key === "ArrowRight" ? 1 : -1));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, hasPager, msIndex, goToMilestone]);
+
+  // 마일스톤 드롭다운 바깥 클릭 시 닫기
+  useEffect(() => {
+    if (!msMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!msMenuRef.current?.contains(e.target as Node)) {
+        setMsMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [msMenuOpen]);
 
   useEffect(() => {
     return () => {
@@ -492,7 +580,7 @@ export function MilestoneConsoleModal({
         title,
         color: featColor,
       });
-      await milestoneAPI.addFeatures(boardId, milestoneId, [feature.id]);
+      await milestoneAPI.addFeatures(boardId, curMilestoneId, [feature.id]);
       setLocalFeatures((prev) => [
         ...prev,
         { featureId: feature.id, featureTitle: title, featureColor: featColor },
@@ -523,7 +611,7 @@ export function MilestoneConsoleModal({
     try {
       const task = await taskService.createTask(boardId, taskFeatureId, {
         title,
-        milestone_id: milestoneId,
+        milestone_id: curMilestoneId,
       });
       setLocalTasks((prev) => [
         ...prev,
@@ -627,23 +715,133 @@ export function MilestoneConsoleModal({
     >
       {/* Header */}
       <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08] shrink-0">
+        {hasPager && (
+          <button
+            type="button"
+            onClick={() => goToMilestone(msIndex - 1)}
+            disabled={msIndex <= 0}
+            title="이전 마일스톤 (⌥←)"
+            aria-label="이전 마일스톤"
+            className="shrink-0 inline-grid place-items-center w-7 h-7 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 disabled:opacity-25 disabled:pointer-events-none transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+        )}
         <div className="min-w-0">
-          <h2 className="text-sm md:text-base font-bold text-foreground truncate tracking-tight">
-            {milestoneTitle ? (
-              <>
-                <span className="text-bridge-accent">{milestoneTitle}</span>{" "}
-                관리 콘솔
-              </>
-            ) : (
-              "마일스톤 관리 콘솔"
-            )}
-          </h2>
+          {hasPager ? (
+            <div className="relative" ref={msMenuRef}>
+              <button
+                type="button"
+                onClick={() => setMsMenuOpen((v) => !v)}
+                aria-haspopup="listbox"
+                aria-expanded={msMenuOpen}
+                className="flex items-center gap-1.5 min-w-0 max-w-full rounded-lg px-1 -mx-1 hover:bg-foreground/5 transition-colors"
+              >
+                <h2 className="text-sm md:text-base font-bold text-foreground truncate tracking-tight">
+                  <span className="text-bridge-accent">{curTitle}</span> 관리
+                  콘솔
+                </h2>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 shrink-0 text-slate-500 transition-transform ${
+                    msMenuOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+              {msMenuOpen && (
+                <div
+                  role="listbox"
+                  aria-label="마일스톤 이동"
+                  className="absolute left-0 top-full mt-1.5 z-30 w-[280px] max-h-[320px] overflow-y-auto custom-scrollbar rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-2xl py-1"
+                >
+                  {msList.map((m, i) => {
+                    const on = i === msIndex;
+                    const pct =
+                      typeof m.progress_percentage === "number"
+                        ? Math.round(
+                            Math.min(100, Math.max(0, m.progress_percentage)),
+                          )
+                        : null;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        role="option"
+                        aria-selected={on}
+                        onClick={() => goToMilestone(i)}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-colors ${
+                          on ? "bg-bridge-accent/10" : "hover:bg-foreground/5"
+                        }`}
+                      >
+                        <span className="w-4 shrink-0">
+                          {on && (
+                            <Check className="w-3.5 h-3.5 text-bridge-accent" />
+                          )}
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span
+                            className={`block text-xs truncate ${
+                              on
+                                ? "font-bold text-foreground"
+                                : "font-medium text-slate-300"
+                            }`}
+                          >
+                            {m.title}
+                          </span>
+                          {pct !== null && (
+                            <span className="mt-1 flex items-center gap-1.5">
+                              <span className="flex-1 h-[3px] rounded-full bg-foreground/10 overflow-hidden">
+                                <span
+                                  className="block h-full rounded-full bg-gradient-to-r from-bridge-accent to-bridge-secondary"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </span>
+                              <span className="text-xs text-slate-500 tabular-nums shrink-0">
+                                {pct}%
+                              </span>
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (
+            <h2 className="text-sm md:text-base font-bold text-foreground truncate tracking-tight">
+              {curTitle ? (
+                <>
+                  <span className="text-bridge-accent">{curTitle}</span> 관리
+                  콘솔
+                </>
+              ) : (
+                "마일스톤 관리 콘솔"
+              )}
+            </h2>
+          )}
           <p className="text-xs text-slate-500">
             피쳐 {features.length} · 태스크{" "}
             {features.reduce((s, f) => s + f.tasks.length, 0)} · 항목{" "}
             {items.length}
           </p>
         </div>
+        {hasPager && (
+          <>
+            <button
+              type="button"
+              onClick={() => goToMilestone(msIndex + 1)}
+              disabled={msIndex >= msList.length - 1}
+              title="다음 마일스톤 (⌥→)"
+              aria-label="다음 마일스톤"
+              className="shrink-0 inline-grid place-items-center w-7 h-7 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 disabled:opacity-25 disabled:pointer-events-none transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            <span className="shrink-0 text-xs font-bold text-slate-500 tabular-nums px-2 py-0.5 rounded-full bg-foreground/5">
+              {msIndex + 1} / {msList.length}
+            </span>
+          </>
+        )}
         <div className="flex-1" />
         <button
           type="button"
@@ -970,8 +1168,19 @@ export function MilestoneConsoleModal({
             ))}
         </nav>
 
-        {/* Board */}
-        <div className="flex-1 min-w-0 min-h-0 overflow-x-auto overflow-y-hidden bg-foreground/[0.02] p-4">
+        {/* Board — 마일스톤 전환 시 이동 방향으로 살짝 슬라이드해 "옆으로 넘어간" 감각을 준다 */}
+        <div className="relative flex-1 min-w-0 min-h-0">
+          <motion.div
+            key={curMilestoneId}
+            initial={
+              reducedMotion || slideDir === 0
+                ? false
+                : { opacity: 0, x: slideDir * 28 }
+            }
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="h-full overflow-x-auto overflow-y-hidden bg-foreground/[0.02] p-4"
+          >
           {loading && items.length === 0 ? (
             <div className="h-full grid place-items-center">
               <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
@@ -1360,6 +1569,35 @@ export function MilestoneConsoleModal({
               )}
             </div>
           )}
+          </motion.div>
+
+          {/* 엣지 피크 — 보드 위에서 헤더까지 가지 않고 이웃 마일스톤으로 이동. 드래그 중엔 숨김 */}
+          {hasPager && !draggingId && msIndex > 0 && (
+            <button
+              type="button"
+              onClick={() => goToMilestone(msIndex - 1)}
+              aria-label={`이전 마일스톤: ${msList[msIndex - 1].title}`}
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 group flex items-center h-9 px-2 rounded-full border border-foreground/10 bg-bridge-obsidian/90 shadow-lg text-slate-400 opacity-60 hover:opacity-100 hover:text-foreground hover:border-bridge-accent/40 transition-all"
+            >
+              <ChevronLeft className="w-4 h-4 shrink-0" />
+              <span className="max-w-0 overflow-hidden group-hover:max-w-[180px] group-hover:ml-1 transition-all duration-200 text-xs font-bold whitespace-nowrap">
+                {msList[msIndex - 1].title}
+              </span>
+            </button>
+          )}
+          {hasPager && !draggingId && msIndex < msList.length - 1 && (
+            <button
+              type="button"
+              onClick={() => goToMilestone(msIndex + 1)}
+              aria-label={`다음 마일스톤: ${msList[msIndex + 1].title}`}
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 group flex items-center h-9 px-2 rounded-full border border-foreground/10 bg-bridge-obsidian/90 shadow-lg text-slate-400 opacity-60 hover:opacity-100 hover:text-foreground hover:border-bridge-accent/40 transition-all"
+            >
+              <span className="max-w-0 overflow-hidden group-hover:max-w-[180px] group-hover:mr-1 transition-all duration-200 text-xs font-bold whitespace-nowrap">
+                {msList[msIndex + 1].title}
+              </span>
+              <ChevronRight className="w-4 h-4 shrink-0" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -1369,6 +1607,7 @@ export function MilestoneConsoleModal({
           {canEdit
             ? "카드를 다른 태스크로 끌어 이동 · 클릭하면 상세 열기 · ＋로 피쳐/태스크/항목 추가"
             : "읽기 전용 · 카드를 클릭하면 상세 열기"}
+          {hasPager && " · ⌥←/→ 마일스톤 이동"}
         </span>
         <span className="flex-1" />
         <button

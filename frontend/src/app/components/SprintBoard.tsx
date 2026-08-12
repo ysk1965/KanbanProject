@@ -31,6 +31,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
+  Minus,
   X,
   LayoutGrid,
   Settings2,
@@ -78,7 +79,7 @@ import type { FilterOptions } from "./FilterModal";
 
 interface SprintBoardProps {
   boardId: string;
-  milestones: { id: string; title: string }[];
+  milestones: { id: string; title: string; progress_percentage?: number }[];
   canEdit: boolean;
   isAdminOrOwner: boolean;
   /** 지정 시 이 마일스톤으로 고정(칸반 탭 연동). 미지정이면 자체 드롭다운으로 선택 */
@@ -352,6 +353,11 @@ export function SprintBoard({
   // 업무 리스트: 피쳐 카드의 태스크 미리보기(읽기 전용) 펼침 집합. 기본은 접힘 —
   // 담기 단위가 피쳐라 리스트의 주인공은 피쳐 카드이고, 태스크는 참고 정보다.
   const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(
+    new Set(),
+  );
+  // 업무 리스트: 피쳐 카드 안 "완료 태스크" 펼침 집합. 남은 일이 리스트의 주인공이라
+  // 완료 행은 기본 접히고, "완료 N개 보기"로만 드러난다.
+  const [expandedDoneTasks, setExpandedDoneTasks] = useState<Set<string>>(
     new Set(),
   );
   // 카드 안 체크리스트 펼침 집합. 키는 "스코프:카드id" —
@@ -1125,6 +1131,15 @@ export function SprintBoard({
 
   const toggleFeature = (fid: string) => {
     setExpandedFeatures((prev) => {
+      const next = new Set(prev);
+      if (next.has(fid)) next.delete(fid);
+      else next.add(fid);
+      return next;
+    });
+  };
+  // 피쳐 카드 안 완료 태스크 접기/펼치기.
+  const toggleDoneTasks = (fid: string) => {
+    setExpandedDoneTasks((prev) => {
       const next = new Set(prev);
       if (next.has(fid)) next.delete(fid);
       else next.add(fid);
@@ -4507,12 +4522,15 @@ export function SprintBoard({
                 {(() => {
                   // 담기 단위 = 피쳐. 카드 하나가 피쳐 하나이고, 태스크 목록은 읽기 전용
                   // 미리보기로 접힌다. 리스트는 "이번 스프린트 / 백로그" 두 섹션으로 나뉜다.
+                  // 카드의 발화 순서: 이름 → 진행(한 번만) → 예외(있을 때만).
+                  // 진행률은 바 + 분수 한 쌍으로만 말하고, 피쳐 색은 레일·바에만 칠한다 —
+                  // amber(임박)·rose(지연) 상태색이 신호로 살아남게 하기 위한 색 채널 분리.
                   const renderFeatureCard = (feat: TreeFeature) => {
                     const isEmpty = feat.total === 0;
-                    // 빈 피쳐는 톤 다운 스타일(회색 레일 + 반투명) — 아직 내용이 없다는 신호
-                    const allCleared = isEmpty;
                     const isComplete =
                       feat.total > 0 && feat.completed === feat.total;
+                    // 빈 피쳐(내용 없음)·완료 피쳐(볼 일 없음)는 톤 다운 — 남은 일이 주인공
+                    const dimmed = isEmpty || isComplete;
                     const bodyTasks = feat.tasks;
                     const bodyOpen =
                       !isEmpty && expandedFeatures.has(feat.featureId);
@@ -4522,198 +4540,274 @@ export function SprintBoard({
                         ? Math.round((feat.unitDone / feat.unitTotal) * 100)
                         : 0;
                     const featColor = feat.featureColor ?? "#6366F1";
+                    // 레일은 피쳐 색 채널 — 단 완료는 상태색(에메랄드)이 이긴다.
+                    const railColor = isEmpty
+                      ? "#94a3b8"
+                      : isComplete
+                        ? "#34d399"
+                        : featColor;
+                    // 예외 집계 — 접힌 채로도 "어디부터 봐야 하는지"가 보이게.
+                    // 지연(마감 지남·오늘) / 임박(D-3 이내) / 이월(스프린트 넘김)만 센다.
+                    let lateCount = 0;
+                    let soonCount = 0;
+                    let carryCount = 0;
+                    for (const t of bodyTasks) {
+                      if (t.completed) continue;
+                      if ((t.carry_over_count ?? 0) > 0) carryCount += 1;
+                      if (t.due_date) {
+                        const u = getDDay(t.due_date).urgency;
+                        if (u === "overdue" || u === "today") lateCount += 1;
+                        else if (u === "soon") soonCount += 1;
+                      }
+                    }
+                    const hasExceptions =
+                      lateCount + soonCount + carryCount > 0;
+                    // 담당자 스택 — "누가 하는지"는 접힌 카드에서도 1차 정보다.
+                    // hex=null은 외주(앰버 고정).
+                    const owners = new Map<
+                      string,
+                      { name: string; hex: string | null }
+                    >();
+                    for (const t of bodyTasks) {
+                      if (t.assignee)
+                        owners.set(t.assignee.id ?? t.assignee.name, {
+                          name: t.assignee.name,
+                          hex: assigneeHex(t.assignee),
+                        });
+                      else if (t.contractor)
+                        owners.set(`c:${t.contractor.name}`, {
+                          name: t.contractor.name,
+                          hex: null,
+                        });
+                    }
+                    const ownerList = [...owners.values()];
+                    const shownOwners = ownerList.slice(0, 3);
+                    const extraOwners = ownerList.length - shownOwners.length;
+                    // 액션 비대칭: 담기(자주)는 백로그 카드에 상시, 빼기(드묾)는 호버에만.
+                    const showTakeControls =
+                      canEdit && !!activeSprint && uiFeatures.showBacklog;
                     return (
                       <Fragment key={feat.featureId}>
                         {/* 그룹 카드 — 피쳐가 카드고 태스크가 내용물이다.
                             overflow-hidden을 주면 안쪽 sticky 헤더가 죽으므로
-                            라운드는 헤더(rounded-t)와 마지막 자식(rounded-b)이 각자 처리한다. */}
+                            라운드는 헤더(rounded-t)와 마지막 자식(rounded-b)이 각자 처리한다.
+                            카드 본문 클릭 = 펼침(리스트에서 가장 흔한 의도) — 셰브런이 키보드 경로,
+                            상세(↗)·빼기는 호버에만 드러나는 보조 경로다. */}
                         <div
+                          onClick={() => {
+                            if (!isEmpty) toggleFeature(feat.featureId);
+                          }}
                           style={{
                             borderLeftWidth: 3,
-                            borderLeftColor: allCleared ? "#94a3b8" : featColor,
+                            borderLeftColor: railColor,
                           }}
-                          className={`rounded-2xl border border-foreground/10 bg-bridge-obsidian shadow-[0_2px_8px_-4px_rgba(0,0,0,0.5)] transition-opacity ${
-                            allCleared ? "opacity-70" : ""
-                          }`}
+                          className={`group/card relative rounded-2xl border border-foreground/10 bg-bridge-obsidian shadow-[0_2px_8px_-4px_rgba(0,0,0,0.5)] transition-opacity ${
+                            dimmed ? "opacity-70 hover:opacity-100" : ""
+                          } ${isEmpty ? "" : "cursor-pointer"}`}
                         >
-                          {/* 헤더 — 본문 클릭은 "피쳐 상세", 펼치기는 우측 셰브런. 두 경로는 형제다.
-                              (버튼 중첩은 HTML 위반이고 히트 영역이 합쳐져 오작동한다) */}
-                          <div
-                            className="sticky top-0 z-10 flex items-start gap-1 p-1.5 rounded-t-[14px] bg-bridge-obsidian"
-                            style={
-                              allCleared
-                                ? undefined
-                                : {
-                                    backgroundImage: `linear-gradient(0deg, ${featColor}1A, ${featColor}1A)`,
-                                  }
-                            }
-                          >
+                          {/* 빼기 — 드문 액션이라 호버에만. "담김" 상태는 섹션이 이미 말한다. */}
+                          {showTakeControls && feat.inSprint && (
                             <button
                               type="button"
-                              onClick={() => onOpenFeature?.(feat.featureId)}
-                              disabled={!onOpenFeature}
-                              title="피쳐 상세 열기"
-                              aria-label={`${feat.featureTitle} 피쳐 상세 열기`}
-                              className="group/hd flex-1 min-w-0 flex flex-col gap-1.5 px-1.5 py-1 rounded-lg text-left hover:bg-foreground/[0.06] disabled:hover:bg-transparent disabled:cursor-default transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeFeatureFromSprint(feat.featureId);
+                              }}
+                              title="스프린트에서 빼기 — 태스크 전체가 백로그로 돌아가요"
+                              className="absolute -top-2.5 right-3 z-20 inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-bold bg-bridge-obsidian text-rose-500 border border-rose-500/40 opacity-0 group-hover/card:opacity-100 focus-visible:opacity-100 hover:bg-rose-500/15 transition-opacity"
                             >
-                              <span className="flex items-center gap-1.5">
-                                <span
-                                  className={`text-sm font-bold truncate flex-1 min-w-0 ${
-                                    allCleared
-                                      ? "text-slate-400"
-                                      : "text-foreground"
-                                  }`}
-                                  title={feat.featureTitle}
-                                >
-                                  {feat.featureTitle}
-                                </span>
-                                {/* 상태 배지: 완료(초록) / 빈 피쳐(태스크 0). 담김은 배지가 아니라 섹션·버튼이 말한다. */}
-                                {isComplete && (
-                                  <span className="inline-flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
-                                    <Check
-                                      className="w-2.5 h-2.5"
-                                      strokeWidth={3}
-                                    />
-                                    완료
-                                  </span>
-                                )}
-                                {isEmpty && (
-                                  <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">
-                                    태스크 0
-                                  </span>
-                                )}
-                                {/* 열린다는 신호 — 호버 시에만 뜨는 표식(버튼 아님) */}
-                                {onOpenFeature && (
-                                  <ExternalLink
-                                    className="w-3 h-3 shrink-0 opacity-0 group-hover/hd:opacity-100 transition-opacity"
-                                    style={{
-                                      color: allCleared ? "#94a3b8" : featColor,
-                                    }}
-                                    aria-hidden="true"
-                                  />
-                                )}
-                                <span
-                                  className="text-[15px] font-bold tabular-nums shrink-0"
-                                  style={{
-                                    color: allCleared ? "#94a3b8" : featColor,
-                                  }}
-                                >
-                                  {pct}%
-                                </span>
-                              </span>
-                              {/* 진척 게이지 + 완료·담김 수 — 피쳐 진척이 헤더의 본문이다 */}
-                              <span className="flex items-center gap-2">
-                                <span className="flex-1 h-[5px] rounded-full bg-foreground/10 overflow-hidden">
-                                  <span
-                                    className="block h-full rounded-full transition-all motion-reduce:transition-none"
-                                    style={{
-                                      width: `${pct}%`,
-                                      background: allCleared
-                                        ? "#94a3b8"
-                                        : featColor,
-                                    }}
-                                  />
-                                </span>
-                                <span
-                                  className="shrink-0 text-xs tabular-nums text-slate-400"
-                                  title={
-                                    isEmpty
-                                      ? "담으면 보드 맨 뒤에 빈 컬럼으로 표시돼요"
-                                      : `체크리스트 ${feat.unitDone}/${feat.unitTotal} 완료 · 태스크 ${feat.completed}/${feat.total} 완료`
-                                  }
-                                >
-                                  {isEmpty ? (
-                                    "담으면 보드 맨 뒤에 표시"
-                                  ) : (
-                                    <>
-                                      태스크 {feat.total} ·{" "}
-                                      <span className="font-bold text-foreground">
-                                        {feat.unitDone}
-                                      </span>
-                                      /{feat.unitTotal} 체크
-                                    </>
-                                  )}
-                                </span>
-                              </span>
+                              <Minus className="w-3 h-3" strokeWidth={2.5} />
+                              빼기
                             </button>
-                            {/* 담기/담김 토글 — 담기의 유일한 진입점. 피쳐 전체가 들어가고 나온다. */}
-                            {canEdit &&
-                              !!activeSprint &&
-                              uiFeatures.showBacklog && (
+                          )}
+                          {/* 헤더 — 1줄: 이름·분수·액션 / 2줄: 진행바 / 3줄: 예외(있을 때만) */}
+                          <div
+                            className={`sticky top-0 z-10 px-3 pt-2.5 bg-bridge-obsidian rounded-t-[14px] ${
+                              bodyOpen ? "" : "rounded-b-[14px]"
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`text-sm font-bold truncate flex-1 min-w-0 ${
+                                  dimmed ? "text-slate-400" : "text-foreground"
+                                }`}
+                                title={feat.featureTitle}
+                              >
+                                {feat.featureTitle}
+                              </span>
+                              {/* 상세 열기 — 호버에만 드러나는 보조 경로 */}
+                              {onOpenFeature && (
                                 <button
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    if (feat.inSprint)
-                                      removeFeatureFromSprint(feat.featureId);
-                                    else addFeatureToSprint(feat.featureId);
+                                    onOpenFeature(feat.featureId);
                                   }}
-                                  aria-pressed={feat.inSprint}
-                                  title={
-                                    feat.inSprint
-                                      ? "스프린트에서 빼기 — 태스크 전체가 백로그로 돌아가요"
-                                      : "이 피쳐를 스프린트에 담기 — 태스크 전체가 함께 들어가요"
-                                  }
-                                  className={`shrink-0 inline-flex items-center gap-0.5 px-2 h-8 rounded-lg text-xs font-bold border transition-colors ${
-                                    feat.inSprint
-                                      ? "bg-bridge-secondary/15 text-bridge-secondary border-bridge-secondary/30 hover:bg-rose-500/15 hover:text-rose-500 hover:border-rose-500/30"
-                                      : "bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30 hover:bg-bridge-accent hover:text-white"
-                                  }`}
+                                  title="피쳐 상세 열기"
+                                  aria-label={`${feat.featureTitle} 피쳐 상세 열기`}
+                                  className="shrink-0 w-6 h-6 grid place-items-center rounded-md text-slate-400 opacity-0 group-hover/card:opacity-100 focus-visible:opacity-100 hover:text-foreground hover:bg-foreground/[0.08] transition-opacity"
                                 >
-                                  {feat.inSprint ? (
-                                    <Check
-                                      className="w-3 h-3"
-                                      strokeWidth={3}
-                                    />
-                                  ) : (
-                                    <Plus
-                                      className="w-3 h-3"
-                                      strokeWidth={2.5}
-                                    />
-                                  )}
-                                  {feat.inSprint ? "담김" : "담기"}
+                                  <ExternalLink className="w-3 h-3" />
                                 </button>
                               )}
-                            {/* 펼치기/접기 — 이 버튼만 한다. 빈 피쳐는 펼칠 내용이 없어 숨긴다. */}
-                            {!isEmpty && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleFeature(feat.featureId);
-                                }}
-                                aria-expanded={bodyOpen}
-                                aria-label={`${feat.featureTitle} ${bodyOpen ? "접기" : "펼치기"}`}
-                                title={bodyOpen ? "접기" : "펼치기"}
-                                className="relative shrink-0 w-8 h-8 grid place-items-center rounded-lg border border-foreground/10 bg-foreground/[0.06] text-slate-400 hover:bg-bridge-accent hover:border-bridge-accent hover:text-white transition-colors after:absolute after:-inset-1.5 after:content-['']"
-                              >
-                                <ChevronDown
-                                  className={`w-4 h-4 transition-transform motion-reduce:transition-none ${
-                                    bodyOpen ? "" : "-rotate-90"
-                                  }`}
-                                />
-                              </button>
+                              {/* 상태 배지: 완료(초록) / 빈 피쳐(태스크 0). 담김은 배지가 아니라 섹션이 말한다. */}
+                              {isComplete && (
+                                <span className="inline-flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
+                                  <Check
+                                    className="w-2.5 h-2.5"
+                                    strokeWidth={3}
+                                  />
+                                  완료
+                                </span>
+                              )}
+                              {isEmpty && (
+                                <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">
+                                  태스크 0
+                                </span>
+                              )}
+                              {/* 진행 분수 — 우측 정렬 tabular 숫자가 리스트의 스캔 축이 된다 */}
+                              {!isEmpty && (
+                                <span
+                                  className="shrink-0 text-xs tabular-nums text-slate-400"
+                                  title={`체크리스트 ${feat.unitDone}/${feat.unitTotal} 완료 · 태스크 ${feat.completed}/${feat.total} 완료`}
+                                >
+                                  <span className="font-bold text-foreground">
+                                    {feat.unitDone}
+                                  </span>
+                                  /{feat.unitTotal}
+                                </span>
+                              )}
+                              {/* 담기 — 자주 하는 액션이라 백로그 카드엔 상시 노출 */}
+                              {showTakeControls && !feat.inSprint && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    addFeatureToSprint(feat.featureId);
+                                  }}
+                                  title="이 피쳐를 스프린트에 담기 — 태스크 전체가 함께 들어가요"
+                                  className="shrink-0 inline-flex items-center gap-0.5 px-2 h-7 rounded-lg text-xs font-bold border bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30 hover:bg-bridge-accent hover:text-white transition-colors"
+                                >
+                                  <Plus className="w-3 h-3" strokeWidth={2.5} />
+                                  담기
+                                </button>
+                              )}
+                              {/* 펼치기/접기 — 키보드 접근 경로. 빈 피쳐는 펼칠 내용이 없어 숨긴다. */}
+                              {!isEmpty && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleFeature(feat.featureId);
+                                  }}
+                                  aria-expanded={bodyOpen}
+                                  aria-label={`${feat.featureTitle} ${bodyOpen ? "접기" : "펼치기"}`}
+                                  title={bodyOpen ? "접기" : "펼치기"}
+                                  className="relative shrink-0 w-6 h-6 grid place-items-center rounded-md text-slate-400 hover:bg-foreground/[0.08] hover:text-foreground transition-colors after:absolute after:-inset-1.5 after:content-['']"
+                                >
+                                  <ChevronDown
+                                    className={`w-3.5 h-3.5 transition-transform motion-reduce:transition-none ${
+                                      bodyOpen ? "" : "-rotate-90"
+                                    }`}
+                                  />
+                                </button>
+                              )}
+                            </div>
+                            {/* 진행 — 바 + 위의 분수 한 쌍이 전부다(같은 정보를 두 번 말하지 않는다) */}
+                            {!isEmpty ? (
+                              <div className="flex items-center gap-2 mt-1.5 pb-2.5">
+                                <span className="flex-1 h-1 rounded-full bg-foreground/10 overflow-hidden">
+                                  <span
+                                    className="block h-full rounded-full transition-all motion-reduce:transition-none"
+                                    style={{
+                                      width: `${pct}%`,
+                                      background: railColor,
+                                    }}
+                                  />
+                                </span>
+                                <span className="shrink-0 text-xs tabular-nums text-slate-500">
+                                  {pct}%
+                                </span>
+                              </div>
+                            ) : (
+                              <p className="mt-1 pb-2.5 text-xs text-slate-500">
+                                담으면 보드 맨 뒤에 빈 컬럼으로 표시돼요
+                              </p>
                             )}
+                            {/* 예외 라인 — 해당될 때만 생긴다. 줄 수 자체가 신호(두꺼운 카드 = 봐야 할 카드).
+                                펼치면 태스크 행이 상세를 보여주므로 접힘 상태에서만 노출한다. */}
+                            {!bodyOpen &&
+                              !isEmpty &&
+                              (hasExceptions || ownerList.length > 0) && (
+                                <div className="flex items-center gap-1.5 pb-2.5 -mt-0.5">
+                                  <span className="flex-1 min-w-0 flex items-center gap-1 flex-wrap">
+                                    {lateCount > 0 && (
+                                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-500">
+                                        지연 {lateCount}
+                                      </span>
+                                    )}
+                                    {soonCount > 0 && (
+                                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                                        임박 {soonCount}
+                                      </span>
+                                    )}
+                                    {carryCount > 0 && (
+                                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                                        이월 {carryCount}
+                                      </span>
+                                    )}
+                                  </span>
+                                  {/* 담당자 스택 — 누가 이 피쳐를 하는지 접힌 채로 보인다 */}
+                                  {ownerList.length > 0 && (
+                                    <span className="shrink-0 flex items-center">
+                                      {shownOwners.map((o, i) => (
+                                        <span
+                                          key={`${o.name}-${i}`}
+                                          className={`w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold ring-2 ring-bridge-obsidian ${
+                                            o.hex
+                                              ? "text-white"
+                                              : "bg-amber-500 text-amber-950"
+                                          } ${i > 0 ? "-ml-1" : ""}`}
+                                          style={
+                                            o.hex
+                                              ? { background: o.hex }
+                                              : undefined
+                                          }
+                                          title={o.name}
+                                        >
+                                          {getInitials(o.name)}
+                                        </span>
+                                      ))}
+                                      {extraOwners > 0 && (
+                                        <span
+                                          className="-ml-1 w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold bg-foreground/10 text-slate-400 ring-2 ring-bridge-obsidian"
+                                          title={ownerList
+                                            .slice(3)
+                                            .map((o) => o.name)
+                                            .join(", ")}
+                                        >
+                                          +{extraOwners}
+                                        </span>
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                           </div>
 
-                          {/* 접힘 — 펼치기 바(개수 안내 겸 두 번째 토글 경로). 빈 피쳐는 없음 */}
-                          {!bodyOpen && !isEmpty && (
-                            <button
-                              type="button"
-                              onClick={() => toggleFeature(feat.featureId)}
-                              aria-expanded={false}
-                              aria-label={`${feat.featureTitle} 펼치기`}
-                              className="w-full flex items-center justify-center gap-1.5 px-2 py-2 rounded-b-[14px] bg-bridge-dark border-t border-foreground/[0.06] text-xs text-slate-500 hover:bg-foreground/[0.06] hover:text-foreground transition-colors"
-                            >
-                              <ChevronDown className="w-3 h-3" />
-                              태스크 {feat.total}개 · 남은{" "}
-                              {feat.total - feat.completed}개 펼치기
-                            </button>
-                          )}
-
-                          {bodyOpen && (
-                            <div className="bg-bridge-dark p-2 space-y-1.5 rounded-b-[14px] shadow-[inset_0_1px_3px_-1px_rgba(0,0,0,0.4)]">
-                              {bodyTasks.map((it) => {
+                          {bodyOpen &&
+                            (() => {
+                              // 남은 일이 주인공 — 완료 행은 접어서 "완료 N개 보기"로만 드러난다.
+                              const remainingTasks = bodyTasks.filter(
+                                (t) => !t.completed,
+                              );
+                              const doneTasks = bodyTasks.filter(
+                                (t) => t.completed,
+                              );
+                              const showDone = expandedDoneTasks.has(
+                                feat.featureId,
+                              );
+                              const renderTaskRow = (it: SprintItemCard) => {
                                 const tid = it.task_id ?? it.id;
                                 const hasTask =
                                   tid !== "__none__" && !!onOpenChecklistItem;
@@ -4721,21 +4815,23 @@ export function SprintBoard({
                                 const col = it.sprint_column_id
                                   ? columnById.get(it.sprint_column_id)
                                   : undefined;
-                                // 체크리스트는 별도 레벨이 아니라 카드 하단 게이지로 접힌다.
                                 const cTotal = it.checklist_total ?? 0;
                                 const cDone = it.checklist_done ?? 0;
-                                // 세그먼트 게이지 — 보드 카드와 같은 읽기법(칸 수 = 무게)
-                                const segTotal = Math.min(cTotal, 12);
-                                const segDone =
-                                  cTotal > 0
-                                    ? Math.round((cDone / cTotal) * segTotal)
-                                    : 0;
                                 const dday =
                                   !it.completed && it.due_date
                                     ? getDDay(it.due_date)
                                     : null;
                                 const overdue = dday?.urgency === "overdue";
-                                // 좌측 3px은 피쳐 색이 아니라 "상태" — 피쳐 색은 그룹 카드가 독점한다.
+                                // 뱃지는 가장 급한 것 하나만: D-day > 이월 > 컬럼.
+                                const showDday =
+                                  !!dday && dday.urgency !== "normal";
+                                const showCarry =
+                                  !showDday &&
+                                  !it.completed &&
+                                  (it.carry_over_count ?? 0) > 0;
+                                const showCol =
+                                  !showDday && !showCarry && taken && !!col;
+                                // 좌측 2px은 피쳐 색이 아니라 "상태" — 피쳐 색은 그룹 카드가 독점한다.
                                 const stateColor = overdue
                                   ? "#f43f5e"
                                   : taken
@@ -4746,22 +4842,26 @@ export function SprintBoard({
                                     key={it.id}
                                     role={hasTask ? "button" : undefined}
                                     tabIndex={hasTask ? 0 : undefined}
-                                    onClick={() => hasTask && openItem(it)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (hasTask) openItem(it);
+                                    }}
                                     onKeyDown={(e) => {
                                       if (
                                         hasTask &&
                                         (e.key === "Enter" || e.key === " ")
                                       ) {
                                         e.preventDefault();
+                                        e.stopPropagation();
                                         openItem(it);
                                       }
                                     }}
                                     title={it.title}
                                     style={{
-                                      borderLeftWidth: 3,
+                                      borderLeftWidth: 2,
                                       borderLeftColor: stateColor,
                                     }}
-                                    className={`group relative rounded-lg border border-foreground/10 px-2.5 py-2 space-y-1.5 transition-colors ${
+                                    className={`group relative rounded-lg px-2.5 py-1.5 transition-colors ${
                                       overdue
                                         ? "bg-rose-500/[0.07] hover:bg-rose-500/[0.12]"
                                         : "bg-foreground/[0.03] hover:bg-foreground/[0.08]"
@@ -4769,9 +4869,9 @@ export function SprintBoard({
                                       hasTask ? "cursor-pointer" : ""
                                     }`}
                                   >
-                                    <div className="flex items-start gap-1.5">
+                                    <div className="flex items-center gap-1.5">
                                       <span
-                                        className={`flex-1 min-w-0 text-xs font-medium leading-snug line-clamp-2 ${
+                                        className={`flex-1 min-w-0 text-xs font-medium leading-snug truncate ${
                                           it.completed
                                             ? "line-through text-slate-500"
                                             : "text-foreground"
@@ -4779,85 +4879,71 @@ export function SprintBoard({
                                       >
                                         {it.title}
                                       </span>
-                                      {/* 우측 그룹 — "언제·누가" */}
-                                      <span className="shrink-0 flex items-center gap-1">
-                                        {(it.carry_over_count ?? 0) > 0 && (
-                                          <span
-                                            className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                                            title={`${(it.carry_over_count ?? 0) + 1}번째 스프린트째 진행 중`}
-                                          >
-                                            이월 {it.carry_over_count}
+                                      {showDday && dday && (
+                                        <span
+                                          className={`shrink-0 px-1.5 py-0.5 rounded-md text-xs font-bold tabular-nums ${DDAY_BADGE[dday.urgency]}`}
+                                          title={formatDate(it.due_date)}
+                                        >
+                                          {dday.text}
+                                        </span>
+                                      )}
+                                      {showCarry && (
+                                        <span
+                                          className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                          title={`${(it.carry_over_count ?? 0) + 1}번째 스프린트째 진행 중`}
+                                        >
+                                          이월 {it.carry_over_count}
+                                        </span>
+                                      )}
+                                      {showCol && col && (
+                                        <span
+                                          className="shrink-0 inline-flex items-center text-xs font-bold rounded-full px-1.5 py-0.5 max-w-[72px]"
+                                          style={{
+                                            background: `${columnAccent(col)}26`,
+                                            color: columnAccent(col),
+                                          }}
+                                          title={`담김 · ${col.name}`}
+                                        >
+                                          <span className="truncate">
+                                            {col.name}
                                           </span>
-                                        )}
-                                        {dday && dday.urgency !== "normal" && (
-                                          <span
-                                            className={`px-1.5 py-0.5 rounded-md text-xs font-bold tabular-nums ${DDAY_BADGE[dday.urgency]}`}
-                                            title={formatDate(it.due_date)}
-                                          >
-                                            {dday.text}
-                                          </span>
-                                        )}
-                                        {taken && col && (
-                                          <span
-                                            className="inline-flex items-center gap-1 text-xs font-bold rounded-full px-1.5 py-0.5 max-w-[72px]"
-                                            style={{
-                                              background: `${columnAccent(col)}26`,
-                                              color: columnAccent(col),
-                                            }}
-                                            title={`담김 · ${col.name}`}
-                                          >
-                                            <span className="truncate">
-                                              {col.name}
-                                            </span>
-                                          </span>
-                                        )}
-                                        {/* 담당 모노그램 — 비슷한 제목을 실제로 가르는 신호 */}
-                                        {it.assignee ? (
-                                          <span
-                                            className="w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold text-white"
-                                            style={{
-                                              background: assigneeHex(
-                                                it.assignee,
-                                              ),
-                                            }}
-                                            title={it.assignee.name}
-                                          >
-                                            {getInitials(it.assignee.name)}
-                                          </span>
-                                        ) : it.contractor ? (
-                                          <span
-                                            className="w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold bg-amber-500 text-amber-950"
-                                            title={`외주 · ${it.contractor.name}`}
-                                          >
-                                            {getInitials(it.contractor.name)}
-                                          </span>
-                                        ) : null}
-                                      </span>
+                                        </span>
+                                      )}
+                                      {/* 담당 모노그램 — 비슷한 제목을 실제로 가르는 신호 */}
+                                      {it.assignee ? (
+                                        <span
+                                          className="shrink-0 w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold text-white"
+                                          style={{
+                                            background: assigneeHex(
+                                              it.assignee,
+                                            ),
+                                          }}
+                                          title={it.assignee.name}
+                                        >
+                                          {getInitials(it.assignee.name)}
+                                        </span>
+                                      ) : it.contractor ? (
+                                        <span
+                                          className="shrink-0 w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold bg-amber-500 text-amber-950"
+                                          title={`외주 · ${it.contractor.name}`}
+                                        >
+                                          {getInitials(it.contractor.name)}
+                                        </span>
+                                      ) : null}
                                     </div>
-
-                                    {/* 체크리스트 롤업 — 담기 전에도 무게를 가늠할 수 있게 항상 노출 */}
-                                    {cTotal > 0 && (
+                                    {/* 진행 — 2px 바 + 분수 한 쌍. 완료 행은 게이지가 무의미해 생략 */}
+                                    {cTotal > 0 && !it.completed && (
                                       <div
-                                        className="flex items-center gap-2 pt-1.5 border-t border-foreground/[0.08]"
+                                        className="flex items-center gap-2 mt-1.5"
                                         title={`체크리스트 ${cDone}/${cTotal}`}
                                       >
-                                        <span
-                                          className="flex-1 flex gap-[2px]"
-                                          aria-hidden="true"
-                                        >
-                                          {Array.from(
-                                            { length: segTotal },
-                                            (_, i) => (
-                                              <span
-                                                key={i}
-                                                className={`flex-1 h-1 rounded-[2px] ${
-                                                  i < segDone
-                                                    ? "bg-bridge-secondary"
-                                                    : "bg-foreground/10"
-                                                }`}
-                                              />
-                                            ),
-                                          )}
+                                        <span className="flex-1 h-0.5 rounded-full bg-foreground/10 overflow-hidden">
+                                          <span
+                                            className="block h-full rounded-full bg-bridge-secondary transition-all motion-reduce:transition-none"
+                                            style={{
+                                              width: `${Math.round((cDone / cTotal) * 100)}%`,
+                                            }}
+                                          />
                                         </span>
                                         <span className="shrink-0 text-xs tabular-nums text-slate-500">
                                           <span className="font-bold text-slate-400">
@@ -4869,15 +4955,39 @@ export function SprintBoard({
                                     )}
                                   </div>
                                 );
-                              })}
-                              {/* 낱개 담기/빼기는 없다 — 태스크는 피쳐와 함께 이동한다 */}
-                              {uiFeatures.showBacklog && (
-                                <p className="px-1 pt-1 text-[11px] text-slate-600">
-                                  태스크는 피쳐와 함께 담기고 빠져요.
-                                </p>
-                              )}
-                            </div>
-                          )}
+                              };
+                              return (
+                                <div className="bg-bridge-dark p-2 space-y-1 rounded-b-[14px] shadow-[inset_0_1px_3px_-1px_rgba(0,0,0,0.4)]">
+                                  {remainingTasks.map(renderTaskRow)}
+                                  {doneTasks.length > 0 && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleDoneTasks(feat.featureId);
+                                        }}
+                                        aria-expanded={showDone}
+                                        className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs text-slate-500 hover:text-slate-400 hover:bg-foreground/[0.04] transition-colors"
+                                      >
+                                        <Check
+                                          className="w-3 h-3 text-emerald-600 dark:text-emerald-400"
+                                          strokeWidth={3}
+                                        />
+                                        완료 {doneTasks.length}개{" "}
+                                        {showDone ? "접기" : "보기"}
+                                        <ChevronDown
+                                          className={`w-3 h-3 transition-transform motion-reduce:transition-none ${
+                                            showDone ? "rotate-180" : ""
+                                          }`}
+                                        />
+                                      </button>
+                                      {showDone && doneTasks.map(renderTaskRow)}
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })()}
                         </div>
                       </Fragment>
                     );
@@ -5566,6 +5676,7 @@ export function SprintBoard({
           boardId={boardId}
           milestoneId={milestoneId}
           milestoneTitle={milestones.find((m) => m.id === milestoneId)?.title}
+          milestones={milestones}
           canEdit={canEdit}
           onOpenChecklistItem={onOpenChecklistItem}
         />

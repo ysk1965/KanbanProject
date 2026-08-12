@@ -82,7 +82,7 @@ interface KanbanViewProps {
   cascadeFeatureId: string | null;
   selectedFeatureIds: string[] | null;
   selectedMilestoneId: string;
-  milestones: { id: string; title: string }[];
+  milestones: { id: string; title: string; progress_percentage?: number }[];
   isAdminOrOwner: boolean;
   filterOptions: FilterOptions;
   canEdit: boolean;
