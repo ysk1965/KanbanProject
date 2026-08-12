@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { wsManager, ConnectionStatus } from '../utils/websocket';
-import { useAuth } from '../contexts/AuthContext';
-import { BoardWebSocketEvent } from '../types';
+import { useEffect, useRef, useState } from "react";
+import { wsManager, ConnectionStatus } from "../utils/websocket";
+import { useAuth } from "../contexts/AuthContext";
+import { CLIENT_ID } from "../utils/clientId";
+import { BoardWebSocketEvent } from "../types";
 
 interface UseBoardWebSocketOptions {
   boardId: string | null;
@@ -31,7 +32,8 @@ export function useBoardWebSocket({
   enabled = true,
 }: UseBoardWebSocketOptions) {
   const { currentUser, isAuthenticated } = useAuth();
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
+  const [connectionStatus, setConnectionStatus] =
+    useState<ConnectionStatus>("disconnected");
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
 
   // ref로 콜백을 관리하여 불필요한 재구독 방지
@@ -56,28 +58,44 @@ export function useBoardWebSocket({
         try {
           const event: BoardWebSocketEvent = JSON.parse(message.body);
 
-          // 자기 자신의 이벤트는 스킵 (낙관적 업데이트로 이미 반영됨)
-          if (event.user_id === currentUser?.id) {
+          // 프레즌스는 사용자 단위로 자기 자신을 스킵 — 내 다른 탭 접속을
+          // 온라인 목록에 띄우지 않는다 (기존 동작 유지)
+          if (
+            event.type === "PRESENCE_JOINED" ||
+            event.type === "PRESENCE_LEFT"
+          ) {
+            if (event.user_id === currentUser?.id) {
+              return;
+            }
+            if (event.type === "PRESENCE_JOINED") {
+              setOnlineUsers((prev) => new Set(prev).add(event.user_id));
+            } else {
+              setOnlineUsers((prev) => {
+                const next = new Set(prev);
+                next.delete(event.user_id);
+                return next;
+              });
+            }
+            onEventRef.current(event);
             return;
           }
 
-          // 프레즌스 이벤트 처리 (온라인 사용자 관리)
-          if (event.type === 'PRESENCE_JOINED') {
-            setOnlineUsers((prev) => new Set(prev).add(event.user_id));
-          } else if (event.type === 'PRESENCE_LEFT') {
-            setOnlineUsers((prev) => {
-              const next = new Set(prev);
-              next.delete(event.user_id);
-              return next;
-            });
+          // 이 탭에서 보낸 이벤트만 스킵 (낙관적 업데이트로 이미 반영됨).
+          // 같은 사용자여도 다른 탭/창/뷰의 변경은 반영해야 하므로
+          // user_id가 아니라 client_id(탭 단위)로 거른다.
+          if (event.client_id && event.client_id === CLIENT_ID) {
+            return;
           }
 
           // 이벤트 콜백 호출
           onEventRef.current(event);
         } catch (error) {
-          console.error('[useBoardWebSocket] Failed to parse board event:', error);
+          console.error(
+            "[useBoardWebSocket] Failed to parse board event:",
+            error,
+          );
         }
-      }
+      },
     );
 
     // 2. 개인 이벤트 구독 (알림 등)
@@ -91,9 +109,12 @@ export function useBoardWebSocket({
             // 개인 이벤트는 항상 처리 (알림, 권한 변경 등)
             onEventRef.current(event);
           } catch (error) {
-            console.error('[useBoardWebSocket] Failed to parse user event:', error);
+            console.error(
+              "[useBoardWebSocket] Failed to parse user event:",
+              error,
+            );
           }
-        }
+        },
       );
     }
 

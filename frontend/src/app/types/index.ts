@@ -2027,6 +2027,8 @@ export interface BoardWebSocketEvent {
   board_id: string;
   user_id: string;
   user_name: string;
+  /** 이벤트를 유발한 탭의 X-Client-Id 에코 — 자기 탭 이벤트 스킵용 (스케줄러 등 서버 발신은 null) */
+  client_id?: string | null;
   timestamp: string;
   data: unknown;
 }

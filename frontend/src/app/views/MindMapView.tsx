@@ -265,9 +265,11 @@ const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
   const doneCount = featureTasks.filter((t) => t.completed).length;
   const expanded = expandedFeatures.has(featureId);
 
-  // 마일스톤 2개 이상이면 milestone_id 기준 그루핑
+  // milestone_id 기준 그루핑 — 마일스톤 2개 이상이거나, 1개여도 미배정이 섞여
+  // 그룹이 2개 이상 나오면 디바이더를 그린다. (1개 마일스톤 + 미배정 혼재 시
+  // 미배정 태스크까지 그 마일스톤 소속처럼 보이는 문제 방지)
   const taskGroups = useMemo(() => {
-    if (milestones.length < 2) return null;
+    if (milestones.length === 0) return null;
     const msMap = new Map(milestones.map((ms) => [ms.id, ms]));
     const grouped: {
       ms: FeatureMilestoneRef | null;
@@ -275,7 +277,7 @@ const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
     }[] = [];
     const byMs = new Map<string | null, Task[]>();
     for (const t of featureTasks) {
-      const key = t.milestone_id ?? null;
+      const key = t.milestone_id || null;
       const arr = byMs.get(key);
       if (arr) arr.push(t);
       else byMs.set(key, [t]);
@@ -292,6 +294,7 @@ const FeatureNode = memo(function FeatureNode({ id, data }: NodeProps) {
         grouped.push({ ms: null, tasks });
       }
     }
+    if (milestones.length < 2 && grouped.length < 2) return null;
     return grouped;
   }, [milestones, featureTasks]);
 

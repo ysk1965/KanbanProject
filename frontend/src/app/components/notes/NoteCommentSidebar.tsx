@@ -17,6 +17,7 @@ import {
 import { memberAPI, mentionGroupAPI } from "../../utils/api";
 import type { MentionGroupDetail } from "../../utils/api";
 import { wsManager } from "../../utils/websocket";
+import { CLIENT_ID } from "../../utils/clientId";
 import type { BoardWebSocketEvent } from "../../types";
 import { NoteCommentThread } from "./NoteCommentThread";
 import { NoteCommentInput } from "./NoteCommentInput";
@@ -49,10 +50,18 @@ export function NoteCommentSidebar({
   activeBlockId,
   onBlockIdsChange,
 }: NoteCommentSidebarProps) {
-  const svc = personal ? myNoteCommentService : orgId ? orgNoteCommentService : noteCommentService;
+  const svc = personal
+    ? myNoteCommentService
+    : orgId
+      ? orgNoteCommentService
+      : noteCommentService;
   const scopeId = personal ? "me" : boardId || orgId || "";
   // 개인 노트는 단일 사용자이므로 백엔드가 발행하지 않는 per-note 토픽 (구독 무해).
-  const wsTopic = personal ? `/topic/note/${noteId}` : orgId ? `/topic/org/${orgId}` : `/topic/board/${boardId}`;
+  const wsTopic = personal
+    ? `/topic/note/${noteId}`
+    : orgId
+      ? `/topic/org/${orgId}`
+      : `/topic/board/${boardId}`;
   const { t } = useTranslation();
   const [threads, setThreads] = useState<NoteCommentDetail[]>([]);
   const [members, setMembers] = useState<MemberResponse[]>([]);
@@ -118,7 +127,8 @@ export function NoteCommentSidebar({
       try {
         const event: BoardWebSocketEvent = JSON.parse(message.body);
         if (!NOTE_COMMENT_EVENTS.includes(event.type)) return;
-        if (event.user_id === currentUserId) return;
+        // 이 탭에서 보낸 이벤트만 스킵 — 같은 사용자의 다른 탭 변경은 반영
+        if (event.client_id && event.client_id === CLIENT_ID) return;
         const data = event.data as { note_id?: string };
         if (data?.note_id !== noteId) return;
         loadComments();
@@ -127,7 +137,7 @@ export function NoteCommentSidebar({
       }
     });
     return () => sub.unsubscribe();
-  }, [wsTopic, noteId, currentUserId, loadComments]);
+  }, [wsTopic, noteId, loadComments]);
 
   // Emit block IDs with comments to parent
   useEffect(() => {

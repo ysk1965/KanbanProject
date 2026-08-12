@@ -2,6 +2,7 @@ import { nowUTC } from "./dateUtils";
 import { domainBrandName } from "./domain";
 import { addBreadcrumb } from "../../lib/sentry";
 import { reportServerReachable, reportServerUnreachable } from "./serverHealth";
+import { CLIENT_ID } from "./clientId";
 
 // API Base URL - BE 서버
 const API_BASE_URL =
@@ -155,6 +156,8 @@ class ApiClient {
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
+      // WS self-echo 필터용 탭 식별자 — 백엔드가 이벤트에 client_id로 에코
+      "X-Client-Id": CLIENT_ID,
       ...(options?.headers as Record<string, string>),
     };
 
@@ -497,6 +500,7 @@ export async function authenticatedFetch(
   }
 
   const headers: Record<string, string> = {
+    "X-Client-Id": CLIENT_ID,
     ...(options.headers as Record<string, string>),
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -1312,7 +1316,10 @@ export const boardAPI = {
     boardId: string,
     payload: { ui_level?: number; ui_options?: string },
   ) => {
-    return apiClient.patch<BoardDetail>(`/boards/${boardId}/ui-config`, payload);
+    return apiClient.patch<BoardDetail>(
+      `/boards/${boardId}/ui-config`,
+      payload,
+    );
   },
 
   getBoardTier: async (boardId: string) => {
@@ -3766,7 +3773,11 @@ export const sprintAPI = {
   },
 
   /** 피쳐 빼기 — 매핑 삭제 + 담긴 태스크 전체 백로그 복귀. "__none__" = 미지정 그룹 */
-  removeFeature: async (boardId: string, sprintId: string, featureId: string) => {
+  removeFeature: async (
+    boardId: string,
+    sprintId: string,
+    featureId: string,
+  ) => {
     return apiClient.delete<SprintBoard>(
       `/boards/${boardId}/sprints/${sprintId}/features/${encodeURIComponent(featureId)}`,
     );
