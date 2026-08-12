@@ -168,6 +168,14 @@ export function MilestoneConsoleModal({
   const [localTasks, setLocalTasks] = useState<
     { taskId: string; taskTitle: string; featureId: string }[]
   >([]);
+  // 서버가 아는 빈 피쳐(태스크 0)·빈 태스크(체크리스트 0)도 같은 이유로 사라지므로
+  // 마일스톤 상세·콘솔 응답에서 따로 건져 트리에 머지한다.
+  const [serverFeatures, setServerFeatures] = useState<
+    { featureId: string; featureTitle: string; featureColor: string }[]
+  >([]);
+  const [serverEmptyTasks, setServerEmptyTasks] = useState<
+    { taskId: string; taskTitle: string; featureId: string }[]
+  >([]);
 
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -181,7 +189,11 @@ export function MilestoneConsoleModal({
     if (!curMilestoneId) return;
     setLoading(true);
     try {
-      const data = await sprintAPI.getMilestoneConsole(boardId, curMilestoneId);
+      // 마일스톤 상세를 함께 불러 태스크 없는 피쳐도 트리에 세운다
+      const [data, detail] = await Promise.all([
+        sprintAPI.getMilestoneConsole(boardId, curMilestoneId),
+        milestoneAPI.getMilestone(boardId, curMilestoneId).catch(() => null),
+      ]);
       // 콘솔은 체크리스트 한 줄이 조작 단위(담당자·마감·태스크 간 이동)라,
       // 태스크 카드로 내려온 응답을 체크리스트 행으로 펼쳐서 쓴다.
       // 스프린트 담김 여부(sprint_column_id)는 부모 태스크 것을 그대로 물려받는다.
@@ -209,6 +221,24 @@ export function MilestoneConsoleModal({
         })),
       );
       setItems(rows);
+      setServerFeatures(
+        (detail?.features ?? []).map((f) => ({
+          featureId: f.id,
+          featureTitle: f.title,
+          featureColor: f.color,
+        })),
+      );
+      // 체크리스트가 0개인 태스크 — flatMap에서 행이 안 생기므로 따로 건진다
+      setServerEmptyTasks(
+        (data ?? [])
+          .filter((card) => (card.checklist_items ?? []).length === 0)
+          .map((card) => ({
+            taskId: card.task_id ?? "",
+            taskTitle: card.task_title ?? "기타",
+            featureId: card.feature_id ?? NO_FEATURE,
+          }))
+          .filter((t) => t.taskId),
+      );
       loadedMilestoneRef.current = curMilestoneId;
     } catch {
       showToast("콘솔 데이터를 불러오지 못했습니다");
@@ -243,7 +273,11 @@ export function MilestoneConsoleModal({
       setFeatFormOpen(false);
       setTaskFormOpen(false);
       setAddingItemTask(null);
-      if (loadedMilestoneRef.current !== curMilestoneId) setItems([]);
+      if (loadedMilestoneRef.current !== curMilestoneId) {
+        setItems([]);
+        setServerFeatures([]);
+        setServerEmptyTasks([]);
+      }
       load();
       if (members.length === 0) loadMembers();
     }
@@ -339,8 +373,9 @@ export function MilestoneConsoleModal({
       feat.total += 1;
       if (it.completed) feat.done += 1;
     }
-    // 아직 체크리스트가 없는 로컬 생성분 — 서버 행이 생기면 위 루프가 대체
-    for (const lf of localFeatures) {
+    // 태스크가 없어 행이 안 생긴 서버 피쳐 + 아직 체크리스트가 없는 로컬 생성분 —
+    // 서버 행이 생기면 위 루프가 대체. 빈 피쳐는 리스트 뒤에 선다.
+    for (const lf of [...serverFeatures, ...localFeatures]) {
       if (!map.has(lf.featureId)) {
         map.set(lf.featureId, {
           featureId: lf.featureId,
@@ -353,7 +388,8 @@ export function MilestoneConsoleModal({
         order.push(lf.featureId);
       }
     }
-    for (const lt of localTasks) {
+    // 체크리스트가 없어 행이 안 생긴 서버 태스크 + 로컬 생성 태스크
+    for (const lt of [...serverEmptyTasks, ...localTasks]) {
       const feat = map.get(lt.featureId);
       if (feat && !feat.tasks.some((t) => t.taskId === lt.taskId)) {
         feat.tasks.push({
@@ -364,7 +400,7 @@ export function MilestoneConsoleModal({
       }
     }
     return order.map((fid) => map.get(fid)!);
-  }, [items, localFeatures, localTasks]);
+  }, [items, serverFeatures, serverEmptyTasks, localFeatures, localTasks]);
 
   const featureColor = useCallback(
     (feat: ConsoleFeature): string => {
@@ -713,136 +749,142 @@ export function MilestoneConsoleModal({
       aria-label="마일스톤 관리 콘솔"
       className="sm:max-w-[1440px] w-full p-0 overflow-hidden h-[92dvh] max-h-[92dvh] flex flex-col"
     >
-      {/* Header */}
+      {/* Header — ‹ 제목 › 캐러셀형. 제목 블록이 flex-1로 남는 폭을 전부 갖고
+          가운데 정렬되며(콘텐츠 기준 수축으로 잘리던 문제 방지), 화살표는 헤더
+          가장자리가 아니라 제목 양옆에 붙는다. 카운터(4/7)는 부제목 줄 맨 앞에 선다. */}
       <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08] shrink-0">
-        {hasPager && (
-          <button
-            type="button"
-            onClick={() => goToMilestone(msIndex - 1)}
-            disabled={msIndex <= 0}
-            title="이전 마일스톤 (⌥←)"
-            aria-label="이전 마일스톤"
-            className="shrink-0 inline-grid place-items-center w-7 h-7 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 disabled:opacity-25 disabled:pointer-events-none transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-        )}
-        <div className="min-w-0">
-          {hasPager ? (
-            <div className="relative" ref={msMenuRef}>
+        <div className="flex-1 min-w-0 flex flex-col items-center text-center">
+          <div className="flex items-center justify-center gap-8 max-w-full min-w-0">
+            {hasPager && (
               <button
                 type="button"
-                onClick={() => setMsMenuOpen((v) => !v)}
-                aria-haspopup="listbox"
-                aria-expanded={msMenuOpen}
-                className="flex items-center gap-1.5 min-w-0 max-w-full rounded-lg px-1 -mx-1 hover:bg-foreground/5 transition-colors"
+                onClick={() => goToMilestone(msIndex - 1)}
+                disabled={msIndex <= 0}
+                title="이전 마일스톤 (⌥←)"
+                aria-label="이전 마일스톤"
+                className="shrink-0 inline-grid place-items-center w-7 h-7 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 disabled:opacity-25 disabled:pointer-events-none transition-colors"
               >
-                <h2 className="text-sm md:text-base font-bold text-foreground truncate tracking-tight">
-                  <span className="text-bridge-accent">{curTitle}</span> 관리
-                  콘솔
-                </h2>
-                <ChevronDown
-                  className={`w-3.5 h-3.5 shrink-0 text-slate-500 transition-transform ${
-                    msMenuOpen ? "rotate-180" : ""
-                  }`}
-                />
+                <ChevronLeft className="w-4 h-4" />
               </button>
-              {msMenuOpen && (
-                <div
-                  role="listbox"
-                  aria-label="마일스톤 이동"
-                  className="absolute left-0 top-full mt-1.5 z-30 w-[280px] max-h-[320px] overflow-y-auto custom-scrollbar rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-2xl py-1"
+            )}
+            {hasPager ? (
+              <div className="relative min-w-0 max-w-full" ref={msMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setMsMenuOpen((v) => !v)}
+                  aria-haspopup="listbox"
+                  aria-expanded={msMenuOpen}
+                  className="flex items-center justify-center gap-1.5 min-w-0 max-w-full rounded-lg px-1.5 hover:bg-foreground/5 transition-colors"
                 >
-                  {msList.map((m, i) => {
-                    const on = i === msIndex;
-                    const pct =
-                      typeof m.progress_percentage === "number"
-                        ? Math.round(
-                            Math.min(100, Math.max(0, m.progress_percentage)),
-                          )
-                        : null;
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        role="option"
-                        aria-selected={on}
-                        onClick={() => goToMilestone(i)}
-                        className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-colors ${
-                          on ? "bg-bridge-accent/10" : "hover:bg-foreground/5"
-                        }`}
-                      >
-                        <span className="w-4 shrink-0">
-                          {on && (
-                            <Check className="w-3.5 h-3.5 text-bridge-accent" />
-                          )}
-                        </span>
-                        <span className="flex-1 min-w-0">
-                          <span
-                            className={`block text-xs truncate ${
-                              on
-                                ? "font-bold text-foreground"
-                                : "font-medium text-slate-300"
-                            }`}
-                          >
-                            {m.title}
+                  <h2 className="text-sm md:text-base font-bold text-foreground truncate tracking-tight">
+                    <span className="text-bridge-accent">{curTitle}</span> 관리
+                    콘솔
+                  </h2>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 shrink-0 text-slate-500 transition-transform ${
+                      msMenuOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+                {msMenuOpen && (
+                  <div
+                    role="listbox"
+                    aria-label="마일스톤 이동"
+                    className="absolute left-1/2 -translate-x-1/2 top-full mt-1.5 z-30 w-[280px] max-h-[320px] overflow-y-auto custom-scrollbar rounded-xl border border-foreground/10 bg-bridge-obsidian shadow-2xl py-1"
+                  >
+                    {msList.map((m, i) => {
+                      const on = i === msIndex;
+                      const pct =
+                        typeof m.progress_percentage === "number"
+                          ? Math.round(
+                              Math.min(100, Math.max(0, m.progress_percentage)),
+                            )
+                          : null;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          role="option"
+                          aria-selected={on}
+                          onClick={() => goToMilestone(i)}
+                          className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-colors ${
+                            on ? "bg-bridge-accent/10" : "hover:bg-foreground/5"
+                          }`}
+                        >
+                          <span className="w-4 shrink-0">
+                            {on && (
+                              <Check className="w-3.5 h-3.5 text-bridge-accent" />
+                            )}
                           </span>
-                          {pct !== null && (
-                            <span className="mt-1 flex items-center gap-1.5">
-                              <span className="flex-1 h-[3px] rounded-full bg-foreground/10 overflow-hidden">
-                                <span
-                                  className="block h-full rounded-full bg-gradient-to-r from-bridge-accent to-bridge-secondary"
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </span>
-                              <span className="text-xs text-slate-500 tabular-nums shrink-0">
-                                {pct}%
-                              </span>
+                          <span className="flex-1 min-w-0">
+                            <span
+                              className={`block text-xs truncate ${
+                                on
+                                  ? "font-bold text-foreground"
+                                  : "font-medium text-slate-300"
+                              }`}
+                            >
+                              {m.title}
                             </span>
-                          )}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ) : (
-            <h2 className="text-sm md:text-base font-bold text-foreground truncate tracking-tight">
-              {curTitle ? (
-                <>
-                  <span className="text-bridge-accent">{curTitle}</span> 관리
-                  콘솔
-                </>
-              ) : (
-                "마일스톤 관리 콘솔"
-              )}
-            </h2>
-          )}
+                            {pct !== null && (
+                              <span className="mt-1 flex items-center gap-1.5">
+                                <span className="flex-1 h-[3px] rounded-full bg-foreground/10 overflow-hidden">
+                                  <span
+                                    className="block h-full rounded-full bg-gradient-to-r from-bridge-accent to-bridge-secondary"
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </span>
+                                <span className="text-xs text-slate-500 tabular-nums shrink-0">
+                                  {pct}%
+                                </span>
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <h2 className="text-sm md:text-base font-bold text-foreground truncate tracking-tight">
+                {curTitle ? (
+                  <>
+                    <span className="text-bridge-accent">{curTitle}</span> 관리
+                    콘솔
+                  </>
+                ) : (
+                  "마일스톤 관리 콘솔"
+                )}
+              </h2>
+            )}
+            {hasPager && (
+              <button
+                type="button"
+                onClick={() => goToMilestone(msIndex + 1)}
+                disabled={msIndex >= msList.length - 1}
+                title="다음 마일스톤 (⌥→)"
+                aria-label="다음 마일스톤"
+                className="shrink-0 inline-grid place-items-center w-7 h-7 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 disabled:opacity-25 disabled:pointer-events-none transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
+          </div>
           <p className="text-xs text-slate-500">
+            {hasPager && (
+              <>
+                <span className="font-bold tabular-nums text-slate-400">
+                  {msIndex + 1} / {msList.length}
+                </span>
+                {" · "}
+              </>
+            )}
             피쳐 {features.length} · 태스크{" "}
             {features.reduce((s, f) => s + f.tasks.length, 0)} · 항목{" "}
             {items.length}
           </p>
         </div>
-        {hasPager && (
-          <>
-            <button
-              type="button"
-              onClick={() => goToMilestone(msIndex + 1)}
-              disabled={msIndex >= msList.length - 1}
-              title="다음 마일스톤 (⌥→)"
-              aria-label="다음 마일스톤"
-              className="shrink-0 inline-grid place-items-center w-7 h-7 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 disabled:opacity-25 disabled:pointer-events-none transition-colors"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-            <span className="shrink-0 text-xs font-bold text-slate-500 tabular-nums px-2 py-0.5 rounded-full bg-foreground/5">
-              {msIndex + 1} / {msList.length}
-            </span>
-          </>
-        )}
-        <div className="flex-1" />
         <button
           type="button"
           onClick={load}
@@ -1181,394 +1223,402 @@ export function MilestoneConsoleModal({
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="h-full overflow-x-auto overflow-y-hidden bg-foreground/[0.02] p-4"
           >
-          {loading && items.length === 0 ? (
-            <div className="h-full grid place-items-center">
-              <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
-            </div>
-          ) : !selectedFeature ? (
-            <div className="h-full grid place-items-center text-sm text-slate-500">
-              {canEdit
-                ? "＋ 피쳐를 눌러 첫 피쳐를 만들어 보세요"
-                : "이 마일스톤에 연결된 피쳐가 없습니다"}
-            </div>
-          ) : (
-            <div className="flex gap-3 items-stretch h-full">
-              {selectedFeature.tasks
-                .map((task) => ({ f: selectedFeature, task }))
-                .map((col) => ({ ...col, vis: col.task.items.filter(match) }))
-                // 필터에 맞는 항목이 없는 컬럼은 뒤로 (안정 정렬로 원래 순서 유지)
-                .sort(
-                  (a, b) =>
-                    (a.vis.length === 0 ? 1 : 0) - (b.vis.length === 0 ? 1 : 0),
-                )
-                .map(({ f, task, vis }) => {
-                  const color = featureColor(f);
-                  const done = task.items.filter((i) => i.completed).length;
-                  const pct = task.items.length
-                    ? Math.round((done / task.items.length) * 100)
-                    : 0;
-                  const isOver = dragOverTask === task.taskId;
-                  return (
-                    <div
-                      key={`${f.featureId}:${task.taskId}`}
-                      onDragOver={(e) => {
-                        if (!draggingId) return;
-                        e.preventDefault();
-                        if (dragOverTask !== task.taskId)
-                          setDragOverTask(task.taskId);
-                      }}
-                      onDragLeave={(e) => {
-                        if (
-                          !e.currentTarget.contains(e.relatedTarget as Node) &&
-                          dragOverTask === task.taskId
-                        )
-                          setDragOverTask(null);
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        if (canEdit) handleDrop(task, f);
-                        else {
-                          setDragOverTask(null);
-                          setDraggingId(null);
-                          dragRef.current = null;
-                        }
-                      }}
-                      className={`w-72 shrink-0 bg-bridge-obsidian rounded-xl border flex flex-col min-h-0 transition-colors ${
-                        isOver
-                          ? "border-bridge-accent ring-2 ring-bridge-accent/40"
-                          : "border-foreground/[0.08]"
-                      }`}
-                      style={{ borderTopColor: color, borderTopWidth: 3 }}
-                    >
-                      <div className="px-4 py-3 border-b border-foreground/[0.06] shrink-0">
-                        <div className="text-[15px] font-bold text-foreground leading-snug tracking-tight">
-                          {task.taskTitle}
-                        </div>
-                        <div className="flex items-center gap-2 mt-2.5 text-xs text-slate-400 font-mono tabular-nums">
-                          <span className="flex-1 h-[7px] rounded-full bg-foreground/10 overflow-hidden">
-                            <span
-                              className="block h-full rounded-full bg-gradient-to-r from-bridge-accent to-bridge-secondary"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </span>
-                          {done}/{task.items.length} · {pct}%
-                        </div>
-                      </div>
-                      <div className="p-2 flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-                        {vis.length === 0 && addingItemTask !== task.taskId ? (
-                          <div className="text-xs text-slate-400 text-center py-3 border border-dashed border-foreground/10 rounded-lg">
-                            {task.items.length
-                              ? "필터에 맞는 항목 없음"
-                              : "항목 없음"}
+            {loading && items.length === 0 ? (
+              <div className="h-full grid place-items-center">
+                <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+              </div>
+            ) : !selectedFeature ? (
+              <div className="h-full grid place-items-center text-sm text-slate-500">
+                {canEdit
+                  ? "＋ 피쳐를 눌러 첫 피쳐를 만들어 보세요"
+                  : "이 마일스톤에 연결된 피쳐가 없습니다"}
+              </div>
+            ) : (
+              <div className="flex gap-3 items-stretch h-full">
+                {selectedFeature.tasks
+                  .map((task) => ({ f: selectedFeature, task }))
+                  .map((col) => ({ ...col, vis: col.task.items.filter(match) }))
+                  // 필터에 맞는 항목이 없는 컬럼은 뒤로 (안정 정렬로 원래 순서 유지)
+                  .sort(
+                    (a, b) =>
+                      (a.vis.length === 0 ? 1 : 0) -
+                      (b.vis.length === 0 ? 1 : 0),
+                  )
+                  .map(({ f, task, vis }) => {
+                    const color = featureColor(f);
+                    const done = task.items.filter((i) => i.completed).length;
+                    const pct = task.items.length
+                      ? Math.round((done / task.items.length) * 100)
+                      : 0;
+                    const isOver = dragOverTask === task.taskId;
+                    return (
+                      <div
+                        key={`${f.featureId}:${task.taskId}`}
+                        onDragOver={(e) => {
+                          if (!draggingId) return;
+                          e.preventDefault();
+                          if (dragOverTask !== task.taskId)
+                            setDragOverTask(task.taskId);
+                        }}
+                        onDragLeave={(e) => {
+                          if (
+                            !e.currentTarget.contains(
+                              e.relatedTarget as Node,
+                            ) &&
+                            dragOverTask === task.taskId
+                          )
+                            setDragOverTask(null);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (canEdit) handleDrop(task, f);
+                          else {
+                            setDragOverTask(null);
+                            setDraggingId(null);
+                            dragRef.current = null;
+                          }
+                        }}
+                        className={`w-72 shrink-0 bg-bridge-obsidian rounded-xl border flex flex-col min-h-0 transition-colors ${
+                          isOver
+                            ? "border-bridge-accent ring-2 ring-bridge-accent/40"
+                            : "border-foreground/[0.08]"
+                        }`}
+                        style={{ borderTopColor: color, borderTopWidth: 3 }}
+                      >
+                        <div className="px-4 py-3 border-b border-foreground/[0.06] shrink-0">
+                          <div className="text-[15px] font-bold text-foreground leading-snug tracking-tight">
+                            {task.taskTitle}
                           </div>
-                        ) : (
-                          vis.map((it) => {
-                            const who = assigneeName(it);
-                            const isContractor =
-                              !it.assignee && !!it.contractor;
-                            const dday =
-                              it.due_date && !it.completed
-                                ? getDDay(it.due_date)
-                                : null;
-                            const ddayCls =
-                              dday?.urgency === "overdue"
-                                ? "bg-rose-500/15 text-rose-500"
-                                : dday?.urgency === "today" ||
-                                    dday?.urgency === "soon"
-                                  ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                                  : "text-slate-400";
-                            const st = statusOf(it);
-                            const stopDrag = (e: {
-                              stopPropagation: () => void;
-                            }) => e.stopPropagation();
-                            const ddayLabel = dday
-                              ? dday.urgency === "overdue"
-                                ? `${dday.text} 지연`
-                                : dday.urgency === "today" ||
-                                    dday.urgency === "soon"
-                                  ? `${dday.text} 임박`
-                                  : dday.text
-                              : it.due_date
-                                ? "마감"
-                                : canEdit
-                                  ? "＋마감"
-                                  : "";
-                            return (
-                              <div
-                                key={it.id}
-                                draggable={canEdit}
-                                onDragStart={() => {
-                                  dragRef.current = {
-                                    id: it.id,
-                                    taskId: task.taskId,
-                                  };
-                                  setDraggingId(it.id);
-                                }}
-                                onDragEnd={() => {
-                                  setDraggingId(null);
-                                  setDragOverTask(null);
-                                  dragRef.current = null;
-                                }}
-                                onClick={() =>
-                                  it.task_id &&
-                                  onOpenChecklistItem?.(it.task_id, it.id)
-                                }
-                                className={`bg-bridge-dark rounded-lg border border-foreground/[0.08] p-3.5 hover:border-foreground/[0.14] transition-all ${
-                                  canEdit
-                                    ? "cursor-grab active:cursor-grabbing"
-                                    : "cursor-pointer"
-                                } ${draggingId === it.id ? "opacity-40" : ""}`}
-                              >
-                                <div className="flex items-start gap-2.5 mb-2.5">
-                                  <button
-                                    type="button"
-                                    disabled={!canEdit}
-                                    draggable={false}
-                                    onMouseDown={stopDrag}
-                                    onClick={(e) => {
-                                      stopDrag(e);
-                                      toggleComplete(it);
-                                    }}
-                                    aria-label={
-                                      it.completed ? "완료 해제" : "완료로 표시"
-                                    }
-                                    className={`mt-0.5 shrink-0 w-5 h-5 rounded-full grid place-items-center border transition-colors ${
-                                      it.completed
-                                        ? "bg-emerald-500 border-emerald-500 text-white"
-                                        : "border-foreground/25 text-transparent hover:border-emerald-500"
-                                    } ${canEdit ? "cursor-pointer" : ""}`}
-                                  >
-                                    <Check
-                                      className="w-3 h-3"
-                                      strokeWidth={3}
-                                    />
-                                  </button>
-                                  <div
-                                    className={`text-[14px] font-medium leading-snug line-clamp-2 ${
-                                      it.completed
-                                        ? "line-through text-slate-400"
-                                        : "text-foreground"
-                                    }`}
-                                  >
-                                    {it.title}
-                                  </div>
-                                </div>
-                                <div className="flex items-center justify-between gap-2">
-                                  <span
-                                    className="relative inline-flex items-center gap-2 min-w-0"
-                                    draggable={false}
-                                    onMouseDown={stopDrag}
-                                  >
-                                    <span
-                                      className="inline-grid place-items-center w-6 h-6 rounded-lg text-[11px] font-bold text-white shrink-0"
-                                      style={{
-                                        background: isContractor
-                                          ? "#f59e0b"
-                                          : who
-                                            ? getAssigneeHex(
-                                                who,
-                                                memberColorByName[who],
-                                              )
-                                            : "#94a3b8",
-                                      }}
-                                    >
-                                      {who ? getInitials(who) : "·"}
-                                    </span>
-                                    <span className="text-[13px] text-slate-400 truncate">
-                                      {who ?? "미배정"}
-                                    </span>
-                                    {canEdit && members.length > 0 && (
-                                      <select
-                                        value={it.assignee?.id ?? ""}
-                                        onClick={stopDrag}
-                                        onChange={(e) =>
-                                          changeAssignee(it, e.target.value)
-                                        }
-                                        aria-label="담당자 변경"
-                                        className="absolute inset-0 w-full opacity-0 cursor-pointer"
-                                      >
-                                        <option value="">미배정</option>
-                                        {members.map((m) => (
-                                          <option key={m.id} value={m.id}>
-                                            {m.name}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    )}
-                                  </span>
-                                  <span className="flex items-center gap-1.5 shrink-0">
-                                    {ddayLabel && (
-                                      <span
-                                        className="relative"
-                                        draggable={false}
-                                        onMouseDown={stopDrag}
-                                      >
-                                        <span
-                                          className={`inline-block tabular-nums text-xs font-bold px-2 py-0.5 rounded-md ${
-                                            dday ? ddayCls : "text-slate-400"
-                                          }`}
-                                        >
-                                          {ddayLabel}
-                                        </span>
-                                        {canEdit && (
-                                          <input
-                                            type="date"
-                                            value={it.due_date ?? ""}
-                                            onClick={stopDrag}
-                                            onChange={(e) =>
-                                              changeDue(it, e.target.value)
-                                            }
-                                            aria-label="마감일 변경"
-                                            className="absolute inset-0 w-full opacity-0 cursor-pointer"
-                                          />
-                                        )}
-                                      </span>
-                                    )}
-                                    <span
-                                      className={`text-xs font-bold px-2 py-0.5 rounded-full ${st.cls}`}
-                                    >
-                                      {st.label}
-                                    </span>
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
-                        {canEdit &&
-                          task.taskId !== "__no_task__" &&
-                          (addingItemTask === task.taskId ? (
-                            <div className="shrink-0 flex flex-col gap-1">
-                              <input
-                                autoFocus
-                                value={itemTitle}
-                                onChange={(e) => setItemTitle(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter")
-                                    addChecklistItemInline(task, f);
-                                  if (e.key === "Escape") {
-                                    e.stopPropagation();
-                                    setAddingItemTask(null);
-                                    setItemTitle("");
-                                  }
-                                }}
-                                disabled={savingItem}
-                                placeholder="체크리스트 항목 입력…"
-                                aria-label="체크리스트 항목 입력"
-                                className="w-full bg-bridge-dark border border-bridge-accent/50 rounded-lg px-3 py-2.5 text-[13px] text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/40 disabled:opacity-60"
+                          <div className="flex items-center gap-2 mt-2.5 text-xs text-slate-400 font-mono tabular-nums">
+                            <span className="flex-1 h-[7px] rounded-full bg-foreground/10 overflow-hidden">
+                              <span
+                                className="block h-full rounded-full bg-gradient-to-r from-bridge-accent to-bridge-secondary"
+                                style={{ width: `${pct}%` }}
                               />
-                              <span className="text-xs text-slate-500 pl-0.5">
-                                Enter 추가 후 계속 · Esc 닫기
-                              </span>
+                            </span>
+                            {done}/{task.items.length} · {pct}%
+                          </div>
+                        </div>
+                        <div className="p-2 flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+                          {vis.length === 0 &&
+                          addingItemTask !== task.taskId ? (
+                            <div className="text-xs text-slate-400 text-center py-3 border border-dashed border-foreground/10 rounded-lg">
+                              {task.items.length
+                                ? "필터에 맞는 항목 없음"
+                                : "항목 없음"}
                             </div>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setAddingItemTask(task.taskId);
-                                setItemTitle("");
-                              }}
-                              className="shrink-0 w-full flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-foreground/[0.15] text-[13px] font-medium text-slate-500 hover:text-bridge-accent hover:border-bridge-accent/40 hover:bg-bridge-accent/5 transition-colors"
-                            >
-                              <Plus className="w-3.5 h-3.5" /> 항목 추가
-                            </button>
-                          ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              {canEdit && (
-                <div
-                  className={`w-72 shrink-0 rounded-xl border flex flex-col min-h-0 transition-colors ${
-                    taskFormOpen
-                      ? "border-bridge-accent/50 bg-bridge-obsidian"
-                      : "border-dashed border-foreground/[0.15] hover:border-bridge-accent/40"
-                  }`}
-                >
-                  {taskFormOpen ? (
-                    <div className="p-4 flex flex-col gap-3">
-                      <div>
-                        <label
-                          htmlFor="console-new-task-feature"
-                          className="text-xs font-bold uppercase tracking-widest text-slate-400"
-                        >
-                          피쳐
-                        </label>
-                        <select
-                          id="console-new-task-feature"
-                          value={taskFeatureId}
-                          onChange={(e) => setTaskFeatureId(e.target.value)}
-                          className="mt-1.5 w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg px-2.5 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-                        >
-                          {features
-                            .filter((f) => f.featureId !== NO_FEATURE)
-                            .map((f) => (
-                              <option key={f.featureId} value={f.featureId}>
-                                {f.featureTitle}
-                              </option>
+                            vis.map((it) => {
+                              const who = assigneeName(it);
+                              const isContractor =
+                                !it.assignee && !!it.contractor;
+                              const dday =
+                                it.due_date && !it.completed
+                                  ? getDDay(it.due_date)
+                                  : null;
+                              const ddayCls =
+                                dday?.urgency === "overdue"
+                                  ? "bg-rose-500/15 text-rose-500"
+                                  : dday?.urgency === "today" ||
+                                      dday?.urgency === "soon"
+                                    ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                    : "text-slate-400";
+                              const st = statusOf(it);
+                              const stopDrag = (e: {
+                                stopPropagation: () => void;
+                              }) => e.stopPropagation();
+                              const ddayLabel = dday
+                                ? dday.urgency === "overdue"
+                                  ? `${dday.text} 지연`
+                                  : dday.urgency === "today" ||
+                                      dday.urgency === "soon"
+                                    ? `${dday.text} 임박`
+                                    : dday.text
+                                : it.due_date
+                                  ? "마감"
+                                  : canEdit
+                                    ? "＋마감"
+                                    : "";
+                              return (
+                                <div
+                                  key={it.id}
+                                  draggable={canEdit}
+                                  onDragStart={() => {
+                                    dragRef.current = {
+                                      id: it.id,
+                                      taskId: task.taskId,
+                                    };
+                                    setDraggingId(it.id);
+                                  }}
+                                  onDragEnd={() => {
+                                    setDraggingId(null);
+                                    setDragOverTask(null);
+                                    dragRef.current = null;
+                                  }}
+                                  onClick={() =>
+                                    it.task_id &&
+                                    onOpenChecklistItem?.(it.task_id, it.id)
+                                  }
+                                  className={`bg-bridge-dark rounded-lg border border-foreground/[0.08] p-3.5 hover:border-foreground/[0.14] transition-all ${
+                                    canEdit
+                                      ? "cursor-grab active:cursor-grabbing"
+                                      : "cursor-pointer"
+                                  } ${draggingId === it.id ? "opacity-40" : ""}`}
+                                >
+                                  <div className="flex items-start gap-2.5 mb-2.5">
+                                    <button
+                                      type="button"
+                                      disabled={!canEdit}
+                                      draggable={false}
+                                      onMouseDown={stopDrag}
+                                      onClick={(e) => {
+                                        stopDrag(e);
+                                        toggleComplete(it);
+                                      }}
+                                      aria-label={
+                                        it.completed
+                                          ? "완료 해제"
+                                          : "완료로 표시"
+                                      }
+                                      className={`mt-0.5 shrink-0 w-5 h-5 rounded-full grid place-items-center border transition-colors ${
+                                        it.completed
+                                          ? "bg-emerald-500 border-emerald-500 text-white"
+                                          : "border-foreground/25 text-transparent hover:border-emerald-500"
+                                      } ${canEdit ? "cursor-pointer" : ""}`}
+                                    >
+                                      <Check
+                                        className="w-3 h-3"
+                                        strokeWidth={3}
+                                      />
+                                    </button>
+                                    <div
+                                      className={`text-[14px] font-medium leading-snug line-clamp-2 ${
+                                        it.completed
+                                          ? "line-through text-slate-400"
+                                          : "text-foreground"
+                                      }`}
+                                    >
+                                      {it.title}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span
+                                      className="relative inline-flex items-center gap-2 min-w-0"
+                                      draggable={false}
+                                      onMouseDown={stopDrag}
+                                    >
+                                      <span
+                                        className="inline-grid place-items-center w-6 h-6 rounded-lg text-[11px] font-bold text-white shrink-0"
+                                        style={{
+                                          background: isContractor
+                                            ? "#f59e0b"
+                                            : who
+                                              ? getAssigneeHex(
+                                                  who,
+                                                  memberColorByName[who],
+                                                )
+                                              : "#94a3b8",
+                                        }}
+                                      >
+                                        {who ? getInitials(who) : "·"}
+                                      </span>
+                                      <span className="text-[13px] text-slate-400 truncate">
+                                        {who ?? "미배정"}
+                                      </span>
+                                      {canEdit && members.length > 0 && (
+                                        <select
+                                          value={it.assignee?.id ?? ""}
+                                          onClick={stopDrag}
+                                          onChange={(e) =>
+                                            changeAssignee(it, e.target.value)
+                                          }
+                                          aria-label="담당자 변경"
+                                          className="absolute inset-0 w-full opacity-0 cursor-pointer"
+                                        >
+                                          <option value="">미배정</option>
+                                          {members.map((m) => (
+                                            <option key={m.id} value={m.id}>
+                                              {m.name}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      )}
+                                    </span>
+                                    <span className="flex items-center gap-1.5 shrink-0">
+                                      {ddayLabel && (
+                                        <span
+                                          className="relative"
+                                          draggable={false}
+                                          onMouseDown={stopDrag}
+                                        >
+                                          <span
+                                            className={`inline-block tabular-nums text-xs font-bold px-2 py-0.5 rounded-md ${
+                                              dday ? ddayCls : "text-slate-400"
+                                            }`}
+                                          >
+                                            {ddayLabel}
+                                          </span>
+                                          {canEdit && (
+                                            <input
+                                              type="date"
+                                              value={it.due_date ?? ""}
+                                              onClick={stopDrag}
+                                              onChange={(e) =>
+                                                changeDue(it, e.target.value)
+                                              }
+                                              aria-label="마감일 변경"
+                                              className="absolute inset-0 w-full opacity-0 cursor-pointer"
+                                            />
+                                          )}
+                                        </span>
+                                      )}
+                                      <span
+                                        className={`text-xs font-bold px-2 py-0.5 rounded-full ${st.cls}`}
+                                      >
+                                        {st.label}
+                                      </span>
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                          {canEdit &&
+                            task.taskId !== "__no_task__" &&
+                            (addingItemTask === task.taskId ? (
+                              <div className="shrink-0 flex flex-col gap-1">
+                                <input
+                                  autoFocus
+                                  value={itemTitle}
+                                  onChange={(e) => setItemTitle(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter")
+                                      addChecklistItemInline(task, f);
+                                    if (e.key === "Escape") {
+                                      e.stopPropagation();
+                                      setAddingItemTask(null);
+                                      setItemTitle("");
+                                    }
+                                  }}
+                                  disabled={savingItem}
+                                  placeholder="체크리스트 항목 입력…"
+                                  aria-label="체크리스트 항목 입력"
+                                  className="w-full bg-bridge-dark border border-bridge-accent/50 rounded-lg px-3 py-2.5 text-[13px] text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/40 disabled:opacity-60"
+                                />
+                                <span className="text-xs text-slate-500 pl-0.5">
+                                  Enter 추가 후 계속 · Esc 닫기
+                                </span>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAddingItemTask(task.taskId);
+                                  setItemTitle("");
+                                }}
+                                className="shrink-0 w-full flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-foreground/[0.15] text-[13px] font-medium text-slate-500 hover:text-bridge-accent hover:border-bridge-accent/40 hover:bg-bridge-accent/5 transition-colors"
+                              >
+                                <Plus className="w-3.5 h-3.5" /> 항목 추가
+                              </button>
                             ))}
-                        </select>
+                        </div>
                       </div>
-                      <div>
-                        <label
-                          htmlFor="console-new-task-title"
-                          className="text-xs font-bold uppercase tracking-widest text-slate-400"
-                        >
-                          태스크 제목
-                        </label>
-                        <input
-                          id="console-new-task-title"
-                          autoFocus
-                          value={taskTitle}
-                          onChange={(e) => setTaskTitle(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") createTaskInline();
-                            if (e.key === "Escape") {
-                              e.stopPropagation();
-                              setTaskFormOpen(false);
+                    );
+                  })}
+                {canEdit && (
+                  <div
+                    className={`w-72 shrink-0 rounded-xl border flex flex-col min-h-0 transition-colors ${
+                      taskFormOpen
+                        ? "border-bridge-accent/50 bg-bridge-obsidian"
+                        : "border-dashed border-foreground/[0.15] hover:border-bridge-accent/40"
+                    }`}
+                  >
+                    {taskFormOpen ? (
+                      <div className="p-4 flex flex-col gap-3">
+                        <div>
+                          <label
+                            htmlFor="console-new-task-feature"
+                            className="text-xs font-bold uppercase tracking-widest text-slate-400"
+                          >
+                            피쳐
+                          </label>
+                          <select
+                            id="console-new-task-feature"
+                            value={taskFeatureId}
+                            onChange={(e) => setTaskFeatureId(e.target.value)}
+                            className="mt-1.5 w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg px-2.5 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                          >
+                            {features
+                              .filter((f) => f.featureId !== NO_FEATURE)
+                              .map((f) => (
+                                <option key={f.featureId} value={f.featureId}>
+                                  {f.featureTitle}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label
+                            htmlFor="console-new-task-title"
+                            className="text-xs font-bold uppercase tracking-widest text-slate-400"
+                          >
+                            태스크 제목
+                          </label>
+                          <input
+                            id="console-new-task-title"
+                            autoFocus
+                            value={taskTitle}
+                            onChange={(e) => setTaskTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") createTaskInline();
+                              if (e.key === "Escape") {
+                                e.stopPropagation();
+                                setTaskFormOpen(false);
+                              }
+                            }}
+                            placeholder="태스크 제목 입력…"
+                            className="mt-1.5 w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg px-3 py-2 text-[13px] text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                          />
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          생성 직후 새 컬럼에서 첫 체크리스트 항목 입력이
+                          열립니다.
+                        </p>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setTaskFormOpen(false)}
+                            className="text-xs font-medium px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                          >
+                            취소
+                          </button>
+                          <button
+                            type="button"
+                            onClick={createTaskInline}
+                            disabled={
+                              creatingTask ||
+                              !taskTitle.trim() ||
+                              !taskFeatureId
                             }
-                          }}
-                          placeholder="태스크 제목 입력…"
-                          className="mt-1.5 w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg px-3 py-2 text-[13px] text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-                        />
+                            className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-bridge-accent text-white disabled:opacity-40 hover:bg-bridge-accent/90 transition-all"
+                          >
+                            태스크 추가
+                          </button>
+                        </div>
                       </div>
-                      <p className="text-xs text-slate-500 leading-relaxed">
-                        생성 직후 새 컬럼에서 첫 체크리스트 항목 입력이
-                        열립니다.
-                      </p>
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setTaskFormOpen(false)}
-                          className="text-xs font-medium px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-                        >
-                          취소
-                        </button>
-                        <button
-                          type="button"
-                          onClick={createTaskInline}
-                          disabled={
-                            creatingTask || !taskTitle.trim() || !taskFeatureId
-                          }
-                          className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-bridge-accent text-white disabled:opacity-40 hover:bg-bridge-accent/90 transition-all"
-                        >
-                          태스크 추가
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={openTaskForm}
-                      className="flex-1 min-h-[160px] flex flex-col items-center justify-center gap-2 rounded-xl text-sm font-medium text-slate-500 hover:text-bridge-accent hover:bg-bridge-accent/5 transition-colors"
-                    >
-                      <Plus className="w-6 h-6" /> 태스크 추가
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={openTaskForm}
+                        className="flex-1 min-h-[160px] flex flex-col items-center justify-center gap-2 rounded-xl text-sm font-medium text-slate-500 hover:text-bridge-accent hover:bg-bridge-accent/5 transition-colors"
+                      >
+                        <Plus className="w-6 h-6" /> 태스크 추가
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </motion.div>
 
           {/* 엣지 피크 — 보드 위에서 헤더까지 가지 않고 이웃 마일스톤으로 이동. 드래그 중엔 숨김 */}
