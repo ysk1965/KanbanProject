@@ -187,8 +187,14 @@ jobs:
         # The action made this worse (its own client-side GetObjectAcl check) and
         # gave no retry. Here we: upload the bundle, register the version, then
         # retry update-environment until the env *actually* lands on our version,
-        # with a settle delay before each wait (a bare `wait environment-updated`
-        # can return immediately if Status hasn't flipped to Updating yet).
+        # with a settle delay before polling (Status can lag before flipping to
+        # Updating, which would make the poll return immediately).
+        #
+        # 대기는 내장 waiter(environment-updated) 대신 직접 폴링한다: 내장 waiter는
+        # 20초×20회 ≈ 6분40초 고정 상한이라 RollingWithAdditionalBatch 배포(배치 2회
+        # × ALB 헬스 대기 ≈ 9분)를 끝까지 기다리지 못하고, 그 타임아웃이 "버전 미반영
+        # (S3 일과성 오류)" 오진 → Updating 중 재시도("Must be Ready") → job 실패로
+        # 이어졌다. 실제 배포는 매번 성공했으므로 전형적인 오탐.
         run: |
           set -uo pipefail
           APP="${{ env.EB_APPLICATION_NAME }}"
@@ -230,7 +236,16 @@ jobs:
 
             # Let Status transition to Updating before waiting (avoids premature return).
             sleep 25
-            aws elasticbeanstalk wait environment-updated --environment-names "$ENV_NAME" || true
+            # Updating이 끝날 때까지 자체 데드라인 15분(20초×45회)으로 폴링.
+            STATUS="Updating"
+            for i in $(seq 1 45); do
+              STATUS=$(aws elasticbeanstalk describe-environments \
+                --environment-names "$ENV_NAME" \
+                --query 'Environments[0].Status' --output text)
+              [ "$STATUS" != "Updating" ] && break
+              echo "  still updating [$i]..."
+              sleep 20
+            done
 
             DEPLOYED=$(aws elasticbeanstalk describe-environments \
               --environment-names "$ENV_NAME" \
@@ -238,10 +253,16 @@ jobs:
             HEALTH=$(aws elasticbeanstalk describe-environments \
               --environment-names "$ENV_NAME" \
               --query 'Environments[0].Health' --output text)
-            echo "After attempt ${attempt}: version=${DEPLOYED} health=${HEALTH}"
+            echo "After attempt ${attempt}: status=${STATUS} version=${DEPLOYED} health=${HEALTH}"
             echo "::endgroup::"
 
             if [ "$DEPLOYED" == "$SHA" ]; then deploy_ok=1; break; fi
+            if [ "$STATUS" == "Updating" ]; then
+              # 15분을 넘겨도 Updating이면 재시도해봐야 "Must be Ready"만 받는다 — 실패 처리.
+              echo "::error::Environment still Updating after 15min deadline"
+              break
+            fi
+            # 환경이 Ready로 돌아왔는데 버전이 그대로인 경우만 진짜 미반영(S3 일과성 오류).
             echo "Version did not land (likely transient EB S3 error). Retrying in 30s..."
             sleep 30
           done
