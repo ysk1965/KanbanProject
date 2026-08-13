@@ -24,17 +24,6 @@ public class SprintRequest {
         private String taskId;
     }
 
-    /**
-     * 피쳐 담기 (담기 단위는 피쳐 — 소속 태스크 전체가 함께 들어온다).
-     * featureId가 "__none__"이면 피쳐 미지정 태스크 그룹 전체를 담는다.
-     */
-    @Getter
-    @NoArgsConstructor
-    public static class AddFeature {
-        @NotNull
-        private String featureId;
-    }
-
     /** 카드 컬럼 이동 (대상 컬럼 id) */
     @Getter
     @NoArgsConstructor

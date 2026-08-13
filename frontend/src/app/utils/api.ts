@@ -3753,33 +3753,11 @@ export const sprintAPI = {
     );
   },
 
-  /** 태스크 담기 — 그 태스크의 체크리스트는 함께 딸려 들어온다 */
+  /** 태스크 담기 — 담기의 단위. 그 태스크의 체크리스트는 함께 딸려 들어온다 */
   addTask: async (boardId: string, sprintId: string, taskId: string) => {
     return apiClient.post<SprintBoard>(
       `/boards/${boardId}/sprints/${sprintId}/tasks`,
       { task_id: taskId },
-    );
-  },
-
-  /**
-   * 피쳐 담기 — 담기의 단위. 소속 태스크 전체가 함께 들어오고, 태스크 0개인 빈 피쳐도 담긴다.
-   * featureId "__none__" = 피쳐 미지정 태스크 그룹.
-   */
-  addFeature: async (boardId: string, sprintId: string, featureId: string) => {
-    return apiClient.post<SprintBoard>(
-      `/boards/${boardId}/sprints/${sprintId}/features`,
-      { feature_id: featureId },
-    );
-  },
-
-  /** 피쳐 빼기 — 매핑 삭제 + 담긴 태스크 전체 백로그 복귀. "__none__" = 미지정 그룹 */
-  removeFeature: async (
-    boardId: string,
-    sprintId: string,
-    featureId: string,
-  ) => {
-    return apiClient.delete<SprintBoard>(
-      `/boards/${boardId}/sprints/${sprintId}/features/${encodeURIComponent(featureId)}`,
     );
   },
 

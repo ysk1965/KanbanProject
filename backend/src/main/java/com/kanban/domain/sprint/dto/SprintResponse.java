@@ -34,8 +34,7 @@ public class SprintResponse {
         private Gauge gauge;                   // 스코프 게이지 (활성 기준)
         private List<Column> columns;          // 동적 컬럼 (START..MIDDLE..END), 각 컬럼에 담긴 카드 포함
         private List<ItemCard> backlog;        // 담기 후보 (아직 미담긴 마일스톤 항목)
-        private List<FeatureInfo> sprintFeatures; // 활성 스프린트에 담긴 피쳐 (태스크 0개인 빈 피쳐 포함)
-        private List<FeatureInfo> boardFeatures;  // 보드의 담기 후보 피쳐 전체 (인박스 제외) — 빈 피쳐도 담을 수 있게 내려준다
+        private List<FeatureInfo> boardFeatures;  // 보드의 피쳐 전체 (인박스 제외) — 태스크 없는 피쳐도 사이드바에 세울 수 있게 내려준다
         private List<JiraTask> jiraTasks;      // JIRA 뷰용 — 보드 전체 JIRA 연동 Task (스프린트 담김 무관). 미연동이면 빈 목록.
         private LocalDateTime jiraLastSeenAt;  // 이 사용자가 JIRA 뷰를 마지막으로 확인한 시각. 이보다 나중 linkedAt = 신규.
     }
