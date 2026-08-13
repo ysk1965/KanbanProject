@@ -11,7 +11,7 @@ import com.kanban.domain.integration.jira.JiraIntegrationConfigRepository;
 import com.kanban.domain.integration.jira.JiraIssueLink;
 import com.kanban.domain.integration.jira.JiraIssueLinkRepository;
 import com.kanban.domain.integration.jira.JiraLinkTargetType;
-import com.kanban.domain.feature.FeatureRepository;
+import com.kanban.domain.milestone.MilestoneFeatureRepository;
 import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.sprint.Sprint;
@@ -58,7 +58,7 @@ public class SprintService {
 
     private final SprintRepository sprintRepository;
     private final SprintColumnRepository sprintColumnRepository;
-    private final FeatureRepository featureRepository;
+    private final MilestoneFeatureRepository milestoneFeatureRepository;
     private final TaskRepository taskRepository;
     private final ChecklistItemRepository checklistItemRepository;
     private final MilestoneRepository milestoneRepository;
@@ -700,9 +700,11 @@ public class SprintService {
         String boardId = milestone.getBoard().getId();
         List<SprintResponse.JiraTask> jiraTasks = buildJiraTasks(boardId);
 
-        // 사이드바가 태스크 없는 피쳐까지 노출할 수 있도록 보드의 피쳐 전체를 함께 내려준다.
-        List<SprintResponse.FeatureInfo> boardFeatures = featureRepository
-                .findByBoardIdOrderByPositionAsc(boardId).stream()
+        // 사이드바가 태스크 없는 피쳐까지 노출할 수 있도록 피쳐 목록을 함께 내려준다 —
+        // 단, 보드 전체가 아니라 "이 마일스톤에 연결된" 피쳐만. 다른 마일스톤 소속 피쳐까지
+        // 태스크 0으로 백로그에 세우면 이 마일스톤과 무관한 소음이 된다.
+        List<SprintResponse.FeatureInfo> boardFeatures = milestoneFeatureRepository
+                .findFeaturesByMilestoneId(milestone.getId()).stream()
                 .filter(f -> !Boolean.TRUE.equals(f.getIsInbox()))
                 .map(SprintResponse.FeatureInfo::of)
                 .toList();
