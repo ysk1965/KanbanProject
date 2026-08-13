@@ -174,6 +174,18 @@ function progressUnits(
 }
 
 /**
+ * "이번(활성) 스프린트에 담겼는가" — 태스크의 3가지 스프린트 상태 중 ②의 판정.
+ * ARCHIVED 귀속은 마감 스프린트의 동결 이력이라 sprint_column_id(공유 컬럼)가 남아
+ * 있어도 담김이 아니다. 담김 집계·행 액션·컬럼 편입이 모두 이 판정 하나를 본다.
+ *  ① 미배치: sprint_status == null (백로그)
+ *  ② 이번 스프린트: 담김 — 빼기 가능
+ *  ③ 지난 스프린트 완료: sprint_status == "ARCHIVED" — 읽기 전용 이력
+ */
+function takenInActiveSprint(it: SprintItemCard): boolean {
+  return !!it.sprint_column_id && it.sprint_status !== "ARCHIVED";
+}
+
+/**
  * 체크리스트 줄의 귀속 판정 — 구성원 컬럼 라우팅(keysOf)과 같은 규칙.
  * 외주 줄은 관리 담당(manager)의 몫으로 센다. __none__은 담당이 아무도 없는 줄.
  * 진척 집계·카드 스코프·보임 필터가 모두 이 함수 하나를 보게 해 규칙이 갈라지지 않게 한다.
@@ -216,6 +228,8 @@ const SPRINT_UNCAT_COLLAPSED_KEY = "bridge:sprint-uncategorized:collapsed";
 const SPRINT_DOCK_EXPANDED_KEY = "bridge:sprint-dock:expanded";
 /** 드래그 중 접힌 도크 레일 위에 이만큼 머물면 자동으로 펼친다(ms). */
 const DOCK_HOVER_EXPAND_MS = 300;
+/** 업무 리스트 범위("active"/"all") 저장 키(새로고침해도 유지). */
+const SPRINT_LIST_SCOPE_KEY = "bridge:sprint-list-scope";
 
 /**
  * JIRA 흐름 게이지 세그먼트 색 — 단계가 뒤로 갈수록 액센트가 진해지고,
@@ -362,6 +376,27 @@ export function SprintBoard({
   );
   // 지금 생성 요청이 나가 있는 입력 키(스피너 표시용). null이면 없음.
   const [creatingTaskKey, setCreatingTaskKey] = useState<string | null>(null);
+  // 입력이 열려 있는 추가 행 키 — 평소엔 고스트 행("＋ 태스크 추가")만 두고,
+  // 클릭한 자리 하나만 입력으로 펼친다(카드마다 입력 박스가 상주하면 세로 소음이다).
+  const [activeAddKey, setActiveAddKey] = useState<string | null>(null);
+  // 업무 리스트 범위 — "active": 미배치 + 이번 스프린트(기본), "all": 지난 스프린트 완료까지.
+  // 지난 스프린트에서 끝난 태스크는 동결 이력이라 평소엔 소음이고, 회고·집계 때만 궁금하다.
+  const [listScope, setListScope] = useState<"active" | "all">(() => {
+    try {
+      return localStorage.getItem(SPRINT_LIST_SCOPE_KEY) === "all"
+        ? "all"
+        : "active";
+    } catch {
+      return "active";
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(SPRINT_LIST_SCOPE_KEY, listScope);
+    } catch {
+      /* 프라이빗 모드 등 localStorage 접근 불가 시 무시 */
+    }
+  }, [listScope]);
   // 업무 리스트: 피쳐 카드 안 "완료 태스크" 펼침 집합. 남은 일이 리스트의 주인공이라
   // 완료 행은 기본 접히고, "완료 N개 보기"로만 드러난다.
   const [expandedDoneTasks, setExpandedDoneTasks] = useState<Set<string>>(
@@ -1050,7 +1085,7 @@ export function SprintBoard({
         (!!it.sprint_column_id && endColIds.has(it.sprint_column_id));
       feat.tasks.push(it);
       feat.total += 1;
-      if (it.sprint_column_id) feat.taken += 1;
+      if (takenInActiveSprint(it)) feat.taken += 1;
       if (it.completed) feat.completed += 1;
       // 피쳐 게이지도 체크리스트 줄 기준 — 백로그 포함 그 피쳐의 전체 할 일이 분모다.
       const u = progressUnits(it, isDone);
@@ -1103,14 +1138,17 @@ export function SprintBoard({
 
   // 좌측 리스트 섹션 — 담긴 태스크가 있는 피쳐는 "이번 스프린트", 없으면 "백로그"로 나뉜다.
   // 부분 담김 피쳐는 이번 스프린트 섹션에 서되, 안 담긴 행에 담기 버튼이 남는다.
-  // 각 섹션 안에서는 태스크 있는 피쳐가 먼저, 빈 피쳐(태스크 0)가 뒤로 간다(보드 정렬과 동일 규칙).
+  // 섹션 안 정렬: 진행 중 피쳐 → 완료(100%) 피쳐 → 빈 피쳐(태스크 0).
+  // 남은 일이 주인공이라 완료·빈 카드는 뒤로 물러난다(같은 급 안에선 생성 순서 유지).
   const splitBySection = useCallback((feats: TreeFeature[]) => {
+    const rankOf = (f: TreeFeature) =>
+      f.total === 0 ? 2 : f.completed === f.total ? 1 : 0;
     return feats
       .map((feat, idx) => ({ feat, idx }))
       .sort((a, b) => {
-        const aEmpty = a.feat.total === 0;
-        const bEmpty = b.feat.total === 0;
-        if (aEmpty !== bEmpty) return aEmpty ? 1 : -1;
+        const ra = rankOf(a.feat);
+        const rb = rankOf(b.feat);
+        if (ra !== rb) return ra - rb;
         return a.idx - b.idx;
       })
       .map(({ feat }) => feat);
@@ -1251,7 +1289,7 @@ export function SprintBoard({
       total: number; // 담긴 태스크의 전체 체크리스트 줄 수
     }[] = [];
     for (const feat of tree) {
-      const taken = feat.tasks.filter((it) => it.sprint_column_id);
+      const taken = feat.tasks.filter(takenInActiveSprint);
       if (taken.length === 0) continue;
 
       // 컬럼 헤더 진척도 체크리스트 줄 기준(progressUnits)
@@ -1292,8 +1330,8 @@ export function SprintBoard({
         let done = 0;
         let overdue = 0;
         for (const it of feat.tasks) {
-          if (!it.sprint_column_id) continue; // 스프린트에 담긴 태스크만
-          const kind = columnById.get(it.sprint_column_id)?.kind;
+          if (!takenInActiveSprint(it)) continue; // 이번 스프린트에 담긴 태스크만
+          const kind = columnById.get(it.sprint_column_id!)?.kind;
           const isDone = it.completed || kind === "END";
           const u = progressUnits(it, isDone); // 진척은 체크리스트 줄 기준
           total += u.total;
@@ -3108,16 +3146,18 @@ export function SprintBoard({
           {fc.items.map((it) => renderCard(it))}
         </div>
         {/* 인라인 태스크 생성(갈래 ②) — 여기서 만들면 생성 즉시 이 컬럼(START)에 담긴다.
-            업무 리스트 생성(백로그행)과 결과가 다르므로 placeholder로 차이를 명시한다. */}
+            업무 리스트 생성(백로그행)과 결과가 다르므로 placeholder로 차이를 명시한다.
+            평소엔 고스트 행, 클릭 시에만 입력으로 펼친다(업무 리스트와 동일 패턴). */}
         {canEdit && !!activeSprint && fc.featureId !== "__none__" && (
           <div className="shrink-0 p-2 pt-0">
             {(() => {
               const key = `col:${fc.featureId}`;
               const busy = creatingTaskKey === key;
-              return (
-                <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-dashed border-foreground/15 focus-within:border-bridge-accent/50 focus-within:bg-bridge-accent/[0.04] transition-colors">
-                  <Plus className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+              return activeAddKey === key ? (
+                <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-bridge-accent/50 bg-bridge-accent/[0.05]">
+                  <Plus className="w-3.5 h-3.5 text-bridge-accent shrink-0" />
                   <input
+                    autoFocus
                     value={newTaskTitles[key] ?? ""}
                     onChange={(e) =>
                       setNewTaskTitles((prev) => ({
@@ -3131,8 +3171,12 @@ export function SprintBoard({
                         void submitNewTask(fc.featureId, key, true);
                       } else if (e.key === "Escape") {
                         setNewTaskTitles((prev) => ({ ...prev, [key]: "" }));
-                        e.currentTarget.blur();
+                        setActiveAddKey(null);
                       }
+                    }}
+                    onBlur={() => {
+                      if (!(newTaskTitles[key] ?? "").trim())
+                        setActiveAddKey((k) => (k === key ? null : k));
                     }}
                     placeholder="태스크 추가 — 즉시 담김"
                     aria-label={`${fc.featureTitle}에 태스크 추가 (즉시 담김)`}
@@ -3142,6 +3186,15 @@ export function SprintBoard({
                     <Loader2 className="w-3.5 h-3.5 animate-spin text-bridge-accent shrink-0" />
                   )}
                 </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setActiveAddKey(key)}
+                  className="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs text-slate-500 hover:text-bridge-accent hover:bg-bridge-accent/[0.06] transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5 shrink-0" />
+                  태스크 추가
+                </button>
               );
             })()}
           </div>
@@ -4484,6 +4537,41 @@ export function SprintBoard({
                 <span className="text-xs font-bold uppercase tracking-widest text-slate-400 truncate flex-1">
                   {uiFeatures.showBacklog ? "업무 리스트" : "묶음 목록"}
                 </span>
+                {/* 리스트 범위 — 진행(미배치+이번 스프린트) / 전체(지난 스프린트 완료 포함).
+                    지난 스프린트 완료는 동결 이력이라 기본은 "진행"으로 눌러둔다. */}
+                {uiFeatures.showBacklog && (
+                  <div
+                    role="group"
+                    aria-label="업무 리스트 범위"
+                    className="shrink-0 flex items-center rounded-lg border border-foreground/10 bg-foreground/[0.03] p-0.5"
+                  >
+                    {(
+                      [
+                        { key: "active", label: "진행" },
+                        { key: "all", label: "전체" },
+                      ] as const
+                    ).map((opt) => (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => setListScope(opt.key)}
+                        aria-pressed={listScope === opt.key}
+                        title={
+                          opt.key === "active"
+                            ? "미배치 + 이번 스프린트만 보기"
+                            : "지난 스프린트에서 완료된 태스크까지 보기"
+                        }
+                        className={`px-2 py-0.5 rounded-md text-xs font-bold transition-colors ${
+                          listScope === opt.key
+                            ? "bg-bridge-accent/20 text-bridge-accent"
+                            : "text-slate-500 hover:text-slate-400"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {/* 마일스톤 관리 콘솔 열기 */}
                 {milestoneId && (
                   <button
@@ -4588,7 +4676,14 @@ export function SprintBoard({
                       feat.total > 0 && feat.completed === feat.total;
                     // 빈 피쳐(내용 없음)·완료 피쳐(볼 일 없음)는 톤 다운 — 남은 일이 주인공
                     const dimmed = isEmpty || isComplete;
-                    const bodyTasks = feat.tasks;
+                    // 리스트 범위: "진행"이면 지난 스프린트 완료(ARCHIVED 동결 이력)를 걷어낸다.
+                    // 분수·게이지는 범위와 무관하게 전체 기준 — 숨겼다고 진척이 줄면 거짓말이 된다.
+                    const bodyTasks =
+                      listScope === "all"
+                        ? feat.tasks
+                        : feat.tasks.filter(
+                            (t) => t.sprint_status !== "ARCHIVED",
+                          );
                     const bodyOpen =
                       !isEmpty && expandedFeatures.has(feat.featureId);
                     // 게이지는 체크리스트 줄 기준(태스크 개수가 아니라 그 안의 할 일)
@@ -4619,27 +4714,11 @@ export function SprintBoard({
                     }
                     const hasExceptions =
                       lateCount + soonCount + carryCount > 0;
-                    // 담당자 스택 — "누가 하는지"는 접힌 카드에서도 1차 정보다.
-                    // hex=null은 외주(앰버 고정).
-                    const owners = new Map<
-                      string,
-                      { name: string; hex: string | null }
-                    >();
-                    for (const t of bodyTasks) {
-                      if (t.assignee)
-                        owners.set(t.assignee.id ?? t.assignee.name, {
-                          name: t.assignee.name,
-                          hex: assigneeHex(t.assignee),
-                        });
-                      else if (t.contractor)
-                        owners.set(`c:${t.contractor.name}`, {
-                          name: t.contractor.name,
-                          hex: null,
-                        });
-                    }
-                    const ownerList = [...owners.values()];
-                    const shownOwners = ownerList.slice(0, 3);
-                    const extraOwners = ownerList.length - shownOwners.length;
+                    // 담당 노출은 두지 않는다 — "누가"는 보드 카드·태스크 모달이 맡고,
+                    // 리스트는 "무엇이 얼마나 남았고 담겼나"에만 집중한다.
+                    // 부분 담김 — 접힌 채로도 "덜 담긴 피쳐"가 보이게 예외 줄에 세운다.
+                    const partialTaken =
+                      feat.inSprint && feat.taken < feat.total;
                     // 액션 비대칭: 담기(자주)는 태스크 행에 상시, 빼기(드묾)는 행 호버에만.
                     const showTakeControls =
                       canEdit && !!activeSprint && uiFeatures.showBacklog;
@@ -4648,41 +4727,67 @@ export function SprintBoard({
                     const canAddTask = canEdit && feat.featureId !== "__none__";
                     const addKey = `list:${feat.featureId}`;
                     const addBusy = creatingTaskKey === addKey;
-                    const renderAddTaskInput = () => (
-                      <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-dashed border-foreground/15 focus-within:border-bridge-accent/50 focus-within:bg-bridge-accent/[0.04] transition-colors"
-                      >
-                        <Plus className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                        <input
-                          value={newTaskTitles[addKey] ?? ""}
-                          onChange={(e) =>
-                            setNewTaskTitles((prev) => ({
-                              ...prev,
-                              [addKey]: e.target.value,
-                            }))
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              void submitNewTask(feat.featureId, addKey, false);
-                            } else if (e.key === "Escape") {
+                    // 고스트 추가 행 — 평소엔 한 줄 텍스트만, 클릭한 자리 하나만 입력으로 펼친다.
+                    // 상시 입력 박스는 카드마다 세로 40px을 상주로 먹는 소음이었다.
+                    const renderAddTaskInput = () =>
+                      activeAddKey === addKey ? (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-bridge-accent/50 bg-bridge-accent/[0.05]"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-bridge-accent shrink-0" />
+                          <input
+                            autoFocus
+                            value={newTaskTitles[addKey] ?? ""}
+                            onChange={(e) =>
                               setNewTaskTitles((prev) => ({
                                 ...prev,
-                                [addKey]: "",
-                              }));
-                              e.currentTarget.blur();
+                                [addKey]: e.target.value,
+                              }))
                             }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                void submitNewTask(
+                                  feat.featureId,
+                                  addKey,
+                                  false,
+                                );
+                              } else if (e.key === "Escape") {
+                                setNewTaskTitles((prev) => ({
+                                  ...prev,
+                                  [addKey]: "",
+                                }));
+                                setActiveAddKey(null);
+                              }
+                            }}
+                            onBlur={() => {
+                              if (!(newTaskTitles[addKey] ?? "").trim())
+                                setActiveAddKey((k) =>
+                                  k === addKey ? null : k,
+                                );
+                            }}
+                            placeholder="태스크 추가 — 백로그로"
+                            aria-label={`${feat.featureTitle}에 태스크 추가 (백로그로 생성)`}
+                            className="flex-1 min-w-0 bg-transparent outline-none text-xs font-medium text-foreground placeholder-slate-500"
+                          />
+                          {addBusy && (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-bridge-accent shrink-0" />
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveAddKey(addKey);
                           }}
-                          placeholder="태스크 추가 — 백로그로"
-                          aria-label={`${feat.featureTitle}에 태스크 추가 (백로그로 생성)`}
-                          className="flex-1 min-w-0 bg-transparent outline-none text-xs font-medium text-foreground placeholder-slate-500"
-                        />
-                        {addBusy && (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-bridge-accent shrink-0" />
-                        )}
-                      </div>
-                    );
+                          className="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs text-slate-500 hover:text-bridge-accent hover:bg-bridge-accent/[0.06] transition-colors"
+                        >
+                          <Plus className="w-3.5 h-3.5 shrink-0" />
+                          태스크 추가
+                        </button>
+                      );
                     return (
                       <Fragment key={feat.featureId}>
                         {/* 그룹 카드 — 피쳐가 카드고 태스크가 내용물이다.
@@ -4702,9 +4807,12 @@ export function SprintBoard({
                             dimmed ? "opacity-70 hover:opacity-100" : ""
                           } ${isEmpty ? "" : "cursor-pointer"}`}
                         >
-                          {/* 헤더 — 1줄: 이름·분수·액션 / 2줄: 진행바 / 3줄: 예외(있을 때만) */}
+                          {/* 헤더 — 1줄(이름·상태·분수·%) + 하단 2px 언더바.
+                              진행바가 제 줄을 갖던 구조를 언더바로 눌러 카드 높이를 절반으로.
+                              예외 줄(지연·임박·이월·담김)은 있을 때만 생긴다 —
+                              줄 수 자체가 신호(두꺼운 카드 = 봐야 할 카드). */}
                           <div
-                            className={`sticky top-0 z-10 px-3 pt-2.5 bg-bridge-obsidian rounded-t-[14px] ${
+                            className={`sticky top-0 z-10 overflow-hidden px-3 py-2 bg-bridge-obsidian rounded-t-[14px] ${
                               bodyOpen ? "" : "rounded-b-[14px]"
                             }`}
                           >
@@ -4732,14 +4840,16 @@ export function SprintBoard({
                                   <ExternalLink className="w-3 h-3" />
                                 </button>
                               )}
-                              {/* 상태 배지: 완료(초록) / 빈 피쳐(태스크 0). 담김은 배지가 아니라 섹션이 말한다. */}
+                              {/* 상태 배지: 완료(✓) / 빈 피쳐(태스크 0). 담김은 배지가 아니라 섹션이 말한다. */}
                               {isComplete && (
-                                <span className="inline-flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
+                                <span
+                                  title="피쳐 완료"
+                                  className="inline-grid place-items-center w-[18px] h-[18px] rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0"
+                                >
                                   <Check
                                     className="w-2.5 h-2.5"
                                     strokeWidth={3}
                                   />
-                                  완료
                                 </span>
                               )}
                               {isEmpty && (
@@ -4747,19 +4857,7 @@ export function SprintBoard({
                                   태스크 0
                                 </span>
                               )}
-                              {/* 부분 담김 신호 — 접힌 채로도 "덜 담긴 피쳐"가 보이게.
-                                  전부 담기면 섹션이 이미 말하므로 뱃지를 접는다. */}
-                              {showTakeControls &&
-                                feat.inSprint &&
-                                feat.taken < feat.total && (
-                                  <span
-                                    className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent tabular-nums"
-                                    title={`태스크 ${feat.taken}/${feat.total} 담김 — 펼치면 남은 태스크를 담을 수 있어요`}
-                                  >
-                                    담김 {feat.taken}/{feat.total}
-                                  </span>
-                                )}
-                              {/* 진행 분수 — 우측 정렬 tabular 숫자가 리스트의 스캔 축이 된다 */}
+                              {/* 진행 분수 + % — 우측 정렬 tabular 숫자가 리스트의 스캔 축이 된다 */}
                               {!isEmpty && (
                                 <span
                                   className="shrink-0 text-xs tabular-nums text-slate-400"
@@ -4769,6 +4867,11 @@ export function SprintBoard({
                                     {feat.unitDone}
                                   </span>
                                   /{feat.unitTotal}
+                                </span>
+                              )}
+                              {!isEmpty && (
+                                <span className="shrink-0 text-xs tabular-nums text-slate-500">
+                                  {pct}%
                                 </span>
                               )}
                               {/* 펼치기/접기 — 키보드 접근 경로. 빈 피쳐는 펼칠 내용이 없어 숨긴다. */}
@@ -4792,86 +4895,49 @@ export function SprintBoard({
                                 </button>
                               )}
                             </div>
-                            {/* 진행 — 바 + 위의 분수 한 쌍이 전부다(같은 정보를 두 번 말하지 않는다) */}
-                            {!isEmpty ? (
-                              <div className="flex items-center gap-2 mt-1.5 pb-2.5">
-                                <span className="flex-1 h-1 rounded-full bg-foreground/10 overflow-hidden">
-                                  <span
-                                    className="block h-full rounded-full transition-all motion-reduce:transition-none"
-                                    style={{
-                                      width: `${pct}%`,
-                                      background: railColor,
-                                    }}
-                                  />
-                                </span>
-                                <span className="shrink-0 text-xs tabular-nums text-slate-500">
-                                  {pct}%
-                                </span>
-                              </div>
-                            ) : (
-                              <p className="mt-1 pb-2.5 text-xs text-slate-500">
-                                첫 태스크를 추가하면 담을 수 있어요
-                              </p>
-                            )}
-                            {/* 예외 라인 — 해당될 때만 생긴다. 줄 수 자체가 신호(두꺼운 카드 = 봐야 할 카드).
-                                펼치면 태스크 행이 상세를 보여주므로 접힘 상태에서만 노출한다. */}
+                            {/* 예외 줄 — 지연·임박·이월 + 부분 담김. 해당 없으면 줄 자체가 없다. */}
                             {!bodyOpen &&
                               !isEmpty &&
-                              (hasExceptions || ownerList.length > 0) && (
-                                <div className="flex items-center gap-1.5 pb-2.5 -mt-0.5">
-                                  <span className="flex-1 min-w-0 flex items-center gap-1 flex-wrap">
-                                    {lateCount > 0 && (
-                                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-500">
-                                        지연 {lateCount}
-                                      </span>
-                                    )}
-                                    {soonCount > 0 && (
-                                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                                        임박 {soonCount}
-                                      </span>
-                                    )}
-                                    {carryCount > 0 && (
-                                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                                        이월 {carryCount}
-                                      </span>
-                                    )}
-                                  </span>
-                                  {/* 담당자 스택 — 누가 이 피쳐를 하는지 접힌 채로 보인다 */}
-                                  {ownerList.length > 0 && (
-                                    <span className="shrink-0 flex items-center">
-                                      {shownOwners.map((o, i) => (
-                                        <span
-                                          key={`${o.name}-${i}`}
-                                          className={`w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold ring-2 ring-bridge-obsidian ${
-                                            o.hex
-                                              ? "text-white"
-                                              : "bg-amber-500 text-amber-950"
-                                          } ${i > 0 ? "-ml-1" : ""}`}
-                                          style={
-                                            o.hex
-                                              ? { background: o.hex }
-                                              : undefined
-                                          }
-                                          title={o.name}
-                                        >
-                                          {getInitials(o.name)}
-                                        </span>
-                                      ))}
-                                      {extraOwners > 0 && (
-                                        <span
-                                          className="-ml-1 w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold bg-foreground/10 text-slate-400 ring-2 ring-bridge-obsidian"
-                                          title={ownerList
-                                            .slice(3)
-                                            .map((o) => o.name)
-                                            .join(", ")}
-                                        >
-                                          +{extraOwners}
-                                        </span>
-                                      )}
+                              (hasExceptions ||
+                                (showTakeControls && partialTaken)) && (
+                                <div className="flex items-center gap-1 flex-wrap pt-1 pb-0.5">
+                                  {lateCount > 0 && (
+                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-500">
+                                      지연 {lateCount}
+                                    </span>
+                                  )}
+                                  {soonCount > 0 && (
+                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                                      임박 {soonCount}
+                                    </span>
+                                  )}
+                                  {carryCount > 0 && (
+                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                                      이월 {carryCount}
+                                    </span>
+                                  )}
+                                  {showTakeControls && partialTaken && (
+                                    <span
+                                      className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent tabular-nums"
+                                      title={`태스크 ${feat.taken}/${feat.total} 담김 — 펼치면 남은 태스크를 담을 수 있어요`}
+                                    >
+                                      담김 {feat.taken}/{feat.total}
                                     </span>
                                   )}
                                 </div>
                               )}
+                            {/* 진행 언더바 — 헤더 하단 2px. 바가 제 줄을 갖지 않게 한다. */}
+                            {!isEmpty && (
+                              <span className="absolute inset-x-0 bottom-0 h-[2px] bg-foreground/[0.07]">
+                                <span
+                                  className="block h-full transition-all motion-reduce:transition-none"
+                                  style={{
+                                    width: `${pct}%`,
+                                    background: railColor,
+                                  }}
+                                />
+                              </span>
+                            )}
                           </div>
 
                           {/* 빈 피쳐 — 펼칠 목록이 없어 헤더 바로 아래에 첫 태스크 입력을 둔다.
@@ -4898,10 +4964,14 @@ export function SprintBoard({
                                 const tid = it.task_id ?? it.id;
                                 const hasTask =
                                   tid !== "__none__" && !!onOpenChecklistItem;
-                                const taken = !!it.sprint_column_id;
-                                const col = it.sprint_column_id
-                                  ? columnById.get(it.sprint_column_id)
-                                  : undefined;
+                                // 3-상태: 미배치 / 이번 스프린트 담김 / 지난 스프린트 완료(동결 이력)
+                                const archived =
+                                  it.sprint_status === "ARCHIVED";
+                                const taken = takenInActiveSprint(it);
+                                const col =
+                                  taken && it.sprint_column_id
+                                    ? columnById.get(it.sprint_column_id)
+                                    : undefined;
                                 const cTotal = it.checklist_total ?? 0;
                                 const cDone = it.checklist_done ?? 0;
                                 const dday =
@@ -4909,21 +4979,32 @@ export function SprintBoard({
                                     ? getDDay(it.due_date)
                                     : null;
                                 const overdue = dday?.urgency === "overdue";
-                                // 뱃지는 가장 급한 것 하나만: D-day > 이월 > 컬럼.
+                                // 뱃지는 가장 급한 것 하나만: D-day > 이월 > 예외 컬럼.
                                 const showDday =
                                   !!dday && dday.urgency !== "normal";
                                 const showCarry =
                                   !showDday &&
                                   !it.completed &&
                                   (it.carry_over_count ?? 0) > 0;
+                                // 컬럼 칩은 예외 단계(In Review·Done 등)에만 — 담김의 기본
+                                // 단계(Sprint/START)까지 칩을 달면 담긴 행마다 같은 칩이
+                                // 도배되어 신호가 죽는다(담김은 스트라이프·틴트가 말한다).
                                 const showCol =
-                                  !showDday && !showCarry && taken && !!col;
+                                  !showDday &&
+                                  !showCarry &&
+                                  taken &&
+                                  !!col &&
+                                  col.kind !== "START";
                                 // 좌측 2px은 피쳐 색이 아니라 "상태" — 피쳐 색은 그룹 카드가 독점한다.
                                 const stateColor = overdue
                                   ? "#f43f5e"
                                   : taken
                                     ? "#2dd4bf"
                                     : "transparent";
+                                const rowPct =
+                                  cTotal > 0
+                                    ? Math.round((cDone / cTotal) * 100)
+                                    : 0;
                                 return (
                                   <div
                                     key={it.id}
@@ -4948,18 +5029,22 @@ export function SprintBoard({
                                       borderLeftWidth: 2,
                                       borderLeftColor: stateColor,
                                     }}
-                                    className={`group relative rounded-lg px-2.5 py-1.5 transition-colors ${
+                                    className={`group relative overflow-hidden rounded-lg px-2.5 py-1.5 transition-colors ${
                                       overdue
                                         ? "bg-rose-500/[0.07] hover:bg-rose-500/[0.12]"
-                                        : "bg-foreground/[0.03] hover:bg-foreground/[0.08]"
-                                    } ${it.completed ? "opacity-60" : ""} ${
+                                        : taken
+                                          ? "bg-bridge-secondary/[0.05] hover:bg-bridge-secondary/[0.1]"
+                                          : "bg-foreground/[0.03] hover:bg-foreground/[0.08]"
+                                    } ${it.completed || archived ? "opacity-60" : ""} ${
                                       hasTask ? "cursor-pointer" : ""
                                     }`}
                                   >
+                                    {/* 한 줄 구성: 제목 → 뱃지(최대 1) → 분수 → 담기/빼기.
+                                        진행바는 행 하단 언더바로 내려보내 행 높이를 절반으로. */}
                                     <div className="flex items-center gap-1.5">
                                       <span
                                         className={`flex-1 min-w-0 text-xs font-medium leading-snug truncate ${
-                                          it.completed
+                                          it.completed || archived
                                             ? "line-through text-slate-500"
                                             : "text-foreground"
                                         }`}
@@ -4996,31 +5081,40 @@ export function SprintBoard({
                                           </span>
                                         </span>
                                       )}
-                                      {/* 담당 모노그램 — 비슷한 제목을 실제로 가르는 신호 */}
-                                      {it.assignee ? (
+                                      {/* 지난 스프린트 완료 — 몇 회차에서 끝났는지의 동결 이력 */}
+                                      {archived && (
                                         <span
-                                          className="shrink-0 w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold text-white"
-                                          style={{
-                                            background: assigneeHex(
-                                              it.assignee,
-                                            ),
-                                          }}
-                                          title={it.assignee.name}
+                                          className="shrink-0 inline-flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 tabular-nums"
+                                          title={`Sprint ${it.sprint_seq ?? "?"}에서 완료 — 마감된 스프린트의 동결 기록`}
                                         >
-                                          {getInitials(it.assignee.name)}
+                                          S{it.sprint_seq ?? "?"}
+                                          <Check
+                                            className="w-2.5 h-2.5"
+                                            strokeWidth={3}
+                                          />
                                         </span>
-                                      ) : it.contractor ? (
+                                      )}
+                                      {/* 분수 — 담긴 행은 호버 시 빼기 버튼과 교체된다(폭이 좁아 겹치지 않게) */}
+                                      {cTotal > 0 && !it.completed && (
                                         <span
-                                          className="shrink-0 w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold bg-amber-500 text-amber-950"
-                                          title={`외주 · ${it.contractor.name}`}
+                                          className={`shrink-0 text-xs tabular-nums text-slate-500 ${
+                                            showTakeControls && taken
+                                              ? "group-hover:hidden"
+                                              : ""
+                                          }`}
+                                          title={`체크리스트 ${cDone}/${cTotal}`}
                                         >
-                                          {getInitials(it.contractor.name)}
+                                          <span className="font-bold text-slate-400">
+                                            {cDone}
+                                          </span>
+                                          /{cTotal}
                                         </span>
-                                      ) : null}
+                                      )}
                                       {/* 담기/빼기 — 담기 단위가 태스크라 행이 주체다.
                                           담기(자주)는 상시, 빼기(드묾)는 행 호버에만. */}
                                       {showTakeControls &&
                                         !taken &&
+                                        !archived &&
                                         !it.completed && (
                                           <button
                                             type="button"
@@ -5048,7 +5142,7 @@ export function SprintBoard({
                                           }}
                                           title="스프린트에서 빼기 — 백로그로 돌아가요"
                                           aria-label={`${it.title} 스프린트에서 빼기`}
-                                          className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-bold text-rose-500 border border-rose-500/30 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-rose-500/15 transition-opacity"
+                                          className="shrink-0 hidden group-hover:inline-flex focus-visible:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-bold text-rose-500 border border-rose-500/30 hover:bg-rose-500/15 transition-colors"
                                         >
                                           <Minus
                                             className="w-3 h-3"
@@ -5058,27 +5152,18 @@ export function SprintBoard({
                                         </button>
                                       )}
                                     </div>
-                                    {/* 진행 — 2px 바 + 분수 한 쌍. 완료 행은 게이지가 무의미해 생략 */}
+                                    {/* 진행 언더바 — 행 하단 1.5px. 완료 행은 게이지가 무의미해 생략 */}
                                     {cTotal > 0 && !it.completed && (
-                                      <div
-                                        className="flex items-center gap-2 mt-1.5"
-                                        title={`체크리스트 ${cDone}/${cTotal}`}
-                                      >
-                                        <span className="flex-1 h-0.5 rounded-full bg-foreground/10 overflow-hidden">
-                                          <span
-                                            className="block h-full rounded-full bg-bridge-secondary transition-all motion-reduce:transition-none"
-                                            style={{
-                                              width: `${Math.round((cDone / cTotal) * 100)}%`,
-                                            }}
-                                          />
-                                        </span>
-                                        <span className="shrink-0 text-xs tabular-nums text-slate-500">
-                                          <span className="font-bold text-slate-400">
-                                            {cDone}
-                                          </span>
-                                          /{cTotal}
-                                        </span>
-                                      </div>
+                                      <span className="absolute inset-x-0 bottom-0 h-[1.5px] bg-foreground/[0.06]">
+                                        <span
+                                          className={`block h-full transition-all motion-reduce:transition-none ${
+                                            taken
+                                              ? "bg-bridge-secondary/70"
+                                              : "bg-slate-500/50"
+                                          }`}
+                                          style={{ width: `${rowPct}%` }}
+                                        />
+                                      </span>
                                     )}
                                   </div>
                                 );

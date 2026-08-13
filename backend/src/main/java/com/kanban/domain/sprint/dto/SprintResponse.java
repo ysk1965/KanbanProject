@@ -191,6 +191,8 @@ public class SprintResponse {
         private LocalDate doneDate;       // 완료일(day 단위)
         private LocalDateTime completedAt; // END 컬럼 도달 시각(오늘 완료 판정 소스)
         private Integer carryOverCount;   // 이월 횟수 — 0이면 이번 스프린트에서 처음 잡힌 태스크
+        private String sprintStatus;      // 귀속 스프린트 상태(ACTIVE/ARCHIVED) — 미담김이면 null
+        private Integer sprintSeq;        // 귀속 스프린트 회차 — 아카이브 완료 행의 "S{n} ✓" 표기용
         private String featureId;
         private String featureTitle;
         private String featureColor;
@@ -253,6 +255,8 @@ public class SprintResponse {
                     .doneDate(sprintDoneAt != null ? sprintDoneAt.toLocalDate() : null)
                     .completedAt(sprintDoneAt)
                     .carryOverCount(task.getCarryOverCount())
+                    .sprintStatus(task.getSprint() != null ? task.getSprint().getStatus().name() : null)
+                    .sprintSeq(task.getSprint() != null ? task.getSprint().getSequenceNo() : null)
                     .featureId(feature != null ? feature.getId() : null)
                     .featureTitle(feature != null ? feature.getTitle() : null)
                     .featureColor(feature != null ? feature.getColor() : null)

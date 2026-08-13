@@ -645,6 +645,10 @@ export interface SprintItemCard {
   done_date: string | null; // Done 컬럼 도달일
   completed_at: string | null; // Done 컬럼 도달 시각(오늘 완료 판정 소스)
   carry_over_count?: number; // 이월 횟수 — 0이면 이번 스프린트에서 처음 잡힌 태스크
+  // 귀속 스프린트 — 태스크는 3가지 상태를 오간다: 미담김(null) / 이번 스프린트(ACTIVE) /
+  // 지난 스프린트 완료(ARCHIVED, 동결 이력 — sprint_column_id가 남아 있어도 담김이 아니다).
+  sprint_status?: "ACTIVE" | "ARCHIVED" | null;
+  sprint_seq?: number | null; // 귀속 스프린트 회차 — 아카이브 행의 "S{n} ✓" 표기용
   feature_id: string | null;
   feature_title: string | null;
   feature_color: string | null;

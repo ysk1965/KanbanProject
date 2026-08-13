@@ -71,11 +71,19 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "ORDER BY sc.position, t.featurePosition, t.position")
     List<Task> findBySprintId(@Param("sprintId") String sprintId);
 
-    /** 마일스톤 백로그 (아직 어떤 스프린트에도 안 담긴 태스크) — 담기 후보 */
+    /**
+     * 마일스톤 백로그 + 지난 스프린트 완료분.
+     *  · sprint IS NULL       = 아직 어떤 스프린트에도 안 담긴 태스크(담기 후보)
+     *  · sprint = ARCHIVED    = 마감된 스프린트에서 끝나 동결된 태스크(읽기 전용 이력)
+     * 미완인 채 스프린트가 끝난 태스크는 종료 시 자동 이월되므로 ARCHIVED 소속 = 완료분이다.
+     * 활성 스프린트 보드(컬럼·게이지)는 findBySprintId가 따로 맡는다 — 여기 포함되지 않는다.
+     */
     @Query("SELECT t FROM Task t " +
            "JOIN FETCH t.feature " +
            "LEFT JOIN FETCH t.block " +
-           "WHERE t.milestone.id = :milestoneId AND t.sprint IS NULL " +
+           "LEFT JOIN FETCH t.sprint s " +
+           "WHERE t.milestone.id = :milestoneId " +
+           "AND (t.sprint IS NULL OR s.status = com.kanban.domain.sprint.SprintStatus.ARCHIVED) " +
            "ORDER BY t.featurePosition, t.position")
     List<Task> findSprintBacklogByMilestoneId(@Param("milestoneId") String milestoneId);
 
