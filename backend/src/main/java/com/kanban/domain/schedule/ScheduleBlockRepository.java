@@ -149,14 +149,16 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, St
     @Query("DELETE FROM ScheduleBlock sb WHERE sb.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
 
+    // native: JPQL 서브쿼리는 ChecklistItem/Task의 @SQLRestriction 때문에
+    // soft-deleted 항목을 건너뛰어 하드 삭제 시 FK 위반이 났다 (아래 3개 동일)
     @Modifying
-    @Query("DELETE FROM ScheduleBlock sb WHERE sb.checklistItem.id IN " +
-           "(SELECT ci.id FROM ChecklistItem ci WHERE ci.task.id = :taskId)")
+    @Query(value = "DELETE FROM schedule_blocks WHERE checklist_item_id IN " +
+           "(SELECT id FROM checklist_items WHERE task_id = :taskId)", nativeQuery = true)
     void deleteByTaskId(@Param("taskId") String taskId);
 
     @Modifying
-    @Query("UPDATE ScheduleBlock sb SET sb.checklistItem = null WHERE sb.checklistItem.id IN " +
-           "(SELECT ci.id FROM ChecklistItem ci WHERE ci.task.id = :taskId)")
+    @Query(value = "UPDATE schedule_blocks SET checklist_item_id = NULL WHERE checklist_item_id IN " +
+           "(SELECT id FROM checklist_items WHERE task_id = :taskId)", nativeQuery = true)
     void unlinkByTaskId(@Param("taskId") String taskId);
 
     @Modifying
@@ -171,8 +173,9 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, St
     int relinkChecklistItemBlocks(@Param("target") ChecklistItem target, @Param("sourceItemIds") List<String> sourceItemIds);
 
     @Modifying
-    @Query("DELETE FROM ScheduleBlock sb WHERE sb.checklistItem.id IN " +
-           "(SELECT ci.id FROM ChecklistItem ci WHERE ci.task.feature.id = :featureId)")
+    @Query(value = "DELETE FROM schedule_blocks WHERE checklist_item_id IN " +
+           "(SELECT ci.id FROM checklist_items ci JOIN tasks t ON t.id = ci.task_id " +
+           "WHERE t.feature_id = :featureId)", nativeQuery = true)
     void deleteByFeatureId(@Param("featureId") String featureId);
 
     @Modifying

@@ -76,8 +76,11 @@ public interface CommentRepository extends JpaRepository<Comment, String> {
     @Query("DELETE FROM Comment c WHERE c.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
 
+    // native: task 경유 JPQL은 Task의 @SQLRestriction 때문에 soft-deleted 태스크의
+    // 댓글을 못 지워 하드 삭제 시 FK 위반이 났다
     @Modifying
-    @Query("DELETE FROM Comment c WHERE c.task.feature.id = :featureId")
+    @Query(value = "DELETE FROM comments WHERE task_id IN " +
+           "(SELECT id FROM tasks WHERE feature_id = :featureId)", nativeQuery = true)
     void deleteByFeatureId(@Param("featureId") String featureId);
 
     @Modifying

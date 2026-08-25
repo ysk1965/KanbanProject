@@ -43,8 +43,10 @@ public interface TaskTagRepository extends JpaRepository<TaskTag, String> {
            "WHERE tt.task.id = :taskId")
     List<TaskTag> findByTaskIdWithFetch(@Param("taskId") String taskId);
 
+    // native: JPQL 서브쿼리는 Task의 @SQLRestriction 때문에 soft-deleted 태스크의
+    // 태그를 못 지워 하드 삭제 시 FK 위반이 났다
     @Modifying
-    @Query("DELETE FROM TaskTag tt WHERE tt.task.id IN " +
-           "(SELECT t.id FROM Task t WHERE t.feature.id = :featureId)")
+    @Query(value = "DELETE FROM task_tags WHERE task_id IN " +
+           "(SELECT id FROM tasks WHERE feature_id = :featureId)", nativeQuery = true)
     void deleteByFeatureId(@Param("featureId") String featureId);
 }
