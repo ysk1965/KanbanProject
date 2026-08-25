@@ -3887,6 +3887,14 @@ export interface CalendarEventItem {
   end_date: string;
   color: string | null;
   recurring: boolean;
+  /** 이벤트당 1개의 공유 메모 (누구든 덮어쓰기) */
+  memo: string | null;
+  memo_updated_by: {
+    id: string;
+    name: string;
+    profile_image: string | null;
+  } | null;
+  memo_updated_at: string | null;
   created_at: string;
 }
 
@@ -3898,6 +3906,7 @@ export interface CalendarEventPayload {
   end_date: string;
   color?: string | null;
   recurring?: boolean;
+  memo?: string | null;
 }
 
 export const calendarEventAPI = {
@@ -3928,6 +3937,14 @@ export const calendarEventAPI = {
   remove: async (boardId: string, eventId: string) => {
     return apiClient.delete<{ message?: string }>(
       `/boards/${boardId}/calendar-events/${eventId}`,
+    );
+  },
+
+  /** 공유 메모 덮어쓰기 — 빈 문자열이면 비우기 */
+  updateMemo: async (boardId: string, eventId: string, memo: string) => {
+    return apiClient.put<CalendarEventItem>(
+      `/boards/${boardId}/calendar-events/${eventId}/memo`,
+      { memo },
     );
   },
 };

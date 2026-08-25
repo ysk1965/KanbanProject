@@ -39,6 +39,9 @@ public class CalendarEventRequest {
         private String color;
 
         private Boolean recurring;
+
+        @Size(max = 2000, message = "메모는 2000자 이하여야 합니다")
+        private String memo;
     }
 
     @Getter
@@ -63,5 +66,15 @@ public class CalendarEventRequest {
         private String color;
 
         private Boolean recurring;
+    }
+
+    /** 공유 메모 덮어쓰기 — 빈 문자열/null이면 비우기. */
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class UpdateMemo {
+        @Size(max = 2000, message = "메모는 2000자 이하여야 합니다")
+        private String memo;
     }
 }

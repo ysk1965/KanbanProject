@@ -7,6 +7,9 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -59,6 +62,17 @@ public class CalendarEvent extends BaseTimeEntity {
     @Builder.Default
     private Boolean recurring = false;
 
+    /** 이벤트당 1개의 공유 메모 — 누구든 덮어쓰며 가꾼다. */
+    @Column(name = "memo", columnDefinition = "TEXT")
+    private String memo;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "memo_updated_by")
+    private User memoUpdatedBy;
+
+    @Column(name = "memo_updated_at")
+    private LocalDateTime memoUpdatedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;
@@ -100,5 +114,16 @@ public class CalendarEvent extends BaseTimeEntity {
         if (recurring != null) {
             this.recurring = recurring;
         }
+    }
+
+    /** 메모 덮어쓰기 — 내용이 실제로 바뀔 때만 수정 귀속을 갱신한다. 빈 문자열은 비우기(null). */
+    public void updateMemo(String content, User editor) {
+        String normalized = (content == null || content.isBlank()) ? null : content;
+        if (Objects.equals(this.memo, normalized)) {
+            return;
+        }
+        this.memo = normalized;
+        this.memoUpdatedBy = normalized != null ? editor : null;
+        this.memoUpdatedAt = normalized != null ? LocalDateTime.now(ZoneOffset.UTC) : null;
     }
 }

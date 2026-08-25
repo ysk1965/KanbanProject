@@ -16,6 +16,7 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, St
     @Query("SELECT e FROM CalendarEvent e " +
            "LEFT JOIN FETCH e.member " +
            "LEFT JOIN FETCH e.createdBy " +
+           "LEFT JOIN FETCH e.memoUpdatedBy " +
            "WHERE e.board.id = :boardId " +
            "ORDER BY e.startDate ASC")
     List<CalendarEvent> findByBoardIdWithDetails(@Param("boardId") String boardId);
@@ -31,4 +32,8 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, St
     @Modifying
     @Query("UPDATE CalendarEvent e SET e.createdBy = null WHERE e.createdBy.id = :userId")
     void nullifyCreatedByUserId(@Param("userId") String userId);
+
+    @Modifying
+    @Query("UPDATE CalendarEvent e SET e.memoUpdatedBy = null WHERE e.memoUpdatedBy.id = :userId")
+    void nullifyMemoUpdatedByUserId(@Param("userId") String userId);
 }

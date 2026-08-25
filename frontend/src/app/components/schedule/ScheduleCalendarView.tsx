@@ -1,6 +1,13 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Loader2, Plus, Flag } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  MessageSquare,
+  Plus,
+  Flag,
+} from "lucide-react";
 import { IconButton } from "../ui/IconButton";
 import { Milestone } from "../../types";
 import {
@@ -18,6 +25,7 @@ import {
 } from "date-fns";
 import { BoardMember } from "../ShareBoardModal";
 import { calendarEventAPI, CalendarEventItem } from "../../utils/api";
+import { formatRelativeTime } from "../../utils/dateUtils";
 import { useHolidays, HolidayInfo } from "../../hooks/useHolidays";
 import { calendarTypeMeta } from "./calendarEventMeta";
 import {
@@ -188,6 +196,12 @@ export function ScheduleCalendarView({
   );
   // 모바일: 패널이 캘린더를 덮으므로 탭 시에만 오버레이로 오픈
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+  // 이벤트/부재 바 호버 툴팁 (메모 미리보기 포함)
+  const [eventTip, setEventTip] = useState<{
+    x: number;
+    y: number;
+    event: CalendarEventItem;
+  } | null>(null);
 
   // 레이어 토글 (숨김 Set — 기본 전체 표시)
   const layersKey = `scheduleCalendarLayers_${boardId}`;
@@ -453,6 +467,7 @@ export function ScheduleCalendarView({
 
   const handleBarClick = useCallback(
     (item: BarItem) => {
+      setEventTip(null);
       if (item.kind === "milestone") {
         if (item.milestone && onMilestoneClick)
           onMilestoneClick(item.milestone);
@@ -566,6 +581,27 @@ export function ScheduleCalendarView({
               handleBarClick(item);
             }
           }}
+          onMouseEnter={
+            item.event
+              ? (e) =>
+                  setEventTip({
+                    x: e.clientX,
+                    y: e.clientY,
+                    event: item.event!,
+                  })
+              : undefined
+          }
+          onMouseMove={
+            item.event
+              ? (e) =>
+                  setEventTip((prev) =>
+                    prev
+                      ? { ...prev, x: e.clientX, y: e.clientY }
+                      : { x: e.clientX, y: e.clientY, event: item.event! },
+                  )
+              : undefined
+          }
+          onMouseLeave={item.event ? () => setEventTip(null) : undefined}
         >
           {item.kind === "absence" && item.avatar ? (
             <img
@@ -581,6 +617,9 @@ export function ScheduleCalendarView({
             </span>
           )}
           <span className="truncate">{item.title}</span>
+          {item.event?.memo && (
+            <MessageSquare className="w-3 h-3 shrink-0 ml-auto opacity-80" />
+          )}
         </div>
       );
     },
@@ -853,6 +892,49 @@ export function ScheduleCalendarView({
           onDesignateWorkday={openDesignateWorkday}
         />
       )}
+
+      {/* ===== 이벤트/부재 호버 툴팁 (메모 미리보기) ===== */}
+      {eventTip &&
+        (() => {
+          const ev = eventTip.event;
+          const evMeta = calendarTypeMeta(ev.event_type);
+          const singleDay = ev.start_date === ev.end_date;
+          return (
+            <div
+              className="fixed z-50 pointer-events-none bg-bridge-obsidian border border-foreground/[0.12]
+                rounded-lg shadow-xl max-w-[300px] overflow-hidden"
+              style={{ left: eventTip.x + 12, top: eventTip.y + 12 }}
+            >
+              <div className="px-3 py-2">
+                <p className="text-xs font-bold text-foreground truncate">
+                  {evMeta.icon}{" "}
+                  {ev.category === "MEMBER" && ev.member
+                    ? ev.title
+                      ? `${ev.member.name} · ${ev.title}`
+                      : ev.member.name
+                    : ev.title || evMeta.label}
+                </p>
+                <p className="text-xs text-slate-500 tabular-nums mt-0.5">
+                  {ev.start_date}
+                  {singleDay ? "" : ` ~ ${ev.end_date}`}
+                </p>
+                {ev.memo && (
+                  <>
+                    <p className="text-xs text-slate-400 whitespace-pre-wrap break-words line-clamp-4 mt-1.5 pt-1.5 border-t border-foreground/[0.08]">
+                      {ev.memo}
+                    </p>
+                    {ev.memo_updated_at && (
+                      <p className="text-xs text-slate-600 mt-1">
+                        {ev.memo_updated_by?.name || "알 수 없음"} 님이{" "}
+                        {formatRelativeTime(ev.memo_updated_at)} 수정
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
       {/* ===== 특별 일정 추가/편집 모달 ===== */}
       <CalendarEventModal

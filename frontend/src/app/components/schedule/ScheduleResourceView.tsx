@@ -25,6 +25,7 @@ import {
   Settings,
   CalendarPlus,
   Clock,
+  MessageSquare,
 } from "lucide-react";
 import { BoardMember } from "../ShareBoardModal";
 import { BoardContractor, Feature, JobRole, Milestone } from "../../types";
@@ -54,6 +55,7 @@ import {
   CalendarEventModalInitial,
 } from "./CalendarEventModal";
 import { calendarTypeMeta } from "./calendarEventMeta";
+import { formatRelativeTime } from "../../utils/dateUtils";
 import { getInitials, getAssigneeHex } from "../../utils/assigneeColor";
 import {
   buildMilestoneColorMap,
@@ -103,6 +105,19 @@ const EDGE_SCROLL_STEP = 18;
 const HATCH_WEEKEND_BG = `url("data:image/svg+xml,%3Csvg width='8' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-1 5L5-1M3 9L9 3' stroke='rgba(255,255,255,0.10)' stroke-width='1'/%3E%3C/svg%3E"), rgba(255,255,255,0.03)`;
 const HATCH_HOLIDAY_BG = `url("data:image/svg+xml,%3Csvg width='8' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-1 5L5-1M3 9L9 3' stroke='rgba(239,68,68,0.18)' stroke-width='1'/%3E%3C/svg%3E"), rgba(239,68,68,0.06)`;
 const HATCH_OVERLAY_Z = 25;
+
+/** 이벤트/부재 칩의 네이티브 title 툴팁에 붙일 공유 메모 미리보기 */
+function memoTitleSuffix(event: CalendarEventItem): string {
+  if (!event.memo) return "";
+  const preview =
+    event.memo.length > 200 ? `${event.memo.slice(0, 200)}…` : event.memo;
+  const who = event.memo_updated_by?.name;
+  const attribution =
+    who && event.memo_updated_at
+      ? `\n— ${who} 님이 ${formatRelativeTime(event.memo_updated_at)} 수정`
+      : "";
+  return `\n\n📝 ${preview}${attribution}`;
+}
 
 function makeAbsenceHatchBg(hex: string): string {
   const r = parseInt(hex.slice(1, 3), 16) || 0;
@@ -2887,7 +2902,7 @@ export function ScheduleResourceView({
                         event.title ? " · " + event.title : ""
                       } (${event.start_date}${
                         singleDay ? "" : " ~ " + event.end_date
-                      })`}
+                      })${memoTitleSuffix(event)}`}
                       onMouseDown={(e) => {
                         if ((e.target as HTMLElement).dataset.resizeHandle)
                           return;
@@ -2927,6 +2942,9 @@ export function ScheduleResourceView({
                       <span className="truncate">
                         {event.title || meta.label}
                       </span>
+                      {event.memo && !narrow && (
+                        <MessageSquare className="w-3 h-3 shrink-0 ml-auto mr-1 opacity-80" />
+                      )}
                       <div
                         data-resize-handle="true"
                         className="absolute top-0 right-0 w-2 h-full cursor-ew-resize
@@ -3558,7 +3576,7 @@ export function ScheduleResourceView({
                           }}
                           title={`${meta.label}${
                             absence.title ? " · " + absence.title : ""
-                          } (${absence.start_date} ~ ${absence.end_date})`}
+                          } (${absence.start_date} ~ ${absence.end_date})${memoTitleSuffix(absence)}`}
                           onMouseDown={(e) => e.stopPropagation()}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -3569,6 +3587,9 @@ export function ScheduleResourceView({
                           <span className="truncate">
                             {absence.title || meta.label}
                           </span>
+                          {absence.memo && (
+                            <MessageSquare className="w-3 h-3 shrink-0 ml-auto opacity-80" />
+                          )}
                         </div>
                       );
                     })}

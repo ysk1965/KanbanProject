@@ -25,6 +25,9 @@ public class CalendarEventResponse {
         private LocalDate endDate;
         private String color;
         private boolean recurring;
+        private String memo;
+        private MemberInfo memoUpdatedBy;   // 메모가 있을 때만 non-null
+        private LocalDateTime memoUpdatedAt;
         private LocalDateTime createdAt;
 
         public static Item of(CalendarEvent e) {
@@ -38,6 +41,9 @@ public class CalendarEventResponse {
                     .endDate(e.getEndDate())
                     .color(e.getColor())
                     .recurring(Boolean.TRUE.equals(e.getRecurring()))
+                    .memo(e.getMemo())
+                    .memoUpdatedBy(MemberInfo.of(e.getMemoUpdatedBy()))
+                    .memoUpdatedAt(e.getMemoUpdatedAt())
                     .createdAt(e.getCreatedAt())
                     .build();
         }

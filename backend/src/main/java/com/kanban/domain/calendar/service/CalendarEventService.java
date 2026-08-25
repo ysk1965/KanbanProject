@@ -61,6 +61,7 @@ public class CalendarEventService {
                 .recurring(Boolean.TRUE.equals(request.getRecurring()))
                 .createdBy(creator)
                 .build();
+        event.updateMemo(request.getMemo(), creator);
 
         calendarEventRepository.save(event);
         log.info("CalendarEvent created: {} ({}) in board: {} by user: {}", event.getId(), type, boardId, userId);
@@ -96,6 +97,22 @@ public class CalendarEventService {
         );
 
         log.info("CalendarEvent updated: {} in board: {} by user: {}", eventId, boardId, userId);
+        return CalendarEventResponse.Item.of(event);
+    }
+
+    /** 공유 메모 덮어쓰기 — 일정 수정과 동일한 권한(멤버 이상). 빈 내용이면 비우기. */
+    @Transactional
+    public CalendarEventResponse.Item updateMemo(String boardId, String eventId, String userId,
+                                                 CalendarEventRequest.UpdateMemo request) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        CalendarEvent event = getEventWithBoardCheck(boardId, eventId);
+        User editor = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        event.updateMemo(request.getMemo(), editor);
+
+        log.info("CalendarEvent memo updated: {} in board: {} by user: {}", eventId, boardId, userId);
         return CalendarEventResponse.Item.of(event);
     }
 
