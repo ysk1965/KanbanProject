@@ -2,6 +2,7 @@ package com.kanban.global.security;
 
 import com.kanban.domain.auth.pat.PatService;
 import com.kanban.domain.user.SystemRole;
+import com.kanban.global.exception.ErrorCode;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -43,6 +44,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         new UsernamePasswordAuthenticationToken(principal, null, Collections.emptyList());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+            } else {
+                // 거절 사유를 EntryPoint(401 JSON)에 전달 — 만료(A004)면 FE가 갱신을 시도한다
+                ErrorCode reason = jwtProvider.isTokenExpired(token)
+                        ? ErrorCode.EXPIRED_TOKEN
+                        : ErrorCode.INVALID_TOKEN;
+                request.setAttribute(JwtAuthenticationEntryPoint.AUTH_ERROR_ATTR, reason);
             }
         }
 

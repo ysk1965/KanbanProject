@@ -76,8 +76,10 @@ import type {
   OkrTreeData,
 } from "../types";
 
-// API 호출 실패 시 목업 데이터 사용
-const USE_MOCK_ON_ERROR = true;
+// API 호출 실패 시 목업 데이터 사용 — 백엔드 없이 FE만 띄우는 로컬 개발 전용.
+// 프로덕션 빌드에서 목업으로 대체하면 가짜 "체험판" 보드가 실데이터인 척 보여서
+// 사용자에겐 데이터가 전부 날아간 것처럼 보인다 (2026-08-14 새벽 셧다운 때 실제 발생).
+const USE_MOCK_ON_ERROR = import.meta.env.DEV;
 
 /**
  * 목업 폴백 허용 여부.
@@ -85,9 +87,13 @@ const USE_MOCK_ON_ERROR = true;
  * 서버가 내려간 상태(네트워크 실패 · 502/503/504)에서 목업으로 대체하면
  * 가짜 보드/태스크가 실데이터인 척 화면에 남는다(BE 배포 중 발생). 이때는
  * 폴백하지 않고 에러를 그대로 올려서, App의 서버 가드가 점검 페이지를 띄우게 한다.
+ * 인증 실패(401)도 세션 만료 플로우(api.ts)가 처리해야 하므로 폴백하지 않는다.
  */
-const canUseMock = (error: unknown): boolean =>
-  USE_MOCK_ON_ERROR && !isServerDownError(error);
+const canUseMock = (error: unknown): boolean => {
+  if (!USE_MOCK_ON_ERROR || isServerDownError(error)) return false;
+  const status = (error as { status?: number } | null | undefined)?.status;
+  return status !== 401;
+};
 
 // ========================================
 // Board Service

@@ -1,5 +1,7 @@
 package com.kanban.global.config;
 
+import com.kanban.global.security.JwtAccessDeniedHandler;
+import com.kanban.global.security.JwtAuthenticationEntryPoint;
 import com.kanban.global.security.JwtAuthenticationFilter;
 import com.kanban.global.security.RateLimitingFilter;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,8 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RateLimitingFilter rateLimitingFilter;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
     @org.springframework.beans.factory.annotation.Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
@@ -105,6 +109,10 @@ public class SecurityConfig {
                         // All other requests require authentication
                         .anyRequest().authenticated()
                 )
+                // 기본값(body 없는 403) 대신 401/403 + 표준 에러 JSON — FE 세션 만료 분기의 전제
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler))
                 .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, RateLimitingFilter.class);
 

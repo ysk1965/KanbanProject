@@ -138,6 +138,7 @@ class ApiClient {
     endpoint: string,
     options?: RequestInit,
     skipAuth: boolean = false,
+    isRetryAfterRefresh: boolean = false,
   ): Promise<T> {
     // Rate limit backoff 체크: 이전에 429를 받은 엔드포인트는 backoff 기간 동안 즉시 차단
     const backoffKey = endpoint.split("?")[0]; // 쿼리 파라미터 제거
@@ -258,12 +259,15 @@ class ApiClient {
           throw errorData;
         }
 
-        // 토큰 만료시 자동 갱신 시도
-        if (response.status === 401 && errorData.code === "A004") {
+        // 401 → 토큰 갱신 후 1회 재시도. 만료(A004)뿐 아니라 서명 불일치 등
+        // 어떤 사유든 401이면 갱신을 시도한다 — 갱신 실패 시 executeRefreshToken이
+        // 세션 만료로 판단해 로그인으로 보낸다(서버 5xx·네트워크 오류는 세션 유지).
+        // A004 한정이던 시절엔 그 외 401이 목업 폴백으로 빠져 가짜 보드가 보였다.
+        if (response.status === 401 && !skipAuth && !isRetryAfterRefresh) {
           const refreshed = await this.tryRefreshToken();
           if (refreshed) {
-            // 토큰 갱신 성공, 원래 요청 재시도
-            return this.request<T>(endpoint, options, skipAuth);
+            // 토큰 갱신 성공, 원래 요청 재시도 (1회 한정 — 무한 재시도 방지)
+            return this.request<T>(endpoint, options, skipAuth, true);
           }
         }
 

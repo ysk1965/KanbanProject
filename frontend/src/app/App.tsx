@@ -302,11 +302,13 @@ function BoardsRoute() {
   const { t } = useTranslation();
   const [boards, setBoards] = useState<Board[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   // 보드 로드 실패로 돌아온 경우 (무한 리다이렉트 방지)
   const boardLoadFailed = (location.state as any)?.boardLoadFailed;
 
   const loadBoards = async () => {
+    setLoadError(false);
     try {
       const boardsData = await boardService.getBoards();
       // TESTER인 경우 참여 중인 보드가 있으면 바로 이동 (milkyway.pe.kr 도메인도 isTester에 포함)
@@ -321,7 +323,11 @@ function BoardsRoute() {
       }
       setBoards(boardsData);
     } catch (error) {
+      // 목업 폴백이 없는 프로덕션에선 여기로 온다 — 빈 대시보드(보드가 다
+      // 사라진 것처럼 보임) 대신 에러 화면을 띄운다. 401은 api.ts가 갱신
+      // 실패 시 로그인으로 리다이렉트하므로 여기 도달하는 건 그 외 오류다.
       console.error("Failed to load boards:", error);
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -421,6 +427,25 @@ function BoardsRoute() {
     return (
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
         <div className="text-white text-lg">{t("app.loading")}</div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <p className="text-sm text-slate-400">{t("management.loadFailed")}</p>
+          <button
+            onClick={() => {
+              setIsLoading(true);
+              loadBoards();
+            }}
+            className="px-5 py-2.5 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl hover:bg-foreground/10 transition-all text-sm font-medium"
+          >
+            {t("common.retry")}
+          </button>
+        </div>
       </div>
     );
   }

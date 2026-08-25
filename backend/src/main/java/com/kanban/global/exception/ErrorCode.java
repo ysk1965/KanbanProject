@@ -11,6 +11,7 @@ public enum ErrorCode {
     // Common
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "C001", "잘못된 입력값입니다"),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C002", "서버 오류가 발생했습니다"),
+    ACCESS_DENIED(HttpStatus.FORBIDDEN, "C003", "접근 권한이 없습니다"),
 
     // Rate Limiting
     RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "R001", "요청이 너무 많습니다. 잠시 후 다시 시도해주세요"),
