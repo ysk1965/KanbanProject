@@ -864,14 +864,12 @@ export function TaskDetailModal({
     }
   }, [showMoveFeatureDialog, currentFeatureInfo]);
 
-  // 선택된 마일스톤의 Task 목록 로드 (현재 마일스톤은 이미 로드된 allTasks 재사용)
+  // 선택된 마일스톤의 Task 목록 로드
+  // allTasks는 보드 전체 목록이라 마일스톤 필터로 못 쓴다 — 항상 milestone_id로 서버 조회.
   useEffect(() => {
     if (!showMoveChecklistDialog || !boardId) return;
     const targetMilestoneId = moveTargetMilestoneId;
-    if (
-      !targetMilestoneId ||
-      (targetMilestoneId === currentMilestoneId && allTasks.length > 0)
-    ) {
+    if (!targetMilestoneId) {
       setMoveMilestoneTasks(
         allTasks.map((tk) => ({
           id: tk.id,
@@ -912,13 +910,7 @@ export function TaskDetailModal({
     return () => {
       cancelled = true;
     };
-  }, [
-    showMoveChecklistDialog,
-    boardId,
-    moveTargetMilestoneId,
-    currentMilestoneId,
-    allTasks,
-  ]);
+  }, [showMoveChecklistDialog, boardId, moveTargetMilestoneId, allTasks]);
 
   // 이동 대상 Task를 피처 단위로 그룹핑 (2단 드릴다운 좌측 컬럼)
   const moveTargetFeatures = useMemo(() => {
