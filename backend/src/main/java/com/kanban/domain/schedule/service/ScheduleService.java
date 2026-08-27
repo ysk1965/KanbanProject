@@ -380,7 +380,8 @@ public class ScheduleService {
         log.info("Schedule block updated: {} by user: {}", blockId, userId);
 
         User user = userRepository.findById(userId).orElse(null);
-        ScheduleResponse.BlockDetail response = ScheduleResponse.BlockDetail.of(block);
+        // 미연결(soft-deleted 항목 참조) 블록의 이동/리사이즈에서 프록시 초기화 500 방지
+        ScheduleResponse.BlockDetail response = ScheduleResponse.BlockDetail.of(block, resolveLiveChecklistItem(block));
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_UPDATED,
                 userId, user != null ? user.getName() : null, response);
 
@@ -452,7 +453,7 @@ public class ScheduleService {
 
         String deletedBlockId = block.getId();
         // 삭제 전 캡처: 이 블록이 체크리스트 시작일을 정의하던 앵커였는지 판단하기 위함
-        ChecklistItem linkedItem = block.getChecklistItem();
+        ChecklistItem linkedItem = resolveLiveChecklistItem(block);
         LocalDate removedBlockDate = block.getScheduledDate();
         scheduleBlockRepository.delete(block);
 
@@ -557,6 +558,20 @@ public class ScheduleService {
             return "CHECKLIST";
         }
         return null;
+    }
+
+    /**
+     * findById로 로드한 블록의 체크리스트 링크를 안전하게 해석한다.
+     * FK가 soft-deleted 항목(휴지통 태스크)을 가리키면 LAZY 프록시 초기화 시
+     * @SQLRestriction 때문에 EntityNotFoundException(500)이 나므로, 프록시를 건드리지 않고
+     * id로 재조회해 살아있는 항목만 반환한다. 없으면 null(미연결과 동일 취급).
+     */
+    private ChecklistItem resolveLiveChecklistItem(ScheduleBlock block) {
+        ChecklistItem ref = block.getChecklistItem();
+        if (ref == null) {
+            return null;
+        }
+        return checklistItemRepository.findById(ref.getId()).orElse(null);
     }
 
     // ==================== 타임블록 → 체크리스트 시작일 자동 동기화 ====================

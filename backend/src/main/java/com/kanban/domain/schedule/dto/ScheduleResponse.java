@@ -280,7 +280,15 @@ public class ScheduleResponse {
         private MeetingResponse.MeetingInfo meeting;
 
         public static BlockDetail of(ScheduleBlock block) {
-            ChecklistItem item = block.getChecklistItem();
+            return of(block, block.getChecklistItem());
+        }
+
+        /**
+         * 체크리스트 항목을 호출부에서 안전하게 해석해 넘기는 오버로드.
+         * findById로 로드한 블록은 soft-deleted 항목을 가리키는 LAZY 프록시일 수 있어
+         * block.getChecklistItem() 접근만으로 EntityNotFoundException이 난다.
+         */
+        public static BlockDetail of(ScheduleBlock block, ChecklistItem item) {
             Task task = item != null ? item.getTask() : null;
             Feature feature = task != null ? task.getFeature() : null;
             Meeting meeting = block.getMeeting();
