@@ -1,65 +1,63 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { createPortal } from "react-dom";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Loader2, Plus, ChevronDown, Check } from "lucide-react";
+import {
+  X,
+  Loader2,
+  Plus,
+  ChevronRight,
+  Search,
+  Inbox,
+  Flag,
+  Check,
+} from "lucide-react";
 import {
   boardChecklistAPI,
   taskAPI,
   TaskResponse,
   milestoneAPI,
   calendarEventAPI,
+  checklistAPI,
+  ChecklistItemResponse,
 } from "../../utils/api";
 import { Feature, Milestone } from "../../types";
 import { MotionModal } from "../ui/MotionModal";
 
-// ─── Constants ──────────────────────────────────────────────────────────────
+// ─── Selection ──────────────────────────────────────────────────────────────
+// 트리에서 노드를 클릭하면 곧바로 "추가 위치"가 결정된다.
+// - inbox      → 보드 인박스(미분류)에 추가
+// - feature    → 해당 피쳐 아래 테스크 자동 생성 후 체크리스트로 추가
+// - newTask    → feature와 동일 페이로드 (트리 안 탐색 중 명시적 진입점)
+// - task       → 해당 테스크 아래 체크리스트로 추가
+// - newFeature → 새 피쳐 생성 후 그 안에 추가
 
-const NEW_FEATURE_SENTINEL = "__new__";
+type Selection =
+  | { kind: "inbox" }
+  | { kind: "feature"; featureId: string; milestoneId: string | null }
+  | { kind: "newTask"; featureId: string; milestoneId: string | null }
+  | {
+      kind: "task";
+      featureId: string;
+      taskId: string;
+      milestoneId: string | null;
+    }
+  | { kind: "newFeature" };
 
-// Preferred max menu height; the actual cap shrinks to fit available space.
-const MENU_MAX_HEIGHT = 360;
-// Min usable height before we'd rather flip to the larger side.
-const MENU_MIN_HEIGHT = 160;
-// Viewport gap kept between the menu edge and the window edge.
-const MENU_VIEWPORT_GAP = 16;
+function selKey(s: Selection): string {
+  switch (s.kind) {
+    case "inbox":
+      return "inbox";
+    case "newFeature":
+      return "newFeature";
+    case "task":
+      return `task:${s.taskId}`;
+    default:
+      return `${s.kind}:${s.featureId}`;
+  }
+}
 
-// Fixed position for a portaled dropdown menu, anchored to its trigger button.
-// When there isn't enough room below, the menu flips up via `bottom`.
-// `maxHeight` is sized to the available space so long lists scroll instead of
-// overflowing the viewport.
-type MenuPos = {
-  left: number;
-  width: number;
-  top?: number;
-  bottom?: number;
-  maxHeight: number;
-};
-
-// Compute a fixed-position anchor from the trigger button's viewport rect.
-function computeMenuPos(btn: HTMLButtonElement | null): MenuPos | null {
-  if (!btn) return null;
-  const rect = btn.getBoundingClientRect();
-  const spaceBelow = window.innerHeight - rect.bottom;
-  const spaceAbove = rect.top;
-  const openUp = spaceBelow < MENU_MIN_HEIGHT && spaceAbove > spaceBelow;
-  const available = (openUp ? spaceAbove : spaceBelow) - MENU_VIEWPORT_GAP;
-  const maxHeight = Math.max(
-    MENU_MIN_HEIGHT,
-    Math.min(MENU_MAX_HEIGHT, available),
-  );
-  return openUp
-    ? {
-        left: rect.left,
-        width: rect.width,
-        bottom: window.innerHeight - rect.top + 4,
-        maxHeight,
-      }
-    : {
-        left: rect.left,
-        width: rect.width,
-        top: rect.bottom + 4,
-        maxHeight,
-      };
+// "MM.DD" 형식으로 축약 (트리 폭이 좁아 연도 생략)
+function fmtShort(date: string): string {
+  return date.slice(5).replace("-", ".");
 }
 
 // ─── Props ──────────────────────────────────────────────────────────────────
@@ -103,46 +101,27 @@ export function WorkloadCreateModal({
 
   // ── Form state ──
   const [title, setTitle] = useState("");
-  const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(
-    null,
-  );
-  const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(
-    null,
-  );
   const [newFeatureTitle, setNewFeatureTitle] = useState("");
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [sel, setSel] = useState<Selection>({ kind: "inbox" });
+
+  // ── Tree state ──
+  const [query, setQuery] = useState("");
+  const [expandedMs, setExpandedMs] = useState<Set<string>>(new Set());
+  const [expandedFt, setExpandedFt] = useState<Set<string>>(new Set());
 
   // ── Data ──
-  const [tasks, setTasks] = useState<TaskResponse[]>([]);
+  const [allTasks, setAllTasks] = useState<TaskResponse[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
-  // null = no milestone filter (all board features); array = feature ids of the selected milestone
-  const [milestoneFeatureIds, setMilestoneFeatureIds] = useState<
-    string[] | null
-  >(null);
-  const [isLoadingMilestoneFeatures, setIsLoadingMilestoneFeatures] =
-    useState(false);
-
-  // ── Dropdowns ──
-  const [showMilestoneDropdown, setShowMilestoneDropdown] = useState(false);
-  const [showFeatureDropdown, setShowFeatureDropdown] = useState(false);
-  const [showTaskDropdown, setShowTaskDropdown] = useState(false);
-  const milestoneDropdownRef = useRef<HTMLDivElement>(null);
-  const featureDropdownRef = useRef<HTMLDivElement>(null);
-  const taskDropdownRef = useRef<HTMLDivElement>(null);
-  // Trigger buttons (anchor for portaled menus)
-  const milestoneBtnRef = useRef<HTMLButtonElement>(null);
-  const featureBtnRef = useRef<HTMLButtonElement>(null);
-  const taskBtnRef = useRef<HTMLButtonElement>(null);
-  // Portaled menu containers (for outside-click detection)
-  const milestoneMenuRef = useRef<HTMLDivElement>(null);
-  const featureMenuRef = useRef<HTMLDivElement>(null);
-  const taskMenuRef = useRef<HTMLDivElement>(null);
-  // Computed fixed positions for the portaled menus
-  const [milestoneMenuPos, setMilestoneMenuPos] = useState<MenuPos | null>(
-    null,
+  // milestoneId → featureId[] (전 마일스톤 매핑을 열 때 한 번에 로드)
+  const [msFeatureIds, setMsFeatureIds] = useState<Record<string, string[]>>(
+    {},
   );
-  const [featureMenuPos, setFeatureMenuPos] = useState<MenuPos | null>(null);
-  const [taskMenuPos, setTaskMenuPos] = useState<MenuPos | null>(null);
+  const [msLoaded, setMsLoaded] = useState(false);
+  // taskId → 체크리스트 항목 (미리보기용, 선택 시 lazy load)
+  const [checklistCache, setChecklistCache] = useState<
+    Record<string, ChecklistItemResponse[]>
+  >({});
+  const [isLoadingChecklist, setIsLoadingChecklist] = useState(false);
 
   // ── Submit ──
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -152,17 +131,54 @@ export function WorkloadCreateModal({
   const titleInputRef = useRef<HTMLInputElement>(null);
   const newFeatureInputRef = useRef<HTMLInputElement>(null);
 
-  // Filter out inbox features
-  const selectableFeatures = features.filter((f) => !f.inbox);
+  // ── Derived ──
+  const selectableFeatures = useMemo(
+    () => features.filter((f) => !f.inbox),
+    [features],
+  );
+  const featureById = useMemo(() => {
+    const map: Record<string, Feature> = {};
+    for (const f of selectableFeatures) map[f.id] = f;
+    return map;
+  }, [selectableFeatures]);
 
-  // When a milestone is selected, scope the Feature dropdown to its features.
-  // (Full `selectableFeatures` is still used for the selected-feature lookup.)
-  const visibleFeatures = milestoneFeatureIds
-    ? selectableFeatures.filter((f) => milestoneFeatureIds.includes(f.id))
-    : selectableFeatures;
+  const tasksByFeature = useMemo(() => {
+    const map: Record<string, TaskResponse[]> = {};
+    for (const task of allTasks) {
+      (map[task.feature_id] ??= []).push(task);
+    }
+    for (const list of Object.values(map)) {
+      list.sort((a, b) => a.position - b.position);
+    }
+    return map;
+  }, [allTasks]);
 
-  // Is "new feature" mode?
-  const isNewFeature = selectedFeatureId === NEW_FEATURE_SENTINEL;
+  // 어떤 마일스톤에도 연결되지 않은 피쳐 (매핑 로드 후에만 판정)
+  const unlinkedFeatures = useMemo(() => {
+    if (!msLoaded) return [];
+    const linked = new Set(Object.values(msFeatureIds).flat());
+    return selectableFeatures.filter((f) => !linked.has(f.id));
+  }, [msLoaded, msFeatureIds, selectableFeatures]);
+
+  const featureHasTasks = useCallback(
+    (f: Feature) => (tasksByFeature[f.id]?.length ?? f.total_tasks) > 0,
+    [tasksByFeature],
+  );
+
+  // ── 검색 ──
+  const q = query.trim().toLowerCase();
+  const isSearching = q.length > 0;
+  const featureMatches = useCallback(
+    (f: Feature) =>
+      !isSearching ||
+      f.title.toLowerCase().includes(q) ||
+      (tasksByFeature[f.id] ?? []).some((task) =>
+        task.title.toLowerCase().includes(q),
+      ),
+    [isSearching, q, tasksByFeature],
+  );
+
+  const activeKey = selKey(sel);
 
   // ── Auto-focus title input on open ──
   useEffect(() => {
@@ -171,16 +187,16 @@ export function WorkloadCreateModal({
     }
   }, [open]);
 
-  // ── On open: reset form and auto-select the milestone covering the period ──
+  // ── On open: reset form and auto-expand the milestone covering the period ──
   useEffect(() => {
     if (!open) return;
     setTitle("");
-    setSelectedFeatureId(null);
     setNewFeatureTitle("");
-    setSelectedTaskId(null);
-    setShowMilestoneDropdown(false);
-    setShowFeatureDropdown(false);
-    setShowTaskDropdown(false);
+    setSel({ kind: "inbox" });
+    setQuery("");
+    setExpandedFt(new Set());
+    setChecklistCache({});
+    setError(null);
     setTab("task");
     setAbsStart(startDate);
     setAbsEnd(dueDate);
@@ -192,167 +208,129 @@ export function WorkloadCreateModal({
     const covering = milestones
       .filter((m) => m.start_date <= startDate && startDate <= m.end_date)
       .sort((a, b) => span(a) - span(b));
-    setSelectedMilestoneId(covering[0]?.id ?? null);
+    setExpandedMs(new Set(covering[0] ? [covering[0].id] : []));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // ── Load the selected milestone's features (scopes the Feature dropdown) ──
+  // ── Load all board tasks once (tree의 테스크 레벨 + 카운트) ──
   useEffect(() => {
-    // Reset downstream selection whenever the milestone changes.
-    setSelectedFeatureId(null);
-    setNewFeatureTitle("");
-    setSelectedTaskId(null);
-
-    if (!selectedMilestoneId) {
-      setMilestoneFeatureIds(null);
-      return;
-    }
-
+    if (!open) return;
     let cancelled = false;
-    const loadMilestoneFeatures = async () => {
-      setIsLoadingMilestoneFeatures(true);
-      try {
-        const res = await milestoneAPI.getMilestone(
-          boardId,
-          selectedMilestoneId,
-        );
-        if (!cancelled) {
-          setMilestoneFeatureIds(res.features.map((f) => f.id));
-        }
-      } catch (err) {
-        console.error("Failed to load milestone features:", err);
-        if (!cancelled) setMilestoneFeatureIds(null); // fall back to all features
-      } finally {
-        if (!cancelled) setIsLoadingMilestoneFeatures(false);
-      }
-    };
-    loadMilestoneFeatures();
+    setIsLoadingTasks(true);
+    taskAPI
+      .getTasks(boardId)
+      .then((res) => {
+        if (!cancelled) setAllTasks(res.tasks);
+      })
+      .catch((err) => console.error("Failed to load tasks:", err))
+      .finally(() => {
+        if (!cancelled) setIsLoadingTasks(false);
+      });
     return () => {
       cancelled = true;
     };
-  }, [boardId, selectedMilestoneId]);
+  }, [open, boardId]);
 
-  // ── Focus new feature input when selected ──
+  // ── Load milestone → feature 매핑 (prop에 있으면 재사용, 없으면 조회) ──
   useEffect(() => {
-    if (isNewFeature) {
+    if (!open) return;
+    let cancelled = false;
+    setMsLoaded(false);
+    setMsFeatureIds({});
+    (async () => {
+      const entries = await Promise.all(
+        milestones.map(async (m) => {
+          if (m.features) {
+            return [m.id, m.features.map((f) => f.id)] as const;
+          }
+          try {
+            const res = await milestoneAPI.getMilestone(boardId, m.id);
+            return [m.id, res.features.map((f) => f.id)] as const;
+          } catch (err) {
+            console.error("Failed to load milestone features:", err);
+            return [m.id, []] as const;
+          }
+        }),
+      );
+      if (!cancelled) {
+        setMsFeatureIds(Object.fromEntries(entries));
+        setMsLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, boardId, milestones]);
+
+  // ── 테스크 선택 시 체크리스트 미리보기 lazy load ──
+  useEffect(() => {
+    if (sel.kind !== "task") return;
+    const taskId = sel.taskId;
+    if (checklistCache[taskId]) return;
+    let cancelled = false;
+    setIsLoadingChecklist(true);
+    checklistAPI
+      .getChecklist(boardId, taskId)
+      .then((res) => {
+        if (!cancelled) {
+          setChecklistCache((prev) => ({ ...prev, [taskId]: res.items }));
+        }
+      })
+      .catch((err) => console.error("Failed to load checklist:", err))
+      .finally(() => {
+        if (!cancelled) setIsLoadingChecklist(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sel, boardId, checklistCache]);
+
+  // ── 새 피쳐 선택 시 피쳐명 입력에 포커스 ──
+  useEffect(() => {
+    if (sel.kind === "newFeature") {
       setTimeout(() => newFeatureInputRef.current?.focus(), 50);
     }
-  }, [isNewFeature]);
+  }, [sel.kind]);
 
-  // ── Load tasks when feature changes ──
-  useEffect(() => {
-    if (!selectedFeatureId || isNewFeature) {
-      setTasks([]);
-      setSelectedTaskId(null);
-      return;
-    }
-
-    const loadTasks = async () => {
-      setIsLoadingTasks(true);
-      setSelectedTaskId(null);
-      try {
-        const res = await taskAPI.getTasks(boardId, {
-          feature_id: selectedFeatureId,
-        });
-        setTasks(res.tasks);
-      } catch (err) {
-        console.error("Failed to load tasks:", err);
-      } finally {
-        setIsLoadingTasks(false);
-      }
-    };
-    loadTasks();
-  }, [boardId, selectedFeatureId, isNewFeature]);
-
-  // ── Toggle dropdowns (compute anchor position when opening) ──
-  const toggleMilestoneDropdown = useCallback(() => {
-    setShowMilestoneDropdown((prev) => {
-      if (!prev) setMilestoneMenuPos(computeMenuPos(milestoneBtnRef.current));
-      return !prev;
+  // ── Toggle helpers ──
+  const toggleMilestone = useCallback((id: string) => {
+    setExpandedMs((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
     });
   }, []);
 
-  const toggleFeatureDropdown = useCallback(() => {
-    setShowFeatureDropdown((prev) => {
-      if (!prev) setFeatureMenuPos(computeMenuPos(featureBtnRef.current));
-      return !prev;
+  const toggleFeature = useCallback((id: string) => {
+    setExpandedFt((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
     });
   }, []);
 
-  const toggleTaskDropdown = useCallback(() => {
-    setShowTaskDropdown((prev) => {
-      if (!prev) setTaskMenuPos(computeMenuPos(taskBtnRef.current));
-      return !prev;
-    });
-  }, []);
-
-  // ── Close dropdowns on outside click ──
-  // Menus are portaled to <body>, so check both the trigger wrapper and the
-  // portaled menu container before closing.
-  useEffect(() => {
-    if (!showMilestoneDropdown && !showFeatureDropdown && !showTaskDropdown)
-      return;
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (
-        showMilestoneDropdown &&
-        !milestoneDropdownRef.current?.contains(target) &&
-        !milestoneMenuRef.current?.contains(target)
-      ) {
-        setShowMilestoneDropdown(false);
-      }
-      if (
-        showFeatureDropdown &&
-        !featureDropdownRef.current?.contains(target) &&
-        !featureMenuRef.current?.contains(target)
-      ) {
-        setShowFeatureDropdown(false);
-      }
-      if (
-        showTaskDropdown &&
-        !taskDropdownRef.current?.contains(target) &&
-        !taskMenuRef.current?.contains(target)
-      ) {
-        setShowTaskDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showMilestoneDropdown, showFeatureDropdown, showTaskDropdown]);
-
-  // ── Close dropdowns on scroll / resize (avoid detached menus) ──
-  useEffect(() => {
-    if (!showMilestoneDropdown && !showFeatureDropdown && !showTaskDropdown)
-      return;
-    // Only close on *background* scroll. Scrolling inside a portaled menu (it
-    // has its own overflow-y-auto) also fires this capture-phase listener — if
-    // we closed there, the menu could never be scrolled.
-    const close = (e?: Event) => {
-      const target = e?.target as Node | undefined;
-      if (
-        target &&
-        (milestoneMenuRef.current?.contains(target) ||
-          featureMenuRef.current?.contains(target) ||
-          taskMenuRef.current?.contains(target))
-      ) {
-        return;
-      }
-      setShowMilestoneDropdown(false);
-      setShowFeatureDropdown(false);
-      setShowTaskDropdown(false);
-    };
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
-    return () => {
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
-    };
-  }, [showMilestoneDropdown, showFeatureDropdown, showTaskDropdown]);
+  const selectFeature = useCallback(
+    (featureId: string, milestoneId: string | null) => {
+      setSel({ kind: "feature", featureId, milestoneId });
+      setExpandedFt((prev) => {
+        if (prev.has(featureId)) return prev;
+        const next = new Set(prev);
+        next.add(featureId);
+        return next;
+      });
+    },
+    [],
+  );
 
   // ── Submit handler ──
+  const canSubmit =
+    title.trim().length > 0 &&
+    !(sel.kind === "newFeature" && !newFeatureTitle.trim());
+
   const handleSubmit = useCallback(async () => {
     const trimmedTitle = title.trim();
     if (!trimmedTitle || isSubmitting) return;
+    if (sel.kind === "newFeature" && !newFeatureTitle.trim()) return;
 
     setIsSubmitting(true);
     setError(null);
@@ -368,18 +346,23 @@ export function WorkloadCreateModal({
         due_date: dueDate,
       };
 
-      if (isNewFeature && newFeatureTitle.trim()) {
-        // Create with new feature
-        payload.new_feature_title = newFeatureTitle.trim();
-      } else if (selectedFeatureId && !isNewFeature) {
-        // Existing feature
-        payload.feature_id = selectedFeatureId;
-        if (selectedTaskId) {
-          payload.task_id = selectedTaskId;
-        }
-        // If no task selected, server auto-creates one
+      switch (sel.kind) {
+        case "inbox":
+          // No feature → goes to inbox
+          break;
+        case "newFeature":
+          payload.new_feature_title = newFeatureTitle.trim();
+          break;
+        case "feature":
+        case "newTask":
+          // No task → server auto-creates one
+          payload.feature_id = sel.featureId;
+          break;
+        case "task":
+          payload.feature_id = sel.featureId;
+          payload.task_id = sel.taskId;
+          break;
       }
-      // If no feature selected, goes to inbox
 
       await boardChecklistAPI.createFromWorkload(boardId, payload);
       onCreated();
@@ -393,14 +376,12 @@ export function WorkloadCreateModal({
   }, [
     title,
     isSubmitting,
+    sel,
+    newFeatureTitle,
     assigneeId,
     contractorId,
     startDate,
     dueDate,
-    isNewFeature,
-    newFeatureTitle,
-    selectedFeatureId,
-    selectedTaskId,
     boardId,
     onCreated,
     onClose,
@@ -450,26 +431,270 @@ export function WorkloadCreateModal({
     if (e.key === "Enter" && !e.nativeEvent.isComposing) {
       e.preventDefault();
       if (tab === "absence") handleSubmitAbsence();
-      else handleSubmit();
+      else if (canSubmit) handleSubmit();
     }
   };
 
-  // ── Helpers ──
-  const selectedMilestone = milestones.find(
-    (m) => m.id === selectedMilestoneId,
+  // ── Tree renderers ──────────────────────────────────────────────────────
+
+  const renderTaskRow = (
+    task: TaskResponse,
+    featureId: string,
+    milestoneId: string | null,
+  ) => {
+    const selected = activeKey === `task:${task.id}`;
+    return (
+      <button
+        key={task.id}
+        onClick={() =>
+          setSel({ kind: "task", featureId, taskId: task.id, milestoneId })
+        }
+        className={`w-full flex items-center gap-2 pl-10 pr-2 py-1.5 rounded-lg text-xs
+          text-left transition-colors ${
+            selected
+              ? "bg-bridge-accent/15 ring-1 ring-inset ring-bridge-accent/50 text-foreground"
+              : "text-foreground hover:bg-foreground/5"
+          }`}
+      >
+        <span className="flex-1 truncate">{task.title}</span>
+        {task.checklist_total != null && (
+          <span className="shrink-0 text-xs text-slate-500 font-medium">
+            ✓ {task.checklist_completed ?? 0}/{task.checklist_total}
+          </span>
+        )}
+      </button>
+    );
+  };
+
+  const renderFeatureRows = (f: Feature, milestoneId: string | null) => {
+    if (isSearching && !featureMatches(f)) return null;
+    const hasTasks = featureHasTasks(f);
+    const ftTasks = tasksByFeature[f.id] ?? [];
+    const ftOpen = isSearching || expandedFt.has(f.id);
+    const selected = activeKey === `feature:${f.id}`;
+    const newTaskSelected = activeKey === `newTask:${f.id}`;
+    const showAllTasks = !isSearching || f.title.toLowerCase().includes(q);
+    const visibleTasks = showAllTasks
+      ? ftTasks
+      : ftTasks.filter((task) => task.title.toLowerCase().includes(q));
+
+    // 테스크 없는 피쳐: 노출하되 선택 불가 (규칙을 숨기지 않고 보여준다)
+    if (!hasTasks) {
+      return (
+        <div
+          key={`${milestoneId ?? "un"}:${f.id}`}
+          className="flex items-center gap-2 pl-6 pr-2 py-1.5 text-xs opacity-40
+            cursor-not-allowed select-none"
+        >
+          <span
+            className="w-2 h-2 rounded-full shrink-0"
+            style={{ backgroundColor: f.color }}
+          />
+          <span className="flex-1 truncate text-foreground">{f.title}</span>
+          <span className="shrink-0 text-xs text-slate-500">
+            {t("schedule.workloadCreate.noTasks", "테스크 없음")}
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <div key={`${milestoneId ?? "un"}:${f.id}`}>
+        <div
+          className={`flex items-center gap-1 pl-4 pr-2 py-0.5 rounded-lg transition-colors ${
+            selected
+              ? "bg-bridge-accent/15 ring-1 ring-inset ring-bridge-accent/50"
+              : "hover:bg-foreground/5"
+          }`}
+        >
+          <button
+            onClick={() => toggleFeature(f.id)}
+            aria-label={ftOpen ? "접기" : "펼치기"}
+            className="p-0.5 rounded text-slate-500 hover:text-foreground shrink-0"
+          >
+            <ChevronRight
+              size={12}
+              className={`transition-transform ${ftOpen ? "rotate-90" : ""}`}
+            />
+          </button>
+          <button
+            onClick={() => selectFeature(f.id, milestoneId)}
+            className="flex-1 min-w-0 flex items-center gap-2 py-1 text-xs text-left
+              text-foreground"
+          >
+            <span
+              className="w-2 h-2 rounded-full shrink-0"
+              style={{ backgroundColor: f.color }}
+            />
+            <span className="flex-1 truncate font-medium">{f.title}</span>
+            <span
+              className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full
+                bg-bridge-accent/15 text-bridge-accent"
+            >
+              {ftTasks.length || f.total_tasks}
+            </span>
+          </button>
+        </div>
+
+        {ftOpen && (
+          <div className="relative">
+            <span
+              aria-hidden="true"
+              className="absolute left-[22px] top-0 bottom-0 w-px bg-foreground/[0.08]"
+            />
+            {visibleTasks.map((task) => renderTaskRow(task, f.id, milestoneId))}
+            <button
+              onClick={() =>
+                setSel({ kind: "newTask", featureId: f.id, milestoneId })
+              }
+              className={`w-full flex items-center gap-1.5 pl-10 pr-2 py-1.5 rounded-lg
+                text-xs text-left font-bold transition-colors ${
+                  newTaskSelected
+                    ? "bg-bridge-accent/15 ring-1 ring-inset ring-bridge-accent/50 text-bridge-accent"
+                    : "text-bridge-accent/80 hover:bg-foreground/5 hover:text-bridge-accent"
+                }`}
+            >
+              <Plus size={12} className="shrink-0" />
+              {t("schedule.workloadCreate.newTask", "새 테스크로 추가")}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderMilestone = (m: Milestone) => {
+    const ftIds = msFeatureIds[m.id];
+    const msFeatures = (ftIds ?? [])
+      .map((id) => featureById[id])
+      .filter((f): f is Feature => !!f);
+    if (isSearching && !msFeatures.some(featureMatches)) return null;
+    const msOpen = isSearching || expandedMs.has(m.id);
+
+    return (
+      <div key={m.id}>
+        <button
+          onClick={() => toggleMilestone(m.id)}
+          className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs
+            text-left text-foreground hover:bg-foreground/5 transition-colors"
+        >
+          <ChevronRight
+            size={12}
+            className={`shrink-0 text-slate-500 transition-transform ${
+              msOpen ? "rotate-90" : ""
+            }`}
+          />
+          <Flag size={11} className="shrink-0 text-bridge-accent" />
+          <span className="flex-1 truncate font-bold">{m.title}</span>
+          <span className="shrink-0 text-xs text-slate-500">
+            {fmtShort(m.start_date)}~{fmtShort(m.end_date)}
+          </span>
+        </button>
+
+        {msOpen && (
+          <div>
+            {ftIds == null ? (
+              <div className="flex items-center gap-2 pl-6 py-1.5 text-xs text-slate-500">
+                <Loader2 size={12} className="animate-spin text-bridge-accent" />
+                {t("common.loading", "Loading...")}
+              </div>
+            ) : msFeatures.length === 0 ? (
+              <p className="pl-6 py-1.5 text-xs text-slate-500">
+                {t(
+                  "schedule.workloadCreate.milestoneEmpty",
+                  "이 마일스톤에 연결된 Feature가 없습니다",
+                )}
+              </p>
+            ) : (
+              msFeatures.map((f) => renderFeatureRows(f, m.id))
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ── Right panel: destination card ───────────────────────────────────────
+
+  const selFeature =
+    sel.kind === "feature" || sel.kind === "newTask" || sel.kind === "task"
+      ? featureById[sel.featureId]
+      : null;
+  const selMilestone =
+    (sel.kind === "feature" || sel.kind === "newTask" || sel.kind === "task") &&
+    sel.milestoneId
+      ? milestones.find((m) => m.id === sel.milestoneId)
+      : null;
+  const selTask =
+    sel.kind === "task"
+      ? (tasksByFeature[sel.featureId] ?? []).find(
+          (task) => task.id === sel.taskId,
+        )
+      : null;
+
+  const destSentence = (() => {
+    switch (sel.kind) {
+      case "inbox":
+        return t(
+          "schedule.workloadCreate.destInbox",
+          "미분류(인박스)에 추가됩니다 — 나중에 분류할 수 있어요",
+        );
+      case "newFeature":
+        return t(
+          "schedule.workloadCreate.destNewFeature",
+          "새 피쳐가 만들어지고 그 안에 추가됩니다",
+        );
+      case "feature":
+        return t(
+          "schedule.workloadCreate.destFeature",
+          "테스크가 자동 생성되고 그 안에 체크리스트로 담깁니다",
+        );
+      case "newTask":
+        return t(
+          "schedule.workloadCreate.destNewTask",
+          "입력한 제목으로 새 테스크가 생성됩니다",
+        );
+      case "task":
+        return t(
+          "schedule.workloadCreate.destTask",
+          "이 테스크 아래 체크리스트로 추가됩니다",
+        );
+    }
+  })();
+
+  const isTealDest = sel.kind === "inbox" || sel.kind === "newFeature";
+
+  const crumbChip = (label: string, dotColor?: string, icon?: JSX.Element) => (
+    <span
+      className="inline-flex items-center gap-1.5 max-w-[150px] px-2 py-0.5 rounded-full
+        bg-foreground/[0.06] border border-foreground/[0.08] text-xs font-bold
+        text-foreground"
+    >
+      {icon}
+      {dotColor && (
+        <span
+          className="w-2 h-2 rounded-full shrink-0"
+          style={{ backgroundColor: dotColor }}
+        />
+      )}
+      <span className="truncate">{label}</span>
+    </span>
   );
-  const selectedFeature = selectableFeatures.find(
-    (f) => f.id === selectedFeatureId,
+
+  const crumbSep = (
+    <span className="text-xs text-slate-500" aria-hidden="true">
+      ›
+    </span>
   );
-  const selectedTask = tasks.find((task) => task.id === selectedTaskId);
-  const canSubmit =
-    title.trim().length > 0 && !(isNewFeature && !newFeatureTitle.trim());
+
+  const selChecklist =
+    sel.kind === "task" ? checklistCache[sel.taskId] : undefined;
 
   return (
     <MotionModal
       open={open}
       onClose={onClose}
-      className="w-full sm:max-w-md"
+      className={tab === "absence" ? "w-full sm:max-w-md" : "w-full sm:max-w-3xl"}
       accentColor
     >
       {/* Header */}
@@ -493,366 +718,365 @@ export function WorkloadCreateModal({
         </button>
       </div>
 
-      {/* Body */}
-      <div className="px-5 pb-5 pt-4 space-y-4">
-        {/* 업무 / 부재 탭 — 멤버 행(assigneeId)에서만 노출 */}
-        {assigneeId && (
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              type="button"
-              onClick={() => setTab("task")}
-              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold border transition-colors ${
-                tab === "task"
-                  ? "border-bridge-accent/60 bg-bridge-accent/15 text-foreground"
-                  : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5"
-              }`}
-            >
-              <Plus size={13} /> 업무
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("absence")}
-              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold border transition-colors ${
-                tab === "absence"
-                  ? "border-bridge-secondary/60 bg-bridge-secondary/15 text-foreground"
-                  : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5"
-              }`}
-            >
-              🚶 부재
-            </button>
+      {/* 업무 / 부재 탭 — 멤버 행(assigneeId)에서만 노출 */}
+      {assigneeId && (
+        <div className="grid grid-cols-2 gap-1.5 px-5 pt-3 pb-3">
+          <button
+            type="button"
+            onClick={() => setTab("task")}
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold border transition-colors ${
+              tab === "task"
+                ? "border-bridge-accent/60 bg-bridge-accent/15 text-foreground"
+                : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5"
+            }`}
+          >
+            <Plus size={13} /> 업무
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("absence")}
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold border transition-colors ${
+              tab === "absence"
+                ? "border-bridge-secondary/60 bg-bridge-secondary/15 text-foreground"
+                : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5"
+            }`}
+          >
+            🚶 부재
+          </button>
+        </div>
+      )}
+
+      {tab === "absence" ? (
+        <div className="px-5 pb-5 pt-1 space-y-4">
+          {/* 대상 멤버 */}
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
+              대상 멤버
+            </label>
+            <div className="w-full px-3 py-2.5 bg-foreground/[0.03] border border-foreground/10 rounded-xl text-xs text-foreground">
+              {assigneeName || "이 멤버"}
+            </div>
           </div>
-        )}
 
-        {tab === "absence" ? (
-          <>
-            {/* 대상 멤버 */}
-            <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
-                대상 멤버
-              </label>
-              <div className="w-full px-3 py-2.5 bg-foreground/[0.03] border border-foreground/10 rounded-xl text-xs text-foreground">
-                {assigneeName || "이 멤버"}
-              </div>
-            </div>
+          {/* 내용 */}
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
+              내용
+            </label>
+            <input
+              ref={titleInputRef}
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="예: 부산 출장 · 오전 반차 · 재택"
+              className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl
+                py-3 px-4 text-foreground placeholder-slate-500
+                focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+            />
+            <p className="text-xs text-slate-500 mt-1.5">
+              바에 이 텍스트가 표시됩니다
+            </p>
+          </div>
 
-            {/* 내용 */}
-            <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
-                내용
-              </label>
+          {/* 기간 */}
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
+              기간
+            </label>
+            <div className="flex items-center gap-2">
               <input
-                ref={titleInputRef}
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="예: 부산 출장 · 오전 반차 · 재택"
-                className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl
-                  py-3 px-4 text-foreground placeholder-slate-500
-                  focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                type="date"
+                value={absStart}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setAbsStart(v);
+                  if (absEnd < v) setAbsEnd(v);
+                }}
+                className="flex-1 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
               />
-              <p className="text-xs text-slate-500 mt-1.5">
-                바에 이 텍스트가 표시됩니다
-              </p>
+              <span className="text-slate-500 text-sm">~</span>
+              <input
+                type="date"
+                value={absEnd}
+                min={absStart}
+                onChange={(e) => setAbsEnd(e.target.value)}
+                className="flex-1 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
+              />
             </div>
+          </div>
 
-            {/* 기간 */}
-            <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
-                기간
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={absStart}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setAbsStart(v);
-                    if (absEnd < v) setAbsEnd(v);
-                  }}
-                  className="flex-1 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
+          {error && <p className="text-xs text-red-400">{error}</p>}
+        </div>
+      ) : (
+        <div
+          className={`flex flex-col sm:flex-row sm:h-[440px] ${
+            assigneeId ? "border-t border-foreground/[0.08]" : ""
+          }`}
+        >
+          {/* ── Left: hierarchy tree ── */}
+          <div
+            className="sm:w-[300px] sm:shrink-0 flex flex-col bg-foreground/[0.02]
+              border-b sm:border-b-0 sm:border-r border-foreground/[0.08]"
+          >
+            {/* 검색 */}
+            <div className="p-3 pb-2">
+              <div className="relative">
+                <Search
+                  size={13}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                  aria-hidden="true"
                 />
-                <span className="text-slate-500 text-sm">~</span>
                 <input
-                  type="date"
-                  value={absEnd}
-                  min={absStart}
-                  onChange={(e) => setAbsEnd(e.target.value)}
-                  className="flex-1 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t(
+                    "schedule.workloadCreate.search",
+                    "피쳐·테스크 검색",
+                  )}
+                  className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-lg
+                    py-2 pl-8 pr-3 text-xs text-foreground placeholder-slate-500
+                    focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                 />
               </div>
             </div>
 
-            {error && <p className="text-xs text-red-400">{error}</p>}
-          </>
-        ) : (
-          <>
-            {/* Milestone selector */}
-            {milestones.length > 0 && (
-              <div ref={milestoneDropdownRef} className="relative">
+            {/* 트리 */}
+            <div
+              role="tree"
+              aria-label={t("schedule.workloadCreate.treeLabel", "추가 위치 선택")}
+              className="flex-1 overflow-y-auto custom-scrollbar px-2 pb-3 space-y-0.5
+                max-h-[240px] sm:max-h-none"
+            >
+              {/* 미분류 (보드당 1개, 마일스톤 밖 전역) */}
+              <button
+                onClick={() => setSel({ kind: "inbox" })}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs
+                  font-bold text-left transition-colors ${
+                    activeKey === "inbox"
+                      ? "bg-bridge-secondary/15 ring-1 ring-inset ring-bridge-secondary/50 text-bridge-secondary"
+                      : "text-bridge-secondary/80 hover:bg-foreground/5 hover:text-bridge-secondary"
+                  }`}
+              >
+                <Inbox size={13} className="shrink-0" />
+                {t("schedule.workloadCreate.inboxNode", "미분류에 바로 추가")}
+              </button>
+
+              {isLoadingTasks && !msLoaded ? (
+                <div className="flex items-center justify-center gap-2 py-6 text-xs text-slate-500">
+                  <Loader2
+                    size={14}
+                    className="animate-spin text-bridge-accent"
+                  />
+                  {t("common.loading", "Loading...")}
+                </div>
+              ) : (
+                <>
+                  {milestones.map(renderMilestone)}
+
+                  {/* 마일스톤 미연결 피쳐 */}
+                  {unlinkedFeatures.length > 0 && (
+                    <div>
+                      <p className="px-2 pt-2 pb-1 text-xs font-bold uppercase tracking-widest text-slate-500">
+                        {t(
+                          "schedule.workloadCreate.unlinked",
+                          "마일스톤 미연결",
+                        )}
+                      </p>
+                      {unlinkedFeatures.map((f) => renderFeatureRows(f, null))}
+                    </div>
+                  )}
+
+                  {/* 새 피쳐 만들기 */}
+                  {!isSearching && (
+                    <button
+                      onClick={() => setSel({ kind: "newFeature" })}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg
+                        text-xs font-bold text-left transition-colors ${
+                          activeKey === "newFeature"
+                            ? "bg-bridge-secondary/15 ring-1 ring-inset ring-bridge-secondary/50 text-bridge-secondary"
+                            : "text-bridge-secondary/80 hover:bg-foreground/5 hover:text-bridge-secondary"
+                        }`}
+                    >
+                      <Plus size={13} className="shrink-0" />
+                      {t(
+                        "schedule.workloadCreate.featureNew",
+                        "새 Feature 만들기",
+                      )}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* ── Right: form ── */}
+          <div className="flex-1 min-w-0 flex flex-col gap-4 p-5 overflow-y-auto custom-scrollbar">
+            {/* 추가 위치 */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
+                {t("schedule.workloadCreate.destination", "추가 위치")}
+              </label>
+              <div
+                className={`rounded-xl border p-3 ${
+                  isTealDest
+                    ? "border-bridge-secondary/40 bg-bridge-secondary/10"
+                    : "border-bridge-accent/40 bg-bridge-accent/10"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
+                  {sel.kind === "inbox" &&
+                    crumbChip(
+                      t("schedule.workloadCreate.featureNone", "미분류"),
+                      undefined,
+                      <Inbox
+                        size={11}
+                        className="shrink-0 text-bridge-secondary"
+                      />,
+                    )}
+                  {sel.kind === "newFeature" &&
+                    crumbChip(
+                      newFeatureTitle.trim() ||
+                        t(
+                          "schedule.workloadCreate.featureNew",
+                          "새 Feature 만들기",
+                        ),
+                      undefined,
+                      <Plus
+                        size={11}
+                        className="shrink-0 text-bridge-secondary"
+                      />,
+                    )}
+                  {selMilestone && (
+                    <>
+                      {crumbChip(
+                        selMilestone.title,
+                        undefined,
+                        <Flag
+                          size={11}
+                          className="shrink-0 text-bridge-accent"
+                        />,
+                      )}
+                      {crumbSep}
+                    </>
+                  )}
+                  {selFeature && crumbChip(selFeature.title, selFeature.color)}
+                  {sel.kind === "task" && selTask && (
+                    <>
+                      {crumbSep}
+                      {crumbChip(selTask.title)}
+                    </>
+                  )}
+                  {sel.kind === "newTask" && (
+                    <>
+                      {crumbSep}
+                      {crumbChip(
+                        t("schedule.workloadCreate.newTask", "새 테스크로 추가"),
+                        undefined,
+                        <Plus
+                          size={11}
+                          className="shrink-0 text-bridge-accent"
+                        />,
+                      )}
+                    </>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400">{destSentence}</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  {startDate} ~ {dueDate}
+                </p>
+              </div>
+            </div>
+
+            {/* 체크리스트 미리보기 (테스크 선택 시) */}
+            {sel.kind === "task" && (
+              <div>
                 <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
                   {t(
-                    "schedule.workloadCreate.milestone",
-                    "마일스톤 (선택사항)",
+                    "schedule.workloadCreate.checklistPreview",
+                    "체크리스트 미리보기",
                   )}
                 </label>
-                <button
-                  ref={milestoneBtnRef}
-                  onClick={toggleMilestoneDropdown}
-                  className="w-full flex items-center gap-2 px-3 py-2.5
-                bg-foreground/[0.03] border border-foreground/10 rounded-xl
-                text-xs text-foreground hover:bg-foreground/5 transition-all
-                focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                <div
+                  className="rounded-xl border border-foreground/[0.08] max-h-[140px]
+                    overflow-y-auto custom-scrollbar divide-y divide-foreground/[0.06]"
                 >
-                  {selectedMilestone ? (
-                    <span className="flex-1 text-left truncate">
-                      {selectedMilestone.title}
-                    </span>
+                  {isLoadingChecklist && !selChecklist ? (
+                    <div className="flex items-center gap-2 px-3 py-2.5 text-xs text-slate-500">
+                      <Loader2
+                        size={13}
+                        className="animate-spin text-bridge-accent"
+                      />
+                      {t("common.loading", "Loading...")}
+                    </div>
                   ) : (
-                    <span className="flex-1 text-left text-slate-500">
-                      {t("schedule.workloadCreate.milestoneNone", "전체")}
-                    </span>
-                  )}
-                  {isLoadingMilestoneFeatures && (
-                    <Loader2
-                      size={14}
-                      className="animate-spin text-bridge-accent shrink-0"
-                    />
-                  )}
-                  <ChevronDown
-                    size={14}
-                    className={`shrink-0 text-slate-400 transition-transform ${showMilestoneDropdown ? "rotate-180" : ""}`}
-                  />
-                </button>
-
-                {showMilestoneDropdown &&
-                  milestoneMenuPos &&
-                  createPortal(
-                    <div
-                      ref={milestoneMenuRef}
-                      style={{
-                        position: "fixed",
-                        left: milestoneMenuPos.left,
-                        width: milestoneMenuPos.width,
-                        top: milestoneMenuPos.top,
-                        bottom: milestoneMenuPos.bottom,
-                        maxHeight: milestoneMenuPos.maxHeight,
-                        zIndex: 9999,
-                      }}
-                      className="bg-bridge-obsidian border border-foreground/[0.08] rounded-xl shadow-xl
-                  overflow-y-auto custom-scrollbar py-1"
-                    >
-                      {/* All (no milestone filter) option */}
-                      <button
-                        onClick={() => {
-                          setSelectedMilestoneId(null);
-                          setShowMilestoneDropdown(false);
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
-                    text-slate-400 hover:bg-foreground/5 transition-colors"
-                      >
-                        <span className="flex-1">
-                          {t("schedule.workloadCreate.milestoneNone", "전체")}
-                        </span>
-                        {!selectedMilestoneId && (
-                          <Check
-                            size={14}
-                            className="text-bridge-accent shrink-0"
-                          />
-                        )}
-                      </button>
-
-                      {/* Milestones */}
-                      {milestones.map((milestone) => (
-                        <button
-                          key={milestone.id}
-                          onClick={() => {
-                            setSelectedMilestoneId(milestone.id);
-                            setShowMilestoneDropdown(false);
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
-                      text-foreground hover:bg-foreground/5 transition-colors"
+                    <>
+                      {(selChecklist ?? []).map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-2.5 px-3 py-2 text-xs"
                         >
-                          <span className="flex-1 truncate">
-                            {milestone.title}
-                            <span className="text-slate-500 ml-1.5">
-                              {milestone.start_date}~{milestone.end_date}
-                            </span>
+                          <span
+                            className={`w-3.5 h-3.5 rounded shrink-0 border flex items-center
+                              justify-center ${
+                                item.completed
+                                  ? "bg-bridge-accent border-bridge-accent"
+                                  : "border-foreground/20"
+                              }`}
+                          >
+                            {item.completed && (
+                              <Check size={9} className="text-white" />
+                            )}
                           </span>
-                          {milestone.id === selectedMilestoneId && (
-                            <Check
-                              size={14}
-                              className="text-bridge-accent shrink-0"
-                            />
-                          )}
-                        </button>
+                          <span
+                            className={`flex-1 truncate ${
+                              item.completed
+                                ? "line-through text-slate-500"
+                                : "text-slate-400"
+                            }`}
+                          >
+                            {item.title}
+                          </span>
+                        </div>
                       ))}
-                    </div>,
-                    document.body,
+                      {selChecklist && selChecklist.length === 0 && (
+                        <p className="px-3 py-2 text-xs text-slate-500">
+                          {t(
+                            "schedule.workloadCreate.checklistEmpty",
+                            "아직 체크리스트가 없습니다",
+                          )}
+                        </p>
+                      )}
+                      {/* 새 항목이 붙을 자리 */}
+                      <div className="flex items-center gap-2.5 px-3 py-2 text-xs">
+                        <span
+                          className="w-3.5 h-3.5 rounded shrink-0 border border-dashed
+                            border-bridge-accent/60"
+                        />
+                        <span className="flex-1 truncate font-bold text-bridge-accent">
+                          {title.trim()
+                            ? `＋ ${title.trim()}`
+                            : t(
+                                "schedule.workloadCreate.checklistGhost",
+                                "＋ 여기에 새 항목이 추가됩니다",
+                              )}
+                        </span>
+                      </div>
+                    </>
                   )}
+                </div>
               </div>
             )}
 
-            {/* Feature selector */}
-            <div ref={featureDropdownRef} className="relative">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
-                {t("schedule.workloadCreate.feature", "Feature (선택사항)")}
-              </label>
-              <button
-                ref={featureBtnRef}
-                onClick={toggleFeatureDropdown}
-                className="w-full flex items-center gap-2 px-3 py-2.5
-              bg-foreground/[0.03] border border-foreground/10 rounded-xl
-              text-xs text-foreground hover:bg-foreground/5 transition-all
-              focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-              >
-                {selectedFeature ? (
-                  <>
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: selectedFeature.color }}
-                    />
-                    <span className="flex-1 text-left truncate">
-                      {selectedFeature.title}
-                    </span>
-                  </>
-                ) : isNewFeature ? (
-                  <span className="flex-1 text-left text-bridge-secondary truncate">
-                    {t(
-                      "schedule.workloadCreate.featureNew",
-                      "새 Feature 만들기",
-                    )}
-                  </span>
-                ) : (
-                  <span className="flex-1 text-left text-slate-500">
-                    {t("schedule.workloadCreate.featureNone", "미분류")}
-                  </span>
-                )}
-                <ChevronDown
-                  size={14}
-                  className={`shrink-0 text-slate-400 transition-transform ${showFeatureDropdown ? "rotate-180" : ""}`}
-                />
-              </button>
+            <div className="flex-1" />
 
-              {showFeatureDropdown &&
-                featureMenuPos &&
-                createPortal(
-                  <div
-                    ref={featureMenuRef}
-                    style={{
-                      position: "fixed",
-                      left: featureMenuPos.left,
-                      width: featureMenuPos.width,
-                      top: featureMenuPos.top,
-                      bottom: featureMenuPos.bottom,
-                      maxHeight: featureMenuPos.maxHeight,
-                      zIndex: 9999,
-                    }}
-                    className="bg-bridge-obsidian border border-foreground/[0.08] rounded-xl shadow-xl
-                overflow-y-auto custom-scrollbar py-1"
-                  >
-                    {/* None option */}
-                    <button
-                      onClick={() => {
-                        setSelectedFeatureId(null);
-                        setNewFeatureTitle("");
-                        setShowFeatureDropdown(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
-                  text-slate-400 hover:bg-foreground/5 transition-colors"
-                    >
-                      <span className="flex-1">
-                        {t("schedule.workloadCreate.featureNone", "미분류")}
-                      </span>
-                      {!selectedFeatureId && (
-                        <Check
-                          size={14}
-                          className="text-bridge-accent shrink-0"
-                        />
-                      )}
-                    </button>
-
-                    {/* Empty milestone hint */}
-                    {selectedMilestoneId && visibleFeatures.length === 0 && (
-                      <p className="px-3 py-2 text-xs text-slate-500">
-                        {t(
-                          "schedule.workloadCreate.milestoneEmpty",
-                          "이 마일스톤에 연결된 Feature가 없습니다",
-                        )}
-                      </p>
-                    )}
-
-                    {/* Existing features (scoped to the selected milestone) */}
-                    {visibleFeatures.map((feature) => (
-                      <button
-                        key={feature.id}
-                        onClick={() => {
-                          setSelectedFeatureId(feature.id);
-                          setNewFeatureTitle("");
-                          setShowFeatureDropdown(false);
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
-                    text-foreground hover:bg-foreground/5 transition-colors"
-                      >
-                        <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: feature.color }}
-                        />
-                        <span className="flex-1 truncate">{feature.title}</span>
-                        {feature.id === selectedFeatureId && (
-                          <Check
-                            size={14}
-                            className="text-bridge-accent shrink-0"
-                          />
-                        )}
-                      </button>
-                    ))}
-
-                    {/* New feature option (only when not scoped to a milestone) */}
-                    {!selectedMilestoneId && (
-                      <div className="border-t border-foreground/[0.08] mt-1 pt-1">
-                        <button
-                          onClick={() => {
-                            setSelectedFeatureId(NEW_FEATURE_SENTINEL);
-                            setShowFeatureDropdown(false);
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
-                      text-bridge-secondary hover:bg-foreground/5 transition-colors"
-                        >
-                          <Plus size={14} className="shrink-0" />
-                          <span className="flex-1">
-                            {t(
-                              "schedule.workloadCreate.featureNew",
-                              "새 Feature 만들기",
-                            )}
-                          </span>
-                          {isNewFeature && (
-                            <Check
-                              size={14}
-                              className="text-bridge-accent shrink-0"
-                            />
-                          )}
-                        </button>
-                      </div>
-                    )}
-                  </div>,
-                  document.body,
-                )}
-
-              {/* Inbox hint */}
-              {!selectedFeatureId && !isNewFeature && (
-                <p className="text-xs text-slate-500 mt-1.5">
-                  {t(
-                    "schedule.workloadCreate.inboxHint",
-                    "미분류에 추가됩니다",
-                  )}
-                </p>
-              )}
-            </div>
-
-            {/* New feature title input */}
-            {isNewFeature && (
+            {/* 새 피쳐 제목 (새 피쳐 선택 시) */}
+            {sel.kind === "newFeature" && (
               <div>
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
+                  {t("schedule.workloadCreate.newFeatureTitle", "피쳐 이름")}
+                </label>
                 <input
                   ref={newFeatureInputRef}
                   type="text"
@@ -863,125 +1087,21 @@ export function WorkloadCreateModal({
                     "새 Feature 만들기",
                   )}
                   className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl
-                py-3 px-4 text-foreground placeholder-slate-500
-                focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                    py-3 px-4 text-foreground placeholder-slate-500
+                    focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                 />
-              </div>
-            )}
-
-            {/* Task selector (only when existing feature is selected) */}
-            {selectedFeatureId && !isNewFeature && (
-              <div ref={taskDropdownRef} className="relative">
-                <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
-                  {t("schedule.workloadCreate.task", "Task (선택사항)")}
-                </label>
-                {isLoadingTasks ? (
-                  <div className="flex items-center gap-2 py-2.5 px-3 text-xs text-slate-500">
-                    <Loader2
-                      size={14}
-                      className="animate-spin text-bridge-accent"
-                    />
-                    {t("common.loading", "Loading...")}
-                  </div>
-                ) : (
-                  <>
-                    <button
-                      ref={taskBtnRef}
-                      onClick={toggleTaskDropdown}
-                      className="w-full flex items-center gap-2 px-3 py-2.5
-                    bg-foreground/[0.03] border border-foreground/10 rounded-xl
-                    text-xs text-foreground hover:bg-foreground/5 transition-all
-                    focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-                    >
-                      {selectedTask ? (
-                        <span className="flex-1 text-left truncate">
-                          {selectedTask.title}
-                        </span>
-                      ) : (
-                        <span className="flex-1 text-left text-slate-500">
-                          {t("schedule.workloadCreate.taskAuto", "자동 생성")}
-                        </span>
-                      )}
-                      <ChevronDown
-                        size={14}
-                        className={`shrink-0 text-slate-400 transition-transform ${showTaskDropdown ? "rotate-180" : ""}`}
-                      />
-                    </button>
-
-                    {showTaskDropdown &&
-                      taskMenuPos &&
-                      createPortal(
-                        <div
-                          ref={taskMenuRef}
-                          style={{
-                            position: "fixed",
-                            left: taskMenuPos.left,
-                            width: taskMenuPos.width,
-                            top: taskMenuPos.top,
-                            bottom: taskMenuPos.bottom,
-                            maxHeight: taskMenuPos.maxHeight,
-                            zIndex: 9999,
-                          }}
-                          className="bg-bridge-obsidian border border-foreground/[0.08] rounded-xl shadow-xl
-                    overflow-y-auto custom-scrollbar py-1"
-                        >
-                          {/* Auto-create option */}
-                          <button
-                            onClick={() => {
-                              setSelectedTaskId(null);
-                              setShowTaskDropdown(false);
-                            }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
-                        text-slate-400 hover:bg-foreground/5 transition-colors"
-                          >
-                            <span className="flex-1">
-                              {t(
-                                "schedule.workloadCreate.taskAuto",
-                                "자동 생성",
-                              )}
-                            </span>
-                            {!selectedTaskId && (
-                              <Check
-                                size={14}
-                                className="text-bridge-accent shrink-0"
-                              />
-                            )}
-                          </button>
-
-                          {/* Existing tasks */}
-                          {tasks.map((task) => (
-                            <button
-                              key={task.id}
-                              onClick={() => {
-                                setSelectedTaskId(task.id);
-                                setShowTaskDropdown(false);
-                              }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
-                          text-foreground hover:bg-foreground/5 transition-colors"
-                            >
-                              <span className="flex-1 truncate">
-                                {task.title}
-                              </span>
-                              {task.id === selectedTaskId && (
-                                <Check
-                                  size={14}
-                                  className="text-bridge-accent shrink-0"
-                                />
-                              )}
-                            </button>
-                          ))}
-                        </div>,
-                        document.body,
-                      )}
-                  </>
-                )}
               </div>
             )}
 
             {/* Title input */}
             <div>
               <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
-                {t("schedule.panel.itemTitle", "Item title")}
+                {sel.kind === "task"
+                  ? t(
+                      "schedule.workloadCreate.checklistItemTitle",
+                      "체크리스트 항목",
+                    )
+                  : t("schedule.panel.itemTitle", "Item title")}
               </label>
               <input
                 ref={titleInputRef}
@@ -989,21 +1109,28 @@ export function WorkloadCreateModal({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={t(
-                  "schedule.workloadCreate.titlePlaceholder",
-                  "업무 제목을 입력하세요",
-                )}
+                placeholder={
+                  sel.kind === "task"
+                    ? t(
+                        "schedule.workloadCreate.checklistPlaceholder",
+                        "체크리스트 항목을 입력하세요",
+                      )
+                    : t(
+                        "schedule.workloadCreate.titlePlaceholder",
+                        "업무 제목을 입력하세요",
+                      )
+                }
                 className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl
-              py-3 px-4 text-foreground placeholder-slate-500
-              focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                  py-3 px-4 text-foreground placeholder-slate-500
+                  focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               />
             </div>
 
             {/* Error */}
             {error && <p className="text-xs text-red-400">{error}</p>}
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
