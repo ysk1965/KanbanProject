@@ -1,15 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  X,
-  Loader2,
-  Plus,
-  ChevronRight,
-  Search,
-  Inbox,
-  Flag,
-  Check,
-} from "lucide-react";
+import { X, Loader2, Plus, Check } from "lucide-react";
 import {
   boardChecklistAPI,
   taskAPI,
@@ -22,40 +13,27 @@ import {
 import { Feature, Milestone } from "../../types";
 import { MotionModal } from "../ui/MotionModal";
 
-// ─── Selection ──────────────────────────────────────────────────────────────
-// 트리에서 노드를 클릭하면 곧바로 "추가 위치"가 결정된다.
-// - inbox      → 보드 인박스(미분류)에 추가
-// - feature    → 해당 피쳐 아래 테스크 자동 생성 후 체크리스트로 추가
-// - newTask    → feature와 동일 페이로드 (트리 안 탐색 중 명시적 진입점)
-// - task       → 해당 테스크 아래 체크리스트로 추가
-// - newFeature → 새 피쳐 생성 후 그 안에 추가
+// ─── Selection model ────────────────────────────────────────────────────────
+// "체크리스트 항목 이동" 모달과 같은 문법: 마일스톤 칩 → 피처 열 → Task 열.
+// - msSel   : "INBOX"(보드 인박스) | "UNLINKED"(마일스톤 미연결) | milestoneId
+// - featSel : null | "NEWF"(새 피쳐) | featureId
+// - taskSel : null | "AUTO"(테스크 자동 생성) | taskId
 
-type Selection =
-  | { kind: "inbox" }
-  | { kind: "feature"; featureId: string; milestoneId: string | null }
-  | { kind: "newTask"; featureId: string; milestoneId: string | null }
-  | {
-      kind: "task";
-      featureId: string;
-      taskId: string;
-      milestoneId: string | null;
-    }
-  | { kind: "newFeature" };
+const INBOX = "INBOX" as const;
+const UNLINKED = "UNLINKED" as const;
+const NEWF = "NEWF" as const;
+const AUTO = "AUTO" as const;
 
-function selKey(s: Selection): string {
-  switch (s.kind) {
-    case "inbox":
-      return "inbox";
-    case "newFeature":
-      return "newFeature";
-    case "task":
-      return `task:${s.taskId}`;
-    default:
-      return `${s.kind}:${s.featureId}`;
-  }
-}
+// 부재 빠른 선택 프리셋 — 라벨이 그대로 내용에 들어간다
+const ABSENCE_PRESETS = [
+  "🏠 재택",
+  "🌴 휴가",
+  "⏰ 오전 반차",
+  "⏰ 오후 반차",
+  "✈️ 출장",
+];
 
-// "MM.DD" 형식으로 축약 (트리 폭이 좁아 연도 생략)
+// "MM.DD" 축약 (칩/요약 바 폭이 좁아 연도 생략)
 function fmtShort(date: string): string {
   return date.slice(5).replace("-", ".");
 }
@@ -96,23 +74,23 @@ export function WorkloadCreateModal({
 
   // 업무 / 부재 탭 (부재는 멤버 행에서만 — assigneeId 있을 때)
   const [tab, setTab] = useState<"task" | "absence">("task");
-  const [absStart, setAbsStart] = useState(startDate);
-  const [absEnd, setAbsEnd] = useState(dueDate);
 
-  // ── Form state ──
+  // ── 업무 탭 상태 ──
+  const [msSel, setMsSel] = useState<string>(INBOX);
+  const [featSel, setFeatSel] = useState<string | null>(null);
+  const [taskSel, setTaskSel] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [newFeatureTitle, setNewFeatureTitle] = useState("");
-  const [sel, setSel] = useState<Selection>({ kind: "inbox" });
 
-  // ── Tree state ──
-  const [query, setQuery] = useState("");
-  const [expandedMs, setExpandedMs] = useState<Set<string>>(new Set());
-  const [expandedFt, setExpandedFt] = useState<Set<string>>(new Set());
+  // ── 부재 탭 상태 ──
+  const [absTitle, setAbsTitle] = useState("");
+  const [absStart, setAbsStart] = useState(startDate);
+  const [absEnd, setAbsEnd] = useState(dueDate);
 
   // ── Data ──
   const [allTasks, setAllTasks] = useState<TaskResponse[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
-  // milestoneId → featureId[] (전 마일스톤 매핑을 열 때 한 번에 로드)
+  // milestoneId → featureId[] (열릴 때 전 마일스톤 매핑을 한 번에 로드)
   const [msFeatureIds, setMsFeatureIds] = useState<Record<string, string[]>>(
     {},
   );
@@ -129,6 +107,7 @@ export function WorkloadCreateModal({
 
   // ── Refs ──
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const absTitleInputRef = useRef<HTMLInputElement>(null);
   const newFeatureInputRef = useRef<HTMLInputElement>(null);
 
   // ── Derived ──
@@ -160,25 +139,41 @@ export function WorkloadCreateModal({
     return selectableFeatures.filter((f) => !linked.has(f.id));
   }, [msLoaded, msFeatureIds, selectableFeatures]);
 
-  const featureHasTasks = useCallback(
-    (f: Feature) => (tasksByFeature[f.id]?.length ?? f.total_tasks) > 0,
-    [tasksByFeature],
-  );
+  const showUnlinkedChip =
+    (msLoaded && unlinkedFeatures.length > 0) ||
+    (milestones.length === 0 && selectableFeatures.length > 0);
 
-  // ── 검색 ──
-  const q = query.trim().toLowerCase();
-  const isSearching = q.length > 0;
-  const featureMatches = useCallback(
-    (f: Feature) =>
-      !isSearching ||
-      f.title.toLowerCase().includes(q) ||
-      (tasksByFeature[f.id] ?? []).some((task) =>
-        task.title.toLowerCase().includes(q),
-      ),
-    [isSearching, q, tasksByFeature],
-  );
+  // 현재 칩에 해당하는 피처 목록 (마일스톤 매핑 로딩 중이면 null)
+  const visibleFeatures = useMemo(() => {
+    if (msSel === INBOX) return [];
+    if (msSel === UNLINKED) return unlinkedFeatures;
+    const ids = msFeatureIds[msSel];
+    if (ids == null) return null;
+    return ids
+      .map((id) => featureById[id])
+      .filter((f): f is Feature => !!f);
+  }, [msSel, msFeatureIds, featureById, unlinkedFeatures]);
 
-  const activeKey = selKey(sel);
+  const selFeature = featSel && featSel !== NEWF ? featureById[featSel] : null;
+  const selFeatureTasks = selFeature
+    ? (tasksByFeature[selFeature.id] ?? [])
+    : [];
+  const selTask =
+    taskSel && taskSel !== AUTO
+      ? selFeatureTasks.find((task) => task.id === taskSel)
+      : null;
+  const selMilestone =
+    msSel !== INBOX && msSel !== UNLINKED
+      ? milestones.find((m) => m.id === msSel)
+      : null;
+  const selChecklist = selTask ? checklistCache[selTask.id] : undefined;
+
+  const absDays = useMemo(() => {
+    const a = Date.parse(absStart);
+    const b = Date.parse(absEnd);
+    if (Number.isNaN(a) || Number.isNaN(b) || b < a) return 0;
+    return Math.round((b - a) / 86400000) + 1;
+  }, [absStart, absEnd]);
 
   // ── Auto-focus title input on open ──
   useEffect(() => {
@@ -187,17 +182,17 @@ export function WorkloadCreateModal({
     }
   }, [open]);
 
-  // ── On open: reset form and auto-expand the milestone covering the period ──
+  // ── On open: reset form and auto-select the milestone covering the period ──
   useEffect(() => {
     if (!open) return;
     setTitle("");
     setNewFeatureTitle("");
-    setSel({ kind: "inbox" });
-    setQuery("");
-    setExpandedFt(new Set());
+    setFeatSel(null);
+    setTaskSel(null);
     setChecklistCache({});
     setError(null);
     setTab("task");
+    setAbsTitle("");
     setAbsStart(startDate);
     setAbsEnd(dueDate);
 
@@ -208,11 +203,11 @@ export function WorkloadCreateModal({
     const covering = milestones
       .filter((m) => m.start_date <= startDate && startDate <= m.end_date)
       .sort((a, b) => span(a) - span(b));
-    setExpandedMs(new Set(covering[0] ? [covering[0].id] : []));
+    setMsSel(covering[0]?.id ?? INBOX);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // ── Load all board tasks once (tree의 테스크 레벨 + 카운트) ──
+  // ── Load all board tasks once (Task 열 + 피처 카운트) ──
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -264,16 +259,15 @@ export function WorkloadCreateModal({
 
   // ── 테스크 선택 시 체크리스트 미리보기 lazy load ──
   useEffect(() => {
-    if (sel.kind !== "task") return;
-    const taskId = sel.taskId;
-    if (checklistCache[taskId]) return;
+    if (!taskSel || taskSel === AUTO) return;
+    if (checklistCache[taskSel]) return;
     let cancelled = false;
     setIsLoadingChecklist(true);
     checklistAPI
-      .getChecklist(boardId, taskId)
+      .getChecklist(boardId, taskSel)
       .then((res) => {
         if (!cancelled) {
-          setChecklistCache((prev) => ({ ...prev, [taskId]: res.items }));
+          setChecklistCache((prev) => ({ ...prev, [taskSel]: res.items }));
         }
       })
       .catch((err) => console.error("Failed to load checklist:", err))
@@ -283,54 +277,38 @@ export function WorkloadCreateModal({
     return () => {
       cancelled = true;
     };
-  }, [sel, boardId, checklistCache]);
+  }, [taskSel, boardId, checklistCache]);
 
   // ── 새 피쳐 선택 시 피쳐명 입력에 포커스 ──
   useEffect(() => {
-    if (sel.kind === "newFeature") {
+    if (featSel === NEWF) {
       setTimeout(() => newFeatureInputRef.current?.focus(), 50);
     }
-  }, [sel.kind]);
+  }, [featSel]);
 
-  // ── Toggle helpers ──
-  const toggleMilestone = useCallback((id: string) => {
-    setExpandedMs((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  // ── Handlers ──
+  const selectMilestoneChip = useCallback((id: string) => {
+    setMsSel(id);
+    setFeatSel(null);
+    setTaskSel(null);
+    setNewFeatureTitle("");
   }, []);
 
-  const toggleFeature = useCallback((id: string) => {
-    setExpandedFt((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  const selectFeature = useCallback((id: string) => {
+    setFeatSel(id);
+    setTaskSel(AUTO);
+    setNewFeatureTitle("");
   }, []);
-
-  const selectFeature = useCallback(
-    (featureId: string, milestoneId: string | null) => {
-      setSel({ kind: "feature", featureId, milestoneId });
-      setExpandedFt((prev) => {
-        if (prev.has(featureId)) return prev;
-        const next = new Set(prev);
-        next.add(featureId);
-        return next;
-      });
-    },
-    [],
-  );
 
   // ── Submit handler ──
   const canSubmit =
     title.trim().length > 0 &&
-    !(sel.kind === "newFeature" && !newFeatureTitle.trim());
+    !(featSel === NEWF && !newFeatureTitle.trim());
 
   const handleSubmit = useCallback(async () => {
     const trimmedTitle = title.trim();
     if (!trimmedTitle || isSubmitting) return;
-    if (sel.kind === "newFeature" && !newFeatureTitle.trim()) return;
+    if (featSel === NEWF && !newFeatureTitle.trim()) return;
 
     setIsSubmitting(true);
     setError(null);
@@ -346,23 +324,16 @@ export function WorkloadCreateModal({
         due_date: dueDate,
       };
 
-      switch (sel.kind) {
-        case "inbox":
-          // No feature → goes to inbox
-          break;
-        case "newFeature":
-          payload.new_feature_title = newFeatureTitle.trim();
-          break;
-        case "feature":
-        case "newTask":
-          // No task → server auto-creates one
-          payload.feature_id = sel.featureId;
-          break;
-        case "task":
-          payload.feature_id = sel.featureId;
-          payload.task_id = sel.taskId;
-          break;
+      if (featSel === NEWF) {
+        payload.new_feature_title = newFeatureTitle.trim();
+      } else if (featSel && msSel !== INBOX) {
+        payload.feature_id = featSel;
+        if (taskSel && taskSel !== AUTO) {
+          payload.task_id = taskSel;
+        }
+        // AUTO: no task → server auto-creates one
       }
+      // 미분류/피처 미선택 → no feature → goes to inbox
 
       await boardChecklistAPI.createFromWorkload(boardId, payload);
       onCreated();
@@ -376,7 +347,9 @@ export function WorkloadCreateModal({
   }, [
     title,
     isSubmitting,
-    sel,
+    featSel,
+    msSel,
+    taskSel,
     newFeatureTitle,
     assigneeId,
     contractorId,
@@ -389,8 +362,10 @@ export function WorkloadCreateModal({
   ]);
 
   // ── 부재 저장 (calendarEventAPI) ──
+  const canSubmitAbsence = absTitle.trim().length > 0 && absDays > 0;
+
   const handleSubmitAbsence = useCallback(async () => {
-    const trimmed = title.trim();
+    const trimmed = absTitle.trim();
     if (!trimmed || !assigneeId || isSubmitting) return;
     if (absEnd < absStart) {
       setError(t("common.error", "An error occurred"));
@@ -415,7 +390,7 @@ export function WorkloadCreateModal({
       setIsSubmitting(false);
     }
   }, [
-    title,
+    absTitle,
     assigneeId,
     isSubmitting,
     absStart,
@@ -430,247 +405,18 @@ export function WorkloadCreateModal({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.nativeEvent.isComposing) {
       e.preventDefault();
-      if (tab === "absence") handleSubmitAbsence();
-      else if (canSubmit) handleSubmit();
+      if (tab === "absence") {
+        if (canSubmitAbsence) handleSubmitAbsence();
+      } else if (canSubmit) {
+        handleSubmit();
+      }
     }
   };
 
-  // ── Tree renderers ──────────────────────────────────────────────────────
+  // ── Render helpers ──────────────────────────────────────────────────────
 
-  const renderTaskRow = (
-    task: TaskResponse,
-    featureId: string,
-    milestoneId: string | null,
-  ) => {
-    const selected = activeKey === `task:${task.id}`;
-    return (
-      <button
-        key={task.id}
-        onClick={() =>
-          setSel({ kind: "task", featureId, taskId: task.id, milestoneId })
-        }
-        className={`w-full flex items-center gap-2 pl-10 pr-2 py-1.5 rounded-lg text-xs
-          text-left transition-colors ${
-            selected
-              ? "bg-bridge-accent/15 ring-1 ring-inset ring-bridge-accent/50 text-foreground"
-              : "text-foreground hover:bg-foreground/5"
-          }`}
-      >
-        <span className="flex-1 truncate">{task.title}</span>
-        {task.checklist_total != null && (
-          <span className="shrink-0 text-xs text-slate-500 font-medium">
-            ✓ {task.checklist_completed ?? 0}/{task.checklist_total}
-          </span>
-        )}
-      </button>
-    );
-  };
-
-  const renderFeatureRows = (f: Feature, milestoneId: string | null) => {
-    if (isSearching && !featureMatches(f)) return null;
-    const hasTasks = featureHasTasks(f);
-    const ftTasks = tasksByFeature[f.id] ?? [];
-    const ftOpen = isSearching || expandedFt.has(f.id);
-    const selected = activeKey === `feature:${f.id}`;
-    const newTaskSelected = activeKey === `newTask:${f.id}`;
-    const showAllTasks = !isSearching || f.title.toLowerCase().includes(q);
-    const visibleTasks = showAllTasks
-      ? ftTasks
-      : ftTasks.filter((task) => task.title.toLowerCase().includes(q));
-
-    // 테스크 없는 피쳐: 노출하되 선택 불가 (규칙을 숨기지 않고 보여준다)
-    if (!hasTasks) {
-      return (
-        <div
-          key={`${milestoneId ?? "un"}:${f.id}`}
-          className="flex items-center gap-2 pl-6 pr-2 py-1.5 text-xs opacity-40
-            cursor-not-allowed select-none"
-        >
-          <span
-            className="w-2 h-2 rounded-full shrink-0"
-            style={{ backgroundColor: f.color }}
-          />
-          <span className="flex-1 truncate text-foreground">{f.title}</span>
-          <span className="shrink-0 text-xs text-slate-500">
-            {t("schedule.workloadCreate.noTasks", "테스크 없음")}
-          </span>
-        </div>
-      );
-    }
-
-    return (
-      <div key={`${milestoneId ?? "un"}:${f.id}`}>
-        <div
-          className={`flex items-center gap-1 pl-4 pr-2 py-0.5 rounded-lg transition-colors ${
-            selected
-              ? "bg-bridge-accent/15 ring-1 ring-inset ring-bridge-accent/50"
-              : "hover:bg-foreground/5"
-          }`}
-        >
-          <button
-            onClick={() => toggleFeature(f.id)}
-            aria-label={ftOpen ? "접기" : "펼치기"}
-            className="p-0.5 rounded text-slate-500 hover:text-foreground shrink-0"
-          >
-            <ChevronRight
-              size={12}
-              className={`transition-transform ${ftOpen ? "rotate-90" : ""}`}
-            />
-          </button>
-          <button
-            onClick={() => selectFeature(f.id, milestoneId)}
-            className="flex-1 min-w-0 flex items-center gap-2 py-1 text-xs text-left
-              text-foreground"
-          >
-            <span
-              className="w-2 h-2 rounded-full shrink-0"
-              style={{ backgroundColor: f.color }}
-            />
-            <span className="flex-1 truncate font-medium">{f.title}</span>
-            <span
-              className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full
-                bg-bridge-accent/15 text-bridge-accent"
-            >
-              {ftTasks.length || f.total_tasks}
-            </span>
-          </button>
-        </div>
-
-        {ftOpen && (
-          <div className="relative">
-            <span
-              aria-hidden="true"
-              className="absolute left-[22px] top-0 bottom-0 w-px bg-foreground/[0.08]"
-            />
-            {visibleTasks.map((task) => renderTaskRow(task, f.id, milestoneId))}
-            <button
-              onClick={() =>
-                setSel({ kind: "newTask", featureId: f.id, milestoneId })
-              }
-              className={`w-full flex items-center gap-1.5 pl-10 pr-2 py-1.5 rounded-lg
-                text-xs text-left font-bold transition-colors ${
-                  newTaskSelected
-                    ? "bg-bridge-accent/15 ring-1 ring-inset ring-bridge-accent/50 text-bridge-accent"
-                    : "text-bridge-accent/80 hover:bg-foreground/5 hover:text-bridge-accent"
-                }`}
-            >
-              <Plus size={12} className="shrink-0" />
-              {t("schedule.workloadCreate.newTask", "새 테스크로 추가")}
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderMilestone = (m: Milestone) => {
-    const ftIds = msFeatureIds[m.id];
-    const msFeatures = (ftIds ?? [])
-      .map((id) => featureById[id])
-      .filter((f): f is Feature => !!f);
-    if (isSearching && !msFeatures.some(featureMatches)) return null;
-    const msOpen = isSearching || expandedMs.has(m.id);
-
-    return (
-      <div key={m.id}>
-        <button
-          onClick={() => toggleMilestone(m.id)}
-          className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs
-            text-left text-foreground hover:bg-foreground/5 transition-colors"
-        >
-          <ChevronRight
-            size={12}
-            className={`shrink-0 text-slate-500 transition-transform ${
-              msOpen ? "rotate-90" : ""
-            }`}
-          />
-          <Flag size={11} className="shrink-0 text-bridge-accent" />
-          <span className="flex-1 truncate font-bold">{m.title}</span>
-          <span className="shrink-0 text-xs text-slate-500">
-            {fmtShort(m.start_date)}~{fmtShort(m.end_date)}
-          </span>
-        </button>
-
-        {msOpen && (
-          <div>
-            {ftIds == null ? (
-              <div className="flex items-center gap-2 pl-6 py-1.5 text-xs text-slate-500">
-                <Loader2 size={12} className="animate-spin text-bridge-accent" />
-                {t("common.loading", "Loading...")}
-              </div>
-            ) : msFeatures.length === 0 ? (
-              <p className="pl-6 py-1.5 text-xs text-slate-500">
-                {t(
-                  "schedule.workloadCreate.milestoneEmpty",
-                  "이 마일스톤에 연결된 Feature가 없습니다",
-                )}
-              </p>
-            ) : (
-              msFeatures.map((f) => renderFeatureRows(f, m.id))
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // ── Right panel: destination card ───────────────────────────────────────
-
-  const selFeature =
-    sel.kind === "feature" || sel.kind === "newTask" || sel.kind === "task"
-      ? featureById[sel.featureId]
-      : null;
-  const selMilestone =
-    (sel.kind === "feature" || sel.kind === "newTask" || sel.kind === "task") &&
-    sel.milestoneId
-      ? milestones.find((m) => m.id === sel.milestoneId)
-      : null;
-  const selTask =
-    sel.kind === "task"
-      ? (tasksByFeature[sel.featureId] ?? []).find(
-          (task) => task.id === sel.taskId,
-        )
-      : null;
-
-  const destSentence = (() => {
-    switch (sel.kind) {
-      case "inbox":
-        return t(
-          "schedule.workloadCreate.destInbox",
-          "미분류(인박스)에 추가됩니다 — 나중에 분류할 수 있어요",
-        );
-      case "newFeature":
-        return t(
-          "schedule.workloadCreate.destNewFeature",
-          "새 피쳐가 만들어지고 그 안에 추가됩니다",
-        );
-      case "feature":
-        return t(
-          "schedule.workloadCreate.destFeature",
-          "테스크가 자동 생성되고 그 안에 체크리스트로 담깁니다",
-        );
-      case "newTask":
-        return t(
-          "schedule.workloadCreate.destNewTask",
-          "입력한 제목으로 새 테스크가 생성됩니다",
-        );
-      case "task":
-        return t(
-          "schedule.workloadCreate.destTask",
-          "이 테스크 아래 체크리스트로 추가됩니다",
-        );
-    }
-  })();
-
-  const isTealDest = sel.kind === "inbox" || sel.kind === "newFeature";
-
-  const crumbChip = (label: string, dotColor?: string, icon?: JSX.Element) => (
-    <span
-      className="inline-flex items-center gap-1.5 max-w-[150px] px-2 py-0.5 rounded-full
-        bg-foreground/[0.06] border border-foreground/[0.08] text-xs font-bold
-        text-foreground"
-    >
-      {icon}
+  const crumb = (label: string, dotColor?: string) => (
+    <span className="inline-flex items-center gap-1.5 max-w-[170px] text-xs font-bold text-foreground">
       {dotColor && (
         <span
           className="w-2 h-2 rounded-full shrink-0"
@@ -687,27 +433,172 @@ export function WorkloadCreateModal({
     </span>
   );
 
-  const selChecklist =
-    sel.kind === "task" ? checklistCache[sel.taskId] : undefined;
+  const destBar = () => {
+    const hint = (text: string, accent: string, teal = false) => (
+      <span className="text-xs text-slate-500">
+        —{" "}
+        <span
+          className={`font-bold ${teal ? "text-bridge-secondary" : "text-bridge-accent"}`}
+        >
+          {accent}
+        </span>{" "}
+        {text}
+      </span>
+    );
+
+    let content: JSX.Element;
+    if (msSel === INBOX) {
+      content = (
+        <>
+          {crumb("📥 " + t("schedule.workloadCreate.featureNone", "미분류"))}
+          {hint(
+            t("schedule.workloadCreate.destInboxTail", "됩니다"),
+            t("schedule.workloadCreate.destInbox", "인박스에 추가"),
+            true,
+          )}
+        </>
+      );
+    } else if (featSel === NEWF) {
+      content = (
+        <>
+          {selMilestone && (
+            <>
+              {crumb(selMilestone.title)}
+              {crumbSep}
+            </>
+          )}
+          {crumb(
+            newFeatureTitle.trim() ||
+              t("schedule.workloadCreate.featureNew", "새 Feature 만들기"),
+          )}
+          {hint(
+            t("schedule.workloadCreate.destNewFeatureTail", "되고 그 안에 담깁니다"),
+            t("schedule.workloadCreate.destNewFeature", "새 피처가 생성"),
+            true,
+          )}
+        </>
+      );
+    } else if (!selFeature) {
+      content = (
+        <>
+          {selMilestone && crumb(selMilestone.title)}
+          <span className="text-xs text-slate-500">
+            {t(
+              "schedule.workloadCreate.destPickFeature",
+              "피처 선택 — 지금 추가하면",
+            )}{" "}
+            <span className="font-bold text-bridge-secondary">
+              {t("schedule.workloadCreate.destPickFeatureInbox", "미분류로")}
+            </span>{" "}
+            {t("schedule.workloadCreate.destPickFeatureTail", "들어갑니다")}
+          </span>
+        </>
+      );
+    } else {
+      content = (
+        <>
+          {selMilestone && (
+            <>
+              {crumb(selMilestone.title)}
+              {crumbSep}
+            </>
+          )}
+          {crumb(selFeature.title, selFeature.color)}
+          {crumbSep}
+          {taskSel === AUTO || !selTask ? (
+            <>
+              {crumb("＋ " + t("schedule.workloadCreate.newTaskShort", "새 테스크"))}
+              {hint(
+                t("schedule.workloadCreate.destAutoTail", "됩니다"),
+                t("schedule.workloadCreate.destAuto", "테스크가 자동 생성"),
+              )}
+            </>
+          ) : (
+            <>
+              {crumb(selTask.title)}
+              {hint(
+                t("schedule.workloadCreate.destTaskTail", "됩니다"),
+                t("schedule.workloadCreate.destTask", "체크리스트로 추가"),
+              )}
+            </>
+          )}
+        </>
+      );
+    }
+
+    return (
+      <div
+        className="flex items-center gap-2 flex-wrap border border-foreground/[0.08]
+          rounded-xl bg-foreground/[0.03] px-4 py-2.5"
+      >
+        <span className="text-xs font-bold text-slate-400 shrink-0">
+          {t("schedule.workloadCreate.destination", "추가 위치")}
+        </span>
+        {content}
+        <span className="text-xs text-slate-600 ml-auto shrink-0">
+          {fmtShort(startDate)} ~ {fmtShort(dueDate)}
+        </span>
+      </div>
+    );
+  };
 
   return (
     <MotionModal
       open={open}
       onClose={onClose}
-      className={tab === "absence" ? "w-full sm:max-w-md" : "w-full sm:max-w-3xl"}
+      className="w-full sm:max-w-[720px]"
       accentColor
     >
       {/* Header */}
-      <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+      <div className="flex items-start gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
         <Plus
-          className="w-5 h-5 text-bridge-accent shrink-0"
+          className="w-5 h-5 text-bridge-accent shrink-0 mt-0.5"
           aria-hidden="true"
         />
-        <h2 className="text-sm font-bold text-foreground flex-1">
-          {tab === "absence"
-            ? "부재 추가"
-            : t("schedule.workloadCreate.title", "새 업무 추가")}
-        </h2>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-sm font-bold text-foreground">
+            {tab === "absence"
+              ? "부재 추가"
+              : t("schedule.workloadCreate.title", "새 업무 추가")}
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {tab === "absence"
+              ? "부재 내용과 기간을 입력하세요"
+              : t(
+                  "schedule.workloadCreate.subtitle",
+                  "추가할 위치를 선택하세요",
+                )}
+          </p>
+        </div>
+        {assigneeId && (
+          <div className="flex gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setTab("task")}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                tab === "task"
+                  ? "border-bridge-accent/60 bg-bridge-accent/15 text-foreground"
+                  : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5"
+              }`}
+            >
+              <Plus size={12} /> 업무
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTab("absence");
+                setTimeout(() => absTitleInputRef.current?.focus(), 50);
+              }}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                tab === "absence"
+                  ? "border-bridge-secondary/60 bg-bridge-secondary/15 text-foreground"
+                  : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5"
+              }`}
+            >
+              🚶 부재
+            </button>
+          </div>
+        )}
         <button
           onClick={onClose}
           aria-label={t("common.close", "Close")}
@@ -718,43 +609,93 @@ export function WorkloadCreateModal({
         </button>
       </div>
 
-      {/* 업무 / 부재 탭 — 멤버 행(assigneeId)에서만 노출 */}
-      {assigneeId && (
-        <div className="grid grid-cols-2 gap-1.5 px-5 pt-3 pb-3">
-          <button
-            type="button"
-            onClick={() => setTab("task")}
-            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold border transition-colors ${
-              tab === "task"
-                ? "border-bridge-accent/60 bg-bridge-accent/15 text-foreground"
-                : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5"
-            }`}
-          >
-            <Plus size={13} /> 업무
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("absence")}
-            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold border transition-colors ${
-              tab === "absence"
-                ? "border-bridge-secondary/60 bg-bridge-secondary/15 text-foreground"
-                : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5"
-            }`}
-          >
-            🚶 부재
-          </button>
-        </div>
-      )}
-
       {tab === "absence" ? (
-        <div className="px-5 pb-5 pt-1 space-y-4">
-          {/* 대상 멤버 */}
+        /* ── 부재 pane ── */
+        <div className="px-5 pt-4 pb-5 flex flex-col gap-4 sm:min-h-[440px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* 대상 멤버 */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
+                대상 멤버
+              </label>
+              <div
+                className="flex items-center gap-2.5 px-3 py-2 bg-foreground/[0.03]
+                  border border-foreground/10 rounded-xl"
+              >
+                <span
+                  className="w-8 h-8 rounded-full shrink-0 bg-bridge-secondary/15
+                    text-bridge-secondary text-xs font-bold flex items-center justify-center"
+                >
+                  {(assigneeName || "?").slice(0, 1)}
+                </span>
+                <span className="text-xs font-bold text-foreground truncate">
+                  {assigneeName || "이 멤버"}
+                </span>
+              </div>
+            </div>
+
+            {/* 기간 */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
+                기간
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={absStart}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setAbsStart(v);
+                    if (absEnd < v) setAbsEnd(v);
+                  }}
+                  className="flex-1 min-w-0 bg-foreground/[0.03] border border-foreground/10
+                    rounded-xl py-2 px-3 text-xs text-foreground focus:outline-none
+                    focus:ring-2 focus:ring-bridge-secondary/50 transition-all [color-scheme:dark]"
+                />
+                <span className="text-slate-500 text-xs">~</span>
+                <input
+                  type="date"
+                  value={absEnd}
+                  min={absStart}
+                  onChange={(e) => setAbsEnd(e.target.value)}
+                  className="flex-1 min-w-0 bg-foreground/[0.03] border border-foreground/10
+                    rounded-xl py-2 px-3 text-xs text-foreground focus:outline-none
+                    focus:ring-2 focus:ring-bridge-secondary/50 transition-all [color-scheme:dark]"
+                />
+                <span
+                  className="shrink-0 text-xs font-bold px-2 py-1 rounded-full
+                    bg-bridge-secondary/15 text-bridge-secondary"
+                >
+                  {absDays > 0 ? `${absDays}일` : "—"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 빠른 선택 */}
           <div>
             <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
-              대상 멤버
+              빠른 선택
             </label>
-            <div className="w-full px-3 py-2.5 bg-foreground/[0.03] border border-foreground/10 rounded-xl text-xs text-foreground">
-              {assigneeName || "이 멤버"}
+            <div className="flex flex-wrap gap-2">
+              {ABSENCE_PRESETS.map((preset) => {
+                const label = preset.replace(/^\S+\s/, "");
+                const active = absTitle.trim() === label;
+                return (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setAbsTitle(label)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors ${
+                      active
+                        ? "border-bridge-secondary/60 bg-bridge-secondary/15 text-bridge-secondary"
+                        : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5 hover:text-foreground"
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -764,388 +705,489 @@ export function WorkloadCreateModal({
               내용
             </label>
             <input
-              ref={titleInputRef}
+              ref={absTitleInputRef}
               type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={absTitle}
+              onChange={(e) => setAbsTitle(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="예: 부산 출장 · 오전 반차 · 재택"
               className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl
                 py-3 px-4 text-foreground placeholder-slate-500
-                focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                focus:outline-none focus:ring-2 focus:ring-bridge-secondary/50 transition-all"
             />
             <p className="text-xs text-slate-500 mt-1.5">
-              바에 이 텍스트가 표시됩니다
+              워크로드 바에 이 텍스트가 표시됩니다
             </p>
           </div>
 
-          {/* 기간 */}
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
-              기간
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={absStart}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setAbsStart(v);
-                  if (absEnd < v) setAbsEnd(v);
-                }}
-                className="flex-1 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
-              />
-              <span className="text-slate-500 text-sm">~</span>
-              <input
-                type="date"
-                value={absEnd}
-                min={absStart}
-                onChange={(e) => setAbsEnd(e.target.value)}
-                className="flex-1 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
-              />
-            </div>
+          <div className="flex-1" />
+
+          {/* 부재 표시 요약 바 */}
+          <div
+            className="flex items-center gap-2 flex-wrap border border-bridge-secondary/30
+              rounded-xl bg-bridge-secondary/[0.06] px-4 py-2.5"
+          >
+            <span className="text-xs font-bold text-slate-400 shrink-0">
+              부재 표시
+            </span>
+            {crumb("🚶 " + (assigneeName || "이 멤버"))}
+            {crumbSep}
+            <span
+              className={`text-xs font-bold truncate max-w-[170px] ${
+                absTitle.trim() ? "text-foreground" : "text-slate-500"
+              }`}
+            >
+              {absTitle.trim() || "내용 입력"}
+            </span>
+            {crumbSep}
+            {crumb(`${fmtShort(absStart)} ~ ${fmtShort(absEnd)}`)}
+            <span className="text-xs text-slate-500">
+              {absDays > 0 ? (
+                <>
+                  —{" "}
+                  <span className="font-bold text-bridge-secondary">
+                    {absDays}일간 부재
+                  </span>
+                  로 표시됩니다
+                </>
+              ) : (
+                "— 종료일이 시작일보다 빠릅니다"
+              )}
+            </span>
           </div>
 
           {error && <p className="text-xs text-red-400">{error}</p>}
         </div>
       ) : (
-        <div
-          className={`flex flex-col sm:flex-row sm:h-[440px] ${
-            assigneeId ? "border-t border-foreground/[0.08]" : ""
-          }`}
-        >
-          {/* ── Left: hierarchy tree ── */}
-          <div
-            className="sm:w-[300px] sm:shrink-0 flex flex-col bg-foreground/[0.02]
-              border-b sm:border-b-0 sm:border-r border-foreground/[0.08]"
-          >
-            {/* 검색 */}
-            <div className="p-3 pb-2">
-              <div className="relative">
-                <Search
-                  size={13}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-                  aria-hidden="true"
-                />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={t(
-                    "schedule.workloadCreate.search",
-                    "피쳐·테스크 검색",
-                  )}
-                  className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-lg
-                    py-2 pl-8 pr-3 text-xs text-foreground placeholder-slate-500
-                    focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-                />
-              </div>
-            </div>
-
-            {/* 트리 */}
-            <div
-              role="tree"
-              aria-label={t("schedule.workloadCreate.treeLabel", "추가 위치 선택")}
-              className="flex-1 overflow-y-auto custom-scrollbar px-2 pb-3 space-y-0.5
-                max-h-[240px] sm:max-h-none"
-            >
-              {/* 미분류 (보드당 1개, 마일스톤 밖 전역) */}
+        /* ── 업무 pane ── */
+        <div className="px-5 pt-4 pb-5 flex flex-col gap-4 sm:min-h-[440px]">
+          {/* 마일스톤 칩 */}
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-2">
+              {t("schedule.workloadCreate.milestoneLabel", "마일스톤")}
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {/* 미분류 (보드 전역 인박스) */}
               <button
-                onClick={() => setSel({ kind: "inbox" })}
-                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs
-                  font-bold text-left transition-colors ${
-                    activeKey === "inbox"
-                      ? "bg-bridge-secondary/15 ring-1 ring-inset ring-bridge-secondary/50 text-bridge-secondary"
-                      : "text-bridge-secondary/80 hover:bg-foreground/5 hover:text-bridge-secondary"
-                  }`}
+                type="button"
+                onClick={() => selectMilestoneChip(INBOX)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                  msSel === INBOX
+                    ? "border-bridge-secondary/60 bg-bridge-secondary/15 text-bridge-secondary"
+                    : "border-dashed border-bridge-secondary/30 bg-foreground/[0.03] text-bridge-secondary/70 hover:text-bridge-secondary hover:bg-foreground/5"
+                }`}
               >
-                <Inbox size={13} className="shrink-0" />
-                {t("schedule.workloadCreate.inboxNode", "미분류에 바로 추가")}
+                📥 {t("schedule.workloadCreate.featureNone", "미분류")}
               </button>
 
-              {isLoadingTasks && !msLoaded ? (
-                <div className="flex items-center justify-center gap-2 py-6 text-xs text-slate-500">
-                  <Loader2
-                    size={14}
-                    className="animate-spin text-bridge-accent"
-                  />
-                  {t("common.loading", "Loading...")}
-                </div>
-              ) : (
-                <>
-                  {milestones.map(renderMilestone)}
+              {milestones.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => selectMilestoneChip(m.id)}
+                  title={`${m.start_date} ~ ${m.end_date}`}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                    msSel === m.id
+                      ? "border-bridge-accent bg-bridge-accent text-white"
+                      : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                  }`}
+                >
+                  {m.title}
+                </button>
+              ))}
 
-                  {/* 마일스톤 미연결 피쳐 */}
-                  {unlinkedFeatures.length > 0 && (
-                    <div>
-                      <p className="px-2 pt-2 pb-1 text-xs font-bold uppercase tracking-widest text-slate-500">
+              {showUnlinkedChip && (
+                <button
+                  type="button"
+                  onClick={() => selectMilestoneChip(UNLINKED)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                    msSel === UNLINKED
+                      ? "border-bridge-accent bg-bridge-accent text-white"
+                      : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                  }`}
+                >
+                  {t("schedule.workloadCreate.unlinked", "미연결")}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 피처 / Task 2열 */}
+          <div
+            className="flex flex-col sm:flex-row border border-foreground/[0.08] rounded-xl
+              overflow-hidden sm:h-[264px] bg-foreground/[0.02]"
+          >
+            {/* 피처 열 */}
+            <div
+              className="sm:w-[45%] sm:shrink-0 flex flex-col min-w-0
+                border-b sm:border-b-0 sm:border-r border-foreground/[0.08]"
+            >
+              <div
+                className="flex items-center justify-between px-4 py-2.5
+                  border-b border-foreground/[0.08]"
+              >
+                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                  {t("schedule.workloadCreate.featureCol", "피처")}
+                </span>
+                <span className="text-xs font-bold text-slate-500">
+                  {visibleFeatures?.length ?? ""}
+                </span>
+              </div>
+              <div className="flex-1 overflow-y-auto custom-scrollbar max-h-[180px] sm:max-h-none">
+                {msSel === INBOX ? (
+                  <p className="px-4 py-4 text-xs text-slate-500 leading-relaxed">
+                    <span className="font-bold text-foreground">
+                      📥 미분류(인박스)
+                    </span>
+                    에 바로 추가합니다.
+                    <br />
+                    피처 없이 제목만 입력하면 되고, 나중에 보드에서 분류할 수
+                    있어요.
+                  </p>
+                ) : visibleFeatures == null || (isLoadingTasks && !msLoaded) ? (
+                  <div className="flex items-center gap-2 px-4 py-3 text-xs text-slate-500">
+                    <Loader2
+                      size={13}
+                      className="animate-spin text-bridge-accent"
+                    />
+                    {t("common.loading", "Loading...")}
+                  </div>
+                ) : (
+                  <>
+                    {visibleFeatures.length === 0 && (
+                      <p className="px-4 py-3 text-xs text-slate-500">
                         {t(
-                          "schedule.workloadCreate.unlinked",
-                          "마일스톤 미연결",
+                          "schedule.workloadCreate.milestoneEmpty",
+                          "이 마일스톤에 연결된 Feature가 없습니다",
                         )}
                       </p>
-                      {unlinkedFeatures.map((f) => renderFeatureRows(f, null))}
-                    </div>
-                  )}
-
-                  {/* 새 피쳐 만들기 */}
-                  {!isSearching && (
+                    )}
+                    {visibleFeatures.map((f) => {
+                      const count =
+                        tasksByFeature[f.id]?.length ?? f.total_tasks;
+                      const hasTasks = count > 0;
+                      const selected = featSel === f.id;
+                      if (!hasTasks) {
+                        return (
+                          <div
+                            key={f.id}
+                            className="flex items-center gap-2.5 px-4 py-2.5 text-xs
+                              opacity-40 cursor-not-allowed select-none
+                              border-l-2 border-transparent"
+                          >
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: f.color }}
+                            />
+                            <span className="flex-1 truncate text-foreground font-medium">
+                              {f.title}
+                            </span>
+                            <span className="shrink-0 text-xs text-slate-500">
+                              {t("schedule.workloadCreate.noTasks", "없음")}
+                            </span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <button
+                          key={f.id}
+                          onClick={() => selectFeature(f.id)}
+                          className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs
+                            text-left transition-colors border-l-2 ${
+                              selected
+                                ? "border-bridge-accent bg-bridge-accent/10"
+                                : "border-transparent hover:bg-foreground/5"
+                            }`}
+                        >
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: f.color }}
+                          />
+                          <span className="flex-1 truncate text-foreground font-medium">
+                            {f.title}
+                          </span>
+                          <span
+                            className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full
+                              bg-foreground/[0.06] text-slate-400"
+                          >
+                            {count}
+                          </span>
+                          <span
+                            className="shrink-0 text-slate-500 text-xs"
+                            aria-hidden="true"
+                          >
+                            ›
+                          </span>
+                        </button>
+                      );
+                    })}
+                    {/* 새 Feature 만들기 */}
                     <button
-                      onClick={() => setSel({ kind: "newFeature" })}
-                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg
-                        text-xs font-bold text-left transition-colors ${
-                          activeKey === "newFeature"
-                            ? "bg-bridge-secondary/15 ring-1 ring-inset ring-bridge-secondary/50 text-bridge-secondary"
-                            : "text-bridge-secondary/80 hover:bg-foreground/5 hover:text-bridge-secondary"
+                      onClick={() => {
+                        setFeatSel(NEWF);
+                        setTaskSel(null);
+                      }}
+                      className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs
+                        font-bold text-left transition-colors border-l-2 ${
+                          featSel === NEWF
+                            ? "border-bridge-secondary bg-bridge-secondary/10 text-bridge-secondary"
+                            : "border-transparent text-bridge-secondary/80 hover:bg-foreground/5 hover:text-bridge-secondary"
                         }`}
                     >
-                      <Plus size={13} className="shrink-0" />
+                      <Plus size={12} className="shrink-0" />
                       {t(
                         "schedule.workloadCreate.featureNew",
                         "새 Feature 만들기",
                       )}
                     </button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* ── Right: form ── */}
-          <div className="flex-1 min-w-0 flex flex-col gap-4 p-5 overflow-y-auto custom-scrollbar">
-            {/* 추가 위치 */}
-            <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
-                {t("schedule.workloadCreate.destination", "추가 위치")}
-              </label>
-              <div
-                className={`rounded-xl border p-3 ${
-                  isTealDest
-                    ? "border-bridge-secondary/40 bg-bridge-secondary/10"
-                    : "border-bridge-accent/40 bg-bridge-accent/10"
-                }`}
-              >
-                <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
-                  {sel.kind === "inbox" &&
-                    crumbChip(
-                      t("schedule.workloadCreate.featureNone", "미분류"),
-                      undefined,
-                      <Inbox
-                        size={11}
-                        className="shrink-0 text-bridge-secondary"
-                      />,
-                    )}
-                  {sel.kind === "newFeature" &&
-                    crumbChip(
-                      newFeatureTitle.trim() ||
-                        t(
-                          "schedule.workloadCreate.featureNew",
-                          "새 Feature 만들기",
-                        ),
-                      undefined,
-                      <Plus
-                        size={11}
-                        className="shrink-0 text-bridge-secondary"
-                      />,
-                    )}
-                  {selMilestone && (
-                    <>
-                      {crumbChip(
-                        selMilestone.title,
-                        undefined,
-                        <Flag
-                          size={11}
-                          className="shrink-0 text-bridge-accent"
-                        />,
-                      )}
-                      {crumbSep}
-                    </>
-                  )}
-                  {selFeature && crumbChip(selFeature.title, selFeature.color)}
-                  {sel.kind === "task" && selTask && (
-                    <>
-                      {crumbSep}
-                      {crumbChip(selTask.title)}
-                    </>
-                  )}
-                  {sel.kind === "newTask" && (
-                    <>
-                      {crumbSep}
-                      {crumbChip(
-                        t("schedule.workloadCreate.newTask", "새 테스크로 추가"),
-                        undefined,
-                        <Plus
-                          size={11}
-                          className="shrink-0 text-bridge-accent"
-                        />,
-                      )}
-                    </>
-                  )}
-                </div>
-                <p className="text-xs text-slate-400">{destSentence}</p>
-                <p className="text-xs text-slate-500 mt-1">
-                  {startDate} ~ {dueDate}
-                </p>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* 체크리스트 미리보기 (테스크 선택 시) */}
-            {sel.kind === "task" && (
-              <div>
-                <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
-                  {t(
-                    "schedule.workloadCreate.checklistPreview",
-                    "체크리스트 미리보기",
-                  )}
-                </label>
-                <div
-                  className="rounded-xl border border-foreground/[0.08] max-h-[140px]
-                    overflow-y-auto custom-scrollbar divide-y divide-foreground/[0.06]"
-                >
-                  {isLoadingChecklist && !selChecklist ? (
-                    <div className="flex items-center gap-2 px-3 py-2.5 text-xs text-slate-500">
-                      <Loader2
-                        size={13}
-                        className="animate-spin text-bridge-accent"
-                      />
-                      {t("common.loading", "Loading...")}
-                    </div>
-                  ) : (
-                    <>
-                      {(selChecklist ?? []).map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-2.5 px-3 py-2 text-xs"
-                        >
-                          <span
-                            className={`w-3.5 h-3.5 rounded shrink-0 border flex items-center
-                              justify-center ${
-                                item.completed
-                                  ? "bg-bridge-accent border-bridge-accent"
-                                  : "border-foreground/20"
-                              }`}
+            {/* Task 열 */}
+            <div className="flex-1 flex flex-col min-w-0">
+              <div className="px-4 py-2.5 border-b border-foreground/[0.08]">
+                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                  Task
+                </span>
+              </div>
+              <div className="flex-1 overflow-y-auto custom-scrollbar max-h-[200px] sm:max-h-none">
+                {msSel === INBOX ? (
+                  <p className="px-4 py-4 text-xs text-slate-500">
+                    미분류는 Task 선택 없이 바로 추가됩니다
+                  </p>
+                ) : featSel === NEWF ? (
+                  <div className="px-4 py-4">
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      <span className="font-bold text-foreground">
+                        새 Feature
+                      </span>
+                      가 만들어지고 그 안에 추가됩니다.
+                    </p>
+                    <input
+                      ref={newFeatureInputRef}
+                      type="text"
+                      value={newFeatureTitle}
+                      onChange={(e) => setNewFeatureTitle(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder={t(
+                        "schedule.workloadCreate.newFeaturePlaceholder",
+                        "새 Feature 이름",
+                      )}
+                      className="mt-3 w-full bg-foreground/[0.03] border border-foreground/10
+                        rounded-xl py-2.5 px-3.5 text-xs text-foreground placeholder-slate-500
+                        focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                    />
+                  </div>
+                ) : !selFeature ? (
+                  <p className="px-4 py-4 text-xs text-slate-500">
+                    {t(
+                      "schedule.workloadCreate.pickFeature",
+                      "피처를 선택하세요",
+                    )}
+                  </p>
+                ) : (
+                  <>
+                    {/* 새 테스크 (자동 생성) — 기본 선택 */}
+                    <button
+                      onClick={() => setTaskSel(AUTO)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-xs
+                        text-left hover:bg-foreground/5 transition-colors"
+                    >
+                      <span className="flex-1 truncate font-bold text-bridge-accent">
+                        ＋{" "}
+                        {t(
+                          "schedule.workloadCreate.autoTask",
+                          "새 테스크 (자동 생성)",
+                        )}
+                      </span>
+                      <span
+                        className={`w-[18px] h-[18px] rounded-full shrink-0 border-[1.5px]
+                          flex items-center justify-center transition-colors ${
+                            taskSel === AUTO
+                              ? "border-bridge-accent bg-bridge-accent"
+                              : "border-foreground/20"
+                          }`}
+                      >
+                        {taskSel === AUTO && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                        )}
+                      </span>
+                    </button>
+
+                    {selFeatureTasks.map((task) => {
+                      const selected = taskSel === task.id;
+                      return (
+                        <div key={task.id}>
+                          <button
+                            onClick={() => setTaskSel(task.id)}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-xs
+                              text-left hover:bg-foreground/5 transition-colors"
                           >
-                            {item.completed && (
-                              <Check size={9} className="text-white" />
+                            <span className="flex-1 truncate text-foreground">
+                              {task.title}
+                            </span>
+                            {task.checklist_total != null && (
+                              <span className="shrink-0 text-xs text-slate-500 font-medium">
+                                ✓ {task.checklist_completed ?? 0}/
+                                {task.checklist_total}
+                              </span>
                             )}
-                          </span>
-                          <span
-                            className={`flex-1 truncate ${
-                              item.completed
-                                ? "line-through text-slate-500"
-                                : "text-slate-400"
-                            }`}
-                          >
-                            {item.title}
-                          </span>
-                        </div>
-                      ))}
-                      {selChecklist && selChecklist.length === 0 && (
-                        <p className="px-3 py-2 text-xs text-slate-500">
-                          {t(
-                            "schedule.workloadCreate.checklistEmpty",
-                            "아직 체크리스트가 없습니다",
-                          )}
-                        </p>
-                      )}
-                      {/* 새 항목이 붙을 자리 */}
-                      <div className="flex items-center gap-2.5 px-3 py-2 text-xs">
-                        <span
-                          className="w-3.5 h-3.5 rounded shrink-0 border border-dashed
-                            border-bridge-accent/60"
-                        />
-                        <span className="flex-1 truncate font-bold text-bridge-accent">
-                          {title.trim()
-                            ? `＋ ${title.trim()}`
-                            : t(
-                                "schedule.workloadCreate.checklistGhost",
-                                "＋ 여기에 새 항목이 추가됩니다",
+                            <span
+                              className={`w-[18px] h-[18px] rounded-full shrink-0 border-[1.5px]
+                                flex items-center justify-center transition-colors ${
+                                  selected
+                                    ? "border-bridge-accent bg-bridge-accent"
+                                    : "border-foreground/20"
+                                }`}
+                            >
+                              {selected && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-white" />
                               )}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </div>
+                            </span>
+                          </button>
+
+                          {/* 선택된 테스크 아래 체크리스트 미리보기 */}
+                          {selected && (
+                            <div
+                              className="mx-4 mb-2 border border-foreground/[0.08] rounded-lg
+                                overflow-hidden divide-y divide-foreground/[0.06]"
+                            >
+                              {isLoadingChecklist &&
+                              !checklistCache[task.id] ? (
+                                <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-500">
+                                  <Loader2
+                                    size={12}
+                                    className="animate-spin text-bridge-accent"
+                                  />
+                                  {t("common.loading", "Loading...")}
+                                </div>
+                              ) : (
+                                <>
+                                  {(checklistCache[task.id] ?? []).map(
+                                    (item) => (
+                                      <div
+                                        key={item.id}
+                                        className="flex items-center gap-2 px-3 py-1.5 text-xs"
+                                      >
+                                        <span
+                                          className={`w-3 h-3 rounded shrink-0 border flex
+                                            items-center justify-center ${
+                                              item.completed
+                                                ? "bg-bridge-accent border-bridge-accent"
+                                                : "border-foreground/20"
+                                            }`}
+                                        >
+                                          {item.completed && (
+                                            <Check
+                                              size={8}
+                                              className="text-white"
+                                            />
+                                          )}
+                                        </span>
+                                        <span
+                                          className={`flex-1 truncate ${
+                                            item.completed
+                                              ? "line-through text-slate-500"
+                                              : "text-slate-400"
+                                          }`}
+                                        >
+                                          {item.title}
+                                        </span>
+                                      </div>
+                                    ),
+                                  )}
+                                  {checklistCache[task.id]?.length === 0 && (
+                                    <p className="px-3 py-1.5 text-xs text-slate-500">
+                                      아직 체크리스트가 없습니다
+                                    </p>
+                                  )}
+                                  {/* 새 항목이 붙을 자리 */}
+                                  <div className="flex items-center gap-2 px-3 py-1.5 text-xs">
+                                    <span
+                                      className="w-3 h-3 rounded shrink-0 border border-dashed
+                                        border-bridge-accent/60"
+                                    />
+                                    <span className="flex-1 truncate font-bold text-bridge-accent">
+                                      {title.trim()
+                                        ? `＋ ${title.trim()}`
+                                        : "＋ 여기에 새 항목이 추가됩니다"}
+                                    </span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
               </div>
-            )}
-
-            <div className="flex-1" />
-
-            {/* 새 피쳐 제목 (새 피쳐 선택 시) */}
-            {sel.kind === "newFeature" && (
-              <div>
-                <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
-                  {t("schedule.workloadCreate.newFeatureTitle", "피쳐 이름")}
-                </label>
-                <input
-                  ref={newFeatureInputRef}
-                  type="text"
-                  value={newFeatureTitle}
-                  onChange={(e) => setNewFeatureTitle(e.target.value)}
-                  placeholder={t(
-                    "schedule.workloadCreate.featureNew",
-                    "새 Feature 만들기",
-                  )}
-                  className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl
-                    py-3 px-4 text-foreground placeholder-slate-500
-                    focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-                />
-              </div>
-            )}
-
-            {/* Title input */}
-            <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1.5">
-                {sel.kind === "task"
-                  ? t(
-                      "schedule.workloadCreate.checklistItemTitle",
-                      "체크리스트 항목",
-                    )
-                  : t("schedule.panel.itemTitle", "Item title")}
-              </label>
-              <input
-                ref={titleInputRef}
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={
-                  sel.kind === "task"
-                    ? t(
-                        "schedule.workloadCreate.checklistPlaceholder",
-                        "체크리스트 항목을 입력하세요",
-                      )
-                    : t(
-                        "schedule.workloadCreate.titlePlaceholder",
-                        "업무 제목을 입력하세요",
-                      )
-                }
-                className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl
-                  py-3 px-4 text-foreground placeholder-slate-500
-                  focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-              />
             </div>
-
-            {/* Error */}
-            {error && <p className="text-xs text-red-400">{error}</p>}
           </div>
+
+          {/* Title input */}
+          <input
+            ref={titleInputRef}
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              selTask
+                ? t(
+                    "schedule.workloadCreate.checklistPlaceholder",
+                    "체크리스트 항목을 입력하세요",
+                  )
+                : taskSel === AUTO
+                  ? t(
+                      "schedule.workloadCreate.autoTaskPlaceholder",
+                      "새 테스크 제목을 입력하세요",
+                    )
+                  : t(
+                      "schedule.workloadCreate.titlePlaceholder",
+                      "업무 제목을 입력하세요",
+                    )
+            }
+            className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl
+              py-3 px-4 text-foreground placeholder-slate-500
+              focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+          />
+
+          {/* 추가 위치 요약 바 */}
+          {destBar()}
+
+          {/* Error */}
+          {error && <p className="text-xs text-red-400">{error}</p>}
         </div>
       )}
 
       {/* Footer */}
-      <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-xs text-slate-500">
+      <div className="flex items-center gap-2.5 px-5 py-3 border-t border-foreground/[0.08]">
+        <span className="text-xs text-slate-500 flex-1">
           Esc {t("schedule.workloadCreate.cancel", "취소")}
         </span>
         <button
+          onClick={onClose}
+          className="px-4 py-2 rounded-xl text-xs font-bold text-foreground
+            bg-foreground/5 border border-foreground/10 hover:bg-foreground/10 transition-all"
+        >
+          {t("schedule.workloadCreate.cancel", "취소")}
+        </button>
+        <button
           onClick={tab === "absence" ? handleSubmitAbsence : handleSubmit}
           disabled={
-            (tab === "absence" ? title.trim().length === 0 : !canSubmit) ||
+            (tab === "absence" ? !canSubmitAbsence : !canSubmit) ||
             isSubmitting
           }
-          className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-bridge-accent
-            disabled:opacity-50 disabled:cursor-not-allowed
-            hover:bg-bridge-accent/90 transition-all"
+          className={`px-5 py-2 rounded-xl text-xs font-bold text-white
+            disabled:opacity-50 disabled:cursor-not-allowed transition-all ${
+              tab === "absence"
+                ? "bg-bridge-secondary hover:bg-bridge-secondary/90"
+                : "bg-bridge-accent hover:bg-bridge-accent/90"
+            }`}
         >
           {isSubmitting ? (
             <Loader2 className="w-4 h-4 animate-spin" />
