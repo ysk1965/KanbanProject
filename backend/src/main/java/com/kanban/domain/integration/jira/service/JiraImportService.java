@@ -518,6 +518,9 @@ public class JiraImportService {
         ChecklistItem owned = JiraAssigneeChecklist.findOwned(checklistItemRepository, task.getId(), link);
 
         if (owned == null) {
+            // 사람이 담당 항목을 지운 카드는 되살리지 않는다 — 지워도 담당자 변경마다 부활하던 구멍.
+            // (접두사 항목을 직접 다시 만들면 findOwned가 입양하면서 이 기록을 걷는다)
+            if (link.isAssigneeItemDetached()) return;
             // 해석되지 않는 담당자 하나 때문에 담당자 없는 빈 항목을 만들지는 않는다(생성 경로와 같은 규칙).
             if (resolved != null) createAssigneeChecklist(task, link, resolved, issue.assigneeDisplayName());
             return;

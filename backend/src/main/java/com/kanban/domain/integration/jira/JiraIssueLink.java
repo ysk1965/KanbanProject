@@ -103,6 +103,17 @@ public class JiraIssueLink {
     @Column(name = "jira_assignee_item_id", length = 36)
     private String jiraAssigneeItemId;
 
+    /**
+     * 표식된 담당 항목이 <b>사람 손으로 사라진</b> 시각(항목 삭제·다른 카드로 이동).
+     *
+     * <p>표식만 걷어 내면 "원래 없음"과 "지웠음"이 구분되지 않아, 다음 JIRA 담당자 변경이
+     * 지운 항목을 도로 만들어 낸다(실제로 그렇게 됐다 — 지워도 폴링마다 부활). non-null이면
+     * 동기화는 담당 항목을 새로 만들지 않고 관측만 한다. 사람이 "담당: " 접두사 항목을
+     * 직접 만들면 그 항목을 입양하면서 이 기록을 지운다 — 재생성으로 돌아오는 길이다.
+     */
+    @Column(name = "assignee_item_detached_at")
+    private LocalDateTime assigneeItemDetachedAt;
+
     @Column(name = "last_imported_at", nullable = false)
     private LocalDateTime lastImportedAt;
 
@@ -186,9 +197,27 @@ public class JiraIssueLink {
         this.assigneeSyncedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
-    /** 담당자를 대표하는 항목을 지정/해제. 제목이 아니라 이 값이 소유권이다. */
+    /**
+     * 담당자를 대표하는 항목을 지정. 제목이 아니라 이 값이 소유권이다.
+     * 새 항목이 이어지면 "지웠음" 기록도 함께 걷는다 — 사람이 항목을 되살렸다는 뜻이므로.
+     */
     public void linkAssigneeItem(String checklistItemId) {
         this.jiraAssigneeItemId = checklistItemId;
+        if (checklistItemId != null) this.assigneeItemDetachedAt = null;
+    }
+
+    /**
+     * 표식된 담당 항목이 사람 손으로 사라졌음을 기록(항목 삭제·다른 카드로 이동).
+     * 표식은 걷되 시각을 남겨, 이후 JIRA 담당자가 바뀌어도 항목을 재생성하지 않게 한다.
+     */
+    public void markAssigneeItemDetached() {
+        this.jiraAssigneeItemId = null;
+        this.assigneeItemDetachedAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    /** 사람이 담당 항목을 지운 카드인지 — 그렇다면 동기화는 항목을 다시 만들지 않는다. */
+    public boolean isAssigneeItemDetached() {
+        return this.assigneeItemDetachedAt != null;
     }
 
     /** 담당자 기준선이 아직 없음 — 이번 관측은 기록만 하고 카드는 그대로 둔다. */

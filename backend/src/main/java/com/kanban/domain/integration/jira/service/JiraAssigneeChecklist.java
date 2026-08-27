@@ -37,19 +37,20 @@ final class JiraAssigneeChecklist {
     /**
      * 이 카드에서 담당자를 대표하는 항목. 원장 표식이 우선이고, 없을 때만 접두사로 찾는다.
      * 접두사로 찾아낸 경우 그 자리에서 원장에 표식을 심어, 다음부터는 제목이 바뀌어도 따라간다.
+     *
+     * <p>표식된 항목이 사라졌으면(삭제·다른 카드로 이동) 사람이 그렇게 한 것이다. 표식만 걷으면
+     * "원래 없음"과 구분되지 않아 다음 담당자 변경이 지운 항목을 도로 만들었다 — 그래서 걷는 대신
+     * <b>떼어냄으로 기록</b>한다({@link JiraIssueLink#markAssigneeItemDetached()}). 그 기록은
+     * 사람이 접두사 항목을 직접 되살려 여기 입양될 때 함께 지워진다.
      */
     static ChecklistItem findOwned(ChecklistItemRepository repository, String taskId, JiraIssueLink link) {
         String markedId = link.getJiraAssigneeItemId();
         if (markedId != null) {
             ChecklistItem marked = repository.findById(markedId).orElse(null);
-            // 지워졌으면 표식을 걷어 낸다 — 남겨 두면 영영 없는 항목을 가리킨다.
-            if (marked == null) {
-                link.linkAssigneeItem(null);
-            } else if (marked.getTask() != null && taskId.equals(marked.getTask().getId())) {
+            if (marked != null && marked.getTask() != null && taskId.equals(marked.getTask().getId())) {
                 return marked;
-            } else {
-                link.linkAssigneeItem(null);   // 다른 카드로 옮겨 감
             }
+            link.markAssigneeItemDetached();   // 지워졌거나 다른 카드로 옮겨 감 — 사람의 손
         }
 
         ChecklistItem byPrefix = repository.findByTaskIdOrderByPositionAsc(taskId).stream()
