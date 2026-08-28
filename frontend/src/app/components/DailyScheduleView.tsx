@@ -803,45 +803,6 @@ export function DailyScheduleView({
     loadSchedule();
   };
 
-  // 새 체크리스트 아이템 생성 후 블록 생성
-  const handleChecklistCreate = async (taskId: string, title: string) => {
-    if (!pendingBlock) return;
-
-    try {
-      const dateStr = format(selectedDate, "yyyy-MM-dd");
-      const segments = pendingBlock.splitBlocks || [
-        { startTime: pendingBlock.startTime, endTime: pendingBlock.endTime },
-      ];
-
-      // 첫 세그먼트: createWithChecklistItem → checklist_item.id 획득
-      const result = await scheduleAPI.createWithChecklistItem(boardId, {
-        assignee_id: pendingBlock.userId,
-        scheduled_date: dateStr,
-        start_time: segments[0].startTime,
-        end_time: segments[0].endTime,
-        checklist_item: {
-          task_id: taskId,
-          title: title,
-        },
-      });
-      // 나머지 세그먼트: 같은 checklist_item_id로 블록 생성
-      for (let i = 1; i < segments.length; i++) {
-        await scheduleAPI.createBlock(boardId, {
-          checklist_item_id: result.checklist_item!.id,
-          assignee_id: pendingBlock.userId,
-          scheduled_date: dateStr,
-          start_time: segments[i].startTime,
-          end_time: segments[i].endTime,
-        });
-      }
-      await loadSchedule();
-    } catch (error) {
-      console.error("Failed to create block with new checklist item:", error);
-    }
-    setShowChecklistModal(false);
-    setPendingBlock(null);
-  };
-
   // 기존 체크리스트 아이템 선택 후 블록 생성
   const handleChecklistItemSelect = async (checklistItemId: string) => {
     if (!pendingBlock) return;
@@ -2555,7 +2516,6 @@ export function DailyScheduleView({
           startBlockIndex={pendingBlock.startSlotIndex}
           endBlockIndex={pendingBlock.endSlotIndex}
           splitBlocks={pendingBlock.splitBlocks}
-          onCreate={handleChecklistCreate}
           onSelectExisting={handleChecklistItemSelect}
           onSelectBoardItem={handleBoardChecklistItemSelect}
           onSelectMeeting={handleMeetingSelect}

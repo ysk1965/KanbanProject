@@ -436,6 +436,62 @@ export interface MindMapDocument {
 }
 
 // ========================================
+// 마인드맵 외부 공유 타입 (보드당 1건 — 읽기 전용 공개 링크)
+// ========================================
+
+export interface MindMapShareSettings {
+  enabled: boolean;
+  /** 공개 링크 코드 (base62). 공유를 켠 적 없으면 null */
+  share_code: string | null;
+  show_tasks: boolean;
+  show_assignees: boolean;
+  show_memos: boolean;
+  /** 만료 시각 (UTC ISO). null=무기한 */
+  expires_at: string | null;
+}
+
+export interface SharedMindMapMilestoneRef {
+  id: string;
+  title: string;
+  idx: number;
+}
+
+/** 공개 스냅샷의 피처 — 옵션(show_assignees=false)이면 assignee 필드 자체가 없다 */
+export interface SharedMindMapFeature {
+  id: string;
+  title: string;
+  color: string;
+  status: FeatureStatus;
+  total_tasks: number;
+  completed_tasks: number;
+  progress_percentage: number;
+  position: number;
+  milestones: SharedMindMapMilestoneRef[];
+  assignee?: { id: string; name: string } | null;
+}
+
+export interface SharedMindMapTask {
+  id: string;
+  feature_id: string;
+  title: string;
+  completed: boolean;
+  milestone_id?: string | null;
+  position: number;
+  feature_position?: number;
+  assignees?: { id: string; name: string }[];
+}
+
+/** GET /public/mindmaps/{shareCode} 응답 — 레이아웃 + 서버에서 정제된 콘텐츠 스냅샷 */
+export interface SharedMindMapSnapshot {
+  board_name: string;
+  layout: MindMapDocument;
+  features: SharedMindMapFeature[];
+  tasks: SharedMindMapTask[];
+  milestones: SharedMindMapMilestoneRef[];
+  generated_at: string;
+}
+
+// ========================================
 // 미니 칸반 타입 (보드당 1건 — 캔버스 노드 좌표 JSON 문서)
 // ========================================
 

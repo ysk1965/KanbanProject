@@ -3,9 +3,7 @@ import { useTranslation } from "react-i18next";
 import {
   X,
   Clock,
-  ChevronDown,
   ChevronRight,
-  Folder,
   FileText,
   Loader2,
   CheckSquare,
@@ -23,19 +21,16 @@ import {
   resolveMilestoneColor,
 } from "../utils/milestoneColor";
 import {
-  featureAPI,
-  taskAPI,
   dailyChecklistAPI,
   meetingAPI,
   milestoneAPI,
-  FeatureResponse,
-  TaskResponse,
   DailyChecklistItemResponse,
   BoardChecklistItemResponse,
   MilestoneSimpleResponse,
   MeetingSummary,
 } from "../utils/api";
 import { MotionModal } from "./ui/MotionModal";
+import { ChecklistQuickCreateModal } from "./schedule/ChecklistCreatePanel";
 import { TimePicker } from "./ui/TimePicker";
 import { ColorPickerPopover } from "./ui/ColorPickerPopover";
 import { FEATURE_COLORS } from "../constants";
@@ -183,7 +178,6 @@ interface ChecklistCreateModalProps {
   startBlockIndex?: number;
   endBlockIndex?: number;
   splitBlocks?: Array<{ startTime: string; endTime: string }>;
-  onCreate: (taskId: string, title: string) => void;
   onSelectExisting: (checklistItemId: string) => void;
   onSelectBoardItem: (checklistItemId: string) => void;
   onSelectMeeting?: (meetingId: string) => void;
@@ -203,7 +197,6 @@ export function ChecklistCreateModal({
   startBlockIndex,
   endBlockIndex,
   splitBlocks,
-  onCreate,
   onSelectExisting,
   onSelectBoardItem,
   onSelectMeeting,
@@ -258,22 +251,8 @@ export function ChecklistCreateModal({
   const [todayMeetings, setTodayMeetings] = useState<MeetingSummary[]>([]);
   const [isLoadingMeetings, setIsLoadingMeetings] = useState(true);
 
-  // 새로 생성 모드 토글
-  const [showCreateForm, setShowCreateForm] = useState(false);
-
-  const [features, setFeatures] = useState<FeatureResponse[]>([]);
-  const [tasks, setTasks] = useState<TaskResponse[]>([]);
-  const [isLoadingFeatures, setIsLoadingFeatures] = useState(false);
-  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
-
-  const [selectedFeatureId, setSelectedFeatureId] = useState<string>("");
-  const [selectedTaskId, setSelectedTaskId] = useState<string>("");
-  const [title, setTitle] = useState("");
-
-  const [isFeatureDropdownOpen, setIsFeatureDropdownOpen] = useState(false);
-  const [isTaskDropdownOpen, setIsTaskDropdownOpen] = useState(false);
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // 새로 생성 — 인라인 폼 대신 공용 생성 모달(ChecklistQuickCreateModal)을 띄운다
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
 
   // Meeting create form state
   const [showMeetingCreateForm, setShowMeetingCreateForm] = useState(false);
@@ -312,7 +291,6 @@ export function ChecklistCreateModal({
     };
     loadTimeblockData();
   }, [boardId, assigneeId, targetDate]);
-
 
   // 마일스톤 진행률/기간 로드 (기존 항목 그룹 헤더용)
   useEffect(() => {
@@ -466,67 +444,12 @@ export function ChecklistCreateModal({
     );
   }, [groupedBoardItems]);
 
-  // Feature 목록 로드 (새로 생성 모드일 때만)
-  useEffect(() => {
-    if (!showCreateForm) return;
-
-    const loadFeatures = async () => {
-      setIsLoadingFeatures(true);
-      try {
-        const response = await featureAPI.getFeatures(boardId);
-        setFeatures(response.features);
-      } catch (error) {
-        console.error("Failed to load features:", error);
-      } finally {
-        setIsLoadingFeatures(false);
-      }
-    };
-    loadFeatures();
-  }, [boardId, showCreateForm]);
-
-  // Feature 선택 시 Task 목록 로드
-  useEffect(() => {
-    if (!selectedFeatureId) {
-      setTasks([]);
-      setSelectedTaskId("");
-      return;
-    }
-
-    const loadTasks = async () => {
-      setIsLoadingTasks(true);
-      try {
-        const response = await taskAPI.getTasks(boardId, {
-          feature_id: selectedFeatureId,
-        });
-        setTasks(response.tasks);
-        setSelectedTaskId("");
-      } catch (error) {
-        console.error("Failed to load tasks:", error);
-      } finally {
-        setIsLoadingTasks(false);
-      }
-    };
-    loadTasks();
-  }, [boardId, selectedFeatureId]);
-
-  const selectedFeature = useMemo(
-    () => features.find((f) => f.id === selectedFeatureId),
-    [features, selectedFeatureId],
-  );
-
-  const selectedTask = useMemo(
-    () => tasks.find((t) => t.id === selectedTaskId),
-    [tasks, selectedTaskId],
-  );
-
   const canSubmit =
     activeTab === "custom"
       ? customTitle.trim().length > 0
       : activeTab === "meeting"
         ? showMeetingCreateForm && meetingTitle.trim().length > 0
-        : activeTab === "checklist"
-          ? !!(selectedTaskId && title.trim())
-          : false;
+        : false;
 
   const handleSubmit = async () => {
     if (activeTab === "custom" && onCreateCustom) {
@@ -560,17 +483,24 @@ export function ChecklistCreateModal({
       }
       return;
     }
-    // existing checklist create logic
-    if (!canSubmit) return;
-
-    setIsSubmitting(true);
-    try {
-      onCreate(selectedTaskId, title.trim());
-    } catch (error) {
-      console.error("Failed to create checklist item:", error);
-      setIsSubmitting(false);
-    }
   };
+
+  // 빈 목록 = 막다른 길이 아니라 생성으로 이어지는 출구 (공용 생성 모달 CTA)
+  const renderEmptyCta = (message: string) => (
+    <div className="px-4 py-8 flex flex-col items-center gap-3 text-center">
+      <p className="text-xs text-slate-500">{message}</p>
+      <button
+        type="button"
+        onClick={() => setShowQuickCreate(true)}
+        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold
+          border border-dashed border-bridge-accent/50 bg-bridge-accent/[0.08] text-bridge-accent
+          hover:bg-bridge-accent/15 transition-all"
+      >
+        <Plus className="w-3.5 h-3.5" />
+        {t("dailySchedule.createNewCta", "새 체크리스트 만들기")}
+      </button>
+    </div>
+  );
 
   return (
     <MotionModal
@@ -686,42 +616,59 @@ export function ChecklistCreateModal({
                 예전처럼 "오늘 목록"과 "기존 항목"을 따로 두지 않고,
                 하나의 목록을 세그먼트로 나눠 보여준다. */}
             <div>
-              <div className="flex gap-1.5 mb-2">
-                {segmentChips.map((seg) => (
-                  <button
-                    key={seg.id}
-                    type="button"
-                    onClick={() => setSegment(seg.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border ${
-                      segment === seg.id
-                        ? seg.id === "overdue" && seg.count > 0
-                          ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30"
-                          : "bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30"
-                        : seg.id === "overdue" && seg.count > 0
-                          ? "bg-rose-500/[0.08] text-rose-600 dark:text-rose-400 border-transparent hover:bg-rose-500/15"
-                          : "bg-foreground/[0.03] text-slate-400 border-transparent hover:bg-foreground/5"
-                    }`}
-                  >
-                    {seg.id === "overdue" && seg.count > 0 && (
-                      <AlertTriangle className="w-3 h-3 text-rose-400" />
-                    )}
-                    {seg.label}
-                    <span className="tabular-nums opacity-70">{seg.count}</span>
-                  </button>
-                ))}
+              {/* 필터 + 새로 생성 툴바: 목록을 다루는 컨트롤을 한 줄에 */}
+              <div className="flex items-center gap-1.5 mb-2">
+                <div className="flex flex-1 flex-wrap gap-1.5 min-w-0">
+                  {segmentChips.map((seg) => (
+                    <button
+                      key={seg.id}
+                      type="button"
+                      onClick={() => setSegment(seg.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border ${
+                        segment === seg.id
+                          ? seg.id === "overdue" && seg.count > 0
+                            ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30"
+                            : "bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30"
+                          : seg.id === "overdue" && seg.count > 0
+                            ? "bg-rose-500/[0.08] text-rose-600 dark:text-rose-400 border-transparent hover:bg-rose-500/15"
+                            : "bg-foreground/[0.03] text-slate-400 border-transparent hover:bg-foreground/5"
+                      }`}
+                    >
+                      {seg.id === "overdue" && seg.count > 0 && (
+                        <AlertTriangle className="w-3 h-3 text-rose-400" />
+                      )}
+                      {seg.label}
+                      <span className="tabular-nums opacity-70">
+                        {seg.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowQuickCreate(true)}
+                  className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg
+                    text-xs font-bold border border-bridge-accent/45 bg-bridge-accent/10
+                    text-bridge-accent hover:bg-bridge-accent/20 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  {t("dailySchedule.createNew")}
+                </button>
               </div>
 
               <div className="border border-foreground/10 rounded-xl h-[48dvh] min-h-[300px] max-h-[560px] overflow-y-auto custom-scrollbar bg-bridge-surface">
-                {(segment === "others" ? isLoadingBoardItems : isLoadingToday) ? (
+                {(
+                  segment === "others" ? isLoadingBoardItems : isLoadingToday
+                ) ? (
                   <div className="px-4 py-6 text-slate-400 flex items-center justify-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin text-bridge-accent" />
                     {t("common.loading")}
                   </div>
                 ) : segment === "today" ? (
                   todayItems.length === 0 ? (
-                    <div className="px-4 py-6 text-slate-500 text-xs text-center">
-                      {t("dailySchedule.noTodayChecklist", { date: dateLabel })}
-                    </div>
+                    renderEmptyCta(
+                      t("dailySchedule.noTodayChecklist", { date: dateLabel }),
+                    )
                   ) : (
                     <div className="divide-y divide-white/5">
                       {todayItems.map((item) => (
@@ -751,9 +698,7 @@ export function ChecklistCreateModal({
                   )
                 ) : segment === "overdue" ? (
                   overdueItems.length === 0 ? (
-                    <div className="px-4 py-6 text-slate-500 text-xs text-center">
-                      {t("dailySchedule.noOverdueItems")}
-                    </div>
+                    renderEmptyCta(t("dailySchedule.noOverdueItems"))
                   ) : (
                     <div className="divide-y divide-white/5">
                       {overdueItems.map((item) => (
@@ -781,9 +726,7 @@ export function ChecklistCreateModal({
                     </div>
                   )
                 ) : filteredBoardItems.length === 0 ? (
-                  <div className="px-4 py-6 text-slate-500 text-xs text-center">
-                    {t("dailySchedule.noBoardItems")}
-                  </div>
+                  renderEmptyCta(t("dailySchedule.noBoardItems"))
                 ) : (
                   groupedBoardItems.map((group) => {
                     const key = group.id ?? NO_MILESTONE_KEY;
@@ -854,186 +797,6 @@ export function ChecklistCreateModal({
                 )}
               </div>
             </div>
-
-            {/* 구분선 */}
-            <div className="flex items-center gap-3">
-              <div className="flex-1 border-t border-foreground/10" />
-              <button
-                onClick={() => setShowCreateForm(!showCreateForm)}
-                className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-foreground transition-colors"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                {showCreateForm
-                  ? t("dailySchedule.collapse")
-                  : t("dailySchedule.createNew")}
-              </button>
-              <div className="flex-1 border-t border-foreground/10" />
-            </div>
-
-            {/* 새로 생성 폼 (토글) */}
-            {showCreateForm && (
-              <>
-                {/* Feature Selection */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    <Folder className="inline h-4 w-4 mr-1 text-amber-500" />
-                    Feature
-                  </label>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setIsFeatureDropdownOpen(!isFeatureDropdownOpen)
-                      }
-                      className="w-full flex items-center justify-between px-4 py-3 bg-bridge-surface border border-foreground/10 rounded-xl text-left hover:border-bridge-border transition-colors"
-                    >
-                      {isLoadingFeatures ? (
-                        <span className="text-slate-400 flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Loading...
-                        </span>
-                      ) : selectedFeature ? (
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: selectedFeature.color }}
-                          />
-                          <span className="text-foreground">
-                            {selectedFeature.title}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-slate-400">
-                          {t("dailySchedule.selectFeature")}
-                        </span>
-                      )}
-                      <ChevronDown
-                        className={`h-4 w-4 text-slate-400 transition-transform ${isFeatureDropdownOpen ? "rotate-180" : ""}`}
-                      />
-                    </button>
-
-                    {isFeatureDropdownOpen && !isLoadingFeatures && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-bridge-surface border border-foreground/10 rounded-xl shadow-xl z-10 max-h-72 overflow-y-auto">
-                        {features.length === 0 ? (
-                          <div className="px-4 py-3 text-slate-400 text-sm">
-                            {t("dailySchedule.noFeatures")}
-                          </div>
-                        ) : (
-                          features.map((feature) => (
-                            <button
-                              key={feature.id}
-                              onClick={() => {
-                                setSelectedFeatureId(feature.id);
-                                setIsFeatureDropdownOpen(false);
-                              }}
-                              className={`w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-foreground/5 transition-colors ${
-                                feature.id === selectedFeatureId
-                                  ? "bg-bridge-accent/20"
-                                  : ""
-                              }`}
-                            >
-                              <div
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: feature.color }}
-                              />
-                              <span className="text-foreground">
-                                {feature.title}
-                              </span>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Task Selection */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    <FileText className="inline h-4 w-4 mr-1 text-bridge-accent" />
-                    Task
-                  </label>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        selectedFeatureId &&
-                        setIsTaskDropdownOpen(!isTaskDropdownOpen)
-                      }
-                      disabled={!selectedFeatureId}
-                      className={`w-full flex items-center justify-between px-4 py-3 bg-bridge-surface border border-foreground/10 rounded-xl text-left transition-colors ${
-                        !selectedFeatureId
-                          ? "opacity-50 cursor-not-allowed"
-                          : "hover:border-bridge-border"
-                      }`}
-                    >
-                      {isLoadingTasks ? (
-                        <span className="text-slate-400 flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Loading...
-                        </span>
-                      ) : selectedTask ? (
-                        <span className="text-foreground">
-                          {selectedTask.title}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400">
-                          {selectedFeatureId
-                            ? t("dailySchedule.selectTask")
-                            : t("dailySchedule.selectFeatureFirst")}
-                        </span>
-                      )}
-                      <ChevronDown
-                        className={`h-4 w-4 text-slate-400 transition-transform ${isTaskDropdownOpen ? "rotate-180" : ""}`}
-                      />
-                    </button>
-
-                    {isTaskDropdownOpen && !isLoadingTasks && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-bridge-surface border border-foreground/10 rounded-xl shadow-xl z-10 max-h-72 overflow-y-auto">
-                        {tasks.length === 0 ? (
-                          <div className="px-4 py-3 text-slate-400 text-sm">
-                            {t("dailySchedule.noTasks")}
-                          </div>
-                        ) : (
-                          tasks.map((task) => (
-                            <button
-                              key={task.id}
-                              onClick={() => {
-                                setSelectedTaskId(task.id);
-                                setIsTaskDropdownOpen(false);
-                              }}
-                              className={`w-full px-4 py-3 text-left hover:bg-foreground/5 transition-colors ${
-                                task.id === selectedTaskId
-                                  ? "bg-bridge-accent/20"
-                                  : ""
-                              }`}
-                            >
-                              <span className="text-foreground">
-                                {task.title}
-                              </span>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* 새 체크리스트 생성 */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    {t("dailySchedule.newChecklistItem")}
-                  </label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder={t("dailySchedule.newChecklistPlaceholder")}
-                    className="w-full px-4 py-3 bg-bridge-surface border border-foreground/10 rounded-xl text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
-                  />
-                </div>
-              </>
-            )}
           </>
         )}
 
@@ -1226,13 +989,14 @@ export function ChecklistCreateModal({
         >
           {t("common.cancel")}
         </button>
-        {(activeTab !== "meeting" || showMeetingCreateForm) && (
+        {(activeTab === "custom" ||
+          (activeTab === "meeting" && showMeetingCreateForm)) && (
           <button
             onClick={handleSubmit}
-            disabled={!canSubmit || isSubmitting || isCreatingMeeting}
+            disabled={!canSubmit || isCreatingMeeting}
             className="flex-1 py-3 bg-gradient-to-r from-bridge-accent to-purple-500 text-sm font-bold text-white rounded-xl shadow-lg shadow-bridge-accent/20 disabled:opacity-50 disabled:grayscale hover:shadow-bridge-accent/40 transition-all flex items-center justify-center gap-2"
           >
-            {isSubmitting || isCreatingMeeting ? (
+            {isCreatingMeeting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 {t("dailySchedule.creating")}
@@ -1243,6 +1007,19 @@ export function ChecklistCreateModal({
           </button>
         )}
       </div>
+
+      {/* 새로 생성 — 공용 생성 모달 (생성된 항목을 곧바로 타임블록에 연결) */}
+      <ChecklistQuickCreateModal
+        open={showQuickCreate}
+        onClose={() => setShowQuickCreate(false)}
+        boardId={boardId}
+        assigneeId={assigneeId}
+        anchorDate={targetDate}
+        onCreated={(item) => {
+          setShowQuickCreate(false);
+          onSelectBoardItem(item.id);
+        }}
+      />
     </MotionModal>
   );
 }

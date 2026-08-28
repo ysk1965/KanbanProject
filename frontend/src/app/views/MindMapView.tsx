@@ -45,6 +45,7 @@ import {
   MousePointer2,
   Plus,
   Search,
+  Share2,
   StickyNote,
   Unlock,
   X,
@@ -55,6 +56,7 @@ import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
 import { MILESTONE_PALETTE } from "../utils/milestoneColor";
 import { compareFeatureOrder } from "../utils/taskOrder";
 import { AddFeatureModal } from "../components/AddFeatureModal";
+import { MindMapShareModal } from "../components/MindMapShareModal";
 
 // 피쳐가 속한 마일스톤 정보 (마인드맵 노드 칩 표시용)
 export interface FeatureMilestoneRef {
@@ -83,6 +85,11 @@ interface MindMapViewProps {
     dueDate?: string;
     milestoneId?: string;
   }) => Promise<Feature | null>;
+  /**
+   * 레이아웃 문서 로더 오버라이드. 미지정 시 mindMapAPI.get(boardId).
+   * 공개 뷰어(SharedMindMapPage)가 스냅샷 layout을 주입할 때 사용.
+   */
+  loadDocument?: () => Promise<MindMapDocument>;
 }
 
 // 메모 노드 기본 색상 팔레트
@@ -734,10 +741,12 @@ function MindMapCanvas({
   onFeatureClick,
   onTaskClick,
   onCreateFeature,
+  loadDocument,
 }: MindMapViewProps) {
   const { t } = useTranslation();
   const { screenToFlowPosition } = useReactFlow();
   const [addFeatureOpen, setAddFeatureOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   // 캔버스 상호작용 모드: hand=좌드래그로 팬(기본), pointer=좌드래그로 박스 다중선택
   const [interactionMode, setInteractionMode] = useState<"hand" | "pointer">(
     "hand",
@@ -803,8 +812,7 @@ function MindMapCanvas({
     let cancelled = false;
     setLoading(true);
     loadedRef.current = false;
-    mindMapAPI
-      .get(boardId)
+    (loadDocument ?? (() => mindMapAPI.get(boardId)))()
       .then((doc) => {
         if (cancelled) return;
         const {
@@ -1641,6 +1649,14 @@ function MindMapCanvas({
                   <StickyNote className="w-3.5 h-3.5" />
                   {t("mindmap.addMemo", "메모 추가")}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setShareOpen(true)}
+                  className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10 transition-colors"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  {t("mindmap.share", "공유")}
+                </button>
               </>
             ) : (
               <span className="text-xs text-slate-500 px-2">
@@ -1942,6 +1958,13 @@ function MindMapCanvas({
           onClose={() => setAddFeatureOpen(false)}
           onAdd={handleCreateFeature}
           milestones={milestones}
+        />
+      )}
+      {canEdit && (
+        <MindMapShareModal
+          boardId={boardId}
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
         />
       )}
     </MindMapContext.Provider>

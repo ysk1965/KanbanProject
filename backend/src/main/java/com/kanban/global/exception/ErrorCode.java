@@ -151,6 +151,9 @@ public enum ErrorCode {
     MILESTONE_ALLOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "MS003", "마일스톤 할당 정보를 찾을 수 없습니다"),
     MILESTONE_ALLOCATION_ALREADY_EXISTS(HttpStatus.CONFLICT, "MS004", "이미 할당된 멤버입니다"),
 
+    // MindMap
+    MINDMAP_SHARE_NOT_FOUND(HttpStatus.NOT_FOUND, "MM001", "공유된 마인드맵을 찾을 수 없습니다"),
+
     // Sprint
     SPRINT_NOT_FOUND(HttpStatus.NOT_FOUND, "SP001", "스프린트를 찾을 수 없습니다"),
     SPRINT_NOT_ENABLED(HttpStatus.BAD_REQUEST, "SP002", "이 마일스톤은 스프린트가 활성화되어 있지 않습니다"),

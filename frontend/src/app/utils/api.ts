@@ -1561,7 +1561,12 @@ export const featureAPI = {
 // ========================================
 // 마인드맵 API (보드당 1건)
 // ========================================
-import type { MindMapDocument, MiniKanbanDocument } from "../types";
+import type {
+  MindMapDocument,
+  MindMapShareSettings,
+  MiniKanbanDocument,
+  SharedMindMapSnapshot,
+} from "../types";
 
 export const mindMapAPI = {
   get: async (boardId: string) => {
@@ -1569,6 +1574,48 @@ export const mindMapAPI = {
   },
   save: async (boardId: string, doc: MindMapDocument) => {
     return apiClient.put<MindMapDocument>(`/boards/${boardId}/mindmap`, doc);
+  },
+};
+
+// ========================================
+// 마인드맵 외부 공유 API (보드 멤버 전용 설정 + 무인증 공개 스냅샷)
+// ========================================
+
+export const mindMapShareAPI = {
+  get: async (boardId: string) => {
+    return apiClient.get<MindMapShareSettings>(
+      `/boards/${boardId}/mindmap/share`,
+    );
+  },
+  update: async (
+    boardId: string,
+    data: {
+      enabled: boolean;
+      show_tasks: boolean;
+      show_assignees: boolean;
+      show_memos: boolean;
+      expires_at: string | null;
+    },
+  ) => {
+    return apiClient.put<MindMapShareSettings>(
+      `/boards/${boardId}/mindmap/share`,
+      data,
+    );
+  },
+  /** share_code 교체 — 기존 링크는 즉시 404 */
+  rotate: async (boardId: string) => {
+    return apiClient.post<MindMapShareSettings>(
+      `/boards/${boardId}/mindmap/share/rotate`,
+    );
+  },
+};
+
+export const publicMindMapAPI = {
+  getSnapshot: async (shareCode: string) => {
+    return apiClient.get<SharedMindMapSnapshot>(
+      `/public/mindmaps/${shareCode}`,
+      true,
+    );
   },
 };
 
