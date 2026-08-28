@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
 import { publicMindMapAPI } from "../utils/api";
 import { formatDateTime } from "../utils/dateUtils";
-import type { Feature, SharedMindMapSnapshot, Task } from "../types";
+import type { Feature, Milestone, SharedMindMapSnapshot, Task } from "../types";
 import { MindMapView, type FeatureMilestoneRef } from "../views/MindMapView";
 
 function useSystemTheme() {
@@ -120,6 +120,22 @@ export function SharedMindMapPage() {
     });
   }, [snapshot]);
 
+  // 마일스톤 필터 패널은 milestones prop에서 옵션을 파생하므로 뷰어에도 전달
+  // (idx 순서 = 스냅샷 순서 = 칩 색상 매핑 기준. 필터에 안 쓰는 필드는 기본값)
+  const milestones: Milestone[] = useMemo(() => {
+    if (!snapshot) return [];
+    return [...snapshot.milestones]
+      .sort((a, b) => a.idx - b.idx)
+      .map((ms) => ({
+        id: ms.id,
+        title: ms.title,
+        start_date: "",
+        end_date: "",
+        feature_count: 0,
+        progress_percentage: 0,
+      }));
+  }, [snapshot]);
+
   const featureMilestonesMap: Record<string, FeatureMilestoneRef[]> =
     useMemo(() => {
       if (!snapshot) return {};
@@ -204,6 +220,7 @@ export function SharedMindMapPage() {
           features={features}
           tasks={tasks}
           featureMilestonesMap={featureMilestonesMap}
+          milestones={milestones}
           canEdit={false}
           memberColorMap={{}}
           onFeatureClick={noop}
