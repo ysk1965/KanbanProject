@@ -574,7 +574,7 @@ export function ChecklistCreatePanel({
 
   return (
     <>
-      <div className="px-5 pt-4 pb-5 flex flex-col gap-4 sm:min-h-[480px]">
+      <div className="px-5 pt-4 pb-5 flex flex-col gap-4 sm:min-h-[540px]">
         {/* 마일스톤 칩 */}
         <div>
           <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-2">
@@ -629,7 +629,7 @@ export function ChecklistCreatePanel({
         {/* 피처 / Task 2열 */}
         <div
           className="flex flex-col sm:flex-row border border-foreground/[0.08] rounded-xl
-            overflow-hidden sm:h-[300px] bg-foreground/[0.02]"
+            overflow-hidden sm:h-[360px] bg-foreground/[0.02]"
         >
           {/* 피처 열 */}
           <div
@@ -1029,7 +1029,7 @@ export function ChecklistQuickCreateModal({
     <MotionModal
       open={open}
       onClose={onClose}
-      className="w-full sm:max-w-[780px]"
+      className="w-full sm:max-w-[840px]"
       accentColor
     >
       <div className="flex items-start gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">

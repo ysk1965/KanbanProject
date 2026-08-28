@@ -142,7 +142,7 @@ export function WorkloadCreateModal({
     <MotionModal
       open={open}
       onClose={onClose}
-      className="w-full sm:max-w-[780px]"
+      className="w-full sm:max-w-[840px]"
       accentColor
     >
       {/* Header */}
@@ -208,7 +208,7 @@ export function WorkloadCreateModal({
       {tab === "absence" ? (
         /* ── 부재 pane ── */
         <>
-          <div className="px-5 pt-4 pb-5 flex flex-col gap-4 sm:min-h-[480px]">
+          <div className="px-5 pt-4 pb-5 flex flex-col gap-4 sm:min-h-[540px]">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* 대상 멤버 */}
               <div>
