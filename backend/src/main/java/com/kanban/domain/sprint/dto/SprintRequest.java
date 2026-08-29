@@ -61,6 +61,16 @@ public class SprintRequest {
         private java.time.LocalDate endDate;
     }
 
+    /**
+     * 스프린트 종료 옵션. createNext=false면 다음 스프린트를 만들지 않고 마일스톤을 마무리한다.
+     * body 없이 호출하면(기존 클라이언트) createNext=true로 동작한다 — 하위호환.
+     */
+    @Getter
+    @NoArgsConstructor
+    public static class CloseSprint {
+        private Boolean createNext;
+    }
+
     /** 중간 컬럼 순서 재정렬 (START 다음 ~ END 이전, 순서대로의 컬럼 id 목록) */
     @Getter
     @NoArgsConstructor

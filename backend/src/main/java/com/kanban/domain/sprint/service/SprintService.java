@@ -325,9 +325,13 @@ public class SprintService {
      * 스프린트 종료. 기간이 끝나면 닫을 수 있어야 하므로 "전부 Done" 게이트는 두지 않는다.
      * 종료 시점의 완료/전체 수를 동결하고, 아직 Done에 닿지 못한 태스크는 다음 스프린트로 이월한다.
      * 이월된 태스크는 carryOverCount가 1 올라가 몇 스프린트째 밀리는 중인지 드러난다.
+     *
+     * <p>createNext=false는 "이 마일스톤 마무리" — 다음 스프린트를 만들지 않고 활성 없음 상태로
+     * 남긴다. 미완료 태스크도 이월 없이 이 스프린트의 동결 기록에 그대로 남는다. 재활성화 중이라면
+     * 뒤에 보관된 최신 스프린트로 복귀해야 하므로 플래그와 무관하게 기존 동작을 유지한다.
      */
     @Transactional
-    public SprintResponse.Board closeSprint(String boardId, String sprintId, String userId) {
+    public SprintResponse.Board closeSprint(String boardId, String sprintId, boolean createNext, String userId) {
         boardService.checkAdminOrAbove(boardId, userId);
         Sprint sprint = loadSprint(boardId, sprintId);
         if (!sprint.isActive()) {
@@ -346,24 +350,72 @@ public class SprintService {
         // 다음 스프린트 확보 — 최신 스프린트를 닫았으면 새로 만들고, 재활성화 중이었으면 최신으로 복귀.
         Sprint latest = sprintRepository.findFirstByMilestoneIdOrderBySequenceNoDesc(milestoneId)
                 .orElse(sprint);
-        Sprint next;
+        Sprint next = null;
         if (latest.getId().equals(sprint.getId())) {
-            int nextSeq = sprintRepository.findMaxSequenceNo(milestoneId) + 1;
-            next = createSprint(milestone, nextSeq);
+            if (createNext) {
+                int nextSeq = sprintRepository.findMaxSequenceNo(milestoneId) + 1;
+                next = createSprint(milestone, nextSeq);
+            }
         } else {
             latest.reactivate();
             next = latest;
         }
 
-        // 미완료 태스크 이월 — Sprint(START) 컬럼부터 다시 시작한다.
-        List<Task> carried = taskRepository.findNotDoneBySprintId(sprintId, SprintColumnKind.END);
-        if (!carried.isEmpty()) {
-            SprintColumn start = requireColumn(milestone, SprintColumnKind.START);
-            carried.forEach(t -> t.carryOverTo(next, start));
-            log.info("Sprint {} closed — {} tasks carried over to {}",
-                    sprint.getName(), carried.size(), next.getName());
+        // 미완료 태스크 이월 — Sprint(START) 컬럼부터 다시 시작한다. 마무리(next 없음)면 이월도 없다.
+        if (next != null) {
+            List<Task> carried = taskRepository.findNotDoneBySprintId(sprintId, SprintColumnKind.END);
+            if (!carried.isEmpty()) {
+                SprintColumn start = requireColumn(milestone, SprintColumnKind.START);
+                Sprint target = next;
+                carried.forEach(t -> t.carryOverTo(target, start));
+                log.info("Sprint {} closed — {} tasks carried over to {}",
+                        sprint.getName(), carried.size(), next.getName());
+            }
+        } else {
+            log.info("Sprint {} closed without successor (milestone {} wrapped up)",
+                    sprint.getName(), milestoneId);
         }
 
+        broadcastSprintChanged(boardId, userId);
+        return buildBoard(milestone, userId);
+    }
+
+    /**
+     * 다음 스프린트 시작 — "마일스톤 마무리" 후(활성 스프린트 없음) 다시 일을 재개할 때 쓴다.
+     * 활성 스프린트가 이미 있으면 거부한다(마일스톤당 활성 1개 규약).
+     */
+    @Transactional
+    public SprintResponse.Board startNextSprint(String boardId, String milestoneId, String userId) {
+        boardService.checkAdminOrAbove(boardId, userId);
+        Milestone milestone = loadMilestone(boardId, milestoneId);
+        if (sprintRepository.findFirstByMilestoneIdAndStatusOrderBySequenceNoDesc(
+                milestoneId, SprintStatus.ACTIVE).isPresent()) {
+            throw new BusinessException(ErrorCode.SPRINT_ALREADY_ACTIVE);
+        }
+        ensureColumns(milestone);
+        createSprint(milestone, sprintRepository.findMaxSequenceNo(milestoneId) + 1);
+        broadcastSprintChanged(boardId, userId);
+        return buildBoard(milestone, userId);
+    }
+
+    /**
+     * 빈 스프린트 삭제 — 종료 시 자동 생성됐지만 쓰지 않을 잔여 스프린트를 소급 정리한다.
+     * 동결 기록 훼손을 막기 위해 <b>ACTIVE + 최신(sequence 최대) + 카드 0개</b>일 때만 허용한다.
+     * 아카이브 스프린트(과거 기록)와 카드가 담긴 스프린트는 어떤 경우에도 지우지 않는다.
+     */
+    @Transactional
+    public SprintResponse.Board deleteSprint(String boardId, String sprintId, String userId) {
+        boardService.checkAdminOrAbove(boardId, userId);
+        Sprint sprint = loadSprint(boardId, sprintId);
+        Milestone milestone = sprint.getMilestone();
+        if (!sprint.isActive()
+                || sprint.getSequenceNo() != sprintRepository.findMaxSequenceNo(milestone.getId())) {
+            throw new BusinessException(ErrorCode.SPRINT_DELETE_ONLY_LATEST_ACTIVE);
+        }
+        if (!taskRepository.findBySprintId(sprintId).isEmpty()) {
+            throw new BusinessException(ErrorCode.SPRINT_DELETE_NOT_EMPTY);
+        }
+        sprintRepository.delete(sprint);
         broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone, userId);
     }

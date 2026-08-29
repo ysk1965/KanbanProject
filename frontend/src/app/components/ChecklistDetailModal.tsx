@@ -238,7 +238,7 @@ export function ChecklistDetailModal({
                   ) : item.assignee && assigneeColor ? (
                     <span className="inline-flex items-center gap-1.5">
                       <span
-                        className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-xs text-white`}
+                        className={`w-5 h-5 flex-none rounded-full ${assigneeColor.bg} flex items-center justify-center text-xs text-white whitespace-nowrap overflow-hidden`}
                         style={
                           !assigneeColor.bg
                             ? { backgroundColor: assigneeColor.hex }

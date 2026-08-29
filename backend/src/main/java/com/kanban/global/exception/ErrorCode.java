@@ -168,6 +168,8 @@ public enum ErrorCode {
     SPRINT_COLUMN_NOT_FOUND(HttpStatus.NOT_FOUND, "SP010", "스프린트 컬럼을 찾을 수 없습니다"),
     SPRINT_COLUMN_ANCHOR_IMMUTABLE(HttpStatus.BAD_REQUEST, "SP011", "Sprint · Done 컬럼은 수정하거나 삭제할 수 없습니다"),
     SPRINT_COLUMN_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "SP012", "컬럼 이름을 입력해 주세요"),
+    SPRINT_DELETE_ONLY_LATEST_ACTIVE(HttpStatus.BAD_REQUEST, "SP013", "진행 중인 최신 스프린트만 삭제할 수 있습니다"),
+    SPRINT_DELETE_NOT_EMPTY(HttpStatus.BAD_REQUEST, "SP014", "카드가 담긴 스프린트는 삭제할 수 없습니다"),
 
     // Calendar Event (워크로드 특별 일정)
     CALENDAR_EVENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CE001", "특별 일정을 찾을 수 없습니다"),

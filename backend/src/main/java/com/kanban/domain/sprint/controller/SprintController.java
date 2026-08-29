@@ -161,14 +161,42 @@ public class SprintController {
                 boardId, milestoneId, request.getColumnIds(), userPrincipal.getUserId()));
     }
 
-    /** 스프린트 종료 (완료율 동결 + 미완료 태스크 이월 + 다음 스프린트 생성/복귀) — 관리자 */
+    /**
+     * 스프린트 종료 (완료율 동결 + 미완료 태스크 이월 + 다음 스프린트 생성/복귀) — 관리자.
+     * body의 create_next=false면 다음 스프린트 없이 마일스톤을 마무리한다 (body 생략 시 기존 동작).
+     */
     @PostMapping("/sprints/{sprintId}/close")
     public ResponseEntity<SprintResponse.Board> closeSprint(
             @PathVariable String boardId,
             @PathVariable String sprintId,
+            @RequestBody(required = false) SprintRequest.CloseSprint request,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
-        return ResponseEntity.ok(sprintService.closeSprint(boardId, sprintId, userPrincipal.getUserId()));
+        boolean createNext = request == null || !Boolean.FALSE.equals(request.getCreateNext());
+        return ResponseEntity.ok(
+                sprintService.closeSprint(boardId, sprintId, createNext, userPrincipal.getUserId()));
+    }
+
+    /** 다음 스프린트 시작 — 마일스톤 마무리(활성 없음) 상태에서 재개. 활성이 있으면 SP008 — 관리자 */
+    @PostMapping("/milestones/{milestoneId}/sprints")
+    public ResponseEntity<SprintResponse.Board> startNextSprint(
+            @PathVariable String boardId,
+            @PathVariable String milestoneId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(
+                sprintService.startNextSprint(boardId, milestoneId, userPrincipal.getUserId()));
+    }
+
+    /** 빈 스프린트 삭제 (ACTIVE + 최신 + 카드 0개만 허용, 동결 기록은 보존) — 관리자 */
+    @DeleteMapping("/sprints/{sprintId}")
+    public ResponseEntity<SprintResponse.Board> deleteSprint(
+            @PathVariable String boardId,
+            @PathVariable String sprintId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(
+                sprintService.deleteSprint(boardId, sprintId, userPrincipal.getUserId()));
     }
 
     /** 아카이브 스프린트 재활성화 (수정 → 재동결용) — 관리자 */

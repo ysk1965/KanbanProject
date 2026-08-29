@@ -398,7 +398,7 @@ export function FeatureDrawer({
                         }`}
                       >
                         <span
-                          className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform motion-reduce:transition-none ${
+                          className={`absolute left-0 top-1 w-4 h-4 rounded-full bg-white transition-transform motion-reduce:transition-none ${
                             on ? "translate-x-6" : "translate-x-1"
                           }`}
                         />
@@ -438,7 +438,7 @@ export function FeatureDrawer({
                       aria-label={`${item.name} · 끌 수 없음`}
                       className="relative block w-11 h-6 rounded-full bg-foreground/10 cursor-not-allowed"
                     >
-                      <span className="absolute top-1 translate-x-6 w-4 h-4 rounded-full bg-slate-500" />
+                      <span className="absolute left-0 top-1 translate-x-6 w-4 h-4 rounded-full bg-slate-500" />
                     </span>
                   </span>
                 </div>

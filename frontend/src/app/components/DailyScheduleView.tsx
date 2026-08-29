@@ -783,7 +783,19 @@ export function DailyScheduleView({
   };
 
   // 블록 클릭 핸들러
+  // 태스크가 연결된 블록은 상세 패널을 거치지 않고 태스크 모달을 바로 연다
+  // (체크리스트 항목 하이라이트 포함). 시간 편집·삭제가 있는 상세 패널은
+  // 우클릭(handleBlockOpenPanel)으로 연다.
   const handleBlockClick = (block: ScheduleBlockInfo) => {
+    if (block.task && onViewTask) {
+      onViewTask(block.task.id, block.checklist_item?.id);
+      return;
+    }
+    setSelectedBlock(block);
+  };
+
+  // 우클릭 → 항상 타임블록 상세 패널
+  const handleBlockOpenPanel = (block: ScheduleBlockInfo) => {
     setSelectedBlock(block);
   };
 
@@ -2116,6 +2128,7 @@ export function DailyScheduleView({
                               minutesToPx={minutesToPx}
                               pxToMinutes={pxToMinutes}
                               onClick={handleBlockClick}
+                              onContextMenu={handleBlockOpenPanel}
                               onResize={handleBlockResize}
                               onMove={handleBlockResize}
                               onSplitResize={handleBlockSplitResize}
@@ -2385,6 +2398,10 @@ export function DailyScheduleView({
                               <div
                                 key={block.id}
                                 onClick={() => handleBlockClick(block)}
+                                onContextMenu={(e) => {
+                                  e.preventDefault();
+                                  handleBlockOpenPanel(block);
+                                }}
                                 className={`p-2 rounded ${blockBg} cursor-pointer transition-colors`}
                                 style={inlineStyle}
                               >

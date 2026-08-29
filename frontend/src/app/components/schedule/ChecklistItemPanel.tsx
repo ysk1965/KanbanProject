@@ -638,7 +638,10 @@ export function ChecklistItemPanel({
     setIsLoading(true);
     setError(null);
     try {
-      const response = await boardChecklistAPI.getItems(boardId);
+      // JIRA 소유 업무(에픽 피처 등)는 워크로드 배치 대상이 아니므로 제외
+      const response = await boardChecklistAPI.getItems(boardId, {
+        exclude_jira: true,
+      });
       setItems(response.items);
       // 재렌더 후 스크롤 위치 복원 (배치로 항목이 빠져도 화면이 튀지 않도록)
       requestAnimationFrame(() => {

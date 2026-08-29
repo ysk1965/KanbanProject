@@ -19,6 +19,8 @@ interface ScheduleBlockProps {
   minutesToPx?: (minutes: number) => number;
   pxToMinutes?: (px: number) => number;
   onClick?: (block: ScheduleBlockInfo) => void;
+  /** 우클릭 — 타임블록 상세 패널을 여는 별도 경로 (클릭은 태스크 모달 직행) */
+  onContextMenu?: (block: ScheduleBlockInfo) => void;
   onResize?: (blockId: string, startTime: string, endTime: string) => void;
   onMove?: (blockId: string, startTime: string, endTime: string) => void;
   onSplitResize?: (blockId: string, segments: Array<{ startTime: string; endTime: string }>) => void;
@@ -70,7 +72,7 @@ const MIN_BLOCK_VIS = 32; // 블록 최소 가시 높이 (px) — text-sm 제목
 const TASK_TITLE_MIN_H = 36;
 const FEATURE_TITLE_MIN_H = 58;
 
-export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, otherBlocks = [], breakStartTime, breakEndTime, minutesToPx: minutesToPxProp, pxToMinutes: pxToMinutesProp, onClick, onResize, onMove, onSplitResize, axisTargets, onAxisDragOut, isOrgOverlay }: ScheduleBlockProps) {
+export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, otherBlocks = [], breakStartTime, breakEndTime, minutesToPx: minutesToPxProp, pxToMinutes: pxToMinutesProp, onClick, onContextMenu, onResize, onMove, onSplitResize, axisTargets, onAxisDragOut, isOrgOverlay }: ScheduleBlockProps) {
   // 가변 슬롯 높이 지원: prop이 있으면 사용, 없으면 선형 매핑 fallback
   const mToPx = minutesToPxProp || ((minutes: number) => ((minutes - workStartHour * 60) / 30) * slotHeight);
   const pxToM = pxToMinutesProp || ((px: number) => workStartHour * 60 + (px / slotHeight) * 30);
@@ -362,6 +364,8 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
 
   // Long press 시작 핸들러
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // 왼쪽 버튼만 드래그 시작 — 우클릭은 상세 패널(onContextMenu) 경로
+    if (e.button !== 0) return;
     // 리사이즈 핸들 영역이면 무시
     if ((e.target as HTMLElement).dataset.resizeHandle) return;
 
@@ -590,6 +594,12 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
           return;
         }
         onClick?.(block);
+      }}
+      onContextMenu={(e) => {
+        if (!onContextMenu) return;
+        e.preventDefault();
+        if (isResizing || isDragging) return;
+        onContextMenu(block);
       }}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}

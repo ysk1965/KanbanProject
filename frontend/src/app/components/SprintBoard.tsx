@@ -444,6 +444,8 @@ export function SprintBoard({
   const [reactivateTarget, setReactivateTarget] = useState<SprintInfo | null>(
     null,
   );
+  // 스프린트 종료 모달 — "다음 스프린트 시작 / 이 마일스톤 마무리" 선택
+  const [closeModalOpen, setCloseModalOpen] = useState(false);
 
   // ── 하단 미분류 레일 ──
   // 접힘 상태는 localStorage에서 복원(기본 = 접힘). 접혀 있어도 헤더에 사유별 건수를 남겨
@@ -2114,19 +2116,64 @@ export function SprintBoard({
   // 미완료 태스크는 다음 스프린트로 이월되며, 종료 시점의 완료율은 그대로 동결된다.
   const canClose = isAdminOrOwner && !!activeSprint;
 
+  // 재활성화 상태: 현재 활성 스프린트가 최신(max seq)이 아니면 과거 스프린트를 재활성화한 상태.
+  // 이때 최신 스프린트는 뒤로 보관(parked)되어 있고, "재활성화 취소"로만 복귀 가능.
+  const maxSeq = (board?.sprints ?? []).reduce(
+    (m, s) => Math.max(m, s.sequence_no),
+    0,
+  );
+  const inReactivation = !!activeSprint && activeSprint.sequence_no < maxSeq;
+
   const closeSprint = () => {
     if (!activeSprint) return;
-    const carry =
-      remainingTasks > 0
-        ? `\n\n아직 Done이 아닌 태스크 ${remainingTasks}개는 다음 스프린트로 이월됩니다.`
-        : "";
+    // 재동결(재활성화 중): 최신 스프린트가 뒤에 보관돼 있어 "마무리" 선택지가 없다 — 확인만 받는다.
+    if (inReactivation) {
+      if (
+        !window.confirm(
+          `${activeSprint.name}을(를) 재동결하고 최신 스프린트로 돌아갈까요?`,
+        )
+      )
+        return;
+      void run(() => sprintAPI.closeSprint(boardId, activeSprint.id));
+      return;
+    }
+    setCloseModalOpen(true);
+  };
+
+  /** 종료 모달 확정 — createNext=false면 다음 스프린트 없이 마일스톤을 마무리한다 */
+  const confirmCloseSprint = (createNext: boolean) => {
+    if (!activeSprint) return;
+    setCloseModalOpen(false);
+    void run(() => sprintAPI.closeSprint(boardId, activeSprint.id, createNext));
+  };
+
+  // 빈 활성 스프린트(카드 0) + 과거 기록 존재 → 종료가 아니라 삭제(잔여물 정리)가 맞다.
+  // 종료하면 0/0짜리 아카이브가 남고 다음 빈 스프린트가 또 생기기 때문.
+  const activeSprintCardCount = (board?.columns ?? []).reduce(
+    (n, c) => n + c.items.length,
+    0,
+  );
+  const canDeleteActive =
+    isAdminOrOwner &&
+    !!activeSprint &&
+    !inReactivation &&
+    activeSprintCardCount === 0 &&
+    (board?.sprints?.length ?? 0) > 1;
+
+  const deleteEmptySprint = () => {
+    if (!activeSprint) return;
     if (
       !window.confirm(
-        `${activeSprint.name}을(를) 종료하고 다음 스프린트를 시작할까요?${carry}`,
+        `비어 있는 ${activeSprint.name}을(를) 삭제할까요?\n\n완료된 스프린트 기록은 그대로 남습니다.`,
       )
     )
       return;
-    void run(() => sprintAPI.closeSprint(boardId, activeSprint.id));
+    void run(() => sprintAPI.deleteSprint(boardId, activeSprint.id));
+  };
+
+  /** 마일스톤 마무리 후(활성 없음) 새 스프린트로 재개 */
+  const startNextSprint = () => {
+    void run(() => sprintAPI.startNextSprint(boardId, milestoneId));
   };
 
   // 진행 현황 4구간 분류 (KanbanBlock 진행 현황과 동일 규약).
@@ -2237,14 +2284,6 @@ export function SprintBoard({
       segProg: (uProg / denom) * 100,
     };
   }, [filteredBoard]);
-
-  // 재활성화 상태: 현재 활성 스프린트가 최신(max seq)이 아니면 과거 스프린트를 재활성화한 상태.
-  // 이때 최신 스프린트는 뒤로 보관(parked)되어 있고, "재활성화 취소"로만 복귀 가능.
-  const maxSeq = (board?.sprints ?? []).reduce(
-    (m, s) => Math.max(m, s.sequence_no),
-    0,
-  );
-  const inReactivation = !!activeSprint && activeSprint.sequence_no < maxSeq;
 
   const cancelReactivation = () => {
     if (!activeSprint) return;
@@ -4369,6 +4408,19 @@ export function SprintBoard({
                                 재활성화 취소
                               </button>
                             )}
+                            {canDeleteActive && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteEmptySprint();
+                                }}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors whitespace-nowrap shrink-0"
+                                title="비어 있는 스프린트를 삭제합니다 · 완료된 스프린트 기록은 유지됩니다"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                스프린트 삭제
+                              </button>
+                            )}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -4468,6 +4520,31 @@ export function SprintBoard({
                 </div>
               );
             })}
+            {/* 마일스톤 마무리 상태 — 활성 스프린트 없음. 기록 칩들 옆에 재개 손잡이만 남긴다. */}
+            {!activeSprint && (
+              <div className="flex items-center gap-3 rounded-xl border border-dashed border-foreground/15 bg-foreground/[0.03] px-4 py-3 grow basis-[280px]">
+                <Flag className="w-4 h-4 text-bridge-secondary shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[13px] font-bold text-foreground whitespace-nowrap">
+                    이 마일스톤의 스프린트가 마무리되었습니다
+                  </span>
+                  <span className="text-[11px] text-slate-500 whitespace-nowrap">
+                    지난 기록은 왼쪽 스프린트를 클릭해 열람할 수 있어요
+                  </span>
+                </div>
+                <span className="flex-1" />
+                {isAdminOrOwner && (
+                  <button
+                    onClick={startNextSprint}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-colors whitespace-nowrap shrink-0"
+                    title="새 스프린트를 만들어 다시 시작합니다"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    새 스프린트 시작
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
         {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
@@ -5424,8 +5501,24 @@ export function SprintBoard({
                 </div>
               )
             ) : !activeSprint ? (
-              <div className="flex-1 flex items-center justify-center h-full text-slate-500 text-sm">
-                진행 중인 스프린트가 없습니다.
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 h-full">
+                <Flag className="w-8 h-8 text-bridge-secondary/60" />
+                <p className="text-sm font-bold text-foreground">
+                  이 마일스톤의 스프린트가 마무리되었습니다
+                </p>
+                <p className="text-xs text-slate-500">
+                  지난 스프린트 기록은 위 타임라인에서 클릭해 열람할 수 있어요
+                </p>
+                {isAdminOrOwner && (
+                  <button
+                    onClick={startNextSprint}
+                    className="mt-1 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-colors"
+                    title="새 스프린트를 만들어 다시 시작합니다"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    새 스프린트 시작
+                  </button>
+                )}
               </div>
             ) : (
               <>
@@ -5636,6 +5729,70 @@ export function SprintBoard({
               재활성화
             </button>
           </div>
+        </div>
+      </MotionModal>
+
+      {/* 스프린트 종료 모달 — 다음 스프린트 시작 / 이 마일스톤 마무리 중 선택 */}
+      <MotionModal
+        open={closeModalOpen}
+        onClose={() => setCloseModalOpen(false)}
+        accentColor
+        aria-labelledby="close-sprint-title"
+        className="w-full sm:max-w-md"
+      >
+        <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+          <span className="w-8 h-8 rounded-lg bg-bridge-accent/15 text-bridge-accent grid place-items-center shrink-0">
+            <Flag className="w-4 h-4" />
+          </span>
+          <h4
+            id="close-sprint-title"
+            className="text-sm font-bold text-foreground"
+          >
+            {activeSprint?.name}을(를) 종료할까요?
+          </h4>
+        </div>
+        <div className="px-5 pb-5 pt-4 flex flex-col gap-2.5">
+          <p className="text-sm text-slate-400 leading-relaxed">
+            종료 시점의 완료율은 그대로 기록에 동결됩니다. 다음 진행 방식을
+            선택하세요.
+          </p>
+          <button
+            onClick={() => confirmCloseSprint(true)}
+            className="w-full text-left rounded-xl border border-bridge-accent/35 bg-bridge-accent/10 hover:bg-bridge-accent/15 px-4 py-3 transition-colors"
+          >
+            <span className="block text-sm font-bold text-foreground">
+              다음 스프린트 시작
+            </span>
+            <span className="block mt-0.5 text-xs text-slate-400">
+              {remainingTasks > 0
+                ? `미완료 태스크 ${remainingTasks}개가 다음 스프린트로 이월됩니다.`
+                : "새 스프린트가 바로 시작됩니다."}
+            </span>
+          </button>
+          <button
+            onClick={() => confirmCloseSprint(false)}
+            className="w-full text-left rounded-xl border border-foreground/10 bg-foreground/[0.03] hover:bg-foreground/[0.06] px-4 py-3 transition-colors"
+          >
+            <span className="block text-sm font-bold text-foreground">
+              이 마일스톤 마무리
+            </span>
+            <span className="block mt-0.5 text-xs text-slate-400">
+              새 스프린트를 만들지 않습니다.
+              {remainingTasks > 0
+                ? ` 미완료 ${remainingTasks}개는 이 스프린트 기록에 남습니다.`
+                : ""}{" "}
+              필요하면 나중에 다시 시작할 수 있어요.
+            </span>
+          </button>
+        </div>
+        <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
+          <span className="text-xs text-slate-600">Esc 닫기</span>
+          <button
+            onClick={() => setCloseModalOpen(false)}
+            className="px-4 py-1.5 rounded-lg text-xs font-bold text-foreground bg-foreground/5 hover:bg-foreground/10 transition-colors"
+          >
+            취소
+          </button>
         </div>
       </MotionModal>
 

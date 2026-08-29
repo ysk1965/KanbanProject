@@ -3557,6 +3557,8 @@ export const boardChecklistAPI = {
     params?: {
       assignee_id?: string;
       is_scheduled?: boolean;
+      /** true면 JIRA 연동(에픽/이슈/서브태스크) 항목 제외 — 워크로드 배치 패널용 */
+      exclude_jira?: boolean;
     },
   ) => {
     const query = new URLSearchParams();
@@ -3564,6 +3566,7 @@ export const boardChecklistAPI = {
     if (params?.is_scheduled !== undefined) {
       query.set("isScheduled", params.is_scheduled.toString());
     }
+    if (params?.exclude_jira) query.set("excludeJira", "true");
     const queryString = query.toString();
     return apiClient.get<BoardChecklistResponse>(
       `/boards/${boardId}/checklist-items${queryString ? `?${queryString}` : ""}`,
@@ -3883,10 +3886,32 @@ export const sprintAPI = {
     );
   },
 
-  /** 스프린트 종료 (완료율 동결 + 미완료 태스크 이월 + 다음 스프린트 생성/복귀) */
-  closeSprint: async (boardId: string, sprintId: string) => {
+  /**
+   * 스프린트 종료 (완료율 동결 + 미완료 태스크 이월 + 다음 스프린트 생성/복귀).
+   * createNext=false면 다음 스프린트를 만들지 않고 마일스톤을 마무리한다 (이월도 없음).
+   */
+  closeSprint: async (
+    boardId: string,
+    sprintId: string,
+    createNext: boolean = true,
+  ) => {
     return apiClient.post<SprintBoard>(
       `/boards/${boardId}/sprints/${sprintId}/close`,
+      { create_next: createNext },
+    );
+  },
+
+  /** 다음 스프린트 시작 — 마일스톤 마무리(활성 없음) 상태에서 재개 */
+  startNextSprint: async (boardId: string, milestoneId: string) => {
+    return apiClient.post<SprintBoard>(
+      `/boards/${boardId}/milestones/${milestoneId}/sprints`,
+    );
+  },
+
+  /** 빈 스프린트 삭제 (ACTIVE + 최신 + 카드 0개만 허용, 동결 기록은 보존) */
+  deleteSprint: async (boardId: string, sprintId: string) => {
+    return apiClient.delete<SprintBoard>(
+      `/boards/${boardId}/sprints/${sprintId}`,
     );
   },
 

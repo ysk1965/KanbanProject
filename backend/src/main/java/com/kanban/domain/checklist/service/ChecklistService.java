@@ -26,6 +26,8 @@ import com.kanban.domain.feature.service.InboxFeatureService;
 import com.kanban.domain.jobrole.dto.JobRoleResponse;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.integration.discord.service.DiscordNotificationService;
+import com.kanban.domain.integration.jira.JiraIssueLink;
+import com.kanban.domain.integration.jira.JiraIssueLinkRepository;
 import com.kanban.domain.integration.slack.service.SlackNotificationService;
 import com.kanban.domain.notification.service.NotificationService;
 import com.kanban.domain.schedule.ScheduleBlock;
@@ -77,6 +79,8 @@ public class ChecklistService {
     private final SlackNotificationService slackNotificationService;
     private final DiscordNotificationService discordNotificationService;
     private final WebSocketEventService webSocketEventService;
+    /** 워크로드 배치 패널에서 JIRA 소유 항목을 걸러내기 위한 연동 원장 조회. */
+    private final JiraIssueLinkRepository jiraIssueLinkRepository;
     /** 담당자 변경을 JIRA로 넘기기 위한 통로. core→integration 역의존을 피하려 이벤트로 건넨다. */
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
@@ -970,7 +974,8 @@ public class ChecklistService {
         return a.isAfter(b) ? a : b;
     }
 
-    public ChecklistResponse.BoardListResponse getBoardChecklistItems(String boardId, String userId, String assigneeId, Boolean isScheduled) {
+    public ChecklistResponse.BoardListResponse getBoardChecklistItems(
+            String boardId, String userId, String assigneeId, Boolean isScheduled, Boolean excludeJira) {
         boardService.checkViewerOrAbove(boardId, userId);
 
         List<ChecklistItem> items;
@@ -989,7 +994,43 @@ public class ChecklistService {
             }
         }
 
+        if (Boolean.TRUE.equals(excludeJira)) {
+            items = filterOutJiraLinked(boardId, items);
+        }
+
         return ChecklistResponse.BoardListResponse.of(items);
+    }
+
+    /**
+     * JIRA가 소유한 항목 제외 — 워크로드 배치 패널용.
+     * 에픽(FEATURE)·이슈(TASK)·서브태스크(CHECKLIST) 어느 층에 링크가 있든 그 아래 항목은
+     * 배치 대상이 아니다. 원본 이슈가 JIRA에서 삭제된 링크는 소유가 BRIDGE로 돌아온 것이라 남긴다.
+     */
+    private List<ChecklistItem> filterOutJiraLinked(String boardId, List<ChecklistItem> items) {
+        java.util.Set<String> linkedFeatureIds = new java.util.HashSet<>();
+        java.util.Set<String> linkedTaskIds = new java.util.HashSet<>();
+        java.util.Set<String> linkedItemIds = new java.util.HashSet<>();
+        for (JiraIssueLink link : jiraIssueLinkRepository.findByBoardId(boardId)) {
+            if (link.isJiraDeleted()) continue;
+            switch (link.getTargetType()) {
+                case FEATURE -> linkedFeatureIds.add(link.getTargetId());
+                case TASK -> linkedTaskIds.add(link.getTargetId());
+                case CHECKLIST -> linkedItemIds.add(link.getTargetId());
+            }
+        }
+        if (linkedFeatureIds.isEmpty() && linkedTaskIds.isEmpty() && linkedItemIds.isEmpty()) {
+            return items;
+        }
+        return items.stream()
+                .filter(item -> {
+                    if (linkedItemIds.contains(item.getId())) return false;
+                    Task task = item.getTask();
+                    if (task == null) return true;
+                    if (linkedTaskIds.contains(task.getId())) return false;
+                    Feature feature = task.getFeature();
+                    return feature == null || !linkedFeatureIds.contains(feature.getId());
+                })
+                .toList();
     }
 
     /**

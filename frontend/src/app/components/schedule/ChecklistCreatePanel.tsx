@@ -91,6 +91,8 @@ export function ChecklistCreatePanel({
   const [taskSel, setTaskSel] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [newFeatureTitle, setNewFeatureTitle] = useState("");
+  // 체크리스트 상세 서브 모달이 열린 task (선택과 독립)
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
 
   // ── Data ──
   const [selfFeatures, setSelfFeatures] = useState<PanelFeature[] | null>(null);
@@ -177,6 +179,9 @@ export function ChecklistCreatePanel({
     taskSel && taskSel !== AUTO
       ? selFeatureTasks.find((task) => task.id === taskSel)
       : null;
+  const detailTask = detailTaskId
+    ? selFeatureTasks.find((task) => task.id === detailTaskId)
+    : null;
   const selMilestone =
     msSel !== INBOX && msSel !== UNLINKED
       ? milestonesEff.find((m) => m.id === msSel)
@@ -200,6 +205,7 @@ export function ChecklistCreatePanel({
     setMsSel(INBOX);
     setFeatSel(null);
     setTaskSel(null);
+    setDetailTaskId(null);
     setChecklistCache({});
     setError(null);
   }, [open]);
@@ -315,17 +321,17 @@ export function ChecklistCreatePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, boardId, milestonesProp, selfMilestones]);
 
-  // ── 테스크 선택 시 체크리스트 미리보기 lazy load ──
+  // ── 상세 서브 모달 열릴 때 체크리스트 lazy load ──
   useEffect(() => {
-    if (!taskSel || taskSel === AUTO) return;
-    if (checklistCache[taskSel]) return;
+    if (!detailTaskId) return;
+    if (checklistCache[detailTaskId]) return;
     let cancelled = false;
     setIsLoadingChecklist(true);
     checklistAPI
-      .getChecklist(boardId, taskSel)
+      .getChecklist(boardId, detailTaskId)
       .then((res) => {
         if (!cancelled) {
-          setChecklistCache((prev) => ({ ...prev, [taskSel]: res.items }));
+          setChecklistCache((prev) => ({ ...prev, [detailTaskId]: res.items }));
         }
       })
       .catch((err) => console.error("Failed to load checklist:", err))
@@ -335,7 +341,7 @@ export function ChecklistCreatePanel({
     return () => {
       cancelled = true;
     };
-  }, [taskSel, boardId, checklistCache]);
+  }, [detailTaskId, boardId, checklistCache]);
 
   // ── 새 피쳐 선택 시 피쳐명 입력에 포커스 ──
   useEffect(() => {
@@ -831,104 +837,54 @@ export function ChecklistCreatePanel({
 
                   {selFeatureTasks.map((task) => {
                     const selected = taskSel === task.id;
+                    const hasChecklist = (task.checklist_total ?? 0) > 0;
                     return (
-                      <div key={task.id}>
-                        <button
-                          onClick={() => setTaskSel(task.id)}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs
-                            text-left hover:bg-foreground/5 transition-colors"
-                        >
-                          <span className="flex-1 truncate text-foreground">
-                            {task.title}
+                      <div
+                        key={task.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setTaskSel(task.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") setTaskSel(task.id);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-xs
+                          text-left cursor-pointer hover:bg-foreground/5 transition-colors group"
+                      >
+                        <span className="flex-1 truncate text-foreground">
+                          {task.title}
+                        </span>
+                        {task.checklist_total != null && (
+                          <span className="shrink-0 text-xs text-slate-500 font-medium">
+                            ✓ {task.checklist_completed ?? 0}/
+                            {task.checklist_total}
                           </span>
-                          {task.checklist_total != null && (
-                            <span className="shrink-0 text-xs text-slate-500 font-medium">
-                              ✓ {task.checklist_completed ?? 0}/
-                              {task.checklist_total}
-                            </span>
-                          )}
-                          <span
-                            className={`w-[18px] h-[18px] rounded-full shrink-0 border-[1.5px]
-                              flex items-center justify-center transition-colors ${
-                                selected
-                                  ? "border-bridge-accent bg-bridge-accent"
-                                  : "border-foreground/20"
-                              }`}
-                          >
-                            {selected && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                            )}
-                          </span>
-                        </button>
-
-                        {/* 선택된 테스크 아래 체크리스트 미리보기 */}
-                        {selected && (
-                          <div
-                            className="mx-4 mb-2 border border-foreground/[0.08] rounded-lg
-                              overflow-hidden divide-y divide-foreground/[0.06]"
-                          >
-                            {isLoadingChecklist && !checklistCache[task.id] ? (
-                              <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-500">
-                                <Loader2
-                                  size={12}
-                                  className="animate-spin text-bridge-accent"
-                                />
-                                {t("common.loading", "Loading...")}
-                              </div>
-                            ) : (
-                              <>
-                                {(checklistCache[task.id] ?? []).map((item) => (
-                                  <div
-                                    key={item.id}
-                                    className="flex items-center gap-2 px-3 py-1.5 text-xs"
-                                  >
-                                    <span
-                                      className={`w-3 h-3 rounded shrink-0 border flex
-                                        items-center justify-center ${
-                                          item.completed
-                                            ? "bg-bridge-accent border-bridge-accent"
-                                            : "border-foreground/20"
-                                        }`}
-                                    >
-                                      {item.completed && (
-                                        <Check
-                                          size={8}
-                                          className="text-white"
-                                        />
-                                      )}
-                                    </span>
-                                    <span
-                                      className={`flex-1 truncate ${
-                                        item.completed
-                                          ? "line-through text-slate-500"
-                                          : "text-slate-400"
-                                      }`}
-                                    >
-                                      {item.title}
-                                    </span>
-                                  </div>
-                                ))}
-                                {checklistCache[task.id]?.length === 0 && (
-                                  <p className="px-3 py-1.5 text-xs text-slate-500">
-                                    아직 체크리스트가 없습니다
-                                  </p>
-                                )}
-                                {/* 새 항목이 붙을 자리 */}
-                                <div className="flex items-center gap-2 px-3 py-1.5 text-xs">
-                                  <span
-                                    className="w-3 h-3 rounded shrink-0 border border-dashed
-                                      border-bridge-accent/60"
-                                  />
-                                  <span className="flex-1 truncate font-bold text-bridge-accent">
-                                    {title.trim()
-                                      ? `＋ ${title.trim()}`
-                                      : "＋ 여기에 새 항목이 추가됩니다"}
-                                  </span>
-                                </div>
-                              </>
-                            )}
-                          </div>
                         )}
+                        {hasChecklist && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDetailTaskId(task.id);
+                            }}
+                            className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-lg
+                              border border-foreground/10 text-slate-400
+                              hover:text-foreground hover:border-bridge-accent/60 transition-colors"
+                          >
+                            {t("schedule.workloadCreate.taskDetail", "상세")}
+                          </button>
+                        )}
+                        <span
+                          className={`w-[18px] h-[18px] rounded-full shrink-0 border-[1.5px]
+                            flex items-center justify-center transition-colors ${
+                              selected
+                                ? "border-bridge-accent bg-bridge-accent"
+                                : "border-foreground/20"
+                            }`}
+                        >
+                          {selected && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                          )}
+                        </span>
                       </div>
                     );
                   })}
@@ -999,6 +955,131 @@ export function ChecklistCreatePanel({
           )}
         </button>
       </div>
+
+      {/* 체크리스트 상세 서브 모달 — Esc·바깥 클릭은 이 모달만 닫는다 (escStack) */}
+      <MotionModal
+        open={!!detailTask}
+        onClose={() => setDetailTaskId(null)}
+        className="w-full sm:max-w-md"
+        accentColor
+        aria-label={t(
+          "schedule.workloadCreate.checklistDetail",
+          "체크리스트 상세",
+        )}
+      >
+        {detailTask && (
+          <>
+            {/* Header: 브레드크럼 + task 제목 + 진행률 */}
+            <div className="flex items-start gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                  {selMilestone && (
+                    <>
+                      {crumb(selMilestone.title)}
+                      {crumbSep}
+                    </>
+                  )}
+                  {selFeature && crumb(selFeature.title, selFeature.color)}
+                </div>
+                <h3 className="text-sm font-bold text-foreground truncate">
+                  {detailTask.title}
+                </h3>
+              </div>
+              {detailTask.checklist_total != null && (
+                <span className="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full bg-foreground/[0.06] text-slate-400">
+                  ✓ {detailTask.checklist_completed ?? 0}/
+                  {detailTask.checklist_total}
+                </span>
+              )}
+            </div>
+
+            {/* Body: 읽기 전용 체크리스트 */}
+            <div className="px-5 py-3 max-h-[50dvh] overflow-y-auto custom-scrollbar divide-y divide-foreground/[0.06]">
+              {isLoadingChecklist && !checklistCache[detailTask.id] ? (
+                <div className="flex items-center gap-2 py-2 text-xs text-slate-500">
+                  <Loader2
+                    size={14}
+                    className="animate-spin text-bridge-accent"
+                  />
+                  {t("common.loading", "Loading...")}
+                </div>
+              ) : (
+                <>
+                  {(checklistCache[detailTask.id] ?? []).map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-2.5 py-2 text-xs"
+                    >
+                      <span
+                        className={`w-3.5 h-3.5 rounded shrink-0 border flex
+                          items-center justify-center ${
+                            item.completed
+                              ? "bg-bridge-accent border-bridge-accent"
+                              : "border-foreground/20"
+                          }`}
+                      >
+                        {item.completed && (
+                          <Check size={9} className="text-white" />
+                        )}
+                      </span>
+                      <span
+                        className={`flex-1 truncate ${
+                          item.completed
+                            ? "line-through text-slate-500"
+                            : "text-slate-400"
+                        }`}
+                      >
+                        {item.title}
+                      </span>
+                    </div>
+                  ))}
+                  {checklistCache[detailTask.id]?.length === 0 && (
+                    <p className="py-2 text-xs text-slate-500">
+                      아직 체크리스트가 없습니다
+                    </p>
+                  )}
+                  {/* 새 항목이 붙을 자리 */}
+                  <div className="flex items-center gap-2.5 py-2 text-xs">
+                    <span
+                      className="w-3.5 h-3.5 rounded shrink-0 border border-dashed
+                        border-bridge-accent/60"
+                    />
+                    <span className="flex-1 truncate font-bold text-bridge-accent">
+                      {title.trim()
+                        ? `＋ ${title.trim()}`
+                        : "＋ 여기에 새 항목이 추가됩니다"}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center gap-2.5 px-5 py-3 border-t border-foreground/[0.08]">
+              <span className="text-xs text-slate-500 flex-1">
+                Esc {t("schedule.workloadCreate.close", "닫기")}
+              </span>
+              <button
+                onClick={() => setDetailTaskId(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-foreground
+                  bg-foreground/5 border border-foreground/10 hover:bg-foreground/10 transition-all"
+              >
+                {t("schedule.workloadCreate.close", "닫기")}
+              </button>
+              <button
+                onClick={() => {
+                  setTaskSel(detailTask.id);
+                  setDetailTaskId(null);
+                }}
+                className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-bridge-accent
+                  hover:bg-bridge-accent/90 transition-all"
+              >
+                {t("schedule.workloadCreate.selectThisTask", "이 TASK 선택")}
+              </button>
+            </div>
+          </>
+        )}
+      </MotionModal>
     </>
   );
 }

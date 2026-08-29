@@ -28,9 +28,10 @@ public class BoardChecklistController {
             @PathVariable String boardId,
             @RequestParam(required = false) String assigneeId,
             @RequestParam(required = false) Boolean isScheduled,
+            @RequestParam(required = false) Boolean excludeJira,
             @AuthenticationPrincipal UserPrincipal principal) {
         ChecklistResponse.BoardListResponse response = checklistService.getBoardChecklistItems(
-                boardId, principal.getUserId(), assigneeId, isScheduled);
+                boardId, principal.getUserId(), assigneeId, isScheduled, excludeJira);
         return ResponseEntity.ok(response);
     }
 
