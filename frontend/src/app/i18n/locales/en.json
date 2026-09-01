@@ -790,7 +790,8 @@
       "flowSum": "Out {{out}} · In {{in}}",
       "flowOut": "Out → other milestones",
       "flowIn": "In ← other milestones",
-      "noFlow": "No tasks span other milestones"
+      "noFlow": "No tasks span other milestones",
+      "progressByChecklist": "Based on checklist completion"
     },
     "table": {
       "title": "Feature · Task · Checklist",

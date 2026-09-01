@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { useReducedMotion } from "../hooks/useReducedMotion";
 import {
-  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -754,10 +753,24 @@ export function MilestoneDetailView({
   }, []);
 
   // ── 헤더 파생값 ──
+  // 진행률 = 스코프 태스크들의 체크리스트 완료 합계 기준 (체크리스트가 없으면 태스크 완료 폴백)
+  const clDone = scopedTasks.reduce(
+    (acc, tk) => acc + (tk.checklist_completed ?? 0),
+    0,
+  );
+  const clTotal = scopedTasks.reduce(
+    (acc, tk) => acc + (tk.checklist_total ?? 0),
+    0,
+  );
+  const progressDone = clTotal > 0 ? clDone : scopedCompleted;
+  const progressTotal = clTotal > 0 ? clTotal : scopedTotal;
+  const progressPct =
+    progressTotal > 0 ? Math.round((progressDone / progressTotal) * 100) : 0;
+
   const status = getMilestoneStatus(
     milestone.start_date,
     milestone.end_date,
-    scopedTotal > 0 ? scopedPct : milestone.progress_percentage,
+    scopedTotal > 0 ? progressPct : milestone.progress_percentage,
     milestone.is_default,
   );
   const dday = daysUntil(milestone.end_date);
@@ -770,7 +783,7 @@ export function MilestoneDetailView({
           Math.max(0, Math.round(((Date.now() - start) / (end - start)) * 100)),
         )
       : 100;
-  const paceDelta = scopedPct - timePct;
+  const paceDelta = progressPct - timePct;
 
   const statusLabel =
     status.key === "completed"
@@ -793,29 +806,15 @@ export function MilestoneDetailView({
   const TASK_LIMIT = 6;
 
   return (
-    <div className="h-full overflow-y-auto custom-scrollbar">
-      {/* ── 상단 바 ── */}
-      <div className="sticky top-0 z-20 flex items-center gap-2 px-4 md:px-6 py-2.5 bg-bridge-obsidian border-b border-foreground/[0.08]">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
-          aria-label={t("milestone.detail.back", {
-            defaultValue: "마일스톤 보드로",
-          })}
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">
-            {t("milestone.detail.back", { defaultValue: "마일스톤 보드로" })}
-          </span>
-        </button>
-
-        {/* 마일스톤 스위처 */}
-        <div className="relative flex items-center gap-0.5 ml-auto bg-bridge-dark border border-foreground/10 rounded-xl p-0.5">
-          {prevMs && (
-            <span className="hidden lg:block text-xs text-slate-600 px-1.5 max-w-[110px] truncate">
-              {prevMs.title}
-            </span>
-          )}
+    <motion.div
+      initial={reduced ? false : { opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-4"
+    >
+      {/* ── 한 줄 헤더 바: 스위처(=제목) · 상태 · 기간 · 진행(체크리스트 기준) · 액션 ── */}
+      <div className="flex items-center gap-3 flex-wrap bg-bridge-obsidian border border-foreground/[0.08] rounded-2xl px-3 py-2">
+        {/* 마일스톤 스위처 = 제목 */}
+        <div className="relative flex items-center gap-0.5 bg-bridge-dark border border-foreground/10 rounded-xl p-0.5">
           <button
             onClick={() => prevMs && onSelectMilestone(prevMs.id)}
             disabled={!prevMs}
@@ -828,10 +827,11 @@ export function MilestoneDetailView({
           </button>
           <button
             onClick={() => setSwitcherOpen((v) => !v)}
-            className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-bold text-foreground hover:bg-foreground/[0.07] transition-colors"
+            title={milestone.description || undefined}
+            className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs md:text-sm font-bold text-foreground hover:bg-foreground/[0.07] transition-colors"
             aria-expanded={switcherOpen}
           >
-            <span className="truncate max-w-[160px]">{milestone.title}</span>
+            <span className="truncate max-w-[200px]">{milestone.title}</span>
             <ChevronDown className="h-3 w-3 text-slate-500" />
           </button>
           <button
@@ -844,11 +844,6 @@ export function MilestoneDetailView({
           >
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
-          {nextMs && (
-            <span className="hidden lg:block text-xs text-slate-600 px-1.5 max-w-[110px] truncate">
-              {nextMs.title}
-            </span>
-          )}
 
           {/* 점프 드롭다운 */}
           {switcherOpen && (
@@ -857,7 +852,7 @@ export function MilestoneDetailView({
                 className="fixed inset-0 z-30"
                 onClick={() => setSwitcherOpen(false)}
               />
-              <div className="absolute top-full right-0 mt-1.5 z-40 w-60 max-h-72 overflow-y-auto custom-scrollbar bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1.5">
+              <div className="absolute top-full left-0 mt-1.5 z-40 w-60 max-h-72 overflow-y-auto custom-scrollbar bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1.5">
                 {sortedMilestones.map((ms) => (
                   <button
                     key={ms.id}
@@ -882,154 +877,109 @@ export function MilestoneDetailView({
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
-          {onViewInKanban && (
-            <button
-              onClick={() => onViewInKanban(mid)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.2)] transition-all"
-            >
-              <Columns3 className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">
-                {t("milestone.detail.viewInKanban", {
-                  defaultValue: "칸반에서 보기",
-                })}
-              </span>
-            </button>
-          )}
-          {onEditMilestone && (
-            <button
-              onClick={() => onEditMilestone(milestone)}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-              aria-label={t("common.edit", { defaultValue: "수정" })}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
+        <span
+          className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${status.badgeClasses}`}
+        >
+          {statusLabel}
+        </span>
+        {status.key !== "completed" && (
+          <span
+            className={`text-xs font-bold tabular-nums ${
+              dday < 0 ? "text-red-500" : "text-slate-400"
+            }`}
+          >
+            {dday < 0 ? `D+${-dday}` : dday === 0 ? "D-DAY" : `D-${dday}`}
+          </span>
+        )}
+        <span className="hidden md:inline text-xs text-slate-400 tabular-nums whitespace-nowrap">
+          {toShortDate(milestone.start_date)}~{toShortDate(milestone.end_date)}{" "}
+          ·{" "}
+          {t("milestone.detail.featureCount", {
+            count: scopedFeatureCount,
+            defaultValue: "피처 {{count}}개",
+          })}{" "}
+          ·{" "}
+          {t("milestone.detail.taskCount", {
+            count: scopedTotal,
+            defaultValue: "태스크 {{count}}개",
+          })}
+        </span>
+
+        {/* 진행 막대 (체크리스트 기준) + 오늘 마커 */}
+        <div
+          className="relative flex-1 min-w-[120px] h-1.5 rounded-full bg-foreground/10"
+          title={t("milestone.detail.timeElapsed", {
+            pct: timePct,
+            defaultValue: "기간 경과 {{pct}}%",
+          })}
+        >
+          <div
+            className="absolute inset-y-0 left-0 rounded-full bg-bridge-accent"
+            style={{ width: `${progressPct}%` }}
+          />
+          {status.key !== "waiting" && (
+            <div
+              className={`absolute -top-1 -bottom-1 w-0.5 rounded ${
+                status.key === "overdue" ? "bg-red-500" : "bg-bridge-secondary"
+              }`}
+              style={{ left: `calc(${timePct}% - 1px)` }}
+              title={t("milestone.detail.todayMarker", {
+                defaultValue: "오늘 (기간 경과)",
+              })}
+            />
           )}
         </div>
+        <span
+          className="text-xs text-slate-400 tabular-nums whitespace-nowrap"
+          title={t("milestone.detail.progressByChecklist", {
+            defaultValue: "체크리스트 완료 기준",
+          })}
+        >
+          <b className="text-sm text-foreground font-bold">{progressPct}%</b> ·{" "}
+          {progressDone}/{progressTotal}
+        </span>
+        {status.key !== "completed" && status.key !== "waiting" && (
+          <span
+            className={`text-xs font-bold tabular-nums whitespace-nowrap ${
+              paceDelta >= 0
+                ? "text-emerald-600 dark:text-emerald-400"
+                : paceDelta > -15
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-red-500"
+            }`}
+          >
+            {paceDelta >= 0
+              ? t("milestone.detail.paceAhead", { defaultValue: "순항 중" })
+              : t("milestone.detail.paceBehind", {
+                  delta: -paceDelta,
+                  defaultValue: "페이스 {{delta}}%p 부족",
+                })}
+          </span>
+        )}
+
+        {onViewInKanban && (
+          <button
+            onClick={() => onViewInKanban(mid)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.2)] transition-all"
+          >
+            <Columns3 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">
+              {t("milestone.detail.viewInKanban", {
+                defaultValue: "칸반에서 보기",
+              })}
+            </span>
+          </button>
+        )}
+        {onEditMilestone && (
+          <button
+            onClick={() => onEditMilestone(milestone)}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            aria-label={t("common.edit", { defaultValue: "수정" })}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
-
-      <motion.div
-        initial={reduced ? false : { opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="p-4 md:p-6 space-y-5"
-      >
-        {/* ── 히어로: 타이틀 + 페이스 ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="text-sm md:text-lg font-bold text-foreground tracking-tight">
-                {milestone.title}
-              </h2>
-              <span
-                className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${status.badgeClasses}`}
-              >
-                {statusLabel}
-              </span>
-              {status.key !== "completed" && (
-                <span
-                  className={`text-xs font-bold tabular-nums ${
-                    dday < 0 ? "text-red-500" : "text-slate-400"
-                  }`}
-                >
-                  {dday < 0 ? `D+${-dday}` : dday === 0 ? "D-DAY" : `D-${dday}`}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 mt-2 text-xs text-slate-400 tabular-nums flex-wrap">
-              <span>
-                {toShortDate(milestone.start_date)} ~{" "}
-                {toShortDate(milestone.end_date)}
-              </span>
-              <span className="text-slate-600">·</span>
-              <span>
-                {t("milestone.detail.featureCount", {
-                  count: scopedFeatureCount,
-                  defaultValue: "피처 {{count}}개",
-                })}
-              </span>
-              <span className="text-slate-600">·</span>
-              <span>
-                {t("milestone.detail.taskCount", {
-                  count: scopedTotal,
-                  defaultValue: "태스크 {{count}}개",
-                })}
-              </span>
-            </div>
-            {milestone.description && (
-              <p className="text-xs text-slate-500 mt-2 max-w-xl">
-                {milestone.description}
-              </p>
-            )}
-          </div>
-
-          {/* 페이스 카드 */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4">
-            <div className="flex items-baseline justify-between gap-3">
-              <div className="flex items-baseline gap-2">
-                <span className="text-lg font-bold text-foreground tabular-nums tracking-tight">
-                  {scopedPct}%
-                </span>
-                <span className="text-xs text-slate-400 tabular-nums">
-                  {t("milestone.detail.completedOf", {
-                    completed: scopedCompleted,
-                    total: scopedTotal,
-                    defaultValue: "완료 {{completed}} / {{total}}",
-                  })}
-                </span>
-              </div>
-              {status.key !== "completed" && status.key !== "waiting" && (
-                <span
-                  className={`text-xs font-bold tabular-nums ${
-                    paceDelta >= 0
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : paceDelta > -15
-                        ? "text-amber-600 dark:text-amber-400"
-                        : "text-red-500"
-                  }`}
-                >
-                  {paceDelta >= 0
-                    ? t("milestone.detail.paceAhead", {
-                        defaultValue: "순항 중",
-                      })
-                    : t("milestone.detail.paceBehind", {
-                        delta: -paceDelta,
-                        defaultValue: "페이스 {{delta}}%p 부족",
-                      })}
-                </span>
-              )}
-            </div>
-            {/* 진행 막대 + 오늘 마커 */}
-            <div className="relative h-2 rounded-full bg-foreground/10 mt-4">
-              <div
-                className="absolute inset-y-0 left-0 rounded-full bg-bridge-accent"
-                style={{ width: `${scopedPct}%` }}
-              />
-              {status.key !== "waiting" && (
-                <div
-                  className={`absolute -top-1 -bottom-1 w-0.5 rounded ${
-                    status.key === "overdue"
-                      ? "bg-red-500"
-                      : "bg-bridge-secondary"
-                  }`}
-                  style={{ left: `calc(${timePct}% - 1px)` }}
-                  title={t("milestone.detail.todayMarker", {
-                    defaultValue: "오늘 (기간 경과)",
-                  })}
-                />
-              )}
-            </div>
-            <div className="flex items-center justify-between mt-2 text-xs text-slate-500 tabular-nums">
-              <span>{toShortDate(milestone.start_date)}</span>
-              <span>
-                {t("milestone.detail.timeElapsed", {
-                  pct: timePct,
-                  defaultValue: "기간 경과 {{pct}}%",
-                })}
-              </span>
-              <span>{toShortDate(milestone.end_date)}</span>
-            </div>
-          </div>
-        </div>
 
         {/* ── 피처/스프린트 컬럼 밴드 ── */}
         <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
@@ -1450,7 +1400,6 @@ export function MilestoneDetailView({
             </div>
           </div>
         </div>
-      </motion.div>
-    </div>
+    </motion.div>
   );
 }

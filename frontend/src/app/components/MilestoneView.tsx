@@ -537,34 +537,20 @@ export function MilestoneView({
     return upcoming ?? sortedMilestones[sortedMilestones.length - 1];
   }, [sortedMilestones]);
 
+  // 디테일 탭에서 보여줄 마일스톤 — 명시 선택 > 기본(진행 중)
   const detailMilestone =
     (detailMilestoneId
       ? milestones.find((m) => m.id === detailMilestoneId)
-      : null) ?? (viewMode === "detail" ? defaultDetailMilestone : null);
+      : null) ?? defaultDetailMilestone;
 
-  if (detailMilestone) {
-    return (
-      <MilestoneDetailView
-        boardId={boardId}
-        milestone={detailMilestone}
-        milestones={milestones}
-        features={features}
-        tasks={tasks}
-        onBack={() => {
-          setDetailMilestoneId(null);
-          // 디테일 탭에서 돌아가면 보드 탭으로 (아니면 즉시 재진입됨)
-          if (viewMode === "detail") changeViewMode("board");
-        }}
-        onSelectMilestone={setDetailMilestoneId}
-        onEditMilestone={onEditMilestone}
-        onTaskClick={onTaskClick}
-        onFeatureClick={onFeatureClick}
-        onViewInKanban={onViewInKanban}
-        canEdit={canEdit}
-        onRefresh={onRefresh}
-      />
-    );
-  }
+  // 마일스톤 클릭(보드 컬럼·매트릭스 헤더·카드·타임라인) → 디테일 탭으로 전환
+  const openDetail = useCallback(
+    (milestoneId: string) => {
+      setDetailMilestoneId(milestoneId);
+      changeViewMode("detail");
+    },
+    [changeViewMode],
+  );
 
   // ========================================
   // Empty State
@@ -734,7 +720,26 @@ export function MilestoneView({
         </div>
       )}
 
-      {viewMode === "board" ? (
+      {viewMode === "detail" && detailMilestone ? (
+        <MilestoneDetailView
+          boardId={boardId}
+          milestone={detailMilestone}
+          milestones={milestones}
+          features={features}
+          tasks={tasks}
+          onBack={() => {
+            setDetailMilestoneId(null);
+            changeViewMode("board");
+          }}
+          onSelectMilestone={setDetailMilestoneId}
+          onEditMilestone={onEditMilestone}
+          onTaskClick={onTaskClick}
+          onFeatureClick={onFeatureClick}
+          onViewInKanban={onViewInKanban}
+          canEdit={canEdit}
+          onRefresh={onRefresh}
+        />
+      ) : viewMode === "board" ? (
         <MilestoneBoard
           features={features}
           tasks={tasks}
@@ -742,7 +747,7 @@ export function MilestoneView({
           onFeatureClick={onFeatureClick}
           onCreateMilestone={onCreateMilestone}
           onMoveTasksMilestone={onMoveTasksMilestone}
-          onMilestoneHeaderClick={setDetailMilestoneId}
+          onMilestoneHeaderClick={openDetail}
         />
       ) : viewMode === "matrix" ? (
         <MilestoneMatrix
@@ -750,7 +755,7 @@ export function MilestoneView({
           tasks={tasks}
           milestones={milestones}
           onFeatureClick={onFeatureClick}
-          onMilestoneHeaderClick={setDetailMilestoneId}
+          onMilestoneHeaderClick={openDetail}
         />
       ) : (
         <>
@@ -762,7 +767,7 @@ export function MilestoneView({
             expandedMilestones={expandedMilestones}
             detailCache={detailCache}
             onToggle={toggleMilestone}
-            onMilestoneClick={(m) => setDetailMilestoneId(m.id)}
+            onMilestoneClick={(m) => openDetail(m.id)}
             onUpdateDates={onUpdateMilestoneDates}
           />
 
@@ -844,12 +849,12 @@ export function MilestoneView({
                         tabIndex={0}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setDetailMilestoneId(milestone.id);
+                          openDetail(milestone.id);
                         }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             e.stopPropagation();
-                            setDetailMilestoneId(milestone.id);
+                            openDetail(milestone.id);
                           }
                         }}
                         className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-colors"

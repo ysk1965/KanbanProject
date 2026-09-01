@@ -791,7 +791,8 @@
       "flowSum": "유출 {{out}} · 유입 {{in}}",
       "flowOut": "유출 → 다른 마일스톤",
       "flowIn": "유입 ← 다른 마일스톤",
-      "noFlow": "다른 마일스톤과 걸친 태스크가 없습니다"
+      "noFlow": "다른 마일스톤과 걸친 태스크가 없습니다",
+      "progressByChecklist": "체크리스트 완료 기준"
     },
     "table": {
       "title": "피처 · 태스크 · 체크리스트",
