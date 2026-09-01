@@ -558,6 +558,7 @@ export function MilestoneTableView({
       t("milestone.table.csvSprint", { defaultValue: "스프린트" }),
       t("milestone.table.csvDue", { defaultValue: "마감" }),
       t("milestone.table.colChecklist", { defaultValue: "체크리스트" }),
+      t("milestone.table.csvItemPeriod", { defaultValue: "항목 기간" }),
       t("milestone.table.csvChecked", { defaultValue: "완료" }),
       t("milestone.table.csvAssignee", { defaultValue: "담당자" }),
     ];
@@ -586,12 +587,17 @@ export function MilestoneTableView({
         ];
         const items = itemsOf(tk.id);
         if (items.length === 0) {
-          rows.push([...base, "", "", ""]);
+          rows.push([...base, "", "", "", ""]);
         } else {
           for (const item of items) {
+            const period =
+              item.start_date || item.due_date
+                ? `${item.start_date ?? ""}~${item.due_date ?? ""}`
+                : "";
             rows.push([
               ...base,
               item.title,
+              period,
               item.completed ? "O" : "X",
               item.assignee?.name ?? "",
             ]);
@@ -790,15 +796,15 @@ export function MilestoneTableView({
                   }
                 >
                   <tr className="border-b border-bridge-border">
-                    <th className="w-[24%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
+                    <th className="w-[21%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
                       {t("milestone.table.colFeature", {
                         defaultValue: "피처",
                       })}
                     </th>
-                    <th className="w-[36%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
+                    <th className="w-[25%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
                       {t("milestone.table.colTask", { defaultValue: "태스크" })}
                     </th>
-                    <th className="w-[40%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
+                    <th className="w-[54%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
                       {t("milestone.table.colChecklist", {
                         defaultValue: "체크리스트",
                       })}
@@ -922,11 +928,6 @@ export function MilestoneTableView({
                               >
                                 {tk.title}
                               </span>
-                              {tk.task_key && (
-                                <span className="text-xs text-slate-600 ml-auto flex-shrink-0 tabular-nums">
-                                  {tk.task_key}
-                                </span>
-                              )}
                             </div>
                             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                               {sprintEnabled && (
@@ -1005,6 +1006,10 @@ export function MilestoneTableView({
                                         unassignedLabel={t(
                                           "milestone.detail.unassigned",
                                           { defaultValue: "미배정" },
+                                        )}
+                                        delayedLabel={t(
+                                          "milestone.table.delayed",
+                                          { defaultValue: "지연" },
                                         )}
                                       />
                                     ))}
@@ -1101,6 +1106,7 @@ function SortableChecklistLine({
   onRename,
   onAssign,
   unassignedLabel,
+  delayedLabel,
 }: {
   item: ChecklistItem;
   canEdit: boolean;
@@ -1109,6 +1115,7 @@ function SortableChecklistLine({
   onRename: (title: string) => void;
   onAssign: (member: { id: string; name: string } | null) => void;
   unassignedLabel: string;
+  delayedLabel: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(item.title);
@@ -1198,6 +1205,23 @@ function SortableChecklistLine({
           }${canEdit ? " cursor-text hover:text-foreground" : ""}`}
         >
           {item.title}
+        </span>
+      )}
+
+      {/* 기간 (시작~마감) — 마감 지남 + 미완료면 빨강 */}
+      {(item.start_date || item.due_date) && (
+        <span
+          className={`text-xs tabular-nums flex-shrink-0 ${
+            !item.completed && item.due_date && daysUntil(item.due_date) < 0
+              ? "font-bold text-red-500"
+              : "text-slate-600"
+          }`}
+        >
+          {item.start_date ? toShortDate(item.start_date) : ""}~
+          {item.due_date ? toShortDate(item.due_date) : ""}
+          {!item.completed && item.due_date && daysUntil(item.due_date) < 0
+            ? ` ${delayedLabel}`
+            : ""}
         </span>
       )}
 

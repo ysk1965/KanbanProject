@@ -8,7 +8,6 @@ import {
   ChevronDown,
   Pencil,
   Columns3,
-  Users,
   GitBranch,
   AlertTriangle,
   Loader2,
@@ -18,11 +17,10 @@ import type {
   Feature,
   Task,
   Milestone,
-  MilestoneAllocation,
   ChecklistItem,
   SprintBoard,
 } from "../types";
-import { milestoneService, checklistService } from "../utils/services";
+import { checklistService } from "../utils/services";
 import { sprintAPI } from "../utils/api";
 import { getMilestoneStatus } from "./MilestoneView";
 import { MilestoneTableView } from "./MilestoneTableView";
@@ -364,9 +362,6 @@ export function MilestoneDetailView({
     [taskId: string]: { items: ChecklistItem[]; loading: boolean };
   }>({});
   const [sprintBoard, setSprintBoard] = useState<SprintBoard | null>(null);
-  const [allocations, setAllocations] = useState<MilestoneAllocation[] | null>(
-    null,
-  );
 
   const mid = milestone.id;
 
@@ -376,7 +371,6 @@ export function MilestoneDetailView({
     setShowAllColumns(new Set());
     setSwitcherOpen(false);
     setSprintBoard(null);
-    setAllocations(null);
   }, [mid]);
 
   // 스프린트 보드(칩·이월 데이터) + 인원 배분 로드 — 실패해도 화면은 동작
@@ -389,14 +383,6 @@ export function MilestoneDetailView({
       })
       .catch(() => {
         /* 스프린트 미사용/실패 → 칩 숨김 */
-      });
-    milestoneService
-      .getAllocations(boardId, mid)
-      .then((data) => {
-        if (!cancelled) setAllocations(data);
-      })
-      .catch(() => {
-        if (!cancelled) setAllocations([]);
       });
     return () => {
       cancelled = true;
@@ -659,51 +645,6 @@ export function MilestoneDetailView({
     t,
   ]);
 
-  // ── 유출/유입 갈래 흐름 ──
-  const flow = useMemo(() => {
-    const out: {
-      feature: Feature | undefined;
-      title: string;
-      ms: string;
-      count: number;
-    }[] = [];
-    const inn: {
-      feature: Feature | undefined;
-      title: string;
-      ms: string;
-      count: number;
-    }[] = [];
-    for (const [featureId, inner] of grid) {
-      const home = homeByFeature.get(featureId) ?? UNASSIGNED;
-      const feature = featureById.get(featureId);
-      const title = feature?.title ?? "";
-      if (home === mid) {
-        for (const [k, s] of inner) {
-          if (k === mid || k === UNASSIGNED) continue;
-          out.push({
-            feature,
-            title,
-            ms: milestoneTitleById.get(k) ?? "",
-            count: s.total,
-          });
-        }
-      } else if (home !== UNASSIGNED) {
-        const s = inner.get(mid);
-        if (s && s.total > 0) {
-          inn.push({
-            feature,
-            title,
-            ms: milestoneTitleById.get(home) ?? "",
-            count: s.total,
-          });
-        }
-      }
-    }
-    out.sort((a, b) => b.count - a.count);
-    inn.sort((a, b) => b.count - a.count);
-    return { out, inn };
-  }, [grid, homeByFeature, featureById, mid, milestoneTitleById]);
-
   // ── 태스크 카드 인터랙션 ──
   const toggleTask = useCallback(
     (taskId: string) => {
@@ -793,15 +734,6 @@ export function MilestoneDetailView({
         : status.key === "overdue"
           ? t("schedule.overdue", { defaultValue: "Overdue" })
           : t("milestone.statusInProgress");
-
-  const allocatedSum = (allocations ?? []).reduce(
-    (acc, a) => acc + (a.total_allocated_hours ?? 0),
-    0,
-  );
-  const actualSum = (allocations ?? []).reduce(
-    (acc, a) => acc + (a.actual_worked_hours ?? 0),
-    0,
-  );
 
   const TASK_LIMIT = 6;
 
@@ -981,425 +913,238 @@ export function MilestoneDetailView({
         )}
       </div>
 
-        {/* ── 피처/스프린트 컬럼 밴드 ── */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
-          <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-foreground/[0.04] border-b border-foreground/[0.06]">
-            <span className="text-xs md:text-sm font-bold text-foreground">
-              {layoutMode === "table"
-                ? t("milestone.table.title", {
-                    defaultValue: "피처 · 태스크 · 체크리스트",
+      {/* ── 피처/스프린트 컬럼 밴드 ── */}
+      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-foreground/[0.04] border-b border-foreground/[0.06]">
+          <span className="text-xs md:text-sm font-bold text-foreground">
+            {layoutMode === "table"
+              ? t("milestone.table.title", {
+                  defaultValue: "피처 · 태스크 · 체크리스트",
+                })
+              : groupMode === "sprint"
+                ? t("milestone.detail.bySprintTitle", {
+                    defaultValue: "스프린트별 진행 · 이 마일스톤 기준",
                   })
-                : groupMode === "sprint"
-                  ? t("milestone.detail.bySprintTitle", {
-                      defaultValue: "스프린트별 진행 · 이 마일스톤 기준",
-                    })
-                  : t("milestone.detail.byFeatureTitle", {
-                      defaultValue: "피처별 진행 · 이 마일스톤 기준",
-                    })}
-            </span>
-            <div className="flex items-center gap-2">
-              {layoutMode === "board" && sprintEnabled && (
-                <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/5 border border-foreground/[0.08]">
-                  <button
-                    onClick={() => setGroupMode("feature")}
-                    className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
-                      groupMode === "feature"
-                        ? "bg-bridge-accent text-white font-bold"
-                        : "text-slate-400 hover:text-foreground"
-                    }`}
-                  >
-                    {t("milestone.detail.byFeature", {
-                      defaultValue: "피처별",
-                    })}
-                  </button>
-                  <button
-                    onClick={() => setGroupMode("sprint")}
-                    className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
-                      groupMode === "sprint"
-                        ? "bg-bridge-accent text-white font-bold"
-                        : "text-slate-400 hover:text-foreground"
-                    }`}
-                  >
-                    {t("milestone.detail.bySprint", {
-                      defaultValue: "스프린트별",
-                    })}
-                  </button>
-                </div>
-              )}
+                : t("milestone.detail.byFeatureTitle", {
+                    defaultValue: "피처별 진행 · 이 마일스톤 기준",
+                  })}
+          </span>
+          <div className="flex items-center gap-2">
+            {layoutMode === "board" && sprintEnabled && (
               <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/5 border border-foreground/[0.08]">
                 <button
-                  onClick={() => changeLayout("board")}
+                  onClick={() => setGroupMode("feature")}
                   className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
-                    layoutMode === "board"
+                    groupMode === "feature"
                       ? "bg-bridge-accent text-white font-bold"
                       : "text-slate-400 hover:text-foreground"
                   }`}
                 >
-                  {t("milestone.table.layoutBoard", { defaultValue: "보드" })}
+                  {t("milestone.detail.byFeature", {
+                    defaultValue: "피처별",
+                  })}
                 </button>
                 <button
-                  onClick={() => changeLayout("table")}
+                  onClick={() => setGroupMode("sprint")}
                   className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
-                    layoutMode === "table"
+                    groupMode === "sprint"
                       ? "bg-bridge-accent text-white font-bold"
                       : "text-slate-400 hover:text-foreground"
                   }`}
                 >
-                  {t("milestone.table.layoutTable", {
-                    defaultValue: "테이블",
+                  {t("milestone.detail.bySprint", {
+                    defaultValue: "스프린트별",
                   })}
                 </button>
               </div>
+            )}
+            <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/5 border border-foreground/[0.08]">
+              <button
+                onClick={() => changeLayout("board")}
+                className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                  layoutMode === "board"
+                    ? "bg-bridge-accent text-white font-bold"
+                    : "text-slate-400 hover:text-foreground"
+                }`}
+              >
+                {t("milestone.table.layoutBoard", { defaultValue: "보드" })}
+              </button>
+              <button
+                onClick={() => changeLayout("table")}
+                className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                  layoutMode === "table"
+                    ? "bg-bridge-accent text-white font-bold"
+                    : "text-slate-400 hover:text-foreground"
+                }`}
+              >
+                {t("milestone.table.layoutTable", {
+                  defaultValue: "테이블",
+                })}
+              </button>
             </div>
           </div>
+        </div>
 
-          {layoutMode === "table" ? (
-            <MilestoneTableView
-              boardId={boardId}
-              milestone={milestone}
-              tasks={scopedTasks}
-              featureById={featureById}
-              homeByFeature={homeByFeature}
-              sprintInfoByTask={sprintInfoByTask}
-              activeSeq={activeSeq}
-              sprintEnabled={sprintEnabled}
-              canEdit={canEdit}
-              onTaskClick={onTaskClick}
-              onFeatureClick={onFeatureClick}
-              onRefresh={onRefresh}
-            />
-          ) : scopedTotal === 0 ? (
-            <div className="flex flex-col items-center py-12 text-slate-500">
-              <Layers className="h-6 w-6 mb-2" />
-              <span className="text-xs">
-                {t("milestone.detail.noTasks", {
-                  defaultValue: "이 마일스톤에 배정된 태스크가 없습니다",
-                })}
-              </span>
-            </div>
-          ) : (
-            <div className="flex gap-3 overflow-x-auto custom-scrollbar p-3 items-start">
-              {columns.map((col, index) => {
-                const pct =
-                  col.tasks.length > 0
-                    ? Math.round((col.completed / col.tasks.length) * 100)
-                    : 0;
-                const showAll = showAllColumns.has(col.key);
-                const sorted = [...col.tasks].sort((a, b) => {
-                  if (a.completed !== b.completed)
-                    return Number(a.completed) - Number(b.completed);
-                  return (
-                    (a.feature_position ?? a.position) -
-                    (b.feature_position ?? b.position)
-                  );
-                });
-                const visible = showAll ? sorted : sorted.slice(0, TASK_LIMIT);
-                return (
-                  <motion.div
-                    key={col.key}
-                    initial={reduced ? false : { opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.04 }}
-                    className="flex-shrink-0 w-72 bg-foreground/[0.02] border border-foreground/[0.06] rounded-xl p-2.5 space-y-2"
-                  >
-                    {/* 컬럼 헤더 */}
-                    <div className="px-1 pb-2 border-b border-foreground/[0.07]">
-                      <div
-                        className={`flex items-center gap-2${
-                          col.feature && onFeatureClick
-                            ? " cursor-pointer group/fh"
-                            : ""
-                        }`}
-                        onClick={
-                          col.feature && onFeatureClick
-                            ? () => onFeatureClick(col.feature!)
-                            : undefined
-                        }
-                      >
-                        {col.color && (
-                          <span
-                            className="w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: col.color }}
-                          />
-                        )}
-                        <span className="text-xs font-bold text-foreground truncate flex-1 group-hover/fh:text-bridge-accent transition-colors">
-                          {col.title}
-                        </span>
-                        <span className="text-xs font-bold text-foreground tabular-nums flex-shrink-0">
-                          {pct}%
-                        </span>
-                      </div>
-                      <div className="h-1 rounded-full bg-foreground/10 overflow-hidden mt-2">
-                        <div
-                          className="h-full rounded-full bg-bridge-accent"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                        {(col.splitCount ?? 0) > 0 && (
-                          <span
-                            className="flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent whitespace-nowrap"
-                            title={t("milestone.board.splitTip", {
-                              defaultValue: "다른 마일스톤으로 갈라진 태스크",
-                            })}
-                          >
-                            <GitBranch className="h-3 w-3" />
-                            {col.splitCount}
-                            {col.splitLabel && ` → ${col.splitLabel}`}
-                          </span>
-                        )}
-                        {(col.unassignedCount ?? 0) > 0 && (
-                          <span className="flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 whitespace-nowrap">
-                            <AlertTriangle className="h-3 w-3" />
-                            {col.unassignedCount}
-                          </span>
-                        )}
-                        <span className="text-xs text-slate-500 tabular-nums ml-auto">
-                          {col.completed}/{col.tasks.length}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* 태스크 카드 */}
-                    {visible.map((tk) => {
-                      const cached = checklistCache[tk.id];
-                      return (
-                        <TaskCard
-                          key={tk.id}
-                          task={tk}
-                          sprintInfo={sprintInfoByTask.get(tk.id)}
-                          activeSeq={activeSeq}
-                          sprintEnabled={sprintEnabled}
-                          showFeature={
-                            groupMode === "sprint"
-                              ? {
-                                  title:
-                                    featureById.get(tk.feature_id)?.title ??
-                                    tk.feature_title,
-                                  color:
-                                    featureById.get(tk.feature_id)?.color ??
-                                    tk.feature_color,
-                                }
-                              : null
-                          }
-                          expanded={expandedTasks.has(tk.id)}
-                          checklist={cached?.items}
-                          checklistLoading={cached?.loading ?? false}
-                          onToggle={() => toggleTask(tk.id)}
-                          onTitleClick={
-                            onTaskClick ? () => onTaskClick(tk) : undefined
-                          }
-                        />
-                      );
-                    })}
-                    {sorted.length > TASK_LIMIT && (
-                      <button
-                        onClick={() => toggleShowAll(col.key)}
-                        className="w-full text-left px-1.5 py-1 text-xs text-slate-500 hover:text-foreground transition-colors"
-                      >
-                        {showAll
-                          ? t("milestone.detail.showLess", {
-                              defaultValue: "접기",
-                            })
-                          : t("milestone.detail.showMore", {
-                              count: sorted.length - TASK_LIMIT,
-                              defaultValue: "외 {{count}}개 모두 보기",
-                            })}
-                      </button>
-                    )}
-                  </motion.div>
-                );
+        {layoutMode === "table" ? (
+          <MilestoneTableView
+            boardId={boardId}
+            milestone={milestone}
+            tasks={scopedTasks}
+            featureById={featureById}
+            homeByFeature={homeByFeature}
+            sprintInfoByTask={sprintInfoByTask}
+            activeSeq={activeSeq}
+            sprintEnabled={sprintEnabled}
+            canEdit={canEdit}
+            onTaskClick={onTaskClick}
+            onFeatureClick={onFeatureClick}
+            onRefresh={onRefresh}
+          />
+        ) : scopedTotal === 0 ? (
+          <div className="flex flex-col items-center py-12 text-slate-500">
+            <Layers className="h-6 w-6 mb-2" />
+            <span className="text-xs">
+              {t("milestone.detail.noTasks", {
+                defaultValue: "이 마일스톤에 배정된 태스크가 없습니다",
               })}
-            </div>
-          )}
-        </div>
-
-        {/* ── 하단: 인원 배분 + 갈래 흐름 ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-          {/* 인원 배분 */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-2.5 bg-foreground/[0.04] border-b border-foreground/[0.06]">
-              <span className="flex items-center gap-1.5 text-xs md:text-sm font-bold text-foreground">
-                <Users className="h-3.5 w-3.5 text-slate-400" />
-                {t("milestone.detail.allocations", {
-                  defaultValue: "인원 배분",
-                })}
-              </span>
-              {allocations && allocations.length > 0 && (
-                <span className="text-xs text-slate-500 tabular-nums">
-                  {t("milestone.detail.allocationSum", {
-                    allocated: allocatedSum,
-                    actual: actualSum,
-                    defaultValue: "배분 {{allocated}}h · 실제 {{actual}}h",
-                  })}
-                </span>
-              )}
-            </div>
-            <div className="p-2">
-              {allocations === null ? (
-                <div className="flex items-center justify-center py-6">
-                  <Loader2 className="w-5 h-5 animate-spin text-bridge-accent" />
-                </div>
-              ) : allocations.length === 0 ? (
-                <div className="text-xs text-slate-500 text-center py-6">
-                  {t("milestone.detail.noAllocations", {
-                    defaultValue: "등록된 인원 배분이 없습니다",
-                  })}
-                </div>
-              ) : (
-                allocations.map((a) => {
-                  const diff = a.difference ?? null;
-                  return (
+            </span>
+          </div>
+        ) : (
+          <div className="flex gap-3 overflow-x-auto custom-scrollbar p-3 items-start">
+            {columns.map((col, index) => {
+              const pct =
+                col.tasks.length > 0
+                  ? Math.round((col.completed / col.tasks.length) * 100)
+                  : 0;
+              const showAll = showAllColumns.has(col.key);
+              const sorted = [...col.tasks].sort((a, b) => {
+                if (a.completed !== b.completed)
+                  return Number(a.completed) - Number(b.completed);
+                return (
+                  (a.feature_position ?? a.position) -
+                  (b.feature_position ?? b.position)
+                );
+              });
+              const visible = showAll ? sorted : sorted.slice(0, TASK_LIMIT);
+              return (
+                <motion.div
+                  key={col.key}
+                  initial={reduced ? false : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.04 }}
+                  className="flex-shrink-0 w-72 bg-foreground/[0.02] border border-foreground/[0.06] rounded-xl p-2.5 space-y-2"
+                >
+                  {/* 컬럼 헤더 */}
+                  <div className="px-1 pb-2 border-b border-foreground/[0.07]">
                     <div
-                      key={a.id}
-                      className="flex items-center gap-3 px-2.5 py-2 rounded-xl hover:bg-foreground/[0.03] transition-colors"
+                      className={`flex items-center gap-2${
+                        col.feature && onFeatureClick
+                          ? " cursor-pointer group/fh"
+                          : ""
+                      }`}
+                      onClick={
+                        col.feature && onFeatureClick
+                          ? () => onFeatureClick(col.feature!)
+                          : undefined
+                      }
                     >
-                      <div className="w-7 h-7 rounded-full bg-bridge-accent/20 text-bridge-accent flex items-center justify-center text-xs font-bold flex-shrink-0">
-                        {a.member.name.slice(0, 1)}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-foreground truncate">
-                          {a.member.name}
-                        </div>
-                        <div className="text-xs text-slate-500 tabular-nums">
-                          {t("milestone.detail.workingDays", {
-                            days: a.working_days,
-                            defaultValue: "근무 {{days}}일",
-                          })}
-                        </div>
-                      </div>
-                      <div className="ml-auto text-right flex items-center gap-2">
-                        <span className="text-xs font-bold text-foreground tabular-nums">
-                          {a.actual_worked_hours ?? 0}h
-                          <span className="text-slate-500 font-medium">
-                            {" "}
-                            / {a.total_allocated_hours}h
-                          </span>
-                        </span>
-                        {a.status === "OVER" ? (
-                          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-500 tabular-nums whitespace-nowrap">
-                            {t("milestone.detail.allocOver", {
-                              defaultValue: "초과",
-                            })}
-                            {diff !== null && ` +${Math.abs(diff)}h`}
-                          </span>
-                        ) : a.status === "UNDER" ? (
-                          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 tabular-nums whitespace-nowrap">
-                            {t("milestone.detail.allocUnder", {
-                              defaultValue: "미달",
-                            })}
-                            {diff !== null && ` -${Math.abs(diff)}h`}
-                          </span>
-                        ) : (
-                          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                            {t("milestone.detail.allocNormal", {
-                              defaultValue: "정상",
-                            })}
-                          </span>
-                        )}
-                      </div>
+                      {col.color && (
+                        <span
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: col.color }}
+                        />
+                      )}
+                      <span className="text-xs font-bold text-foreground truncate flex-1 group-hover/fh:text-bridge-accent transition-colors">
+                        {col.title}
+                      </span>
+                      <span className="text-xs font-bold text-foreground tabular-nums flex-shrink-0">
+                        {pct}%
+                      </span>
                     </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
+                    <div className="h-1 rounded-full bg-foreground/10 overflow-hidden mt-2">
+                      <div
+                        className="h-full rounded-full bg-bridge-accent"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                      {(col.splitCount ?? 0) > 0 && (
+                        <span
+                          className="flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent whitespace-nowrap"
+                          title={t("milestone.board.splitTip", {
+                            defaultValue: "다른 마일스톤으로 갈라진 태스크",
+                          })}
+                        >
+                          <GitBranch className="h-3 w-3" />
+                          {col.splitCount}
+                          {col.splitLabel && ` → ${col.splitLabel}`}
+                        </span>
+                      )}
+                      {(col.unassignedCount ?? 0) > 0 && (
+                        <span className="flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                          <AlertTriangle className="h-3 w-3" />
+                          {col.unassignedCount}
+                        </span>
+                      )}
+                      <span className="text-xs text-slate-500 tabular-nums ml-auto">
+                        {col.completed}/{col.tasks.length}
+                      </span>
+                    </div>
+                  </div>
 
-          {/* 갈래 흐름 */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-2.5 bg-foreground/[0.04] border-b border-foreground/[0.06]">
-              <span className="flex items-center gap-1.5 text-xs md:text-sm font-bold text-foreground">
-                <GitBranch className="h-3.5 w-3.5 text-slate-400" />
-                {t("milestone.detail.flow", { defaultValue: "갈래 흐름" })}
-              </span>
-              <span className="text-xs text-slate-500 tabular-nums">
-                {t("milestone.detail.flowSum", {
-                  out: flow.out.reduce((acc, r) => acc + r.count, 0),
-                  in: flow.inn.reduce((acc, r) => acc + r.count, 0),
-                  defaultValue: "유출 {{out}} · 유입 {{in}}",
-                })}
-              </span>
-            </div>
-            <div className="p-2">
-              {flow.out.length === 0 && flow.inn.length === 0 ? (
-                <div className="text-xs text-slate-500 text-center py-6">
-                  {t("milestone.detail.noFlow", {
-                    defaultValue: "다른 마일스톤과 걸친 태스크가 없습니다",
+                  {/* 태스크 카드 */}
+                  {visible.map((tk) => {
+                    const cached = checklistCache[tk.id];
+                    return (
+                      <TaskCard
+                        key={tk.id}
+                        task={tk}
+                        sprintInfo={sprintInfoByTask.get(tk.id)}
+                        activeSeq={activeSeq}
+                        sprintEnabled={sprintEnabled}
+                        showFeature={
+                          groupMode === "sprint"
+                            ? {
+                                title:
+                                  featureById.get(tk.feature_id)?.title ??
+                                  tk.feature_title,
+                                color:
+                                  featureById.get(tk.feature_id)?.color ??
+                                  tk.feature_color,
+                              }
+                            : null
+                        }
+                        expanded={expandedTasks.has(tk.id)}
+                        checklist={cached?.items}
+                        checklistLoading={cached?.loading ?? false}
+                        onToggle={() => toggleTask(tk.id)}
+                        onTitleClick={
+                          onTaskClick ? () => onTaskClick(tk) : undefined
+                        }
+                      />
+                    );
                   })}
-                </div>
-              ) : (
-                <>
-                  {flow.out.length > 0 && (
-                    <>
-                      <div className="text-xs font-bold uppercase tracking-widest text-slate-500 px-2.5 pt-1.5 pb-1">
-                        {t("milestone.detail.flowOut", {
-                          defaultValue: "유출 → 다른 마일스톤",
-                        })}
-                      </div>
-                      {flow.out.map((r, i) => (
-                        <button
-                          key={`out-${i}`}
-                          onClick={
-                            r.feature && onFeatureClick
-                              ? () => onFeatureClick(r.feature!)
-                              : undefined
-                          }
-                          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-foreground/[0.03] text-left transition-colors"
-                        >
-                          <span className="text-xs font-bold text-bridge-accent tabular-nums w-5 text-right flex-shrink-0">
-                            {r.count}
-                          </span>
-                          <span className="text-xs font-medium text-foreground truncate flex-1">
-                            {r.title}
-                          </span>
-                          <span className="text-xs text-slate-600 flex-shrink-0">
-                            →
-                          </span>
-                          <span className="text-xs text-slate-400 truncate max-w-[140px] flex-shrink-0">
-                            {r.ms}
-                          </span>
-                        </button>
-                      ))}
-                    </>
+                  {sorted.length > TASK_LIMIT && (
+                    <button
+                      onClick={() => toggleShowAll(col.key)}
+                      className="w-full text-left px-1.5 py-1 text-xs text-slate-500 hover:text-foreground transition-colors"
+                    >
+                      {showAll
+                        ? t("milestone.detail.showLess", {
+                            defaultValue: "접기",
+                          })
+                        : t("milestone.detail.showMore", {
+                            count: sorted.length - TASK_LIMIT,
+                            defaultValue: "외 {{count}}개 모두 보기",
+                          })}
+                    </button>
                   )}
-                  {flow.inn.length > 0 && (
-                    <>
-                      <div className="text-xs font-bold uppercase tracking-widest text-slate-500 px-2.5 pt-2.5 pb-1">
-                        {t("milestone.detail.flowIn", {
-                          defaultValue: "유입 ← 다른 마일스톤",
-                        })}
-                      </div>
-                      {flow.inn.map((r, i) => (
-                        <button
-                          key={`in-${i}`}
-                          onClick={
-                            r.feature && onFeatureClick
-                              ? () => onFeatureClick(r.feature!)
-                              : undefined
-                          }
-                          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-foreground/[0.03] text-left transition-colors"
-                        >
-                          <span className="text-xs font-bold text-bridge-secondary tabular-nums w-5 text-right flex-shrink-0">
-                            {r.count}
-                          </span>
-                          <span className="text-xs font-medium text-foreground truncate flex-1">
-                            {r.title}
-                          </span>
-                          <span className="text-xs text-slate-600 flex-shrink-0">
-                            ←
-                          </span>
-                          <span className="text-xs text-slate-400 truncate max-w-[140px] flex-shrink-0">
-                            {r.ms}
-                          </span>
-                        </button>
-                      ))}
-                    </>
-                  )}
-                </>
-              )}
-            </div>
+                </motion.div>
+              );
+            })}
           </div>
-        </div>
+        )}
+      </div>
     </motion.div>
   );
 }

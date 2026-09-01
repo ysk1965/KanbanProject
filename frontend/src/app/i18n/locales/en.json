@@ -820,7 +820,9 @@
       "csvSprint": "Sprint",
       "csvDue": "Due",
       "csvChecked": "Checked",
-      "csvAssignee": "Assignee"
+      "csvAssignee": "Assignee",
+      "csvItemPeriod": "Item period",
+      "delayed": "Overdue"
     }
   },
   "weightLevel": {

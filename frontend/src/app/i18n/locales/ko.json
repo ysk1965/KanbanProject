@@ -821,7 +821,9 @@
       "csvSprint": "스프린트",
       "csvDue": "마감",
       "csvChecked": "완료",
-      "csvAssignee": "담당자"
+      "csvAssignee": "담당자",
+      "csvItemPeriod": "항목 기간",
+      "delayed": "지연"
     }
   },
   "weightLevel": {
