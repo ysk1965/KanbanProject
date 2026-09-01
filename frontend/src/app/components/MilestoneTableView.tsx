@@ -312,6 +312,30 @@ export function MilestoneTableView({
     ? groups.filter((g) => g.visibleTasks.length > 0)
     : groups;
 
+  /** 신문형 2단 분배 — 행 수(체크 항목 포함) 가중치로 순서 유지한 채 절반 분할 */
+  const groupWeight = (g: (typeof visibleGroups)[number]) =>
+    1 +
+    g.visibleTasks.reduce(
+      (acc, tk) => acc + Math.max(2, itemsOf(tk.id).length),
+      0,
+    );
+  const totalWeight = visibleGroups.reduce((acc, g) => acc + groupWeight(g), 0);
+  const groupColumns: (typeof visibleGroups)[] = (() => {
+    if (visibleGroups.length < 2) return [visibleGroups];
+    const left: typeof visibleGroups = [];
+    const right: typeof visibleGroups = [];
+    let acc = 0;
+    for (const g of visibleGroups) {
+      if (acc < totalWeight / 2) {
+        left.push(g);
+        acc += groupWeight(g);
+      } else {
+        right.push(g);
+      }
+    }
+    return right.length > 0 ? [left, right] : [left];
+  })();
+
   // ── 상호작용 ──
   const handleToggleItem = useCallback(
     (taskId: string, item: ChecklistItem) => {
@@ -665,286 +689,312 @@ export function MilestoneTableView({
               })}
         </div>
       ) : (
-        <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full min-w-[860px] border-collapse">
-            <thead>
-              <tr className="border-b border-bridge-border">
-                <th className="w-[24%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
-                  {t("milestone.table.colFeature", { defaultValue: "피처" })}
-                </th>
-                <th className="w-[36%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
-                  {t("milestone.table.colTask", { defaultValue: "태스크" })}
-                </th>
-                <th className="w-[40%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
-                  {t("milestone.table.colChecklist", {
-                    defaultValue: "체크리스트",
-                  })}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleGroups.map((g) => {
-                const pct =
-                  g.total > 0 ? Math.round((g.completed / g.total) * 100) : 0;
-                const showAddRow = canEdit;
-                const span = g.visibleTasks.length + (showAddRow ? 1 : 0) || 1;
-                const isHome = homeByFeature.get(g.featureId) === mid;
+        <div
+          className={`grid grid-cols-1 gap-x-4 ${
+            groupColumns.length === 2 ? "2xl:grid-cols-2" : ""
+          }`}
+        >
+          {groupColumns.map((colGroups, colIdx) => (
+            <div key={colIdx} className="overflow-x-auto custom-scrollbar">
+              <table className="w-full min-w-[560px] border-collapse">
+                <thead
+                  className={
+                    colIdx === 1 ? "hidden 2xl:table-header-group" : undefined
+                  }
+                >
+                  <tr className="border-b border-bridge-border">
+                    <th className="w-[24%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
+                      {t("milestone.table.colFeature", {
+                        defaultValue: "피처",
+                      })}
+                    </th>
+                    <th className="w-[36%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
+                      {t("milestone.table.colTask", { defaultValue: "태스크" })}
+                    </th>
+                    <th className="w-[40%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
+                      {t("milestone.table.colChecklist", {
+                        defaultValue: "체크리스트",
+                      })}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {colGroups.map((g) => {
+                    const pct =
+                      g.total > 0
+                        ? Math.round((g.completed / g.total) * 100)
+                        : 0;
+                    const showAddRow = canEdit;
+                    const span =
+                      g.visibleTasks.length + (showAddRow ? 1 : 0) || 1;
+                    const isHome = homeByFeature.get(g.featureId) === mid;
 
-                const featureCell = (
-                  <td
-                    rowSpan={span}
-                    className="align-top px-4 py-3 bg-foreground/[0.03] border-r border-foreground/[0.08]"
-                  >
-                    <div
-                      className={`flex items-center gap-2${
-                        g.feature && onFeatureClick
-                          ? " cursor-pointer group/f"
-                          : ""
-                      }`}
-                      onClick={
-                        g.feature && onFeatureClick
-                          ? () => onFeatureClick(g.feature!)
-                          : undefined
-                      }
-                    >
-                      {g.color && (
-                        <span
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: g.color }}
-                        />
-                      )}
-                      <span className="text-xs font-bold text-foreground group-hover/f:text-bridge-accent transition-colors break-words">
-                        {g.title}
-                      </span>
-                    </div>
-                    {isHome && (
-                      <span className="inline-block mt-1.5 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
-                        {t("milestone.table.homeMilestone", {
-                          defaultValue: "기본 마일스톤",
-                        })}
-                      </span>
-                    )}
-                    <div className="flex items-center gap-2 mt-2.5">
-                      <div className="flex-1 max-w-[110px] h-1 rounded-full bg-foreground/10 overflow-hidden">
+                    const featureCell = (
+                      <td
+                        rowSpan={span}
+                        className="align-top px-4 py-3 bg-foreground/[0.03] border-r border-foreground/[0.08]"
+                      >
                         <div
-                          className={`h-full rounded-full ${
-                            pct === 100 ? "bg-emerald-500" : "bg-bridge-accent"
+                          className={`flex items-center gap-2${
+                            g.feature && onFeatureClick
+                              ? " cursor-pointer group/f"
+                              : ""
                           }`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-slate-400 tabular-nums whitespace-nowrap">
-                        <b className="text-foreground font-bold">
-                          {g.completed}/{g.total}
-                        </b>{" "}
-                        · {pct}%
-                      </span>
-                    </div>
-                  </td>
-                );
-
-                const rows = g.visibleTasks.map((tk, i) => {
-                  const items = itemsOf(tk.id);
-                  const state = checklists[tk.id];
-                  const dueOver =
-                    !tk.completed &&
-                    !!tk.due_date &&
-                    daysUntil(tk.due_date) < 0;
-                  return (
-                    <tr
-                      key={tk.id}
-                      className={`border-b border-foreground/[0.05]${
-                        i === 0 ? " border-t border-t-foreground/[0.12]" : ""
-                      }`}
-                    >
-                      {i === 0 && featureCell}
-                      {/* 태스크 셀 */}
-                      <td className="align-top px-4 py-3 border-r border-foreground/[0.08]">
-                        <div className="flex items-baseline gap-1.5">
-                          <span
-                            className={`text-xs flex-shrink-0 ${
-                              tk.completed
-                                ? "text-emerald-500"
-                                : "text-slate-400"
-                            }`}
-                          >
-                            {tk.completed
-                              ? "✓"
-                              : statusOf(tk) === "doing"
-                                ? "◐"
-                                : "○"}
+                          onClick={
+                            g.feature && onFeatureClick
+                              ? () => onFeatureClick(g.feature!)
+                              : undefined
+                          }
+                        >
+                          {g.color && (
+                            <span
+                              className="w-2 h-2 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: g.color }}
+                            />
+                          )}
+                          <span className="text-xs font-bold text-foreground group-hover/f:text-bridge-accent transition-colors break-words">
+                            {g.title}
                           </span>
-                          <span
-                            onClick={
-                              onTaskClick ? () => onTaskClick(tk) : undefined
-                            }
-                            className={`text-xs font-medium break-words ${
-                              tk.completed
-                                ? "text-slate-500 line-through"
-                                : "text-foreground"
-                            }${
-                              onTaskClick
-                                ? " cursor-pointer hover:text-bridge-accent hover:underline"
+                        </div>
+                        {isHome && (
+                          <span className="inline-block mt-1.5 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+                            {t("milestone.table.homeMilestone", {
+                              defaultValue: "기본 마일스톤",
+                            })}
+                          </span>
+                        )}
+                        <div className="flex items-center gap-2 mt-2.5">
+                          <div className="flex-1 max-w-[110px] h-1 rounded-full bg-foreground/10 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${
+                                pct === 100
+                                  ? "bg-emerald-500"
+                                  : "bg-bridge-accent"
+                              }`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-slate-400 tabular-nums whitespace-nowrap">
+                            <b className="text-foreground font-bold">
+                              {g.completed}/{g.total}
+                            </b>{" "}
+                            · {pct}%
+                          </span>
+                        </div>
+                      </td>
+                    );
+
+                    const rows = g.visibleTasks.map((tk, i) => {
+                      const items = itemsOf(tk.id);
+                      const state = checklists[tk.id];
+                      const dueOver =
+                        !tk.completed &&
+                        !!tk.due_date &&
+                        daysUntil(tk.due_date) < 0;
+                      return (
+                        <tr
+                          key={tk.id}
+                          className={`border-b border-foreground/[0.05]${
+                            i === 0
+                              ? " border-t border-t-foreground/[0.12]"
+                              : ""
+                          }`}
+                        >
+                          {i === 0 && featureCell}
+                          {/* 태스크 셀 */}
+                          <td className="align-top px-4 py-3 border-r border-foreground/[0.08]">
+                            <div className="flex items-baseline gap-1.5">
+                              <span
+                                className={`text-xs flex-shrink-0 ${
+                                  tk.completed
+                                    ? "text-emerald-500"
+                                    : "text-slate-400"
+                                }`}
+                              >
+                                {tk.completed
+                                  ? "✓"
+                                  : statusOf(tk) === "doing"
+                                    ? "◐"
+                                    : "○"}
+                              </span>
+                              <span
+                                onClick={
+                                  onTaskClick
+                                    ? () => onTaskClick(tk)
+                                    : undefined
+                                }
+                                className={`text-xs font-medium break-words ${
+                                  tk.completed
+                                    ? "text-slate-500 line-through"
+                                    : "text-foreground"
+                                }${
+                                  onTaskClick
+                                    ? " cursor-pointer hover:text-bridge-accent hover:underline"
+                                    : ""
+                                }`}
+                              >
+                                {tk.title}
+                              </span>
+                              {tk.task_key && (
+                                <span className="text-xs text-slate-600 ml-auto flex-shrink-0 tabular-nums">
+                                  {tk.task_key}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                              {statusPill(statusOf(tk))}
+                              {sprintEnabled && (
+                                <SprintChip
+                                  info={sprintInfoByTask.get(tk.id)}
+                                  activeSeq={activeSeq}
+                                />
+                              )}
+                              {tk.due_date && (
+                                <span
+                                  className={`text-xs tabular-nums ml-auto whitespace-nowrap ${
+                                    dueOver
+                                      ? "font-bold text-red-500"
+                                      : "text-slate-500"
+                                  }`}
+                                >
+                                  {tk.completed
+                                    ? `${toShortDate(tk.due_date)} ✓`
+                                    : `~${toShortDate(tk.due_date)}`}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          {/* 체크리스트 셀 */}
+                          <td className="align-top px-4 py-3">
+                            {state && !state.loaded ? (
+                              <span className="text-xs text-slate-600">—</span>
+                            ) : items.length === 0 &&
+                              addingItemFor !== tk.id ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-600">
+                                  —
+                                </span>
+                                {canEdit && (
+                                  <button
+                                    onClick={() => setAddingItemFor(tk.id)}
+                                    className="flex items-center gap-1 text-xs text-slate-500 hover:text-bridge-secondary transition-colors"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                    {t("milestone.table.addItem", {
+                                      defaultValue: "항목 추가",
+                                    })}
+                                  </button>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="space-y-1">
+                                {items.length > 0 && (
+                                  <span className="inline-block text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary tabular-nums mb-1">
+                                    ☑ {items.filter((c) => c.completed).length}/
+                                    {items.length}
+                                  </span>
+                                )}
+                                <DndContext
+                                  sensors={sensors}
+                                  collisionDetection={closestCenter}
+                                  modifiers={[
+                                    restrictToVerticalAxis,
+                                    restrictToParentElement,
+                                  ]}
+                                  onDragEnd={(e) => handleReorder(tk.id, e)}
+                                >
+                                  <SortableContext
+                                    items={items.map((i) => i.id)}
+                                    strategy={verticalListSortingStrategy}
+                                  >
+                                    {items.map((item) => (
+                                      <SortableChecklistLine
+                                        key={item.id}
+                                        item={item}
+                                        canEdit={canEdit}
+                                        onToggle={() =>
+                                          handleToggleItem(tk.id, item)
+                                        }
+                                        unassignedLabel={t(
+                                          "milestone.detail.unassigned",
+                                          { defaultValue: "미배정" },
+                                        )}
+                                      />
+                                    ))}
+                                  </SortableContext>
+                                </DndContext>
+                                {canEdit &&
+                                  (addingItemFor === tk.id ? (
+                                    inlineInput(
+                                      t("milestone.table.addItemPlaceholder", {
+                                        defaultValue: "체크 항목 입력 후 Enter",
+                                      }),
+                                      (v) => void handleAddItem(tk.id, v),
+                                      () => setAddingItemFor(null),
+                                    )
+                                  ) : (
+                                    <button
+                                      onClick={() => setAddingItemFor(tk.id)}
+                                      className="flex items-center gap-1 text-xs text-slate-500 hover:text-bridge-secondary transition-colors pt-0.5"
+                                    >
+                                      <Plus className="h-3 w-3" />
+                                      {t("milestone.table.addItem", {
+                                        defaultValue: "항목 추가",
+                                      })}
+                                    </button>
+                                  ))}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    });
+
+                    return (
+                      <Fragment key={g.featureId}>
+                        {rows}
+                        {showAddRow && (
+                          <tr
+                            className={`border-b border-foreground/[0.05]${
+                              g.visibleTasks.length === 0
+                                ? " border-t border-t-foreground/[0.12]"
                                 : ""
                             }`}
                           >
-                            {tk.title}
-                          </span>
-                          {tk.task_key && (
-                            <span className="text-xs text-slate-600 ml-auto flex-shrink-0 tabular-nums">
-                              {tk.task_key}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                          {statusPill(statusOf(tk))}
-                          {sprintEnabled && (
-                            <SprintChip
-                              info={sprintInfoByTask.get(tk.id)}
-                              activeSeq={activeSeq}
-                            />
-                          )}
-                          {tk.due_date && (
-                            <span
-                              className={`text-xs tabular-nums ml-auto whitespace-nowrap ${
-                                dueOver
-                                  ? "font-bold text-red-500"
-                                  : "text-slate-500"
-                              }`}
-                            >
-                              {tk.completed
-                                ? `${toShortDate(tk.due_date)} ✓`
-                                : `~${toShortDate(tk.due_date)}`}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      {/* 체크리스트 셀 */}
-                      <td className="align-top px-4 py-3">
-                        {state && !state.loaded ? (
-                          <span className="text-xs text-slate-600">—</span>
-                        ) : items.length === 0 && addingItemFor !== tk.id ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-600">—</span>
-                            {canEdit && (
-                              <button
-                                onClick={() => setAddingItemFor(tk.id)}
-                                className="flex items-center gap-1 text-xs text-slate-500 hover:text-bridge-secondary transition-colors"
-                              >
-                                <Plus className="h-3 w-3" />
-                                {t("milestone.table.addItem", {
-                                  defaultValue: "항목 추가",
-                                })}
-                              </button>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="space-y-1">
-                            {items.length > 0 && (
-                              <span className="inline-block text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary tabular-nums mb-1">
-                                ☑ {items.filter((c) => c.completed).length}/
-                                {items.length}
-                              </span>
-                            )}
-                            <DndContext
-                              sensors={sensors}
-                              collisionDetection={closestCenter}
-                              modifiers={[
-                                restrictToVerticalAxis,
-                                restrictToParentElement,
-                              ]}
-                              onDragEnd={(e) => handleReorder(tk.id, e)}
-                            >
-                              <SortableContext
-                                items={items.map((i) => i.id)}
-                                strategy={verticalListSortingStrategy}
-                              >
-                                {items.map((item) => (
-                                  <SortableChecklistLine
-                                    key={item.id}
-                                    item={item}
-                                    canEdit={canEdit}
-                                    onToggle={() =>
-                                      handleToggleItem(tk.id, item)
-                                    }
-                                    unassignedLabel={t(
-                                      "milestone.detail.unassigned",
-                                      { defaultValue: "미배정" },
-                                    )}
-                                  />
-                                ))}
-                              </SortableContext>
-                            </DndContext>
-                            {canEdit &&
-                              (addingItemFor === tk.id ? (
+                            {g.visibleTasks.length === 0 && featureCell}
+                            <td colSpan={2} className="px-4 py-2">
+                              {addingTaskFor === g.featureId ? (
                                 inlineInput(
-                                  t("milestone.table.addItemPlaceholder", {
-                                    defaultValue: "체크 항목 입력 후 Enter",
+                                  t("milestone.table.addTaskPlaceholder", {
+                                    defaultValue: "태스크 이름 입력 후 Enter",
                                   }),
-                                  (v) => void handleAddItem(tk.id, v),
-                                  () => setAddingItemFor(null),
+                                  (v) => void handleAddTask(g.featureId, v),
+                                  () => setAddingTaskFor(null),
                                 )
                               ) : (
                                 <button
-                                  onClick={() => setAddingItemFor(tk.id)}
-                                  className="flex items-center gap-1 text-xs text-slate-500 hover:text-bridge-secondary transition-colors pt-0.5"
+                                  onClick={() => {
+                                    setAddingItemFor(null);
+                                    setAddingTaskFor(g.featureId);
+                                  }}
+                                  className="flex items-center gap-1 text-xs text-slate-500 hover:text-bridge-accent transition-colors"
                                 >
                                   <Plus className="h-3 w-3" />
-                                  {t("milestone.table.addItem", {
-                                    defaultValue: "항목 추가",
+                                  {t("milestone.table.addTask", {
+                                    defaultValue: "태스크 추가",
                                   })}
                                 </button>
-                              ))}
-                          </div>
+                              )}
+                            </td>
+                          </tr>
                         )}
-                      </td>
-                    </tr>
-                  );
-                });
-
-                return (
-                  <Fragment key={g.featureId}>
-                    {rows}
-                    {showAddRow && (
-                      <tr
-                        className={`border-b border-foreground/[0.05]${
-                          g.visibleTasks.length === 0
-                            ? " border-t border-t-foreground/[0.12]"
-                            : ""
-                        }`}
-                      >
-                        {g.visibleTasks.length === 0 && featureCell}
-                        <td colSpan={2} className="px-4 py-2">
-                          {addingTaskFor === g.featureId ? (
-                            inlineInput(
-                              t("milestone.table.addTaskPlaceholder", {
-                                defaultValue: "태스크 이름 입력 후 Enter",
-                              }),
-                              (v) => void handleAddTask(g.featureId, v),
-                              () => setAddingTaskFor(null),
-                            )
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setAddingItemFor(null);
-                                setAddingTaskFor(g.featureId);
-                              }}
-                              className="flex items-center gap-1 text-xs text-slate-500 hover:text-bridge-accent transition-colors"
-                            >
-                              <Plus className="h-3 w-3" />
-                              {t("milestone.table.addTask", {
-                                defaultValue: "태스크 추가",
-                              })}
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ))}
         </div>
       )}
     </div>
