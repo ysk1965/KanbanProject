@@ -36,7 +36,11 @@ import {
   Plus,
 } from "lucide-react";
 import type { ChecklistItem, Feature, Milestone, Task } from "../types";
-import { checklistService, taskService } from "../utils/services";
+import {
+  checklistService,
+  memberService,
+  taskService,
+} from "../utils/services";
 import { checklistAPI } from "../utils/api";
 import {
   SprintChip,
@@ -148,6 +152,8 @@ export function MilestoneTableView({
   const [addingTaskFor, setAddingTaskFor] = useState<string | null>(null);
   const [addingItemFor, setAddingItemFor] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  /** 담당자 피커용 보드 멤버 (user id 기준) — 편집 가능할 때만 로드 */
+  const [members, setMembers] = useState<{ id: string; name: string }[]>([]);
   const addInputRef = useRef<HTMLInputElement | null>(null);
 
   // 마일스톤 전환 시 필터·입력 초기화
@@ -202,6 +208,26 @@ export function MilestoneTableView({
   useEffect(() => {
     if (addingTaskFor || addingItemFor) addInputRef.current?.focus();
   }, [addingTaskFor, addingItemFor]);
+
+  // 보드 멤버 로드 — 체크리스트 담당자 배정/교체 드롭다운용
+  useEffect(() => {
+    if (!canEdit) return;
+    let cancelled = false;
+    memberService
+      .getMembers(boardId)
+      .then((res) => {
+        if (cancelled) return;
+        setMembers(
+          res.members.map((m) => ({ id: m.user.id, name: m.user.name })),
+        );
+      })
+      .catch(() => {
+        /* 실패 시 피커만 비활성 */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [boardId, canEdit]);
 
   // 체크리스트 드래그 정렬 센서 (TaskDetailModal과 동일 설정)
   const sensors = useSensors(
@@ -337,6 +363,61 @@ export function MilestoneTableView({
   })();
 
   // ── 상호작용 ──
+  /** 항목 로컬 부분 갱신 (낙관적 업데이트/롤백 공용) */
+  const patchLocalItem = useCallback(
+    (taskId: string, itemId: string, patch: Partial<ChecklistItem>) => {
+      setChecklists((prev) => {
+        const state = prev[taskId];
+        if (!state) return prev;
+        return {
+          ...prev,
+          [taskId]: {
+            ...state,
+            items: state.items.map((i) =>
+              i.id === itemId ? { ...i, ...patch } : i,
+            ),
+          },
+        };
+      });
+    },
+    [],
+  );
+
+  /** 제목 인라인 수정 — 낙관적 갱신 후 실패 롤백 */
+  const handleRenameItem = useCallback(
+    (taskId: string, item: ChecklistItem, title: string) => {
+      patchLocalItem(taskId, item.id, { title });
+      checklistAPI.patchItem(boardId, taskId, item.id, { title }).catch(() => {
+        patchLocalItem(taskId, item.id, { title: item.title });
+      });
+    },
+    [boardId, patchLocalItem],
+  );
+
+  /** 담당자 배정/교체/해제 — 낙관적 갱신 후 실패 롤백 */
+  const handleAssignItem = useCallback(
+    (
+      taskId: string,
+      item: ChecklistItem,
+      member: { id: string; name: string } | null,
+    ) => {
+      const prev = item.assignee ?? null;
+      patchLocalItem(taskId, item.id, {
+        assignee: member
+          ? { id: member.id, name: member.name, profile_image: null }
+          : null,
+      });
+      checklistAPI
+        .patchItem(boardId, taskId, item.id, {
+          assignee_id: member?.id ?? null,
+        })
+        .catch(() => {
+          patchLocalItem(taskId, item.id, { assignee: prev });
+        });
+    },
+    [boardId, patchLocalItem],
+  );
+
   const handleToggleItem = useCallback(
     (taskId: string, item: ChecklistItem) => {
       if (!canEdit) return;
@@ -573,6 +654,7 @@ export function MilestoneTableView({
       disabled={saving}
       className="w-full max-w-[240px] bg-foreground/[0.03] border border-foreground/10 rounded-lg px-2.5 py-1 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
       onKeyDown={(e) => {
+        if (e.nativeEvent.isComposing) return;
         if (e.key === "Enter") onCommit((e.target as HTMLInputElement).value);
         else if (e.key === "Escape") onCancel();
       }}
@@ -912,8 +994,15 @@ export function MilestoneTableView({
                                         key={item.id}
                                         item={item}
                                         canEdit={canEdit}
+                                        members={members}
                                         onToggle={() =>
                                           handleToggleItem(tk.id, item)
+                                        }
+                                        onRename={(title) =>
+                                          handleRenameItem(tk.id, item, title)
+                                        }
+                                        onAssign={(m) =>
+                                          handleAssignItem(tk.id, item, m)
                                         }
                                         unassignedLabel={t(
                                           "milestone.detail.unassigned",
@@ -1009,14 +1098,23 @@ export function MilestoneTableView({
 function SortableChecklistLine({
   item,
   canEdit,
+  members,
   onToggle,
+  onRename,
+  onAssign,
   unassignedLabel,
 }: {
   item: ChecklistItem;
   canEdit: boolean;
+  members: { id: string; name: string }[];
   onToggle: () => void;
+  onRename: (title: string) => void;
+  onAssign: (member: { id: string; name: string } | null) => void;
   unassignedLabel: string;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(item.title);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const {
     attributes,
     listeners,
@@ -1024,13 +1122,19 @@ function SortableChecklistLine({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id, disabled: !canEdit });
+  } = useSortable({ id: item.id, disabled: !canEdit || editing });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 10 : undefined,
+  };
+
+  const commitRename = () => {
+    setEditing(false);
+    const v = draft.trim();
+    if (v && v !== item.title) onRename(v);
   };
 
   return (
@@ -1061,22 +1165,97 @@ function SortableChecklistLine({
       >
         {item.completed ? "✓" : ""}
       </button>
-      <span
-        className={`text-xs min-w-0 flex-1 break-words ${
-          item.completed ? "text-slate-500 line-through" : "text-foreground/80"
-        }`}
-      >
-        {item.title}
-      </span>
-      <span
-        className={`text-xs flex-shrink-0 ${
-          item.assignee
-            ? "text-slate-500"
-            : "text-amber-600 dark:text-amber-400"
-        }`}
-      >
-        {item.assignee?.name ?? unassignedLabel}
-      </span>
+
+      {/* 제목 — 클릭 시 인라인 수정 (Enter 저장 · Esc 취소 · 블러 저장) */}
+      {editing ? (
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return;
+            if (e.key === "Enter") commitRename();
+            else if (e.key === "Escape") {
+              setDraft(item.title);
+              setEditing(false);
+            }
+          }}
+          onBlur={commitRename}
+          className="flex-1 min-w-0 bg-foreground/[0.03] border border-foreground/10 rounded-lg px-2 py-0.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+        />
+      ) : (
+        <span
+          onClick={
+            canEdit
+              ? () => {
+                  setDraft(item.title);
+                  setEditing(true);
+                }
+              : undefined
+          }
+          className={`text-xs min-w-0 flex-1 break-words ${
+            item.completed
+              ? "text-slate-500 line-through"
+              : "text-foreground/80"
+          }${canEdit ? " cursor-text hover:text-foreground" : ""}`}
+        >
+          {item.title}
+        </span>
+      )}
+
+      {/* 담당자 — 클릭 시 배정/교체/해제 드롭다운 */}
+      <div className="relative flex-shrink-0">
+        <button
+          onClick={canEdit ? () => setPickerOpen((v) => !v) : undefined}
+          disabled={!canEdit}
+          className={`text-xs ${
+            item.assignee
+              ? "text-slate-500"
+              : "text-amber-600 dark:text-amber-400"
+          }${canEdit ? " cursor-pointer hover:text-foreground hover:underline" : ""}`}
+        >
+          {item.assignee?.name ?? unassignedLabel}
+        </button>
+        {pickerOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-30"
+              onClick={() => setPickerOpen(false)}
+            />
+            <div className="absolute top-full right-0 mt-1 z-40 w-40 max-h-48 overflow-y-auto custom-scrollbar bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1.5">
+              <button
+                onClick={() => {
+                  onAssign(null);
+                  setPickerOpen(false);
+                }}
+                className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
+                  !item.assignee
+                    ? "text-bridge-accent font-bold bg-bridge-accent/10"
+                    : "text-slate-400 hover:bg-foreground/5"
+                }`}
+              >
+                {unassignedLabel}
+              </button>
+              {members.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => {
+                    onAssign(m);
+                    setPickerOpen(false);
+                  }}
+                  className={`w-full px-3 py-1.5 text-left text-xs truncate transition-colors ${
+                    item.assignee?.id === m.id
+                      ? "text-bridge-accent font-bold bg-bridge-accent/10"
+                      : "text-foreground hover:bg-foreground/5"
+                  }`}
+                >
+                  {m.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
