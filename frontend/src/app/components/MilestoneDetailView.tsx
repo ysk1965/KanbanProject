@@ -424,8 +424,9 @@ export function MilestoneDetailView({
   }, [onBack, onSelectMilestone, prevMs, nextMs]);
 
   // ── 마일스톤 스코프 집계 (진실 = task.milestone_id) ──
+  // JIRA 연동 태스크(jira_issue_key 보유)는 디테일 뷰에서 제외 — 테이블·보드 컬럼·헤더 집계 공통
   const scopedTasks = useMemo(
-    () => tasks.filter((tk) => tk.milestone_id === mid),
+    () => tasks.filter((tk) => tk.milestone_id === mid && !tk.jira_issue_key),
     [tasks, mid],
   );
   const scopedTotal = scopedTasks.length;
