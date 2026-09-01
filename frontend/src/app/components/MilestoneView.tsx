@@ -24,13 +24,13 @@ import {
 } from "lucide-react";
 import type { Feature, Task, Milestone, MilestoneFeatureInfo } from "../types";
 import { milestoneService } from "../utils/services";
-import { formatDateShort } from "../utils/dateUtils";
+import { formatDateShort, getTodayDateString } from "../utils/dateUtils";
 import { MilestoneTimeline } from "./MilestoneTimeline";
 import { MilestoneMatrix } from "./MilestoneMatrix";
 import { MilestoneBoard } from "./MilestoneBoard";
 import { MilestoneDetailView } from "./MilestoneDetailView";
 
-type MilestoneViewMode = "board" | "matrix" | "cards";
+type MilestoneViewMode = "detail" | "board" | "matrix" | "cards";
 
 // ========================================
 // Types
@@ -377,14 +377,18 @@ export function MilestoneView({
     null,
   );
 
-  // 뷰 모드: 보드(홈) · 매트릭스(격자) · 카드. 보드별 localStorage 영속화.
-  const viewModeKey = `milestoneViewMode_${boardId}`;
+  // 뷰 모드: 디테일(기본) · 보드 · 매트릭스 · 카드. 보드별 localStorage 영속화.
+  // v2: 디테일 탭 도입과 함께 기본값을 detail로 리셋 (구 키 값은 버림)
+  const viewModeKey = `milestoneViewMode_v2_${boardId}`;
   const [viewMode, setViewMode] = useState<MilestoneViewMode>(() => {
-    if (typeof window === "undefined") return "board";
+    if (typeof window === "undefined") return "detail";
     const saved = localStorage.getItem(viewModeKey);
-    return saved === "matrix" || saved === "cards" || saved === "board"
+    return saved === "matrix" ||
+      saved === "cards" ||
+      saved === "board" ||
+      saved === "detail"
       ? (saved as MilestoneViewMode)
-      : "board";
+      : "detail";
   });
   const changeViewMode = useCallback(
     (mode: MilestoneViewMode) => {
@@ -515,12 +519,28 @@ export function MilestoneView({
   }, [milestones]);
 
   // ========================================
-  // 상세 페이지 (마일스톤 클릭 시 보드 자리를 대체)
+  // 상세 페이지 (마일스톤 클릭 또는 디테일 탭)
   // ========================================
 
-  const detailMilestone = detailMilestoneId
-    ? milestones.find((m) => m.id === detailMilestoneId)
-    : null;
+  // 디테일 탭 기본 마일스톤 — 진행 중 > 다가오는 > 마지막 (날짜 문자열 비교)
+  const defaultDetailMilestone = useMemo(() => {
+    if (sortedMilestones.length === 0) return null;
+    const today = getTodayDateString();
+    const inProgress = sortedMilestones.find(
+      (m) =>
+        m.start_date.slice(0, 10) <= today && today <= m.end_date.slice(0, 10),
+    );
+    if (inProgress) return inProgress;
+    const upcoming = sortedMilestones.find(
+      (m) => m.start_date.slice(0, 10) > today,
+    );
+    return upcoming ?? sortedMilestones[sortedMilestones.length - 1];
+  }, [sortedMilestones]);
+
+  const detailMilestone =
+    (detailMilestoneId
+      ? milestones.find((m) => m.id === detailMilestoneId)
+      : null) ?? (viewMode === "detail" ? defaultDetailMilestone : null);
 
   if (detailMilestone) {
     return (
@@ -530,7 +550,11 @@ export function MilestoneView({
         milestones={milestones}
         features={features}
         tasks={tasks}
-        onBack={() => setDetailMilestoneId(null)}
+        onBack={() => {
+          setDetailMilestoneId(null);
+          // 디테일 탭에서 돌아가면 보드 탭으로 (아니면 즉시 재진입됨)
+          if (viewMode === "detail") changeViewMode("board");
+        }}
         onSelectMilestone={setDetailMilestoneId}
         onEditMilestone={onEditMilestone}
         onTaskClick={onTaskClick}
@@ -612,8 +636,22 @@ export function MilestoneView({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {/* 뷰 토글: 보드 · 매트릭스 · 카드 */}
+            {/* 뷰 토글: 디테일 · 보드 · 매트릭스 · 카드 */}
             <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/5 border border-foreground/[0.08]">
+              <button
+                onClick={() => changeViewMode("detail")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
+                  (viewMode as MilestoneViewMode) === "detail"
+                    ? "bg-bridge-accent text-white font-bold"
+                    : "text-slate-400 hover:text-foreground"
+                }`}
+                title={t("milestone.viewDetail", { defaultValue: "디테일" })}
+              >
+                <Layers className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">
+                  {t("milestone.viewDetail", { defaultValue: "디테일" })}
+                </span>
+              </button>
               <button
                 onClick={() => changeViewMode("board")}
                 className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${

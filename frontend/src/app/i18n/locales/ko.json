@@ -751,6 +751,10 @@
     "deleteConfirm": "정말 이 마일스톤을 삭제하시겠습니까?",
     "deleteFailed": "마일스톤 삭제에 실패했습니다.",
     "linkedCount": "{{count}}개 스프린트",
+    "viewDetail": "디테일",
+    "viewBoard": "보드",
+    "viewMatrix": "매트릭스",
+    "viewCards": "카드",
     "detail": {
       "open": "상세 보기",
       "back": "마일스톤 보드로",
