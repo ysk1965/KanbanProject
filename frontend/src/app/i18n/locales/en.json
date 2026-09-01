@@ -822,7 +822,11 @@
       "csvChecked": "Checked",
       "csvAssignee": "Assignee",
       "csvItemPeriod": "Item period",
-      "delayed": "Overdue"
+      "delayed": "Overdue",
+      "setDates": "Dates",
+      "dateStart": "Start",
+      "dateEnd": "Due",
+      "clearDates": "Clear dates"
     }
   },
   "weightLevel": {

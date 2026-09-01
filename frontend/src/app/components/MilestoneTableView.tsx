@@ -435,6 +435,22 @@ export function MilestoneTableView({
     [boardId, patchLocalItem],
   );
 
+  /** 기간(시작/마감) 수정 — 낙관적 갱신 후 실패 롤백 */
+  const handleDatesItem = useCallback(
+    (
+      taskId: string,
+      item: ChecklistItem,
+      patch: { start_date?: string | null; due_date?: string | null },
+    ) => {
+      const prev = { start_date: item.start_date, due_date: item.due_date };
+      patchLocalItem(taskId, item.id, patch as Partial<ChecklistItem>);
+      checklistAPI.patchItem(boardId, taskId, item.id, patch).catch(() => {
+        patchLocalItem(taskId, item.id, prev);
+      });
+    },
+    [boardId, patchLocalItem],
+  );
+
   const handleToggleItem = useCallback(
     (taskId: string, item: ChecklistItem) => {
       if (!canEdit) return;
@@ -1003,6 +1019,9 @@ export function MilestoneTableView({
                                         onAssign={(m) =>
                                           handleAssignItem(tk.id, item, m)
                                         }
+                                        onDates={(patch) =>
+                                          handleDatesItem(tk.id, item, patch)
+                                        }
                                         unassignedLabel={t(
                                           "milestone.detail.unassigned",
                                           { defaultValue: "미배정" },
@@ -1105,6 +1124,7 @@ function SortableChecklistLine({
   onToggle,
   onRename,
   onAssign,
+  onDates,
   unassignedLabel,
   delayedLabel,
 }: {
@@ -1114,12 +1134,24 @@ function SortableChecklistLine({
   onToggle: () => void;
   onRename: (title: string) => void;
   onAssign: (member: { id: string; name: string } | null) => void;
+  onDates: (patch: {
+    start_date?: string | null;
+    due_date?: string | null;
+  }) => void;
   unassignedLabel: string;
   delayedLabel: string;
 }) {
+  const { t } = useTranslation();
+  const datesLabel = t("milestone.table.setDates", { defaultValue: "기간" });
+  const startLabel = t("milestone.table.dateStart", { defaultValue: "시작" });
+  const endLabel = t("milestone.table.dateEnd", { defaultValue: "마감" });
+  const clearDatesLabel = t("milestone.table.clearDates", {
+    defaultValue: "기간 지우기",
+  });
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(item.title);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [dateOpen, setDateOpen] = useState(false);
   const {
     attributes,
     listeners,
@@ -1208,21 +1240,84 @@ function SortableChecklistLine({
         </span>
       )}
 
-      {/* 기간 (시작~마감) — 마감 지남 + 미완료면 빨강 */}
-      {(item.start_date || item.due_date) && (
-        <span
-          className={`text-xs tabular-nums flex-shrink-0 ${
-            !item.completed && item.due_date && daysUntil(item.due_date) < 0
-              ? "font-bold text-red-500"
-              : "text-slate-600"
-          }`}
-        >
-          {item.start_date ? toShortDate(item.start_date) : ""}~
-          {item.due_date ? toShortDate(item.due_date) : ""}
-          {!item.completed && item.due_date && daysUntil(item.due_date) < 0
-            ? ` ${delayedLabel}`
-            : ""}
-        </span>
+      {/* 기간 (시작~마감) — 클릭 시 편집, 마감 지남 + 미완료면 빨강 */}
+      {(item.start_date || item.due_date || canEdit) && (
+        <div className="relative flex-shrink-0">
+          <button
+            onClick={canEdit ? () => setDateOpen((v) => !v) : undefined}
+            disabled={!canEdit}
+            className={`text-xs tabular-nums whitespace-nowrap ${
+              !item.completed && item.due_date && daysUntil(item.due_date) < 0
+                ? "font-bold text-red-500"
+                : "text-slate-600"
+            }${canEdit ? " cursor-pointer hover:text-foreground hover:underline" : ""}`}
+          >
+            {item.start_date || item.due_date ? (
+              <>
+                {item.start_date ? toShortDate(item.start_date) : ""}~
+                {item.due_date ? toShortDate(item.due_date) : ""}
+                {!item.completed &&
+                item.due_date &&
+                daysUntil(item.due_date) < 0
+                  ? ` ${delayedLabel}`
+                  : ""}
+              </>
+            ) : (
+              <span className="opacity-0 group-hover/cl:opacity-100 transition-opacity">
+                ＋{datesLabel}
+              </span>
+            )}
+          </button>
+          {dateOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setDateOpen(false)}
+              />
+              <div className="absolute top-full right-0 mt-1 z-40 w-52 bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl p-3 space-y-2">
+                <label className="block">
+                  <span className="block text-xs text-slate-500 mb-1">
+                    {startLabel}
+                  </span>
+                  <input
+                    type="date"
+                    value={item.start_date?.slice(0, 10) ?? ""}
+                    max={item.due_date?.slice(0, 10) || undefined}
+                    onChange={(e) =>
+                      onDates({ start_date: e.target.value || null })
+                    }
+                    className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                  />
+                </label>
+                <label className="block">
+                  <span className="block text-xs text-slate-500 mb-1">
+                    {endLabel}
+                  </span>
+                  <input
+                    type="date"
+                    value={item.due_date?.slice(0, 10) ?? ""}
+                    min={item.start_date?.slice(0, 10) || undefined}
+                    onChange={(e) =>
+                      onDates({ due_date: e.target.value || null })
+                    }
+                    className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                  />
+                </label>
+                {(item.start_date || item.due_date) && (
+                  <button
+                    onClick={() => {
+                      onDates({ start_date: null, due_date: null });
+                      setDateOpen(false);
+                    }}
+                    className="w-full text-left text-xs text-slate-500 hover:text-red-500 transition-colors pt-0.5"
+                  >
+                    {clearDatesLabel}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       )}
 
       {/* 담당자 — 클릭 시 배정/교체/해제 드롭다운 */}

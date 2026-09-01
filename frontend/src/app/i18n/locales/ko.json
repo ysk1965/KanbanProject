@@ -823,7 +823,11 @@
       "csvChecked": "완료",
       "csvAssignee": "담당자",
       "csvItemPeriod": "항목 기간",
-      "delayed": "지연"
+      "delayed": "지연",
+      "setDates": "기간",
+      "dateStart": "시작",
+      "dateEnd": "마감",
+      "clearDates": "기간 지우기"
     }
   },
   "weightLevel": {
