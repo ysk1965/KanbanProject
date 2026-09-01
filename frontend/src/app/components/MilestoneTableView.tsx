@@ -80,6 +80,38 @@ function csvField(v: string): string {
   return `"${v.replace(/"/g, '""')}"`;
 }
 
+/**
+ * batch 응답 정규화 — 서비스 타입 선언과 달리 실제 응답은
+ * { checklists: [{ task_id, items }] } 배열이다 (useBoardDataLoader의
+ * parseChecklistBatch와 동일 처리). 맵 형태가 와도 동작하도록 겸용.
+ */
+function parseBatchChecklists(res: unknown): {
+  [taskId: string]: ChecklistItem[];
+} {
+  const map: { [taskId: string]: ChecklistItem[] } = {};
+  const groups = (res as { checklists?: unknown } | null)?.checklists;
+  if (Array.isArray(groups)) {
+    for (const g of groups as Array<{
+      task_id?: string;
+      taskId?: string;
+      items?: ChecklistItem[];
+    }>) {
+      const taskId = g.task_id ?? g.taskId;
+      if (taskId && Array.isArray(g.items)) map[taskId] = g.items;
+    }
+    return map;
+  }
+  // 폴백: {[taskId]: {items}} 맵 형태
+  if (res && typeof res === "object") {
+    for (const [taskId, group] of Object.entries(
+      res as { [taskId: string]: { items?: ChecklistItem[] } },
+    )) {
+      if (Array.isArray(group?.items)) map[taskId] = group.items;
+    }
+  }
+  return map;
+}
+
 // ========================================
 // Main
 // ========================================
@@ -137,10 +169,11 @@ export function MilestoneTableView({
       .getBatchChecklists(boardId, missing)
       .then((res) => {
         if (cancelled) return;
+        const byTask = parseBatchChecklists(res);
         setChecklists((prev) => {
           const next = { ...prev };
           for (const id of missing) {
-            next[id] = { items: res[id]?.items ?? [], loaded: true };
+            next[id] = { items: byTask[id] ?? [], loaded: true };
           }
           return next;
         });
@@ -979,9 +1012,7 @@ function SortableChecklistLine({
       </button>
       <span
         className={`text-xs min-w-0 flex-1 break-words ${
-          item.completed
-            ? "text-slate-500 line-through"
-            : "text-foreground/80"
+          item.completed ? "text-slate-500 line-through" : "text-foreground/80"
         }`}
       >
         {item.title}
