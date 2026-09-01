@@ -627,21 +627,6 @@ export function MilestoneTableView({
       : []),
   ];
 
-  const statusPill = (s: TaskStatus) =>
-    s === "done" ? (
-      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-        {t("milestone.table.statusDone", { defaultValue: "완료" })}
-      </span>
-    ) : s === "doing" ? (
-      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent whitespace-nowrap">
-        {t("milestone.table.statusDoing", { defaultValue: "진행중" })}
-      </span>
-    ) : (
-      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-foreground/[0.06] text-slate-500 whitespace-nowrap">
-        {t("milestone.table.statusTodo", { defaultValue: "대기" })}
-      </span>
-    );
-
   const inlineInput = (
     placeholder: string,
     onCommit: (value: string) => void,
@@ -924,7 +909,6 @@ export function MilestoneTableView({
                               )}
                             </div>
                             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                              {statusPill(statusOf(tk))}
                               {sprintEnabled && (
                                 <SprintChip
                                   info={sprintInfoByTask.get(tk.id)}
@@ -970,12 +954,6 @@ export function MilestoneTableView({
                               </div>
                             ) : (
                               <div className="space-y-1">
-                                {items.length > 0 && (
-                                  <span className="inline-block text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary tabular-nums mb-1">
-                                    ☑ {items.filter((c) => c.completed).length}/
-                                    {items.length}
-                                  </span>
-                                )}
                                 <DndContext
                                   sensors={sensors}
                                   collisionDetection={closestCenter}
