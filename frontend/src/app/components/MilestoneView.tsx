@@ -57,6 +57,8 @@ interface MilestoneViewProps {
   onTaskClick?: (task: Task) => void;
   /** 상세 페이지 "칸반에서 보기" — 마일스톤 필터 적용 후 칸반 뷰 전환 */
   onViewInKanban?: (milestoneId: string) => void;
+  /** 상세 테이블 뷰 인라인 편집(태스크/체크 항목 추가, 토글) 허용 */
+  canEdit?: boolean;
 }
 
 interface MilestoneDetailCache {
@@ -361,6 +363,7 @@ export function MilestoneView({
   onMoveTasksMilestone,
   onTaskClick,
   onViewInKanban,
+  canEdit = false,
 }: MilestoneViewProps) {
   const { t } = useTranslation();
   const reduced = useReducedMotion();
@@ -533,6 +536,8 @@ export function MilestoneView({
         onTaskClick={onTaskClick}
         onFeatureClick={onFeatureClick}
         onViewInKanban={onViewInKanban}
+        canEdit={canEdit}
+        onRefresh={onRefresh}
       />
     );
   }
@@ -724,200 +729,205 @@ export function MilestoneView({
           />
 
           {sortedMilestones.map((milestone) => {
-        const isExpanded = expandedMilestones.has(milestone.id);
-        const cached = detailCache[milestone.id];
-        const milestoneFeatures = cached?.features || milestone.features || [];
-        const isLoading = cached?.loading || false;
+            const isExpanded = expandedMilestones.has(milestone.id);
+            const cached = detailCache[milestone.id];
+            const milestoneFeatures =
+              cached?.features || milestone.features || [];
+            const isLoading = cached?.loading || false;
 
-        return (
-          <motion.div
-            key={milestone.id}
-            layout
-            className="bg-bridge-obsidian rounded-2xl border border-foreground/5 overflow-hidden"
-          >
-            {/* Milestone Header */}
-            <button
-              onClick={() => toggleMilestone(milestone.id)}
-              className="w-full flex items-center gap-4 px-5 py-4 hover:bg-foreground/[0.02] transition-colors text-left group/row"
-            >
-              {/* Expand icon */}
-              <div className="flex-shrink-0">
-                <motion.div
-                  animate={{ rotate: isExpanded ? 90 : 0 }}
-                  transition={reduced ? { duration: 0 } : { duration: 0.15 }}
+            return (
+              <motion.div
+                key={milestone.id}
+                layout
+                className="bg-bridge-obsidian rounded-2xl border border-foreground/5 overflow-hidden"
+              >
+                {/* Milestone Header */}
+                <button
+                  onClick={() => toggleMilestone(milestone.id)}
+                  className="w-full flex items-center gap-4 px-5 py-4 hover:bg-foreground/[0.02] transition-colors text-left group/row"
                 >
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                </motion.div>
-              </div>
-
-              {/* Title + status */}
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <Target className="h-4 w-4 text-bridge-accent flex-shrink-0" />
-                <h3 className="text-sm font-bold text-foreground truncate">
-                  {milestone.title}
-                </h3>
-                <MilestoneStatusBadge
-                  startDate={milestone.start_date}
-                  endDate={milestone.end_date}
-                  progress={milestone.progress_percentage}
-                  isDefault={milestone.is_default}
-                />
-              </div>
-
-              {/* Meta right */}
-              <div className="hidden md:flex items-center gap-4 text-xs text-muted-foreground flex-shrink-0">
-                <span className="flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {formatDateShort(milestone.start_date)} ~{" "}
-                  {formatDateShort(milestone.end_date)}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Layers className="h-3.5 w-3.5" />
-                  {milestone.feature_count}
-                </span>
-              </div>
-
-              {/* Progress right */}
-              <div className="flex items-center gap-3 flex-shrink-0">
-                <div className="w-24 hidden sm:block">
-                  <ProgressBar
-                    percentage={milestone.progress_percentage}
-                    height="h-1.5"
-                  />
-                </div>
-                <span className="text-sm font-bold text-foreground tabular-nums w-10 text-right">
-                  {Math.round(milestone.progress_percentage)}%
-                </span>
-              </div>
-
-              {/* Detail/Edit/Delete buttons */}
-              {(onEditMilestone || onDeleteMilestone) && (
-                <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDetailMilestoneId(milestone.id);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.stopPropagation();
-                        setDetailMilestoneId(milestone.id);
+                  {/* Expand icon */}
+                  <div className="flex-shrink-0">
+                    <motion.div
+                      animate={{ rotate: isExpanded ? 90 : 0 }}
+                      transition={
+                        reduced ? { duration: 0 } : { duration: 0.15 }
                       }
-                    }}
-                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-colors"
-                    title={t("milestone.detail.open", {
-                      defaultValue: "상세 보기",
-                    })}
-                  >
-                    <Maximize2 className="h-3.5 w-3.5" />
+                    >
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    </motion.div>
                   </div>
-                  {onEditMilestone && (
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={(e) => handleEditClick(e, milestone)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter")
-                          handleEditClick(
-                            e as unknown as React.MouseEvent,
-                            milestone,
-                          );
-                      }}
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-colors"
-                      title={t("common.edit", { defaultValue: "수정" })}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </div>
-                  )}
-                  {onDeleteMilestone && (
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={(e) => handleDeleteClick(e, milestone.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter")
-                          handleDeleteClick(
-                            e as unknown as React.MouseEvent,
-                            milestone.id,
-                          );
-                      }}
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                      title={t("common.delete", { defaultValue: "삭제" })}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </div>
-                  )}
-                </div>
-              )}
-            </button>
 
-            {/* Expanded: Feature Cards (horizontal scroll) */}
-            <AnimatePresence>
-              {isExpanded && (
-                <motion.div
-                  initial={reduced ? false : { height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={reduced ? { duration: 0 } : { duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  <div className="border-t border-foreground/5 px-5 pb-5 pt-4">
-                    {isLoading ? (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="h-5 w-5 border-2 border-bridge-accent/30 border-t-bridge-accent rounded-full animate-spin" />
-                        <span className="ml-3 text-sm text-muted-foreground">
-                          {t("common.loading", { defaultValue: "Loading..." })}
-                        </span>
-                      </div>
-                    ) : milestoneFeatures.length > 0 ? (
-                      <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
-                        {[...milestoneFeatures]
-                          .sort(
-                            (a, b) =>
-                              (multiMilestoneFeatureMap.get(b.id) || 0) -
-                              (multiMilestoneFeatureMap.get(a.id) || 0),
-                          )
-                          .map((featureInfo) => (
-                            <FeatureCard
-                              key={featureInfo.id}
-                              featureInfo={featureInfo}
-                              tasks={tasks}
-                              milestoneId={milestone.id}
-                              milestoneCount={multiMilestoneFeatureMap.get(
-                                featureInfo.id,
-                              )}
-                              onClick={
-                                onFeatureClick
-                                  ? () => {
-                                      const feature = features.find(
-                                        (f) => f.id === featureInfo.id,
-                                      );
-                                      if (feature) onFeatureClick(feature);
-                                    }
-                                  : undefined
-                              }
-                            />
-                          ))}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center py-8 text-muted-foreground">
-                        <FileText className="h-6 w-6 mb-2" />
-                        <span className="text-sm">
-                          {t("milestone.noFeatures", {
-                            defaultValue: "No linked features",
-                          })}
-                        </span>
-                      </div>
-                    )}
+                  {/* Title + status */}
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Target className="h-4 w-4 text-bridge-accent flex-shrink-0" />
+                    <h3 className="text-sm font-bold text-foreground truncate">
+                      {milestone.title}
+                    </h3>
+                    <MilestoneStatusBadge
+                      startDate={milestone.start_date}
+                      endDate={milestone.end_date}
+                      progress={milestone.progress_percentage}
+                      isDefault={milestone.is_default}
+                    />
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        );
-      })}
+
+                  {/* Meta right */}
+                  <div className="hidden md:flex items-center gap-4 text-xs text-muted-foreground flex-shrink-0">
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5" />
+                      {formatDateShort(milestone.start_date)} ~{" "}
+                      {formatDateShort(milestone.end_date)}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Layers className="h-3.5 w-3.5" />
+                      {milestone.feature_count}
+                    </span>
+                  </div>
+
+                  {/* Progress right */}
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <div className="w-24 hidden sm:block">
+                      <ProgressBar
+                        percentage={milestone.progress_percentage}
+                        height="h-1.5"
+                      />
+                    </div>
+                    <span className="text-sm font-bold text-foreground tabular-nums w-10 text-right">
+                      {Math.round(milestone.progress_percentage)}%
+                    </span>
+                  </div>
+
+                  {/* Detail/Edit/Delete buttons */}
+                  {(onEditMilestone || onDeleteMilestone) && (
+                    <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDetailMilestoneId(milestone.id);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.stopPropagation();
+                            setDetailMilestoneId(milestone.id);
+                          }
+                        }}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-colors"
+                        title={t("milestone.detail.open", {
+                          defaultValue: "상세 보기",
+                        })}
+                      >
+                        <Maximize2 className="h-3.5 w-3.5" />
+                      </div>
+                      {onEditMilestone && (
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => handleEditClick(e, milestone)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter")
+                              handleEditClick(
+                                e as unknown as React.MouseEvent,
+                                milestone,
+                              );
+                          }}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-colors"
+                          title={t("common.edit", { defaultValue: "수정" })}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </div>
+                      )}
+                      {onDeleteMilestone && (
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => handleDeleteClick(e, milestone.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter")
+                              handleDeleteClick(
+                                e as unknown as React.MouseEvent,
+                                milestone.id,
+                              );
+                          }}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                          title={t("common.delete", { defaultValue: "삭제" })}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </button>
+
+                {/* Expanded: Feature Cards (horizontal scroll) */}
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      initial={reduced ? false : { height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={reduced ? { duration: 0 } : { duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="border-t border-foreground/5 px-5 pb-5 pt-4">
+                        {isLoading ? (
+                          <div className="flex items-center justify-center py-8">
+                            <div className="h-5 w-5 border-2 border-bridge-accent/30 border-t-bridge-accent rounded-full animate-spin" />
+                            <span className="ml-3 text-sm text-muted-foreground">
+                              {t("common.loading", {
+                                defaultValue: "Loading...",
+                              })}
+                            </span>
+                          </div>
+                        ) : milestoneFeatures.length > 0 ? (
+                          <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+                            {[...milestoneFeatures]
+                              .sort(
+                                (a, b) =>
+                                  (multiMilestoneFeatureMap.get(b.id) || 0) -
+                                  (multiMilestoneFeatureMap.get(a.id) || 0),
+                              )
+                              .map((featureInfo) => (
+                                <FeatureCard
+                                  key={featureInfo.id}
+                                  featureInfo={featureInfo}
+                                  tasks={tasks}
+                                  milestoneId={milestone.id}
+                                  milestoneCount={multiMilestoneFeatureMap.get(
+                                    featureInfo.id,
+                                  )}
+                                  onClick={
+                                    onFeatureClick
+                                      ? () => {
+                                          const feature = features.find(
+                                            (f) => f.id === featureInfo.id,
+                                          );
+                                          if (feature) onFeatureClick(feature);
+                                        }
+                                      : undefined
+                                  }
+                                />
+                              ))}
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center py-8 text-muted-foreground">
+                            <FileText className="h-6 w-6 mb-2" />
+                            <span className="text-sm">
+                              {t("milestone.noFeatures", {
+                                defaultValue: "No linked features",
+                              })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })}
         </>
       )}
     </div>

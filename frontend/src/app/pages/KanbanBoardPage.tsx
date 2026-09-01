@@ -217,10 +217,7 @@ import { useBoardWebSocketHandlers } from "../hooks/useBoardWebSocketHandlers";
 import { useBoardDataLoader } from "../hooks/useBoardDataLoader";
 import { useBoardUiConfig } from "../hooks/useBoardUiConfig";
 import { FeatureDrawer } from "../components/FeatureDrawer";
-import {
-  FeatureGhost,
-  useFeatureGhosts,
-} from "../components/FeatureGhost";
+import { FeatureGhost, useFeatureGhosts } from "../components/FeatureGhost";
 import { LevelUpWizard } from "../components/LevelUpWizard";
 import { useBoardFilters } from "../hooks/useBoardFilters";
 import { useBoardModals } from "../hooks/useBoardModals";
@@ -3510,6 +3507,7 @@ export function KanbanBoardPage() {
                     canEdit ? handleMoveTasksMilestone : undefined
                   }
                   onTaskClick={handleTaskClick}
+                  canEdit={canEdit}
                   onViewInKanban={(milestoneId) => {
                     void handleKanbanMilestoneSelect(milestoneId);
                     handleViewModeChange("kanban");
