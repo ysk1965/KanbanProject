@@ -30,6 +30,8 @@ interface MilestoneBoardProps {
     taskIds: string[],
     targetMilestoneId: string | null,
   ) => void;
+  /** 컬럼 헤더(마일스톤) 클릭 → 상세 페이지 */
+  onMilestoneHeaderClick?: (milestoneId: string) => void;
 }
 
 const UNASSIGNED = "__unassigned__";
@@ -66,6 +68,7 @@ export function MilestoneBoard({
   onFeatureClick,
   onCreateMilestone,
   onMoveTasksMilestone,
+  onMilestoneHeaderClick,
 }: MilestoneBoardProps) {
   const { t } = useTranslation();
   const [activeFeatureId, setActiveFeatureId] = useState<string | null>(null);
@@ -222,6 +225,11 @@ export function MilestoneBoard({
               accent={col.accent}
               realCount={content?.real.length ?? 0}
               progressPct={prog && prog.total > 0 ? pct : null}
+              onHeaderClick={
+                col.key !== UNASSIGNED && onMilestoneHeaderClick
+                  ? () => onMilestoneHeaderClick(col.key)
+                  : undefined
+              }
             >
               {content?.real.map((fid) => {
                 const feature = featureById.get(fid);
@@ -318,6 +326,7 @@ function BoardColumn({
   accent,
   realCount,
   progressPct,
+  onHeaderClick,
   children,
 }: {
   colKey: string;
@@ -326,6 +335,8 @@ function BoardColumn({
   accent: boolean;
   realCount: number;
   progressPct: number | null;
+  /** 헤더 클릭 → 마일스톤 상세 페이지 */
+  onHeaderClick?: () => void;
   children: ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: colKey });
@@ -343,11 +354,29 @@ function BoardColumn({
       {accent && (
         <div className="h-[3px] rounded-full mb-2.5 bg-gradient-to-r from-bridge-accent to-bridge-accent/40" />
       )}
-      <div className="flex items-start justify-between px-1 pb-2.5">
+      <div
+        role={onHeaderClick ? "button" : undefined}
+        tabIndex={onHeaderClick ? 0 : undefined}
+        onClick={onHeaderClick}
+        onKeyDown={
+          onHeaderClick
+            ? (e) => {
+                if (e.key === "Enter") onHeaderClick();
+              }
+            : undefined
+        }
+        className={`flex items-start justify-between px-1 pb-2.5${
+          onHeaderClick
+            ? " cursor-pointer rounded-lg -mx-0.5 px-1.5 hover:bg-foreground/[0.04] transition-colors group/colhead"
+            : ""
+        }`}
+      >
         <div className="min-w-0">
           <div
             className={`text-xs font-bold truncate ${
-              isUnassigned ? "text-amber-600 dark:text-amber-400" : "text-foreground"
+              isUnassigned
+                ? "text-amber-600 dark:text-amber-400"
+                : `text-foreground${onHeaderClick ? " group-hover/colhead:text-bridge-accent transition-colors" : ""}`
             }`}
           >
             {title}

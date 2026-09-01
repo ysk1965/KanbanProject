@@ -13,6 +13,8 @@ interface MilestoneMatrixProps {
   milestones: Milestone[];
   /** 셀/피처 클릭 시 피처 상세 열기 */
   onFeatureClick?: (feature: Feature) => void;
+  /** 컬럼 헤더(마일스톤) 클릭 → 상세 페이지 */
+  onMilestoneHeaderClick?: (milestoneId: string) => void;
 }
 
 interface CellCount {
@@ -51,6 +53,7 @@ export function MilestoneMatrix({
   tasks,
   milestones,
   onFeatureClick,
+  onMilestoneHeaderClick,
 }: MilestoneMatrixProps) {
   const { t } = useTranslation();
 
@@ -157,7 +160,23 @@ export function MilestoneMatrix({
               {sortedMilestones.map((ms) => (
                 <th
                   key={ms.id}
-                  className="bg-bridge-surface px-3 py-3 text-center text-xs font-bold text-foreground border-b border-r border-foreground/[0.08] min-w-[104px]"
+                  onClick={
+                    onMilestoneHeaderClick
+                      ? () => onMilestoneHeaderClick(ms.id)
+                      : undefined
+                  }
+                  className={`bg-bridge-surface px-3 py-3 text-center text-xs font-bold text-foreground border-b border-r border-foreground/[0.08] min-w-[104px]${
+                    onMilestoneHeaderClick
+                      ? " cursor-pointer hover:text-bridge-accent transition-colors"
+                      : ""
+                  }`}
+                  title={
+                    onMilestoneHeaderClick
+                      ? t("milestone.detail.open", {
+                          defaultValue: "상세 보기",
+                        })
+                      : undefined
+                  }
                 >
                   <div className="truncate max-w-[140px] mx-auto">
                     {ms.title}

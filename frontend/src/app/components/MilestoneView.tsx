@@ -20,6 +20,7 @@ import {
   Table2,
   LayoutList,
   Columns3,
+  Maximize2,
 } from "lucide-react";
 import type { Feature, Task, Milestone, MilestoneFeatureInfo } from "../types";
 import { milestoneService } from "../utils/services";
@@ -27,6 +28,7 @@ import { formatDateShort } from "../utils/dateUtils";
 import { MilestoneTimeline } from "./MilestoneTimeline";
 import { MilestoneMatrix } from "./MilestoneMatrix";
 import { MilestoneBoard } from "./MilestoneBoard";
+import { MilestoneDetailView } from "./MilestoneDetailView";
 
 type MilestoneViewMode = "board" | "matrix" | "cards";
 
@@ -51,6 +53,10 @@ interface MilestoneViewProps {
     taskIds: string[],
     targetMilestoneId: string | null,
   ) => void;
+  /** 상세 페이지에서 태스크 제목 클릭 시 태스크 상세 모달 */
+  onTaskClick?: (task: Task) => void;
+  /** 상세 페이지 "칸반에서 보기" — 마일스톤 필터 적용 후 칸반 뷰 전환 */
+  onViewInKanban?: (milestoneId: string) => void;
 }
 
 interface MilestoneDetailCache {
@@ -353,6 +359,8 @@ export function MilestoneView({
   onDeleteMilestone,
   onUpdateMilestoneDates,
   onMoveTasksMilestone,
+  onTaskClick,
+  onViewInKanban,
 }: MilestoneViewProps) {
   const { t } = useTranslation();
   const reduced = useReducedMotion();
@@ -361,6 +369,10 @@ export function MilestoneView({
     new Set(),
   );
   const [detailCache, setDetailCache] = useState<MilestoneDetailCache>({});
+  // 마일스톤 클릭 → 풀 페이지 상세 (컬럼=피처, 카드=태스크)
+  const [detailMilestoneId, setDetailMilestoneId] = useState<string | null>(
+    null,
+  );
 
   // 뷰 모드: 보드(홈) · 매트릭스(격자) · 카드. 보드별 localStorage 영속화.
   const viewModeKey = `milestoneViewMode_${boardId}`;
@@ -498,6 +510,32 @@ export function MilestoneView({
       );
     });
   }, [milestones]);
+
+  // ========================================
+  // 상세 페이지 (마일스톤 클릭 시 보드 자리를 대체)
+  // ========================================
+
+  const detailMilestone = detailMilestoneId
+    ? milestones.find((m) => m.id === detailMilestoneId)
+    : null;
+
+  if (detailMilestone) {
+    return (
+      <MilestoneDetailView
+        boardId={boardId}
+        milestone={detailMilestone}
+        milestones={milestones}
+        features={features}
+        tasks={tasks}
+        onBack={() => setDetailMilestoneId(null)}
+        onSelectMilestone={setDetailMilestoneId}
+        onEditMilestone={onEditMilestone}
+        onTaskClick={onTaskClick}
+        onFeatureClick={onFeatureClick}
+        onViewInKanban={onViewInKanban}
+      />
+    );
+  }
 
   // ========================================
   // Empty State
@@ -661,6 +699,7 @@ export function MilestoneView({
           onFeatureClick={onFeatureClick}
           onCreateMilestone={onCreateMilestone}
           onMoveTasksMilestone={onMoveTasksMilestone}
+          onMilestoneHeaderClick={setDetailMilestoneId}
         />
       ) : viewMode === "matrix" ? (
         <MilestoneMatrix
@@ -668,17 +707,19 @@ export function MilestoneView({
           tasks={tasks}
           milestones={milestones}
           onFeatureClick={onFeatureClick}
+          onMilestoneHeaderClick={setDetailMilestoneId}
         />
       ) : (
         <>
           {/* 주단위 가로 타임라인 (펼침 상태를 리스트와 공유) */}
+          {/* 막대 클릭 = 상세 페이지 (편집은 상세 안의 연필로) */}
           <MilestoneTimeline
             milestones={sortedMilestones}
             features={features}
             expandedMilestones={expandedMilestones}
             detailCache={detailCache}
             onToggle={toggleMilestone}
-            onMilestoneClick={onEditMilestone}
+            onMilestoneClick={(m) => setDetailMilestoneId(m.id)}
             onUpdateDates={onUpdateMilestoneDates}
           />
 
@@ -749,9 +790,29 @@ export function MilestoneView({
                 </span>
               </div>
 
-              {/* Edit/Delete buttons */}
+              {/* Detail/Edit/Delete buttons */}
               {(onEditMilestone || onDeleteMilestone) && (
                 <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDetailMilestoneId(milestone.id);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.stopPropagation();
+                        setDetailMilestoneId(milestone.id);
+                      }
+                    }}
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-colors"
+                    title={t("milestone.detail.open", {
+                      defaultValue: "상세 보기",
+                    })}
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  </div>
                   {onEditMilestone && (
                     <div
                       role="button"

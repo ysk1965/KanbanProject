@@ -3509,6 +3509,11 @@ export function KanbanBoardPage() {
                   onMoveTasksMilestone={
                     canEdit ? handleMoveTasksMilestone : undefined
                   }
+                  onTaskClick={handleTaskClick}
+                  onViewInKanban={(milestoneId) => {
+                    void handleKanbanMilestoneSelect(milestoneId);
+                    handleViewModeChange("kanban");
+                  }}
                   onRefresh={() => {
                     if (boardId) {
                       const milestoneId =
