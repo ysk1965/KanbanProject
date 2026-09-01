@@ -312,6 +312,21 @@ export function MilestoneTableView({
         );
       });
       const completed = list.filter((tk) => tk.completed).length;
+      // 게이지 = 체크리스트 완료 합계 기준 (마일스톤 헤더와 동일 규칙, 없으면 태스크 폴백)
+      let clDone = 0;
+      let clTotal = 0;
+      for (const tk of list) {
+        const state = checklists[tk.id];
+        if (state?.loaded) {
+          clDone += state.items.filter((i) => i.completed).length;
+          clTotal += state.items.length;
+        } else {
+          clDone += tk.checklist_completed ?? 0;
+          clTotal += tk.checklist_total ?? 0;
+        }
+      }
+      const progressDone = clTotal > 0 ? clDone : completed;
+      const progressTotal = clTotal > 0 ? clTotal : list.length;
       return {
         featureId,
         feature: featureById.get(featureId),
@@ -323,15 +338,17 @@ export function MilestoneTableView({
         visibleTasks: sorted.filter(taskMatches),
         completed,
         total: list.length,
+        progressDone,
+        progressTotal,
       };
     });
     result.sort((a, b) => {
-      const pa = a.total > 0 ? a.completed / a.total : 0;
-      const pb = b.total > 0 ? b.completed / b.total : 0;
+      const pa = a.progressTotal > 0 ? a.progressDone / a.progressTotal : 0;
+      const pb = b.progressTotal > 0 ? b.progressDone / b.progressTotal : 0;
       return pb - pa || b.total - a.total;
     });
     return result;
-  }, [tasks, featureById, taskMatches]);
+  }, [tasks, featureById, taskMatches, checklists]);
 
   const isFiltered = statusFilter !== "all" || assigneeFilter !== null;
   const visibleGroups = isFiltered
@@ -546,8 +563,11 @@ export function MilestoneTableView({
     ];
     const rows: string[][] = [header];
     for (const g of visibleGroups) {
-      const pct = g.total > 0 ? Math.round((g.completed / g.total) * 100) : 0;
-      const progress = `${g.completed}/${g.total} (${pct}%)`;
+      const pct =
+        g.progressTotal > 0
+          ? Math.round((g.progressDone / g.progressTotal) * 100)
+          : 0;
+      const progress = `${g.progressDone}/${g.progressTotal} (${pct}%)`;
       for (const tk of g.visibleTasks) {
         const info = sprintInfoByTask.get(tk.id);
         const sprint =
@@ -788,8 +808,8 @@ export function MilestoneTableView({
                 <tbody>
                   {colGroups.map((g) => {
                     const pct =
-                      g.total > 0
-                        ? Math.round((g.completed / g.total) * 100)
+                      g.progressTotal > 0
+                        ? Math.round((g.progressDone / g.progressTotal) * 100)
                         : 0;
                     const showAddRow = canEdit;
                     const span =
@@ -843,7 +863,7 @@ export function MilestoneTableView({
                           </div>
                           <span className="text-xs text-slate-400 tabular-nums whitespace-nowrap">
                             <b className="text-foreground font-bold">
-                              {g.completed}/{g.total}
+                              {g.progressDone}/{g.progressTotal}
                             </b>{" "}
                             · {pct}%
                           </span>
