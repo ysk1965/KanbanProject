@@ -162,64 +162,33 @@ public class SprintController {
     }
 
     /**
-     * 스프린트 종료 (완료율 동결 + 미완료 태스크 이월 + 다음 스프린트 생성/복귀) — 관리자.
-     * body의 create_next=false면 다음 스프린트 없이 마일스톤을 마무리한다 (body 생략 시 기존 동작).
+     * 스프린트 분할 생성/조정 — 마일스톤 기간을 count개 버킷으로 나눈다 (관리자).
+     * boundaries 생략 시 균등 분배. 종료/이월 라이프사이클의 대체 진입점.
      */
-    @PostMapping("/sprints/{sprintId}/close")
-    public ResponseEntity<SprintResponse.Board> closeSprint(
-            @PathVariable String boardId,
-            @PathVariable String sprintId,
-            @RequestBody(required = false) SprintRequest.CloseSprint request,
-            @AuthenticationPrincipal UserPrincipal userPrincipal
-    ) {
-        boolean createNext = request == null || !Boolean.FALSE.equals(request.getCreateNext());
-        return ResponseEntity.ok(
-                sprintService.closeSprint(boardId, sprintId, createNext, userPrincipal.getUserId()));
-    }
-
-    /** 다음 스프린트 시작 — 마일스톤 마무리(활성 없음) 상태에서 재개. 활성이 있으면 SP008 — 관리자 */
-    @PostMapping("/milestones/{milestoneId}/sprints")
-    public ResponseEntity<SprintResponse.Board> startNextSprint(
+    @PutMapping("/milestones/{milestoneId}/sprint-split")
+    public ResponseEntity<SprintResponse.Board> splitSprints(
             @PathVariable String boardId,
             @PathVariable String milestoneId,
+            @Valid @RequestBody SprintRequest.Split request,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
-        return ResponseEntity.ok(
-                sprintService.startNextSprint(boardId, milestoneId, userPrincipal.getUserId()));
+        return ResponseEntity.ok(sprintService.splitSprints(
+                boardId, milestoneId, request.getCount(), request.getBoundaries(),
+                request.getTaskDistribution(), userPrincipal.getUserId()));
     }
 
-    /** 빈 스프린트 삭제 (ACTIVE + 최신 + 카드 0개만 허용, 동결 기록은 보존) — 관리자 */
-    @DeleteMapping("/sprints/{sprintId}")
-    public ResponseEntity<SprintResponse.Board> deleteSprint(
+    /** 지난 스프린트의 미완료 태스크를 다음 스프린트로 일괄 이동 (이월 배지 +1) — 관리자 */
+    @PostMapping("/sprints/{sprintId}/push-unfinished")
+    public ResponseEntity<SprintResponse.Board> pushUnfinished(
             @PathVariable String boardId,
             @PathVariable String sprintId,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         return ResponseEntity.ok(
-                sprintService.deleteSprint(boardId, sprintId, userPrincipal.getUserId()));
+                sprintService.pushUnfinished(boardId, sprintId, userPrincipal.getUserId()));
     }
 
-    /** 아카이브 스프린트 재활성화 (수정 → 재동결용) — 관리자 */
-    @PostMapping("/sprints/{sprintId}/reactivate")
-    public ResponseEntity<SprintResponse.Board> reactivateSprint(
-            @PathVariable String boardId,
-            @PathVariable String sprintId,
-            @AuthenticationPrincipal UserPrincipal userPrincipal
-    ) {
-        return ResponseEntity.ok(sprintService.reactivateSprint(boardId, sprintId, userPrincipal.getUserId()));
-    }
-
-    /** 재활성화 취소 (원래 동결 기록 복원) — 관리자 */
-    @PostMapping("/sprints/{sprintId}/cancel-reactivation")
-    public ResponseEntity<SprintResponse.Board> cancelReactivation(
-            @PathVariable String boardId,
-            @PathVariable String sprintId,
-            @AuthenticationPrincipal UserPrincipal userPrincipal
-    ) {
-        return ResponseEntity.ok(sprintService.cancelReactivation(boardId, sprintId, userPrincipal.getUserId()));
-    }
-
-    /** 특정 스프린트에 담긴 태스크 카드 목록 (아카이브 열람용) */
+    /** 특정 스프린트에 담긴 태스크 카드 목록 (지난 스프린트 열람용) */
     @GetMapping("/sprints/{sprintId}/tasks")
     public ResponseEntity<List<SprintResponse.ItemCard>> getSprintTasks(
             @PathVariable String boardId,
@@ -227,15 +196,5 @@ public class SprintController {
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         return ResponseEntity.ok(sprintService.getSprintTasks(boardId, sprintId, userPrincipal.getUserId()));
-    }
-
-    /** 아카이브 태스크를 현재 스프린트로 재개 */
-    @PostMapping("/tasks/{taskId}/sprint-resume")
-    public ResponseEntity<SprintResponse.Board> resumeTask(
-            @PathVariable String boardId,
-            @PathVariable String taskId,
-            @AuthenticationPrincipal UserPrincipal userPrincipal
-    ) {
-        return ResponseEntity.ok(sprintService.resumeTask(boardId, taskId, userPrincipal.getUserId()));
     }
 }

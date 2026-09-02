@@ -29,10 +29,10 @@ public class SprintResponse {
     @Builder
     public static class Board {
         private boolean sprintEnabled;
-        private SprintInfo activeSprint;      // 활성 스프린트 없으면 null
-        private List<SprintInfo> sprints;     // 타임라인 (활성 + 아카이브)
-        private Gauge gauge;                   // 스코프 게이지 (활성 기준)
-        private List<Column> columns;          // 동적 컬럼 (START..MIDDLE..END), 각 컬럼에 담긴 카드 포함
+        private SprintInfo currentSprint;     // 오늘 날짜 기준 현재 스프린트 (없으면 null)
+        private List<SprintInfo> sprints;     // 세그먼트 타임라인 (전체 버킷, 라이브 게이지 포함)
+        private Gauge gauge;                   // 스코프 게이지 (현재 스프린트 기준)
+        private List<Column> columns;          // 동적 컬럼 (START..MIDDLE..END), 모든 스프린트의 카드 포함(카드에 sprint_id)
         private List<ItemCard> backlog;        // 담기 후보 (아직 미담긴 마일스톤 항목)
         private List<FeatureInfo> boardFeatures;  // 보드의 피쳐 전체 (인박스 제외) — 태스크 없는 피쳐도 사이드바에 세울 수 있게 내려준다
         private List<JiraTask> jiraTasks;      // JIRA 뷰용 — 보드 전체 JIRA 연동 Task (스프린트 담김 무관). 미연동이면 빈 목록.
@@ -138,6 +138,7 @@ public class SprintResponse {
         }
     }
 
+    /** 세그먼트 바의 스프린트 1칸. state는 오늘 날짜 파생(PAST/CURRENT/FUTURE), 게이지는 항상 라이브. */
     @Getter
     @AllArgsConstructor
     @Builder
@@ -145,26 +146,24 @@ public class SprintResponse {
         private String id;
         private String name;
         private int sequenceNo;
-        private String status;
+        private String state;             // PAST | CURRENT | FUTURE
         private LocalDate startDate;
         private LocalDate endDate;
-        private int completedCount;
-        private int totalCount;
+        private int done;                 // 라이브 완료 체크리스트 줄 수
+        private int total;                // 라이브 전체 체크리스트 줄 수
         private int progressPercentage;
-        private LocalDateTime archivedAt;
 
-        public static SprintInfo of(Sprint s, int progressPercentage) {
+        public static SprintInfo of(Sprint s, int done, int total, com.kanban.domain.sprint.SprintState state) {
             return SprintInfo.builder()
                     .id(s.getId())
                     .name(s.getName())
                     .sequenceNo(s.getSequenceNo())
-                    .status(s.getStatus().name())
+                    .state(state.name())
                     .startDate(s.getStartDate())
                     .endDate(s.getEndDate())
-                    .completedCount(s.getCompletedCount())
-                    .totalCount(s.getTotalCount())
-                    .progressPercentage(progressPercentage)
-                    .archivedAt(s.getArchivedAt())
+                    .done(done)
+                    .total(total)
+                    .progressPercentage(total > 0 ? Math.round(done * 100f / total) : 0)
                     .build();
         }
     }
@@ -191,8 +190,8 @@ public class SprintResponse {
         private LocalDate doneDate;       // 완료일(day 단위)
         private LocalDateTime completedAt; // END 컬럼 도달 시각(오늘 완료 판정 소스)
         private Integer carryOverCount;   // 이월 횟수 — 0이면 이번 스프린트에서 처음 잡힌 태스크
-        private String sprintStatus;      // 귀속 스프린트 상태(ACTIVE/ARCHIVED) — 미담김이면 null
-        private Integer sprintSeq;        // 귀속 스프린트 회차 — 아카이브 완료 행의 "S{n} ✓" 표기용
+        private String sprintId;          // 귀속 스프린트 버킷 id — 미담김(백로그)이면 null. FE 스프린트 필터 키
+        private Integer sprintSeq;        // 귀속 스프린트 회차 — "S{n}" 표기용
         private String featureId;
         private String featureTitle;
         private String featureColor;
@@ -255,7 +254,7 @@ public class SprintResponse {
                     .doneDate(sprintDoneAt != null ? sprintDoneAt.toLocalDate() : null)
                     .completedAt(sprintDoneAt)
                     .carryOverCount(task.getCarryOverCount())
-                    .sprintStatus(task.getSprint() != null ? task.getSprint().getStatus().name() : null)
+                    .sprintId(task.getSprint() != null ? task.getSprint().getId() : null)
                     .sprintSeq(task.getSprint() != null ? task.getSprint().getSequenceNo() : null)
                     .featureId(feature != null ? feature.getId() : null)
                     .featureTitle(feature != null ? feature.getTitle() : null)

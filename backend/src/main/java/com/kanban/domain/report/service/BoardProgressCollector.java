@@ -12,7 +12,7 @@ import com.kanban.domain.report.source.ReportPeriod;
 import com.kanban.domain.sprint.Sprint;
 import com.kanban.domain.sprint.SprintColumnKind;
 import com.kanban.domain.sprint.SprintRepository;
-import com.kanban.domain.sprint.SprintStatus;
+import com.kanban.domain.sprint.SprintState;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import lombok.RequiredArgsConstructor;
@@ -488,13 +488,17 @@ public class BoardProgressCollector {
      * 태스크 건수는 참고용으로 taskDone/taskTotal에 따로 담는다.
      */
     private ReportContent.Sprint computeSprint(String boardId) {
-        List<Sprint> active = sprintRepository.findByBoardIdAndStatus(boardId, SprintStatus.ACTIVE);
-        if (active.isEmpty()) {
+        List<Sprint> sprints = sprintRepository.findByBoardId(boardId); // 최신 시퀀스 우선
+        if (sprints.isEmpty()) {
             return null;
         }
-        Sprint sprint = active.get(0); // 최신 시퀀스 우선
-        List<Task> tasks = taskRepository.findBySprintId(sprint.getId());
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        // 분할 모델: 오늘이 기간 안에 있는 스프린트를 고르고, 없으면 최신 스프린트로 폴백.
+        Sprint sprint = sprints.stream()
+                .filter(s -> s.stateOn(today) == SprintState.CURRENT)
+                .findFirst()
+                .orElse(sprints.get(0));
+        List<Task> tasks = taskRepository.findBySprintId(sprint.getId());
 
         // 스프린트에 담긴 태스크의 체크리스트를 한 번에 읽어 태스크별로 묶는다.
         Map<String, List<ChecklistItem>> checklistByTask = new HashMap<>();

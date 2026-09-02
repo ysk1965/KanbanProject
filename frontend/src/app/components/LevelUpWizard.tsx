@@ -70,14 +70,17 @@ export function LevelUpWizard({
         if (!alive) return;
         setBoard(data);
         // 기본값은 "전부 담긴 채로" — 아무것도 안 고르고 넘겨도 지금과 같은 상태가 된다.
+        const current = data.current_sprint;
         const ids = new Set<string>();
         (data.columns ?? []).forEach((c) =>
-          c.items.forEach((it) => ids.add(it.task_id ?? it.id)),
+          c.items.forEach((it) => {
+            if (it.sprint_id === current?.id) ids.add(it.task_id ?? it.id);
+          }),
         );
         setPicked(ids);
-        const active = data.active_sprint;
-        if (active?.start_date) setStartDate(active.start_date.substring(0, 10));
-        if (active?.end_date) setEndDate(active.end_date.substring(0, 10));
+        if (current?.start_date)
+          setStartDate(current.start_date.substring(0, 10));
+        if (current?.end_date) setEndDate(current.end_date.substring(0, 10));
       })
       .catch(() => {
         if (alive) toast.error("보드 정보를 불러오지 못했습니다.");
@@ -90,15 +93,18 @@ export function LevelUpWizard({
     };
   }, [open, boardId, milestoneId]);
 
-  const allCards = useMemo<SprintItemCard[]>(() => {
-    if (!board) return [];
-    return (board.columns ?? []).flatMap((c) => c.items);
-  }, [board]);
+  const currentSprintId = board?.current_sprint?.id ?? null;
 
-  const activeSprintId = board?.active_sprint?.id ?? null;
+  // 컬럼에는 모든 주기의 카드가 섞여 내려온다 — 정리 대상은 이번 주기 상자뿐이다.
+  const allCards = useMemo<SprintItemCard[]>(() => {
+    if (!board || !currentSprintId) return [];
+    return (board.columns ?? [])
+      .flatMap((c) => c.items)
+      .filter((it) => it.sprint_id === currentSprintId);
+  }, [board, currentSprintId]);
 
   const runLevelTwo = async () => {
-    if (!activeSprintId) {
+    if (!currentSprintId) {
       onDone();
       onClose();
       return;
@@ -108,9 +114,13 @@ export function LevelUpWizard({
       // 안 고른 것만 백로그로 되돌린다. 고른 것은 이미 담겨 있어 건드릴 필요가 없다.
       const drop = allCards.filter((it) => !picked.has(it.task_id ?? it.id));
       for (const it of drop) {
-        await sprintAPI.removeTask(boardId, activeSprintId, it.task_id ?? it.id);
+        await sprintAPI.removeTask(
+          boardId,
+          currentSprintId,
+          it.task_id ?? it.id,
+        );
       }
-      await sprintAPI.updateSprint(boardId, activeSprintId, {
+      await sprintAPI.updateSprint(boardId, currentSprintId, {
         start_date: startDate,
         end_date: endDate,
       });

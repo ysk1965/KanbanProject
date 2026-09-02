@@ -661,7 +661,8 @@ export interface Checklist {
 // ========================================
 
 export type SprintColumnKind = "START" | "MIDDLE" | "END";
-export type SprintStatus = "ACTIVE" | "ARCHIVED";
+/** 스프린트 상태는 저장되지 않는다 — 오늘 날짜와 버킷 기간으로 서버가 파생한다. */
+export type SprintState = "PAST" | "CURRENT" | "FUTURE";
 
 // 카드 안쪽에 나열되는 체크리스트 한 줄. 담기 대상이 아니라 표시·토글 대상이다.
 export interface SprintChecklistLine {
@@ -700,11 +701,10 @@ export interface SprintItemCard {
   start_date: string | null; // 진행 현황 4구간 분류용(진행 중 판정)
   done_date: string | null; // Done 컬럼 도달일
   completed_at: string | null; // Done 컬럼 도달 시각(오늘 완료 판정 소스)
-  carry_over_count?: number; // 이월 횟수 — 0이면 이번 스프린트에서 처음 잡힌 태스크
-  // 귀속 스프린트 — 태스크는 3가지 상태를 오간다: 미담김(null) / 이번 스프린트(ACTIVE) /
-  // 지난 스프린트 완료(ARCHIVED, 동결 이력 — sprint_column_id가 남아 있어도 담김이 아니다).
-  sprint_status?: "ACTIVE" | "ARCHIVED" | null;
-  sprint_seq?: number | null; // 귀속 스프린트 회차 — 아카이브 행의 "S{n} ✓" 표기용
+  carry_over_count?: number; // 이월 횟수 — 0이면 처음 담긴 뒤 옮겨진 적 없는 태스크
+  // 귀속 스프린트(버킷) id. null이면 미배정(백로그).
+  sprint_id?: string | null;
+  sprint_seq?: number | null; // 귀속 스프린트 회차 — "S{n}" 표기용
   feature_id: string | null;
   feature_title: string | null;
   feature_color: string | null;
@@ -747,17 +747,20 @@ export interface SprintItemCard {
   }[];
 }
 
+/**
+ * 스프린트 = 마일스톤 기간을 N등분한 버킷. 종료 개념이 없고,
+ * done/total은 동결 스냅샷이 아니라 라이브 체크리스트 집계다.
+ */
 export interface SprintInfo {
   id: string;
   name: string;
   sequence_no: number;
-  status: SprintStatus;
+  state: SprintState; // 오늘 날짜 기준 서버 파생값
   start_date: string | null;
   end_date: string | null;
-  completed_count: number;
-  total_count: number;
+  done: number;
+  total: number;
   progress_percentage: number;
-  archived_at: string | null;
 }
 
 export interface SprintGauge {
@@ -808,11 +811,13 @@ export interface SprintFeatureInfo {
 
 export interface SprintBoard {
   sprint_enabled: boolean;
-  active_sprint: SprintInfo | null;
-  sprints: SprintInfo[];
-  gauge: SprintGauge;
+  /** 오늘 날짜가 속한 버킷. 마일스톤 기간 밖이면 null. */
+  current_sprint: SprintInfo | null;
+  sprints: SprintInfo[]; // 전체 버킷 (sequence_no 오름차순)
+  gauge: SprintGauge; // current_sprint 기준
   columns: SprintColumn[]; // 동적 컬럼 (position 순, 앞뒤 고정 + 중간 자유)
-  backlog: SprintItemCard[];
+  // 컬럼 items에는 모든 스프린트의 카드가 담겨 온다 — sprint_id로 선택 버킷을 걸러 쓴다.
+  backlog: SprintItemCard[]; // 미배정 태스크만
   // 보드의 피쳐 전체 (인박스 제외) — 이 마일스톤에 태스크가 없는 피쳐도 리스트에 서도록 내려온다.
   board_features?: SprintFeatureInfo[];
   // JIRA 미연동 보드면 없음/빈 배열. JIRA 뷰는 스프린트 컬럼이 아니라 이 보드 전체 목록을 집계한다.

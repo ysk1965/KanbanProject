@@ -3887,59 +3887,35 @@ export const sprintAPI = {
   },
 
   /**
-   * 스프린트 종료 (완료율 동결 + 미완료 태스크 이월 + 다음 스프린트 생성/복귀).
-   * createNext=false면 다음 스프린트를 만들지 않고 마일스톤을 마무리한다 (이월도 없음).
+   * 마일스톤 기간을 count개 버킷으로 분할·재조정 (관리자).
+   * boundaries는 스프린트 2..N의 시작일(yyyy-MM-dd)이며, 생략하면 균등 분배한다.
    */
-  closeSprint: async (
+  splitSprints: async (
     boardId: string,
-    sprintId: string,
-    createNext: boolean = true,
+    milestoneId: string,
+    payload: {
+      count: number;
+      boundaries?: string[];
+      task_distribution?: "keep" | "unassign" | "by_date";
+    },
   ) => {
+    return apiClient.put<SprintBoard>(
+      `/boards/${boardId}/milestones/${milestoneId}/sprint-split`,
+      payload,
+    );
+  },
+
+  /** 미완료(END 미도달) 태스크를 다음 시퀀스 스프린트로 일괄 이동 (관리자) */
+  pushUnfinished: async (boardId: string, sprintId: string) => {
     return apiClient.post<SprintBoard>(
-      `/boards/${boardId}/sprints/${sprintId}/close`,
-      { create_next: createNext },
+      `/boards/${boardId}/sprints/${sprintId}/push-unfinished`,
     );
   },
 
-  /** 다음 스프린트 시작 — 마일스톤 마무리(활성 없음) 상태에서 재개 */
-  startNextSprint: async (boardId: string, milestoneId: string) => {
-    return apiClient.post<SprintBoard>(
-      `/boards/${boardId}/milestones/${milestoneId}/sprints`,
-    );
-  },
-
-  /** 빈 스프린트 삭제 (ACTIVE + 최신 + 카드 0개만 허용, 동결 기록은 보존) */
-  deleteSprint: async (boardId: string, sprintId: string) => {
-    return apiClient.delete<SprintBoard>(
-      `/boards/${boardId}/sprints/${sprintId}`,
-    );
-  },
-
-  /** 아카이브 스프린트 재활성화 (수정 → 재동결용) */
-  reactivateSprint: async (boardId: string, sprintId: string) => {
-    return apiClient.post<SprintBoard>(
-      `/boards/${boardId}/sprints/${sprintId}/reactivate`,
-    );
-  },
-
-  /** 재활성화 취소 (원래 동결 기록 복원) */
-  cancelReactivation: async (boardId: string, sprintId: string) => {
-    return apiClient.post<SprintBoard>(
-      `/boards/${boardId}/sprints/${sprintId}/cancel-reactivation`,
-    );
-  },
-
-  /** 특정 스프린트에 담긴 태스크 카드 목록 (아카이브 열람용) */
+  /** 특정 스프린트에 담긴 태스크 카드 목록 */
   getSprintTasks: async (boardId: string, sprintId: string) => {
     return apiClient.get<SprintItemCard[]>(
       `/boards/${boardId}/sprints/${sprintId}/tasks`,
-    );
-  },
-
-  /** 아카이브 태스크를 현재 스프린트로 재개 */
-  resumeTask: async (boardId: string, taskId: string) => {
-    return apiClient.post<SprintBoard>(
-      `/boards/${boardId}/tasks/${taskId}/sprint-resume`,
     );
   },
 };

@@ -19,6 +19,9 @@ import type {
   Milestone,
   ChecklistItem,
   SprintBoard,
+  SprintInfo,
+  SprintItemCard,
+  SprintState,
 } from "../types";
 import { checklistService } from "../utils/services";
 import { sprintAPI } from "../utils/api";
@@ -49,10 +52,17 @@ interface MilestoneDetailViewProps {
   onRefresh?: () => void;
 }
 
-/** task_id → 스프린트 귀속 정보 (sprint-board API에서 파생) */
+/**
+ * task_id → 스프린트 귀속 정보 (sprint-board API에서 파생).
+ * 귀속은 "어느 버킷에 담겼나"(sprintId) 하나뿐이고,
+ * 그 버킷이 지남/진행 중/예정인지는 오늘 날짜로 서버가 매기는 파생값이다.
+ */
 export interface TaskSprintInfo {
-  status: "ACTIVE" | "ARCHIVED" | null;
+  /** 담긴 버킷 id. null이면 미배정(백로그). */
+  sprintId: string | null;
   seq: number | null;
+  /** 버킷을 못 찾았을 때만 null. */
+  state: SprintState | null;
   carryOver: number;
   checklistDone: number;
   checklistTotal: number;
@@ -78,33 +88,49 @@ export function daysUntil(dateStr: string): number {
 // Sub-components
 // ========================================
 
-/** 스프린트 귀속 칩 — ACTIVE(틸) / ARCHIVED(회색 ✓) / 백로그(점선) */
+/** 스프린트 귀속 칩 — 지난 버킷(회색 ✓) / 진행 중(틸) / 예정(인디고) / 미배정(점선) */
 export function SprintChip({
   info,
-  activeSeq,
+  currentSeq,
 }: {
   info: TaskSprintInfo | undefined;
-  activeSeq: number | null;
+  currentSeq: number | null;
 }) {
   const { t } = useTranslation();
-  if (info?.status === "ACTIVE") {
+  if (!info?.sprintId) {
     return (
-      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary whitespace-nowrap tabular-nums">
-        S{info.seq ?? activeSeq ?? "?"}{" "}
-        {t("milestone.detail.sprintActive", { defaultValue: "진행 중" })}
+      <span className="text-xs font-medium px-1.5 py-0.5 rounded-full border border-dashed border-foreground/20 text-slate-500 whitespace-nowrap">
+        {t("milestone.detail.backlog", { defaultValue: "백로그" })}
       </span>
     );
   }
-  if (info?.status === "ARCHIVED") {
+  const seq = info.seq ?? currentSeq ?? "?";
+  if (info.state === "PAST") {
     return (
       <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-foreground/[0.06] text-slate-500 whitespace-nowrap tabular-nums">
-        S{info.seq ?? "?"} ✓
+        S{seq} ✓
       </span>
     );
   }
+  if (info.state === "CURRENT") {
+    return (
+      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary whitespace-nowrap tabular-nums">
+        S{seq} {t("milestone.detail.sprintActive", { defaultValue: "진행 중" })}
+      </span>
+    );
+  }
+  if (info.state === "FUTURE") {
+    return (
+      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent whitespace-nowrap tabular-nums">
+        S{seq}{" "}
+        {t("milestone.detail.sprintUpcoming", { defaultValue: "예정" })}
+      </span>
+    );
+  }
+  // 버킷은 있는데 시점을 못 구한 경우 — 회차만 담백하게 보여준다.
   return (
-    <span className="text-xs font-medium px-1.5 py-0.5 rounded-full border border-dashed border-foreground/20 text-slate-500 whitespace-nowrap">
-      {t("milestone.detail.backlog", { defaultValue: "백로그" })}
+    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-foreground/[0.06] text-slate-400 whitespace-nowrap tabular-nums">
+      S{seq}
     </span>
   );
 }
@@ -134,7 +160,7 @@ function ChecklistMeter({ done, total }: { done: number; total: number }) {
 function TaskCard({
   task,
   sprintInfo,
-  activeSeq,
+  currentSeq,
   sprintEnabled,
   showFeature,
   expanded,
@@ -145,7 +171,7 @@ function TaskCard({
 }: {
   task: Task;
   sprintInfo: TaskSprintInfo | undefined;
-  activeSeq: number | null;
+  currentSeq: number | null;
   sprintEnabled: boolean;
   /** 스프린트별 묶기 모드에서 카드에 피처 표시 */
   showFeature?: { title: string; color: string } | null;
@@ -218,7 +244,7 @@ function TaskCard({
           </span>
         )}
         {sprintEnabled && !showFeature && (
-          <SprintChip info={sprintInfo} activeSeq={activeSeq} />
+          <SprintChip info={sprintInfo} currentSeq={currentSeq} />
         )}
         {(sprintInfo?.carryOver ?? 0) > 0 && (
           <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 whitespace-nowrap">
@@ -492,48 +518,59 @@ export function MilestoneDetailView({
 
   // ── 스프린트 조인 맵 ──
   const sprintEnabled = sprintBoard?.sprint_enabled ?? false;
-  const activeSeq = sprintBoard?.active_sprint?.sequence_no ?? null;
+  // 마일스톤 기간을 N등분한 버킷 전체 (sequence_no 오름차순).
+  const sprints = useMemo<SprintInfo[]>(
+    () => sprintBoard?.sprints ?? [],
+    [sprintBoard],
+  );
+  const currentSeq = sprintBoard?.current_sprint?.sequence_no ?? null;
+
+  const sprintById = useMemo(() => {
+    const m = new Map<string, SprintInfo>();
+    for (const sp of sprints) m.set(sp.id, sp);
+    return m;
+  }, [sprints]);
+
   const sprintInfoByTask = useMemo(() => {
     const map = new Map<string, TaskSprintInfo>();
     if (!sprintBoard) return map;
-    const put = (item: {
-      task_id: string | null;
-      sprint_status?: "ACTIVE" | "ARCHIVED" | null;
-      sprint_seq?: number | null;
-      carry_over_count?: number;
-      checklist_done: number;
-      checklist_total: number;
-    }) => {
+    // 카드에는 버킷 id만 실려 오므로 회차·시점은 sprints에서 조인해 채운다.
+    const put = (item: SprintItemCard) => {
       if (!item.task_id) return;
+      const bucket = item.sprint_id ? sprintById.get(item.sprint_id) : undefined;
       map.set(item.task_id, {
-        status: item.sprint_status ?? null,
-        seq: item.sprint_seq ?? null,
+        sprintId: item.sprint_id ?? null,
+        seq: bucket?.sequence_no ?? item.sprint_seq ?? null,
+        state: bucket?.state ?? null,
         carryOver: item.carry_over_count ?? 0,
         checklistDone: item.checklist_done,
         checklistTotal: item.checklist_total,
       });
     };
+    // 컬럼에는 모든 버킷의 카드가 섞여 오고, backlog는 미배정만 담긴다.
     for (const col of sprintBoard.columns) col.items.forEach(put);
     sprintBoard.backlog.forEach(put);
     return map;
-  }, [sprintBoard]);
+  }, [sprintBoard, sprintById]);
 
-  // 스프린트 담기/빼기 — 응답 보드로 칩 상태 즉시 갱신 (테이블 뷰에서 사용)
-  const activeSprintId = sprintBoard?.active_sprint?.id ?? null;
+  // 스프린트 담기/옮기기/빼기 — 응답 보드로 칩 상태 즉시 갱신 (테이블 뷰에서 사용).
+  // toSprintId가 null이면 백로그로 빼기. 지난 버킷도 대상이 될 수 있다.
   const handleMoveSprint = useCallback(
-    (taskId: string, to: "active" | "backlog") => {
-      if (!activeSprintId) return;
-      const call =
-        to === "active"
-          ? sprintAPI.addTask(boardId, activeSprintId, taskId)
-          : sprintAPI.removeTask(boardId, activeSprintId, taskId);
-      call
-        .then((board) => setSprintBoard(board))
-        .catch(() => {
-          /* 실패 시 칩 원상태 유지 */
-        });
+    (taskId: string, toSprintId: string | null) => {
+      const from = sprintInfoByTask.get(taskId)?.sprintId ?? null;
+      if (from === toSprintId) return;
+      void (async () => {
+        // 빼기 → 담기 순서. 서버가 재배정해 주더라도 결과는 같다.
+        let next: SprintBoard | null = null;
+        if (from) next = await sprintAPI.removeTask(boardId, from, taskId);
+        if (toSprintId)
+          next = await sprintAPI.addTask(boardId, toSprintId, taskId);
+        if (next) setSprintBoard(next);
+      })().catch(() => {
+        /* 실패 시 칩 원상태 유지 */
+      });
     },
-    [boardId, activeSprintId],
+    [boardId, sprintInfoByTask],
   );
 
   // ── 컬럼 구성 ──
@@ -552,53 +589,51 @@ export function MilestoneDetailView({
 
   const columns = useMemo<Column[]>(() => {
     if (groupMode === "sprint" && sprintEnabled) {
-      // 컬럼 = 스프린트 (지난 회차 ✓ → 진행 중 → 백로그)
+      // 컬럼 = 버킷 (회차 순 = 지남 → 진행 중 → 예정) + 미배정 백로그
       const buckets = new Map<string, Task[]>();
+      const backlog: Task[] = [];
       for (const tk of scopedTasks) {
-        const info = sprintInfoByTask.get(tk.id);
-        const key =
-          info?.status === "ACTIVE"
-            ? "active"
-            : info?.status === "ARCHIVED"
-              ? `arch-${info.seq ?? 0}`
-              : "backlog";
-        if (!buckets.has(key)) buckets.set(key, []);
-        buckets.get(key)!.push(tk);
+        const sid = sprintInfoByTask.get(tk.id)?.sprintId ?? null;
+        if (!sid) {
+          backlog.push(tk);
+          continue;
+        }
+        if (!buckets.has(sid)) buckets.set(sid, []);
+        buckets.get(sid)!.push(tk);
       }
-      const archSeqs = [...buckets.keys()]
-        .filter((k) => k.startsWith("arch-"))
-        .map((k) => Number(k.slice(5)))
-        .sort((a, b) => a - b);
+      const toColumn = (key: string, title: string, list: Task[]): Column => ({
+        key,
+        title,
+        color: null,
+        tasks: list,
+        completed: list.filter((tk) => tk.completed).length,
+      });
       const cols: Column[] = [];
-      for (const seq of archSeqs) {
-        const list = buckets.get(`arch-${seq}`)!;
-        cols.push({
-          key: `arch-${seq}`,
-          title: `S${seq} ✓`,
-          color: null,
-          tasks: list,
-          completed: list.filter((tk) => tk.completed).length,
-        });
+      for (const sp of sprints) {
+        const list = buckets.get(sp.id);
+        if (!list?.length) continue;
+        buckets.delete(sp.id);
+        const mark =
+          sp.state === "PAST"
+            ? " ✓"
+            : sp.state === "CURRENT"
+              ? ` · ${t("milestone.detail.sprintActive", { defaultValue: "진행 중" })}`
+              : "";
+        cols.push(toColumn(sp.id, `S${sp.sequence_no}${mark}`, list));
       }
-      if (buckets.has("active")) {
-        const list = buckets.get("active")!;
-        cols.push({
-          key: "active",
-          title: `S${activeSeq ?? "?"} · ${t("milestone.detail.sprintActive", { defaultValue: "진행 중" })}`,
-          color: null,
-          tasks: list,
-          completed: list.filter((tk) => tk.completed).length,
-        });
+      // sprints에 없는 버킷에 담긴 카드도 흘리지 않는다 — 컬럼 합계가 어긋나면 안 된다.
+      for (const [sid, list] of buckets) {
+        const seq = sprintInfoByTask.get(list[0].id)?.seq;
+        cols.push(toColumn(sid, `S${seq ?? "?"}`, list));
       }
-      if (buckets.has("backlog")) {
-        const list = buckets.get("backlog")!;
-        cols.push({
-          key: "backlog",
-          title: t("milestone.detail.backlog", { defaultValue: "백로그" }),
-          color: null,
-          tasks: list,
-          completed: list.filter((tk) => tk.completed).length,
-        });
+      if (backlog.length > 0) {
+        cols.push(
+          toColumn(
+            "backlog",
+            t("milestone.detail.backlog", { defaultValue: "백로그" }),
+            backlog,
+          ),
+        );
       }
       return cols;
     }
@@ -656,7 +691,7 @@ export function MilestoneDetailView({
     sprintEnabled,
     scopedTasks,
     sprintInfoByTask,
-    activeSeq,
+    sprints,
     featureById,
     grid,
     mid,
@@ -1012,13 +1047,14 @@ export function MilestoneDetailView({
             featureById={featureById}
             homeByFeature={homeByFeature}
             sprintInfoByTask={sprintInfoByTask}
-            activeSeq={activeSeq}
+            sprints={sprints}
+            currentSeq={currentSeq}
             sprintEnabled={sprintEnabled}
             canEdit={canEdit}
             onTaskClick={onTaskClick}
             onFeatureClick={onFeatureClick}
             onRefresh={onRefresh}
-            onMoveSprint={activeSprintId ? handleMoveSprint : undefined}
+            onMoveSprint={sprints.length > 0 ? handleMoveSprint : undefined}
           />
         ) : scopedTotal === 0 ? (
           <div className="flex flex-col items-center py-12 text-slate-500">
@@ -1120,7 +1156,7 @@ export function MilestoneDetailView({
                         key={tk.id}
                         task={tk}
                         sprintInfo={sprintInfoByTask.get(tk.id)}
-                        activeSeq={activeSeq}
+                        currentSeq={currentSeq}
                         sprintEnabled={sprintEnabled}
                         showFeature={
                           groupMode === "sprint"

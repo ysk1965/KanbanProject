@@ -22,8 +22,6 @@ import {
   ChevronLeft,
   Eye,
   ExternalLink,
-  RotateCcw,
-  AlertTriangle,
   Layers,
   Filter,
   Users,
@@ -37,6 +35,8 @@ import {
   Settings2,
   Inbox,
   UserPlus,
+  Split,
+  SendHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { sprintAPI, checklistAPI, taskAPI, jiraAPI } from "../utils/api";
@@ -69,6 +69,8 @@ import {
 } from "../utils/jira";
 import { MotionModal } from "./ui/MotionModal";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { SprintSegmentBar } from "./SprintSegmentBar";
+import { SprintSplitModal } from "./SprintSplitModal";
 import { SprintMemberGanttModal } from "./SprintMemberGanttModal";
 import { MilestoneConsoleModal } from "./MilestoneConsoleModal";
 import { JiraOnboardingGuide } from "./JiraOnboardingGuide";
@@ -79,7 +81,17 @@ import type { FilterOptions } from "./FilterModal";
 
 interface SprintBoardProps {
   boardId: string;
-  milestones: { id: string; title: string; progress_percentage?: number }[];
+  /**
+   * start_date/end_date는 분할(스프린트 나누기)의 전체 범위다 — 마일스톤 기간이 곧
+   * 스프린트들의 합이라, 없으면 나눌 대상이 없어 분할 모달이 안내만 띄운다.
+   */
+  milestones: {
+    id: string;
+    title: string;
+    progress_percentage?: number;
+    start_date?: string;
+    end_date?: string;
+  }[];
   canEdit: boolean;
   isAdminOrOwner: boolean;
   /** 지정 시 이 마일스톤으로 고정(칸반 탭 연동). 미지정이면 자체 드롭다운으로 선택 */
@@ -174,15 +186,13 @@ function progressUnits(
 }
 
 /**
- * "이번(활성) 스프린트에 담겼는가" — 태스크의 3가지 스프린트 상태 중 ②의 판정.
- * ARCHIVED 귀속은 마감 스프린트의 동결 이력이라 sprint_column_id(공유 컬럼)가 남아
- * 있어도 담김이 아니다. 담김 집계·행 액션·컬럼 편입이 모두 이 판정 하나를 본다.
- *  ① 미배치: sprint_status == null (백로그)
- *  ② 이번 스프린트: 담김 — 빼기 가능
- *  ③ 지난 스프린트 완료: sprint_status == "ARCHIVED" — 읽기 전용 이력
+ * "지금 보고 있는 버킷에 담겼는가" — 담김 집계·행 액션·컬럼 편입이 모두 이 판정 하나를 본다.
+ * 스프린트는 종료되는 대상이 아니라 태스크를 담는 그릇이라, 담김 여부는 귀속 버킷 id
+ * 하나로 끝난다(미배정이면 sprint_id가 null). 컬럼에는 전 버킷의 카드가 함께 내려오므로
+ * "어느 버킷을 보고 있나"를 빼면 남의 스프린트 카드까지 담김으로 세게 된다.
  */
-function takenInActiveSprint(it: SprintItemCard): boolean {
-  return !!it.sprint_column_id && it.sprint_status !== "ARCHIVED";
+function takenInSprint(it: SprintItemCard, sprintId: string | null): boolean {
+  return !!sprintId && (it.sprint_id ?? null) === sprintId;
 }
 
 /**
@@ -360,6 +370,7 @@ export function SprintBoard({
     controlledMilestoneId ?? milestones[0]?.id ?? "",
   );
   const milestoneId = controlledMilestoneId ?? internalMid;
+  const milestone = milestones.find((m) => m.id === milestoneId) ?? null;
   const [board, setBoard] = useState<SprintBoardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -379,8 +390,8 @@ export function SprintBoard({
   // 입력이 열려 있는 추가 행 키 — 평소엔 고스트 행("＋ 태스크 추가")만 두고,
   // 클릭한 자리 하나만 입력으로 펼친다(카드마다 입력 박스가 상주하면 세로 소음이다).
   const [activeAddKey, setActiveAddKey] = useState<string | null>(null);
-  // 업무 리스트 범위 — "active": 미배치 + 이번 스프린트(기본), "all": 지난 스프린트 완료까지.
-  // 지난 스프린트에서 끝난 태스크는 동결 이력이라 평소엔 소음이고, 회고·집계 때만 궁금하다.
+  // 업무 리스트 범위 — "active": 미배정 + 선택한 스프린트(기본), "all": 다른 스프린트에
+  // 담긴 태스크까지. 다른 버킷의 일은 평소엔 소음이고, 옮겨 담을 때만 궁금하다.
   const [listScope, setListScope] = useState<"active" | "all">(() => {
     try {
       return localStorage.getItem(SPRINT_LIST_SCOPE_KEY) === "all"
@@ -433,19 +444,11 @@ export function SprintBoard({
     "todayDone" | "inProgress" | "earlierDone" | "notStarted"
   >("todayDone");
 
-  // 과거 스프린트 미리보기 — 클릭 시 읽기 전용 스냅샷 열람(백엔드 무변경).
-  // 재활성화는 배너의 명시적 버튼 → 확인 모달로만 진입한다.
-  const [previewSprintId, setPreviewSprintId] = useState<string | null>(null);
-  const [previewItems, setPreviewItems] = useState<SprintItemCard[] | null>(
-    null,
-  );
-  const [previewLoading, setPreviewLoading] = useState(false);
-  // 재활성화 확인 모달 대상 스프린트(null이면 닫힘)
-  const [reactivateTarget, setReactivateTarget] = useState<SprintInfo | null>(
-    null,
-  );
-  // 스프린트 종료 모달 — "다음 스프린트 시작 / 이 마일스톤 마무리" 선택
-  const [closeModalOpen, setCloseModalOpen] = useState(false);
+  // 지금 보고 있는 버킷. 기본값은 오늘이 속한 스프린트(current_sprint)지만, 사용자가
+  // 고른 뒤엔 보드를 재조회해도 그 선택을 유지한다 — 담기 한 번에 화면이 튀면 안 된다.
+  const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
+  // 분할 조정 모달 (관리자 전용)
+  const [splitOpen, setSplitOpen] = useState(false);
 
   // ── 하단 미분류 레일 ──
   // 접힘 상태는 localStorage에서 복원(기본 = 접힘). 접혀 있어도 헤더에 사유별 건수를 남겨
@@ -552,12 +555,6 @@ export function SprintBoard({
     : groupPref === "member" && !uiFeatures.has("members")
       ? "feature"
       : groupPref;
-
-  // 과거 스프린트를 미리보는 중에 JIRA 화면으로 넘어오면 스냅샷이 보드를 계속 점유한다.
-  // 미리보기는 스프린트 화면의 상태이므로 화면을 떠날 때 푼다.
-  useEffect(() => {
-    if (jiraView) setPreviewSprintId(null);
-  }, [jiraView]);
 
   // 구성원 뷰 보임 필터. 기본은 "진행중" — 이 뷰를 여는 이유가 "이 사람 지금 뭐 남았지"라서다.
   // 숨긴 만큼은 컬럼 하단에 건수로 고지해, 카드가 조용히 사라진 것처럼 보이지 않게 한다.
@@ -817,40 +814,15 @@ export function SprintBoard({
     }
   }, [controlled, milestones, internalMid]);
 
-  // 마일스톤 전환 시 미리보기 상태 초기화(다른 마일스톤의 스프린트를 이어보지 않도록)
+  // 선택 버킷 동기화 — 보드가 바뀔 때마다 "고른 스프린트가 아직 있나"만 확인하고,
+  // 사라졌을 때(분할 조정·마일스톤 전환)만 현재 스프린트로 되돌린다.
   useEffect(() => {
-    setPreviewSprintId(null);
-    setPreviewItems(null);
-    setReactivateTarget(null);
-  }, [milestoneId]);
-
-  // 미리보기 대상 스프린트의 담긴 카드 조회(읽기 전용). 백엔드 상태는 변경하지 않는다.
-  useEffect(() => {
-    if (!previewSprintId) {
-      setPreviewItems(null);
-      return;
-    }
-    let cancelled = false;
-    setPreviewLoading(true);
-    setPreviewItems(null);
-    sprintAPI
-      .getSprintTasks(boardId, previewSprintId)
-      .then((items) => {
-        if (!cancelled) setPreviewItems(items);
-      })
-      .catch((e: unknown) => {
-        if (!cancelled) {
-          setError(errMessage(e, "스프린트를 불러오지 못했습니다"));
-          setPreviewSprintId(null);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setPreviewLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [boardId, previewSprintId]);
+    const list = board?.sprints ?? [];
+    setSelectedSprintId((prev) => {
+      if (prev && list.some((s) => s.id === prev)) return prev;
+      return board?.current_sprint?.id ?? list[0]?.id ?? null;
+    });
+  }, [board]);
 
   // 뮤테이션 헬퍼 — 반환된 최신 보드로 즉시 교체
   const run = useCallback(async (fn: () => Promise<SprintBoardData>) => {
@@ -961,13 +933,29 @@ export function SprintBoard({
     );
   }, [filterOptions]);
 
-  // 필터 반영 보드 — 컬럼/백로그/좌측 트리 및 게이지가 모두 여기서 파생되어 필터를 반영한다.
+  /** 지금 보고 있는 버킷. 선택이 아직 없으면 오늘이 속한 스프린트로 읽는다. */
+  const selectedSprint = useMemo<SprintInfo | null>(() => {
+    const list = board?.sprints ?? [];
+    return (
+      list.find((s) => s.id === selectedSprintId) ??
+      board?.current_sprint ??
+      list[0] ??
+      null
+    );
+  }, [board, selectedSprintId]);
+  /** 담김 판정의 기준 버킷 — 이게 없으면 담기 자체가 성립하지 않는다. */
+  const scopeSprintId = selectedSprint?.id ?? null;
+
+  // 보드 스코프 — 컬럼에는 전 스프린트의 카드가 함께 내려오므로 선택한 버킷만 남긴다.
+  // 컬럼/좌측 트리/게이지가 모두 여기서 파생되어 스프린트 선택과 필터를 동시에 반영한다.
   const filteredBoard = useMemo<SprintBoardData | null>(() => {
     if (!board) return null;
-    if (!hasActiveFilter) return board;
+    const inScope = (it: SprintItemCard) =>
+      takenInSprint(it, scopeSprintId) &&
+      (!hasActiveFilter || itemMatchesFilter(it));
     const filteredColumns = board.columns.map((c) => ({
       ...c,
-      items: c.items.filter(itemMatchesFilter),
+      items: c.items.filter(inScope),
     }));
     // 게이지 재계산: 담긴 항목(sprint_column_id)의 체크리스트 줄 기준(progressUnits)
     const endColIds = new Set(
@@ -988,7 +976,9 @@ export function SprintBoard({
     }
     return {
       ...board,
-      backlog: board.backlog.filter(itemMatchesFilter),
+      backlog: hasActiveFilter
+        ? board.backlog.filter(itemMatchesFilter)
+        : board.backlog,
       columns: filteredColumns,
       gauge: {
         done,
@@ -996,7 +986,7 @@ export function SprintBoard({
         percentage: total > 0 ? Math.round((done / total) * 100) : 0,
       },
     };
-  }, [board, hasActiveFilter, itemMatchesFilter]);
+  }, [board, hasActiveFilter, itemMatchesFilter, scopeSprintId]);
 
   // JIRA 뷰(Task 단위) 필터 매칭 — 카드가 체크리스트가 아니라 Task(=JIRA 이슈)라 별도 판정.
   // 담당자는 태스크 담당자 중 하나라도 걸리면 통과, 상태는 체크리스트 전체 완료(done>=total) 기준.
@@ -1043,7 +1033,10 @@ export function SprintBoard({
     };
   }, [filterOptions, featureTagsMap, taskTagsMap]);
 
-  const activeSprint = filteredBoard?.active_sprint ?? null;
+  const takenHere = useCallback(
+    (it: SprintItemCard) => takenInSprint(it, scopeSprintId),
+    [scopeSprintId],
+  );
   const columns = useMemo(
     () =>
       (filteredBoard?.columns ?? [])
@@ -1055,9 +1048,14 @@ export function SprintBoard({
   // 소스 트리: backlog + 모든 컬럼 카드를 합쳐 Feature ▸ Task로 재구성 (카드 1건 = 태스크 1건)
   const tree = useMemo<TreeFeature[]>(() => {
     if (!filteredBoard) return [];
+    // 업무 리스트는 보드와 달리 마일스톤 전체가 스코프다 — 다른 버킷에 담긴 태스크도
+    // 여기 서야 "옮겨 담기"가 가능하다(보이지 않는 태스크는 옮길 수도 없다).
+    // 선택 버킷만 볼지는 리스트 범위(listScope) 토글이 정한다.
     const all: SprintItemCard[] = [
       ...filteredBoard.backlog,
-      ...filteredBoard.columns.flatMap((c) => c.items),
+      ...(board?.columns ?? [])
+        .flatMap((c) => c.items)
+        .filter((it) => !hasActiveFilter || itemMatchesFilter(it)),
     ];
     const endColIds = new Set(
       filteredBoard.columns.filter((c) => c.kind === "END").map((c) => c.id),
@@ -1087,7 +1085,7 @@ export function SprintBoard({
         (!!it.sprint_column_id && endColIds.has(it.sprint_column_id));
       feat.tasks.push(it);
       feat.total += 1;
-      if (takenInActiveSprint(it)) feat.taken += 1;
+      if (takenHere(it)) feat.taken += 1;
       if (it.completed) feat.completed += 1;
       // 피쳐 게이지도 체크리스트 줄 기준 — 백로그 포함 그 피쳐의 전체 할 일이 분모다.
       const u = progressUnits(it, isDone);
@@ -1136,7 +1134,7 @@ export function SprintBoard({
         return a.idx - b.idx; // 안정 정렬 폴백(첫 등장 순서)
       })
       .map(({ feat }) => feat);
-  }, [filteredBoard, board, hasActiveFilter]);
+  }, [filteredBoard, board, hasActiveFilter, itemMatchesFilter, takenHere]);
 
   // 좌측 리스트 섹션 — 담긴 태스크가 있는 피쳐는 "이번 스프린트", 없으면 "백로그"로 나뉜다.
   // 부분 담김 피쳐는 이번 스프린트 섹션에 서되, 안 담긴 행에 담기 버튼이 남는다.
@@ -1291,7 +1289,7 @@ export function SprintBoard({
       total: number; // 담긴 태스크의 전체 체크리스트 줄 수
     }[] = [];
     for (const feat of tree) {
-      const taken = feat.tasks.filter(takenInActiveSprint);
+      const taken = feat.tasks.filter(takenHere);
       if (taken.length === 0) continue;
 
       // 컬럼 헤더 진척도 체크리스트 줄 기준(progressUnits)
@@ -1320,7 +1318,7 @@ export function SprintBoard({
       });
     }
     return result;
-  }, [tree, startColumn, columnById, sprintUrgencyCmp]);
+  }, [tree, startColumn, columnById, sprintUrgencyCmp, takenHere]);
 
   // Feature 요약 스트립 데이터 — 스프린트에 "담긴" 항목(sprint_column_id) 기준 Feature별 완료/전체/지연.
   // 스트립은 항상 전체 Feature를 보여줘야 하므로 featureFilter와 무관하게 tree(멤버 필터만 반영)에서 집계한다.
@@ -1332,7 +1330,7 @@ export function SprintBoard({
         let done = 0;
         let overdue = 0;
         for (const it of feat.tasks) {
-          if (!takenInActiveSprint(it)) continue; // 이번 스프린트에 담긴 태스크만
+          if (!takenHere(it)) continue; // 선택한 버킷에 담긴 태스크만
           const kind = columnById.get(it.sprint_column_id!)?.kind;
           const isDone = it.completed || kind === "END";
           const u = progressUnits(it, isDone); // 진척은 체크리스트 줄 기준
@@ -1356,7 +1354,7 @@ export function SprintBoard({
         };
       })
       .filter((f) => f.total > 0);
-  }, [tree, columnById]);
+  }, [tree, columnById, takenHere]);
 
   const toggleFeatureFilter = (fid: string) =>
     setFeatureFilter((prev) => {
@@ -1917,16 +1915,16 @@ export function SprintBoard({
   const openTask = (taskId: string) => {
     if (taskId !== "__none__") onOpenChecklistItem?.(taskId);
   };
-  // 담기 — 단위는 태스크. 행/카드 하나가 낱개로 들어가고, 첫 태스크가 담기면
-  // 그 피쳐의 컬럼이 보드에 생긴다(마지막 태스크를 빼면 컬럼도 사라진다).
+  // 담기 — 단위는 태스크. 대상 버킷은 "지금 보고 있는 스프린트"다. 이미 다른 버킷에
+  // 담긴 태스크에도 그대로 쓰여 옮겨 담기가 된다(서버가 귀속을 갈아끼운다).
   const addTaskToSprint = (taskId: string | null | undefined) => {
-    if (!canEdit || !activeSprint || !taskId || taskId === "__none__") return;
-    void run(() => sprintAPI.addTask(boardId, activeSprint.id, taskId));
+    if (!canEdit || !scopeSprintId || !taskId || taskId === "__none__") return;
+    void run(() => sprintAPI.addTask(boardId, scopeSprintId, taskId));
   };
-  // 빼기 — 그 태스크만 백로그로 되돌린다.
+  // 빼기 — 그 태스크만 미배정(백로그)으로 되돌린다.
   const removeTaskFromSprint = (taskId: string | null | undefined) => {
-    if (!canEdit || !activeSprint || !taskId || taskId === "__none__") return;
-    void run(() => sprintAPI.removeTask(boardId, activeSprint.id, taskId));
+    if (!canEdit || !scopeSprintId || !taskId || taskId === "__none__") return;
+    void run(() => sprintAPI.removeTask(boardId, scopeSprintId, taskId));
   };
   // 인라인 태스크 생성 — 두 갈래가 결과만 다르다.
   //  · 업무 리스트(intoSprint=false): 백로그로 생성, 담을지는 별도 선택.
@@ -1939,7 +1937,7 @@ export function SprintBoard({
   ) => {
     const title = (newTaskTitles[key] ?? "").trim();
     if (!title || !canEdit || featureId === "__none__") return;
-    if (intoSprint && !activeSprint) return;
+    if (intoSprint && !scopeSprintId) return;
     if (busyRef.current) return;
     busyRef.current = true;
     setCreatingTaskKey(key);
@@ -1949,8 +1947,8 @@ export function SprintBoard({
         title,
         milestone_id: milestoneId,
       });
-      if (intoSprint && activeSprint && created?.id) {
-        setBoard(await sprintAPI.addTask(boardId, activeSprint.id, created.id));
+      if (intoSprint && scopeSprintId && created?.id) {
+        setBoard(await sprintAPI.addTask(boardId, scopeSprintId, created.id));
       } else {
         setBoard(await sprintAPI.getSprintBoard(boardId, milestoneId));
       }
@@ -1964,7 +1962,7 @@ export function SprintBoard({
   };
   // 카드 호버 액션(리뷰·완료) — 드래그 없이 원클릭으로 목표 컬럼(In Review/Done)에 이동.
   const moveItemToColumn = (it: SprintItemCard, col: SprintColumn | null) => {
-    if (!canEdit || !activeSprint || !col || it.sprint_column_id === col.id)
+    if (!canEdit || !scopeSprintId || !col || it.sprint_column_id === col.id)
       return;
     void run(() => sprintAPI.moveToColumn(boardId, it.id, col.id));
   };
@@ -2055,7 +2053,7 @@ export function SprintBoard({
   const onDropColumn = async (e: React.DragEvent, col: SprintColumn) => {
     e.preventDefault();
     setDragOverCol(null);
-    if (!canEdit || !activeSprint) return;
+    if (!canEdit || !scopeSprintId) return;
     const itemId = e.dataTransfer.getData(DRAG_ITEM);
     const source = e.dataTransfer.getData(DRAG_SOURCE);
     // 리스트→보드 담기 드래그는 제거됨(호버 버튼으로 대체). 보드 안 컬럼 이동만 허용.
@@ -2095,85 +2093,65 @@ export function SprintBoard({
     );
   };
 
-  // ==================== 라이프사이클 ====================
+  // ==================== 버킷 액션 ====================
   const gauge = filteredBoard?.gauge; // 표시용(담당자 필터 반영) — 체크리스트 줄 기준
-  // 이월 안내는 "다음 스프린트로 넘어갈 태스크 수"라 게이지(체크리스트 줄)가 아니라
-  // Done에 닿지 못한 태스크 건수를 센다. 필터로 100%처럼 보여도 실제 잔량을 그대로 표시.
-  const remainingTasks = useMemo(() => {
+  // 스프린트별 미완료(END 미도달) 태스크 수. 세그먼트의 "미완료 N" 칩과 "다음으로 보내기"의
+  // 근거라 필터와 무관하게 원본 보드에서 센다 — 필터로 0처럼 보이면 안 되는 숫자다.
+  const unfinishedBySprint = useMemo(() => {
     const endColIds = new Set(
       (board?.columns ?? []).filter((c) => c.kind === "END").map((c) => c.id),
     );
-    let n = 0;
+    const counts: Record<string, number> = {};
     for (const c of board?.columns ?? []) {
       for (const it of c.items) {
-        if (!it.sprint_column_id) continue;
-        if (!it.completed && !endColIds.has(it.sprint_column_id)) n += 1;
+        if (!it.sprint_id || !it.sprint_column_id) continue;
+        if (it.completed || endColIds.has(it.sprint_column_id)) continue;
+        counts[it.sprint_id] = (counts[it.sprint_id] ?? 0) + 1;
       }
     }
-    return n;
+    return counts;
   }, [board]);
-  // 기간이 끝나면 닫을 수 있어야 하므로 "전부 Done" 게이트는 두지 않는다.
-  // 미완료 태스크는 다음 스프린트로 이월되며, 종료 시점의 완료율은 그대로 동결된다.
-  const canClose = isAdminOrOwner && !!activeSprint;
+  const remainingTasks = scopeSprintId
+    ? (unfinishedBySprint[scopeSprintId] ?? 0)
+    : 0;
 
-  // 재활성화 상태: 현재 활성 스프린트가 최신(max seq)이 아니면 과거 스프린트를 재활성화한 상태.
-  // 이때 최신 스프린트는 뒤로 보관(parked)되어 있고, "재활성화 취소"로만 복귀 가능.
-  const maxSeq = (board?.sprints ?? []).reduce(
-    (m, s) => Math.max(m, s.sequence_no),
-    0,
-  );
-  const inReactivation = !!activeSprint && activeSprint.sequence_no < maxSeq;
+  /** 선택한 버킷 바로 다음 시퀀스의 버킷 — 미완료를 보낼 대상 */
+  const nextSprint = useMemo<SprintInfo | null>(() => {
+    if (!selectedSprint) return null;
+    return (
+      (board?.sprints ?? []).find(
+        (s) => s.sequence_no === selectedSprint.sequence_no + 1,
+      ) ?? null
+    );
+  }, [board, selectedSprint]);
 
-  const closeSprint = () => {
-    if (!activeSprint) return;
-    // 재동결(재활성화 중): 최신 스프린트가 뒤에 보관돼 있어 "마무리" 선택지가 없다 — 확인만 받는다.
-    if (inReactivation) {
-      if (
-        !window.confirm(
-          `${activeSprint.name}을(를) 재동결하고 최신 스프린트로 돌아갈까요?`,
-        )
-      )
-        return;
-      void run(() => sprintAPI.closeSprint(boardId, activeSprint.id));
-      return;
-    }
-    setCloseModalOpen(true);
-  };
-
-  /** 종료 모달 확정 — createNext=false면 다음 스프린트 없이 마일스톤을 마무리한다 */
-  const confirmCloseSprint = (createNext: boolean) => {
-    if (!activeSprint) return;
-    setCloseModalOpen(false);
-    void run(() => sprintAPI.closeSprint(boardId, activeSprint.id, createNext));
-  };
-
-  // 빈 활성 스프린트(카드 0) + 과거 기록 존재 → 종료가 아니라 삭제(잔여물 정리)가 맞다.
-  // 종료하면 0/0짜리 아카이브가 남고 다음 빈 스프린트가 또 생기기 때문.
-  const activeSprintCardCount = (board?.columns ?? []).reduce(
-    (n, c) => n + c.items.length,
-    0,
-  );
-  const canDeleteActive =
+  // 이월은 더 이상 자동이 아니다 — 지난 버킷의 미완료를 관리자가 한 번에 다음으로 민다.
+  // (개별 태스크는 언제든 담기/빼기로 옮길 수 있어, 이건 정리용 일괄 액션이다.)
+  const canPushUnfinished =
     isAdminOrOwner &&
-    !!activeSprint &&
-    !inReactivation &&
-    activeSprintCardCount === 0 &&
-    (board?.sprints?.length ?? 0) > 1;
+    selectedSprint?.state === "PAST" &&
+    remainingTasks > 0 &&
+    !!nextSprint;
 
-  const deleteEmptySprint = () => {
-    if (!activeSprint) return;
-    if (
-      !window.confirm(
-        `비어 있는 ${activeSprint.name}을(를) 삭제할까요?\n\n완료된 스프린트 기록은 그대로 남습니다.`,
-      )
-    )
-      return;
-    void run(() => sprintAPI.deleteSprint(boardId, activeSprint.id));
+  const pushUnfinished = () => {
+    if (!selectedSprint || !nextSprint) return;
+    const moved = remainingTasks;
+    const targetName = nextSprint.name;
+    void run(async () => {
+      const next = await sprintAPI.pushUnfinished(boardId, selectedSprint.id);
+      toast.success(`미완료 ${moved}개를 ${targetName}(으)로 보냈어요`);
+      return next;
+    });
   };
 
-  /** 마일스톤 마무리 후(활성 없음) 새 스프린트로 재개 */
-  const startNextSprint = () => {
-    void run(() => sprintAPI.startNextSprint(boardId, milestoneId));
+  /** 분할 조정 확정 — 개수·경계·태스크 배분을 한 번에 적용하고 모달을 닫는다 */
+  const submitSplit = async (payload: {
+    count: number;
+    boundaries: string[];
+    task_distribution: "keep" | "unassign" | "by_date";
+  }) => {
+    await run(() => sprintAPI.splitSprints(boardId, milestoneId, payload));
+    setSplitOpen(false);
   };
 
   // 진행 현황 4구간 분류 (KanbanBlock 진행 현황과 동일 규약).
@@ -2285,40 +2263,6 @@ export function SprintBoard({
     };
   }, [filteredBoard]);
 
-  const cancelReactivation = () => {
-    if (!activeSprint) return;
-    if (!window.confirm("재활성화를 취소하고 최신 스프린트로 되돌릴까요?"))
-      return;
-    void run(() => sprintAPI.cancelReactivation(boardId, activeSprint.id));
-  };
-
-  // ==================== 미리보기(읽기 전용 스냅샷) ====================
-  // 미리보기 카드를 마일스톤 컬럼(Sprint/In Review/Done)에 최종 위치대로 배치.
-  // 컬럼 정의는 마일스톤 소속이라 스프린트 간 공유 → 활성 보드의 columns를 그대로 재사용.
-  const previewColumns = useMemo(() => {
-    if (!previewSprintId || !previewItems) return null;
-    const items = previewItems.filter(
-      (it) => it.sprint_column_id && itemMatchesFilter(it),
-    );
-    return columns.map((col) => ({
-      ...col,
-      items: items
-        .filter((it) => it.sprint_column_id === col.id)
-        .sort((a, b) => a.position - b.position),
-    }));
-  }, [previewSprintId, previewItems, columns, itemMatchesFilter]);
-
-  const openReactivateModal = (target: SprintInfo) => {
-    setReactivateTarget(target);
-  };
-  const confirmReactivate = () => {
-    if (!reactivateTarget) return;
-    const id = reactivateTarget.id;
-    setReactivateTarget(null);
-    setPreviewSprintId(null);
-    void run(() => sprintAPI.reactivateSprint(boardId, id));
-  };
-
   // ==================== 렌더 ====================
   if (loading) {
     return (
@@ -2364,8 +2308,8 @@ export function SprintBoard({
     // 지금은 플래그가 없으니 "주기 기간과 같은가"로 추정한다.
     // (PR4에서 tasks.date_override가 생기면 이 추정을 그 플래그로 교체한다.)
     const day10 = (v?: string | null) => (v ? v.substring(0, 10) : null);
-    const sprintFrom = day10(activeSprint?.start_date);
-    const sprintTo = day10(activeSprint?.end_date);
+    const sprintFrom = day10(selectedSprint?.start_date);
+    const sprintTo = day10(selectedSprint?.end_date);
     const committed = !!it.sprint_column_id;
     const sprintPeriod =
       committed && sprintFrom && sprintTo
@@ -2396,7 +2340,7 @@ export function SprintBoard({
     const showDetail = !readOnly && !!it.task_id;
     // 빼기 = 이 태스크만 백로그로 복귀. 담기 단위가 태스크라 카드에서 바로 뺄 수 있다.
     const showRemove =
-      canEdit && !readOnly && !!activeSprint && !!it.sprint_column_id;
+      canEdit && !readOnly && !!scopeSprintId && !!it.sprint_column_id;
     const showActions = showRemove || showReview || showDone || showDetail;
     // 카드 안쪽 체크리스트 — 담긴 뒤 항목이 추가돼도 여기 그대로 반영된다.
     const lines = it.checklist_items ?? [];
@@ -2602,7 +2546,7 @@ export function SprintBoard({
             {dateSource === "sprint" && !upcoming && !dday && sprintPeriod && (
               <span
                 className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md font-bold tabular-nums bg-bridge-secondary/15 text-bridge-secondary"
-                title={`${activeSprint?.name ?? "이번 스프린트"}에서 상속 · ${sprintPeriod}`}
+                title={`${selectedSprint?.name ?? "이 스프린트"}에서 상속 · ${sprintPeriod}`}
               >
                 <Calendar className="w-3 h-3" />
                 {sprintPeriod}
@@ -2613,7 +2557,7 @@ export function SprintBoard({
             {dateSource === "override" && sprintPeriod && (
               <span
                 className="inline-grid place-items-center w-[18px] h-[18px] rounded-md bg-amber-500/15 text-amber-500 shrink-0"
-                title={`기간 직접 지정 · ${activeSprint?.name ?? "이번 스프린트"}은 ${sprintPeriod}`}
+                title={`기간 직접 지정 · ${selectedSprint?.name ?? "이 스프린트"}은 ${sprintPeriod}`}
                 aria-label="기간 직접 지정"
               >
                 <Pencil className="w-3 h-3" />
@@ -3187,7 +3131,7 @@ export function SprintBoard({
         {/* 인라인 태스크 생성(갈래 ②) — 여기서 만들면 생성 즉시 이 컬럼(START)에 담긴다.
             업무 리스트 생성(백로그행)과 결과가 다르므로 placeholder로 차이를 명시한다.
             평소엔 고스트 행, 클릭 시에만 입력으로 펼친다(업무 리스트와 동일 패턴). */}
-        {canEdit && !!activeSprint && fc.featureId !== "__none__" && (
+        {canEdit && !!scopeSprintId && fc.featureId !== "__none__" && (
           <div className="shrink-0 p-2 pt-0">
             {(() => {
               const key = `col:${fc.featureId}`;
@@ -4072,477 +4016,300 @@ export function SprintBoard({
             </span>
           </div>
         ) : (
-          <div className="flex items-stretch gap-2">
-            {(board?.sprints ?? []).map((s) => {
-              const isActive = s.status === "ACTIVE";
-              const isPreviewing = s.id === previewSprintId;
-              // 확장: (진행중 && 미리보기 아님) 또는 (이 스프린트를 미리보기 중)
-              const expandedActive = isActive && !previewSprintId;
-              const expanded = expandedActive || isPreviewing;
-              // 클릭: 과거 → 미리보기 진입 / 축소된 진행중(미리보기 중) → 복귀
-              const handleClick = isActive
-                ? previewSprintId
-                  ? () => setPreviewSprintId(null)
-                  : undefined
-                : isPreviewing
-                  ? undefined
-                  : () => setPreviewSprintId(s.id);
-              // 진행중 확장은 담당자필터 반영 gauge, 그 외는 스프린트 자체 값
-              const pct =
-                expandedActive && gauge
-                  ? gauge.percentage
-                  : s.progress_percentage;
-              const doneN =
-                expandedActive && gauge ? gauge.done : s.completed_count;
-              const totalN =
-                expandedActive && gauge ? gauge.total : s.total_count;
-              const remaining = remainingTasks; // 이월 대상 = Done에 닿지 못한 태스크 수
-
-              return (
-                <div
-                  key={s.id}
-                  onClick={handleClick}
-                  className={`group relative flex flex-col gap-2 rounded-xl border p-3 transition-[flex-basis,background-color,border-color] duration-300 ${
-                    expanded ? "grow basis-[480px]" : "grow-0 basis-[132px]"
-                  } ${
-                    isPreviewing
-                      ? "border-dashed border-bridge-secondary/40 bg-gradient-to-br from-bridge-secondary/[0.12] to-transparent cursor-default"
-                      : expandedActive
-                        ? "border-bridge-accent/35 bg-gradient-to-br from-bridge-accent/[0.13] via-bridge-secondary/[0.04] to-transparent cursor-default"
-                        : "border-foreground/[0.08] bg-foreground/[0.04] hover:bg-foreground/[0.08] " +
-                          (handleClick ? "cursor-pointer" : "cursor-default")
-                  }`}
-                  title={
-                    isPreviewing
-                      ? "미리보기 중 · 읽기 전용"
-                      : isActive
-                        ? previewSprintId
-                          ? "클릭해서 진행중으로 돌아가기"
-                          : "진행 중"
-                        : "클릭해서 미리보기 (읽기 전용)"
-                  }
-                >
-                  {/* 라벨 행 — 축소 세그먼트 상단. 확장(진행중·미리보기)은 각자 2행 레이아웃에 이름·배지를 통합 */}
-                  {!expanded && (
-                    <div className="flex items-center justify-between gap-2">
-                      <span
-                        className={`font-bold tracking-tight whitespace-nowrap ${
-                          expanded
-                            ? "text-sm text-foreground"
-                            : "text-[13px] text-slate-300"
-                        }`}
-                      >
-                        {s.name}
-                      </span>
-                      {isPreviewing ? (
-                        <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-bridge-secondary whitespace-nowrap">
-                          <Eye className="w-3 h-3" /> 미리보기
-                        </span>
-                      ) : isActive ? (
-                        <span className="inline-flex items-center gap-1.5 text-[10.5px] font-bold text-bridge-secondary whitespace-nowrap">
-                          <span className="w-1.5 h-1.5 rounded-full bg-bridge-secondary animate-pulse" />
-                          진행중
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-bridge-secondary whitespace-nowrap">
-                          <Check className="w-3 h-3" /> 완료
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* 진척 막대 — 축소 세그먼트용 단색. 확장(진행중·미리보기)은 각자 Row 2로 이동 */}
-                  {!expanded && (
-                    <div className="h-[5px] rounded-full bg-foreground/10 overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-500 bg-bridge-secondary"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  )}
-
-                  {/* 축소 상태: 퍼센트 요약 */}
-                  {!expanded && (
-                    <div className="text-[11px] font-bold text-bridge-secondary tabular-nums">
-                      {pct}%
-                    </div>
-                  )}
-
-                  {/* 진행중 확장: 투톤 2행 컴팩트 레이아웃 */}
-                  {expandedActive && (
-                    <div className="flex flex-col gap-2">
-                      {/* Row 1 — 이름 · 진행중 · 게이지 · 메타 · 오늘완료 · D-day */}
-                      <div className="flex items-center gap-2.5 flex-wrap">
-                        <span className="text-sm font-bold tracking-tight text-foreground whitespace-nowrap">
-                          {s.name}
-                        </span>
-                        <span className="inline-flex items-center gap-1.5 text-[10.5px] font-bold text-bridge-secondary whitespace-nowrap">
-                          <span className="w-1.5 h-1.5 rounded-full bg-bridge-secondary animate-pulse" />
-                          진행중
-                        </span>
-                        {/* 스프린트 진척은 탭과 무관하게 한 잣대(체크리스트 줄)로 잰다.
-                          JIRA 이슈가 어디까지 갔는지는 층위가 달라 보드 바닥 스트립(jiraFlow)이 전담. */}
-                        <span className="text-2xl font-bold text-foreground tabular-nums leading-none">
-                          {pct}
-                          <span className="text-sm text-slate-400">%</span>
-                        </span>
-                        <span className="text-xs font-medium text-slate-400 tabular-nums">
-                          체크리스트 {doneN} / {totalN}
-                        </span>
-                        {sprintProgress.nToday > 0 && (
-                          <span
-                            className="text-[10.5px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0 tabular-nums"
-                            title={`오늘 Done에 도달한 태스크 ${sprintProgress.nToday}건`}
-                          >
-                            ▲ {sprintProgress.nToday}
-                          </span>
-                        )}
-                        <span className="flex-1" />
-                        {s.end_date &&
-                          (() => {
-                            const d = getDDay(s.end_date);
-                            return (
-                              <span
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums ${
-                                  DDAY_BADGE[d.urgency] ||
-                                  "bg-bridge-secondary/15 text-bridge-secondary"
-                                }`}
-                                title={`종료 예정 ${formatDate(s.end_date)}`}
-                              >
-                                <Clock className="w-3 h-3" />
-                                종료 {d.text}
-                              </span>
-                            );
-                          })()}
-                      </div>
-
-                      {/* Row 2 — 진척바(클릭:진행현황) · 그룹 토글 · 종료 */}
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setProgressTab(
-                              sprintProgress.nToday > 0
-                                ? "todayDone"
-                                : "inProgress",
-                            );
-                            setProgressOpen(true);
-                          }}
-                          aria-haspopup="dialog"
-                          aria-label="진행 현황 보기"
-                          title="진행 현황 자세히 보기"
-                          className="group/bar flex-1 min-w-[80px] flex items-center -mx-0.5 px-0.5 py-1 rounded"
-                        >
-                          {/* 이전 완료 · 오늘 완료 · 진행중 3색 — 탭과 무관하게 같은 세그먼트를 쓴다 */}
-                          <div className="flex-1 h-[5px] rounded-full bg-slate-600 overflow-hidden relative">
-                            <div
-                              className="absolute left-0 top-0 h-full bg-bridge-accent transition-all duration-500"
-                              style={{
-                                width: `${sprintProgress.segEarlier}%`,
-                              }}
-                            />
-                            {sprintProgress.segToday > 0 && (
-                              <div
-                                className="absolute top-0 h-full bg-bridge-secondary transition-all duration-500"
-                                style={{
-                                  left: `${sprintProgress.segEarlier}%`,
-                                  width: `${sprintProgress.segToday}%`,
-                                  boxShadow: "0 0 8px var(--bridge-secondary)",
-                                }}
-                              />
-                            )}
-                            {sprintProgress.segProg > 0 && (
-                              <div
-                                className="absolute top-0 h-full bg-amber-500 transition-all duration-500"
-                                style={{
-                                  left: `${sprintProgress.segEarlier + sprintProgress.segToday}%`,
-                                  width: `${sprintProgress.segProg}%`,
-                                }}
-                              />
-                            )}
-                          </div>
-                        </button>
-
-                        {/* 보임 필터 — 구성원 뷰 전용. 그룹 기준(Feature↔구성원)보다 앞에 둔다:
-                          "무엇을 볼까"를 먼저 고르고 "어떻게 자를까"를 뒤에 고르는 순서가
-                          왼→오 읽기와 맞고, 세그먼트 두 벌이 나란히 서서 한 덩어리로
-                          오독되던 문제도 사라진다. 드롭다운이라 폭도 고정된다. */}
-                        {groupBy === "member" && (
-                          <Popover
-                            open={doneVisOpen}
-                            onOpenChange={setDoneVisOpen}
-                          >
-                            <PopoverTrigger asChild>
-                              <button
-                                type="button"
-                                onClick={(e) => e.stopPropagation()}
-                                aria-label="완료 항목 보임 필터"
-                                title={
-                                  DONE_VIS_OPTIONS.find(
-                                    (o) => o.key === doneVis,
-                                  )?.hint
-                                }
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
-                                  doneVis === "all"
-                                    ? "bg-foreground/[0.06] border-foreground/10 text-slate-400 hover:text-foreground"
-                                    : "bg-bridge-secondary/15 border-bridge-secondary/40 text-bridge-secondary"
-                                }`}
-                              >
-                                <Eye className="w-3 h-3" />
-                                {
-                                  DONE_VIS_OPTIONS.find(
-                                    (o) => o.key === doneVis,
-                                  )?.label
-                                }
-                                <ChevronDown className="w-3 h-3" />
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent
-                              align="start"
-                              className="w-44 p-1 bg-bridge-obsidian border-foreground/10"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {DONE_VIS_OPTIONS.map((opt) => (
-                                <button
-                                  key={opt.key}
-                                  type="button"
-                                  aria-pressed={doneVis === opt.key}
-                                  onClick={() => {
-                                    setDoneVis(opt.key);
-                                    setDoneVisOpen(false);
-                                  }}
-                                  title={opt.hint}
-                                  className={`flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-xs font-bold text-left transition-colors ${
-                                    doneVis === opt.key
-                                      ? "bg-bridge-secondary/15 text-bridge-secondary"
-                                      : "text-slate-400 hover:bg-foreground/5 hover:text-foreground"
-                                  }`}
-                                >
-                                  <span className="truncate">{opt.label}</span>
-                                  {doneVis === opt.key && (
-                                    <Check className="w-3.5 h-3.5 ml-auto shrink-0" />
-                                  )}
-                                </button>
-                              ))}
-                            </PopoverContent>
-                          </Popover>
-                        )}
-
-                        {/* Feature ↔ 구성원 전환 — 둘 다 "지금 스프린트에 담긴 것"을 소유 축으로
-                          자르는, 서로 교환 가능한 절단면이다. JIRA는 스코프도 축도 달라
-                          여기가 아니라 화면 선택 줄(스프린트 | 블록 보드 | JIRA)에 있다. */}
-                        {!uiFeatures.has("members") && memberGhost}
-                        {groupBy !== "jira" && uiFeatures.has("members") && (
-                          <div
-                            className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/[0.06] border border-foreground/10 shrink-0"
-                            role="tablist"
-                            aria-label="보드 그룹 기준"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <button
-                              type="button"
-                              role="tab"
-                              aria-selected={groupBy === "feature"}
-                              onClick={() => setGroupPref("feature")}
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
-                                groupBy === "feature"
-                                  ? "bg-bridge-accent text-white"
-                                  : "text-slate-400 hover:text-foreground"
-                              }`}
-                              title="Feature 단위로 컬럼 보기"
-                            >
-                              <Layers className="w-3 h-3" />
-                              Feature
-                            </button>
-                            <button
-                              type="button"
-                              role="tab"
-                              aria-selected={groupBy === "member"}
-                              onClick={() => setGroupPref("member")}
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
-                                groupBy === "member"
-                                  ? "bg-bridge-accent text-white"
-                                  : "text-slate-400 hover:text-foreground"
-                              }`}
-                              title="구성원(담당자) 단위로 컬럼 보기"
-                            >
-                              <Users className="w-3 h-3" />
-                              구성원
-                            </button>
-                          </div>
-                        )}
-
-                        {/* JIRA 최초 연결 — 미연동 보드엔 JIRA 화면 버튼 자체가 없어
-                          보드 안에 진입점이 남지 않는다. 그래서 "아직 없을 때"의 CTA만 여기 둔다.
-                          연결된 뒤의 관리(미러보드·해제)·동기화 표시는 전부 JIRA 화면 머리말로 갔다 —
-                          쓸 화면이 따로 있는데 스프린트에 같은 손잡이를 겹쳐 두지 않는다. */}
-                        {isAdminOrOwner && !jiraConnected && (
-                          <button
-                            type="button"
-                            onClick={() => setShowJiraModal(true)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-bridge-accent bg-bridge-accent/15 hover:bg-bridge-accent/25 transition-colors shrink-0"
-                            title="이 스프린트 보드에 JIRA를 연결합니다"
-                          >
-                            <Diamond className="w-3 h-3" />
-                            JIRA 연결
-                          </button>
-                        )}
-
-                        {isAdminOrOwner && (
-                          <>
-                            <span className="hidden text-[11px] text-slate-500 tabular-nums whitespace-nowrap lg:inline">
-                              {remaining > 0
-                                ? `남은 ${remaining}개 · 이월`
-                                : "전부 완료"}
-                            </span>
-                            {inReactivation && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  cancelReactivation();
-                                }}
-                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 hover:bg-bridge-secondary/25 transition-colors whitespace-nowrap shrink-0"
-                                title="재활성화를 취소하고 최신 스프린트로 되돌립니다"
-                              >
-                                재활성화 취소
-                              </button>
-                            )}
-                            {canDeleteActive && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteEmptySprint();
-                                }}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors whitespace-nowrap shrink-0"
-                                title="비어 있는 스프린트를 삭제합니다 · 완료된 스프린트 기록은 유지됩니다"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                스프린트 삭제
-                              </button>
-                            )}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                closeSprint();
-                              }}
-                              disabled={!canClose}
-                              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap shrink-0 ${
-                                canClose
-                                  ? "bg-bridge-accent text-white hover:bg-bridge-accent/90"
-                                  : "bg-foreground/[0.05] text-slate-500 cursor-not-allowed"
-                              }`}
-                              title={
-                                remaining > 0
-                                  ? `스프린트 종료 · 미완료 ${remaining}개는 다음 스프린트로 이월됩니다`
-                                  : "스프린트 종료"
-                              }
-                            >
-                              {inReactivation ? "재동결" : "스프린트 종료"}
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 미리보기 확장: 종료 시점 스냅샷 — 진행중 확장과 동일한 2행 구조·높이 */}
-                  {isPreviewing && (
-                    <div className="flex flex-col gap-2">
-                      {/* Row 1 — 이름 · 미리보기 · 퍼센트 · 카운트 · 기간 · (우) 읽기전용 힌트 */}
-                      <div className="flex items-center gap-2.5 flex-wrap">
-                        <span className="text-sm font-bold tracking-tight text-foreground whitespace-nowrap">
-                          {s.name}
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-bridge-secondary whitespace-nowrap">
-                          <Eye className="w-3 h-3" /> 미리보기
-                        </span>
-                        <span className="text-2xl font-bold text-foreground tabular-nums leading-none">
-                          {pct}
-                          <span className="text-sm text-slate-400">%</span>
-                        </span>
-                        <span className="text-xs font-medium text-slate-400 tabular-nums">
-                          {doneN} / {totalN} 항목
-                        </span>
-                        {s.start_date && (
-                          <span className="text-[11px] text-slate-500 tabular-nums">
-                            {formatDate(s.start_date)} ~{" "}
-                            {s.end_date ? formatDate(s.end_date) : "진행"}
-                          </span>
-                        )}
-                        <span className="flex-1" />
-                        <span
-                          className="inline-flex items-center gap-1 text-[11px] font-medium text-bridge-secondary whitespace-nowrap"
-                          title="읽기 전용으로 열람 중입니다. 편집하려면 재활성화하세요."
-                        >
-                          <Eye className="w-3 h-3 shrink-0" /> 읽기 전용 스냅샷
-                        </span>
-                      </div>
-
-                      {/* Row 2 — 진척바(스냅샷) · 재활성화 · 진행중으로 돌아가기 */}
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 min-w-[80px] h-[5px] rounded-full bg-foreground/10 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-bridge-secondary transition-all duration-500"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        {isAdminOrOwner &&
-                          (inReactivation ? (
-                            <span className="text-[11px] text-slate-500 whitespace-nowrap shrink-0">
-                              재활성화 취소 후 이용 가능
-                            </span>
-                          ) : (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openReactivateModal(s);
-                              }}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 hover:bg-bridge-secondary/25 transition-colors whitespace-nowrap shrink-0"
-                              title="이 스프린트를 다시 진행중으로 되살립니다"
-                            >
-                              <RotateCcw className="w-3.5 h-3.5" />
-                              재활성화
-                            </button>
-                          ))}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPreviewSprintId(null);
-                          }}
-                          className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-foreground bg-foreground/5 hover:bg-foreground/10 transition-colors whitespace-nowrap shrink-0"
-                        >
-                          진행중으로 돌아가기
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            {/* 마일스톤 마무리 상태 — 활성 스프린트 없음. 기록 칩들 옆에 재개 손잡이만 남긴다. */}
-            {!activeSprint && (
-              <div className="flex items-center gap-3 rounded-xl border border-dashed border-foreground/15 bg-foreground/[0.03] px-4 py-3 grow basis-[280px]">
+          <div className="flex flex-col gap-2.5">
+            {/* 세그먼트 바 — 마일스톤 기간을 나눈 버킷들. 클릭이 곧 보드 스코프 전환이다. */}
+            {(board?.sprints ?? []).length > 0 ? (
+              <SprintSegmentBar
+                milestoneTitle={milestone?.title ?? "마일스톤"}
+                milestoneStart={milestone?.start_date ?? null}
+                milestoneEnd={milestone?.end_date ?? null}
+                sprints={board?.sprints ?? []}
+                selectedSprintId={scopeSprintId}
+                unfinishedBySprint={unfinishedBySprint}
+                onSelect={setSelectedSprintId}
+              />
+            ) : (
+              <div className="flex items-center gap-3 rounded-xl border border-dashed border-foreground/15 bg-foreground/[0.03] px-4 py-3">
                 <Flag className="w-4 h-4 text-bridge-secondary shrink-0" />
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[13px] font-bold text-foreground whitespace-nowrap">
-                    이 마일스톤의 스프린트가 마무리되었습니다
+                  <span className="text-xs font-bold text-foreground whitespace-nowrap">
+                    아직 스프린트가 없습니다
                   </span>
-                  <span className="text-[11px] text-slate-500 whitespace-nowrap">
-                    지난 기록은 왼쪽 스프린트를 클릭해 열람할 수 있어요
+                  <span className="text-xs text-slate-500 whitespace-nowrap">
+                    마일스톤 기간을 몇 개로 나눌지 정하면 버킷이 생깁니다
                   </span>
                 </div>
                 <span className="flex-1" />
                 {isAdminOrOwner && (
                   <button
-                    onClick={startNextSprint}
+                    onClick={() => setSplitOpen(true)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-colors whitespace-nowrap shrink-0"
-                    title="새 스프린트를 만들어 다시 시작합니다"
+                    title="마일스톤 기간을 스프린트로 나눕니다"
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    새 스프린트 시작
+                    <Split className="w-3.5 h-3.5" />
+                    스프린트 나누기
                   </button>
                 )}
+              </div>
+            )}
+
+            {/* 선택 버킷 상세 — 이 줄의 숫자·액션은 전부 위에서 고른 세그먼트 하나에 대한 것이다 */}
+            {selectedSprint && (
+              <div className="flex flex-col gap-2 rounded-xl border border-foreground/[0.08] bg-foreground/[0.04] px-3 py-2.5">
+                {/* Row 1 — 이름 · 상태 · 게이지 · 메타 · 오늘완료 · 기간 */}
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <span className="text-sm font-bold tracking-tight text-foreground whitespace-nowrap">
+                    {selectedSprint.name}
+                  </span>
+                  <span
+                    className={`text-xs font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${
+                      selectedSprint.state === "CURRENT"
+                        ? "bg-bridge-accent/15 text-bridge-accent"
+                        : selectedSprint.state === "PAST"
+                          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                          : "bg-foreground/[0.06] text-slate-400"
+                    }`}
+                  >
+                    {selectedSprint.state === "CURRENT"
+                      ? "진행중"
+                      : selectedSprint.state === "PAST"
+                        ? "지난 스프린트"
+                        : "예정"}
+                  </span>
+                  {/* 스프린트 진척은 탭과 무관하게 한 잣대(체크리스트 줄)로 잰다.
+                      JIRA 이슈가 어디까지 갔는지는 층위가 달라 보드 바닥 스트립(jiraFlow)이 전담. */}
+                  <span className="text-2xl font-bold text-foreground tabular-nums leading-none">
+                    {gauge?.percentage ?? selectedSprint.progress_percentage}
+                    <span className="text-sm text-slate-400">%</span>
+                  </span>
+                  <span className="text-xs font-medium text-slate-400 tabular-nums">
+                    체크리스트 {gauge?.done ?? selectedSprint.done} /{" "}
+                    {gauge?.total ?? selectedSprint.total}
+                  </span>
+                  {sprintProgress.nToday > 0 && (
+                    <span
+                      className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0 tabular-nums"
+                      title={`오늘 Done에 도달한 태스크 ${sprintProgress.nToday}건`}
+                    >
+                      ▲ {sprintProgress.nToday}
+                    </span>
+                  )}
+                  <span className="flex-1" />
+                  {selectedSprint.start_date && (
+                    <span className="text-xs text-slate-500 tabular-nums whitespace-nowrap">
+                      {formatDate(selectedSprint.start_date)} ~{" "}
+                      {selectedSprint.end_date
+                        ? formatDate(selectedSprint.end_date)
+                        : "진행"}
+                    </span>
+                  )}
+                  {selectedSprint.state === "CURRENT" &&
+                    selectedSprint.end_date &&
+                    (() => {
+                      const d = getDDay(selectedSprint.end_date);
+                      return (
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${
+                            DDAY_BADGE[d.urgency] ||
+                            "bg-bridge-secondary/15 text-bridge-secondary"
+                          }`}
+                          title={`이 스프린트 종료 ${formatDate(selectedSprint.end_date)}`}
+                        >
+                          <Clock className="w-3 h-3" />
+                          종료 {d.text}
+                        </span>
+                      );
+                    })()}
+                </div>
+
+                {/* Row 2 — 진척바(클릭:진행현황) · 보임 · 그룹 토글 · 미완료 보내기 · 분할 조정 */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProgressTab(
+                        sprintProgress.nToday > 0 ? "todayDone" : "inProgress",
+                      );
+                      setProgressOpen(true);
+                    }}
+                    aria-haspopup="dialog"
+                    aria-label="진행 현황 보기"
+                    title="진행 현황 자세히 보기"
+                    className="group/bar flex-1 min-w-[80px] flex items-center -mx-0.5 px-0.5 py-1 rounded"
+                  >
+                    {/* 이전 완료 · 오늘 완료 · 진행중 3색 — 탭과 무관하게 같은 세그먼트를 쓴다 */}
+                    <div className="flex-1 h-[5px] rounded-full bg-slate-600 overflow-hidden relative">
+                      <div
+                        className="absolute left-0 top-0 h-full bg-bridge-accent transition-all duration-500"
+                        style={{ width: `${sprintProgress.segEarlier}%` }}
+                      />
+                      {sprintProgress.segToday > 0 && (
+                        <div
+                          className="absolute top-0 h-full bg-bridge-secondary transition-all duration-500"
+                          style={{
+                            left: `${sprintProgress.segEarlier}%`,
+                            width: `${sprintProgress.segToday}%`,
+                            boxShadow: "0 0 8px var(--bridge-secondary)",
+                          }}
+                        />
+                      )}
+                      {sprintProgress.segProg > 0 && (
+                        <div
+                          className="absolute top-0 h-full bg-amber-500 transition-all duration-500"
+                          style={{
+                            left: `${sprintProgress.segEarlier + sprintProgress.segToday}%`,
+                            width: `${sprintProgress.segProg}%`,
+                          }}
+                        />
+                      )}
+                    </div>
+                  </button>
+
+                  {/* 보임 필터 — 구성원 뷰 전용. 그룹 기준(Feature↔구성원)보다 앞에 둔다:
+                      "무엇을 볼까"를 먼저 고르고 "어떻게 자를까"를 뒤에 고르는 순서가
+                      왼→오 읽기와 맞는다. */}
+                  {groupBy === "member" && (
+                    <Popover open={doneVisOpen} onOpenChange={setDoneVisOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="완료 항목 보임 필터"
+                          title={
+                            DONE_VIS_OPTIONS.find((o) => o.key === doneVis)
+                              ?.hint
+                          }
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                            doneVis === "all"
+                              ? "bg-foreground/[0.06] border-foreground/10 text-slate-400 hover:text-foreground"
+                              : "bg-bridge-secondary/15 border-bridge-secondary/40 text-bridge-secondary"
+                          }`}
+                        >
+                          <Eye className="w-3 h-3" />
+                          {
+                            DONE_VIS_OPTIONS.find((o) => o.key === doneVis)
+                              ?.label
+                          }
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        align="start"
+                        className="w-44 p-1 bg-bridge-obsidian border-foreground/10"
+                      >
+                        {DONE_VIS_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.key}
+                            type="button"
+                            aria-pressed={doneVis === opt.key}
+                            onClick={() => {
+                              setDoneVis(opt.key);
+                              setDoneVisOpen(false);
+                            }}
+                            title={opt.hint}
+                            className={`flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-xs font-bold text-left transition-colors ${
+                              doneVis === opt.key
+                                ? "bg-bridge-secondary/15 text-bridge-secondary"
+                                : "text-slate-400 hover:bg-foreground/5 hover:text-foreground"
+                            }`}
+                          >
+                            <span className="truncate">{opt.label}</span>
+                            {doneVis === opt.key && (
+                              <Check className="w-3.5 h-3.5 ml-auto shrink-0" />
+                            )}
+                          </button>
+                        ))}
+                      </PopoverContent>
+                    </Popover>
+                  )}
+
+                  {/* Feature ↔ 구성원 전환 — 둘 다 "이 버킷에 담긴 것"을 소유 축으로
+                      자르는, 서로 교환 가능한 절단면이다. JIRA는 스코프도 축도 달라
+                      여기가 아니라 화면 선택 줄(스프린트 | 블록 보드 | JIRA)에 있다. */}
+                  {!uiFeatures.has("members") && memberGhost}
+                  {groupBy !== "jira" && uiFeatures.has("members") && (
+                    <div
+                      className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/[0.06] border border-foreground/10 shrink-0"
+                      role="tablist"
+                      aria-label="보드 그룹 기준"
+                    >
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={groupBy === "feature"}
+                        onClick={() => setGroupPref("feature")}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
+                          groupBy === "feature"
+                            ? "bg-bridge-accent text-white"
+                            : "text-slate-400 hover:text-foreground"
+                        }`}
+                        title="Feature 단위로 컬럼 보기"
+                      >
+                        <Layers className="w-3 h-3" />
+                        Feature
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={groupBy === "member"}
+                        onClick={() => setGroupPref("member")}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
+                          groupBy === "member"
+                            ? "bg-bridge-accent text-white"
+                            : "text-slate-400 hover:text-foreground"
+                        }`}
+                        title="구성원(담당자) 단위로 컬럼 보기"
+                      >
+                        <Users className="w-3 h-3" />
+                        구성원
+                      </button>
+                    </div>
+                  )}
+
+                  {/* JIRA 최초 연결 — 미연동 보드엔 JIRA 화면 버튼 자체가 없어
+                      보드 안에 진입점이 남지 않는다. 그래서 "아직 없을 때"의 CTA만 여기 둔다. */}
+                  {isAdminOrOwner && !jiraConnected && (
+                    <button
+                      type="button"
+                      onClick={() => setShowJiraModal(true)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-bridge-accent bg-bridge-accent/15 hover:bg-bridge-accent/25 transition-colors shrink-0"
+                      title="이 스프린트 보드에 JIRA를 연결합니다"
+                    >
+                      <Diamond className="w-3 h-3" />
+                      JIRA 연결
+                    </button>
+                  )}
+
+                  <span className="hidden text-xs text-slate-500 tabular-nums whitespace-nowrap lg:inline">
+                    {remainingTasks > 0
+                      ? `남은 ${remainingTasks}개`
+                      : "전부 완료"}
+                  </span>
+
+                  {/* 이월의 새 모습 — 지난 버킷의 미완료를 다음 버킷으로 한 번에 민다 */}
+                  {canPushUnfinished && nextSprint && (
+                    <button
+                      type="button"
+                      onClick={pushUnfinished}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25 transition-colors whitespace-nowrap shrink-0"
+                      title={`END에 닿지 못한 태스크 ${remainingTasks}개를 ${nextSprint.name}(으)로 옮기고 이월 횟수를 1 올립니다`}
+                    >
+                      <SendHorizontal className="w-3.5 h-3.5" />
+                      미완료 {remainingTasks}개 → {nextSprint.name}로 보내기
+                    </button>
+                  )}
+
+                  {isAdminOrOwner && (
+                    <button
+                      type="button"
+                      onClick={() => setSplitOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-foreground bg-foreground/5 border border-foreground/10 hover:bg-foreground/10 transition-colors whitespace-nowrap shrink-0"
+                      title="스프린트 개수와 기간 경계를 조정합니다"
+                    >
+                      <Split className="w-3.5 h-3.5" />
+                      분할 조정
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -4554,7 +4321,7 @@ export function SprintBoard({
       {/* JIRA 뷰: 컬럼=JIRA 상태·카드=JIRA에서 유입 → 좌측 업무 리스트(체크리스트 담기)는 의미 없어 숨김 */}
       <div className="flex-1 min-h-0 flex">
         {/* 좌: 소스 트리 — Feature 섹션 ▸ Task 라벨 ▸ 체크리스트 행(클릭 진입 + 인라인 완료) */}
-        {!previewSprintId && groupBy !== "jira" && (
+        {groupBy !== "jira" && (
           <aside
             style={panelCollapsed ? undefined : { width: panelWidth }}
             onDragOver={(e) => {
@@ -4753,13 +4520,14 @@ export function SprintBoard({
                       feat.total > 0 && feat.completed === feat.total;
                     // 빈 피쳐(내용 없음)·완료 피쳐(볼 일 없음)는 톤 다운 — 남은 일이 주인공
                     const dimmed = isEmpty || isComplete;
-                    // 리스트 범위: "진행"이면 지난 스프린트 완료(ARCHIVED 동결 이력)를 걷어낸다.
-                    // 분수·게이지는 범위와 무관하게 전체 기준 — 숨겼다고 진척이 줄면 거짓말이 된다.
+                    // 리스트 범위: "진행"이면 다른 버킷에 담긴 태스크를 걷어내고 미배정 +
+                    // 보고 있는 버킷만 남긴다. 분수·게이지는 범위와 무관하게 전체 기준 —
+                    // 숨겼다고 진척이 줄면 거짓말이 된다.
                     const bodyTasks =
                       listScope === "all"
                         ? feat.tasks
                         : feat.tasks.filter(
-                            (t) => t.sprint_status !== "ARCHIVED",
+                            (t) => !t.sprint_id || takenHere(t),
                           );
                     const bodyOpen =
                       !isEmpty && expandedFeatures.has(feat.featureId);
@@ -4798,7 +4566,7 @@ export function SprintBoard({
                       feat.inSprint && feat.taken < feat.total;
                     // 액션 비대칭: 담기(자주)는 태스크 행에 상시, 빼기(드묾)는 행 호버에만.
                     const showTakeControls =
-                      canEdit && !!activeSprint && uiFeatures.showBacklog;
+                      canEdit && !!scopeSprintId && uiFeatures.showBacklog;
                     // 인라인 태스크 생성(갈래 ①) — 여기서 만들면 백로그로 생성된다.
                     // "기타"(피쳐 미지정)는 생성할 피쳐가 없어 입력을 두지 않는다.
                     const canAddTask = canEdit && feat.featureId !== "__none__";
@@ -5041,10 +4809,16 @@ export function SprintBoard({
                                 const tid = it.task_id ?? it.id;
                                 const hasTask =
                                   tid !== "__none__" && !!onOpenChecklistItem;
-                                // 3-상태: 미배치 / 이번 스프린트 담김 / 지난 스프린트 완료(동결 이력)
-                                const archived =
-                                  it.sprint_status === "ARCHIVED";
-                                const taken = takenInActiveSprint(it);
+                                // 3-상태: 미배정 / 보고 있는 버킷에 담김 / 다른 버킷에 담김.
+                                // 마지막 상태는 읽기 전용 이력이 아니라 "여기로 옮겨 담을 수
+                                // 있는" 태스크다 — 담기 버튼이 그대로 살아 있다.
+                                const taken = takenHere(it);
+                                const elsewhere = !!it.sprint_id && !taken;
+                                const otherSprint = elsewhere
+                                  ? (board?.sprints ?? []).find(
+                                      (s) => s.id === it.sprint_id,
+                                    )
+                                  : undefined;
                                 const col =
                                   taken && it.sprint_column_id
                                     ? columnById.get(it.sprint_column_id)
@@ -5112,7 +4886,7 @@ export function SprintBoard({
                                         : taken
                                           ? "bg-bridge-secondary/[0.05] hover:bg-bridge-secondary/[0.1]"
                                           : "bg-foreground/[0.03] hover:bg-foreground/[0.08]"
-                                    } ${it.completed || archived ? "opacity-60" : ""} ${
+                                    } ${it.completed || elsewhere ? "opacity-60" : ""} ${
                                       hasTask ? "cursor-pointer" : ""
                                     }`}
                                   >
@@ -5121,7 +4895,7 @@ export function SprintBoard({
                                     <div className="flex items-center gap-1.5">
                                       <span
                                         className={`flex-1 min-w-0 text-xs font-medium leading-snug truncate ${
-                                          it.completed || archived
+                                          it.completed
                                             ? "line-through text-slate-500"
                                             : "text-foreground"
                                         }`}
@@ -5158,18 +4932,25 @@ export function SprintBoard({
                                           </span>
                                         </span>
                                       )}
-                                      {/* 지난 스프린트 완료 — 몇 회차에서 끝났는지의 동결 이력 */}
-                                      {archived && (
-                                        <span
-                                          className="shrink-0 inline-flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 tabular-nums"
-                                          title={`Sprint ${it.sprint_seq ?? "?"}에서 완료 — 마감된 스프린트의 동결 기록`}
+                                      {/* 다른 버킷에 담김 — 어느 스프린트가 데려갔는지만 밝힌다.
+                                          칩을 눌러 그 스프린트로 화면을 옮길 수 있다. */}
+                                      {elsewhere && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (it.sprint_id)
+                                              setSelectedSprintId(it.sprint_id);
+                                          }}
+                                          className={`shrink-0 inline-flex items-center text-xs font-bold px-1.5 py-0.5 rounded-full tabular-nums transition-colors ${
+                                            otherSprint?.state === "PAST"
+                                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                              : "bg-foreground/[0.06] text-slate-400 hover:text-foreground"
+                                          }`}
+                                          title={`${otherSprint?.name ?? "다른 스프린트"}에 담겨 있어요 · 눌러서 이동`}
                                         >
                                           S{it.sprint_seq ?? "?"}
-                                          <Check
-                                            className="w-2.5 h-2.5"
-                                            strokeWidth={3}
-                                          />
-                                        </span>
+                                        </button>
                                       )}
                                       {/* 분수 — 담긴 행은 호버 시 빼기 버튼과 교체된다(폭이 좁아 겹치지 않게) */}
                                       {cTotal > 0 && !it.completed && (
@@ -5191,7 +4972,6 @@ export function SprintBoard({
                                           담기(자주)는 상시, 빼기(드묾)는 행 호버에만. */}
                                       {showTakeControls &&
                                         !taken &&
-                                        !archived &&
                                         !it.completed && (
                                           <button
                                             type="button"
@@ -5199,8 +4979,12 @@ export function SprintBoard({
                                               e.stopPropagation();
                                               addTaskToSprint(tid);
                                             }}
-                                            title="스프린트에 담기"
-                                            aria-label={`${it.title} 스프린트에 담기`}
+                                            title={
+                                              elsewhere
+                                                ? `${selectedSprint?.name ?? "이 스프린트"}로 옮겨 담기`
+                                                : `${selectedSprint?.name ?? "스프린트"}에 담기`
+                                            }
+                                            aria-label={`${it.title} ${selectedSprint?.name ?? "스프린트"}에 담기`}
                                             className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-bold bg-bridge-accent/15 text-bridge-accent hover:bg-bridge-accent hover:text-white transition-colors"
                                           >
                                             <Plus
@@ -5345,9 +5129,7 @@ export function SprintBoard({
           {/* JIRA 흐름 게이지 — 이 화면의 유일한 진행률이다("연동 이슈가 마지막 단계까지
               얼마나 갔나"). 보드 바로 위에 두어 컬럼 분포와 눈이 이어지고, 바닥 고정 도크와도
               겹치지 않는다. 스프린트 스코프가 아니라 활성 스프린트 유무는 따지지 않는다. */}
-          {!previewColumns &&
-            !previewLoading &&
-            groupBy === "jira" &&
+          {groupBy === "jira" &&
             (jiraMirrorReady || hasBlockMapping) &&
             jiraFlow.total > 0 && (
               <div className="shrink-0 border-b border-foreground/[0.08] bg-bridge-obsidian px-3 md:px-4 py-2.5 flex items-center gap-3 flex-wrap">
@@ -5426,59 +5208,9 @@ export function SprintBoard({
           {/* 좌: 가로 스크롤 컬럼 스트립 / 우: In Review·Done 고정 도크(스프린트 화면 전용).
               도크는 스크롤 컨테이너 밖 flex 형제라 Feature 컬럼 수와 무관하게 항상 보인다. */}
           <div className="flex-1 min-h-0 flex overflow-hidden">
-            {previewColumns ? (
-              <div className="flex-1 min-w-0 overflow-x-auto custom-scrollbar">
-                <div className="flex gap-3 p-3 md:p-4 h-full min-w-max">
-                  {previewColumns.map((col) => {
-                    const accent =
-                      col.kind === "START"
-                        ? "#6366F1"
-                        : col.kind === "END"
-                          ? "#34d399"
-                          : (col.color ?? "#f59e0b");
-                    return (
-                      <div
-                        key={col.id}
-                        className="w-[260px] shrink-0 flex flex-col rounded-2xl border border-sprint-border bg-sprint-col overflow-hidden"
-                      >
-                        {/* 컬럼 상단 상태 색 레일 */}
-                        <div
-                          className="h-[3px] shrink-0"
-                          style={{ background: accent }}
-                        />
-                        <div className="px-3 py-2.5 border-b border-foreground/[0.06] flex items-center gap-2">
-                          <span
-                            className="w-2 h-2 rounded-full shrink-0"
-                            style={{ background: accent }}
-                          />
-                          <span className="text-xs font-bold text-foreground truncate flex-1">
-                            {col.name}
-                          </span>
-                          <span className="text-[10px] font-bold text-slate-500 tabular-nums bg-bridge-dark rounded-full px-1.5 shrink-0">
-                            {col.items.length}
-                          </span>
-                        </div>
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2 min-h-[120px]">
-                          {col.items.length === 0 ? (
-                            <div className="h-full min-h-[80px] grid place-items-center text-[11px] text-slate-600">
-                              비어 있음
-                            </div>
-                          ) : (
-                            col.items.map((it) => renderCard(it, true))
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : previewLoading ? (
-              <div className="flex-1 flex items-center justify-center h-full">
-                <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
-              </div>
-            ) : /* JIRA 화면은 스프린트 스코프가 아니다 — 진행 중인 스프린트가 없어도
-                   연동 이슈는 그대로 보여야 하므로 활성 스프린트 검사보다 앞에 둔다. */
-            groupBy === "jira" ? (
+            {/* JIRA 화면은 스프린트 스코프가 아니다 — 선택한 버킷이 비어 있어도
+                연동 이슈는 그대로 보여야 하므로 버킷 검사보다 앞에 둔다. */}
+            {groupBy === "jira" ? (
               jiraMetaLoading && !jiraMeta ? (
                 <div className="flex-1 flex items-center justify-center h-full">
                   <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
@@ -5500,23 +5232,23 @@ export function SprintBoard({
                   </div>
                 </div>
               )
-            ) : !activeSprint ? (
+            ) : !selectedSprint ? (
               <div className="flex-1 flex flex-col items-center justify-center gap-3 h-full">
                 <Flag className="w-8 h-8 text-bridge-secondary/60" />
                 <p className="text-sm font-bold text-foreground">
-                  이 마일스톤의 스프린트가 마무리되었습니다
+                  이 마일스톤에는 스프린트가 없습니다
                 </p>
                 <p className="text-xs text-slate-500">
-                  지난 스프린트 기록은 위 타임라인에서 클릭해 열람할 수 있어요
+                  마일스톤 기간을 나누면 태스크를 담을 버킷이 생겨요
                 </p>
                 {isAdminOrOwner && (
                   <button
-                    onClick={startNextSprint}
+                    onClick={() => setSplitOpen(true)}
                     className="mt-1 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-colors"
-                    title="새 스프린트를 만들어 다시 시작합니다"
+                    title="마일스톤 기간을 스프린트로 나눕니다"
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    새 스프린트 시작
+                    <Split className="w-3.5 h-3.5" />
+                    스프린트 나누기
                   </button>
                 )}
               </div>
@@ -5602,11 +5334,7 @@ export function SprintBoard({
             )}
           </div>
           {/* 미분류 레일 — 구성원 뷰 전용. 미리보기(읽기 전용 스냅샷)에선 숨긴다. */}
-          {!previewColumns &&
-            !previewLoading &&
-            !!activeSprint &&
-            groupBy === "member" &&
-            renderUncategorizedRail()}
+          {!!scopeSprintId && groupBy === "member" && renderUncategorizedRail()}
         </div>
       </div>
 
@@ -5676,126 +5404,6 @@ export function SprintBoard({
         </div>
       </MotionModal>
 
-      {/* 재활성화 확인 모달 — 파괴적 액션(진행중 스프린트 park) 영향 고지 */}
-      <MotionModal
-        open={!!reactivateTarget}
-        onClose={() => setReactivateTarget(null)}
-        accentColor
-        aria-labelledby="reactivate-title"
-        className="w-full sm:max-w-md"
-      >
-        <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
-          <span className="w-8 h-8 rounded-lg bg-bridge-accent/15 text-bridge-accent grid place-items-center shrink-0">
-            <RotateCcw className="w-4 h-4" />
-          </span>
-          <h4
-            id="reactivate-title"
-            className="text-sm font-bold text-foreground"
-          >
-            {reactivateTarget?.name}을(를) 재활성화할까요?
-          </h4>
-        </div>
-        <div className="px-5 pb-5 pt-4">
-          <p className="text-sm text-slate-400 leading-relaxed">
-            이 스프린트를 다시{" "}
-            <span className="font-bold text-foreground">진행중</span>으로
-            되살립니다. 종료했던 항목을 이어서 작업할 수 있어요.
-          </p>
-          {activeSprint && activeSprint.id !== reactivateTarget?.id && (
-            <div className="mt-3 flex gap-2.5 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2.5">
-              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">
-                현재 진행중인{" "}
-                <span className="font-bold">{activeSprint.name}</span>은(는)
-                뒤로 보관됩니다. 언제든 &lsquo;재활성화 취소&rsquo;로 되돌릴 수
-                있어요.
-              </p>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-          <span className="text-xs text-slate-600">Esc 닫기</span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setReactivateTarget(null)}
-              className="px-4 py-1.5 rounded-lg text-xs font-bold text-foreground bg-foreground/5 hover:bg-foreground/10 transition-colors"
-            >
-              그냥 볼게요
-            </button>
-            <button
-              onClick={confirmReactivate}
-              className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-colors"
-            >
-              재활성화
-            </button>
-          </div>
-        </div>
-      </MotionModal>
-
-      {/* 스프린트 종료 모달 — 다음 스프린트 시작 / 이 마일스톤 마무리 중 선택 */}
-      <MotionModal
-        open={closeModalOpen}
-        onClose={() => setCloseModalOpen(false)}
-        accentColor
-        aria-labelledby="close-sprint-title"
-        className="w-full sm:max-w-md"
-      >
-        <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
-          <span className="w-8 h-8 rounded-lg bg-bridge-accent/15 text-bridge-accent grid place-items-center shrink-0">
-            <Flag className="w-4 h-4" />
-          </span>
-          <h4
-            id="close-sprint-title"
-            className="text-sm font-bold text-foreground"
-          >
-            {activeSprint?.name}을(를) 종료할까요?
-          </h4>
-        </div>
-        <div className="px-5 pb-5 pt-4 flex flex-col gap-2.5">
-          <p className="text-sm text-slate-400 leading-relaxed">
-            종료 시점의 완료율은 그대로 기록에 동결됩니다. 다음 진행 방식을
-            선택하세요.
-          </p>
-          <button
-            onClick={() => confirmCloseSprint(true)}
-            className="w-full text-left rounded-xl border border-bridge-accent/35 bg-bridge-accent/10 hover:bg-bridge-accent/15 px-4 py-3 transition-colors"
-          >
-            <span className="block text-sm font-bold text-foreground">
-              다음 스프린트 시작
-            </span>
-            <span className="block mt-0.5 text-xs text-slate-400">
-              {remainingTasks > 0
-                ? `미완료 태스크 ${remainingTasks}개가 다음 스프린트로 이월됩니다.`
-                : "새 스프린트가 바로 시작됩니다."}
-            </span>
-          </button>
-          <button
-            onClick={() => confirmCloseSprint(false)}
-            className="w-full text-left rounded-xl border border-foreground/10 bg-foreground/[0.03] hover:bg-foreground/[0.06] px-4 py-3 transition-colors"
-          >
-            <span className="block text-sm font-bold text-foreground">
-              이 마일스톤 마무리
-            </span>
-            <span className="block mt-0.5 text-xs text-slate-400">
-              새 스프린트를 만들지 않습니다.
-              {remainingTasks > 0
-                ? ` 미완료 ${remainingTasks}개는 이 스프린트 기록에 남습니다.`
-                : ""}{" "}
-              필요하면 나중에 다시 시작할 수 있어요.
-            </span>
-          </button>
-        </div>
-        <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-          <span className="text-xs text-slate-600">Esc 닫기</span>
-          <button
-            onClick={() => setCloseModalOpen(false)}
-            className="px-4 py-1.5 rounded-lg text-xs font-bold text-foreground bg-foreground/5 hover:bg-foreground/10 transition-colors"
-          >
-            취소
-          </button>
-        </div>
-      </MotionModal>
-
       {/* 진행 현황 모달 — 오늘 완료 / 진행 중 / 기존 완료 / 미완료 (KanbanBlock 진행 현황과 동일 규약) */}
       <MotionModal
         open={progressOpen}
@@ -5810,9 +5418,9 @@ export function SprintBoard({
           <h3 className="text-sm font-bold text-foreground truncate">
             진행 현황
           </h3>
-          {activeSprint && (
+          {selectedSprint && (
             <span className="text-xs text-slate-500 truncate min-w-0">
-              · {activeSprint.name}
+              · {selectedSprint.name}
             </span>
           )}
           <button
@@ -5999,6 +5607,16 @@ export function SprintBoard({
         </div>
       </MotionModal>
 
+      {/* 스프린트 나누기 — 개수·기간 경계·태스크 배분을 한 화면에서 정한다(관리자) */}
+      <SprintSplitModal
+        open={splitOpen}
+        onClose={() => setSplitOpen(false)}
+        milestoneStart={milestone?.start_date ?? null}
+        milestoneEnd={milestone?.end_date ?? null}
+        currentCount={board?.sprints?.length ?? 0}
+        onSubmit={(payload) => void submitSplit(payload)}
+      />
+
       {/* 구성원 개인 간트 · 업무 배치 모달 — 체크리스트 start/due를 간트로 편집(즉시 저장) */}
       <SprintMemberGanttModal
         open={!!ganttMemberId}
@@ -6012,9 +5630,9 @@ export function SprintBoard({
             : null
         }
         items={retainedGantt?.items ?? []}
-        sprintName={activeSprint?.name ?? null}
-        sprintStart={activeSprint?.start_date ?? null}
-        sprintEnd={activeSprint?.end_date ?? null}
+        sprintName={selectedSprint?.name ?? null}
+        sprintStart={selectedSprint?.start_date ?? null}
+        sprintEnd={selectedSprint?.end_date ?? null}
         onOpenChecklistItem={onOpenChecklistItem}
         onSaved={silentReload}
       />

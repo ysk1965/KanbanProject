@@ -159,17 +159,14 @@ public enum ErrorCode {
     SPRINT_NOT_ENABLED(HttpStatus.BAD_REQUEST, "SP002", "이 마일스톤은 스프린트가 활성화되어 있지 않습니다"),
     SPRINT_TASK_NOT_IN_MILESTONE(HttpStatus.BAD_REQUEST, "SP003", "해당 마일스톤에 속한 태스크가 아닙니다"),
     SPRINT_INVALID_STAGE(HttpStatus.BAD_REQUEST, "SP004", "유효하지 않은 스프린트 단계입니다"),
-    SPRINT_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "SP005", "이미 종료된 스프린트입니다"),
-    // SP006은 "모든 카드가 Done이어야 종료" 게이트에 쓰이던 코드. 미완료 태스크를 다음 스프린트로
-    // 이월하는 방식으로 바뀌면서 종료를 막을 이유가 없어져 회수했다. (번호는 재사용하지 않는다)
-    SPRINT_REACTIVATION_BLOCKED(HttpStatus.CONFLICT, "SP007", "먼저 재활성화된 스프린트를 종료해 주세요"),
-    SPRINT_ALREADY_ACTIVE(HttpStatus.BAD_REQUEST, "SP008", "이미 진행 중인 스프린트입니다"),
-    SPRINT_NOT_IN_REACTIVATION(HttpStatus.BAD_REQUEST, "SP009", "재활성화 중인 스프린트가 아닙니다"),
+    // SP005~SP009, SP013~SP014는 종료/재활성화 라이프사이클과 함께 회수했다.
+    // (SP006 포함 — 번호는 재사용하지 않는다) 스프린트는 이제 마일스톤을 나눈 버킷이라
+    // 닫거나 되살리는 개념이 없고, 분할 조정(SP015)과 미완료 보내기(SP016)만 남는다.
     SPRINT_COLUMN_NOT_FOUND(HttpStatus.NOT_FOUND, "SP010", "스프린트 컬럼을 찾을 수 없습니다"),
     SPRINT_COLUMN_ANCHOR_IMMUTABLE(HttpStatus.BAD_REQUEST, "SP011", "Sprint · Done 컬럼은 수정하거나 삭제할 수 없습니다"),
     SPRINT_COLUMN_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "SP012", "컬럼 이름을 입력해 주세요"),
-    SPRINT_DELETE_ONLY_LATEST_ACTIVE(HttpStatus.BAD_REQUEST, "SP013", "진행 중인 최신 스프린트만 삭제할 수 있습니다"),
-    SPRINT_DELETE_NOT_EMPTY(HttpStatus.BAD_REQUEST, "SP014", "카드가 담긴 스프린트는 삭제할 수 없습니다"),
+    SPRINT_SPLIT_INVALID(HttpStatus.BAD_REQUEST, "SP015", "스프린트 분할 정보가 올바르지 않습니다"),
+    SPRINT_NO_NEXT_SPRINT(HttpStatus.BAD_REQUEST, "SP016", "미완료를 보낼 다음 스프린트가 없습니다"),
 
     // Calendar Event (워크로드 특별 일정)
     CALENDAR_EVENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CE001", "특별 일정을 찾을 수 없습니다"),

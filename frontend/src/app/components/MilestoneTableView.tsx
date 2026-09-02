@@ -27,7 +27,13 @@ import {
   Loader2,
   Plus,
 } from "lucide-react";
-import type { ChecklistItem, Feature, Milestone, Task } from "../types";
+import type {
+  ChecklistItem,
+  Feature,
+  Milestone,
+  SprintInfo,
+  Task,
+} from "../types";
 import {
   checklistService,
   memberService,
@@ -54,15 +60,17 @@ interface MilestoneTableViewProps {
   /** featureId → 홈 마일스톤 id — "기본 마일스톤" 태그 표시용 */
   homeByFeature: Map<string, string>;
   sprintInfoByTask: Map<string, TaskSprintInfo>;
-  activeSeq: number | null;
+  /** 마일스톤 기간을 N등분한 버킷 전체 — 담을 곳을 고르는 메뉴의 재료 */
+  sprints: SprintInfo[];
+  currentSeq: number | null;
   sprintEnabled: boolean;
   canEdit: boolean;
   onTaskClick?: (task: Task) => void;
   onFeatureClick?: (feature: Feature) => void;
   /** 태스크 생성 후 보드 데이터 리로드 */
   onRefresh?: () => void;
-  /** 스프린트 담기/빼기 — 활성 스프린트가 있을 때만 전달됨 */
-  onMoveSprint?: (taskId: string, to: "active" | "backlog") => void;
+  /** 스프린트 담기/옮기기 — toSprintId가 null이면 백로그로 빼기 */
+  onMoveSprint?: (taskId: string, toSprintId: string | null) => void;
 }
 
 type StatusFilter = "all" | "doing" | "open" | "sprint";
@@ -125,7 +133,8 @@ export function MilestoneTableView({
   featureById,
   homeByFeature,
   sprintInfoByTask,
-  activeSeq,
+  sprints,
+  currentSeq,
   sprintEnabled,
   canEdit,
   onTaskClick,
@@ -282,7 +291,7 @@ export function MilestoneTableView({
       if (statusFilter === "open" && tk.completed) return false;
       if (
         statusFilter === "sprint" &&
-        sprintInfoByTask.get(tk.id)?.status !== "ACTIVE"
+        sprintInfoByTask.get(tk.id)?.state !== "CURRENT"
       )
         return false;
       if (assigneeFilter) {
@@ -631,12 +640,8 @@ export function MilestoneTableView({
       const progress = `${g.progressDone}/${g.progressTotal} (${pct}%)`;
       for (const tk of g.visibleTasks) {
         const info = sprintInfoByTask.get(tk.id);
-        const sprint =
-          info?.status === "ACTIVE"
-            ? `S${info.seq ?? activeSeq ?? ""}`
-            : info?.status === "ARCHIVED"
-              ? `S${info.seq ?? ""}`
-              : "";
+        // 담긴 버킷의 회차만 남긴다 — 지남/진행 중 구분은 CSV에서 의미가 없다.
+        const sprint = info?.sprintId ? `S${info.seq ?? currentSeq ?? ""}` : "";
         const base = [
           g.title,
           progress,
@@ -680,7 +685,7 @@ export function MilestoneTableView({
   }, [
     visibleGroups,
     sprintInfoByTask,
-    activeSeq,
+    currentSeq,
     statusOf,
     itemsOf,
     milestone.title,
@@ -1000,7 +1005,8 @@ export function MilestoneTableView({
                                 <SprintChipMenu
                                   taskId={tk.id}
                                   info={sprintInfoByTask.get(tk.id)}
-                                  activeSeq={activeSeq}
+                                  sprints={sprints}
+                                  currentSeq={currentSeq}
                                   canMove={canEdit}
                                   onMove={onMoveSprint}
                                 />
@@ -1453,42 +1459,44 @@ function ItemsDropArea({
   );
 }
 
-/** 스프린트 칩 + 이동 메뉴 — 백로그 ↔ 현재 스프린트, 지난 스프린트(S✓)는 변경 불가 */
+/**
+ * 스프린트 칩 + 버킷 선택 메뉴 — S1..Sn 중 어디에 담을지 고르거나 백로그로 뺀다.
+ * 버킷은 마일스톤 기간을 등분한 상자일 뿐이라 지난 회차로 옮기는 것도 막지 않는다.
+ */
 function SprintChipMenu({
   taskId,
   info,
-  activeSeq,
+  sprints,
+  currentSeq,
   canMove,
   onMove,
 }: {
   taskId: string;
   info: TaskSprintInfo | undefined;
-  activeSeq: number | null;
+  sprints: SprintInfo[];
+  currentSeq: number | null;
   canMove: boolean;
-  onMove?: (taskId: string, to: "active" | "backlog") => void;
+  onMove?: (taskId: string, toSprintId: string | null) => void;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const interactive = canMove && !!onMove && info?.status !== "ARCHIVED";
+  const interactive = canMove && !!onMove && sprints.length > 0;
 
   if (!interactive) {
-    return (
-      <span
-        title={
-          info?.status === "ARCHIVED"
-            ? t("milestone.table.sprintArchivedLock", {
-                defaultValue: "지난 스프린트 이력은 변경할 수 없어요",
-              })
-            : undefined
-        }
-      >
-        <SprintChip info={info} activeSeq={activeSeq} />
-      </span>
-    );
+    return <SprintChip info={info} currentSeq={currentSeq} />;
   }
 
-  const isActive = info?.status === "ACTIVE";
-  const seq = info?.seq ?? activeSeq ?? "?";
+  const pick = (toSprintId: string | null) => {
+    onMove!(taskId, toSprintId);
+    setOpen(false);
+  };
+  const rowClass = (on: boolean) =>
+    `w-full px-3 py-1.5 text-left text-xs block transition-colors ${
+      on
+        ? "text-bridge-accent font-bold bg-bridge-accent/10"
+        : "text-foreground hover:bg-foreground/5"
+    }`;
+
   return (
     <span className="relative inline-flex">
       <button
@@ -1496,7 +1504,7 @@ function SprintChipMenu({
         aria-expanded={open}
         className="cursor-pointer hover:opacity-80 transition-opacity"
       >
-        <SprintChip info={info} activeSeq={activeSeq} />
+        <SprintChip info={info} currentSeq={currentSeq} />
       </button>
       {open && (
         <>
@@ -1504,44 +1512,41 @@ function SprintChipMenu({
             className="fixed inset-0 z-30 block"
             onClick={() => setOpen(false)}
           />
-          <span className="absolute top-full left-0 mt-1 z-40 w-44 bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1.5 block">
+          <span className="absolute top-full left-0 mt-1 z-40 w-52 max-h-64 overflow-y-auto custom-scrollbar bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1.5 block">
+            {sprints.map((sp) => {
+              const on = info?.sprintId === sp.id;
+              return (
+                <button
+                  key={sp.id}
+                  onClick={() => pick(sp.id)}
+                  className={rowClass(on)}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span className="tabular-nums">S{sp.sequence_no}</span>
+                    {sp.state === "CURRENT" && (
+                      <span className="text-bridge-secondary">
+                        {t("milestone.detail.sprintActive", {
+                          defaultValue: "진행 중",
+                        })}
+                      </span>
+                    )}
+                    {sp.state === "PAST" && (
+                      <span className="text-slate-500">✓</span>
+                    )}
+                    {/* 어느 상자인지는 회차보다 기간으로 더 빨리 읽힌다 */}
+                    <span className="ml-auto text-slate-500 tabular-nums">
+                      {toShortDate(sp.start_date)}~{toShortDate(sp.end_date)}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+            <span className="block border-t border-foreground/[0.08] my-1.5" />
             <button
-              onClick={() => {
-                if (!isActive) onMove!(taskId, "active");
-                setOpen(false);
-              }}
-              className={`w-full px-3 py-1.5 text-left text-xs block transition-colors ${
-                isActive
-                  ? "text-bridge-accent font-bold bg-bridge-accent/10"
-                  : "text-foreground hover:bg-foreground/5"
-              }`}
+              onClick={() => pick(null)}
+              className={rowClass(!info?.sprintId)}
             >
-              {isActive
-                ? t("milestone.table.sprintCurrent", {
-                    seq,
-                    defaultValue: "S{{seq}} · 현재 스프린트",
-                  })
-                : t("milestone.table.sprintAddTo", {
-                    seq: activeSeq ?? "?",
-                    defaultValue: "S{{seq}}에 담기",
-                  })}
-            </button>
-            <button
-              onClick={() => {
-                if (isActive) onMove!(taskId, "backlog");
-                setOpen(false);
-              }}
-              className={`w-full px-3 py-1.5 text-left text-xs block transition-colors ${
-                !isActive
-                  ? "text-bridge-accent font-bold bg-bridge-accent/10"
-                  : "text-foreground hover:bg-foreground/5"
-              }`}
-            >
-              {isActive
-                ? t("milestone.table.sprintToBacklog", {
-                    defaultValue: "백로그로 이동",
-                  })
-                : t("milestone.detail.backlog", { defaultValue: "백로그" })}
+              {t("milestone.detail.backlog", { defaultValue: "백로그" })}
             </button>
           </span>
         </>

@@ -82,7 +82,14 @@ interface KanbanViewProps {
   cascadeFeatureId: string | null;
   selectedFeatureIds: string[] | null;
   selectedMilestoneId: string;
-  milestones: { id: string; title: string; progress_percentage?: number }[];
+  // start_date/end_date는 스프린트 분할(마일스톤 기간 N등분)에 필요해 SprintBoard로 넘긴다.
+  milestones: {
+    id: string;
+    title: string;
+    progress_percentage?: number;
+    start_date?: string;
+    end_date?: string;
+  }[];
   isAdminOrOwner: boolean;
   filterOptions: FilterOptions;
   canEdit: boolean;

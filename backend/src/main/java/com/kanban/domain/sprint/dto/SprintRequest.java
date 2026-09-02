@@ -62,13 +62,18 @@ public class SprintRequest {
     }
 
     /**
-     * 스프린트 종료 옵션. createNext=false면 다음 스프린트를 만들지 않고 마일스톤을 마무리한다.
-     * body 없이 호출하면(기존 클라이언트) createNext=true로 동작한다 — 하위호환.
+     * 스프린트 분할 생성/조정.
+     *  · count       = 버킷 개수 (1 = 나누지 않음)
+     *  · boundaries  = 스프린트 2..N의 시작일 (생략 시 균등 분배)
+     *  · taskDistribution = keep(기본) | unassign | by_date
      */
     @Getter
     @NoArgsConstructor
-    public static class CloseSprint {
-        private Boolean createNext;
+    public static class Split {
+        @NotNull
+        private Integer count;
+        private List<java.time.LocalDate> boundaries;
+        private String taskDistribution;
     }
 
     /** 중간 컬럼 순서 재정렬 (START 다음 ~ END 이전, 순서대로의 컬럼 id 목록) */

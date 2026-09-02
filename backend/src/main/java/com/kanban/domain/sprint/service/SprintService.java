@@ -19,7 +19,7 @@ import com.kanban.domain.sprint.SprintColumn;
 import com.kanban.domain.sprint.SprintColumnKind;
 import com.kanban.domain.sprint.SprintColumnRepository;
 import com.kanban.domain.sprint.SprintRepository;
-import com.kanban.domain.sprint.SprintStatus;
+import com.kanban.domain.sprint.SprintState;
 import com.kanban.domain.sprint.dto.SprintResponse;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
@@ -33,8 +33,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -75,6 +77,9 @@ public class SprintService {
     private static final String COL_REVIEW = "In Review";
     private static final String COL_DONE = "Done";
 
+    /** 분할 상한. FE는 6개까지 노출하지만 서버는 여유를 둔다. */
+    private static final int MAX_SPRINT_COUNT = 12;
+
     // ==================== Read ====================
 
     @Transactional
@@ -91,7 +96,8 @@ public class SprintService {
         // 스프린트를 못 갖는** 상태가 됐다. "스프린트 0개"는 도달할 수 없어야 하는 상태다 —
         // 마일스톤은 스프린트를 자동으로 소유한다(V20260713_030914 마이그레이션의 원래 의도).
         ensureColumns(milestone);
-        ensureActiveSprint(milestone);
+        ensureSprint(milestone);
+        ensureSprintDates(milestone);
         if (resolveUiLevel(milestone) <= 1) {
             adoptBacklogForLevelOne(milestone);
         }
@@ -115,15 +121,13 @@ public class SprintService {
         if (backlog.isEmpty()) {
             return;
         }
-        Sprint active = sprintRepository.findByMilestoneIdOrderBySequenceNoAsc(milestone.getId()).stream()
-                .filter(Sprint::isActive)
-                .reduce((first, second) -> second)
-                .orElse(null);
-        if (active == null) {
+        Sprint current = resolveCurrentSprint(
+                sprintRepository.findByMilestoneIdOrderBySequenceNoAsc(milestone.getId()));
+        if (current == null) {
             return;
         }
         SprintColumn start = requireColumn(milestone, SprintColumnKind.START);
-        backlog.forEach(task -> task.assignToSprint(active, start));
+        backlog.forEach(task -> task.assignToSprint(current, start));
         log.info("Level-1 backlog adopted: milestone={} count={}", milestone.getId(), backlog.size());
     }
 
@@ -137,7 +141,7 @@ public class SprintService {
 
         if (enabled) {
             ensureColumns(milestone);
-            ensureActiveSprint(milestone);
+            ensureSprint(milestone);
         } else {
             // 병합: 담긴 태스크를 모두 백로그로 되돌리고 스프린트 삭제 (컬럼 구성은 보존)
             taskRepository.findInSprintByMilestoneId(milestoneId).forEach(Task::removeFromSprint);
@@ -319,175 +323,106 @@ public class SprintService {
         return buildBoard(milestone, userId);
     }
 
-    // ==================== 라이프사이클: 종료 / 재활성화 (관리자) ====================
+    // ==================== 분할 (관리자) ====================
 
     /**
-     * 스프린트 종료. 기간이 끝나면 닫을 수 있어야 하므로 "전부 Done" 게이트는 두지 않는다.
-     * 종료 시점의 완료/전체 수를 동결하고, 아직 Done에 닿지 못한 태스크는 다음 스프린트로 이월한다.
-     * 이월된 태스크는 carryOverCount가 1 올라가 몇 스프린트째 밀리는 중인지 드러난다.
+     * 마일스톤을 N개 스프린트 버킷으로 분할하거나 분할을 조정한다.
      *
-     * <p>createNext=false는 "이 마일스톤 마무리" — 다음 스프린트를 만들지 않고 활성 없음 상태로
-     * 남긴다. 미완료 태스크도 이월 없이 이 스프린트의 동결 기록에 그대로 남는다. 재활성화 중이라면
-     * 뒤에 보관된 최신 스프린트로 복귀해야 하므로 플래그와 무관하게 기존 동작을 유지한다.
+     * <p>경계(boundaries)는 스프린트 2..N의 시작일 목록이다. 비어 있으면 마일스톤 기간을
+     * 일수 기준으로 균등 분배한다. 기존 스프린트 행은 순서대로 재사용해 태스크 FK가 보존되고,
+     * 개수가 줄면 잘려나간 스프린트의 태스크는 마지막 유지 스프린트로 흡수된다.
+     *
+     * <p>taskDistribution:
+     *  · null/"keep"  = 담긴 태스크 배정 유지 (기본)
+     *  · "unassign"   = 전부 백로그로 (업무 리스트에서 직접 담기)
+     *  · "by_date"    = 태스크 시작일이 속한 버킷으로 자동 배치
      */
     @Transactional
-    public SprintResponse.Board closeSprint(String boardId, String sprintId, boolean createNext, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
-        Sprint sprint = loadSprint(boardId, sprintId);
-        if (!sprint.isActive()) {
-            throw new BusinessException(ErrorCode.SPRINT_NOT_ACTIVE);
-        }
-
-        Milestone milestone = sprint.getMilestone();
-        String milestoneId = milestone.getId();
-        ensureColumns(milestone);
-
-        // 동결 수치는 이월 전에 센다 — 라이브 게이지와 같은 체크리스트 줄 기준이라
-        // 종료 직전 화면의 %가 그대로 기록에 남는다.
-        int[] units = sprintProgressUnits(sprintId);
-        sprint.archive(units[0], units[1], LocalDateTime.now(ZoneOffset.UTC));
-
-        // 다음 스프린트 확보 — 최신 스프린트를 닫았으면 새로 만들고, 재활성화 중이었으면 최신으로 복귀.
-        Sprint latest = sprintRepository.findFirstByMilestoneIdOrderBySequenceNoDesc(milestoneId)
-                .orElse(sprint);
-        Sprint next = null;
-        if (latest.getId().equals(sprint.getId())) {
-            if (createNext) {
-                int nextSeq = sprintRepository.findMaxSequenceNo(milestoneId) + 1;
-                next = createSprint(milestone, nextSeq);
-            }
-        } else {
-            latest.reactivate();
-            next = latest;
-        }
-
-        // 미완료 태스크 이월 — Sprint(START) 컬럼부터 다시 시작한다. 마무리(next 없음)면 이월도 없다.
-        if (next != null) {
-            List<Task> carried = taskRepository.findNotDoneBySprintId(sprintId, SprintColumnKind.END);
-            if (!carried.isEmpty()) {
-                SprintColumn start = requireColumn(milestone, SprintColumnKind.START);
-                Sprint target = next;
-                carried.forEach(t -> t.carryOverTo(target, start));
-                log.info("Sprint {} closed — {} tasks carried over to {}",
-                        sprint.getName(), carried.size(), next.getName());
-            }
-        } else {
-            log.info("Sprint {} closed without successor (milestone {} wrapped up)",
-                    sprint.getName(), milestoneId);
-        }
-
-        broadcastSprintChanged(boardId, userId);
-        return buildBoard(milestone, userId);
-    }
-
-    /**
-     * 다음 스프린트 시작 — "마일스톤 마무리" 후(활성 스프린트 없음) 다시 일을 재개할 때 쓴다.
-     * 활성 스프린트가 이미 있으면 거부한다(마일스톤당 활성 1개 규약).
-     */
-    @Transactional
-    public SprintResponse.Board startNextSprint(String boardId, String milestoneId, String userId) {
+    public SprintResponse.Board splitSprints(String boardId, String milestoneId, int count,
+                                             List<LocalDate> boundaries, String taskDistribution,
+                                             String userId) {
         boardService.checkAdminOrAbove(boardId, userId);
         Milestone milestone = loadMilestone(boardId, milestoneId);
-        if (sprintRepository.findFirstByMilestoneIdAndStatusOrderBySequenceNoDesc(
-                milestoneId, SprintStatus.ACTIVE).isPresent()) {
-            throw new BusinessException(ErrorCode.SPRINT_ALREADY_ACTIVE);
-        }
         ensureColumns(milestone);
-        createSprint(milestone, sprintRepository.findMaxSequenceNo(milestoneId) + 1);
+
+        LocalDate msStart = milestone.getStartDate();
+        LocalDate msEnd = milestone.getEndDate();
+        if (count < 1 || count > MAX_SPRINT_COUNT
+                || msStart == null || msEnd == null || msEnd.isBefore(msStart)) {
+            throw new BusinessException(ErrorCode.SPRINT_SPLIT_INVALID);
+        }
+
+        List<LocalDate> cuts = (boundaries == null || boundaries.isEmpty())
+                ? equalBoundaries(msStart, msEnd, count)
+                : boundaries;
+        if (cuts.size() != count - 1) {
+            throw new BusinessException(ErrorCode.SPRINT_SPLIT_INVALID);
+        }
+        LocalDate prev = msStart;
+        for (LocalDate cut : cuts) {
+            if (cut == null || !cut.isAfter(prev) || cut.isAfter(msEnd)) {
+                throw new BusinessException(ErrorCode.SPRINT_SPLIT_INVALID);
+            }
+            prev = cut;
+        }
+
+        // 기존 행 재사용(태스크 FK 보존) + 부족분 생성
+        List<Sprint> existing = sprintRepository.findByMilestoneIdOrderBySequenceNoAsc(milestoneId);
+        List<Sprint> buckets = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            LocalDate segStart = i == 0 ? msStart : cuts.get(i - 1);
+            LocalDate segEnd = i == count - 1 ? msEnd : cuts.get(i).minusDays(1);
+            Sprint bucket;
+            if (i < existing.size()) {
+                bucket = existing.get(i);
+                bucket.updateSequence(i + 1);
+            } else {
+                bucket = createSprint(milestone, i + 1, segStart, segEnd);
+            }
+            bucket.updatePeriod(segStart, segEnd);
+            buckets.add(bucket);
+        }
+
+        // 초과분 정리 — 담긴 태스크는 마지막 유지 스프린트로 흡수 (이월 카운트는 올리지 않는다)
+        if (existing.size() > count) {
+            Sprint lastKept = buckets.get(count - 1);
+            for (int i = count; i < existing.size(); i++) {
+                Sprint removed = existing.get(i);
+                taskRepository.findBySprintId(removed.getId())
+                        .forEach(t -> t.assignToSprint(lastKept, t.getSprintColumn()));
+                sprintRepository.delete(removed);
+            }
+        }
+
+        applyTaskDistribution(milestone, buckets, taskDistribution);
+
+        log.info("Milestone {} split into {} sprints (distribution={})", milestoneId, count, taskDistribution);
         broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone, userId);
     }
 
     /**
-     * 빈 스프린트 삭제 — 종료 시 자동 생성됐지만 쓰지 않을 잔여 스프린트를 소급 정리한다.
-     * 동결 기록 훼손을 막기 위해 <b>ACTIVE + 최신(sequence 최대) + 카드 0개</b>일 때만 허용한다.
-     * 아카이브 스프린트(과거 기록)와 카드가 담긴 스프린트는 어떤 경우에도 지우지 않는다.
+     * 지난 스프린트의 미완료 태스크를 다음 스프린트로 일괄 이동한다.
+     * 자동 이월의 대체 — 사람이 정리 시점을 정하는 액션이며, carryOverCount가 1 올라
+     * "이월 N" 배지로 히스토리가 남는다.
      */
     @Transactional
-    public SprintResponse.Board deleteSprint(String boardId, String sprintId, String userId) {
+    public SprintResponse.Board pushUnfinished(String boardId, String sprintId, String userId) {
         boardService.checkAdminOrAbove(boardId, userId);
         Sprint sprint = loadSprint(boardId, sprintId);
         Milestone milestone = sprint.getMilestone();
-        if (!sprint.isActive()
-                || sprint.getSequenceNo() != sprintRepository.findMaxSequenceNo(milestone.getId())) {
-            throw new BusinessException(ErrorCode.SPRINT_DELETE_ONLY_LATEST_ACTIVE);
-        }
-        if (!taskRepository.findBySprintId(sprintId).isEmpty()) {
-            throw new BusinessException(ErrorCode.SPRINT_DELETE_NOT_EMPTY);
-        }
-        sprintRepository.delete(sprint);
-        broadcastSprintChanged(boardId, userId);
-        return buildBoard(milestone, userId);
-    }
-
-    @Transactional
-    public SprintResponse.Board reactivateSprint(String boardId, String sprintId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
-        Sprint target = loadSprint(boardId, sprintId);
-        if (target.isActive()) {
-            throw new BusinessException(ErrorCode.SPRINT_ALREADY_ACTIVE);
-        }
-        Milestone milestone = target.getMilestone();
-        String milestoneId = milestone.getId();
-        int maxSeq = sprintRepository.findMaxSequenceNo(milestoneId);
-
-        Sprint active = sprintRepository
-                .findFirstByMilestoneIdAndStatusOrderBySequenceNoDesc(milestoneId, SprintStatus.ACTIVE)
-                .orElse(null);
-        if (active != null) {
-            if (active.getSequenceNo() != maxSeq) {
-                throw new BusinessException(ErrorCode.SPRINT_REACTIVATION_BLOCKED);
-            }
-            int[] units = sprintProgressUnits(active.getId());
-            active.archive(units[0], units[1], LocalDateTime.now(ZoneOffset.UTC));
-        }
-
-        target.reactivate();
-        broadcastSprintChanged(boardId, userId);
-        return buildBoard(milestone, userId);
-    }
-
-    @Transactional
-    public SprintResponse.Board cancelReactivation(String boardId, String sprintId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
-        Sprint reactivated = loadSprint(boardId, sprintId);
-        if (!reactivated.isActive()) {
-            throw new BusinessException(ErrorCode.SPRINT_NOT_ACTIVE);
-        }
-        Milestone milestone = reactivated.getMilestone();
-        int maxSeq = sprintRepository.findMaxSequenceNo(milestone.getId());
-        if (reactivated.getSequenceNo() == maxSeq) {
-            throw new BusinessException(ErrorCode.SPRINT_NOT_IN_REACTIVATION);
-        }
-        reactivated.archive(reactivated.getCompletedCount(), reactivated.getTotalCount(),
-                LocalDateTime.now(ZoneOffset.UTC));
-        Sprint latest = sprintRepository.findFirstByMilestoneIdOrderBySequenceNoDesc(milestone.getId())
-                .orElse(reactivated);
-        latest.reactivate();
-        broadcastSprintChanged(boardId, userId);
-        return buildBoard(milestone, userId);
-    }
-
-    /** 태스크 재개 — 아카이브(또는 다른) 스프린트의 태스크를 현재 활성 스프린트로 다시 담는다 (Sprint 컬럼). */
-    @Transactional
-    public SprintResponse.Board resumeTask(String boardId, String taskId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
-        Sprint from = task.getSprint();
-        if (from == null) {
-            throw new BusinessException(ErrorCode.SPRINT_TASK_NOT_IN_MILESTONE);
-        }
-        if (!from.getMilestone().getBoard().getId().equals(boardId)) {
-            throw new BusinessException(ErrorCode.SPRINT_NOT_FOUND);
-        }
-        validateAccess(boardId);
-        Milestone milestone = from.getMilestone();
-        Sprint active = sprintRepository
-                .findFirstByMilestoneIdAndStatusOrderBySequenceNoDesc(milestone.getId(), SprintStatus.ACTIVE)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SPRINT_NOT_FOUND));
+        Sprint next = sprintRepository.findByMilestoneIdOrderBySequenceNoAsc(milestone.getId()).stream()
+                .filter(s -> s.getSequenceNo() > sprint.getSequenceNo())
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.SPRINT_NO_NEXT_SPRINT));
         ensureColumns(milestone);
-        task.assignToSprint(active, requireColumn(milestone, SprintColumnKind.START));
+        List<Task> unfinished = taskRepository.findNotDoneBySprintId(sprintId, SprintColumnKind.END);
+        if (!unfinished.isEmpty()) {
+            SprintColumn start = requireColumn(milestone, SprintColumnKind.START);
+            unfinished.forEach(t -> t.carryOverTo(next, start));
+            log.info("Sprint {} — {} unfinished tasks pushed to {}",
+                    sprint.getName(), unfinished.size(), next.getName());
+        }
         broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone, userId);
     }
@@ -553,11 +488,92 @@ public class SprintService {
                 .milestone(milestone).name(COL_DONE).kind(SprintColumnKind.END).position(2).build());
     }
 
-    /** 스프린트가 하나도 없으면 Sprint 1 자동 생성 */
-    private void ensureActiveSprint(Milestone milestone) {
+    /** 스프린트가 하나도 없으면 마일스톤 전체 기간을 덮는 Sprint 1(나누지 않음 상태) 자동 생성 */
+    private void ensureSprint(Milestone milestone) {
         if (sprintRepository.findMaxSequenceNo(milestone.getId()) == 0) {
-            createSprint(milestone, 1);
+            createSprint(milestone, 1, milestone.getStartDate(), milestone.getEndDate());
         }
+    }
+
+    /**
+     * 기간 없는 스프린트에 기간을 소급 부여한다 — 라이프사이클 시절 만들어진 행의 지연 백필.
+     * 마일스톤 기간을 스프린트 수만큼 균등 분배한다 (조회 트랜잭션의 더티 체킹으로 반영).
+     */
+    private void ensureSprintDates(Milestone milestone) {
+        List<Sprint> sprints = sprintRepository.findByMilestoneIdOrderBySequenceNoAsc(milestone.getId());
+        boolean missing = sprints.stream().anyMatch(s -> s.getStartDate() == null || s.getEndDate() == null);
+        if (!missing || sprints.isEmpty()
+                || milestone.getStartDate() == null || milestone.getEndDate() == null) {
+            return;
+        }
+        List<LocalDate> cuts = equalBoundaries(milestone.getStartDate(), milestone.getEndDate(), sprints.size());
+        for (int i = 0; i < sprints.size(); i++) {
+            LocalDate segStart = i == 0 ? milestone.getStartDate() : cuts.get(i - 1);
+            LocalDate segEnd = i == sprints.size() - 1 ? milestone.getEndDate() : cuts.get(i).minusDays(1);
+            sprints.get(i).updatePeriod(segStart, segEnd);
+        }
+        log.info("Backfilled sprint dates: milestone={} count={}", milestone.getId(), sprints.size());
+    }
+
+    /**
+     * 오늘이 속한 스프린트. 어디에도 속하지 않으면(경계 밖) 아직 지나지 않은 첫 스프린트,
+     * 전부 지났으면 마지막 스프린트를 고른다.
+     */
+    private Sprint resolveCurrentSprint(List<Sprint> sprints) {
+        if (sprints.isEmpty()) {
+            return null;
+        }
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        for (Sprint s : sprints) {
+            if (s.stateOn(today) != SprintState.PAST) {
+                return s;
+            }
+        }
+        return sprints.get(sprints.size() - 1);
+    }
+
+    /** 균등 분배 경계 — 스프린트 2..N의 시작일. 일수 기준 비례 배분. (패키지 가시성: 테스트) */
+    static List<LocalDate> equalBoundaries(LocalDate start, LocalDate end, int count) {
+        long totalDays = ChronoUnit.DAYS.between(start, end) + 1;
+        List<LocalDate> cuts = new ArrayList<>();
+        for (int i = 1; i < count; i++) {
+            cuts.add(start.plusDays(totalDays * i / count));
+        }
+        return cuts;
+    }
+
+    /** 분할 후 태스크 배분 옵션 적용 (keep=아무것도 안 함) */
+    private void applyTaskDistribution(Milestone milestone, List<Sprint> buckets, String taskDistribution) {
+        if ("unassign".equals(taskDistribution)) {
+            taskRepository.findInSprintByMilestoneId(milestone.getId()).forEach(Task::removeFromSprint);
+            return;
+        }
+        if (!"by_date".equals(taskDistribution)) {
+            return;
+        }
+        SprintColumn start = requireColumn(milestone, SprintColumnKind.START);
+        for (Task t : taskRepository.findInSprintByMilestoneId(milestone.getId())) {
+            Sprint bucket = bucketFor(buckets, t.getStartDate());
+            if (bucket != null && (t.getSprint() == null || !bucket.getId().equals(t.getSprint().getId()))) {
+                t.assignToSprint(bucket, t.getSprintColumn() != null ? t.getSprintColumn() : start);
+            }
+        }
+    }
+
+    /** 날짜가 속한 버킷. 날짜 없음/기간 앞 = 첫 버킷, 기간 뒤 = 마지막 버킷. */
+    private Sprint bucketFor(List<Sprint> buckets, LocalDate date) {
+        if (buckets.isEmpty()) {
+            return null;
+        }
+        if (date == null) {
+            return buckets.get(0);
+        }
+        for (Sprint s : buckets) {
+            if (s.getEndDate() != null && !date.isAfter(s.getEndDate())) {
+                return s;
+            }
+        }
+        return buckets.get(buckets.size() - 1);
     }
 
     private SprintColumn requireColumn(Milestone milestone, SprintColumnKind kind) {
@@ -603,12 +619,13 @@ public class SprintService {
         }
     }
 
-    private Sprint createSprint(Milestone milestone, int seq) {
+    private Sprint createSprint(Milestone milestone, int seq, LocalDate startDate, LocalDate endDate) {
         Sprint sprint = Sprint.builder()
                 .milestone(milestone)
                 .name("Sprint " + seq)
                 .sequenceNo(seq)
-                .status(SprintStatus.ACTIVE)
+                .startDate(startDate)
+                .endDate(endDate)
                 .build();
         return sprintRepository.save(sprint);
     }
@@ -655,96 +672,74 @@ public class SprintService {
         return new int[] {d, total};
     }
 
-    /** 스프린트 전체의 체크리스트 줄 진척([done, total]) — 종료/재활성화 시 동결 수치 계산용. */
-    private int[] sprintProgressUnits(String sprintId) {
-        Map<String, List<ChecklistItem>> byTask =
-                groupByTask(checklistItemRepository.findByTaskSprintId(sprintId));
-        int done = 0;
-        int total = 0;
-        for (Task t : taskRepository.findBySprintId(sprintId)) {
-            SprintColumn col = t.getSprintColumn();
-            int[] u = progressUnits(byTask.getOrDefault(t.getId(), List.of()), col != null && col.isEnd());
-            done += u[0];
-            total += u[1];
-        }
-        return new int[] {done, total};
-    }
-
     private SprintResponse.Board buildBoard(Milestone milestone, String userId) {
         String milestoneId = milestone.getId();
         List<Sprint> sprints = sprintRepository.findByMilestoneIdOrderBySequenceNoAsc(milestoneId);
         List<SprintColumn> cols = sprintColumnRepository.findByMilestoneIdOrderByPositionAsc(milestoneId);
-
-        // 가장 최근 활성 스프린트 (동시에 1개 원칙, 방어적으로 최대 seq 선택)
-        Sprint active = null;
-        for (Sprint s : sprints) {
-            if (s.isActive()) {
-                active = s;
-            }
-        }
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        Sprint current = resolveCurrentSprint(sprints);
 
         // 마일스톤 전체 체크리스트를 한 번만 읽어 태스크별 진척 집계에 재사용한다 (담긴 카드 + 백로그 공통).
         Map<String, List<ChecklistItem>> checklistsByTask =
                 groupByTask(checklistItemRepository.findByTaskMilestoneId(milestoneId));
 
-        SprintResponse.SprintInfo activeInfo = null;
-        List<SprintResponse.Column> columnDtos;
-        SprintResponse.Gauge gauge;
+        // 분할 모델: 컬럼에는 모든 스프린트의 카드를 담아 내려준다 — 카드마다 sprint_id가 붙어 있어
+        // FE가 선택된 스프린트로 즉시 필터링한다 (스프린트 전환에 재조회 없음).
+        List<Task> allTasks = taskRepository.findAllByMilestoneIdWithSprint(milestoneId);
+        List<Task> inSprint = allTasks.stream().filter(Task::isInSprint).toList();
+        List<Task> backlogTasks = allTasks.stream().filter(t -> !t.isInSprint()).toList();
 
-        if (active != null) {
-            List<Task> tasks = taskRepository.findBySprintId(active.getId());
-            // JIRA 뷰(컬럼=JIRA 상태)용 — 연동 보드일 때만 JIRA 링크를 배치 조회(N+1 방지)
-            Map<String, JiraIssueLink> jiraLinkByTaskId = resolveJiraLinks(milestone.getBoard().getId(), tasks);
-            Map<String, List<SprintResponse.ItemCard>> byCol = new LinkedHashMap<>();
-            for (SprintColumn c : cols) {
-                byCol.put(c.getId(), new ArrayList<>());
+        // JIRA 뷰(컬럼=JIRA 상태)용 — 연동 보드일 때만 JIRA 링크를 배치 조회(N+1 방지)
+        Map<String, JiraIssueLink> jiraLinkByTaskId = resolveJiraLinks(milestone.getBoard().getId(), inSprint);
+
+        Map<String, List<SprintResponse.ItemCard>> byCol = new LinkedHashMap<>();
+        for (SprintColumn c : cols) {
+            byCol.put(c.getId(), new ArrayList<>());
+        }
+        String fallbackColId = cols.isEmpty() ? null : cols.get(0).getId();
+        Map<String, int[]> unitsBySprint = new HashMap<>();
+        for (Task t : inSprint) {
+            List<ChecklistItem> cls = checklistsByTask.getOrDefault(t.getId(), List.of());
+            JiraIssueLink jiraLink = jiraLinkByTaskId.get(t.getId());
+            SprintResponse.ItemCard card = SprintResponse.ItemCard.of(
+                    t,
+                    cls,
+                    jiraLink != null ? jiraLink.getJiraIssueKey() : null,
+                    jiraLink != null ? jiraLink.getLastJiraStatusId() : null);
+            SprintColumn tc = t.getSprintColumn();
+            if (tc != null && byCol.containsKey(tc.getId())) {
+                byCol.get(tc.getId()).add(card);
+            } else if (fallbackColId != null) {
+                byCol.get(fallbackColId).add(card);
             }
-            String fallbackColId = cols.isEmpty() ? null : cols.get(0).getId();
-            int unitDone = 0;
-            int unitTotal = 0;
-            for (Task t : tasks) {
-                List<ChecklistItem> cls = checklistsByTask.getOrDefault(t.getId(), List.of());
-                JiraIssueLink jiraLink = jiraLinkByTaskId.get(t.getId());
-                SprintResponse.ItemCard card = SprintResponse.ItemCard.of(
-                        t,
-                        cls,
-                        jiraLink != null ? jiraLink.getJiraIssueKey() : null,
-                        jiraLink != null ? jiraLink.getLastJiraStatusId() : null);
-                SprintColumn tc = t.getSprintColumn();
-                if (tc != null && byCol.containsKey(tc.getId())) {
-                    byCol.get(tc.getId()).add(card);
-                } else if (fallbackColId != null) {
-                    byCol.get(fallbackColId).add(card);
-                }
-                int[] u = progressUnits(cls, tc != null && tc.isEnd());
-                unitDone += u[0];
-                unitTotal += u[1];
-            }
-            columnDtos = cols.stream()
-                    .map(c -> SprintResponse.Column.of(c, byCol.get(c.getId())))
-                    .toList();
-            gauge = SprintResponse.Gauge.of(unitDone, unitTotal);
-            activeInfo = SprintResponse.SprintInfo.of(active, gauge.getPercentage());
+            int[] u = progressUnits(cls, tc != null && tc.isEnd());
+            int[] acc = unitsBySprint.computeIfAbsent(t.getSprint().getId(), k -> new int[2]);
+            acc[0] += u[0];
+            acc[1] += u[1];
+        }
+
+        List<SprintResponse.Column> columnDtos = cols.stream()
+                .map(c -> SprintResponse.Column.of(c, byCol.get(c.getId())))
+                .toList();
+
+        // 타임라인: 스프린트별 라이브 게이지(체크리스트 줄 기준) + 날짜 파생 상태
+        List<SprintResponse.SprintInfo> timeline = new ArrayList<>();
+        for (Sprint s : sprints) {
+            int[] u = unitsBySprint.getOrDefault(s.getId(), new int[2]);
+            timeline.add(SprintResponse.SprintInfo.of(s, u[0], u[1], s.stateOn(today)));
+        }
+
+        SprintResponse.SprintInfo currentInfo = null;
+        SprintResponse.Gauge gauge;
+        if (current != null) {
+            int[] u = unitsBySprint.getOrDefault(current.getId(), new int[2]);
+            gauge = SprintResponse.Gauge.of(u[0], u[1]);
+            currentInfo = SprintResponse.SprintInfo.of(current, u[0], u[1], current.stateOn(today));
         } else {
-            columnDtos = cols.stream()
-                    .map(c -> SprintResponse.Column.of(c, List.of()))
-                    .toList();
             gauge = SprintResponse.Gauge.of(0, 0);
         }
 
-        // 타임라인: 활성=위에서 잰 라이브 게이지(체크리스트 줄 기준), 아카이브=종료 시점 동결 수치
-        List<SprintResponse.SprintInfo> timeline = new ArrayList<>();
-        for (Sprint s : sprints) {
-            int pct = s.isActive()
-                    ? gauge.getPercentage()
-                    : (s.getTotalCount() > 0
-                            ? Math.round(s.getCompletedCount() * 100f / s.getTotalCount())
-                            : 0);
-            timeline.add(SprintResponse.SprintInfo.of(s, pct));
-        }
-
-        List<SprintResponse.ItemCard> backlog = taskRepository.findSprintBacklogByMilestoneId(milestoneId)
-                .stream()
+        List<SprintResponse.ItemCard> backlog = backlogTasks.stream()
                 .map(t -> SprintResponse.ItemCard.of(t, checklistsByTask.getOrDefault(t.getId(), List.of())))
                 .toList();
 
@@ -763,7 +758,7 @@ public class SprintService {
 
         return SprintResponse.Board.builder()
                 .sprintEnabled(Boolean.TRUE.equals(milestone.getSprintEnabled()))
-                .activeSprint(activeInfo)
+                .currentSprint(currentInfo)
                 .sprints(timeline)
                 .gauge(gauge)
                 .columns(columnDtos)
