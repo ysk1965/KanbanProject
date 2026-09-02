@@ -827,7 +827,11 @@
       "setDates": "기간",
       "dateStart": "시작",
       "dateEnd": "마감",
-      "clearDates": "기간 지우기"
+      "clearDates": "기간 지우기",
+      "sprintCurrent": "S{{seq}} · 현재 스프린트",
+      "sprintAddTo": "S{{seq}}에 담기",
+      "sprintToBacklog": "백로그로 이동",
+      "sprintArchivedLock": "지난 스프린트 이력은 변경할 수 없어요"
     }
   },
   "weightLevel": {

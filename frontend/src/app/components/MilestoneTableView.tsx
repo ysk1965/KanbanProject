@@ -5,29 +5,21 @@ import {
   useMemo,
   useEffect,
   useRef,
+  type ReactNode,
 } from "react";
 import { useTranslation } from "react-i18next";
 import {
   DndContext,
-  KeyboardSensor,
+  DragOverlay,
   PointerSensor,
-  closestCenter,
+  pointerWithin,
+  useDraggable,
+  useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
-import {
-  restrictToParentElement,
-  restrictToVerticalAxis,
-} from "@dnd-kit/modifiers";
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import {
   ChevronDown,
   Download,
@@ -69,6 +61,8 @@ interface MilestoneTableViewProps {
   onFeatureClick?: (feature: Feature) => void;
   /** 태스크 생성 후 보드 데이터 리로드 */
   onRefresh?: () => void;
+  /** 스프린트 담기/빼기 — 활성 스프린트가 있을 때만 전달됨 */
+  onMoveSprint?: (taskId: string, to: "active" | "backlog") => void;
 }
 
 type StatusFilter = "all" | "doing" | "open" | "sprint";
@@ -137,6 +131,7 @@ export function MilestoneTableView({
   onTaskClick,
   onFeatureClick,
   onRefresh,
+  onMoveSprint,
 }: MilestoneTableViewProps) {
   const { t } = useTranslation();
   const mid = milestone.id;
@@ -229,20 +224,29 @@ export function MilestoneTableView({
     };
   }, [boardId, canEdit]);
 
-  // 체크리스트 드래그 정렬 센서 (TaskDetailModal과 동일 설정)
+  // 체크 항목 크로스 태스크 드래그 센서
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
   );
 
   // ── 파생값 ──
+  /** 기간 기준 자동 정렬 — 시작일(없으면 마감일) 오름차순, 기간 없는 항목은 맨 아래 */
   const itemsOf = useCallback(
     (taskId: string): ChecklistItem[] =>
-      [...(checklists[taskId]?.items ?? [])].sort(
-        (a, b) => a.position - b.position,
-      ),
+      [...(checklists[taskId]?.items ?? [])].sort((a, b) => {
+        const ka = a.start_date ?? a.due_date;
+        const kb = b.start_date ?? b.due_date;
+        if (ka && kb) {
+          if (ka !== kb) return ka < kb ? -1 : 1;
+          const da = a.due_date ?? "";
+          const db = b.due_date ?? "";
+          if (da !== db) return da < db ? -1 : 1;
+          return a.position - b.position;
+        }
+        if (ka) return -1;
+        if (kb) return 1;
+        return a.position - b.position;
+      }),
     [checklists],
   );
 
@@ -526,34 +530,74 @@ export function MilestoneTableView({
     [boardId, saving],
   );
 
-  /** 체크리스트 항목 드래그 정렬 — 낙관적 갱신 후 실패 시 롤백 */
-  const handleReorder = useCallback(
-    (taskId: string, event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id) return;
-      const state = checklists[taskId];
-      if (!state?.loaded) return;
-      const sorted = [...state.items].sort((a, b) => a.position - b.position);
-      const oldIndex = sorted.findIndex((i) => i.id === active.id);
-      const newIndex = sorted.findIndex((i) => i.id === over.id);
-      if (oldIndex === -1 || newIndex === -1) return;
-      const reordered = arrayMove(sorted, oldIndex, newIndex).map(
-        (item, idx) => ({ ...item, position: idx }),
+  /** 드래그 중인 항목 (DragOverlay 고스트용) */
+  const [dragItem, setDragItem] = useState<ChecklistItem | null>(null);
+
+  const handleItemDragStart = useCallback(
+    (event: DragStartEvent) => {
+      const taskId = event.active.data.current?.taskId as string | undefined;
+      if (!taskId) return;
+      const item = checklists[taskId]?.items.find(
+        (i) => i.id === event.active.id,
       );
-      const prevItems = state.items;
-      setChecklists((prev) => ({
-        ...prev,
-        [taskId]: { ...prev[taskId], items: reordered },
-      }));
+      setDragItem(item ?? null);
+    },
+    [checklists],
+  );
+
+  /** 체크 항목 드래그 = 다른 태스크로 이동 전용 (moveToTask, 낙관적 이동/롤백) */
+  const handleItemDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      setDragItem(null);
+      const { active, over } = event;
+      if (!over) return;
+      const sourceTaskId = active.data.current?.taskId as string | undefined;
+      const overId = String(over.id);
+      if (!sourceTaskId || !overId.startsWith("cl-")) return;
+      const targetTaskId = overId.slice(3);
+      if (targetTaskId === sourceTaskId) return;
+      const item = checklists[sourceTaskId]?.items.find(
+        (i) => i.id === active.id,
+      );
+      if (!item) return;
+      const applyMove = (fromId: string, toId: string, moved: ChecklistItem) =>
+        setChecklists((prev) => {
+          const from = prev[fromId];
+          const to = prev[toId] ?? { items: [], loaded: true };
+          if (!from) return prev;
+          return {
+            ...prev,
+            [fromId]: {
+              ...from,
+              items: from.items.filter((i) => i.id !== moved.id),
+            },
+            [toId]: {
+              ...to,
+              items: [...to.items.filter((i) => i.id !== moved.id), moved],
+            },
+          };
+        });
+      applyMove(sourceTaskId, targetTaskId, item);
       checklistAPI
-        .reorderItems(boardId, taskId, {
-          item_ids: reordered.map((i) => i.id),
+        .moveToTask(boardId, sourceTaskId, item.id, {
+          target_task_id: targetTaskId,
+        })
+        .then((moved) => {
+          // 서버가 매긴 position 반영 (기간순 정렬이라 표시엔 영향 없음)
+          setChecklists((prev) => {
+            const to = prev[targetTaskId];
+            if (!to) return prev;
+            return {
+              ...prev,
+              [targetTaskId]: {
+                ...to,
+                items: to.items.map((i) => (i.id === moved.id ? moved : i)),
+              },
+            };
+          });
         })
         .catch(() => {
-          setChecklists((prev) => ({
-            ...prev,
-            [taskId]: { ...prev[taskId], items: prevItems },
-          }));
+          applyMove(targetTaskId, sourceTaskId, item);
         });
     },
     [boardId, checklists],
@@ -798,6 +842,12 @@ export function MilestoneTableView({
               })}
         </div>
       ) : (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={pointerWithin}
+          onDragStart={handleItemDragStart}
+          onDragEnd={handleItemDragEnd}
+        >
         <div
           className={`grid grid-cols-1 gap-x-4 ${
             groupColumns.length === 2 ? "2xl:grid-cols-2" : ""
@@ -947,9 +997,12 @@ export function MilestoneTableView({
                             </div>
                             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                               {sprintEnabled && (
-                                <SprintChip
+                                <SprintChipMenu
+                                  taskId={tk.id}
                                   info={sprintInfoByTask.get(tk.id)}
                                   activeSeq={activeSeq}
+                                  canMove={canEdit}
+                                  onMove={onMoveSprint}
                                 />
                               )}
                               {tk.due_date && (
@@ -969,6 +1022,7 @@ export function MilestoneTableView({
                           </td>
                           {/* 체크리스트 셀 */}
                           <td className="align-top px-4 py-3">
+                            <ItemsDropArea taskId={tk.id} enabled={canEdit}>
                             {state && !state.loaded ? (
                               <span className="text-xs text-slate-600">—</span>
                             ) : items.length === 0 &&
@@ -991,49 +1045,34 @@ export function MilestoneTableView({
                               </div>
                             ) : (
                               <div className="space-y-1">
-                                <DndContext
-                                  sensors={sensors}
-                                  collisionDetection={closestCenter}
-                                  modifiers={[
-                                    restrictToVerticalAxis,
-                                    restrictToParentElement,
-                                  ]}
-                                  onDragEnd={(e) => handleReorder(tk.id, e)}
-                                >
-                                  <SortableContext
-                                    items={items.map((i) => i.id)}
-                                    strategy={verticalListSortingStrategy}
-                                  >
-                                    {items.map((item) => (
-                                      <SortableChecklistLine
-                                        key={item.id}
-                                        item={item}
-                                        canEdit={canEdit}
-                                        members={members}
-                                        onToggle={() =>
-                                          handleToggleItem(tk.id, item)
-                                        }
-                                        onRename={(title) =>
-                                          handleRenameItem(tk.id, item, title)
-                                        }
-                                        onAssign={(m) =>
-                                          handleAssignItem(tk.id, item, m)
-                                        }
-                                        onDates={(patch) =>
-                                          handleDatesItem(tk.id, item, patch)
-                                        }
-                                        unassignedLabel={t(
-                                          "milestone.detail.unassigned",
-                                          { defaultValue: "미배정" },
-                                        )}
-                                        delayedLabel={t(
-                                          "milestone.table.delayed",
-                                          { defaultValue: "지연" },
-                                        )}
-                                      />
-                                    ))}
-                                  </SortableContext>
-                                </DndContext>
+                                {items.map((item) => (
+                                  <SortableChecklistLine
+                                    key={item.id}
+                                    item={item}
+                                    taskId={tk.id}
+                                    canEdit={canEdit}
+                                    members={members}
+                                    onToggle={() =>
+                                      handleToggleItem(tk.id, item)
+                                    }
+                                    onRename={(title) =>
+                                      handleRenameItem(tk.id, item, title)
+                                    }
+                                    onAssign={(m) =>
+                                      handleAssignItem(tk.id, item, m)
+                                    }
+                                    onDates={(patch) =>
+                                      handleDatesItem(tk.id, item, patch)
+                                    }
+                                    unassignedLabel={t(
+                                      "milestone.detail.unassigned",
+                                      { defaultValue: "미배정" },
+                                    )}
+                                    delayedLabel={t("milestone.table.delayed", {
+                                      defaultValue: "지연",
+                                    })}
+                                  />
+                                ))}
                                 {canEdit &&
                                   (addingItemFor === tk.id ? (
                                     inlineInput(
@@ -1056,6 +1095,7 @@ export function MilestoneTableView({
                                   ))}
                               </div>
                             )}
+                            </ItemsDropArea>
                           </td>
                         </tr>
                       );
@@ -1107,6 +1147,15 @@ export function MilestoneTableView({
             </div>
           ))}
         </div>
+        <DragOverlay dropAnimation={null}>
+          {dragItem ? (
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-bridge-obsidian border border-bridge-secondary/40 shadow-2xl text-xs text-foreground">
+              <GripVertical className="h-3 w-3 text-slate-500" />
+              {dragItem.title}
+            </div>
+          ) : null}
+        </DragOverlay>
+        </DndContext>
       )}
     </div>
   );
@@ -1116,9 +1165,10 @@ export function MilestoneTableView({
 // Sortable checklist line
 // ========================================
 
-/** 체크리스트 항목 한 줄 — 그립 드래그로 순서 변경 (canEdit일 때만) */
+/** 체크리스트 항목 한 줄 — 그립 드래그 = 다른 태스크로 이동 (canEdit일 때만) */
 function SortableChecklistLine({
   item,
+  taskId,
   canEdit,
   members,
   onToggle,
@@ -1129,6 +1179,7 @@ function SortableChecklistLine({
   delayedLabel,
 }: {
   item: ChecklistItem;
+  taskId: string;
   canEdit: boolean;
   members: { id: string; name: string }[];
   onToggle: () => void;
@@ -1152,21 +1203,13 @@ function SortableChecklistLine({
   const [draft, setDraft] = useState(item.title);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: item.id, disabled: !canEdit || editing });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: item.id,
+    data: { taskId },
+    disabled: !canEdit || editing,
+  });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 10 : undefined,
-  };
+  const style = { opacity: isDragging ? 0.35 : 1 };
 
   const commitRename = () => {
     setEditing(false);
@@ -1374,5 +1417,135 @@ function SortableChecklistLine({
         )}
       </div>
     </div>
+  );
+}
+
+// ========================================
+// Cross-task drop zone / Sprint chip menu
+// ========================================
+
+/** 체크 항목 드롭 존 — 다른 태스크에서 끌어온 항목을 받는다 */
+function ItemsDropArea({
+  taskId,
+  enabled,
+  children,
+}: {
+  taskId: string;
+  enabled: boolean;
+  children: ReactNode;
+}) {
+  const { setNodeRef, isOver, active } = useDroppable({
+    id: `cl-${taskId}`,
+    disabled: !enabled,
+  });
+  const highlight = isOver && active?.data.current?.taskId !== taskId;
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded-lg transition-shadow ${
+        highlight
+          ? "ring-1 ring-bridge-secondary/60 bg-bridge-secondary/[0.06]"
+          : ""
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** 스프린트 칩 + 이동 메뉴 — 백로그 ↔ 현재 스프린트, 지난 스프린트(S✓)는 변경 불가 */
+function SprintChipMenu({
+  taskId,
+  info,
+  activeSeq,
+  canMove,
+  onMove,
+}: {
+  taskId: string;
+  info: TaskSprintInfo | undefined;
+  activeSeq: number | null;
+  canMove: boolean;
+  onMove?: (taskId: string, to: "active" | "backlog") => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const interactive = canMove && !!onMove && info?.status !== "ARCHIVED";
+
+  if (!interactive) {
+    return (
+      <span
+        title={
+          info?.status === "ARCHIVED"
+            ? t("milestone.table.sprintArchivedLock", {
+                defaultValue: "지난 스프린트 이력은 변경할 수 없어요",
+              })
+            : undefined
+        }
+      >
+        <SprintChip info={info} activeSeq={activeSeq} />
+      </span>
+    );
+  }
+
+  const isActive = info?.status === "ACTIVE";
+  const seq = info?.seq ?? activeSeq ?? "?";
+  return (
+    <span className="relative inline-flex">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="cursor-pointer hover:opacity-80 transition-opacity"
+      >
+        <SprintChip info={info} activeSeq={activeSeq} />
+      </button>
+      {open && (
+        <>
+          <span
+            className="fixed inset-0 z-30 block"
+            onClick={() => setOpen(false)}
+          />
+          <span className="absolute top-full left-0 mt-1 z-40 w-44 bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1.5 block">
+            <button
+              onClick={() => {
+                if (!isActive) onMove!(taskId, "active");
+                setOpen(false);
+              }}
+              className={`w-full px-3 py-1.5 text-left text-xs block transition-colors ${
+                isActive
+                  ? "text-bridge-accent font-bold bg-bridge-accent/10"
+                  : "text-foreground hover:bg-foreground/5"
+              }`}
+            >
+              {isActive
+                ? t("milestone.table.sprintCurrent", {
+                    seq,
+                    defaultValue: "S{{seq}} · 현재 스프린트",
+                  })
+                : t("milestone.table.sprintAddTo", {
+                    seq: activeSeq ?? "?",
+                    defaultValue: "S{{seq}}에 담기",
+                  })}
+            </button>
+            <button
+              onClick={() => {
+                if (isActive) onMove!(taskId, "backlog");
+                setOpen(false);
+              }}
+              className={`w-full px-3 py-1.5 text-left text-xs block transition-colors ${
+                !isActive
+                  ? "text-bridge-accent font-bold bg-bridge-accent/10"
+                  : "text-foreground hover:bg-foreground/5"
+              }`}
+            >
+              {isActive
+                ? t("milestone.table.sprintToBacklog", {
+                    defaultValue: "백로그로 이동",
+                  })
+                : t("milestone.detail.backlog", { defaultValue: "백로그" })}
+            </button>
+          </span>
+        </>
+      )}
+    </span>
   );
 }

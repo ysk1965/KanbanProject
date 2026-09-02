@@ -826,7 +826,11 @@
       "setDates": "Dates",
       "dateStart": "Start",
       "dateEnd": "Due",
-      "clearDates": "Clear dates"
+      "clearDates": "Clear dates",
+      "sprintCurrent": "S{{seq}} · Current sprint",
+      "sprintAddTo": "Add to S{{seq}}",
+      "sprintToBacklog": "Move to backlog",
+      "sprintArchivedLock": "Past sprint history cannot be changed"
     }
   },
   "weightLevel": {

@@ -518,6 +518,24 @@ export function MilestoneDetailView({
     return map;
   }, [sprintBoard]);
 
+  // 스프린트 담기/빼기 — 응답 보드로 칩 상태 즉시 갱신 (테이블 뷰에서 사용)
+  const activeSprintId = sprintBoard?.active_sprint?.id ?? null;
+  const handleMoveSprint = useCallback(
+    (taskId: string, to: "active" | "backlog") => {
+      if (!activeSprintId) return;
+      const call =
+        to === "active"
+          ? sprintAPI.addTask(boardId, activeSprintId, taskId)
+          : sprintAPI.removeTask(boardId, activeSprintId, taskId);
+      call
+        .then((board) => setSprintBoard(board))
+        .catch(() => {
+          /* 실패 시 칩 원상태 유지 */
+        });
+    },
+    [boardId, activeSprintId],
+  );
+
   // ── 컬럼 구성 ──
   interface Column {
     key: string;
@@ -1000,6 +1018,7 @@ export function MilestoneDetailView({
             onTaskClick={onTaskClick}
             onFeatureClick={onFeatureClick}
             onRefresh={onRefresh}
+            onMoveSprint={activeSprintId ? handleMoveSprint : undefined}
           />
         ) : scopedTotal === 0 ? (
           <div className="flex flex-col items-center py-12 text-slate-500">
