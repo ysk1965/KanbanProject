@@ -73,7 +73,7 @@ interface MilestoneTableViewProps {
   onMoveSprint?: (taskId: string, toSprintId: string | null) => void;
 }
 
-type StatusFilter = "all" | "doing" | "open" | "sprint";
+type StatusFilter = "all" | "doing" | "open";
 type TaskStatus = "done" | "doing" | "todo";
 
 interface ChecklistState {
@@ -152,6 +152,9 @@ export function MilestoneTableView({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
+  /** 스프린트 필터 — sprint id, "none" = 미배정(백로그), null = 전체 */
+  const [sprintFilter, setSprintFilter] = useState<string | null>(null);
+  const [sprintOpen, setSprintOpen] = useState(false);
   /** 인라인 입력 활성 위치 — 태스크 추가(featureId) / 항목 추가(taskId) */
   const [addingTaskFor, setAddingTaskFor] = useState<string | null>(null);
   const [addingItemFor, setAddingItemFor] = useState<string | null>(null);
@@ -165,6 +168,8 @@ export function MilestoneTableView({
     setStatusFilter("all");
     setAssigneeFilter(null);
     setAssigneeOpen(false);
+    setSprintFilter(null);
+    setSprintOpen(false);
     setAddingTaskFor(null);
     setAddingItemFor(null);
   }, [mid]);
@@ -289,11 +294,15 @@ export function MilestoneTableView({
     (tk: Task): boolean => {
       if (statusFilter === "doing" && statusOf(tk) !== "doing") return false;
       if (statusFilter === "open" && tk.completed) return false;
-      if (
-        statusFilter === "sprint" &&
-        sprintInfoByTask.get(tk.id)?.state !== "CURRENT"
-      )
-        return false;
+      if (sprintFilter) {
+        const sprintId = sprintInfoByTask.get(tk.id)?.sprintId ?? null;
+        if (
+          sprintFilter === "none"
+            ? sprintId !== null
+            : sprintId !== sprintFilter
+        )
+          return false;
+      }
       if (assigneeFilter) {
         const inTask = (tk.assignees ?? []).some(
           (a) => a.id === assigneeFilter,
@@ -305,7 +314,14 @@ export function MilestoneTableView({
       }
       return true;
     },
-    [statusFilter, assigneeFilter, statusOf, sprintInfoByTask, checklists],
+    [
+      statusFilter,
+      assigneeFilter,
+      sprintFilter,
+      statusOf,
+      sprintInfoByTask,
+      checklists,
+    ],
   );
 
   /** 피처 그룹 — 완료율 높은 순 (보드 컬럼과 동일 규칙) */
@@ -363,7 +379,8 @@ export function MilestoneTableView({
     return result;
   }, [tasks, featureById, taskMatches, checklists]);
 
-  const isFiltered = statusFilter !== "all" || assigneeFilter !== null;
+  const isFiltered =
+    statusFilter !== "all" || assigneeFilter !== null || sprintFilter !== null;
   const visibleGroups = isFiltered
     ? groups.filter((g) => g.visibleTasks.length > 0)
     : groups;
@@ -706,16 +723,6 @@ export function MilestoneTableView({
       key: "open",
       label: t("milestone.table.filterOpen", { defaultValue: "미완료만" }),
     },
-    ...(sprintEnabled
-      ? [
-          {
-            key: "sprint" as const,
-            label: t("milestone.table.filterActiveSprint", {
-              defaultValue: "현재 스프린트만",
-            }),
-          },
-        ]
-      : []),
   ];
 
   const inlineInput = (
@@ -744,6 +751,20 @@ export function MilestoneTableView({
     ? (assigneeOptions.find((a) => a.id === assigneeFilter)?.name ?? "")
     : null;
 
+  const sprintFilterLabel =
+    sprintFilter === "none"
+      ? t("milestone.table.sprintUnassigned", { defaultValue: "미배정" })
+      : sprintFilter
+        ? (sprints.find((s) => s.id === sprintFilter)?.name ?? "")
+        : null;
+
+  const sprintStateLabel = (state: SprintInfo["state"]) =>
+    state === "CURRENT"
+      ? t("milestone.table.sprintCurrentMark", { defaultValue: "진행 중" })
+      : state === "PAST"
+        ? t("milestone.table.sprintPastMark", { defaultValue: "지남" })
+        : t("milestone.table.sprintUpcoming", { defaultValue: "예정" });
+
   return (
     <div>
       {/* ── 필터 툴바 ── */}
@@ -761,6 +782,91 @@ export function MilestoneTableView({
             {chip.label}
           </button>
         ))}
+
+        {/* 스프린트 필터 — 버킷 단위로 걸러 본다 (미배정 포함) */}
+        {sprintEnabled && sprints.length > 0 && (
+          <div className="relative">
+            <button
+              onClick={() => setSprintOpen((v) => !v)}
+              aria-expanded={sprintOpen}
+              className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                sprintFilter
+                  ? "bg-bridge-accent/15 border-bridge-accent/40 text-bridge-accent font-bold"
+                  : "bg-foreground/[0.03] border-foreground/10 text-slate-400 hover:text-foreground"
+              }`}
+            >
+              {sprintFilterLabel ??
+                t("milestone.table.filterSprint", { defaultValue: "스프린트" })}
+              <ChevronDown className="h-3 w-3" />
+            </button>
+            {sprintOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setSprintOpen(false)}
+                />
+                <div className="absolute top-full left-0 mt-1.5 z-40 w-52 max-h-56 overflow-y-auto custom-scrollbar bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1.5">
+                  <button
+                    onClick={() => {
+                      setSprintFilter(null);
+                      setSprintOpen(false);
+                    }}
+                    className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
+                      sprintFilter === null
+                        ? "text-bridge-accent font-bold bg-bridge-accent/10"
+                        : "text-foreground hover:bg-foreground/5"
+                    }`}
+                  >
+                    {t("milestone.table.filterAll", { defaultValue: "전체" })}
+                  </button>
+                  {sprints.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => {
+                        setSprintFilter(s.id);
+                        setSprintOpen(false);
+                      }}
+                      className={`w-full px-3 py-1.5 text-left text-xs truncate transition-colors flex items-center gap-2 ${
+                        sprintFilter === s.id
+                          ? "text-bridge-accent font-bold bg-bridge-accent/10"
+                          : "text-foreground hover:bg-foreground/5"
+                      }`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          s.state === "CURRENT"
+                            ? "bg-bridge-accent"
+                            : s.state === "PAST"
+                              ? "bg-emerald-500"
+                              : "bg-slate-600"
+                        }`}
+                      />
+                      <span className="truncate">{s.name}</span>
+                      <span className="ml-auto text-slate-500 shrink-0">
+                        {sprintStateLabel(s.state)}
+                      </span>
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => {
+                      setSprintFilter("none");
+                      setSprintOpen(false);
+                    }}
+                    className={`w-full px-3 py-1.5 text-left text-xs transition-colors border-t border-foreground/[0.06] mt-1 pt-2 ${
+                      sprintFilter === "none"
+                        ? "text-bridge-accent font-bold bg-bridge-accent/10"
+                        : "text-slate-400 hover:bg-foreground/5 hover:text-foreground"
+                    }`}
+                  >
+                    {t("milestone.table.sprintUnassigned", {
+                      defaultValue: "미배정",
+                    })}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* 담당자 필터 */}
         <div className="relative">
@@ -853,314 +959,327 @@ export function MilestoneTableView({
           onDragStart={handleItemDragStart}
           onDragEnd={handleItemDragEnd}
         >
-        <div
-          className={`grid grid-cols-1 gap-x-4 ${
-            groupColumns.length === 2 ? "2xl:grid-cols-2" : ""
-          }`}
-        >
-          {groupColumns.map((colGroups, colIdx) => (
-            <div key={colIdx} className="overflow-x-auto custom-scrollbar">
-              <table className="w-full min-w-[560px] border-collapse">
-                <thead
-                  className={
-                    colIdx === 1 ? "hidden 2xl:table-header-group" : undefined
-                  }
-                >
-                  <tr className="border-b border-bridge-border">
-                    <th className="w-[21%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
-                      {t("milestone.table.colFeature", {
-                        defaultValue: "피처",
-                      })}
-                    </th>
-                    <th className="w-[25%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
-                      {t("milestone.table.colTask", { defaultValue: "태스크" })}
-                    </th>
-                    <th className="w-[54%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
-                      {t("milestone.table.colChecklist", {
-                        defaultValue: "체크리스트",
-                      })}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {colGroups.map((g) => {
-                    const pct =
-                      g.progressTotal > 0
-                        ? Math.round((g.progressDone / g.progressTotal) * 100)
-                        : 0;
-                    const showAddRow = canEdit;
-                    const span =
-                      g.visibleTasks.length + (showAddRow ? 1 : 0) || 1;
-                    const isHome = homeByFeature.get(g.featureId) === mid;
+          <div
+            className={`grid grid-cols-1 gap-x-4 ${
+              groupColumns.length === 2 ? "2xl:grid-cols-2" : ""
+            }`}
+          >
+            {groupColumns.map((colGroups, colIdx) => (
+              <div key={colIdx} className="overflow-x-auto custom-scrollbar">
+                <table className="w-full min-w-[560px] border-collapse">
+                  <thead
+                    className={
+                      colIdx === 1 ? "hidden 2xl:table-header-group" : undefined
+                    }
+                  >
+                    <tr className="border-b border-bridge-border">
+                      <th className="w-[21%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
+                        {t("milestone.table.colFeature", {
+                          defaultValue: "피처",
+                        })}
+                      </th>
+                      <th className="w-[25%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
+                        {t("milestone.table.colTask", {
+                          defaultValue: "태스크",
+                        })}
+                      </th>
+                      <th className="w-[54%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
+                        {t("milestone.table.colChecklist", {
+                          defaultValue: "체크리스트",
+                        })}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {colGroups.map((g) => {
+                      const pct =
+                        g.progressTotal > 0
+                          ? Math.round((g.progressDone / g.progressTotal) * 100)
+                          : 0;
+                      const showAddRow = canEdit;
+                      const span =
+                        g.visibleTasks.length + (showAddRow ? 1 : 0) || 1;
+                      const isHome = homeByFeature.get(g.featureId) === mid;
 
-                    const featureCell = (
-                      <td
-                        rowSpan={span}
-                        className="align-top px-4 py-3 bg-foreground/[0.03] border-r border-foreground/[0.08]"
-                      >
-                        <div
-                          className={`flex items-center gap-2${
-                            g.feature && onFeatureClick
-                              ? " cursor-pointer group/f"
-                              : ""
-                          }`}
-                          onClick={
-                            g.feature && onFeatureClick
-                              ? () => onFeatureClick(g.feature!)
-                              : undefined
-                          }
+                      const featureCell = (
+                        <td
+                          rowSpan={span}
+                          className="align-top px-4 py-3 bg-foreground/[0.03] border-r border-foreground/[0.08]"
                         >
-                          {g.color && (
-                            <span
-                              className="w-2 h-2 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: g.color }}
-                            />
-                          )}
-                          <span className="text-xs font-bold text-foreground group-hover/f:text-bridge-accent transition-colors break-words">
-                            {g.title}
-                          </span>
-                        </div>
-                        {isHome && (
-                          <span className="inline-block mt-1.5 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
-                            {t("milestone.table.homeMilestone", {
-                              defaultValue: "기본 마일스톤",
-                            })}
-                          </span>
-                        )}
-                        <div className="flex items-center gap-2 mt-2.5">
-                          <div className="flex-1 max-w-[110px] h-1 rounded-full bg-foreground/10 overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${
-                                pct === 100
-                                  ? "bg-emerald-500"
-                                  : "bg-bridge-accent"
-                              }`}
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                          <span className="text-xs text-slate-400 tabular-nums whitespace-nowrap">
-                            <b className="text-foreground font-bold">
-                              {g.progressDone}/{g.progressTotal}
-                            </b>{" "}
-                            · {pct}%
-                          </span>
-                        </div>
-                      </td>
-                    );
-
-                    const rows = g.visibleTasks.map((tk, i) => {
-                      const items = itemsOf(tk.id);
-                      const state = checklists[tk.id];
-                      const dueOver =
-                        !tk.completed &&
-                        !!tk.due_date &&
-                        daysUntil(tk.due_date) < 0;
-                      return (
-                        <tr
-                          key={tk.id}
-                          className={`border-b border-foreground/[0.05]${
-                            i === 0
-                              ? " border-t border-t-foreground/[0.12]"
-                              : ""
-                          }`}
-                        >
-                          {i === 0 && featureCell}
-                          {/* 태스크 셀 */}
-                          <td className="align-top px-4 py-3 border-r border-foreground/[0.08]">
-                            <div className="flex items-baseline gap-1.5">
+                          <div
+                            className={`flex items-center gap-2${
+                              g.feature && onFeatureClick
+                                ? " cursor-pointer group/f"
+                                : ""
+                            }`}
+                            onClick={
+                              g.feature && onFeatureClick
+                                ? () => onFeatureClick(g.feature!)
+                                : undefined
+                            }
+                          >
+                            {g.color && (
                               <span
-                                className={`text-xs flex-shrink-0 ${
-                                  tk.completed
-                                    ? "text-emerald-500"
-                                    : "text-slate-400"
-                                }`}
-                              >
-                                {tk.completed
-                                  ? "✓"
-                                  : statusOf(tk) === "doing"
-                                    ? "◐"
-                                    : "○"}
-                              </span>
-                              <span
-                                onClick={
-                                  onTaskClick
-                                    ? () => onTaskClick(tk)
-                                    : undefined
-                                }
-                                className={`text-xs font-medium break-words ${
-                                  tk.completed
-                                    ? "text-slate-500 line-through"
-                                    : "text-foreground"
-                                }${
-                                  onTaskClick
-                                    ? " cursor-pointer hover:text-bridge-accent hover:underline"
-                                    : ""
-                                }`}
-                              >
-                                {tk.title}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                              {sprintEnabled && (
-                                <SprintChipMenu
-                                  taskId={tk.id}
-                                  info={sprintInfoByTask.get(tk.id)}
-                                  sprints={sprints}
-                                  currentSeq={currentSeq}
-                                  canMove={canEdit}
-                                  onMove={onMoveSprint}
-                                />
-                              )}
-                              {tk.due_date && (
-                                <span
-                                  className={`text-xs tabular-nums ml-auto whitespace-nowrap ${
-                                    dueOver
-                                      ? "font-bold text-red-500"
-                                      : "text-slate-500"
-                                  }`}
-                                >
-                                  {tk.completed
-                                    ? `${toShortDate(tk.due_date)} ✓`
-                                    : `~${toShortDate(tk.due_date)}`}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          {/* 체크리스트 셀 */}
-                          <td className="align-top px-4 py-3">
-                            <ItemsDropArea taskId={tk.id} enabled={canEdit}>
-                            {state && !state.loaded ? (
-                              <span className="text-xs text-slate-600">—</span>
-                            ) : items.length === 0 &&
-                              addingItemFor !== tk.id ? (
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-600">
-                                  —
-                                </span>
-                                {canEdit && (
-                                  <button
-                                    onClick={() => setAddingItemFor(tk.id)}
-                                    className="flex items-center gap-1 text-xs text-slate-500 hover:text-bridge-secondary transition-colors"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                    {t("milestone.table.addItem", {
-                                      defaultValue: "항목 추가",
-                                    })}
-                                  </button>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="space-y-1">
-                                {items.map((item) => (
-                                  <SortableChecklistLine
-                                    key={item.id}
-                                    item={item}
-                                    taskId={tk.id}
-                                    canEdit={canEdit}
-                                    members={members}
-                                    onToggle={() =>
-                                      handleToggleItem(tk.id, item)
-                                    }
-                                    onRename={(title) =>
-                                      handleRenameItem(tk.id, item, title)
-                                    }
-                                    onAssign={(m) =>
-                                      handleAssignItem(tk.id, item, m)
-                                    }
-                                    onDates={(patch) =>
-                                      handleDatesItem(tk.id, item, patch)
-                                    }
-                                    unassignedLabel={t(
-                                      "milestone.detail.unassigned",
-                                      { defaultValue: "미배정" },
-                                    )}
-                                    delayedLabel={t("milestone.table.delayed", {
-                                      defaultValue: "지연",
-                                    })}
-                                  />
-                                ))}
-                                {canEdit &&
-                                  (addingItemFor === tk.id ? (
-                                    inlineInput(
-                                      t("milestone.table.addItemPlaceholder", {
-                                        defaultValue: "체크 항목 입력 후 Enter",
-                                      }),
-                                      (v) => void handleAddItem(tk.id, v),
-                                      () => setAddingItemFor(null),
-                                    )
-                                  ) : (
-                                    <button
-                                      onClick={() => setAddingItemFor(tk.id)}
-                                      className="flex items-center gap-1 text-xs text-slate-500 hover:text-bridge-secondary transition-colors pt-0.5"
-                                    >
-                                      <Plus className="h-3 w-3" />
-                                      {t("milestone.table.addItem", {
-                                        defaultValue: "항목 추가",
-                                      })}
-                                    </button>
-                                  ))}
-                              </div>
+                                className="w-2 h-2 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: g.color }}
+                              />
                             )}
-                            </ItemsDropArea>
-                          </td>
-                        </tr>
+                            <span className="text-xs font-bold text-foreground group-hover/f:text-bridge-accent transition-colors break-words">
+                              {g.title}
+                            </span>
+                          </div>
+                          {isHome && (
+                            <span className="inline-block mt-1.5 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+                              {t("milestone.table.homeMilestone", {
+                                defaultValue: "기본 마일스톤",
+                              })}
+                            </span>
+                          )}
+                          <div className="flex items-center gap-2 mt-2.5">
+                            <div className="flex-1 max-w-[110px] h-1 rounded-full bg-foreground/10 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${
+                                  pct === 100
+                                    ? "bg-emerald-500"
+                                    : "bg-bridge-accent"
+                                }`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-slate-400 tabular-nums whitespace-nowrap">
+                              <b className="text-foreground font-bold">
+                                {g.progressDone}/{g.progressTotal}
+                              </b>{" "}
+                              · {pct}%
+                            </span>
+                          </div>
+                        </td>
                       );
-                    });
 
-                    return (
-                      <Fragment key={g.featureId}>
-                        {rows}
-                        {showAddRow && (
+                      const rows = g.visibleTasks.map((tk, i) => {
+                        const items = itemsOf(tk.id);
+                        const state = checklists[tk.id];
+                        const dueOver =
+                          !tk.completed &&
+                          !!tk.due_date &&
+                          daysUntil(tk.due_date) < 0;
+                        return (
                           <tr
+                            key={tk.id}
                             className={`border-b border-foreground/[0.05]${
-                              g.visibleTasks.length === 0
+                              i === 0
                                 ? " border-t border-t-foreground/[0.12]"
                                 : ""
                             }`}
                           >
-                            {g.visibleTasks.length === 0 && featureCell}
-                            <td colSpan={2} className="px-4 py-2">
-                              {addingTaskFor === g.featureId ? (
-                                inlineInput(
-                                  t("milestone.table.addTaskPlaceholder", {
-                                    defaultValue: "태스크 이름 입력 후 Enter",
-                                  }),
-                                  (v) => void handleAddTask(g.featureId, v),
-                                  () => setAddingTaskFor(null),
-                                )
-                              ) : (
-                                <button
-                                  onClick={() => {
-                                    setAddingItemFor(null);
-                                    setAddingTaskFor(g.featureId);
-                                  }}
-                                  className="flex items-center gap-1 text-xs text-slate-500 hover:text-bridge-accent transition-colors"
+                            {i === 0 && featureCell}
+                            {/* 태스크 셀 */}
+                            <td className="align-top px-4 py-3 border-r border-foreground/[0.08]">
+                              <div className="flex items-baseline gap-1.5">
+                                <span
+                                  className={`text-xs flex-shrink-0 ${
+                                    tk.completed
+                                      ? "text-emerald-500"
+                                      : "text-slate-400"
+                                  }`}
                                 >
-                                  <Plus className="h-3 w-3" />
-                                  {t("milestone.table.addTask", {
-                                    defaultValue: "태스크 추가",
-                                  })}
-                                </button>
-                              )}
+                                  {tk.completed
+                                    ? "✓"
+                                    : statusOf(tk) === "doing"
+                                      ? "◐"
+                                      : "○"}
+                                </span>
+                                <span
+                                  onClick={
+                                    onTaskClick
+                                      ? () => onTaskClick(tk)
+                                      : undefined
+                                  }
+                                  className={`text-xs font-medium break-words ${
+                                    tk.completed
+                                      ? "text-slate-500 line-through"
+                                      : "text-foreground"
+                                  }${
+                                    onTaskClick
+                                      ? " cursor-pointer hover:text-bridge-accent hover:underline"
+                                      : ""
+                                  }`}
+                                >
+                                  {tk.title}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                                {sprintEnabled && (
+                                  <SprintChipMenu
+                                    taskId={tk.id}
+                                    info={sprintInfoByTask.get(tk.id)}
+                                    sprints={sprints}
+                                    currentSeq={currentSeq}
+                                    canMove={canEdit}
+                                    onMove={onMoveSprint}
+                                  />
+                                )}
+                                {tk.due_date && (
+                                  <span
+                                    className={`text-xs tabular-nums ml-auto whitespace-nowrap ${
+                                      dueOver
+                                        ? "font-bold text-red-500"
+                                        : "text-slate-500"
+                                    }`}
+                                  >
+                                    {tk.completed
+                                      ? `${toShortDate(tk.due_date)} ✓`
+                                      : `~${toShortDate(tk.due_date)}`}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            {/* 체크리스트 셀 */}
+                            <td className="align-top px-4 py-3">
+                              <ItemsDropArea taskId={tk.id} enabled={canEdit}>
+                                {state && !state.loaded ? (
+                                  <span className="text-xs text-slate-600">
+                                    —
+                                  </span>
+                                ) : items.length === 0 &&
+                                  addingItemFor !== tk.id ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-slate-600">
+                                      —
+                                    </span>
+                                    {canEdit && (
+                                      <button
+                                        onClick={() => setAddingItemFor(tk.id)}
+                                        className="flex items-center gap-1 text-xs text-slate-500 hover:text-bridge-secondary transition-colors"
+                                      >
+                                        <Plus className="h-3 w-3" />
+                                        {t("milestone.table.addItem", {
+                                          defaultValue: "항목 추가",
+                                        })}
+                                      </button>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="space-y-1">
+                                    {items.map((item) => (
+                                      <SortableChecklistLine
+                                        key={item.id}
+                                        item={item}
+                                        taskId={tk.id}
+                                        canEdit={canEdit}
+                                        members={members}
+                                        onToggle={() =>
+                                          handleToggleItem(tk.id, item)
+                                        }
+                                        onRename={(title) =>
+                                          handleRenameItem(tk.id, item, title)
+                                        }
+                                        onAssign={(m) =>
+                                          handleAssignItem(tk.id, item, m)
+                                        }
+                                        onDates={(patch) =>
+                                          handleDatesItem(tk.id, item, patch)
+                                        }
+                                        unassignedLabel={t(
+                                          "milestone.detail.unassigned",
+                                          { defaultValue: "미배정" },
+                                        )}
+                                        delayedLabel={t(
+                                          "milestone.table.delayed",
+                                          {
+                                            defaultValue: "지연",
+                                          },
+                                        )}
+                                      />
+                                    ))}
+                                    {canEdit &&
+                                      (addingItemFor === tk.id ? (
+                                        inlineInput(
+                                          t(
+                                            "milestone.table.addItemPlaceholder",
+                                            {
+                                              defaultValue:
+                                                "체크 항목 입력 후 Enter",
+                                            },
+                                          ),
+                                          (v) => void handleAddItem(tk.id, v),
+                                          () => setAddingItemFor(null),
+                                        )
+                                      ) : (
+                                        <button
+                                          onClick={() =>
+                                            setAddingItemFor(tk.id)
+                                          }
+                                          className="flex items-center gap-1 text-xs text-slate-500 hover:text-bridge-secondary transition-colors pt-0.5"
+                                        >
+                                          <Plus className="h-3 w-3" />
+                                          {t("milestone.table.addItem", {
+                                            defaultValue: "항목 추가",
+                                          })}
+                                        </button>
+                                      ))}
+                                  </div>
+                                )}
+                              </ItemsDropArea>
                             </td>
                           </tr>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ))}
-        </div>
-        <DragOverlay dropAnimation={null}>
-          {dragItem ? (
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-bridge-obsidian border border-bridge-secondary/40 shadow-2xl text-xs text-foreground">
-              <GripVertical className="h-3 w-3 text-slate-500" />
-              {dragItem.title}
-            </div>
-          ) : null}
-        </DragOverlay>
+                        );
+                      });
+
+                      return (
+                        <Fragment key={g.featureId}>
+                          {rows}
+                          {showAddRow && (
+                            <tr
+                              className={`border-b border-foreground/[0.05]${
+                                g.visibleTasks.length === 0
+                                  ? " border-t border-t-foreground/[0.12]"
+                                  : ""
+                              }`}
+                            >
+                              {g.visibleTasks.length === 0 && featureCell}
+                              <td colSpan={2} className="px-4 py-2">
+                                {addingTaskFor === g.featureId ? (
+                                  inlineInput(
+                                    t("milestone.table.addTaskPlaceholder", {
+                                      defaultValue: "태스크 이름 입력 후 Enter",
+                                    }),
+                                    (v) => void handleAddTask(g.featureId, v),
+                                    () => setAddingTaskFor(null),
+                                  )
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setAddingItemFor(null);
+                                      setAddingTaskFor(g.featureId);
+                                    }}
+                                    className="flex items-center gap-1 text-xs text-slate-500 hover:text-bridge-accent transition-colors"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                    {t("milestone.table.addTask", {
+                                      defaultValue: "태스크 추가",
+                                    })}
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+          <DragOverlay dropAnimation={null}>
+            {dragItem ? (
+              <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-bridge-obsidian border border-bridge-secondary/40 shadow-2xl text-xs text-foreground">
+                <GripVertical className="h-3 w-3 text-slate-500" />
+                {dragItem.title}
+              </div>
+            ) : null}
+          </DragOverlay>
         </DndContext>
       )}
     </div>
