@@ -16,16 +16,16 @@ interface SprintSegmentBarProps {
   milestoneEnd: string | null;
   sprints: SprintInfo[];
   selectedSprintId: string | null;
-  /** 스프린트 id → END에 닿지 못한 태스크 수. 지난 세그먼트의 "미완료 N" 칩 근거. */
+  /** 스프린트 id → END에 닿지 못한 태스크 수. 지난 세그먼트의 미완료 도트 근거. */
   unfinishedBySprint: Record<string, number>;
   onSelect: (sprintId: string) => void;
 }
 
 /**
- * 세그먼트 스프린트 바 — 마일스톤 기간 하나가 트랙이고, 분할된 버킷이 기간 비례 폭의
- * 세그먼트로 나뉜다. 종료 버튼이 사라진 자리를 대신하는 이 화면의 시간 축이다.
+ * 원라인 세그먼트 스프린트 바 — 마일스톤 라벨과 기간 비례 미니 세그먼트 트랙을 한 줄에 담는다.
+ * 상세 수치·액션은 이 컴포넌트 바깥(같은 행의 우측)이 맡고, 여기는 "지금 어디쯤"의 공간감만 책임진다.
  *  · 지남(PAST)은 에메랄드로 가라앉고, 진행중(CURRENT)만 액센트로 빛나며, 예정(FUTURE)은 윤곽만 남는다.
- *  · 세그먼트 클릭 = 보드 스코프 전환(선택). 선택은 상태와 별개로 액센트 링으로 표시한다.
+ *  · 세그먼트 클릭 = 보드 스코프 전환. 상세(기간·진척 전체)는 세그먼트 tooltip으로 내려간다.
  */
 export function SprintSegmentBar({
   milestoneTitle,
@@ -77,45 +77,39 @@ export function SprintSegmentBar({
     return ((offset + 0.5) / span.days) * 100;
   }, [span]);
 
+  const single = sprints.length === 1;
+
   return (
-    <div className="flex flex-col gap-2">
-      {/* 마일스톤 행 — 이름·기간·전체 진척. 세그먼트는 이 기간을 나눈 것이다. */}
-      <div className="flex items-baseline gap-2.5 flex-wrap">
-        <Flag className="w-3.5 h-3.5 text-bridge-accent shrink-0 self-center" />
-        <span className="text-sm font-bold tracking-tight text-foreground truncate max-w-[40ch]">
+    <div className="flex items-center gap-3 min-w-0 flex-1">
+      {/* 마일스톤 라벨 — 기간·전체 진척은 tooltip과 넓은 화면의 보조 텍스트로 */}
+      <span
+        className="flex items-center gap-1.5 shrink-0 min-w-0"
+        title={
+          span.start && span.end
+            ? `${milestoneTitle} · ${formatMD(span.start)}–${formatMD(span.end)} · ${span.days}일 · 전체 ${totals.pct}% (${totals.done}/${totals.total})`
+            : milestoneTitle
+        }
+      >
+        <Flag className="w-3.5 h-3.5 text-bridge-accent shrink-0" />
+        <span className="text-xs font-bold tracking-tight text-foreground truncate max-w-[18ch]">
           {milestoneTitle}
         </span>
-        {span.start && span.end && (
-          <span className="text-xs text-slate-500 tabular-nums whitespace-nowrap">
-            {formatMD(span.start)} – {formatMD(span.end)} · {span.days}일
-          </span>
-        )}
-        <span className="flex-1" />
-        <span className="text-xs text-slate-500 whitespace-nowrap">
-          마일스톤 전체{" "}
-          <span className="text-sm font-bold text-foreground tabular-nums">
-            {totals.pct}%
-          </span>{" "}
-          <span className="tabular-nums">
-            · 체크리스트 {totals.done} / {totals.total}
-          </span>
+        <span className="hidden xl:inline text-xs text-slate-500 tabular-nums whitespace-nowrap">
+          전체 {totals.pct}%
         </span>
-      </div>
+      </span>
 
-      {/* 트랙 — 세그먼트 폭은 기간 비례(flex-grow), 오늘은 세로 점선으로 가로지른다 */}
-      <div className="relative pt-4">
+      {/* 미니 트랙 — 세그먼트 폭은 기간 비례(flex-grow), 오늘은 세로 점선 틱 */}
+      <div className="relative flex-1 min-w-[160px]">
         {todayPct !== null && (
           <div
-            className="absolute top-0 bottom-0 z-[3] border-l-2 border-dashed border-bridge-secondary pointer-events-none"
+            className="absolute -top-1 -bottom-1 z-[3] border-l-2 border-dashed border-bridge-secondary pointer-events-none"
             style={{ left: `${todayPct}%` }}
+            title="오늘"
             aria-hidden
-          >
-            <span className="absolute -top-0.5 -left-4 px-1.5 rounded-md bg-bridge-secondary text-bridge-dark text-xs font-bold whitespace-nowrap">
-              오늘
-            </span>
-          </div>
+          />
         )}
-        <div className="flex items-stretch gap-1.5">
+        <div className="flex items-stretch gap-1">
           {sprints.map((s) => {
             const start = parseDay(s.start_date);
             const end = parseDay(s.end_date);
@@ -129,19 +123,30 @@ export function SprintSegmentBar({
                 : s.state === "PAST"
                   ? "지남"
                   : "예정";
+            const shortName = single ? s.name : `S${s.sequence_no}`;
+            const tip = [
+              s.name,
+              stateLabel,
+              start && end ? `${formatMD(start)}–${formatMD(end)}` : null,
+              `${pct}% (${s.done}/${s.total})`,
+              s.state === "PAST" && unfinished > 0
+                ? `미완료 ${unfinished}개`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ");
             return (
               <button
                 key={s.id}
                 type="button"
                 onClick={() => onSelect(s.id)}
                 aria-pressed={selected}
-                aria-label={`${s.name} · ${stateLabel} · ${
-                  start && end ? `${formatMD(start)}부터 ${formatMD(end)}까지` : ""
-                } ${pct}%`}
+                aria-label={tip}
+                title={tip}
                 style={{ flexGrow: days, flexBasis: 0 }}
-                className={`group relative min-w-0 overflow-hidden rounded-xl border p-2.5 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                className={`relative h-8 min-w-0 overflow-hidden rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
                   selected
-                    ? "border-bridge-accent shadow-[0_0_0_1px_var(--bridge-accent),0_0_24px_rgba(99,102,241,0.18)]"
+                    ? "border-bridge-accent shadow-[0_0_0_1px_var(--bridge-accent),0_0_16px_rgba(99,102,241,0.18)]"
                     : "border-foreground/[0.08] hover:border-foreground/[0.16]"
                 } ${
                   s.state === "CURRENT"
@@ -150,9 +155,8 @@ export function SprintSegmentBar({
                       ? "bg-emerald-500/[0.05]"
                       : "bg-foreground/[0.02]"
                 }`}
-                title={`${s.name} · ${stateLabel}`}
               >
-                {/* 진척 채움 — 세그먼트 배경 자체가 게이지다(막대를 따로 두면 줄이 두 겹이 된다) */}
+                {/* 진척 채움 — 세그먼트 배경 자체가 게이지다 */}
                 <span
                   aria-hidden
                   className={`absolute inset-y-0 left-0 transition-[width] duration-500 motion-reduce:transition-none ${
@@ -164,50 +168,33 @@ export function SprintSegmentBar({
                   }`}
                   style={{ width: `${pct}%` }}
                 />
-                <span className="relative z-[1] flex flex-col gap-0.5 min-w-0">
-                  <span className="flex items-center gap-1.5 text-xs font-bold text-foreground whitespace-nowrap">
-                    <span
-                      className={`w-[7px] h-[7px] rounded-full shrink-0 ${
-                        s.state === "CURRENT"
-                          ? "bg-bridge-accent shadow-[0_0_8px_var(--bridge-accent)]"
-                          : s.state === "PAST"
-                            ? "bg-emerald-500"
-                            : "bg-slate-600"
-                      }`}
-                    />
-                    <span className="truncate">{s.name}</span>
-                    {s.state === "CURRENT" && (
-                      <span className="text-bridge-secondary shrink-0">
-                        · 진행중
-                      </span>
-                    )}
-                  </span>
-                  {start && end && (
-                    <span className="text-xs text-slate-500 tabular-nums whitespace-nowrap truncate">
-                      {formatMD(start)} – {formatMD(end)}
-                    </span>
-                  )}
+                <span className="relative z-[1] flex items-center gap-1.5 px-2 min-w-0 whitespace-nowrap">
                   <span
-                    className={`text-sm font-bold tabular-nums whitespace-nowrap ${
-                      s.state === "FUTURE" ? "text-slate-500" : "text-foreground"
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      s.state === "CURRENT"
+                        ? "bg-bridge-accent shadow-[0_0_6px_var(--bridge-accent)]"
+                        : s.state === "PAST"
+                          ? "bg-emerald-500"
+                          : "bg-slate-600"
+                    }`}
+                  />
+                  <span className="text-xs font-bold text-foreground truncate">
+                    {shortName}
+                  </span>
+                  <span
+                    className={`text-xs font-medium tabular-nums truncate ${
+                      s.state === "FUTURE" ? "text-slate-500" : "text-slate-400"
                     }`}
                   >
-                    {pct}
-                    <span className="text-xs text-slate-400">%</span>{" "}
-                    <span className="text-xs font-medium text-slate-400">
-                      {s.done} / {s.total}
-                    </span>
+                    {pct}%
                   </span>
-                  {s.state === "PAST" &&
-                    (unfinished > 0 ? (
-                      <span className="self-start text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 tabular-nums whitespace-nowrap">
-                        미완료 {unfinished}
-                      </span>
-                    ) : (
-                      <span className="self-start text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                        완료
-                      </span>
-                    ))}
+                  {/* 지난 버킷의 미완료 신호 — 칩 대신 도트로 압축, 상세는 tooltip */}
+                  {s.state === "PAST" && unfinished > 0 && (
+                    <span
+                      className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"
+                      aria-hidden
+                    />
+                  )}
                 </span>
               </button>
             );

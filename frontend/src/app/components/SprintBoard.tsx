@@ -37,6 +37,7 @@ import {
   UserPlus,
   Split,
   SendHorizontal,
+  MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { sprintAPI, checklistAPI, taskAPI, jiraAPI } from "../utils/api";
@@ -576,6 +577,8 @@ export function SprintBoard({
   }, [doneVis]);
   // 보임 필터 드롭다운 열림 상태 — 항목 선택 즉시 닫기 위해 제어형으로 쓴다.
   const [doneVisOpen, setDoneVisOpen] = useState(false);
+  // 원라인 바의 ⋯ 메뉴 — 분할 조정·미완료 보내기·JIRA 연결 등 저빈도 액션을 담는다
+  const [moreOpen, setMoreOpen] = useState(false);
 
   // ── JIRA 뷰: 연동 상태(탭 노출 판정) + 메타(상태명) ──
   // status는 block_status_map(블록→JIRA상태) 제공, meta는 상태 id→name 제공.
@@ -4016,8 +4019,8 @@ export function SprintBoard({
             </span>
           </div>
         ) : (
-          <div className="flex flex-col gap-2.5">
-            {/* 세그먼트 바 — 마일스톤 기간을 나눈 버킷들. 클릭이 곧 보드 스코프 전환이다. */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* 원라인 세그먼트 바 — 좌측은 마일스톤 라벨+미니 트랙, 우측은 선택 버킷 수치·뷰 토글·⋯ 메뉴 */}
             {(board?.sprints ?? []).length > 0 ? (
               <SprintSegmentBar
                 milestoneTitle={milestone?.title ?? "마일스톤"}
@@ -4029,7 +4032,7 @@ export function SprintBoard({
                 onSelect={setSelectedSprintId}
               />
             ) : (
-              <div className="flex items-center gap-3 rounded-xl border border-dashed border-foreground/15 bg-foreground/[0.03] px-4 py-3">
+              <div className="flex-1 flex items-center gap-3 rounded-xl border border-dashed border-foreground/15 bg-foreground/[0.03] px-4 py-3">
                 <Flag className="w-4 h-4 text-bridge-secondary shrink-0" />
                 <div className="flex flex-col min-w-0">
                   <span className="text-xs font-bold text-foreground whitespace-nowrap">
@@ -4053,37 +4056,41 @@ export function SprintBoard({
               </div>
             )}
 
-            {/* 선택 버킷 상세 — 이 줄의 숫자·액션은 전부 위에서 고른 세그먼트 하나에 대한 것이다 */}
+            {/* 선택 버킷 수치 — 클릭하면 진행 현황 모달. 이름·기간·상태는 tooltip과 넓은 화면 보조 텍스트로 압축 */}
             {selectedSprint && (
-              <div className="flex flex-col gap-2 rounded-xl border border-foreground/[0.08] bg-foreground/[0.04] px-3 py-2.5">
-                {/* Row 1 — 이름 · 상태 · 게이지 · 메타 · 오늘완료 · 기간 */}
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <span className="text-sm font-bold tracking-tight text-foreground whitespace-nowrap">
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProgressTab(
+                      sprintProgress.nToday > 0 ? "todayDone" : "inProgress",
+                    );
+                    setProgressOpen(true);
+                  }}
+                  aria-haspopup="dialog"
+                  aria-label="진행 현황 보기"
+                  title={`${selectedSprint.name}${
+                    selectedSprint.start_date
+                      ? ` · ${formatDate(selectedSprint.start_date)} ~ ${
+                          selectedSprint.end_date
+                            ? formatDate(selectedSprint.end_date)
+                            : "진행"
+                        }`
+                      : ""
+                  } · 진행 현황 자세히 보기`}
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-foreground/5 transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                >
+                  <span className="hidden md:inline text-xs font-bold text-foreground whitespace-nowrap">
                     {selectedSprint.name}
-                  </span>
-                  <span
-                    className={`text-xs font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${
-                      selectedSprint.state === "CURRENT"
-                        ? "bg-bridge-accent/15 text-bridge-accent"
-                        : selectedSprint.state === "PAST"
-                          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                          : "bg-foreground/[0.06] text-slate-400"
-                    }`}
-                  >
-                    {selectedSprint.state === "CURRENT"
-                      ? "진행중"
-                      : selectedSprint.state === "PAST"
-                        ? "지난 스프린트"
-                        : "예정"}
                   </span>
                   {/* 스프린트 진척은 탭과 무관하게 한 잣대(체크리스트 줄)로 잰다.
                       JIRA 이슈가 어디까지 갔는지는 층위가 달라 보드 바닥 스트립(jiraFlow)이 전담. */}
-                  <span className="text-2xl font-bold text-foreground tabular-nums leading-none">
+                  <span className="text-base font-bold text-foreground tabular-nums leading-none">
                     {gauge?.percentage ?? selectedSprint.progress_percentage}
-                    <span className="text-sm text-slate-400">%</span>
+                    <span className="text-xs text-slate-400">%</span>
                   </span>
-                  <span className="text-xs font-medium text-slate-400 tabular-nums">
-                    체크리스트 {gauge?.done ?? selectedSprint.done} /{" "}
+                  <span className="text-xs font-medium text-slate-400 tabular-nums whitespace-nowrap">
+                    {gauge?.done ?? selectedSprint.done} /{" "}
                     {gauge?.total ?? selectedSprint.total}
                   </span>
                   {sprintProgress.nToday > 0 && (
@@ -4094,223 +4101,196 @@ export function SprintBoard({
                       ▲ {sprintProgress.nToday}
                     </span>
                   )}
-                  <span className="flex-1" />
-                  {selectedSprint.start_date && (
-                    <span className="text-xs text-slate-500 tabular-nums whitespace-nowrap">
-                      {formatDate(selectedSprint.start_date)} ~{" "}
-                      {selectedSprint.end_date
-                        ? formatDate(selectedSprint.end_date)
-                        : "진행"}
-                    </span>
-                  )}
-                  {selectedSprint.state === "CURRENT" &&
-                    selectedSprint.end_date &&
-                    (() => {
-                      const d = getDDay(selectedSprint.end_date);
-                      return (
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${
-                            DDAY_BADGE[d.urgency] ||
-                            "bg-bridge-secondary/15 text-bridge-secondary"
-                          }`}
-                          title={`이 스프린트 종료 ${formatDate(selectedSprint.end_date)}`}
-                        >
-                          <Clock className="w-3 h-3" />
-                          종료 {d.text}
-                        </span>
-                      );
-                    })()}
-                </div>
+                </button>
+                {selectedSprint.state === "CURRENT" &&
+                  selectedSprint.end_date &&
+                  (() => {
+                    const d = getDDay(selectedSprint.end_date);
+                    return (
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold tabular-nums shrink-0 ${
+                          DDAY_BADGE[d.urgency] ||
+                          "bg-bridge-secondary/15 text-bridge-secondary"
+                        }`}
+                        title={`이 스프린트 종료 ${formatDate(selectedSprint.end_date)}`}
+                      >
+                        <Clock className="w-3 h-3" />
+                        {d.text}
+                      </span>
+                    );
+                  })()}
 
-                {/* Row 2 — 진척바(클릭:진행현황) · 보임 · 그룹 토글 · 미완료 보내기 · 분할 조정 */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProgressTab(
-                        sprintProgress.nToday > 0 ? "todayDone" : "inProgress",
-                      );
-                      setProgressOpen(true);
-                    }}
-                    aria-haspopup="dialog"
-                    aria-label="진행 현황 보기"
-                    title="진행 현황 자세히 보기"
-                    className="group/bar flex-1 min-w-[80px] flex items-center -mx-0.5 px-0.5 py-1 rounded"
-                  >
-                    {/* 이전 완료 · 오늘 완료 · 진행중 3색 — 탭과 무관하게 같은 세그먼트를 쓴다 */}
-                    <div className="flex-1 h-[5px] rounded-full bg-slate-600 overflow-hidden relative">
-                      <div
-                        className="absolute left-0 top-0 h-full bg-bridge-accent transition-all duration-500"
-                        style={{ width: `${sprintProgress.segEarlier}%` }}
-                      />
-                      {sprintProgress.segToday > 0 && (
-                        <div
-                          className="absolute top-0 h-full bg-bridge-secondary transition-all duration-500"
-                          style={{
-                            left: `${sprintProgress.segEarlier}%`,
-                            width: `${sprintProgress.segToday}%`,
-                            boxShadow: "0 0 8px var(--bridge-secondary)",
-                          }}
-                        />
-                      )}
-                      {sprintProgress.segProg > 0 && (
-                        <div
-                          className="absolute top-0 h-full bg-amber-500 transition-all duration-500"
-                          style={{
-                            left: `${sprintProgress.segEarlier + sprintProgress.segToday}%`,
-                            width: `${sprintProgress.segProg}%`,
-                          }}
-                        />
-                      )}
-                    </div>
-                  </button>
-
-                  {/* 보임 필터 — 구성원 뷰 전용. 그룹 기준(Feature↔구성원)보다 앞에 둔다:
+                {/* 보임 필터 — 구성원 뷰 전용. 그룹 기준(Feature↔구성원)보다 앞에 둔다:
                       "무엇을 볼까"를 먼저 고르고 "어떻게 자를까"를 뒤에 고르는 순서가
                       왼→오 읽기와 맞는다. */}
-                  {groupBy === "member" && (
-                    <Popover open={doneVisOpen} onOpenChange={setDoneVisOpen}>
-                      <PopoverTrigger asChild>
+                {groupBy === "member" && (
+                  <Popover open={doneVisOpen} onOpenChange={setDoneVisOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="완료 항목 보임 필터"
+                        title={
+                          DONE_VIS_OPTIONS.find((o) => o.key === doneVis)?.hint
+                        }
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                          doneVis === "all"
+                            ? "bg-foreground/[0.06] border-foreground/10 text-slate-400 hover:text-foreground"
+                            : "bg-bridge-secondary/15 border-bridge-secondary/40 text-bridge-secondary"
+                        }`}
+                      >
+                        <Eye className="w-3 h-3" />
+                        {DONE_VIS_OPTIONS.find((o) => o.key === doneVis)?.label}
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="start"
+                      className="w-44 p-1 bg-bridge-obsidian border-foreground/10"
+                    >
+                      {DONE_VIS_OPTIONS.map((opt) => (
                         <button
+                          key={opt.key}
                           type="button"
-                          aria-label="완료 항목 보임 필터"
-                          title={
-                            DONE_VIS_OPTIONS.find((o) => o.key === doneVis)
-                              ?.hint
-                          }
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
-                            doneVis === "all"
-                              ? "bg-foreground/[0.06] border-foreground/10 text-slate-400 hover:text-foreground"
-                              : "bg-bridge-secondary/15 border-bridge-secondary/40 text-bridge-secondary"
+                          aria-pressed={doneVis === opt.key}
+                          onClick={() => {
+                            setDoneVis(opt.key);
+                            setDoneVisOpen(false);
+                          }}
+                          title={opt.hint}
+                          className={`flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-xs font-bold text-left transition-colors ${
+                            doneVis === opt.key
+                              ? "bg-bridge-secondary/15 text-bridge-secondary"
+                              : "text-slate-400 hover:bg-foreground/5 hover:text-foreground"
                           }`}
                         >
-                          <Eye className="w-3 h-3" />
-                          {
-                            DONE_VIS_OPTIONS.find((o) => o.key === doneVis)
-                              ?.label
-                          }
-                          <ChevronDown className="w-3 h-3" />
+                          <span className="truncate">{opt.label}</span>
+                          {doneVis === opt.key && (
+                            <Check className="w-3.5 h-3.5 ml-auto shrink-0" />
+                          )}
                         </button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        align="start"
-                        className="w-44 p-1 bg-bridge-obsidian border-foreground/10"
-                      >
-                        {DONE_VIS_OPTIONS.map((opt) => (
-                          <button
-                            key={opt.key}
-                            type="button"
-                            aria-pressed={doneVis === opt.key}
-                            onClick={() => {
-                              setDoneVis(opt.key);
-                              setDoneVisOpen(false);
-                            }}
-                            title={opt.hint}
-                            className={`flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-xs font-bold text-left transition-colors ${
-                              doneVis === opt.key
-                                ? "bg-bridge-secondary/15 text-bridge-secondary"
-                                : "text-slate-400 hover:bg-foreground/5 hover:text-foreground"
-                            }`}
-                          >
-                            <span className="truncate">{opt.label}</span>
-                            {doneVis === opt.key && (
-                              <Check className="w-3.5 h-3.5 ml-auto shrink-0" />
-                            )}
-                          </button>
-                        ))}
-                      </PopoverContent>
-                    </Popover>
-                  )}
+                      ))}
+                    </PopoverContent>
+                  </Popover>
+                )}
 
-                  {/* Feature ↔ 구성원 전환 — 둘 다 "이 버킷에 담긴 것"을 소유 축으로
+                {/* Feature ↔ 구성원 전환 — 둘 다 "이 버킷에 담긴 것"을 소유 축으로
                       자르는, 서로 교환 가능한 절단면이다. JIRA는 스코프도 축도 달라
                       여기가 아니라 화면 선택 줄(스프린트 | 블록 보드 | JIRA)에 있다. */}
-                  {!uiFeatures.has("members") && memberGhost}
-                  {groupBy !== "jira" && uiFeatures.has("members") && (
-                    <div
-                      className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/[0.06] border border-foreground/10 shrink-0"
-                      role="tablist"
-                      aria-label="보드 그룹 기준"
+                {!uiFeatures.has("members") && memberGhost}
+                {groupBy !== "jira" && uiFeatures.has("members") && (
+                  <div
+                    className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/[0.06] border border-foreground/10 shrink-0"
+                    role="tablist"
+                    aria-label="보드 그룹 기준"
+                  >
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={groupBy === "feature"}
+                      onClick={() => setGroupPref("feature")}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
+                        groupBy === "feature"
+                          ? "bg-bridge-accent text-white"
+                          : "text-slate-400 hover:text-foreground"
+                      }`}
+                      title="Feature 단위로 컬럼 보기"
                     >
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={groupBy === "feature"}
-                        onClick={() => setGroupPref("feature")}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
-                          groupBy === "feature"
-                            ? "bg-bridge-accent text-white"
-                            : "text-slate-400 hover:text-foreground"
-                        }`}
-                        title="Feature 단위로 컬럼 보기"
-                      >
-                        <Layers className="w-3 h-3" />
-                        Feature
-                      </button>
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={groupBy === "member"}
-                        onClick={() => setGroupPref("member")}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
-                          groupBy === "member"
-                            ? "bg-bridge-accent text-white"
-                            : "text-slate-400 hover:text-foreground"
-                        }`}
-                        title="구성원(담당자) 단위로 컬럼 보기"
-                      >
-                        <Users className="w-3 h-3" />
-                        구성원
-                      </button>
+                      <Layers className="w-3 h-3" />
+                      Feature
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={groupBy === "member"}
+                      onClick={() => setGroupPref("member")}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
+                        groupBy === "member"
+                          ? "bg-bridge-accent text-white"
+                          : "text-slate-400 hover:text-foreground"
+                      }`}
+                      title="구성원(담당자) 단위로 컬럼 보기"
+                    >
+                      <Users className="w-3 h-3" />
+                      구성원
+                    </button>
+                  </div>
+                )}
+
+                {/* ⋯ 메뉴 — 저빈도 액션(미완료 보내기·분할 조정·JIRA 연결)과 스프린트 요약 */}
+                <Popover open={moreOpen} onOpenChange={setMoreOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="스프린트 메뉴"
+                      title="스프린트 메뉴"
+                      className={`inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                        canPushUnfinished && nextSprint
+                          ? "text-amber-600 dark:text-amber-400 bg-amber-500/15 hover:bg-amber-500/25"
+                          : "text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                      }`}
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="end"
+                    className="w-64 p-1 bg-bridge-obsidian border-foreground/10"
+                  >
+                    <div className="px-2.5 py-2 text-xs text-slate-500 tabular-nums border-b border-foreground/[0.08] mb-1">
+                      {remainingTasks > 0
+                        ? `이 스프린트 남은 태스크 ${remainingTasks}개`
+                        : "이 스프린트 전부 완료"}
                     </div>
-                  )}
-
-                  {/* JIRA 최초 연결 — 미연동 보드엔 JIRA 화면 버튼 자체가 없어
-                      보드 안에 진입점이 남지 않는다. 그래서 "아직 없을 때"의 CTA만 여기 둔다. */}
-                  {isAdminOrOwner && !jiraConnected && (
-                    <button
-                      type="button"
-                      onClick={() => setShowJiraModal(true)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-bridge-accent bg-bridge-accent/15 hover:bg-bridge-accent/25 transition-colors shrink-0"
-                      title="이 스프린트 보드에 JIRA를 연결합니다"
-                    >
-                      <Diamond className="w-3 h-3" />
-                      JIRA 연결
-                    </button>
-                  )}
-
-                  <span className="hidden text-xs text-slate-500 tabular-nums whitespace-nowrap lg:inline">
-                    {remainingTasks > 0
-                      ? `남은 ${remainingTasks}개`
-                      : "전부 완료"}
-                  </span>
-
-                  {/* 이월의 새 모습 — 지난 버킷의 미완료를 다음 버킷으로 한 번에 민다 */}
-                  {canPushUnfinished && nextSprint && (
-                    <button
-                      type="button"
-                      onClick={pushUnfinished}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25 transition-colors whitespace-nowrap shrink-0"
-                      title={`END에 닿지 못한 태스크 ${remainingTasks}개를 ${nextSprint.name}(으)로 옮기고 이월 횟수를 1 올립니다`}
-                    >
-                      <SendHorizontal className="w-3.5 h-3.5" />
-                      미완료 {remainingTasks}개 → {nextSprint.name}로 보내기
-                    </button>
-                  )}
-
-                  {isAdminOrOwner && (
-                    <button
-                      type="button"
-                      onClick={() => setSplitOpen(true)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-foreground bg-foreground/5 border border-foreground/10 hover:bg-foreground/10 transition-colors whitespace-nowrap shrink-0"
-                      title="스프린트 개수와 기간 경계를 조정합니다"
-                    >
-                      <Split className="w-3.5 h-3.5" />
-                      분할 조정
-                    </button>
-                  )}
-                </div>
-              </div>
+                    {/* 이월의 새 모습 — 지난 버킷의 미완료를 다음 버킷으로 한 번에 민다 */}
+                    {canPushUnfinished && nextSprint && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMoreOpen(false);
+                          pushUnfinished();
+                        }}
+                        className="flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-xs font-bold text-left text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                        title={`END에 닿지 못한 태스크 ${remainingTasks}개를 ${nextSprint.name}(으)로 옮기고 이월 횟수를 1 올립니다`}
+                      >
+                        <SendHorizontal className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">
+                          미완료 {remainingTasks}개 → {nextSprint.name}
+                        </span>
+                      </button>
+                    )}
+                    {isAdminOrOwner && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMoreOpen(false);
+                          setSplitOpen(true);
+                        }}
+                        className="flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-xs font-bold text-left text-foreground hover:bg-foreground/5 transition-colors"
+                        title="스프린트 개수와 기간 경계를 조정합니다"
+                      >
+                        <Split className="w-3.5 h-3.5 shrink-0" />
+                        분할 조정
+                      </button>
+                    )}
+                    {/* JIRA 최초 연결 — 미연동 보드엔 JIRA 화면 버튼 자체가 없어
+                        보드 안에 진입점이 남지 않는다. 그래서 "아직 없을 때"의 CTA만 여기 둔다. */}
+                    {isAdminOrOwner && !jiraConnected && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMoreOpen(false);
+                          setShowJiraModal(true);
+                        }}
+                        className="flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-xs font-bold text-left text-bridge-accent hover:bg-bridge-accent/10 transition-colors"
+                        title="이 스프린트 보드에 JIRA를 연결합니다"
+                      >
+                        <Diamond className="w-3.5 h-3.5 shrink-0" />
+                        JIRA 연결
+                      </button>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              </>
             )}
           </div>
         )}
