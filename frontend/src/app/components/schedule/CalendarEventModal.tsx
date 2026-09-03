@@ -298,7 +298,7 @@ export function CalendarEventModal({
       open={open}
       onClose={onClose}
       accentColor
-      className="sm:max-w-2xl"
+      className="sm:max-w-3xl"
       aria-label={editing ? "특별 일정 편집" : "특별 일정 추가"}
     >
       {/* Header */}
@@ -505,7 +505,7 @@ export function CalendarEventModal({
         </div>
 
         {/* ===== 오른쪽: 공유 메모 ===== */}
-        <div className="flex flex-col border-t sm:border-t-0 sm:border-l border-foreground/[0.08] bg-foreground/[0.02] sm:min-h-[380px]">
+        <div className="flex flex-col border-t sm:border-t-0 sm:border-l border-foreground/[0.08] bg-foreground/[0.02] sm:min-h-[480px]">
           {/* 메모 헤더 */}
           <div className="flex items-center gap-2 px-5 pt-4 pb-2">
             <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
@@ -601,7 +601,7 @@ export function CalendarEventModal({
             ) : memoValue ? (
               // 보기 모드
               <>
-                <div className="flex-1 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words overflow-y-auto custom-scrollbar max-h-[320px]">
+                <div className="flex-1 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words overflow-y-auto custom-scrollbar max-h-[440px]">
                   {renderMemoText(memoValue)}
                 </div>
                 {memoError && (

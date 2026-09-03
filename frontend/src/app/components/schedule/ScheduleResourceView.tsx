@@ -2942,9 +2942,6 @@ export function ScheduleResourceView({
                       <span className="truncate">
                         {event.title || meta.label}
                       </span>
-                      {event.memo && !narrow && (
-                        <MessageSquare className="w-3 h-3 shrink-0 ml-auto mr-1 opacity-80" />
-                      )}
                       <div
                         data-resize-handle="true"
                         className="absolute top-0 right-0 w-2 h-full cursor-ew-resize
