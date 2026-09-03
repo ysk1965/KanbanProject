@@ -493,11 +493,8 @@ public class BoardProgressCollector {
             return null;
         }
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
-        // 분할 모델: 오늘이 기간 안에 있는 스프린트를 고르고, 없으면 최신 스프린트로 폴백.
-        Sprint sprint = sprints.stream()
-                .filter(s -> s.stateOn(today) == SprintState.CURRENT)
-                .findFirst()
-                .orElse(sprints.get(0));
+        Set<String> sprintIdsWithTasks = taskRepository.findSprintIdsWithTasksByBoardId(boardId);
+        Sprint sprint = pickReportSprint(sprints, sprintIdsWithTasks, today);
         List<Task> tasks = taskRepository.findBySprintId(sprint.getId());
 
         // 스프린트에 담긴 태스크의 체크리스트를 한 번에 읽어 태스크별로 묶는다.
@@ -561,5 +558,52 @@ public class BoardProgressCollector {
                 .taskDone(taskDone)
                 .taskTotal(taskTotal)
                 .build();
+    }
+
+    /**
+     * 리포트에 실을 스프린트 선택. 보드에는 마일스톤마다 스프린트 버킷이 있어 CURRENT가 여러 개일 수
+     * 있고, 기간이 아직 백필되지 않은 스프린트(start/end NULL)도 CURRENT로 파생된다
+     * ({@link Sprint#stateOn} — 보드 UI의 단일 스프린트 보호 규칙). 단순히 "첫 CURRENT"를 집으면
+     * 아무도 안 연 빈 마일스톤의 스프린트가 잡혀 게이지가 0/0이 된다.
+     *
+     * <p>우선순위 — 리스트 순서(최신 시퀀스 우선)는 동순위 내 tie-break로 유지된다:
+     * <ol>
+     *   <li>CURRENT + 태스크 보유 + 기간 설정 — 실제 진행 중인 버킷</li>
+     *   <li>CURRENT + 태스크 보유 — 아직 안 나눈(기간 백필 전) 마일스톤의 작업</li>
+     *   <li>CURRENT + 기간 설정 — 진짜 현재 버킷인데 비어 있음(0/0이 사실)</li>
+     *   <li>태스크 보유 — 오늘이 어느 기간에도 안 걸릴 때 가장 최근의 실제 작업</li>
+     *   <li>그 외 — 빈 스프린트뿐이면 최신 시퀀스</li>
+     * </ol>
+     * (패키지 가시성: 테스트)
+     */
+    static Sprint pickReportSprint(List<Sprint> sprints, Set<String> sprintIdsWithTasks, LocalDate today) {
+        Sprint best = sprints.get(0);
+        int bestRank = Integer.MAX_VALUE;
+        for (Sprint s : sprints) {
+            int rank = reportSprintRank(s, sprintIdsWithTasks.contains(s.getId()), today);
+            if (rank < bestRank) {
+                best = s;
+                bestRank = rank;
+            }
+        }
+        return best;
+    }
+
+    private static int reportSprintRank(Sprint sprint, boolean hasTasks, LocalDate today) {
+        boolean current = sprint.stateOn(today) == SprintState.CURRENT;
+        boolean dated = sprint.getStartDate() != null && sprint.getEndDate() != null;
+        if (current && hasTasks && dated) {
+            return 0;
+        }
+        if (current && hasTasks) {
+            return 1;
+        }
+        if (current && dated) {
+            return 2;
+        }
+        if (hasTasks) {
+            return 3;
+        }
+        return 4;
     }
 }

@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface TaskRepository extends JpaRepository<Task, String> {
 
@@ -70,6 +71,10 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "WHERE t.sprint.id = :sprintId " +
            "ORDER BY sc.position, t.featurePosition, t.position")
     List<Task> findBySprintId(@Param("sprintId") String sprintId);
+
+    /** 보드에서 태스크가 1건이라도 담긴 스프린트 id — 리포트가 빈 버킷을 피해 집계 대상을 고를 때 쓴다. */
+    @Query("SELECT DISTINCT t.sprint.id FROM Task t WHERE t.sprint.milestone.board.id = :boardId")
+    Set<String> findSprintIdsWithTasksByBoardId(@Param("boardId") String boardId);
 
     /**
      * 마일스톤 백로그 = 아직 어떤 스프린트 버킷에도 안 담긴 태스크(담기 후보).
