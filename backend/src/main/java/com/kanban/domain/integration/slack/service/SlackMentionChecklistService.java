@@ -1,6 +1,7 @@
 package com.kanban.domain.integration.slack.service;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.checklist.dto.ChecklistRequest;
 import com.kanban.domain.checklist.service.ChecklistService;
@@ -12,6 +13,7 @@ import com.kanban.domain.integration.slack.SlackUserLinkRepository;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
+import com.kanban.domain.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,16 +29,19 @@ import java.util.Objects;
  * 슬랙에서 봇을 멘션하면({@code @MILKYWAY 할 일 내용}) 체크리스트 항목을 만들어 준다.
  *
  * <p>흐름: 멘션 → 봇이 스레드에 "어느 태스크에 추가할까요?" 프롬프트(태스크 검색 셀렉트 +
- * 미분류 바로 추가 버튼)를 답장 → 셀렉트 타이핑은 {@code block_suggestion}으로 태스크를 검색하고,
- * 선택/버튼 클릭({@code block_actions})에서 실제로 항목을 생성한 뒤 프롬프트 메시지를 결과로 갈아끼운다.
- * 항목 제목·보드는 프롬프트 메시지의 metadata에 실어 인터랙션까지 전달한다.
+ * 담당자 셀렉트 + 미분류 바로 추가 버튼)를 답장 → 셀렉트 타이핑은 {@code block_suggestion}으로
+ * 태스크를 검색하고, 선택/버튼 클릭({@code block_actions})에서 실제로 항목을 생성한 뒤
+ * 프롬프트 메시지를 결과로 갈아끼운다.
+ * 항목 제목·보드는 프롬프트 메시지의 metadata에, 담당자 선택값은 메시지 자체의
+ * {@code state.values}에 실려 인터랙션까지 전달된다(서버 상태 저장 없음).
  *
  * <p>보드 결정 규칙: 워크스페이스(team)의 활성 보드 설치 중
  * ① 기본 채널이 멘션 채널과 일치하는 설치 → ② 보드 설치가 하나뿐이면 그 설치.
  * 둘 다 아니면 어느 보드인지 알 수 없으므로 안내만 남긴다.
  *
- * <p>작성자 결정 규칙: 조작한 슬랙 유저가 BRIDGE 계정과 연결돼 있고 그 보드 멤버면
- * 본인 명의로 생성 + 본인에게 배정한다. 아니면 앱 설치자 명의로 담당자 없이 생성한다.
+ * <p>작성자/담당자 규칙: 담당자는 드롭다운에서 고른 보드 멤버(기본값은 멘션한 본인,
+ * 미연동이면 "담당자 없음"). 생성자 명의는 조작한 슬랙 유저가 BRIDGE 계정과 연결돼 있고
+ * 그 보드 멤버면 본인, 아니면 앱 설치자다.
  */
 @Slf4j
 @Service
@@ -47,6 +52,12 @@ public class SlackMentionChecklistService {
     public static final String ACTION_TASK_SELECT = "bridge_cl_task_select";
     /** "미분류에 바로 추가" 버튼 */
     public static final String ACTION_ADD_INBOX = "bridge_cl_add_inbox";
+    /** 담당자 셀렉트 (static_select — 값 변경은 메시지 state에만 반영되고 생성은 하지 않는다) */
+    public static final String ACTION_ASSIGNEE_SELECT = "bridge_cl_assignee_select";
+    /** 담당자 셀렉트의 "담당자 없음" 옵션 값 */
+    private static final String NO_ASSIGNEE_VALUE = "__none__";
+    /** static_select 옵션 상한 (Slack 제한 100) */
+    private static final int MAX_MEMBER_OPTIONS = 100;
     /** block_suggestion에는 message metadata가 없으므로 block_id에 보드를 싣는다 */
     private static final String BLOCK_ID_PREFIX = "bridge_cl_prompt:";
     private static final String METADATA_EVENT_TYPE = "bridge_checklist_prompt";
@@ -63,6 +74,7 @@ public class SlackMentionChecklistService {
     private final ChecklistService checklistService;
     private final InboxFeatureService inboxFeatureService;
     private final TaskRepository taskRepository;
+    private final UserRepository userRepository;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -116,6 +128,7 @@ public class SlackMentionChecklistService {
         }
 
         String boardId = installation.getBoard().getId();
+        String slackUserId = String.valueOf(event.get("user"));
         List<Map<String, Object>> blocks = List.of(
                 section(":memo: 어느 태스크의 체크리스트에 추가할까요?\n> " + title),
                 Map.of("type", "actions",
@@ -125,6 +138,7 @@ public class SlackMentionChecklistService {
                                         "action_id", ACTION_TASK_SELECT,
                                         "placeholder", Map.of("type", "plain_text", "text", "태스크 검색"),
                                         "min_query_length", 0),
+                                buildAssigneeSelect(boardId, slackUserId),
                                 Map.of("type", "button",
                                         "action_id", ACTION_ADD_INBOX,
                                         "text", Map.of("type", "plain_text", "text", "미분류에 바로 추가"),
@@ -197,7 +211,8 @@ public class SlackMentionChecklistService {
         }
 
         try {
-            createAndRespond(context.boardId(), taskId, slackUserId, context.title(), responseUrl);
+            createAndRespond(context.boardId(), taskId, slackUserId, context.title(), responseUrl,
+                    extractAssigneeSelection(payload));
         } catch (Exception e) {
             log.warn("Failed to create checklist from Slack interaction: board={} task={} error={}",
                     context.boardId(), taskId, e.getMessage());
@@ -207,7 +222,7 @@ public class SlackMentionChecklistService {
     }
 
     private void createAndRespond(String boardId, String taskIdOrNull, String slackUserId,
-                                  String title, String responseUrl) {
+                                  String title, String responseUrl, String assigneeSelection) {
         SlackInstallation installation = installationRepository.findActiveByBoardId(boardId)
                 .orElse(null);
         if (installation == null) {
@@ -217,15 +232,21 @@ public class SlackMentionChecklistService {
 
         SlackUserLink link = userLinkRepository.findBySlackUserId(slackUserId).orElse(null);
         User creator;
-        String assigneeId = null;
         boolean actingAsInstaller;
         if (link != null && boardMemberRepository.existsByBoardIdAndUserId(boardId, link.getUser().getId())) {
             creator = link.getUser();
-            assigneeId = creator.getId();
             actingAsInstaller = false;
         } else {
             creator = installation.getInstalledBy();
             actingAsInstaller = true;
+        }
+
+        // 담당자: 드롭다운 선택값 우선. 선택 정보가 없는 옛 프롬프트 메시지는 본인 배정으로 폴백.
+        String assigneeId;
+        if (assigneeSelection == null) {
+            assigneeId = actingAsInstaller ? null : creator.getId();
+        } else {
+            assigneeId = NO_ASSIGNEE_VALUE.equals(assigneeSelection) ? null : assigneeSelection;
         }
 
         Task task = taskIdOrNull != null
@@ -244,10 +265,14 @@ public class SlackMentionChecklistService {
         StringBuilder text = new StringBuilder();
         text.append(":white_check_mark: *").append(board.getName()).append("* 보드의 *")
                 .append(task.getTitle()).append("* 태스크에 추가했어요\n")
-                .append("> ").append(title).append("\n")
-                .append("<").append(boardUrl).append("|보드에서 보기>");
+                .append("> ").append(title).append("\n");
+        if (assigneeId != null) {
+            userRepository.findById(assigneeId)
+                    .ifPresent(assignee -> text.append("담당자: *").append(assignee.getName()).append("*\n"));
+        }
+        text.append("<").append(boardUrl).append("|보드에서 보기>");
         if (actingAsInstaller) {
-            text.append("\n_슬랙 계정이 BRIDGE와 연결돼 있지 않거나 보드 멤버가 아니라서 담당자 없이 추가했어요._");
+            text.append("\n_슬랙 계정이 BRIDGE와 연결돼 있지 않아 앱 설치자 명의로 생성했어요._");
         }
 
         // 프롬프트 메시지를 결과로 교체 — 셀렉트/버튼을 없애 중복 추가를 막는다
@@ -311,6 +336,63 @@ public class SlackMentionChecklistService {
             return null;
         }
         return new PromptContext(boardId, title);
+    }
+
+    /**
+     * 담당자 static_select. 옵션은 "담당자 없음" + 보드 멤버 전원,
+     * 기본값은 멘션한 본인(BRIDGE 연동 + 보드 멤버일 때), 아니면 "담당자 없음".
+     */
+    private Map<String, Object> buildAssigneeSelect(String boardId, String slackUserId) {
+        Map<String, Object> noneOption = option("담당자 없음", NO_ASSIGNEE_VALUE);
+        List<Map<String, Object>> options = new ArrayList<>();
+        options.add(noneOption);
+
+        String authorUserId = userLinkRepository.findBySlackUserId(slackUserId)
+                .map(link -> link.getUser().getId())
+                .orElse(null);
+
+        Map<String, Object> initialOption = noneOption;
+        for (BoardMember member : boardMemberRepository.findByBoardId(boardId)) {
+            if (options.size() >= MAX_MEMBER_OPTIONS) break;
+            Map<String, Object> memberOption = option(
+                    truncate(member.getUser().getName(), OPTION_TEXT_MAX_LENGTH), member.getUser().getId());
+            options.add(memberOption);
+            if (member.getUser().getId().equals(authorUserId)) {
+                initialOption = memberOption;
+            }
+        }
+
+        return Map.of("type", "static_select",
+                "action_id", ACTION_ASSIGNEE_SELECT,
+                "placeholder", Map.of("type", "plain_text", "text", "담당자"),
+                "options", options,
+                "initial_option", initialOption);
+    }
+
+    /**
+     * 페이로드의 {@code state.values}에서 담당자 셀렉트 현재값을 읽는다.
+     * 반환: 유저 ID / {@link #NO_ASSIGNEE_VALUE} / null(담당자 셀렉트가 없는 옛 프롬프트).
+     */
+    @SuppressWarnings("unchecked")
+    private String extractAssigneeSelection(Map<String, Object> payload) {
+        if (!(payload.get("state") instanceof Map<?, ?> state)
+                || !(state.get("values") instanceof Map<?, ?> values)) {
+            return null;
+        }
+        for (Object blockValues : values.values()) {
+            if (!(blockValues instanceof Map<?, ?> actionsInBlock)) continue;
+            Object assigneeState = actionsInBlock.get(ACTION_ASSIGNEE_SELECT);
+            if (!(assigneeState instanceof Map<?, ?> assigneeMap)) continue;
+            if (assigneeMap.get("selected_option") instanceof Map<?, ?> selected && selected.get("value") != null) {
+                return String.valueOf(selected.get("value"));
+            }
+            return NO_ASSIGNEE_VALUE; // 셀렉트는 있는데 선택이 비어 있음
+        }
+        return null;
+    }
+
+    private Map<String, Object> option(String text, String value) {
+        return Map.of("text", Map.of("type", "plain_text", "text", text), "value", value);
     }
 
     /** ① 기본 채널 일치 → ② 유일한 보드 설치 → ③ 결정 불가(null) */
