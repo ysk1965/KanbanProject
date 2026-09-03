@@ -3,6 +3,7 @@ import { Loader2, Minus, Plus, Split } from "lucide-react";
 import { MotionModal } from "./ui/MotionModal";
 import {
   addDays,
+  diffDays,
   formatMD,
   formatMDW,
   inclusiveDays,
@@ -25,6 +26,8 @@ interface SprintSplitModalProps {
   milestoneEnd: string | null;
   /** 현재 분할 개수. 2 이상이면 이미 나뉜 상태라 배분 기본값이 "유지"가 된다. */
   currentCount: number;
+  /** 현재 스프린트 2..N의 시작일(yyyy-MM-dd) — 열 때 기존 경계를 그대로 복원한다 */
+  currentBoundaries?: (string | null)[];
   submitting?: boolean;
   onSubmit: (payload: {
     count: number;
@@ -41,6 +44,32 @@ function equalBounds(totalDays: number, n: number): number[] {
 }
 
 /**
+ * 기존 스프린트 경계 날짜들을 시작일 오프셋으로 복원 — 개수가 맞지 않거나
+ * 범위·최소 간격을 어기면(마일스톤 기간이 바뀐 뒤 등) null을 돌려 균등 분할로 대체한다.
+ */
+function restoreBounds(
+  start: Date | null,
+  totalDays: number,
+  boundaries: (string | null)[],
+  count: number,
+): number[] | null {
+  if (!start || boundaries.length !== count - 1) return null;
+  const offsets: number[] = [];
+  for (const b of boundaries) {
+    const d = parseDay(b);
+    if (!d) return null;
+    offsets.push(diffDays(start, d));
+  }
+  let prev = 0;
+  for (const o of offsets) {
+    if (o < prev + MIN_DAYS) return null;
+    prev = o;
+  }
+  if (offsets.length > 0 && totalDays - prev < MIN_DAYS) return null;
+  return offsets;
+}
+
+/**
  * 스프린트 나누기 모달 — 개수를 정하면 기간이 균등 분배되고, 세그먼트 사이 핸들을
  * 끌어 경계 날짜를 하루 단위로 조정한다. 경계는 "S{n+1}이 시작하는 날"이며,
  * 화면에서는 마일스톤 시작일로부터의 일 오프셋으로 다룬다(문자열 날짜 연산을 피하려고).
@@ -51,6 +80,7 @@ export function SprintSplitModal({
   milestoneStart,
   milestoneEnd,
   currentCount,
+  currentBoundaries,
   submitting = false,
   onSubmit,
 }: SprintSplitModalProps) {
@@ -66,14 +96,23 @@ export function SprintSplitModal({
   const sliderRef = useRef<HTMLDivElement>(null);
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
 
+  // 경계 배열은 호출부에서 매 렌더 새로 만들어질 수 있어 문자열 키로 안정화한다.
+  const boundaryKey = (currentBoundaries ?? []).map((b) => b ?? "").join("|");
+
   // 열릴 때마다 현재 분할 상태에서 시작한다 — 열자마자 사용자의 기존 설정이 지워지면 안 된다.
   useEffect(() => {
     if (!open) return;
     const initial = Math.min(Math.max(1, currentCount), maxCount);
     setCount(initial);
-    setBounds(equalBounds(totalDays, initial));
+    const restored = restoreBounds(
+      start,
+      totalDays,
+      boundaryKey ? boundaryKey.split("|") : [],
+      initial,
+    );
+    setBounds(restored ?? equalBounds(totalDays, initial));
     setDistribution(currentCount > 1 ? "keep" : "unassign");
-  }, [open, currentCount, maxCount, totalDays]);
+  }, [open, currentCount, maxCount, totalDays, start, boundaryKey]);
 
   const applyCount = (n: number) => {
     const next = Math.min(Math.max(1, n), maxCount);

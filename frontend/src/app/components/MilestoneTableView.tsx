@@ -177,9 +177,20 @@ export function MilestoneTableView({
     [taskId: string]: string | null;
   }>({});
   const addInputRef = useRef<HTMLInputElement | null>(null);
+  /**
+   * 세션 고정 정렬 스냅샷 — 체크 항목 추가/기간 수정으로 완료율·행 수가 변해도
+   * 그룹/항목이 좌우·상하로 재배치되지 않게 최초 순서를 고정한다.
+   * 새로고침(리마운트)·마일스톤 전환 시 초기화되어 다시 완료율/기간순으로 정렬된다.
+   */
+  const frozenGroupOrder = useRef<Map<string, number>>(new Map());
+  const frozenItemOrder = useRef<Map<string, Map<string, number>>>(new Map());
+  const frozenItemCount = useRef<Map<string, number>>(new Map());
 
-  // 마일스톤 전환 시 필터·입력 초기화
+  // 마일스톤 전환 시 필터·입력·고정 정렬 초기화
   useEffect(() => {
+    frozenGroupOrder.current = new Map();
+    frozenItemOrder.current = new Map();
+    frozenItemCount.current = new Map();
     setStatusFilter("all");
     setAssigneeFilter(null);
     setAssigneeOpen(false);
@@ -275,10 +286,17 @@ export function MilestoneTableView({
   );
 
   // ── 파생값 ──
-  /** 기간 기준 자동 정렬 — 시작일(없으면 마감일) 오름차순, 기간 없는 항목은 맨 아래 */
+  /**
+   * 기간 기준 자동 정렬 — 시작일(없으면 마감일) 오름차순, 기간 없는 항목은 맨 아래.
+   * 단, 최초 로드 시점의 순서를 세션 동안 고정하고 이후 추가된 항목은 맨 아래에
+   * 붙인다 — 기간 입력 즉시 항목이 날짜 위치로 점프하지 않게.
+   */
   const itemsOf = useCallback(
-    (taskId: string): ChecklistItem[] =>
-      [...(checklists[taskId]?.items ?? [])].sort((a, b) => {
+    (taskId: string): ChecklistItem[] => {
+      const cached = frozenItemOrder.current.get(taskId);
+      const order = cached ?? new Map<string, number>();
+      if (!cached) frozenItemOrder.current.set(taskId, order);
+      const byPeriod = [...(checklists[taskId]?.items ?? [])].sort((a, b) => {
         const ka = a.start_date ?? a.due_date;
         const kb = b.start_date ?? b.due_date;
         if (ka && kb) {
@@ -291,7 +309,12 @@ export function MilestoneTableView({
         if (ka) return -1;
         if (kb) return 1;
         return a.position - b.position;
-      }),
+      });
+      for (const item of byPeriod) {
+        if (!order.has(item.id)) order.set(item.id, order.size);
+      }
+      return byPeriod.sort((a, b) => order.get(a.id)! - order.get(b.id)!);
+    },
     [checklists],
   );
 
@@ -407,6 +430,13 @@ export function MilestoneTableView({
       const pb = b.progressTotal > 0 ? b.progressDone / b.progressTotal : 0;
       return pb - pa || b.total - a.total;
     });
+    // 최초 계산된 순서를 세션 동안 고정 — 항목 추가/토글로 완료율이 변해도
+    // 그룹이 위아래로 재배치되지 않는다 (새 피처는 맨 뒤에 등록)
+    const order = frozenGroupOrder.current;
+    for (const g of result) {
+      if (!order.has(g.featureId)) order.set(g.featureId, order.size);
+    }
+    result.sort((a, b) => order.get(a.featureId)! - order.get(b.featureId)!);
     return result;
   }, [tasks, featureById, taskMatches, checklists]);
 
@@ -416,13 +446,20 @@ export function MilestoneTableView({
     ? groups.filter((g) => g.visibleTasks.length > 0)
     : groups;
 
-  /** 신문형 2단 분배 — 행 수(체크 항목 포함) 가중치로 순서 유지한 채 절반 분할 */
+  /**
+   * 신문형 2단 분배 — 행 수(체크 항목 포함) 가중치로 순서 유지한 채 절반 분할.
+   * 항목 수는 로드 완료 시점 값으로 고정 — 항목을 추가할 때마다 좌/우 분할
+   * 경계가 밀려 그룹이 컬럼을 넘나드는 것 방지.
+   */
   const groupWeight = (g: (typeof visibleGroups)[number]) =>
     1 +
-    g.visibleTasks.reduce(
-      (acc, tk) => acc + Math.max(2, itemsOf(tk.id).length),
-      0,
-    );
+    g.visibleTasks.reduce((acc, tk) => {
+      const counts = frozenItemCount.current;
+      if (!counts.has(tk.id) && checklists[tk.id]?.loaded) {
+        counts.set(tk.id, checklists[tk.id].items.length);
+      }
+      return acc + Math.max(2, counts.get(tk.id) ?? itemsOf(tk.id).length);
+    }, 0);
   const totalWeight = visibleGroups.reduce((acc, g) => acc + groupWeight(g), 0);
   const groupColumns: (typeof visibleGroups)[] = (() => {
     if (visibleGroups.length < 2) return [visibleGroups];

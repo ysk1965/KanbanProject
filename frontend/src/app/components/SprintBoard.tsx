@@ -5594,6 +5594,11 @@ export function SprintBoard({
         milestoneStart={milestone?.start_date ?? null}
         milestoneEnd={milestone?.end_date ?? null}
         currentCount={board?.sprints?.length ?? 0}
+        currentBoundaries={(board?.sprints ?? [])
+          .slice()
+          .sort((a, b) => a.sequence_no - b.sequence_no)
+          .slice(1)
+          .map((s) => s.start_date)}
         onSubmit={(payload) => void submitSplit(payload)}
       />
 
