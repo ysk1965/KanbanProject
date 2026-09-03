@@ -23,6 +23,7 @@ public class SlackEventService {
 
     private final SlackEventLogRepository eventLogRepository;
     private final SlackInstallationRepository installationRepository;
+    private final SlackMentionChecklistService mentionChecklistService;
     private final ObjectMapper objectMapper;
 
     /**
@@ -80,6 +81,7 @@ public class SlackEventService {
                 case "app_uninstalled" -> handleAppUninstalled(payload);
                 case "tokens_revoked" -> handleTokensRevoked(payload);
                 case "reaction_added" -> handleReactionAdded(event, payload);
+                case "app_mention" -> mentionChecklistService.handleAppMention(event, payload);
                 default -> log.debug("Unhandled Slack event type: {}", eventType);
             }
         } catch (Exception e) {

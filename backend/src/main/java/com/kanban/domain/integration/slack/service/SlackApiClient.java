@@ -80,6 +80,40 @@ public class SlackApiClient {
     }
 
     /**
+     * 스레드 답장으로 메시지를 게시한다. 멘션에 대한 봇 응답 등 원 메시지의 스레드에 붙여야
+     * 채널이 어지럽혀지지 않을 때 쓴다. {@code threadTs}는 부모 메시지의 ts.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postThreadReply(String botToken, String channelId, String threadTs, List<Map<String, Object>> blocks) {
+        return postThreadReply(botToken, channelId, threadTs, blocks, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postThreadReply(String botToken, String channelId, String threadTs,
+                                               List<Map<String, Object>> blocks, Map<String, Object> metadata) {
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("channel", channelId);
+        body.put("thread_ts", threadTs);
+        body.put("blocks", blocks);
+        body.put("unfurl_links", false);
+        body.put("unfurl_media", false);
+        if (metadata != null) {
+            body.put("metadata", metadata);
+        }
+        return callSlackApi(botToken, "/chat.postMessage", body);
+    }
+
+    /**
+     * 인터랙션 페이로드의 {@code response_url}로 메시지를 보낸다. 토큰 인증이 필요 없고,
+     * {@code replace_original}로 버튼·셀렉트가 달린 원 메시지를 결과 메시지로 갈아끼울 때 쓴다.
+     */
+    public void postToResponseUrl(String responseUrl, Map<String, Object> body) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        restTemplate.postForEntity(responseUrl, new HttpEntity<>(body, headers), String.class);
+    }
+
+    /**
      * 봇이 게시한 메시지를 회수한다({@code chat.delete}). 채널 + 메시지 ts로 특정한다.
      * 봇 자기 메시지 삭제는 {@code chat:write}로 되며 별도 스코프가 필요 없다.
      * 이미 지워졌거나 없는 메시지면 Slack이 {@code message_not_found}를 돌려주고

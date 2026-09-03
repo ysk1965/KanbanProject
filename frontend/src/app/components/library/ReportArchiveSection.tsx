@@ -39,6 +39,9 @@ interface ReportArchiveSectionProps {
   fileActions: FileActions;
   selectedFileNodeId: string | null;
   onOpenFile: (nodeId: string) => void;
+  /** 패널 높이를 함께 조절하는 부모(NotesView)가 열림 상태를 소유한다 */
+  open: boolean;
+  onToggleOpen: () => void;
 }
 
 function formatFileSize(bytes: number): string {
@@ -56,9 +59,10 @@ export function ReportArchiveSection({
   fileActions,
   selectedFileNodeId,
   onOpenFile,
+  open,
+  onToggleOpen,
 }: ReportArchiveSectionProps) {
   const { t } = useTranslation();
-  const [sectionOpen, setSectionOpen] = useState(true);
   const [expandedReports, setExpandedReports] = useState<Set<string>>(
     new Set(),
   );
@@ -208,30 +212,32 @@ export function ReportArchiveSection({
   };
 
   return (
-    <div className="mt-3 pt-2 border-t border-foreground/[0.08]">
-      {/* 섹션 헤더 */}
-      <button
-        onClick={() => setSectionOpen((prev) => !prev)}
-        className="flex items-center gap-2 w-full px-2.5 py-2 text-xs font-bold text-slate-400 hover:text-foreground transition-colors rounded-lg hover:bg-foreground/5"
-      >
-        {sectionOpen ? (
-          <ChevronDown size={13} className="flex-shrink-0" />
-        ) : (
-          <ChevronRight size={13} className="flex-shrink-0" />
-        )}
-        <FolderClock
-          size={14}
-          className="flex-shrink-0 text-bridge-secondary"
-        />
-        <span className="truncate">
-          {t("library.reportArchive", "보고서 아카이브")}
-        </span>
-        <span className="ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary flex-shrink-0">
-          {totalCount}
-        </span>
-      </button>
+    <div>
+      {/* 섹션 헤더 — 패널 내부 스크롤 시에도 상단에 고정 */}
+      <div className="sticky top-0 z-10 bg-bridge-dark pt-2 pb-0.5">
+        <button
+          onClick={onToggleOpen}
+          className="flex items-center gap-2 w-full px-2.5 py-2 text-xs font-bold text-slate-400 hover:text-foreground transition-colors rounded-lg hover:bg-foreground/5"
+        >
+          {open ? (
+            <ChevronDown size={13} className="flex-shrink-0" />
+          ) : (
+            <ChevronRight size={13} className="flex-shrink-0" />
+          )}
+          <FolderClock
+            size={14}
+            className="flex-shrink-0 text-bridge-secondary"
+          />
+          <span className="truncate">
+            {t("library.reportArchive", "보고서 아카이브")}
+          </span>
+          <span className="ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary flex-shrink-0">
+            {totalCount}
+          </span>
+        </button>
+      </div>
 
-      {sectionOpen && (
+      {open && (
         <>
           {visibleGroups.map((group) => (
             <div key={group.id}>

@@ -21,6 +21,7 @@ public class SlackInteractionService {
 
     private final ObjectMapper objectMapper;
     private final ChecklistItemRepository checklistItemRepository;
+    private final SlackMentionChecklistService mentionChecklistService;
 
     @Transactional
     @SuppressWarnings("unchecked")
@@ -31,6 +32,14 @@ public class SlackInteractionService {
             Map<String, Object> payload = objectMapper.readValue(payloadJson, new TypeReference<>() {});
 
             String type = String.valueOf(payload.get("type"));
+
+            // 태스크 검색 셀렉트의 타이핑 — 3초 안에 options를 돌려줘야 한다
+            if ("block_suggestion".equals(type)) {
+                return ResponseEntity.ok(mentionChecklistService.suggestTasks(
+                        String.valueOf(payload.get("block_id")),
+                        payload.get("value") != null ? String.valueOf(payload.get("value")) : ""));
+            }
+
             if (!"block_actions".equals(type)) {
                 return ResponseEntity.ok().build();
             }
@@ -45,6 +54,12 @@ public class SlackInteractionService {
 
             if ("bridge_mark_complete".equals(actionId)) {
                 return handleMarkComplete(action, payload);
+            }
+
+            if (SlackMentionChecklistService.ACTION_TASK_SELECT.equals(actionId)
+                    || SlackMentionChecklistService.ACTION_ADD_INBOX.equals(actionId)) {
+                mentionChecklistService.handleBlockAction(actionId, action, payload);
+                return ResponseEntity.ok().build();
             }
 
             return ResponseEntity.ok().build();

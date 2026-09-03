@@ -1,4 +1,11 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -62,6 +69,11 @@ import type {
   StorageUsage,
 } from "../../utils/api";
 import type { BreadcrumbItem } from "./NoteEditor";
+
+/** 보고서 아카이브 패널 높이 — 드래그로 조절한 값을 로컬에 기억한다 */
+const ARCHIVE_HEIGHT_KEY = "library.archiveHeight";
+const ARCHIVE_DEFAULT_HEIGHT = 240;
+const ARCHIVE_MIN_HEIGHT = 130;
 
 interface NotesViewProps {
   boardId?: string;
@@ -578,6 +590,48 @@ export function NotesView({
   const [dragOverMain, setDragOverMain] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 보고서 아카이브 패널 — 트리와 분리된 하단 고정 영역, 구분선 드래그로 높이 조절
+  const [archiveOpen, setArchiveOpen] = useState(true);
+  const [archiveHeight, setArchiveHeight] = useState<number>(() => {
+    const saved = Number(localStorage.getItem(ARCHIVE_HEIGHT_KEY));
+    return Number.isFinite(saved) && saved >= ARCHIVE_MIN_HEIGHT
+      ? saved
+      : ARCHIVE_DEFAULT_HEIGHT;
+  });
+
+  const handleArchiveResizeStart = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      const startY = e.clientY;
+      const startHeight = archiveHeight;
+      // 핸들의 부모가 분할 컨테이너 — 아카이브가 전체의 70%를 넘지 않게 제한
+      const container = e.currentTarget.parentElement;
+      const maxHeight = container
+        ? Math.max(ARCHIVE_MIN_HEIGHT, Math.round(container.clientHeight * 0.7))
+        : 480;
+      let next = startHeight;
+      const onMove = (ev: PointerEvent) => {
+        next = Math.min(
+          maxHeight,
+          Math.max(ARCHIVE_MIN_HEIGHT, startHeight + (startY - ev.clientY)),
+        );
+        setArchiveHeight(next);
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        localStorage.setItem(ARCHIVE_HEIGHT_KEY, String(next));
+      };
+      document.body.style.cursor = "row-resize";
+      document.body.style.userSelect = "none";
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [archiveHeight],
+  );
+
   const loadStorage = useCallback(async () => {
     if (!withFiles) return;
     try {
@@ -1008,50 +1062,80 @@ export function NotesView({
         </div>
       )}
 
-      {/* Tree or List Content */}
-      <div className="flex-1 overflow-y-auto p-3">
-        {viewType === "tree" ? (
-          <NoteTreeSidebar
-            tree={library.tree}
-            selectedNoteId={selectedFileNodeId ?? selectedNoteId}
-            searchQuery={searchQuery}
-            onSelect={handleSelectTreeNode}
-            onCreateFolder={handleCreateFolder}
-            onCreateDocument={handleCreateDocument}
-            onCreateBoard={handleCreateBoard}
-            onDelete={handleDeleteNote}
-            onRename={handleRenameNote}
-            onMove={handleMoveNote}
-            onDuplicate={handleDuplicateNote}
-            canEdit={canEdit}
-            boardNoteSections={orgId ? boardNoteSections : undefined}
-            onSelectBoardNote={orgId ? handleSelectBoardNote : undefined}
-            fileActions={withFiles ? fileActions : undefined}
-            selection={withFiles && canEdit ? treeSelection : undefined}
-          />
-        ) : (
-          <NoteListView
-            boardId={scopeId}
-            selectedNoteId={selectedNoteId}
-            searchQuery={searchQuery}
-            onSelect={handleSelectNote}
-            tags={tags}
-          />
-        )}
+      {/* Tree or List Content — 아카이브와 상하 분할 */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-y-auto p-3">
+          {viewType === "tree" ? (
+            <NoteTreeSidebar
+              tree={library.tree}
+              selectedNoteId={selectedFileNodeId ?? selectedNoteId}
+              searchQuery={searchQuery}
+              onSelect={handleSelectTreeNode}
+              onCreateFolder={handleCreateFolder}
+              onCreateDocument={handleCreateDocument}
+              onCreateBoard={handleCreateBoard}
+              onDelete={handleDeleteNote}
+              onRename={handleRenameNote}
+              onMove={handleMoveNote}
+              onDuplicate={handleDuplicateNote}
+              canEdit={canEdit}
+              boardNoteSections={orgId ? boardNoteSections : undefined}
+              onSelectBoardNote={orgId ? handleSelectBoardNote : undefined}
+              fileActions={withFiles ? fileActions : undefined}
+              selection={withFiles && canEdit ? treeSelection : undefined}
+            />
+          ) : (
+            <NoteListView
+              boardId={scopeId}
+              selectedNoteId={selectedNoteId}
+              searchQuery={searchQuery}
+              onSelect={handleSelectNote}
+              tags={tags}
+            />
+          )}
+        </div>
 
-        {/* 보고서 아카이브 — 자동 생성 보고서 자료를 트리에서 분리한 고정 섹션 */}
+        {/* 보고서 아카이브 — 트리 아래 고정 패널, 구분선을 드래그해 높이 조절 */}
         {withFiles && library.reportArchive.length > 0 && (
-          <ReportArchiveSection
-            groups={library.reportArchive}
-            searchQuery={searchQuery}
-            canEdit={canEdit}
-            fileActions={fileActions}
-            selectedFileNodeId={selectedFileNodeId}
-            onOpenFile={(nodeId) => {
-              setSelectedFileNodeId(nodeId);
-              setMobileSidebarOpen(false);
-            }}
-          />
+          <>
+            {archiveOpen && !searchQuery ? (
+              <div
+                onPointerDown={handleArchiveResizeStart}
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label={t("library.archiveResize", "아카이브 크기 조절")}
+                className="group flex-shrink-0 flex items-center h-2 -my-[3px] cursor-row-resize touch-none z-20"
+              >
+                <div className="w-full h-px bg-foreground/[0.08] group-hover:h-[3px] group-hover:bg-bridge-accent/50 transition-all" />
+              </div>
+            ) : (
+              <div className="flex-shrink-0 h-px bg-foreground/[0.08]" />
+            )}
+            <div
+              className={`flex-shrink-0 px-3 pb-2 ${
+                archiveOpen ? "overflow-y-auto custom-scrollbar" : ""
+              } ${archiveOpen && searchQuery ? "max-h-[50%]" : ""}`}
+              style={
+                archiveOpen && !searchQuery
+                  ? { height: archiveHeight }
+                  : undefined
+              }
+            >
+              <ReportArchiveSection
+                groups={library.reportArchive}
+                searchQuery={searchQuery}
+                canEdit={canEdit}
+                fileActions={fileActions}
+                selectedFileNodeId={selectedFileNodeId}
+                onOpenFile={(nodeId) => {
+                  setSelectedFileNodeId(nodeId);
+                  setMobileSidebarOpen(false);
+                }}
+                open={archiveOpen}
+                onToggleOpen={() => setArchiveOpen((prev) => !prev)}
+              />
+            </div>
+          </>
         )}
       </div>
 
