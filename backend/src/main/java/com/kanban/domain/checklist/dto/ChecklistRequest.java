@@ -138,6 +138,8 @@ public class ChecklistRequest {
         private String featureId;
         private String taskId;
         private String newFeatureTitle;
+        /** 태스크 자동 생성 시 배정할 마일스톤 (기존 태스크 선택 시 무시) */
+        private String milestoneId;
     }
 
     @Getter

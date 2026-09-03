@@ -29,6 +29,10 @@ import com.kanban.domain.integration.discord.service.DiscordNotificationService;
 import com.kanban.domain.integration.jira.JiraIssueLink;
 import com.kanban.domain.integration.jira.JiraIssueLinkRepository;
 import com.kanban.domain.integration.slack.service.SlackNotificationService;
+import com.kanban.domain.milestone.Milestone;
+import com.kanban.domain.milestone.MilestoneFeature;
+import com.kanban.domain.milestone.MilestoneFeatureRepository;
+import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.notification.service.NotificationService;
 import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
@@ -70,6 +74,8 @@ public class ChecklistService {
     private final FeatureRepository featureRepository;
     private final BlockRepository blockRepository;
     private final InboxFeatureService inboxFeatureService;
+    private final MilestoneRepository milestoneRepository;
+    private final MilestoneFeatureRepository milestoneFeatureRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
     /** 항목이 옮겨지거나 합쳐지거나 사라질 때, 그 항목에 달린 댓글의 소속을 맞춰주기 위해 쓴다. */
     private final CommentRepository commentRepository;
@@ -642,7 +648,23 @@ public class ChecklistService {
             return inboxFeatureService.getOrCreateInboxTask(boardId, userId);
         }
 
-        return createInlineTask(boardId, userId, feature, request.getTitle());
+        return createInlineTask(boardId, userId, feature, request.getTitle(), request.getMilestoneId());
+    }
+
+    /**
+     * 마일스톤을 검증하고 피처가 아직 연결 안 됐으면 연결한다.
+     * 불변식(Task.milestone은 피처가 연결된 마일스톤 중 하나) 유지 — TaskService.resolveAndLinkMilestone과 동일.
+     */
+    private Milestone resolveAndLinkMilestone(String boardId, Feature feature, String milestoneId) {
+        Milestone milestone = milestoneRepository.findById(milestoneId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
+        if (!milestone.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
+        }
+        if (milestoneFeatureRepository.findByMilestoneIdAndFeatureId(milestone.getId(), feature.getId()).isEmpty()) {
+            milestoneFeatureRepository.save(MilestoneFeature.create(milestone, feature));
+        }
+        return milestone;
     }
 
     private Feature createInlineFeature(String boardId, String userId, String title) {
@@ -667,7 +689,7 @@ public class ChecklistService {
         return feature;
     }
 
-    private Task createInlineTask(String boardId, String userId, Feature feature, String title) {
+    private Task createInlineTask(String boardId, String userId, Feature feature, String title, String milestoneId) {
         Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
 
@@ -685,6 +707,9 @@ public class ChecklistService {
                 .position(newPosition)
                 .createdBy(creator)
                 .build();
+        if (milestoneId != null && !milestoneId.isEmpty()) {
+            task.assignMilestone(resolveAndLinkMilestone(boardId, feature, milestoneId));
+        }
         taskRepository.save(task);
 
         feature.incrementTotalTasks();

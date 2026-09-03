@@ -3600,6 +3600,8 @@ export const boardChecklistAPI = {
       feature_id?: string | null;
       task_id?: string | null;
       new_feature_title?: string | null;
+      /** 태스크 자동 생성 시 배정할 마일스톤 (기존 태스크 선택 시 무시) */
+      milestone_id?: string | null;
     },
   ) => {
     return apiClient.post<ChecklistItemResponse>(

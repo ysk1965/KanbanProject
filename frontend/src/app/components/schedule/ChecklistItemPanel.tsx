@@ -555,7 +555,7 @@ export function ChecklistItemPanel({
     didInitMemberRef.current = false;
   }, [boardId]);
   // 최초 진입 시 저장값이 없으면 기본 선택.
-  // 본인이 보드 멤버(role=MEMBER)면 본인, 아니면 전체.
+  // 본인이 담당자가 될 수 있는 보드 멤버(viewer 제외)면 본인, 아니면 전체.
   // 역할 판정을 위해 boardMembers 로딩(길이>0) 이후에만 초기화한다.
   useEffect(() => {
     if (didInitMemberRef.current) return;
@@ -567,10 +567,10 @@ export function ChecklistItemPanel({
     }
     if (!currentUser?.id) return;
     if (boardMembers.length === 0) return; // 로딩 대기
-    const selfIsMemberRole = boardMembers.some(
-      (m) => m.userId === currentUser.id && m.role === "MEMBER",
+    const selfCanBeAssignee = boardMembers.some(
+      (m) => m.userId === currentUser.id && m.role !== "viewer",
     );
-    setSelectedMemberId(selfIsMemberRole ? currentUser.id : "__all__");
+    setSelectedMemberId(selfCanBeAssignee ? currentUser.id : "__all__");
     didInitMemberRef.current = true;
   }, [memberFilterKey, currentUser?.id, boardMembers]);
 
@@ -744,11 +744,11 @@ export function ChecklistItemPanel({
 
   // ── Member filter options (derived from loaded items' assignees) ──
   const memberOptions = useMemo(() => {
-    // 보드 멤버 중 role=MEMBER 인 user id 집합. boardMembers 미로딩 시(길이 0)에는
+    // 담당자가 될 수 있는 보드 멤버(viewer 제외) user id 집합. boardMembers 미로딩 시(길이 0)에는
     // 필터를 보류해 기존처럼 항목 담당자 전체를 노출(로딩 후 정정).
     const allowed = new Set<string>();
     for (const m of boardMembers) {
-      if (m.role === "MEMBER") allowed.add(m.userId);
+      if (m.role !== "viewer") allowed.add(m.userId);
     }
     const roleFilterActive = boardMembers.length > 0;
 
@@ -1054,8 +1054,8 @@ export function ChecklistItemPanel({
   }
 
   // ── Unified filter model (C: active chips + "+ 필터" menu) ──────────────────
-  // 담당자는 상단 아바타 스트립으로 분리했으므로 "+ 필터"에서는 제외.
-  const filterOrder: FilterKey[] = ["milestone", "block", "jobRole"];
+  // 담당자(member)는 상단 아바타 스트립과 상태를 공유한다 ("__all__" = 필터 없음 → 칩 미노출).
+  const filterOrder: FilterKey[] = ["member", "milestone", "block", "jobRole"];
 
   const filterMeta: Record<
     FilterKey,
@@ -1084,7 +1084,7 @@ export function ChecklistItemPanel({
       case "milestone":
         return milestoneOptions.length > 0;
       case "member":
-        return memberOptions.length > 0;
+        return memberOptions.length > 0 || !!currentUser?.id;
       case "block":
         return blockOptions.length > 0;
       case "jobRole":
@@ -1097,7 +1097,8 @@ export function ChecklistItemPanel({
       case "milestone":
         return selectedMilestoneId;
       case "member":
-        return selectedMemberId;
+        // "__all__"(전체)은 필터 없음으로 취급 → 칩 미노출.
+        return memberFilterValue;
       case "block":
         return selectedBlockId;
       case "jobRole":
@@ -1111,7 +1112,8 @@ export function ChecklistItemPanel({
         setSelectedMilestoneId(null);
         break;
       case "member":
-        updateMemberFilter(null);
+        // 명시적 "전체"로 저장해 다음 방문 때 본인 디폴트가 재적용되지 않게 한다.
+        updateMemberFilter("__all__");
         break;
       case "block":
         updateBlockFilter(null);
@@ -1181,7 +1183,16 @@ export function ChecklistItemPanel({
       case "member": {
         if (id === "__none__")
           return <span>{t("schedule.panel.unassigned", "미배정")}</span>;
-        const m = memberOptions.find((x) => x.id === id);
+        // 본인은 항목이 없어 memberOptions에 빠져 있어도 칩을 표시한다(본인 디폴트).
+        const m =
+          memberOptions.find((x) => x.id === id) ??
+          (currentUser && id === currentUser.id
+            ? {
+                id: currentUser.id,
+                name: currentUser.name,
+                profileImage: currentUser.profile_image ?? null,
+              }
+            : null);
         if (!m) return null;
         return (
           <>
@@ -1236,10 +1247,22 @@ export function ChecklistItemPanel({
             </span>
           </button>
         ));
-      case "member":
+      case "member": {
+        // 본인이 항목이 없어 memberOptions에 없어도 선택할 수 있게 맨 앞에 노출.
+        const selfOption =
+          currentUser && !memberOptions.some((m) => m.id === currentUser.id)
+            ? {
+                id: currentUser.id,
+                name: currentUser.name,
+                profileImage: currentUser.profile_image ?? null,
+              }
+            : null;
+        const pickerMembers = selfOption
+          ? [selfOption, ...memberOptions]
+          : memberOptions;
         return (
           <>
-            {memberOptions.map((m) => (
+            {pickerMembers.map((m) => (
               <button
                 key={m.id}
                 onClick={() => selectFilterValue("member", m.id)}
@@ -1264,6 +1287,7 @@ export function ChecklistItemPanel({
             </button>
           </>
         );
+      }
       case "block":
         return blockOptions.map((b) => (
           <button
@@ -1330,7 +1354,7 @@ export function ChecklistItemPanel({
 
   // ── 담당자 아바타 스트립 데이터 ──
   const isAllSelected = !selectedMemberId || selectedMemberId === "__all__";
-  // 본인 아바타(나)는 본인이 보드 멤버(role=MEMBER)일 때만 노출.
+  // 본인 아바타(나)는 본인이 담당자가 될 수 있는 보드 멤버(viewer 제외)일 때만 노출.
   // boardMembers 미로딩(길이 0) 시엔 허용(로딩 후 정정).
   const selfIsMember =
     !currentUser?.id
@@ -1338,7 +1362,7 @@ export function ChecklistItemPanel({
       : boardMembers.length === 0
         ? true
         : boardMembers.some(
-            (m) => m.userId === currentUser.id && m.role === "MEMBER",
+            (m) => m.userId === currentUser.id && m.role !== "viewer",
           );
   const selfInOptions = memberOptions.find((m) => m.id === currentUser?.id);
   const selfEntry =

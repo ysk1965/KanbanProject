@@ -138,16 +138,23 @@ export function ChecklistCreatePanel({
     return map;
   }, [selectableFeatures]);
 
+  // 마일스톤 스코프 태스크 (진실 = task.milestone_id — 테이블 뷰와 동일 기준)
+  const scopedTasks = useMemo(() => {
+    if (msSel === INBOX) return [];
+    if (msSel === UNLINKED) return allTasks.filter((t) => !t.milestone_id);
+    return allTasks.filter((t) => t.milestone_id === msSel);
+  }, [allTasks, msSel]);
+
   const tasksByFeature = useMemo(() => {
     const map: Record<string, TaskResponse[]> = {};
-    for (const task of allTasks) {
+    for (const task of scopedTasks) {
       (map[task.feature_id] ??= []).push(task);
     }
     for (const list of Object.values(map)) {
       list.sort((a, b) => a.position - b.position);
     }
     return map;
-  }, [allTasks]);
+  }, [scopedTasks]);
 
   // 어떤 마일스톤에도 연결되지 않은 피쳐 (매핑 로드 후에만 판정)
   const unlinkedFeatures = useMemo(() => {
@@ -388,14 +395,21 @@ export function ChecklistCreatePanel({
         due_date: dueDate,
       };
 
+      // 자동 생성될 태스크를 현재 마일스톤에 배정 (미분류/미연결이면 없음)
+      const milestoneId =
+        msSel !== INBOX && msSel !== UNLINKED ? msSel : undefined;
+
       if (featSel === NEWF) {
         payload.new_feature_title = newFeatureTitle.trim();
+        payload.milestone_id = milestoneId;
       } else if (featSel && msSel !== INBOX) {
         payload.feature_id = featSel;
         if (taskSel && taskSel !== AUTO) {
           payload.task_id = taskSel;
+        } else {
+          // AUTO: no task → server auto-creates one in this milestone
+          payload.milestone_id = milestoneId;
         }
-        // AUTO: no task → server auto-creates one
       }
       // 미분류/피처 미선택 → no feature → goes to inbox
 
@@ -664,7 +678,7 @@ export function ChecklistCreatePanel({
                   피처 없이 제목만 입력하면 되고, 나중에 보드에서 분류할 수
                   있어요.
                 </p>
-              ) : visibleFeatures == null || (isLoadingTasks && !msLoaded) ? (
+              ) : visibleFeatures == null || isLoadingTasks ? (
                 <div className="flex items-center gap-2 px-4 py-3 text-xs text-slate-500">
                   <Loader2
                     size={13}
@@ -683,30 +697,10 @@ export function ChecklistCreatePanel({
                     </p>
                   )}
                   {visibleFeatures.map((f) => {
-                    const count = tasksByFeature[f.id]?.length ?? f.total_tasks;
-                    const hasTasks = count > 0;
+                    // 마일스톤 스코프 카운트 — 다른 마일스톤 태스크는 세지 않는다.
+                    // 0이어도 선택 가능: AUTO가 이 마일스톤에 새 태스크를 만든다.
+                    const count = tasksByFeature[f.id]?.length ?? 0;
                     const selected = featSel === f.id;
-                    if (!hasTasks) {
-                      return (
-                        <div
-                          key={f.id}
-                          className="flex items-center gap-2.5 px-4 py-2.5 text-xs
-                            opacity-40 cursor-not-allowed select-none
-                            border-l-2 border-transparent"
-                        >
-                          <span
-                            className="w-2 h-2 rounded-full shrink-0"
-                            style={{ backgroundColor: f.color }}
-                          />
-                          <span className="flex-1 truncate text-foreground font-medium">
-                            {f.title}
-                          </span>
-                          <span className="shrink-0 text-xs text-slate-500">
-                            {t("schedule.workloadCreate.noTasks", "없음")}
-                          </span>
-                        </div>
-                      );
-                    }
                     return (
                       <button
                         key={f.id}
