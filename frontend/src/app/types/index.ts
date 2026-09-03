@@ -558,6 +558,8 @@ export interface Task {
   qa_state?: "REVIEW" | "VERIFIED" | "REJECTED" | null;
   /** 살아있는 JIRA 이슈 링크가 있으면 그 키(TBTRP-294). 설명은 JIRA가 소유 → 읽기 전용 */
   jira_issue_key?: string | null;
+  /** 이 태스크에 적용된 체크리스트 프리셋 (해제하면 null, 항목은 유지) */
+  preset_id?: string | null;
 }
 
 // ========================================
@@ -654,6 +656,26 @@ export interface Checklist {
   total: number;
   completed: number;
   items: ChecklistItem[];
+}
+
+// ========================================
+// 체크리스트 프리셋 (보드 단위 템플릿)
+// ========================================
+
+export interface ChecklistPresetItem {
+  id: string;
+  title: string;
+  sort_order: number;
+}
+
+export interface ChecklistPreset {
+  id: string;
+  name: string;
+  icon: string | null;
+  item_count: number;
+  items: ChecklistPresetItem[];
+  created_at: string;
+  updated_at: string;
 }
 
 // ========================================

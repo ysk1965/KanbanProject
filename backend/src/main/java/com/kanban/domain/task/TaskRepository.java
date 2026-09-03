@@ -198,6 +198,11 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query("UPDATE Task t SET t.milestone = null WHERE t.milestone.id = :milestoneId")
     int clearMilestoneByMilestoneId(@Param("milestoneId") String milestoneId);
 
+    /** 체크리스트 프리셋 삭제 시 해당 프리셋을 참조하는 태스크의 라벨 해제 */
+    @Modifying
+    @Query("UPDATE Task t SET t.presetId = null WHERE t.presetId = :presetId")
+    int clearPresetByPresetId(@Param("presetId") String presetId);
+
     /** 피처-마일스톤 링크 제거 시 재배정용 — 특정 피처의 특정 마일스톤 태스크 조회 */
     List<Task> findByFeatureIdAndMilestoneId(String featureId, String milestoneId);
 

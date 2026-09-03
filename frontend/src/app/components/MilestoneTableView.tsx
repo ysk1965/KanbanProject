@@ -27,14 +27,17 @@ import {
   Loader2,
   Plus,
 } from "lucide-react";
+import { toast } from "sonner";
 import type {
   ChecklistItem,
+  ChecklistPreset,
   Feature,
   Milestone,
   SprintInfo,
   Task,
 } from "../types";
 import {
+  checklistPresetService,
   checklistService,
   memberService,
   taskService,
@@ -46,6 +49,8 @@ import {
   daysUntil,
   type TaskSprintInfo,
 } from "./MilestoneDetailView";
+import { ChecklistPresetPopover } from "./ChecklistPresetPopover";
+import { ChecklistPresetManageModal } from "./ChecklistPresetManageModal";
 
 // ========================================
 // Types
@@ -161,6 +166,16 @@ export function MilestoneTableView({
   const [saving, setSaving] = useState(false);
   /** 담당자 피커용 보드 멤버 (user id 기준) — 편집 가능할 때만 로드 */
   const [members, setMembers] = useState<{ id: string; name: string }[]>([]);
+  /** 보드 공용 체크리스트 프리셋 — 칩 이름 표시에도 쓰므로 항상 로드 */
+  const [presets, setPresets] = useState<ChecklistPreset[]>([]);
+  const [presetManageOpen, setPresetManageOpen] = useState(false);
+  /**
+   * 적용/해제 직후의 로컬 preset_id 오버라이드 — 부모 리프레시가 돌아오기 전에
+   * 칩을 즉시 갱신한다. undefined = 서버값(task.preset_id) 그대로.
+   */
+  const [presetOverrides, setPresetOverrides] = useState<{
+    [taskId: string]: string | null;
+  }>({});
   const addInputRef = useRef<HTMLInputElement | null>(null);
 
   // 마일스톤 전환 시 필터·입력 초기화
@@ -237,6 +252,22 @@ export function MilestoneTableView({
       cancelled = true;
     };
   }, [boardId, canEdit]);
+
+  // 체크리스트 프리셋 로드 — 실패해도 칩만 빈 상태로 동작
+  useEffect(() => {
+    let cancelled = false;
+    checklistPresetService
+      .getPresets(boardId)
+      .then((list) => {
+        if (!cancelled) setPresets(list);
+      })
+      .catch(() => {
+        /* 미지원/실패 → 빈 목록 */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [boardId]);
 
   // 체크 항목 크로스 태스크 드래그 센서
   const sensors = useSensors(
@@ -554,6 +585,82 @@ export function MilestoneTableView({
       }
     },
     [boardId, saving],
+  );
+
+  // ── 프리셋 적용/해제/저장 ──
+  /** 프리셋 적용 — 응답 체크리스트로 즉시 교체, 중복 스킵은 토스트 안내 */
+  const handleApplyPreset = useCallback(
+    async (taskId: string, presetId: string) => {
+      try {
+        const res = await checklistPresetService.applyPreset(
+          boardId,
+          taskId,
+          presetId,
+        );
+        setChecklists((prev) => ({
+          ...prev,
+          [taskId]: { items: res.checklists, loaded: true },
+        }));
+        setPresetOverrides((prev) => ({ ...prev, [taskId]: presetId }));
+        if (res.skipped_duplicates > 0) {
+          toast(
+            t("milestone.preset.skippedToast", {
+              count: res.skipped_duplicates,
+              defaultValue: "{{count}}개는 이미 있어 건너뛰었습니다",
+            }),
+          );
+        }
+        onRefresh?.();
+      } catch (error) {
+        toast.error(
+          t("milestone.preset.applyFailed", {
+            defaultValue: "프리셋 적용에 실패했습니다",
+          }),
+        );
+        throw error;
+      }
+    },
+    [boardId, onRefresh, t],
+  );
+
+  /** 지정 해제 — 프리셋 연결만 끊고 항목은 유지 */
+  const handleClearPreset = useCallback(
+    async (taskId: string) => {
+      try {
+        await checklistPresetService.clearPreset(boardId, taskId);
+        setPresetOverrides((prev) => ({ ...prev, [taskId]: null }));
+        onRefresh?.();
+      } catch (error) {
+        toast.error(
+          t("milestone.preset.clearFailed", {
+            defaultValue: "지정 해제에 실패했습니다",
+          }),
+        );
+        throw error;
+      }
+    },
+    [boardId, onRefresh, t],
+  );
+
+  /** 현재 체크 항목들을 새 프리셋으로 저장 */
+  const handleSavePreset = useCallback(
+    async (name: string, itemTitles: string[]) => {
+      try {
+        const preset = await checklistPresetService.createPreset(boardId, {
+          name,
+          items: itemTitles.map((title) => ({ title })),
+        });
+        setPresets((prev) => [...prev, preset]);
+      } catch (error) {
+        toast.error(
+          t("milestone.preset.saveFailed", {
+            defaultValue: "프리셋 저장에 실패했습니다",
+          }),
+        );
+        throw error;
+      }
+    },
+    [boardId, t],
   );
 
   /** 드래그 중인 항목 (DragOverlay 고스트용) */
@@ -1119,6 +1226,28 @@ export function MilestoneTableView({
                                     onMove={onMoveSprint}
                                   />
                                 )}
+                                <ChecklistPresetPopover
+                                  presets={presets}
+                                  presetId={
+                                    presetOverrides[tk.id] !== undefined
+                                      ? presetOverrides[tk.id]
+                                      : (tk.preset_id ?? null)
+                                  }
+                                  taskItemTitles={items.map((i) => i.title)}
+                                  defaultSaveName={g.title}
+                                  canEdit={canEdit}
+                                  onApply={(pid) =>
+                                    handleApplyPreset(tk.id, pid)
+                                  }
+                                  onClear={() => handleClearPreset(tk.id)}
+                                  onSaveCurrent={(name) =>
+                                    handleSavePreset(
+                                      name,
+                                      items.map((i) => i.title),
+                                    )
+                                  }
+                                  onManage={() => setPresetManageOpen(true)}
+                                />
                                 {tk.due_date && (
                                   <span
                                     className={`text-xs tabular-nums ml-auto whitespace-nowrap ${
@@ -1282,6 +1411,14 @@ export function MilestoneTableView({
           </DragOverlay>
         </DndContext>
       )}
+
+      <ChecklistPresetManageModal
+        open={presetManageOpen}
+        boardId={boardId}
+        presets={presets}
+        onClose={() => setPresetManageOpen(false)}
+        onPresetsChange={setPresets}
+      />
     </div>
   );
 }

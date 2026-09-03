@@ -93,6 +93,7 @@ public enum ErrorCode {
 
     // Checklist
     CHECKLIST_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "CL001", "체크리스트 항목을 찾을 수 없습니다"),
+    CHECKLIST_PRESET_NOT_FOUND(HttpStatus.NOT_FOUND, "CL002", "체크리스트 프리셋을 찾을 수 없습니다"),
 
     // Schedule
     SCHEDULE_BLOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "SC001", "스케줄 블록을 찾을 수 없습니다"),

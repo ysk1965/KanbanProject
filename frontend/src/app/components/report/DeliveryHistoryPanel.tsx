@@ -285,7 +285,7 @@ function rowMessage(log: ReportDeliveryLog): string {
   return `${kind} 보고서 발송 완료`;
 }
 
-function PagerButton({
+export function PagerButton({
   children,
   active,
   disabled,

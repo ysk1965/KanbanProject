@@ -4,6 +4,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
 } from "react";
 import { useTranslation } from "react-i18next";
@@ -90,9 +91,24 @@ const FileActionsContext = createContext<FileActions | null>(null);
 export interface TreeSelection {
   selectedIds: Set<string>;
   toggle: (id: string) => void;
+  setSelected: (id: string, selected: boolean) => void;
 }
 
 const SelectionContext = createContext<TreeSelection | null>(null);
+
+/**
+ * 드래그 스윕 선택 — 체크박스에서 pointerdown 후 드래그하면 지나가는 행에
+ * 시작 시점의 값(선택/해제)을 그대로 적용한다. 지나간 행은 되돌아가도 유지(Gmail 방식).
+ */
+interface SweepControl {
+  /** 스윕 중이면 적용할 값, 아니면 null */
+  valueRef: React.MutableRefObject<boolean | null>;
+  /** 스윕 직후의 click 이벤트 1회를 무시하기 위한 플래그 */
+  justEndedRef: React.MutableRefObject<boolean>;
+  begin: (value: boolean) => void;
+}
+
+const SweepContext = createContext<SweepControl | null>(null);
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -160,6 +176,32 @@ export function NoteTreeSidebar({
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const dropTargetRef = useRef<DropTargetInfo | null>(null);
   const pointerYRef = useRef<number>(0);
+
+  const sweepValueRef = useRef<boolean | null>(null);
+  const sweepJustEndedRef = useRef(false);
+  const beginSweep = useCallback((value: boolean) => {
+    sweepValueRef.current = value;
+    const end = () => {
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+      sweepValueRef.current = null;
+      // pointerup 직후 따라오는 click이 행 열기로 이어지지 않게 한 틱 막는다
+      sweepJustEndedRef.current = true;
+      setTimeout(() => {
+        sweepJustEndedRef.current = false;
+      }, 0);
+    };
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+  }, []);
+  const sweep = useMemo<SweepControl>(
+    () => ({
+      valueRef: sweepValueRef,
+      justEndedRef: sweepJustEndedRef,
+      begin: beginSweep,
+    }),
+    [beginSweep],
+  );
 
   const toggleExpand = useCallback((id: string) => {
     setCollapsedIds((prev) => {
@@ -404,6 +446,7 @@ export function NoteTreeSidebar({
 
   return (
     <SelectionContext.Provider value={selection ?? null}>
+    <SweepContext.Provider value={sweep}>
     <FileActionsContext.Provider value={fileActions ?? null}>
       <DndContext
         sensors={sensors}
@@ -474,6 +517,7 @@ export function NoteTreeSidebar({
           ))}
       </DndContext>
     </FileActionsContext.Provider>
+    </SweepContext.Provider>
     </SelectionContext.Provider>
   );
 }
@@ -609,6 +653,7 @@ function TreeItemComponent({
 
   const fileActions = useContext(FileActionsContext);
   const selection = useContext(SelectionContext);
+  const sweep = useContext(SweepContext);
   const isChecked = selection?.selectedIds.has(item.id) ?? false;
 
   const expanded = !collapsedIds.has(item.id);
@@ -664,6 +709,8 @@ function TreeItemComponent({
   );
 
   const handleClick = () => {
+    // 스윕 드래그를 행 위에서 끝낸 직후의 click은 열기로 취급하지 않는다
+    if (sweep?.justEndedRef.current) return;
     if (hasChildren || isFolder) onToggleExpand(item.id);
     onSelect(item.id);
   };
@@ -706,18 +753,35 @@ function TreeItemComponent({
         {...attributes}
         {...listeners}
         onClick={handleClick}
+        onPointerEnter={() => {
+          // 스윕 드래그 중 지나가는 행에 시작 시점의 선택값을 적용
+          if (selection && sweep && sweep.valueRef.current !== null) {
+            selection.setSelected(item.id, sweep.valueRef.current);
+          }
+        }}
       >
-        {/* 다중 선택 체크박스 — 선택 항목은 항상, 그 외엔 호버 시 노출 */}
+        {/* 다중 선택 체크박스 — 선택 항목은 항상, 그 외엔 호버 시 노출. 누른 채 드래그하면 스윕 선택 */}
         {selection && (
           <button
             type="button"
             role="checkbox"
             aria-checked={isChecked}
             aria-label={t("common.select", "선택")}
-            onPointerDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              // 터치의 암묵적 포인터 캡처를 풀어야 다른 행의 pointerenter가 발화한다
+              if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+                e.currentTarget.releasePointerCapture(e.pointerId);
+              }
+              const value = !isChecked;
+              sweep?.begin(value);
+              selection.setSelected(item.id, value);
+            }}
             onClick={(e) => {
               e.stopPropagation();
-              selection.toggle(item.id);
+              // 포인터 조작은 pointerdown에서 처리 — 키보드(Enter/Space)만 여기서 토글
+              if (e.detail === 0) selection.toggle(item.id);
             }}
             className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-all ${
               isChecked

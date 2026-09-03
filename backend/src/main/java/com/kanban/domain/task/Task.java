@@ -142,6 +142,14 @@ public class Task extends BaseTimeEntity {
     @Column(name = "sprint_done_at")
     private LocalDateTime sprintDoneAt;
 
+    /**
+     * 적용된 체크리스트 프리셋 id (유형 라벨용, nullable).
+     * 스냅샷 원칙: 적용 시점에 항목이 복사되므로 프리셋 수정/삭제가 체크리스트에 영향을 주지 않는다.
+     * FK 없이 서비스 레이어에서 정리한다 (프리셋 삭제 시 null 처리).
+     */
+    @Column(name = "preset_id", length = 36)
+    private String presetId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "qa_state", length = 20)
     private QaState qaState;
@@ -253,6 +261,11 @@ public class Task extends BaseTimeEntity {
     /** 태스크를 마일스톤에 배정 (null 허용 — 마일스톤 미지정) */
     public void assignMilestone(Milestone milestone) {
         this.milestone = milestone;
+    }
+
+    /** 체크리스트 프리셋 라벨 배정 (null 허용 — 해제) */
+    public void assignPreset(String presetId) {
+        this.presetId = presetId;
     }
 
     public void moveToBoard(Board newBoard, Block newBlock, Feature newFeature, int newPosition) {

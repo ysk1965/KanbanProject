@@ -12,6 +12,7 @@ import {
   activityAPI,
   pricingAPI,
   checklistAPI,
+  checklistPresetAPI,
   milestoneAPI,
   statisticsAPI,
   testDataAPI,
@@ -57,6 +58,7 @@ import type {
   ActivityLog,
   PricingPlan,
   ChecklistItem,
+  ChecklistPreset,
   User,
   Milestone,
   BoardTierInfo,
@@ -1091,6 +1093,96 @@ export const checklistService = {
       return item;
     } catch (error) {
       console.warn("API failed for toggle checklist item", error);
+      throw error;
+    }
+  },
+};
+
+// ========================================
+// Checklist Preset Service
+// ========================================
+
+export const checklistPresetService = {
+  getPresets: async (boardId: string): Promise<ChecklistPreset[]> => {
+    try {
+      const res = await checklistPresetAPI.getPresets(boardId);
+      return res.presets ?? [];
+    } catch (error) {
+      console.warn("API failed, using empty data for checklist presets", error);
+      if (canUseMock(error)) {
+        return [];
+      }
+      throw error;
+    }
+  },
+
+  createPreset: async (
+    boardId: string,
+    data: { name: string; items: { title: string }[] },
+  ): Promise<ChecklistPreset> => {
+    try {
+      const preset = await checklistPresetAPI.createPreset(boardId, data);
+      return preset;
+    } catch (error) {
+      console.warn("API failed for create checklist preset", error);
+      throw error;
+    }
+  },
+
+  updatePreset: async (
+    boardId: string,
+    presetId: string,
+    data: { name: string; items: { title: string }[] },
+  ): Promise<ChecklistPreset> => {
+    try {
+      const preset = await checklistPresetAPI.updatePreset(
+        boardId,
+        presetId,
+        data,
+      );
+      return preset;
+    } catch (error) {
+      console.warn("API failed for update checklist preset", error);
+      throw error;
+    }
+  },
+
+  deletePreset: async (boardId: string, presetId: string): Promise<void> => {
+    try {
+      await checklistPresetAPI.deletePreset(boardId, presetId);
+    } catch (error) {
+      console.warn("API failed for delete checklist preset", error);
+      throw error;
+    }
+  },
+
+  applyPreset: async (
+    boardId: string,
+    taskId: string,
+    presetId: string,
+  ): Promise<{
+    created_count: number;
+    skipped_duplicates: number;
+    checklists: ChecklistItem[];
+  }> => {
+    try {
+      const res = await checklistPresetAPI.applyPreset(
+        boardId,
+        taskId,
+        presetId,
+      );
+      return res;
+    } catch (error) {
+      console.warn("API failed for apply checklist preset", error);
+      throw error;
+    }
+  },
+
+  clearPreset: async (boardId: string, taskId: string): Promise<void> => {
+    try {
+      await checklistPresetAPI.clearPreset(boardId, taskId);
+    } catch (error) {
+      console.warn("API failed for clear checklist preset", error);
       throw error;
     }
   },

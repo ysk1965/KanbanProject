@@ -2018,6 +2018,82 @@ export const checklistAPI = {
 };
 
 // ========================================
+// Checklist Preset API
+// ========================================
+
+export interface ChecklistPresetItemResponse {
+  id: string;
+  title: string;
+  sort_order: number;
+}
+
+export interface ChecklistPresetResponse {
+  id: string;
+  name: string;
+  icon: string | null;
+  item_count: number;
+  items: ChecklistPresetItemResponse[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChecklistPresetApplyResponse {
+  created_count: number;
+  skipped_duplicates: number;
+  checklists: ChecklistItemResponse[];
+}
+
+export const checklistPresetAPI = {
+  getPresets: async (boardId: string) => {
+    return apiClient.get<{ presets: ChecklistPresetResponse[] }>(
+      `/boards/${boardId}/checklist-presets`,
+    );
+  },
+
+  createPreset: async (
+    boardId: string,
+    data: { name: string; items: { title: string }[] },
+  ) => {
+    return apiClient.post<ChecklistPresetResponse>(
+      `/boards/${boardId}/checklist-presets`,
+      data,
+    );
+  },
+
+  // 전체 교체(full replace) — 이름과 항목 목록을 통째로 저장한다.
+  updatePreset: async (
+    boardId: string,
+    presetId: string,
+    data: { name: string; items: { title: string }[] },
+  ) => {
+    return apiClient.put<ChecklistPresetResponse>(
+      `/boards/${boardId}/checklist-presets/${presetId}`,
+      data,
+    );
+  },
+
+  deletePreset: async (boardId: string, presetId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/checklist-presets/${presetId}`,
+    );
+  },
+
+  applyPreset: async (boardId: string, taskId: string, presetId: string) => {
+    return apiClient.post<ChecklistPresetApplyResponse>(
+      `/boards/${boardId}/tasks/${taskId}/checklist/apply-preset`,
+      { preset_id: presetId },
+    );
+  },
+
+  // 지정 해제 — 프리셋 연결만 끊고 체크리스트 항목은 유지한다.
+  clearPreset: async (boardId: string, taskId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/tasks/${taskId}/checklist/preset`,
+    );
+  },
+};
+
+// ========================================
 // Comment API
 // ========================================
 

@@ -22,6 +22,7 @@ import { NoteListView } from "./NoteListView";
 import { NoteTrashModal } from "./NoteTrashModal";
 import { LibraryFilePane } from "../library/LibraryFilePane";
 import { LibraryTrashModal } from "../library/LibraryTrashModal";
+import { ReportArchiveSection } from "../library/ReportArchiveSection";
 import {
   buildLibraryTree,
   fileIdFromNodeId,
@@ -620,7 +621,12 @@ export function NotesView({
     () =>
       withFiles
         ? buildLibraryTree(tree, storageFolders, filesByFolder)
-        : { tree, storageFolderByNode: new Map(), fileByNodeId: new Map() },
+        : {
+            tree,
+            storageFolderByNode: new Map(),
+            fileByNodeId: new Map(),
+            reportArchive: [],
+          },
     [withFiles, tree, storageFolders, filesByFolder],
   );
 
@@ -761,11 +767,22 @@ export function NotesView({
     });
   }, []);
 
+  // 드래그 스윕 선택용 — 같은 행을 여러 번 지나가도 값이 뒤집히지 않게 절대값으로 지정
+  const setSelected = useCallback((id: string, selected: boolean) => {
+    setSelectedIds((prev) => {
+      if (prev.has(id) === selected) return prev;
+      const next = new Set(prev);
+      if (selected) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
   const treeSelection = useMemo(
-    () => ({ selectedIds, toggle: toggleSelect }),
-    [selectedIds, toggleSelect],
+    () => ({ selectedIds, toggle: toggleSelect, setSelected }),
+    [selectedIds, toggleSelect, setSelected],
   );
 
   const handleBulkDelete = useCallback(async () => {
@@ -773,9 +790,13 @@ export function NotesView({
     if (ids.length === 0) return;
     if (
       !window.confirm(
-        t("library.bulkDeleteConfirm", "선택한 {{count}}개 항목을 휴지통으로 옮길까요?", {
-          count: ids.length,
-        }),
+        t(
+          "library.bulkDeleteConfirm",
+          "선택한 {{count}}개 항목을 휴지통으로 옮길까요?",
+          {
+            count: ids.length,
+          },
+        ),
       )
     )
       return;
@@ -798,7 +819,9 @@ export function NotesView({
     }
 
     // 삭제된 항목이 현재 열려 있으면 상세 패널을 닫는다.
-    setSelectedFileNodeId((prev) => (prev && selectedIds.has(prev) ? null : prev));
+    setSelectedFileNodeId((prev) =>
+      prev && selectedIds.has(prev) ? null : prev,
+    );
     if (selectedNoteId && selectedIds.has(selectedNoteId)) {
       setSelectedNoteId(null);
       setSelectedNote(null);
@@ -809,15 +832,23 @@ export function NotesView({
 
     if (failed > 0) {
       toast.error(
-        t("library.bulkDeletePartial", "{{count}}개 항목을 삭제하지 못했습니다", {
-          count: failed,
-        }),
+        t(
+          "library.bulkDeletePartial",
+          "{{count}}개 항목을 삭제하지 못했습니다",
+          {
+            count: failed,
+          },
+        ),
       );
     } else {
       toast.success(
-        t("library.bulkDeleteDone", "{{count}}개 항목을 휴지통으로 옮겼습니다", {
-          count: ids.length,
-        }),
+        t(
+          "library.bulkDeleteDone",
+          "{{count}}개 항목을 휴지통으로 옮겼습니다",
+          {
+            count: ids.length,
+          },
+        ),
       );
     }
   }, [
@@ -1005,6 +1036,21 @@ export function NotesView({
             searchQuery={searchQuery}
             onSelect={handleSelectNote}
             tags={tags}
+          />
+        )}
+
+        {/* 보고서 아카이브 — 자동 생성 보고서 자료를 트리에서 분리한 고정 섹션 */}
+        {withFiles && library.reportArchive.length > 0 && (
+          <ReportArchiveSection
+            groups={library.reportArchive}
+            searchQuery={searchQuery}
+            canEdit={canEdit}
+            fileActions={fileActions}
+            selectedFileNodeId={selectedFileNodeId}
+            onOpenFile={(nodeId) => {
+              setSelectedFileNodeId(nodeId);
+              setMobileSidebarOpen(false);
+            }}
           />
         )}
       </div>

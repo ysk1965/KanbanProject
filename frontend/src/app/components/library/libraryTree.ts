@@ -29,10 +29,6 @@ export const STORAGE_FOLDER_NODE_PREFIX = "sfolder:";
 export const REPORT_ROOT_KEY = "REPORT_ROOT";
 const REPORT_MONTH_PREFIX = "REPORT_MONTH:";
 
-export function isReportFolderNode(item: NoteTreeItem): boolean {
-  return !!item.system_key;
-}
-
 export function isFileNodeId(nodeId: string): boolean {
   return nodeId.startsWith(FILE_NODE_PREFIX);
 }
@@ -50,12 +46,31 @@ export function storageFolderIdFromNodeId(nodeId: string): string {
 }
 
 export interface LibraryTree {
-  /** NoteTreeSidebar에 그대로 넘기는 병합 트리 */
+  /** NoteTreeSidebar에 그대로 넘기는 병합 트리 (보고서 자료 제외) */
   tree: NoteTreeItem[];
   /** 트리 폴더 노드 id → 업로드 대상 스토리지 폴더 id (짝이 없으면 없음) */
   storageFolderByNode: Map<string, string>;
-  /** 파일 노드 id → 원본 파일 */
+  /** 파일 노드 id → 원본 파일 (보고서 아카이브 파일 포함) */
   fileByNodeId: Map<string, StorageFileItem>;
+  /** 보고서 자료(REPORT_ROOT)를 트리에서 분리해 섹션으로 그리기 위한 그룹 */
+  reportArchive: ReportArchiveGroup[];
+}
+
+/** 보고서 아카이브의 월(또는 미분류) 그룹 — 트리 폴더가 아니라 구분 라벨로 그린다 */
+export interface ReportArchiveGroup {
+  id: string;
+  /** "2026-07" 또는 "미분류" */
+  label: string;
+  /** 보고서별 폴더 (일일 보고서 07-26 …) — 최신순 */
+  reports: ReportArchiveReport[];
+  /** 그룹 폴더 바로 아래 파일 (미분류 등) */
+  files: NoteTreeItem[];
+}
+
+export interface ReportArchiveReport {
+  id: string;
+  title: string;
+  files: NoteTreeItem[];
 }
 
 const SYSTEM_USER: NoteUserInfo = {
@@ -158,6 +173,22 @@ export function buildLibraryTree(
     };
   };
 
+  /**
+   * 보고서 자료(REPORT_ROOT)를 섹션용 그룹으로 변환.
+   * 월 폴더는 라벨, 보고서 폴더는 행이 된다 — 트리 계층을 평평하게 편다.
+   */
+  const buildReportArchive = (root: StorageFolderTree): ReportArchiveGroup[] =>
+    orderReportChildren(root).map((group) => ({
+      id: group.id,
+      label: group.name,
+      reports: orderReportChildren(group).map((report) => ({
+        id: report.id,
+        title: report.name,
+        files: filesOf(report.id, null, 0),
+      })),
+      files: filesOf(group.id, null, 0),
+    }));
+
   const mergeLevel = (
     notes: NoteTreeItem[],
     folders: StorageFolderTree[],
@@ -213,12 +244,22 @@ export function buildLibraryTree(
     return [...merged, ...leftovers];
   };
 
+  // 보고서 자료는 트리에서 빼서 전용 섹션으로 분리한다 (루트에만 존재)
+  const reportRoot = storageFolders.find(
+    (folder) => folder.system_key === REPORT_ROOT_KEY,
+  );
+  const normalFolders = storageFolders.filter(
+    (folder) => folder.system_key !== REPORT_ROOT_KEY,
+  );
+
+  const reportArchive = reportRoot ? buildReportArchive(reportRoot) : [];
+
   const tree = [
-    ...mergeLevel(noteTree, storageFolders, null, 0),
+    ...mergeLevel(noteTree, normalFolders, null, 0),
     ...filesOf(null, null, 0),
   ];
 
-  return { tree, storageFolderByNode, fileByNodeId };
+  return { tree, storageFolderByNode, fileByNodeId, reportArchive };
 }
 
 function indexTree(tree: NoteTreeItem[]) {

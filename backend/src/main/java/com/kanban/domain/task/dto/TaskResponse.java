@@ -41,6 +41,7 @@ public class TaskResponse {
         private int checklistTotal;
         private int checklistCompleted;
         private List<AssigneeInfo> assignees;
+        private String presetId;  // 적용된 체크리스트 프리셋 id (유형 라벨 칩용, nullable)
         private String qaState;   // JIRA pull QA 상태 (REVIEW/VERIFIED/REJECTED, nullable)
         private String jiraIssueKey;  // 살아있는 JIRA 이슈 링크가 있으면 그 키. null = JIRA 소유가 아님
 
@@ -74,6 +75,7 @@ public class TaskResponse {
                     .checklistTotal(checklistTotal)
                     .checklistCompleted(checklistCompleted)
                     .assignees(assignees != null ? assignees : List.of())
+                    .presetId(task.getPresetId())
                     .qaState(task.getQaState() != null ? task.getQaState().name() : null)
                     .jiraIssueKey(jiraIssueKey)
                     .build();
@@ -108,6 +110,7 @@ public class TaskResponse {
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
         private LocalDateTime completedAt;
+        private String presetId;  // 적용된 체크리스트 프리셋 id (유형 라벨 칩용, nullable)
         private String qaState;   // JIRA pull QA 상태 (REVIEW/VERIFIED/REJECTED, nullable)
         private String jiraIssueKey;  // 살아있는 JIRA 이슈 링크가 있으면 그 키. null = JIRA 소유가 아님
 
@@ -141,6 +144,7 @@ public class TaskResponse {
                     .createdAt(task.getCreatedAt())
                     .updatedAt(task.getUpdatedAt())
                     .completedAt(task.getCompletedAt())
+                    .presetId(task.getPresetId())
                     .qaState(task.getQaState() != null ? task.getQaState().name() : null)
                     .jiraIssueKey(jiraIssueKey)
                     .build();

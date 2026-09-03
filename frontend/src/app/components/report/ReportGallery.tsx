@@ -20,7 +20,7 @@ import { formatDate, formatRelativeTime } from "../../utils/dateUtils";
 import { AutoReportView } from "../AutoReportView";
 import { IconButton } from "../ui/IconButton";
 import { MotionModal } from "../ui/MotionModal";
-import { DeliveryHistoryPanel } from "./DeliveryHistoryPanel";
+import { DeliveryHistoryPanel, PagerButton } from "./DeliveryHistoryPanel";
 import { ReportThumbnail, fetchReportBody } from "./ReportThumbnail";
 
 type Filter = "all" | "daily" | "weekly";
@@ -38,6 +38,8 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
+
+const PAGE_SIZE = 10;
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
@@ -68,6 +70,7 @@ export function ReportGallery({
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(0);
 
   const [selected, setSelected] = useState<AutoReport | null>(null);
   const [detail, setDetail] = useState<AutoReport | null>(null);
@@ -81,7 +84,7 @@ export function ReportGallery({
   const load = useCallback(async () => {
     setError(null);
     try {
-      const list = await autoReportAPI.list(boardId, 50);
+      const list = await autoReportAPI.list(boardId, 100);
       setReports(list);
       onLoaded?.(list);
     } catch {
@@ -152,6 +155,19 @@ export function ReportGallery({
       return haystack.includes(q);
     });
   }, [reports, filter, query]);
+
+  // 필터·검색이 바뀌면 첫 페이지로 돌아간다
+  useEffect(() => {
+    setPage(0);
+  }, [filter, query]);
+
+  // 삭제 등으로 목록이 줄어 현재 페이지가 범위를 벗어나면 마지막 페이지로 보정한다
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const safePage = Math.min(page, Math.max(0, totalPages - 1));
+  const paged = useMemo(
+    () => filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE),
+    [filtered, safePage],
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -231,22 +247,58 @@ export function ReportGallery({
               </div>
             </motion.div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-              {filtered.map((report, index) => (
-                <ReportCard
-                  key={report.id}
-                  boardId={boardId}
-                  report={report}
-                  index={index}
-                  canManage={canManage}
-                  onOpen={() => openReport(report)}
-                  onDelete={() => {
-                    setDeleteError(null);
-                    setPendingDelete(report);
-                  }}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+                {paged.map((report, index) => (
+                  <ReportCard
+                    key={report.id}
+                    boardId={boardId}
+                    report={report}
+                    index={index}
+                    canManage={canManage}
+                    onOpen={() => openReport(report)}
+                    onDelete={() => {
+                      setDeleteError(null);
+                      setPendingDelete(report);
+                    }}
+                  />
+                ))}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-slate-500 mr-auto tabular-nums">
+                    총 {filtered.length}건 · {safePage * PAGE_SIZE + 1}–
+                    {safePage * PAGE_SIZE + paged.length} 표시
+                  </span>
+                  <div className="inline-flex gap-1 items-center">
+                    <PagerButton
+                      disabled={safePage === 0}
+                      onClick={() => setPage(Math.max(0, safePage - 1))}
+                      aria-label="이전 페이지"
+                    >
+                      ‹
+                    </PagerButton>
+                    {Array.from({ length: totalPages }, (_, n) => (
+                      <PagerButton
+                        key={n}
+                        active={n === safePage}
+                        onClick={() => setPage(n)}
+                      >
+                        {n + 1}
+                      </PagerButton>
+                    ))}
+                    <PagerButton
+                      disabled={safePage >= totalPages - 1}
+                      onClick={() => setPage(Math.min(totalPages - 1, safePage + 1))}
+                      aria-label="다음 페이지"
+                    >
+                      ›
+                    </PagerButton>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
