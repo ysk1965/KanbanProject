@@ -2526,6 +2526,7 @@ function FlowCanvas({
             nodeTypes={nodeTypes}
             colorMode="dark"
             fitView
+            minZoom={0.1}
             maxZoom={8}
             nodesDraggable={editable}
             nodesConnectable={editable}
@@ -2861,6 +2862,7 @@ function FlowReadOnlyCanvas({
         nodeTypes={nodeTypes}
         colorMode={isDark ? "dark" : "light"}
         fitView
+        minZoom={0.1}
         maxZoom={8}
         nodesDraggable={false}
         nodesConnectable={false}
