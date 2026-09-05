@@ -64,6 +64,9 @@ public class ChecklistPreset extends BaseTimeEntity {
         int order = 0;
         for (ItemDraft draft : drafts) {
             this.items.add(ChecklistPresetItem.builder()
+                    // 응답 DTO가 flush 전에 만들어지므로 @PrePersist에 맡기지 않고 즉시 발급 —
+                    // id가 null이면 프론트 행 key가 전부 겹쳐 항목별 편집이 깨진다
+                    .id(UUID.randomUUID().toString())
                     .preset(this)
                     .title(draft.title())
                     .assigneeId(draft.assigneeId())

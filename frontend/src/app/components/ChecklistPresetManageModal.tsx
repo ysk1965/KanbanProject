@@ -37,8 +37,10 @@ const toDraft = (preset: ChecklistPreset | undefined): Draft =>
         name: preset.name,
         items: [...preset.items]
           .sort((a, b) => a.sort_order - b.sort_order)
+          // 서버 id가 비어 있으면(저장 직후 응답 등) 행 key가 겹쳐
+          // 한 행 편집이 전체에 번진다 — 로컬 키로 대체해 항상 고유하게 유지
           .map((i) => ({
-            key: i.id,
+            key: i.id || nextKey(),
             title: i.title,
             assigneeId: i.assignee_id ?? null,
           })),
