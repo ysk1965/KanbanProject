@@ -36,6 +36,7 @@ import { SharedMindMapPage } from "./pages/SharedMindMapPage";
 import AutoReportPage from "./pages/AutoReportPage";
 import GithubSetupPage from "./pages/GithubSetupPage";
 import { SharedAlbumPage } from "./pages/SharedAlbumPage";
+import { ImageVotePage } from "./pages/ImageVotePage";
 import { SharedGalleryPage } from "./pages/SharedGalleryPage";
 import { PublicUploadPage } from "./pages/PublicUploadPage";
 import { GalleryUploadPage } from "./pages/GalleryUploadPage";
@@ -609,6 +610,9 @@ function AppRoutes() {
         <Route path="/n/:shareToken" element={<SharedNotePage />} />
         <Route path="/shared/note/:shareToken" element={<SharedNotePage />} />
 
+        {/* Top3 이미지 투표 (공개 - 인증 불필요) */}
+        <Route path="/vote/:token" element={<ImageVotePage />} />
+
         {/* 공유 마인드맵 (공개 - 인증 불필요, 읽기 전용) */}
         <Route
           path="/shared/mindmap/:shareCode"
@@ -804,6 +808,7 @@ const MAINTENANCE_ALLOWED_PATHS = [
   "/reset-password",
   "/verify-email",
   "/n",
+  "/vote",
   "/shared/note",
   "/shared/mindmap",
   "/shared/album",

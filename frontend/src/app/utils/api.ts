@@ -11132,3 +11132,40 @@ export const confluenceAPI = {
   disconnect: async (boardId: string) =>
     apiClient.delete<void>(`/boards/${boardId}/confluence`),
 };
+
+// ========================================
+// Image Vote API (자료실 플로우 보드 Top3 투표)
+// ========================================
+
+export const imageVoteAPI = {
+  create: (
+    boardId: string,
+    noteId: string,
+    body: {
+      title: string;
+      candidates: import("../types").ImageVoteCandidateInput[];
+    },
+  ): Promise<import("../types").ImageVoteCreated> =>
+    apiClient.post(`/boards/${boardId}/notes/${noteId}/image-votes`, body),
+
+  getPublic: (
+    token: string,
+    voterKey?: string,
+  ): Promise<import("../types").PublicImageVote> =>
+    apiClient.get(
+      `/public/image-votes/${token}${voterKey ? `?voter_key=${encodeURIComponent(voterKey)}` : ""}`,
+      true,
+    ),
+
+  submitBallot: (
+    token: string,
+    body: {
+      voter_name: string;
+      voter_key: string;
+      first_candidate_id: string;
+      second_candidate_id: string;
+      third_candidate_id: string;
+    },
+  ): Promise<void> =>
+    apiClient.post(`/public/image-votes/${token}/ballots`, body, true),
+};

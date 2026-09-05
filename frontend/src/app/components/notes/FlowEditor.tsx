@@ -64,6 +64,7 @@ import {
   Redo2,
   Minus,
   Plus,
+  Trophy,
   type LucideIcon,
 } from "lucide-react";
 import * as Y from "yjs";
@@ -74,9 +75,10 @@ import { NoteTagManager } from "./NoteTagManager";
 import { NoteBottomComments } from "./NoteBottomComments";
 import { CollabPresence } from "./CollabPresence";
 import { IconButton } from "../ui/IconButton";
+import { MotionModal } from "../ui/MotionModal";
 import { useAuth } from "../../contexts/AuthContext";
 import { formatDateTime } from "../../utils/dateUtils";
-import { fileAPI } from "../../utils/api";
+import { fileAPI, imageVoteAPI } from "../../utils/api";
 import type { NoteDetail, NoteTagInfo } from "../../utils/api";
 import type { CollaborationState } from "../../hooks/useCollaboration";
 
@@ -1308,6 +1310,166 @@ function useFlowHistory(params: {
 }
 
 // ────────────────────────────────────────────────────────────
+// Top3 이미지 투표 생성 모달
+// ────────────────────────────────────────────────────────────
+function CreateImageVoteModal({
+  open,
+  onClose,
+  boardId,
+  noteId,
+  noteTitle,
+  candidates,
+}: {
+  open: boolean;
+  onClose: () => void;
+  boardId: string;
+  noteId: string;
+  noteTitle: string;
+  candidates: { node_id: string; image_url: string; label: string | null }[];
+}) {
+  const { t } = useTranslation();
+  const [title, setTitle] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [voteUrl, setVoteUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setTitle(`${noteTitle} Top3 투표`);
+      setVoteUrl(null);
+      setCreating(false);
+    }
+  }, [open, noteTitle]);
+
+  const handleCreate = async () => {
+    if (!title.trim() || creating) return;
+    setCreating(true);
+    try {
+      const created = await imageVoteAPI.create(boardId, noteId, {
+        title: title.trim(),
+        candidates,
+      });
+      setVoteUrl(`${window.location.origin}/vote/${created.token}`);
+    } catch {
+      toast.error(
+        t("flow.voteCreateFailed", "투표 생성에 실패했습니다. 다시 시도해주세요."),
+      );
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!voteUrl) return;
+    try {
+      await navigator.clipboard.writeText(voteUrl);
+      toast.success(t("flow.voteUrlCopied", "투표 링크를 복사했습니다"));
+    } catch {
+      toast.error(t("flow.copyFailed", "복사에 실패했습니다"));
+    }
+  };
+
+  return (
+    <MotionModal
+      open={open}
+      onClose={onClose}
+      className="w-full sm:max-w-md"
+      aria-label={t("flow.createVote", "Top3 투표 만들기")}
+    >
+      <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+        <div className="w-8 h-8 rounded-xl bg-bridge-accent/15 flex items-center justify-center flex-shrink-0">
+          <Trophy className="w-4 h-4 text-bridge-accent" />
+        </div>
+        <div className="min-w-0">
+          <h2 className="text-xs md:text-sm font-bold text-foreground">
+            {t("flow.createVote", "Top3 투표 만들기")}
+          </h2>
+          <p className="text-xs text-slate-500">
+            {t("flow.voteCandidateCount", "{{count}}개 이미지", {
+              count: candidates.length,
+            })}
+          </p>
+        </div>
+      </div>
+      <div className="px-5 pb-5 pt-4">
+        {voteUrl ? (
+          <div className="space-y-3">
+            <p className="text-xs text-slate-400">
+              {t(
+                "flow.voteCreatedDesc",
+                "투표가 생성되었습니다. 링크를 공유하면 누구나 로그인 없이 Top3를 투표할 수 있어요.",
+              )}
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                readOnly
+                value={voteUrl}
+                onFocus={(e) => e.target.select()}
+                className="flex-1 min-w-0 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+              />
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="flex-shrink-0 px-3 py-2.5 bg-bridge-accent text-white rounded-xl text-xs font-bold hover:bg-bridge-accent/90 transition-all flex items-center gap-1"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                {t("common.copy", "복사")}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={200}
+              placeholder={t("flow.voteTitlePlaceholder", "투표 제목")}
+              className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+            />
+            <div className="grid grid-cols-5 gap-1.5 max-h-40 overflow-y-auto custom-scrollbar">
+              {candidates.map((c) => (
+                <div
+                  key={c.node_id}
+                  className="aspect-[3/4] rounded-lg overflow-hidden bg-black border border-foreground/10"
+                >
+                  <img
+                    src={c.image_url}
+                    alt={c.label || "candidate"}
+                    className="w-full h-full object-cover"
+                    draggable={false}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
+        <span className="text-xs text-slate-600">Esc 닫기</span>
+        {voteUrl ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent"
+          >
+            {t("common.done", "완료")}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleCreate}
+            disabled={!title.trim() || creating}
+            className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent disabled:opacity-40 flex items-center gap-1.5"
+          >
+            {creating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            {t("flow.createVoteSubmit", "투표 만들기")}
+          </button>
+        )}
+      </div>
+    </MotionModal>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
 // 내부 캔버스
 // ────────────────────────────────────────────────────────────
 function FlowCanvas({
@@ -1343,6 +1505,11 @@ function FlowCanvas({
     videos: File[];
     pos: { x: number; y: number };
   } | null>(null);
+  // Top3 투표 — 버튼 클릭 시점의 선택 이미지 스냅샷
+  const [voteModalOpen, setVoteModalOpen] = useState(false);
+  const [voteCandidates, setVoteCandidates] = useState<
+    { node_id: string; image_url: string; label: string | null }[]
+  >([]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -2270,6 +2437,19 @@ function FlowCanvas({
 
   const editable = canEdit && mode === "edit";
   const selectedCount = nodes.filter((n) => n.selected).length;
+  const selectedImageCandidates = nodes
+    .filter(
+      (n) =>
+        n.selected && n.type === "image" && (n.data as { url?: string }).url,
+    )
+    .map((n) => ({
+      node_id: n.id,
+      image_url: (n.data as { url?: string }).url as string,
+      label:
+        ((n.data as { caption?: string }).caption || "").trim() || null,
+    }));
+  const canCreateVote =
+    !!boardId && !personal && !orgId && selectedImageCandidates.length >= 3;
 
   return (
     <FlowContext.Provider value={ctxValue}>
@@ -2579,6 +2759,23 @@ function FlowCanvas({
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
+              {canCreateVote && (
+                <>
+                  <div className="w-px h-5 bg-foreground/10" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVoteCandidates(selectedImageCandidates);
+                      setVoteModalOpen(true);
+                    }}
+                    title={t("flow.createVote", "Top3 투표 만들기")}
+                    className="flex items-center gap-1 px-2 h-7 rounded-md text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-colors"
+                  >
+                    <Trophy className="w-3.5 h-3.5" />
+                    {t("flow.voteButton", "Top3 투표")}
+                  </button>
+                </>
+              )}
             </div>
           )}
 
@@ -2679,6 +2876,18 @@ function FlowCanvas({
         className="hidden"
         onChange={handleFileSelected}
       />
+
+      {/* Top3 투표 생성 모달 */}
+      {boardId && (
+        <CreateImageVoteModal
+          open={voteModalOpen}
+          onClose={() => setVoteModalOpen(false)}
+          boardId={boardId}
+          noteId={note.id}
+          noteTitle={note.title}
+          candidates={voteCandidates}
+        />
+      )}
 
       {/* 여러 이미지: 묶기(애니메이션) vs 개별 선택 모달 */}
       {pendingGroup && (

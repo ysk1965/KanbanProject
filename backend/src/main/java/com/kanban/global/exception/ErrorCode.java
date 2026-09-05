@@ -490,7 +490,10 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     CONFLUENCE_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "CF004", "Confluence 인증에 실패했습니다. 연결을 다시 해주세요"),
     CONFLUENCE_API_ERROR(HttpStatus.BAD_GATEWAY, "CF005", "Confluence API 호출에 실패했습니다"),
     CONFLUENCE_NOT_FOUND(HttpStatus.NOT_FOUND, "CF006", "Confluence 사이트 또는 페이지를 찾을 수 없습니다"),
-    CONFLUENCE_SITE_NOT_SELECTED(HttpStatus.UNPROCESSABLE_ENTITY, "CF007", "Confluence 사이트를 먼저 선택해주세요");
+    CONFLUENCE_SITE_NOT_SELECTED(HttpStatus.UNPROCESSABLE_ENTITY, "CF007", "Confluence 사이트를 먼저 선택해주세요"),
+
+    // Image Vote
+    IMAGE_VOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "IV001", "투표를 찾을 수 없습니다");
 
     private final HttpStatus status;
     private final String code;

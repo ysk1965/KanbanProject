@@ -3843,3 +3843,49 @@ export interface TrashListResponse {
   checklist_items: TrashChecklistItemEntry[];
   retention_days: number;
 }
+
+// ========================================
+// Image Vote (자료실 플로우 보드 Top3 투표)
+// ========================================
+
+export interface ImageVoteCandidateInput {
+  node_id?: string;
+  image_url: string;
+  label?: string | null;
+}
+
+export interface ImageVoteCreated {
+  id: string;
+  token: string;
+}
+
+export interface PublicImageVoteCandidate {
+  id: string;
+  image_url: string;
+  label: string | null;
+}
+
+export interface PublicImageVoteResult {
+  candidate_id: string;
+  points: number;
+  first_count: number;
+  second_count: number;
+  third_count: number;
+}
+
+export interface PublicImageVoteMyBallot {
+  voter_name: string;
+  first_candidate_id: string;
+  second_candidate_id: string;
+  third_candidate_id: string;
+}
+
+export interface PublicImageVote {
+  title: string;
+  closed: boolean;
+  created_at: string;
+  candidates: PublicImageVoteCandidate[];
+  total_ballots: number;
+  results: PublicImageVoteResult[];
+  my_ballot: PublicImageVoteMyBallot | null;
+}
