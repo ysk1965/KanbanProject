@@ -19,6 +19,8 @@ interface DraftItem {
   /** 리스트 렌더 키 — 기존 항목은 서버 id, 새 항목은 로컬 발급 */
   key: string;
   title: string;
+  /** 적용 시 담당자로 지정할 보드 멤버 user id (미배정이면 null) */
+  assigneeId: string | null;
 }
 
 interface Draft {
@@ -35,7 +37,11 @@ const toDraft = (preset: ChecklistPreset | undefined): Draft =>
         name: preset.name,
         items: [...preset.items]
           .sort((a, b) => a.sort_order - b.sort_order)
-          .map((i) => ({ key: i.id, title: i.title })),
+          .map((i) => ({
+            key: i.id,
+            title: i.title,
+            assigneeId: i.assignee_id ?? null,
+          })),
       }
     : { name: "", items: [] };
 
@@ -47,12 +53,15 @@ export function ChecklistPresetManageModal({
   open,
   boardId,
   presets,
+  members,
   onClose,
   onPresetsChange,
 }: {
   open: boolean;
   boardId: string;
   presets: ChecklistPreset[];
+  /** 항목별 담당자 선택지 (보드 멤버) */
+  members: { id: string; name: string }[];
   onClose: () => void;
   /** 생성/수정/삭제 결과를 부모 목록에 반영 */
   onPresetsChange: (presets: ChecklistPreset[]) => void;
@@ -97,6 +106,12 @@ export function ChecklistPresetManageModal({
       items: d.items.map((i) => (i.key === key ? { ...i, title } : i)),
     }));
 
+  const patchAssignee = (key: string, assigneeId: string | null) =>
+    setDraft((d) => ({
+      ...d,
+      items: d.items.map((i) => (i.key === key ? { ...i, assigneeId } : i)),
+    }));
+
   const removeItem = (key: string) =>
     setDraft((d) => ({ ...d, items: d.items.filter((i) => i.key !== key) }));
 
@@ -115,7 +130,7 @@ export function ChecklistPresetManageModal({
     if (!title) return;
     setDraft((d) => ({
       ...d,
-      items: [...d.items, { key: nextKey(), title }],
+      items: [...d.items, { key: nextKey(), title, assigneeId: null }],
     }));
     setNewItemTitle("");
   };
@@ -130,7 +145,7 @@ export function ChecklistPresetManageModal({
     const body = {
       name: draft.name.trim(),
       items: draft.items
-        .map((i) => ({ title: i.title.trim() }))
+        .map((i) => ({ title: i.title.trim(), assignee_id: i.assigneeId }))
         .filter((i) => i.title),
     };
     setSaving(true);
@@ -266,6 +281,11 @@ export function ChecklistPresetManageModal({
                     onChange={(e) => patchItem(item.key, e.target.value)}
                     className="flex-1 min-w-0 bg-foreground/[0.03] border border-foreground/10 rounded-lg px-2.5 py-1 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                   />
+                  <ItemAssigneePicker
+                    members={members}
+                    assigneeId={item.assigneeId}
+                    onChange={(id) => patchAssignee(item.key, id)}
+                  />
                   <button
                     onClick={() => moveItem(item.key, -1)}
                     disabled={idx === 0}
@@ -367,5 +387,77 @@ export function ChecklistPresetManageModal({
         </button>
       </div>
     </MotionModal>
+  );
+}
+
+/** 항목별 담당자 선택 — 미배정/멤버 드롭다운 (적용 시 체크 항목 담당자로 복사된다) */
+function ItemAssigneePicker({
+  members,
+  assigneeId,
+  onChange,
+}: {
+  members: { id: string; name: string }[];
+  assigneeId: string | null;
+  onChange: (id: string | null) => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+
+  const unassignedLabel = t("milestone.detail.unassigned", {
+    defaultValue: "미배정",
+  });
+  const assignee = assigneeId
+    ? members.find((m) => m.id === assigneeId)
+    : undefined;
+
+  return (
+    <div className="relative flex-shrink-0">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className={`max-w-20 truncate text-xs cursor-pointer hover:text-foreground hover:underline transition-colors ${
+          assignee ? "text-slate-500" : "text-amber-600 dark:text-amber-400"
+        }`}
+      >
+        {/* 저장 시점 이후 보드에서 빠진 멤버는 이름을 못 찾는다 — 미배정으로 표기 */}
+        {assignee?.name ?? unassignedLabel}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div className="absolute top-full right-0 mt-1 z-40 w-40 max-h-48 overflow-y-auto custom-scrollbar bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1.5">
+            <button
+              onClick={() => {
+                onChange(null);
+                setOpen(false);
+              }}
+              className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
+                !assignee
+                  ? "text-bridge-accent font-bold bg-bridge-accent/10"
+                  : "text-slate-400 hover:bg-foreground/5"
+              }`}
+            >
+              {unassignedLabel}
+            </button>
+            {members.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => {
+                  onChange(m.id);
+                  setOpen(false);
+                }}
+                className={`w-full px-3 py-1.5 text-left text-xs truncate transition-colors ${
+                  assignee?.id === m.id
+                    ? "text-bridge-accent font-bold bg-bridge-accent/10"
+                    : "text-foreground hover:bg-foreground/5"
+                }`}
+              >
+                {m.name}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }

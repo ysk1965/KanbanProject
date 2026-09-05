@@ -2024,6 +2024,7 @@ export const checklistAPI = {
 export interface ChecklistPresetItemResponse {
   id: string;
   title: string;
+  assignee_id: string | null;
   sort_order: number;
 }
 
@@ -2052,7 +2053,10 @@ export const checklistPresetAPI = {
 
   createPreset: async (
     boardId: string,
-    data: { name: string; items: { title: string }[] },
+    data: {
+      name: string;
+      items: { title: string; assignee_id?: string | null }[];
+    },
   ) => {
     return apiClient.post<ChecklistPresetResponse>(
       `/boards/${boardId}/checklist-presets`,
@@ -2064,7 +2068,10 @@ export const checklistPresetAPI = {
   updatePreset: async (
     boardId: string,
     presetId: string,
-    data: { name: string; items: { title: string }[] },
+    data: {
+      name: string;
+      items: { title: string; assignee_id?: string | null }[];
+    },
   ) => {
     return apiClient.put<ChecklistPresetResponse>(
       `/boards/${boardId}/checklist-presets/${presetId}`,

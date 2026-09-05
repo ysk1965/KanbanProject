@@ -39,6 +39,10 @@ public class ChecklistPresetRequest {
         @NotBlank
         @Size(max = 255)
         private String title;
+
+        /** 적용 시 담당자로 지정할 보드 멤버 user id (선택) */
+        @Size(max = 36)
+        private String assigneeId;
     }
 
     @Getter

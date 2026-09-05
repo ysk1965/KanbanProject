@@ -26,6 +26,10 @@ public class ChecklistPresetItem {
     @Column(name = "title", nullable = false, length = 255)
     private String title;
 
+    /** 적용 시 체크 항목의 담당자로 지정할 보드 멤버 user id (없으면 미배정) */
+    @Column(name = "assignee_id", length = 36)
+    private String assigneeId;
+
     @Column(name = "sort_order", nullable = false)
     @Builder.Default
     private Integer sortOrder = 0;

@@ -45,12 +45,14 @@ public class ChecklistPresetResponse {
     public static class ItemInfo {
         private String id;
         private String title;
+        private String assigneeId;
         private Integer sortOrder;
 
         public static ItemInfo of(ChecklistPresetItem item) {
             return ItemInfo.builder()
                     .id(item.getId())
                     .title(item.getTitle())
+                    .assigneeId(item.getAssigneeId())
                     .sortOrder(item.getSortOrder())
                     .build();
         }

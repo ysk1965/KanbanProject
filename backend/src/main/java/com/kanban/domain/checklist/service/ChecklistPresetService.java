@@ -4,6 +4,7 @@ import com.kanban.domain.activity.ActivityAction;
 import com.kanban.domain.activity.TargetType;
 import com.kanban.domain.activity.service.ActivityService;
 import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItem;
@@ -28,10 +29,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -46,6 +49,7 @@ public class ChecklistPresetService {
     private final ChecklistItemRepository checklistItemRepository;
     private final TaskRepository taskRepository;
     private final BoardRepository boardRepository;
+    private final BoardMemberRepository boardMemberRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final ActivityService activityService;
@@ -69,7 +73,7 @@ public class ChecklistPresetService {
                 .name(request.getName())
                 .icon(request.getIcon())
                 .build();
-        preset.replaceItems(itemTitles(request));
+        preset.replaceItems(itemDrafts(boardId, request));
 
         presetRepository.save(preset);
 
@@ -84,7 +88,7 @@ public class ChecklistPresetService {
 
         ChecklistPreset preset = findBoardPreset(boardId, presetId);
         preset.updateInfo(request.getName(), request.getIcon());
-        preset.replaceItems(itemTitles(request));
+        preset.replaceItems(itemDrafts(boardId, request));
 
         log.info("Checklist preset updated: {} by user: {}", presetId, userId);
 
@@ -132,6 +136,9 @@ public class ChecklistPresetService {
         Integer maxPos = checklistItemRepository.findMaxPositionByTaskId(taskId);
         int nextPos = (maxPos != null) ? maxPos + 1 : 0;
 
+        // 프리셋에 저장된 담당자 — 현재도 보드 멤버인 유저만 배정한다 (탈퇴/제외된 멤버는 미배정)
+        Map<String, User> assignees = resolveAssignees(boardId, preset);
+
         List<ChecklistResponse.Detail> created = new ArrayList<>();
         int skipped = 0;
 
@@ -148,6 +155,7 @@ public class ChecklistPresetService {
             ChecklistItem checklistItem = ChecklistItem.builder()
                     .task(task)
                     .title(title)
+                    .assignee(assignees.get(presetItem.getAssigneeId()))
                     .position(nextPos++)
                     .build();
             checklistItemRepository.save(checklistItem);
@@ -200,10 +208,39 @@ public class ChecklistPresetService {
         return preset;
     }
 
-    private List<String> itemTitles(ChecklistPresetRequest.Save request) {
+    /** 요청 항목 → 드래프트. 담당자는 보드 멤버가 아니면 버린다 (미배정 저장). */
+    private List<ChecklistPreset.ItemDraft> itemDrafts(String boardId, ChecklistPresetRequest.Save request) {
+        Set<String> memberIds = boardMemberIds(boardId);
         return request.getItems().stream()
-                .map(i -> i.getTitle().trim())
-                .filter(t -> !t.isEmpty())
+                .map(i -> new ChecklistPreset.ItemDraft(
+                        i.getTitle().trim(),
+                        (i.getAssigneeId() != null && memberIds.contains(i.getAssigneeId()))
+                                ? i.getAssigneeId() : null))
+                .filter(d -> !d.title().isEmpty())
                 .toList();
+    }
+
+    /** 프리셋 항목의 assigneeId 중 현재 보드 멤버인 유저만 id → User로 매핑 */
+    private Map<String, User> resolveAssignees(String boardId, ChecklistPreset preset) {
+        Set<String> assigneeIds = preset.getItems().stream()
+                .map(ChecklistPresetItem::getAssigneeId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        if (assigneeIds.isEmpty()) {
+            return Map.of();
+        }
+        assigneeIds.retainAll(boardMemberIds(boardId));
+
+        Map<String, User> users = new HashMap<>();
+        for (User user : userRepository.findAllById(assigneeIds)) {
+            users.put(user.getId(), user);
+        }
+        return users;
+    }
+
+    private Set<String> boardMemberIds(String boardId) {
+        return boardMemberRepository.findByBoardId(boardId).stream()
+                .map(m -> m.getUser().getId())
+                .collect(Collectors.toSet());
     }
 }

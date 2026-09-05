@@ -10,6 +10,7 @@ import type { ChecklistPreset } from "../types";
  */
 export function ChecklistPresetPopover({
   presets,
+  members,
   presetId,
   taskItemTitles,
   defaultSaveName,
@@ -20,6 +21,8 @@ export function ChecklistPresetPopover({
   onManage,
 }: {
   presets: ChecklistPreset[];
+  /** 항목 미리보기의 담당자 이름 표시용 (보드 멤버) */
+  members: { id: string; name: string }[];
   /** 이 태스크에 지정된 프리셋 id (없으면 null) */
   presetId: string | null;
   /** 태스크의 현재 체크 항목 제목들 — "현재 항목을 프리셋으로 저장" 재료 */
@@ -201,17 +204,28 @@ export function ChecklistPresetPopover({
                     {selected && selected.items.length > 0 ? (
                       [...selected.items]
                         .sort((a, b) => a.sort_order - b.sort_order)
-                        .map((item) => (
-                          <span
-                            key={item.id}
-                            className="flex items-start gap-1.5 text-xs text-foreground/80"
-                          >
-                            <span className="w-3 h-3 mt-px rounded border border-foreground/25 flex-shrink-0" />
-                            <span className="min-w-0 break-words">
-                              {item.title}
+                        .map((item) => {
+                          const assigneeName = item.assignee_id
+                            ? members.find((m) => m.id === item.assignee_id)
+                                ?.name
+                            : undefined;
+                          return (
+                            <span
+                              key={item.id}
+                              className="flex items-start gap-1.5 text-xs text-foreground/80"
+                            >
+                              <span className="w-3 h-3 mt-px rounded border border-foreground/25 flex-shrink-0" />
+                              <span className="min-w-0 break-words">
+                                {item.title}
+                                {assigneeName && (
+                                  <span className="ml-1 text-slate-500">
+                                    {assigneeName}
+                                  </span>
+                                )}
+                              </span>
                             </span>
-                          </span>
-                        ))
+                          );
+                        })
                     ) : (
                       <span className="block text-xs text-slate-600">
                         {t("milestone.preset.noItems", {

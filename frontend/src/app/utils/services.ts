@@ -1118,7 +1118,10 @@ export const checklistPresetService = {
 
   createPreset: async (
     boardId: string,
-    data: { name: string; items: { title: string }[] },
+    data: {
+      name: string;
+      items: { title: string; assignee_id?: string | null }[];
+    },
   ): Promise<ChecklistPreset> => {
     try {
       const preset = await checklistPresetAPI.createPreset(boardId, data);
@@ -1132,7 +1135,10 @@ export const checklistPresetService = {
   updatePreset: async (
     boardId: string,
     presetId: string,
-    data: { name: string; items: { title: string }[] },
+    data: {
+      name: string;
+      items: { title: string; assignee_id?: string | null }[];
+    },
   ): Promise<ChecklistPreset> => {
     try {
       const preset = await checklistPresetAPI.updatePreset(

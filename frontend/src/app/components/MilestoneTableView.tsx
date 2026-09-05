@@ -679,13 +679,16 @@ export function MilestoneTableView({
     [boardId, onRefresh, t],
   );
 
-  /** 현재 체크 항목들을 새 프리셋으로 저장 */
+  /** 현재 체크 항목들을 새 프리셋으로 저장 (담당자 포함) */
   const handleSavePreset = useCallback(
-    async (name: string, itemTitles: string[]) => {
+    async (
+      name: string,
+      items: { title: string; assignee_id: string | null }[],
+    ) => {
       try {
         const preset = await checklistPresetService.createPreset(boardId, {
           name,
-          items: itemTitles.map((title) => ({ title })),
+          items,
         });
         setPresets((prev) => [...prev, preset]);
       } catch (error) {
@@ -1265,6 +1268,7 @@ export function MilestoneTableView({
                                 )}
                                 <ChecklistPresetPopover
                                   presets={presets}
+                                  members={members}
                                   presetId={
                                     presetOverrides[tk.id] !== undefined
                                       ? presetOverrides[tk.id]
@@ -1280,7 +1284,10 @@ export function MilestoneTableView({
                                   onSaveCurrent={(name) =>
                                     handleSavePreset(
                                       name,
-                                      items.map((i) => i.title),
+                                      items.map((i) => ({
+                                        title: i.title,
+                                        assignee_id: i.assignee?.id ?? null,
+                                      })),
                                     )
                                   }
                                   onManage={() => setPresetManageOpen(true)}
@@ -1453,6 +1460,7 @@ export function MilestoneTableView({
         open={presetManageOpen}
         boardId={boardId}
         presets={presets}
+        members={members}
         onClose={() => setPresetManageOpen(false)}
         onPresetsChange={setPresets}
       />

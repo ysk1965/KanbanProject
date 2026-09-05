@@ -55,14 +55,18 @@ public class ChecklistPreset extends BaseTimeEntity {
         this.icon = icon;
     }
 
+    /** 항목 드래프트 (제목 + 담당자 user id) — 전체 교체 입력값 */
+    public record ItemDraft(String title, String assigneeId) {}
+
     /** 항목 전체 교체 (PUT full replace). orphanRemoval로 기존 행은 삭제된다. */
-    public void replaceItems(List<String> titles) {
+    public void replaceItems(List<ItemDraft> drafts) {
         this.items.clear();
         int order = 0;
-        for (String title : titles) {
+        for (ItemDraft draft : drafts) {
             this.items.add(ChecklistPresetItem.builder()
                     .preset(this)
-                    .title(title)
+                    .title(draft.title())
+                    .assigneeId(draft.assigneeId())
                     .sortOrder(order++)
                     .build());
         }

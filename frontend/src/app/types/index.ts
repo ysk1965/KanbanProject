@@ -665,6 +665,8 @@ export interface Checklist {
 export interface ChecklistPresetItem {
   id: string;
   title: string;
+  /** 적용 시 담당자로 지정할 보드 멤버 user id (미배정이면 null) */
+  assignee_id: string | null;
   sort_order: number;
 }
 
