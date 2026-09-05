@@ -11,11 +11,13 @@ import {
   BoardWebSocketEvent,
   BoardContractor,
   ContractorInfo,
+  SprintBoard,
 } from "../types";
 import {
   checklistAPI,
   taskAPI,
   scheduleAPI,
+  sprintAPI,
   ScheduleBlockDetailResponse,
   trashAPI,
   JiraAutofixJob,
@@ -295,6 +297,12 @@ export function TaskDetailModal({
   // '__no_assignee__' 토큰은 미할당 항목을 의미
   const [filterAssigneeIds, setFilterAssigneeIds] = useState<string[]>([]);
   const [milestonePickerOpen, setMilestonePickerOpen] = useState(false);
+  const [sprintPickerOpen, setSprintPickerOpen] = useState(false);
+  const [sprintColumnPickerOpen, setSprintColumnPickerOpen] = useState(false);
+  /** 마일스톤의 스프린트 보드 스냅샷 — 태스크 응답엔 sprint 정보가 없어 여기서 찾는다 */
+  const [sprintBoardData, setSprintBoardData] = useState<SprintBoard | null>(
+    null,
+  );
   /** 디테일 모달이 열려 있는 항목. null이면 닫힌 상태 */
   const [detailItemId, setDetailItemId] = useState<string | null>(null);
   /**
@@ -530,6 +538,79 @@ export function TaskDetailModal({
       onUpdate({ milestone_id: milestoneId === "" ? "" : milestoneId });
     },
     [onUpdate],
+  );
+
+  // 스프린트 보드 지연 로드. 마일스톤이 바뀌면 다시 받는다 — 백엔드가 이전
+  // 스프린트 소속을 자동 해제하므로(TaskService) 새 보드에선 백로그로 보인다.
+  const taskMilestoneId = editedTask?.milestone_id ?? null;
+  useEffect(() => {
+    if (!open || !boardId || isPersonal || !taskMilestoneId) {
+      setSprintBoardData(null);
+      return;
+    }
+    let cancelled = false;
+    sprintAPI
+      .getSprintBoard(boardId, taskMilestoneId)
+      .then((board) => {
+        if (!cancelled) setSprintBoardData(board);
+      })
+      .catch(() => {
+        if (!cancelled) setSprintBoardData(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, boardId, isPersonal, taskMilestoneId]);
+
+  // 이 태스크의 스프린트 카드 — 컬럼 items에는 모든 버킷 카드가, backlog에는 미배정만 온다
+  const sprintCard = useMemo(() => {
+    if (!sprintBoardData || !task) return null;
+    for (const col of sprintBoardData.columns) {
+      const hit = col.items.find((i) => i.id === task.id);
+      if (hit) return hit;
+    }
+    return sprintBoardData.backlog.find((i) => i.id === task.id) ?? null;
+  }, [sprintBoardData, task]);
+
+  const currentSprintId = sprintCard?.sprint_id ?? null;
+
+  // 스프린트 담기/옮기기/빼기 (null=백로그). 빼기 → 담기 순서, 응답 보드로 즉시 갱신.
+  const handleAssignSprint = useCallback(
+    (toSprintId: string | null) => {
+      setSprintPickerOpen(false);
+      if (!boardId || !task) return;
+      if (currentSprintId === toSprintId) return;
+      const taskId = task.id;
+      void (async () => {
+        let next: SprintBoard | null = null;
+        if (currentSprintId)
+          next = await sprintAPI.removeTask(boardId, currentSprintId, taskId);
+        if (toSprintId)
+          next = await sprintAPI.addTask(boardId, toSprintId, taskId);
+        if (next) setSprintBoardData(next);
+      })().catch(() => {
+        toast.error(t("sprint.moveFailed", "스프린트 이동에 실패했습니다"));
+      });
+    },
+    [boardId, task, currentSprintId, t],
+  );
+
+  // 스프린트 컬럼 이동 — 스프린트에 담긴 태스크만 가능(백엔드 제약)
+  const handleMoveSprintColumn = useCallback(
+    (columnId: string) => {
+      setSprintColumnPickerOpen(false);
+      if (!boardId || !task) return;
+      if (sprintCard?.sprint_column_id === columnId) return;
+      sprintAPI
+        .moveToColumn(boardId, task.id, columnId)
+        .then(setSprintBoardData)
+        .catch(() => {
+          toast.error(
+            t("sprint.columnMoveFailed", "컬럼 이동에 실패했습니다"),
+          );
+        });
+    },
+    [boardId, task, sprintCard?.sprint_column_id, t],
   );
 
   const handleDescriptionChange = useCallback(
@@ -1634,23 +1715,157 @@ export function TaskDetailModal({
                       </>
                     );
                   })()}
-                {/* 현재 블록 상태 (마일스톤 하위) */}
-                {task.block_id && (
-                  <>
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                    <BlockStatusPicker
-                      blocks={blocks}
-                      currentBlockId={task.block_id}
-                      currentBlockName={task.block_name}
-                      canEdit={!!canEdit && (!!onMoveToBlock || !!onMoveToDone)}
-                      onSelectBlock={(blockId) => {
-                        if (task && onMoveToBlock) {
-                          onMoveToBlock(task.id, blockId);
+                {/* 스프린트 › 진행 컬럼 (마일스톤 하위) — 실사용 축. 스프린트 모드가
+                    아니면(개인 스페이스·마일스톤 없음·모드 off) 기존 블록 피커로 폴백 */}
+                {sprintBoardData?.sprint_enabled ? (
+                  (() => {
+                    const currentSprint = sprintBoardData.sprints.find(
+                      (s) => s.id === currentSprintId,
+                    );
+                    const currentColumn = sprintBoardData.columns.find(
+                      (c) => c.id === sprintCard?.sprint_column_id,
+                    );
+                    return (
+                      <>
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                        <Popover
+                          open={sprintPickerOpen}
+                          onOpenChange={setSprintPickerOpen}
+                        >
+                          <PopoverTrigger asChild>
+                            <button
+                              disabled={!canEdit}
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-foreground/10 bg-foreground/5 text-foreground hover:bg-foreground/10 transition-colors disabled:cursor-default disabled:hover:bg-foreground/5"
+                            >
+                              <Layers className="w-3 h-3 text-bridge-secondary" />
+                              {currentSprint
+                                ? currentSprint.name
+                                : t("sprint.backlog", "백로그")}
+                              {canEdit && (
+                                <ChevronDown className="w-3 h-3 opacity-60" />
+                              )}
+                            </button>
+                          </PopoverTrigger>
+                          {canEdit && (
+                            <PopoverContent
+                              align="start"
+                              className="w-56 p-1 max-h-72 overflow-y-auto custom-scrollbar"
+                            >
+                              <button
+                                onClick={() => handleAssignSprint(null)}
+                                className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-foreground/10 ${
+                                  !currentSprintId
+                                    ? "text-bridge-accent font-bold"
+                                    : "text-foreground"
+                                }`}
+                              >
+                                {t("sprint.backlog", "백로그")}
+                              </button>
+                              {sprintBoardData.sprints.map((s) => (
+                                <button
+                                  key={s.id}
+                                  onClick={() => handleAssignSprint(s.id)}
+                                  className={`w-full flex items-center gap-1.5 text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-foreground/10 ${
+                                    currentSprintId === s.id
+                                      ? "text-bridge-accent font-bold"
+                                      : "text-foreground"
+                                  }`}
+                                >
+                                  <Layers className="w-3 h-3 flex-shrink-0 text-bridge-secondary" />
+                                  <span className="truncate">{s.name}</span>
+                                </button>
+                              ))}
+                            </PopoverContent>
+                          )}
+                        </Popover>
+                        {/* 진행 컬럼 — 스프린트에 담긴 태스크만 이동 가능(백엔드 제약) */}
+                        {currentSprintId && (
+                          <>
+                            <ChevronRight className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                            <Popover
+                              open={sprintColumnPickerOpen}
+                              onOpenChange={setSprintColumnPickerOpen}
+                            >
+                              <PopoverTrigger asChild>
+                                <button
+                                  disabled={!canEdit}
+                                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-foreground/10 bg-foreground/5 text-foreground hover:bg-foreground/10 transition-colors disabled:cursor-default disabled:hover:bg-foreground/5"
+                                >
+                                  <div
+                                    className="w-2 h-2 rounded-full flex-shrink-0"
+                                    style={{
+                                      backgroundColor:
+                                        currentColumn?.color ??
+                                        (currentColumn?.kind === "END"
+                                          ? "#34d399"
+                                          : "#94a3b8"),
+                                    }}
+                                  />
+                                  {currentColumn?.name ?? "—"}
+                                  {canEdit && (
+                                    <ChevronDown className="w-3 h-3 opacity-60" />
+                                  )}
+                                </button>
+                              </PopoverTrigger>
+                              {canEdit && (
+                                <PopoverContent
+                                  align="start"
+                                  className="w-56 p-1 max-h-72 overflow-y-auto custom-scrollbar"
+                                >
+                                  {sprintBoardData.columns.map((c) => (
+                                    <button
+                                      key={c.id}
+                                      onClick={() => handleMoveSprintColumn(c.id)}
+                                      className={`w-full flex items-center gap-1.5 text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-foreground/10 ${
+                                        currentColumn?.id === c.id
+                                          ? "text-bridge-accent font-bold"
+                                          : "text-foreground"
+                                      }`}
+                                    >
+                                      <div
+                                        className="w-2 h-2 rounded-full flex-shrink-0"
+                                        style={{
+                                          backgroundColor:
+                                            c.color ??
+                                            (c.kind === "END"
+                                              ? "#34d399"
+                                              : "#94a3b8"),
+                                        }}
+                                      />
+                                      <span className="truncate">{c.name}</span>
+                                      {c.kind === "END" && (
+                                        <CheckCircle2 className="w-3 h-3 ml-auto flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                      )}
+                                    </button>
+                                  ))}
+                                </PopoverContent>
+                              )}
+                            </Popover>
+                          </>
+                        )}
+                      </>
+                    );
+                  })()
+                ) : (
+                  task.block_id && (
+                    <>
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                      <BlockStatusPicker
+                        blocks={blocks}
+                        currentBlockId={task.block_id}
+                        currentBlockName={task.block_name}
+                        canEdit={
+                          !!canEdit && (!!onMoveToBlock || !!onMoveToDone)
                         }
-                      }}
-                      onSelectDone={() => setShowDoneDialog(true)}
-                    />
-                  </>
+                        onSelectBlock={(blockId) => {
+                          if (task && onMoveToBlock) {
+                            onMoveToBlock(task.id, blockId);
+                          }
+                        }}
+                        onSelectDone={() => setShowDoneDialog(true)}
+                      />
+                    </>
+                  )
                 )}
               </div>
               <div>
