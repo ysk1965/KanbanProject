@@ -734,6 +734,8 @@ export function NotesView({
   const handleUploadFiles = useCallback(
     async (fileList: FileList | File[]) => {
       if (!canEdit) return;
+      // input.value 초기화·drop 이벤트 종료 시 live FileList가 비워지므로 await 전에 복사한다
+      const files = Array.from(fileList);
       let folderId: string | null = null;
       try {
         folderId = await resolveUploadFolderId();
@@ -741,7 +743,7 @@ export function NotesView({
         console.error("Failed to prepare upload folder:", err);
       }
 
-      for (const file of Array.from(fileList)) {
+      for (const file of files) {
         const key = `${file.name}-${file.size}-${Date.now()}`;
         setUploads((prev) => ({ ...prev, [key]: 0 }));
         try {
