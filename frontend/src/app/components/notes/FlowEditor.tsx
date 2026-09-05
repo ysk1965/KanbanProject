@@ -62,6 +62,8 @@ import {
   Trash2,
   Undo2,
   Redo2,
+  Minus,
+  Plus,
   type LucideIcon,
 } from "lucide-react";
 import * as Y from "yjs";
@@ -1613,6 +1615,51 @@ function FlowCanvas({
     [setNodes],
   );
 
+  // 멀티 선택 그룹 확대/축소 — 선택 bbox 중심 기준으로 위치·크기를 함께 스케일
+  const scaleSelection = useCallback(
+    (factor: number) => {
+      setNodes((nds) => {
+        const sel = nds.filter(
+          (n) => n.selected && !(n.data as { locked?: boolean }).locked,
+        );
+        if (sel.length < 2) return nds;
+        const dims = (n: Node) => ({
+          w: n.width ?? n.measured?.width ?? 0,
+          h: n.height ?? n.measured?.height ?? 0,
+        });
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        sel.forEach((n) => {
+          const { w, h } = dims(n);
+          minX = Math.min(minX, n.position.x);
+          minY = Math.min(minY, n.position.y);
+          maxX = Math.max(maxX, n.position.x + w);
+          maxY = Math.max(maxY, n.position.y + h);
+        });
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        const selIds = new Set(sel.map((n) => n.id));
+        return nds.map((n) => {
+          if (!selIds.has(n.id)) return n;
+          const { w, h } = dims(n);
+          const next: Node = {
+            ...n,
+            position: {
+              x: cx + (n.position.x - cx) * factor,
+              y: cy + (n.position.y - cy) * factor,
+            },
+          };
+          if (w) next.width = Math.max(40, Math.round(w * factor));
+          if (h) next.height = Math.max(40, Math.round(h * factor));
+          return next;
+        });
+      });
+    },
+    [setNodes],
+  );
+
   const bringToFront = useCallback(
     (id: string) => {
       setNodes((nds) => {
@@ -1753,9 +1800,14 @@ function FlowCanvas({
       )
         return;
       const mod = e.metaKey || e.ctrlKey;
-      if (!mod) return;
       const selected = () => nodesRef.current.filter((n) => n.selected);
       const key = e.key.toLowerCase();
+      if (!mod) {
+        // H/V — 손/선택 도구 전환 (팔레트 툴팁과 일치)
+        if (key === "h") setInteractionMode("hand");
+        else if (key === "v") setInteractionMode("pointer");
+        return;
+      }
       if (key === "z") {
         // ⌘Z 되돌리기 / ⌘⇧Z 다시 실행
         if (e.shiftKey) redo();
@@ -2217,6 +2269,7 @@ function FlowCanvas({
   );
 
   const editable = canEdit && mode === "edit";
+  const selectedCount = nodes.filter((n) => n.selected).length;
 
   return (
     <FlowContext.Provider value={ctxValue}>
@@ -2496,6 +2549,36 @@ function FlowCanvas({
                 icon={<VideoIcon className="w-3.5 h-3.5" />}
                 label={t("flow.addVideo", "영상")}
               />
+            </div>
+          )}
+
+          {/* 멀티 선택 크기 조절 툴바 */}
+          {editable && selectedCount >= 2 && (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 bg-bridge-obsidian/85 backdrop-blur-md border border-foreground/[0.08] rounded-2xl px-3 py-1.5 shadow-2xl">
+              <span className="text-xs font-bold text-slate-400">
+                {t("flow.selectedCount", "{{count}}개 선택", {
+                  count: selectedCount,
+                })}
+              </span>
+              <div className="w-px h-5 bg-foreground/10" />
+              <button
+                type="button"
+                onClick={() => scaleSelection(1 / 1.15)}
+                aria-label={t("flow.scaleDown", "선택 축소")}
+                title={t("flow.scaleDown", "선택 축소")}
+                className="flex items-center justify-center w-7 h-7 rounded-md text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-colors"
+              >
+                <Minus className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => scaleSelection(1.15)}
+                aria-label={t("flow.scaleUp", "선택 확대")}
+                title={t("flow.scaleUp", "선택 확대")}
+                className="flex items-center justify-center w-7 h-7 rounded-md text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
             </div>
           )}
 
