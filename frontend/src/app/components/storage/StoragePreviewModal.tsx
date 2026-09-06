@@ -1,5 +1,6 @@
 import { Download, Link2, X } from "lucide-react";
 import { MotionModal } from "../ui/MotionModal";
+import { ZoomableImage } from "../ui/ZoomableImage";
 import type { StorageFileItem } from "../../utils/api";
 import { formatBytes, fileIconFor } from "./storageUtils";
 
@@ -48,7 +49,7 @@ export function StoragePreviewModal({
       <div className="px-5 pb-5 pt-4">
         <div className="w-full max-h-[60vh] rounded-xl overflow-hidden bg-foreground/[0.04] flex items-center justify-center">
           {file.is_image ? (
-            <img
+            <ZoomableImage
               src={file.url}
               alt={file.original_filename}
               className="max-h-[60vh] w-auto object-contain"

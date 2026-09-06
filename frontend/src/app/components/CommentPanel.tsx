@@ -32,6 +32,7 @@ import { getAssigneeClasses, getInitials } from "../utils/assigneeColor";
 import { formatDate } from "../utils/dateUtils";
 import { escStack } from "../hooks/useEscClose";
 import { MotionModal } from "./ui/MotionModal";
+import { ZoomableImage } from "./ui/ZoomableImage";
 import {
   ListChecks,
   MessageSquare,
@@ -2494,11 +2495,10 @@ export function CommentPanel({
                   <X className="h-5 w-5" />
                 </button>
                 {navChrome}
-                <img
+                <ZoomableImage
                   src={current.url}
                   alt={t("comment.attachedFile")}
                   className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
-                  onClick={(e) => e.stopPropagation()}
                 />
               </div>
             );
