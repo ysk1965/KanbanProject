@@ -75,6 +75,7 @@ import { SprintSplitModal } from "./SprintSplitModal";
 import { SprintMemberGanttModal } from "./SprintMemberGanttModal";
 import { MilestoneConsoleModal } from "./MilestoneConsoleModal";
 import { JiraOnboardingGuide } from "./JiraOnboardingGuide";
+import { JiraScopeModal } from "./JiraScopeModal";
 import { JiraSettingsPanel } from "./JiraSettingsPanel";
 import { JiraSyncIndicator } from "./JiraSyncIndicator";
 import { JiraAutofixDock } from "./JiraAutofixDock";
@@ -587,6 +588,8 @@ export function SprintBoard({
   const [jiraMetaLoading, setJiraMetaLoading] = useState(false);
   // 스프린트 보드에서 JIRA 연결/해제/미러보드 선택을 직접 하는 관리 모달 (설정 패널 재사용)
   const [showJiraModal, setShowJiraModal] = useState(false);
+  // 마일스톤 JIRA 스코프(JQL) 설정 모달 — 이 마일스톤의 JIRA 뷰가 비출 범위를 정한다
+  const [showScopeModal, setShowScopeModal] = useState(false);
   const jiraConnected = !!jiraStatus?.connected;
   const jiraMirrorReady = !!jiraStatus?.mirror_ready;
   // pre-block: 드래그 중인 카드에서 전환 가능한 JIRA 상태 id 집합(null=아직 로딩/미확인 → 낙관적 허용)
@@ -3968,8 +3971,18 @@ export function SprintBoard({
               JIRA 보드
             </span>
             <span className="text-xs text-slate-500 tabular-nums whitespace-nowrap">
-              연동 {jiraBadge.total}건 · 스프린트와 무관하게 보드 전체를 봅니다
+              {board?.jira_scope
+                ? `연동 ${jiraBadge.total}건 · 이 마일스톤 스코프만 봅니다`
+                : `연동 ${jiraBadge.total}건 · 스프린트와 무관하게 보드 전체를 봅니다`}
             </span>
+            {board?.jira_scope && (
+              <span
+                className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0 max-w-[280px] truncate"
+                title={`JQL: ${board.jira_scope.jql}`}
+              >
+                {board.jira_scope.jql}
+              </span>
+            )}
             {jiraBadge.fresh > 0 && (
               <span
                 className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent tabular-nums shrink-0"
@@ -3985,6 +3998,21 @@ export function SprintBoard({
                 status={jiraStatus}
                 onStatusRefetch={setJiraStatus}
               />
+            )}
+            {isAdminOrOwner && (
+              <button
+                type="button"
+                onClick={() => setShowScopeModal(true)}
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors shrink-0 ${
+                  board?.jira_scope
+                    ? "text-bridge-secondary hover:bg-bridge-secondary/10"
+                    : "text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                }`}
+                title="이 마일스톤의 JIRA 뷰 범위(JQL)를 설정"
+              >
+                <Filter className="w-3 h-3" />
+                {board?.jira_scope ? "스코프 편집" : "마일스톤 스코프"}
+              </button>
             )}
             {isAdminOrOwner && (
               <button
@@ -5636,6 +5664,19 @@ export function SprintBoard({
           onOpenChecklistItem={onOpenChecklistItem}
         />
       )}
+
+      {/* 마일스톤 JIRA 스코프 설정 — 이 마일스톤의 JIRA 뷰가 비출 범위(JQL)를 정한다.
+          저장/해제 후 보드 풀 리프레시로 jira_tasks·머리말이 스코프 기준으로 바뀐다. */}
+      <JiraScopeModal
+        open={showScopeModal}
+        onClose={() => setShowScopeModal(false)}
+        boardId={boardId}
+        milestoneId={milestoneId}
+        milestoneTitle={milestones.find((m) => m.id === milestoneId)?.title}
+        scope={board?.jira_scope ?? null}
+        projectKey={jiraStatus?.project_key}
+        onSaved={() => refreshJiraState(true)}
+      />
 
       {/* JIRA 연동 관리 모달 — 알림 드롭다운의 설정 패널을 스프린트에서 그대로 재사용.
           연결·미러 대상 보드 선택·미러 시작·해제까지 한 곳에서. (같은 boardId라 드롭다운과 자동 동기화) */}

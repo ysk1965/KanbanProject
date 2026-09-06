@@ -7,20 +7,34 @@ export interface ShortcutDefinition {
   viewContext?: "board" | "schedule" | "statistics";
 }
 
-// Board sub-tab shortcuts (shown when on board tab) — 칸반/마일스톤 서브탭 전용
+// Board sub-tab shortcuts (shown when on board tab) — 대시보드/칸반/마일스톤/마인드맵 서브탭 전용
 // 리스트/간트/캘린더는 우하단 FloatingViewSwitcher로 분리되어 단축키 없음
 export const BOARD_SHORTCUTS: ShortcutDefinition[] = [
   {
-    id: "viewKanban",
+    id: "viewDashboard",
     keys: ["1"],
+    i18nKey: "keyboardShortcuts.viewDashboard",
+    category: "navigation",
+    viewContext: "board",
+  },
+  {
+    id: "viewKanban",
+    keys: ["2"],
     i18nKey: "keyboardShortcuts.viewKanban",
     category: "navigation",
     viewContext: "board",
   },
   {
     id: "viewMilestone",
-    keys: ["2"],
+    keys: ["3"],
     i18nKey: "keyboardShortcuts.viewMilestone",
+    category: "navigation",
+    viewContext: "board",
+  },
+  {
+    id: "viewMindmap",
+    keys: ["4"],
+    i18nKey: "keyboardShortcuts.viewMindmap",
     category: "navigation",
     viewContext: "board",
   },
@@ -184,8 +198,10 @@ export const SHORTCUT_CATEGORIES = [
   "filter",
 ] as const;
 
-// 보드 서브탭 단축키 (1: 칸반, 2: 마일스톤) — BOARD_SHORTCUTS와 일치
+// 보드 서브탭 단축키 (1: 대시보드, 2: 칸반, 3: 마일스톤, 4: 마인드맵) — BOARD_SHORTCUTS·서브탭 UI 순서와 일치
 export const VIEW_MODE_KEY_MAP: Record<string, string> = {
-  "1": "kanban",
-  "2": "milestone",
+  "1": "dashboard",
+  "2": "kanban",
+  "3": "milestone",
+  "4": "mindmap",
 };

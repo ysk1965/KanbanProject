@@ -58,6 +58,7 @@ import {
   BringToFront,
   SendToBack,
   Copy,
+  ExternalLink,
   ClipboardPaste,
   Trash2,
   Undo2,
@@ -1331,11 +1332,13 @@ function CreateImageVoteModal({
   const [title, setTitle] = useState("");
   const [creating, setCreating] = useState(false);
   const [voteUrl, setVoteUrl] = useState<string | null>(null);
+  const [resultsUrl, setResultsUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setTitle(`${noteTitle} Top3 투표`);
       setVoteUrl(null);
+      setResultsUrl(null);
       setCreating(false);
     }
   }, [open, noteTitle]);
@@ -1349,6 +1352,9 @@ function CreateImageVoteModal({
         candidates,
       });
       setVoteUrl(`${window.location.origin}/vote/${created.token}`);
+      setResultsUrl(
+        `${window.location.origin}/vote-results/${created.admin_token}`,
+      );
     } catch {
       toast.error(
         t("flow.voteCreateFailed", "투표 생성에 실패했습니다. 다시 시도해주세요."),
@@ -1358,15 +1364,20 @@ function CreateImageVoteModal({
     }
   };
 
-  const handleCopy = async () => {
-    if (!voteUrl) return;
+  const handleCopy = async (url: string | null, successMsg: string) => {
+    if (!url) return;
     try {
-      await navigator.clipboard.writeText(voteUrl);
-      toast.success(t("flow.voteUrlCopied", "투표 링크를 복사했습니다"));
+      await navigator.clipboard.writeText(url);
+      toast.success(successMsg);
     } catch {
       toast.error(t("flow.copyFailed", "복사에 실패했습니다"));
     }
   };
+
+  const linkInputClass =
+    "flex-1 min-w-0 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50";
+  const copyBtnClass =
+    "flex-shrink-0 px-3 py-2.5 bg-bridge-accent text-white rounded-xl text-xs font-bold hover:bg-bridge-accent/90 transition-all flex items-center gap-1";
 
   return (
     <MotionModal
@@ -1392,28 +1403,81 @@ function CreateImageVoteModal({
       </div>
       <div className="px-5 pb-5 pt-4">
         {voteUrl ? (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <p className="text-xs text-slate-400">
               {t(
                 "flow.voteCreatedDesc",
-                "투표가 생성되었습니다. 링크를 공유하면 누구나 로그인 없이 Top3를 투표할 수 있어요.",
+                "투표가 생성되었습니다. 투표 링크는 참여자에게, 결과 링크는 관리자만 보관하세요.",
               )}
             </p>
-            <div className="flex items-center gap-2">
-              <input
-                readOnly
-                value={voteUrl}
-                onFocus={(e) => e.target.select()}
-                className="flex-1 min-w-0 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-              />
-              <button
-                type="button"
-                onClick={handleCopy}
-                className="flex-shrink-0 px-3 py-2.5 bg-bridge-accent text-white rounded-xl text-xs font-bold hover:bg-bridge-accent/90 transition-all flex items-center gap-1"
-              >
-                <Copy className="w-3.5 h-3.5" />
-                {t("common.copy", "복사")}
-              </button>
+            <div className="space-y-1.5">
+              <p className="text-xs font-bold text-foreground">
+                {t("flow.voteLinkLabel", "투표 링크")}
+                <span className="ml-1.5 font-normal text-slate-500">
+                  {t("flow.voteLinkHint", "누구나 로그인 없이 Top3 투표")}
+                </span>
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  value={voteUrl}
+                  onFocus={(e) => e.target.select()}
+                  className={linkInputClass}
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleCopy(
+                      voteUrl,
+                      t("flow.voteUrlCopied", "투표 링크를 복사했습니다"),
+                    )
+                  }
+                  className={copyBtnClass}
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  {t("common.copy", "복사")}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-xs font-bold text-foreground">
+                {t("flow.voteResultsLinkLabel", "결과 링크")}
+                <span className="ml-1.5 font-normal text-slate-500">
+                  {t("flow.voteResultsLinkHint", "실시간 결과 · 투표 종료 가능")}
+                </span>
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  value={resultsUrl ?? ""}
+                  onFocus={(e) => e.target.select()}
+                  className={linkInputClass}
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleCopy(
+                      resultsUrl,
+                      t("flow.voteResultsUrlCopied", "결과 링크를 복사했습니다"),
+                    )
+                  }
+                  className={copyBtnClass}
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  {t("common.copy", "복사")}
+                </button>
+                {resultsUrl && (
+                  <a
+                    href={resultsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 px-3 py-2.5 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl text-xs font-medium hover:bg-foreground/10 transition-all flex items-center gap-1"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    {t("flow.voteOpenLink", "열기")}
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         ) : (

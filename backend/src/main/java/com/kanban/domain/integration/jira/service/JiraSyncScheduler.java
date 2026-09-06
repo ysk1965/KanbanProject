@@ -25,6 +25,7 @@ public class JiraSyncScheduler {
     private final JiraIntegrationConfigRepository configRepository;
     private final JiraWriteBackService writeBackService;
     private final JiraImportService importService;
+    private final JiraMilestoneScopeService scopeService;
 
     /** 매 2분 실행. */
     @Scheduled(cron = "0 */2 * * * *")
@@ -62,6 +63,12 @@ public class JiraSyncScheduler {
                 importService.importIssues(boardId, actorId, new JiraRequest.Import(null, false));
             } catch (Exception e) {
                 log.warn("JIRA pull sync failed for board {}: {}", boardId, e.getMessage());
+            }
+            // 마일스톤 스코프 소속(claim) 갱신 — 본 동기화와 독립적으로 수렴(멱등, 스코프 없으면 no-op).
+            try {
+                scopeService.claimAllForBoard(boardId);
+            } catch (Exception e) {
+                log.warn("JIRA scope claim failed for board {}: {}", boardId, e.getMessage());
             }
         }
     }

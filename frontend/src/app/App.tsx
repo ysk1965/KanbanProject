@@ -37,6 +37,7 @@ import AutoReportPage from "./pages/AutoReportPage";
 import GithubSetupPage from "./pages/GithubSetupPage";
 import { SharedAlbumPage } from "./pages/SharedAlbumPage";
 import { ImageVotePage } from "./pages/ImageVotePage";
+import { ImageVoteResultsPage } from "./pages/ImageVoteResultsPage";
 import { SharedGalleryPage } from "./pages/SharedGalleryPage";
 import { PublicUploadPage } from "./pages/PublicUploadPage";
 import { GalleryUploadPage } from "./pages/GalleryUploadPage";
@@ -612,6 +613,10 @@ function AppRoutes() {
 
         {/* Top3 이미지 투표 (공개 - 인증 불필요) */}
         <Route path="/vote/:token" element={<ImageVotePage />} />
+        <Route
+          path="/vote-results/:adminToken"
+          element={<ImageVoteResultsPage />}
+        />
 
         {/* 공유 마인드맵 (공개 - 인증 불필요, 읽기 전용) */}
         <Route
@@ -809,6 +814,7 @@ const MAINTENANCE_ALLOWED_PATHS = [
   "/verify-email",
   "/n",
   "/vote",
+  "/vote-results",
   "/shared/note",
   "/shared/mindmap",
   "/shared/album",

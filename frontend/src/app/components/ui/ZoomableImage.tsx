@@ -1,4 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useBlockBrowserZoom,
+  wheelToZoomFactor,
+} from "../../hooks/useBlockBrowserZoom";
 
 const MIN_ZOOM = 1;
 const DEFAULT_MAX_ZOOM = 5;
@@ -35,6 +39,10 @@ export function ZoomableImage({
   const wasPinchingRef = useRef(false);
   const isZoomed = zoom > 1;
 
+  // 뷰어가 떠 있는 동안 브라우저 핀치/ctrl+wheel 줌 차단
+  // (최대 줌 도달 후 계속 핀치하면 브라우저 줌이 걸려 fixed 레이아웃이 깨지는 문제 방지)
+  useBlockBrowserZoom(true);
+
   useEffect(() => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
@@ -68,7 +76,7 @@ export function ZoomableImage({
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      applyZoom((z) => z + (e.deltaY > 0 ? -0.4 : 0.4));
+      applyZoom(wheelToZoomFactor(e, 0.4));
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);

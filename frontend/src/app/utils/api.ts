@@ -6246,6 +6246,16 @@ export interface JiraSiteRef {
   name: string;
 }
 
+/** 마일스톤별 JIRA 스코프 — 이 마일스톤의 JIRA 뷰가 비추는 범위(JQL). */
+export interface JiraMilestoneScope {
+  milestone_id: string;
+  jql: string;
+  active: boolean;
+  /** 현재 이 스코프 소속으로 claim된 이슈 링크 수. */
+  claimed_count: number;
+  last_claimed_at: string | null;
+}
+
 export interface JiraTestResult {
   success: boolean;
   message: string;
@@ -6837,6 +6847,29 @@ export const jiraAPI = {
       jql: data?.jql || undefined,
       preview: data?.preview ?? false,
     });
+  },
+
+  // ── 마일스톤 스코프 (마일스톤별 JIRA 뷰 범위) ──
+
+  getScopes: async (boardId: string) => {
+    return apiClient.get<JiraMilestoneScope[]>(
+      `/boards/${boardId}/jira/scopes`,
+    );
+  },
+
+  /** 스코프 저장(업서트) + 즉시 claim. JQL이 잘못됐으면 저장 없이 에러가 돌아온다. */
+  saveScope: async (boardId: string, milestoneId: string, jql: string) => {
+    return apiClient.put<JiraMilestoneScope>(
+      `/boards/${boardId}/jira/scopes/${milestoneId}`,
+      { jql },
+    );
+  },
+
+  /** 스코프 해제 — 이 마일스톤은 다시 보드 전체를 본다. */
+  deleteScope: async (boardId: string, milestoneId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/jira/scopes/${milestoneId}`,
+    );
   },
 
   disconnect: async (boardId: string) => {
@@ -11168,4 +11201,14 @@ export const imageVoteAPI = {
     },
   ): Promise<void> =>
     apiClient.post(`/public/image-votes/${token}/ballots`, body, true),
+
+  /** 관리 토큰으로 결과 + 투표자별 내역 조회 */
+  getAdmin: (adminToken: string): Promise<import("../types").AdminImageVote> =>
+    apiClient.get(`/public/image-votes/manage/${adminToken}`, true),
+
+  close: (adminToken: string): Promise<import("../types").AdminImageVote> =>
+    apiClient.post(`/public/image-votes/manage/${adminToken}/close`, {}, true),
+
+  reopen: (adminToken: string): Promise<import("../types").AdminImageVote> =>
+    apiClient.post(`/public/image-votes/manage/${adminToken}/reopen`, {}, true),
 };

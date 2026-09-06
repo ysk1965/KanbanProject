@@ -1,32 +1,14 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Loader2, AlertCircle, Trophy, Check, RotateCcw } from "lucide-react";
+import { Loader2, AlertCircle, Trophy, Check, RotateCcw, Lock } from "lucide-react";
 import { imageVoteAPI } from "../utils/api";
 import { PhotoLightbox } from "../components/organization/photo/PhotoLightbox";
+import {
+  ImageVoteResultList,
+  candidateToPhoto,
+} from "../components/vote/ImageVoteResultList";
 import type { PublicImageVote, OrgPhoto } from "../types";
-
-/** 투표 후보 → PhotoLightbox 재사용을 위한 OrgPhoto 매핑 */
-function candidateToPhoto(
-  c: PublicImageVote["candidates"][number],
-): OrgPhoto {
-  return {
-    id: c.id,
-    tab_id: "",
-    s3_key: "",
-    thumbnail_key: null,
-    url: c.image_url,
-    thumbnail_url: null,
-    original_filename: c.label || "image",
-    file_size: 0,
-    content_type: "image/*",
-    width: null,
-    height: null,
-    caption: c.label,
-    uploaded_by: { id: "", name: "", email: "", profile_image_url: null },
-    created_at: "",
-  };
-}
 
 const VOTER_KEY_STORAGE = "bridge-image-vote-key";
 
@@ -40,7 +22,6 @@ function getVoterKey(): string {
 }
 
 const RANK_LABELS = ["1위", "2위", "3위"];
-const MEDALS = ["🥇", "🥈", "🥉"];
 
 /** 공개 Top3 이미지 투표 페이지 — 인증 불필요 (/vote/:token) */
 export function ImageVotePage() {
@@ -61,6 +42,9 @@ export function ImageVotePage() {
     try {
       const data = await imageVoteAPI.getPublic(token, voterKey);
       setVote(data);
+      if (data.closed) {
+        setView("results");
+      }
       if (data.my_ballot) {
         setVoterName(data.my_ballot.voter_name);
         setPicks([
@@ -114,12 +98,6 @@ export function ImageVotePage() {
     }
   };
 
-  const candidateById = useMemo(() => {
-    const m = new Map<string, PublicImageVote["candidates"][number]>();
-    vote?.candidates.forEach((c) => m.set(c.id, c));
-    return m;
-  }, [vote]);
-
   if (loading) {
     return (
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
@@ -137,7 +115,7 @@ export function ImageVotePage() {
     );
   }
 
-  const maxPoints = Math.max(1, ...vote.results.map((r) => r.points));
+  const showVoteForm = view === "vote" && !vote.closed;
 
   return (
     <div className="min-h-screen bg-bridge-dark">
@@ -152,16 +130,22 @@ export function ImageVotePage() {
               {vote.title}
             </h1>
             <p className="text-xs text-slate-500">
-              {view === "vote"
+              {showVoteForm
                 ? "마음에 드는 이미지를 순서대로 3개 골라주세요 (1위 → 3위)"
                 : `총 ${vote.total_ballots}명 참여`}
             </p>
           </div>
+          {vote.closed && (
+            <span className="ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 flex-shrink-0 flex items-center gap-1">
+              <Lock className="w-3 h-3" />
+              종료됨
+            </span>
+          )}
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6 pb-40">
-        {view === "vote" ? (
+        {showVoteForm ? (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {vote.candidates.map((c, i) => {
@@ -265,61 +249,18 @@ export function ImageVotePage() {
         ) : (
           <>
             {/* 결과 뷰 */}
-            <div className="space-y-3">
-              {vote.results.map((r, i) => {
-                const c = candidateById.get(r.candidate_id);
-                if (!c) return null;
-                return (
-                  <motion.div
-                    key={r.candidate_id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.04 }}
-                    className="flex items-center gap-3.5 bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-3.5"
-                  >
-                    <span className="w-9 text-center text-lg flex-shrink-0">
-                      {i < 3 ? MEDALS[i] : ""}
-                      {i >= 3 && (
-                        <span className="text-xs font-bold text-slate-500">
-                          {i + 1}위
-                        </span>
-                      )}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setLightboxPhoto(candidateToPhoto(c))}
-                      className="w-14 h-[72px] rounded-lg overflow-hidden bg-black flex-shrink-0 border border-foreground/10 cursor-zoom-in"
-                    >
-                      <img
-                        src={c.image_url}
-                        alt={c.label || "candidate"}
-                        className="w-full h-full object-contain"
-                        draggable={false}
-                      />
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs md:text-sm font-bold text-foreground truncate">
-                        {c.label || "이름 없음"}
-                      </p>
-                      <div className="mt-1.5 h-2 rounded-full bg-foreground/5 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-bridge-accent to-bridge-secondary transition-all"
-                          style={{ width: `${(r.points / maxPoints) * 100}%` }}
-                        />
-                      </div>
-                      <p className="mt-1 text-xs text-slate-500">
-                        🥇{r.first_count} · 🥈{r.second_count} · 🥉
-                        {r.third_count}
-                      </p>
-                    </div>
-                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent flex-shrink-0">
-                      {r.points}점
-                    </span>
-                  </motion.div>
-                );
-              })}
-            </div>
+            {vote.closed && (
+              <p className="mb-4 text-xs text-slate-500 text-center">
+                투표가 종료되어 결과만 볼 수 있어요
+              </p>
+            )}
+            <ImageVoteResultList
+              candidates={vote.candidates}
+              results={vote.results}
+              onOpenPhoto={setLightboxPhoto}
+            />
 
+            {!vote.closed && (
             <div className="mt-6 flex justify-center">
               <button
                 type="button"
@@ -330,6 +271,7 @@ export function ImageVotePage() {
                 다시 투표하기
               </button>
             </div>
+            )}
           </>
         )}
       </main>

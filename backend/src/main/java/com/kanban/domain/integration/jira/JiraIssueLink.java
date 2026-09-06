@@ -130,6 +130,15 @@ public class JiraIssueLink {
     @Column(name = "jira_deleted_at")
     private LocalDateTime jiraDeletedAt;
 
+    /**
+     * 소속 마일스톤 스코프({@link JiraMilestoneScope}) id. null = 보드 기본(전체 뷰 소속).
+     *
+     * <p>동기화의 claim 패스가 스코프 JQL 결과로 채우고 비운다. 두 스코프의 JQL이 겹치면
+     * 먼저 가져간 쪽이 유지된다(빼앗지 않음) — 소속이 폴링마다 좌우로 튀는 것을 막는다.
+     */
+    @Column(name = "scope_id", length = 36)
+    private String scopeId;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -244,6 +253,11 @@ public class JiraIssueLink {
 
     public boolean isJiraDeleted() {
         return this.jiraDeletedAt != null;
+    }
+
+    /** 스코프 소속 지정 — claim 패스 전용. null이면 보드 기본으로 되돌아간다. */
+    public void assignScope(String scopeId) {
+        this.scopeId = scopeId;
     }
 
     /** JIRA가 BRIDGE 원장보다 최신인지 — 증분 갱신 판정. */

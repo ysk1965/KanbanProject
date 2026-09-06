@@ -6,4 +6,6 @@ import java.util.Optional;
 
 public interface ImageVoteRepository extends JpaRepository<ImageVote, String> {
     Optional<ImageVote> findByToken(String token);
+
+    Optional<ImageVote> findByAdminToken(String adminToken);
 }

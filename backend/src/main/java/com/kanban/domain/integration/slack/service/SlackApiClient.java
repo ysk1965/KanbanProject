@@ -114,6 +114,24 @@ public class SlackApiClient {
     }
 
     /**
+     * 봇이 게시한 메시지를 갱신한다({@code chat.update}). 멘션 프롬프트에 AI 추천 버튼을
+     * 뒤늦게 붙이는 식으로, 이미 올라간 메시지의 블록을 통째로 갈아끼울 때 쓴다.
+     * {@code metadata}를 다시 넘기지 않으면 원 메시지의 metadata가 유지되지 않을 수 있으니
+     * 인터랙션이 의존하는 metadata는 항상 함께 넘긴다.
+     */
+    public Map<String, Object> chatUpdate(String botToken, String channelId, String ts,
+                                          List<Map<String, Object>> blocks, Map<String, Object> metadata) {
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("channel", channelId);
+        body.put("ts", ts);
+        body.put("blocks", blocks);
+        if (metadata != null) {
+            body.put("metadata", metadata);
+        }
+        return callSlackApi(botToken, "/chat.update", body);
+    }
+
+    /**
      * 봇이 게시한 메시지를 회수한다({@code chat.delete}). 채널 + 메시지 ts로 특정한다.
      * 봇 자기 메시지 삭제는 {@code chat:write}로 되며 별도 스코프가 필요 없다.
      * 이미 지워졌거나 없는 메시지면 Slack이 {@code message_not_found}를 돌려주고

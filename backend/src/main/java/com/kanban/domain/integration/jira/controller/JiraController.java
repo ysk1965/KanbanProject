@@ -4,6 +4,7 @@ import com.kanban.domain.integration.jira.dto.JiraRequest;
 import com.kanban.domain.integration.jira.dto.JiraResponse;
 import com.kanban.domain.integration.jira.service.JiraConnectionService;
 import com.kanban.domain.integration.jira.service.JiraImportService;
+import com.kanban.domain.integration.jira.service.JiraMilestoneScopeService;
 import com.kanban.domain.integration.jira.service.JiraOAuthService;
 import com.kanban.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class JiraController {
     private final JiraConnectionService connectionService;
     private final JiraImportService importService;
     private final JiraOAuthService oauthService;
+    private final JiraMilestoneScopeService scopeService;
 
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
@@ -90,7 +92,46 @@ public class JiraController {
             @RequestBody(required = false) JiraRequest.Import request,
             @AuthenticationPrincipal UserPrincipal principal) {
         JiraRequest.Import req = request != null ? request : new JiraRequest.Import(null, false);
-        return ResponseEntity.ok(importService.importIssues(boardId, principal.getUserId(), req));
+        JiraResponse.ImportResult result = importService.importIssues(boardId, principal.getUserId(), req);
+        // 새로 들어온 이슈의 마일스톤 스코프 소속 갱신 — 실패해도 가져오기 자체는 성립(다음 폴링이 수렴).
+        if (!req.isPreview()) {
+            try {
+                scopeService.claimAllForBoard(boardId);
+            } catch (Exception e) {
+                log.warn("JIRA scope claim after import failed for board {}: {}", boardId, e.getMessage());
+            }
+        }
+        return ResponseEntity.ok(result);
+    }
+
+    // ── 마일스톤 스코프 (마일스톤별 JIRA 뷰 범위) ──
+
+    @GetMapping("/api/v1/boards/{boardId}/jira/scopes")
+    public ResponseEntity<List<JiraResponse.MilestoneScope>> scopes(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(scopeService.getScopes(boardId, principal.getUserId()));
+    }
+
+    /** 스코프 저장(업서트) + 즉시 claim. JQL이 잘못됐으면 저장 없이 실패한다. */
+    @PutMapping("/api/v1/boards/{boardId}/jira/scopes/{milestoneId}")
+    public ResponseEntity<JiraResponse.MilestoneScope> saveScope(
+            @PathVariable String boardId,
+            @PathVariable String milestoneId,
+            @RequestBody JiraRequest.MilestoneScopeSave request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(
+            scopeService.saveScope(boardId, milestoneId, principal.getUserId(), request.getJql()));
+    }
+
+    /** 스코프 해제 — 이 마일스톤은 다시 보드 전체를 본다(이슈·Task는 보존). */
+    @DeleteMapping("/api/v1/boards/{boardId}/jira/scopes/{milestoneId}")
+    public ResponseEntity<Map<String, String>> deleteScope(
+            @PathVariable String boardId,
+            @PathVariable String milestoneId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        scopeService.deleteScope(boardId, milestoneId, principal.getUserId());
+        return ResponseEntity.ok(Map.of("message", "마일스톤 JIRA 스코프가 해제되었습니다"));
     }
 
     @PostMapping("/api/v1/boards/{boardId}/jira/connect")

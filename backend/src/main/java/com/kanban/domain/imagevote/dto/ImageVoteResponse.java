@@ -12,7 +12,10 @@ public class ImageVoteResponse {
     @Builder
     public static class Created {
         private String id;
+        /** 투표용 토큰 */
         private String token;
+        /** 결과 조회·종료용 관리 토큰 */
+        private String adminToken;
     }
 
     @Getter
@@ -45,6 +48,32 @@ public class ImageVoteResponse {
         private List<CandidateResult> results;
         /** voterKey 쿼리 파라미터로 조회 시 내 기존 투표 (없으면 null) */
         private MyBallot myBallot;
+    }
+
+    /** 관리 토큰으로 조회하는 결과 뷰 — 공개 결과 + 투표자별 선택 내역 + 투표 링크 토큰 */
+    @Getter
+    @Builder
+    public static class AdminVote {
+        private String title;
+        private boolean closed;
+        private LocalDateTime createdAt;
+        private LocalDateTime closedAt;
+        /** 투표용 공개 토큰 (투표 링크 재복사용) */
+        private String token;
+        private List<Candidate> candidates;
+        private long totalBallots;
+        private List<CandidateResult> results;
+        private List<BallotDetail> ballots;
+    }
+
+    @Getter
+    @Builder
+    public static class BallotDetail {
+        private String voterName;
+        private String firstCandidateId;
+        private String secondCandidateId;
+        private String thirdCandidateId;
+        private LocalDateTime votedAt;
     }
 
     @Getter

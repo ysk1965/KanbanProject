@@ -1210,7 +1210,9 @@ export function ScheduleResourceView({
     return set;
   }, [groupByJobRole, roleGroupSegments, collapsedRoleGroups]);
 
-  // ─── 'w' shortcut: toggle expand/collapse all rows + role groups ───
+  // ─── 'w' shortcut: `+N 더 보기` 행 모두 펼치기 ↔ 모두 닫기 ───
+  // 직군 그룹 접기(collapsedRoleGroups)는 건드리지 않는다 — 그룹까지 접으면
+  // 행 자체가 숨어 "더 보기"를 펼친 결과가 보이지 않기 때문.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== "w" && e.key !== "W") return;
@@ -1221,47 +1223,22 @@ export function ScheduleResourceView({
         return;
       e.preventDefault();
 
-      if (groupByJobRole && roleGroupSegments.length > 0) {
-        const anyExpanded = roleGroupSegments.some(
-          (seg) => !collapsedRoleGroups.has(seg.key),
-        );
-        const allKeys = roleGroupSegments.map((seg) => seg.key);
-        const nextCollapsed = anyExpanded
-          ? new Set(allKeys)
-          : new Set<string>();
-        setCollapsedRoleGroups(nextCollapsed);
-        try {
-          window.localStorage.setItem(
-            collapsedKey,
-            JSON.stringify([...nextCollapsed]),
-          );
-        } catch {
-          /* ignore */
-        }
-      }
-
       setToggledRows((prev) => {
         const allIds = rows.map((r) => r.id);
-        const anyExpanded = allIds.some((id) =>
+        const allExpanded = allIds.every((id) =>
           rowsDefaultExpanded ? !prev.has(id) : prev.has(id),
         );
-        // 하나라도 펼쳐져 있으면 전부 접고, 아니면 전부 펼친다
-        const collapseAll = anyExpanded;
-        return rowsDefaultExpanded === collapseAll
-          ? new Set(allIds)
-          : new Set<string>();
+        // 전부 펼쳐져 있을 때만 모두 닫고, 하나라도 접혀 있으면 모두 펼친다
+        const expandAll = !allExpanded;
+        // toggledRows는 "기본값에서 뒤집힌 행"만 담는다
+        return expandAll === rowsDefaultExpanded
+          ? new Set<string>()
+          : new Set(allIds);
       });
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [
-    rows,
-    rowsDefaultExpanded,
-    groupByJobRole,
-    roleGroupSegments,
-    collapsedRoleGroups,
-    collapsedKey,
-  ]);
+  }, [rows, rowsDefaultExpanded]);
 
   // ─── Bar position calculations ───
   const getBarPosition = useCallback(

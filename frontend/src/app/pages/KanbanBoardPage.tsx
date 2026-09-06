@@ -2302,47 +2302,6 @@ export function KanbanBoardPage() {
     }
   };
 
-  // 마일스톤 보드: 피처 카드 드래그 → 소스 태스크들을 타겟 마일스톤으로 일괄 재배정.
-  // 벌크 엔드포인트가 없어 태스크별 updateTask 호출. 기존 스케줄 값은 보존해 전달.
-  const handleMoveTasksMilestone = async (
-    taskIds: string[],
-    targetMilestoneId: string | null,
-  ) => {
-    if (!boardId || taskIds.length === 0) return;
-    const milestoneVal = targetMilestoneId ?? ""; // ""=해제
-    // 낙관적 업데이트
-    setTasks((prev) =>
-      prev.map((t) =>
-        taskIds.includes(t.id) ? { ...t, milestone_id: targetMilestoneId } : t,
-      ),
-    );
-    try {
-      await Promise.all(
-        taskIds.map((taskId) => {
-          const existing = tasks.find((t) => t.id === taskId);
-          if (!existing) return Promise.resolve(null);
-          return taskService.updateTask(boardId, taskId, {
-            title: existing.title,
-            description: existing.description,
-            start_date: existing.start_date ?? null,
-            due_date: existing.due_date ?? null,
-            estimated_minutes: existing.estimated_minutes ?? null,
-            milestone_id: milestoneVal,
-          });
-        }),
-      );
-      notifyScheduleRefresh();
-      const reloadId =
-        kanbanSelectedMilestoneId !== "all"
-          ? kanbanSelectedMilestoneId
-          : undefined;
-      reloadFeaturesAndTasks(reloadId);
-    } catch (error) {
-      console.error("Failed to move tasks to milestone:", error);
-      reloadFeaturesAndTasks();
-    }
-  };
-
   const handleDeleteTask = async (taskId: string) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task || !boardId) return;
@@ -3498,13 +3457,6 @@ export function KanbanBoardPage() {
                   onCreateMilestone={() => handleOpenMilestoneWithCheck()}
                   onEditMilestone={(milestone) =>
                     handleOpenMilestoneWithCheck(milestone)
-                  }
-                  onDeleteMilestone={handleDeleteMilestone}
-                  onUpdateMilestoneDates={
-                    canEdit ? handleUpdateMilestoneDates : undefined
-                  }
-                  onMoveTasksMilestone={
-                    canEdit ? handleMoveTasksMilestone : undefined
                   }
                   onTaskClick={handleTaskClick}
                   canEdit={canEdit}

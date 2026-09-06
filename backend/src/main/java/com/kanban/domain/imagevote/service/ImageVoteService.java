@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -60,6 +61,7 @@ public class ImageVoteService {
         return ImageVoteResponse.Created.builder()
                 .id(vote.getId())
                 .token(vote.getToken())
+                .adminToken(vote.getAdminToken())
                 .build();
     }
 
@@ -69,27 +71,6 @@ public class ImageVoteService {
 
         List<ImageVoteCandidate> candidates = candidateRepository.findByVoteIdOrderByPositionAsc(vote.getId());
         List<ImageVoteBallot> ballots = ballotRepository.findByVoteId(vote.getId());
-
-        Map<String, int[]> tally = new HashMap<>(); // candidateId → [first, second, third]
-        for (ImageVoteBallot b : ballots) {
-            tally.computeIfAbsent(b.getFirstCandidateId(), k -> new int[3])[0]++;
-            tally.computeIfAbsent(b.getSecondCandidateId(), k -> new int[3])[1]++;
-            tally.computeIfAbsent(b.getThirdCandidateId(), k -> new int[3])[2]++;
-        }
-
-        List<ImageVoteResponse.CandidateResult> results = candidates.stream()
-                .map(c -> {
-                    int[] cnt = tally.getOrDefault(c.getId(), new int[3]);
-                    return ImageVoteResponse.CandidateResult.builder()
-                            .candidateId(c.getId())
-                            .firstCount(cnt[0])
-                            .secondCount(cnt[1])
-                            .thirdCount(cnt[2])
-                            .points(cnt[0] * 3 + cnt[1] * 2 + cnt[2])
-                            .build();
-                })
-                .sorted((a, b) -> Integer.compare(b.getPoints(), a.getPoints()))
-                .toList();
 
         ImageVoteResponse.MyBallot myBallot = null;
         if (voterKey != null && !voterKey.isBlank()) {
@@ -107,17 +88,103 @@ public class ImageVoteService {
                 .title(vote.getTitle())
                 .closed(vote.isClosed())
                 .createdAt(vote.getCreatedAt())
-                .candidates(candidates.stream()
-                        .map(c -> ImageVoteResponse.Candidate.builder()
-                                .id(c.getId())
-                                .imageUrl(c.getImageUrl())
-                                .label(c.getLabel())
-                                .build())
-                        .toList())
+                .candidates(toCandidateDtos(candidates))
                 .totalBallots(ballots.size())
-                .results(results)
+                .results(tally(candidates, ballots))
                 .myBallot(myBallot)
                 .build();
+    }
+
+    /** 관리 토큰으로 결과 + 투표자별 내역 조회 */
+    public ImageVoteResponse.AdminVote getAdminVote(String adminToken) {
+        ImageVote vote = findByAdminToken(adminToken);
+        return buildAdminVote(vote);
+    }
+
+    /** 투표 종료 — 이후 ballot 제출 불가, 공개 페이지는 결과만 표시 */
+    @Transactional
+    public ImageVoteResponse.AdminVote close(String adminToken) {
+        ImageVote vote = findByAdminToken(adminToken);
+        vote.close();
+        return buildAdminVote(vote);
+    }
+
+    /** 종료된 투표 다시 열기 */
+    @Transactional
+    public ImageVoteResponse.AdminVote reopen(String adminToken) {
+        ImageVote vote = findByAdminToken(adminToken);
+        vote.reopen();
+        return buildAdminVote(vote);
+    }
+
+    private ImageVote findByAdminToken(String adminToken) {
+        return imageVoteRepository.findByAdminToken(adminToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.IMAGE_VOTE_NOT_FOUND));
+    }
+
+    private ImageVoteResponse.AdminVote buildAdminVote(ImageVote vote) {
+        List<ImageVoteCandidate> candidates = candidateRepository.findByVoteIdOrderByPositionAsc(vote.getId());
+        List<ImageVoteBallot> ballots = ballotRepository.findByVoteId(vote.getId());
+
+        List<ImageVoteResponse.BallotDetail> ballotDetails = ballots.stream()
+                .sorted(Comparator.comparing(
+                        (ImageVoteBallot b) -> b.getUpdatedAt() != null ? b.getUpdatedAt() : b.getCreatedAt(),
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(b -> ImageVoteResponse.BallotDetail.builder()
+                        .voterName(b.getVoterName())
+                        .firstCandidateId(b.getFirstCandidateId())
+                        .secondCandidateId(b.getSecondCandidateId())
+                        .thirdCandidateId(b.getThirdCandidateId())
+                        .votedAt(b.getUpdatedAt() != null ? b.getUpdatedAt() : b.getCreatedAt())
+                        .build())
+                .toList();
+
+        return ImageVoteResponse.AdminVote.builder()
+                .title(vote.getTitle())
+                .closed(vote.isClosed())
+                .createdAt(vote.getCreatedAt())
+                .closedAt(vote.getClosedAt())
+                .token(vote.getToken())
+                .candidates(toCandidateDtos(candidates))
+                .totalBallots(ballots.size())
+                .results(tally(candidates, ballots))
+                .ballots(ballotDetails)
+                .build();
+    }
+
+    private List<ImageVoteResponse.Candidate> toCandidateDtos(List<ImageVoteCandidate> candidates) {
+        return candidates.stream()
+                .map(c -> ImageVoteResponse.Candidate.builder()
+                        .id(c.getId())
+                        .imageUrl(c.getImageUrl())
+                        .label(c.getLabel())
+                        .build())
+                .toList();
+    }
+
+    /** 후보별 집계 — 1위 3점 · 2위 2점 · 3위 1점, 점수 내림차순 */
+    private List<ImageVoteResponse.CandidateResult> tally(List<ImageVoteCandidate> candidates,
+                                                          List<ImageVoteBallot> ballots) {
+        Map<String, int[]> tally = new HashMap<>(); // candidateId → [first, second, third]
+        for (ImageVoteBallot b : ballots) {
+            tally.computeIfAbsent(b.getFirstCandidateId(), k -> new int[3])[0]++;
+            tally.computeIfAbsent(b.getSecondCandidateId(), k -> new int[3])[1]++;
+            tally.computeIfAbsent(b.getThirdCandidateId(), k -> new int[3])[2]++;
+        }
+
+        return candidates.stream()
+                .map(c -> {
+                    int[] cnt = tally.getOrDefault(c.getId(), new int[3]);
+                    return ImageVoteResponse.CandidateResult.builder()
+                            .candidateId(c.getId())
+                            .firstCount(cnt[0])
+                            .secondCount(cnt[1])
+                            .thirdCount(cnt[2])
+                            .points(cnt[0] * 3 + cnt[1] * 2 + cnt[2])
+                            .build();
+                })
+                .sorted((a, b) -> Integer.compare(b.getPoints(), a.getPoints()))
+                .toList();
     }
 
     @Transactional

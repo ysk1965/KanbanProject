@@ -80,6 +80,21 @@ public class JiraApiClient {
         return exchange(ctx, HttpMethod.POST, "/search/jql", body);
     }
 
+    /**
+     * 이슈 키만 필요한 검색(스코프 claim용) — 필드를 최소로 줄여 폴링 비용을 낮춘다.
+     * 응답 형태는 {@link #searchIssues}와 같다(issues[].key + nextPageToken).
+     */
+    public JsonNode searchIssueKeys(JiraAuthContext ctx, String jql, String nextPageToken, int maxResults) {
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("jql", jql);
+        body.put("maxResults", maxResults);
+        body.putArray("fields").add("status");
+        if (nextPageToken != null && !nextPageToken.isBlank()) {
+            body.put("nextPageToken", nextPageToken);
+        }
+        return exchange(ctx, HttpMethod.POST, "/search/jql", body);
+    }
+
     public JsonNode getIssue(JiraAuthContext ctx, String issueKey) {
         String path = "/issue/" + issueKey + "?fields=" + String.join(",", DEFAULT_FIELDS) + ",comment";
         return exchange(ctx, HttpMethod.GET, path, null);

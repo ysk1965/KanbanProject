@@ -849,6 +849,14 @@ export interface SprintBoard {
   // 이 사용자가 JIRA 뷰를 마지막으로 확인한 시각. 이보다 나중에 linked_at된 이슈 = 신규.
   // null이면 판정 불가(멤버십 없음 등) → 신규 0건으로 취급한다.
   jira_last_seen_at?: string | null;
+  // 이 마일스톤의 활성 JIRA 스코프. null/없음 = 보드 전체(기존 동작).
+  // 스코프가 있으면 jira_tasks가 서버에서 이미 그 소속만으로 걸러져 내려온다.
+  jira_scope?: {
+    milestone_id: string;
+    jql: string;
+    task_count: number;
+    last_claimed_at: string | null;
+  } | null;
 }
 
 // ========================================
@@ -3856,7 +3864,10 @@ export interface ImageVoteCandidateInput {
 
 export interface ImageVoteCreated {
   id: string;
+  /** 투표용 토큰 (/vote/:token) */
   token: string;
+  /** 결과 조회·종료용 관리 토큰 (/vote-results/:adminToken) */
+  admin_token: string;
 }
 
 export interface PublicImageVoteCandidate {
@@ -3888,4 +3899,26 @@ export interface PublicImageVote {
   total_ballots: number;
   results: PublicImageVoteResult[];
   my_ballot: PublicImageVoteMyBallot | null;
+}
+
+export interface ImageVoteBallotDetail {
+  voter_name: string;
+  first_candidate_id: string;
+  second_candidate_id: string;
+  third_candidate_id: string;
+  voted_at: string | null;
+}
+
+/** 관리 토큰으로 조회하는 결과 뷰 */
+export interface AdminImageVote {
+  title: string;
+  closed: boolean;
+  created_at: string;
+  closed_at: string | null;
+  /** 투표용 공개 토큰 (투표 링크 재복사용) */
+  token: string;
+  candidates: PublicImageVoteCandidate[];
+  total_ballots: number;
+  results: PublicImageVoteResult[];
+  ballots: ImageVoteBallotDetail[];
 }

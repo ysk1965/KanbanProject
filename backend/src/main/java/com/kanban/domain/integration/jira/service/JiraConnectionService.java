@@ -15,6 +15,7 @@ import com.kanban.domain.integration.jira.JiraIntegrationConfigRepository;
 import com.kanban.domain.integration.jira.JiraIssueLink;
 import com.kanban.domain.integration.jira.JiraIssueLinkRepository;
 import com.kanban.domain.integration.jira.JiraLinkTargetType;
+import com.kanban.domain.integration.jira.JiraMilestoneScopeRepository;
 import com.kanban.domain.integration.jira.JiraUserMappingRepository;
 import com.kanban.domain.integration.jira.dto.JiraRequest;
 import com.kanban.domain.integration.jira.dto.JiraResponse;
@@ -54,6 +55,7 @@ public class JiraConnectionService {
     private final JiraIssueLinkRepository issueLinkRepository;
     private final JiraCommentLinkRepository commentLinkRepository;
     private final JiraUserMappingRepository userMappingRepository;
+    private final JiraMilestoneScopeRepository scopeRepository;
     private final BoardService boardService;
     private final BoardRepository boardRepository;
     private final BlockRepository blockRepository;
@@ -579,6 +581,8 @@ public class JiraConnectionService {
         issueLinkRepository.deleteByBoardId(boardId);
         commentLinkRepository.deleteByBoardId(boardId);
         userMappingRepository.deleteByBoardId(boardId);
+        // 마일스톤 스코프도 함께 정리 — 링크가 전부 지워져 소속이 무의미해진다(재연결 시 새로 설정).
+        scopeRepository.deleteAll(scopeRepository.findByBoardId(boardId));
         configRepository.deleteByBoardId(boardId);
         log.info("JIRA disconnected from board {} by user {}", boardId, userId);
     }

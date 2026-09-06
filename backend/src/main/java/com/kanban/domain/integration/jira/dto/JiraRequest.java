@@ -69,6 +69,14 @@ public class JiraRequest {
         private boolean preview; // true면 건수만 계산
     }
 
+    /** 마일스톤 스코프 저장 — 이 마일스톤의 JIRA 뷰가 비출 범위(JQL). */
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class MilestoneScopeSave {
+        private String jql;   // 예: fixVersion = "소프트런칭"
+    }
+
     /** 미러 대상 Agile 보드 선택. 빈 값이면 자동 선택으로 복귀. */
     @Getter
     @NoArgsConstructor

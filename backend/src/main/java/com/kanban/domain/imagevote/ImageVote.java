@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 /**
@@ -38,8 +39,13 @@ public class ImageVote extends BaseTimeEntity {
     @Column(name = "title", nullable = false, length = 200)
     private String title;
 
+    /** 투표용 공개 토큰 (/vote/{token}) */
     @Column(name = "token", nullable = false, length = 36, unique = true)
     private String token;
+
+    /** 결과 조회·종료용 관리 토큰 (/vote-results/{adminToken}) — 투표 링크와 분리 */
+    @Column(name = "admin_token", nullable = false, length = 36, unique = true)
+    private String adminToken;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by", nullable = false)
@@ -56,6 +62,19 @@ public class ImageVote extends BaseTimeEntity {
         if (this.token == null) {
             this.token = UUID.randomUUID().toString();
         }
+        if (this.adminToken == null) {
+            this.adminToken = UUID.randomUUID().toString();
+        }
+    }
+
+    public void close() {
+        if (this.closedAt == null) {
+            this.closedAt = LocalDateTime.now(ZoneOffset.UTC);
+        }
+    }
+
+    public void reopen() {
+        this.closedAt = null;
     }
 
     public boolean isClosed() {

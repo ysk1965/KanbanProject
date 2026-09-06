@@ -26,7 +26,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class InboxFeatureService {
 
-    private static final String INBOX_TITLE = "미분류";
+    public static final String INBOX_TITLE = "미분류";
     private static final String INBOX_COLOR = "#64748b";
     private static final int INBOX_POSITION = 999999;
 

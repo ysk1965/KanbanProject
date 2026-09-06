@@ -29,9 +29,11 @@ import java.util.Objects;
  * 슬랙에서 봇을 멘션하면({@code @MILKYWAY 할 일 내용}) 체크리스트 항목을 만들어 준다.
  *
  * <p>흐름: 멘션 → 봇이 스레드에 "어느 태스크에 추가할까요?" 프롬프트(태스크 검색 셀렉트 +
- * 담당자 셀렉트 + 미분류 바로 추가 버튼)를 답장 → 셀렉트 타이핑은 {@code block_suggestion}으로
- * 태스크를 검색하고, 선택/버튼 클릭({@code block_actions})에서 실제로 항목을 생성한 뒤
- * 프롬프트 메시지를 결과로 갈아끼운다.
+ * 담당자 셀렉트 + 미분류 바로 추가 · 취소 버튼)를 답장 → 뒤이어
+ * {@link SlackChecklistTaskRecommender}가 AI 추천 태스크 버튼(Top3)을 프롬프트에 덧붙인다
+ * → 셀렉트 타이핑은 {@code block_suggestion}으로 태스크를 검색하고, 선택/버튼 클릭
+ * ({@code block_actions})에서 실제로 항목을 생성한 뒤 프롬프트 메시지를 결과로 갈아끼운다.
+ * 취소를 누르면 아무것도 만들지 않고 프롬프트를 취소 안내로 바꾼다.
  * 항목 제목·보드는 프롬프트 메시지의 metadata에, 담당자 선택값은 메시지 자체의
  * {@code state.values}에 실려 인터랙션까지 전달된다(서버 상태 저장 없음).
  *
@@ -52,6 +54,8 @@ public class SlackMentionChecklistService {
     public static final String ACTION_TASK_SELECT = "bridge_cl_task_select";
     /** "미분류에 바로 추가" 버튼 */
     public static final String ACTION_ADD_INBOX = "bridge_cl_add_inbox";
+    /** "취소" 버튼 — 아무것도 만들지 않고 프롬프트를 닫는다 */
+    public static final String ACTION_CANCEL = "bridge_cl_cancel";
     /** 담당자 셀렉트 (static_select — 값 변경은 메시지 state에만 반영되고 생성은 하지 않는다) */
     public static final String ACTION_ASSIGNEE_SELECT = "bridge_cl_assignee_select";
     /** 담당자 셀렉트의 "담당자 없음" 옵션 값 */
@@ -75,6 +79,7 @@ public class SlackMentionChecklistService {
     private final InboxFeatureService inboxFeatureService;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
+    private final SlackChecklistTaskRecommender taskRecommender;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -142,15 +147,27 @@ public class SlackMentionChecklistService {
                                 Map.of("type", "button",
                                         "action_id", ACTION_ADD_INBOX,
                                         "text", Map.of("type", "plain_text", "text", "미분류에 바로 추가"),
+                                        "value", boardId),
+                                Map.of("type", "button",
+                                        "action_id", ACTION_CANCEL,
+                                        "text", Map.of("type", "plain_text", "text", "취소"),
                                         "value", boardId))));
         Map<String, Object> metadata = Map.of(
                 "event_type", METADATA_EVENT_TYPE,
                 "event_payload", Map.of("title", title, "board_id", boardId));
 
+        String promptTs;
         try {
-            slackApiClient.postThreadReply(botToken, channelId, threadTs, blocks, metadata);
+            Map<String, Object> posted = slackApiClient.postThreadReply(botToken, channelId, threadTs, blocks, metadata);
+            promptTs = posted != null && posted.get("ts") != null ? String.valueOf(posted.get("ts")) : null;
         } catch (Exception e) {
             log.warn("Failed to post Slack checklist prompt to channel {}: {}", channelId, e.getMessage());
+            return;
+        }
+
+        // 프롬프트는 이미 쓸 수 있는 상태 — AI 추천은 별도 스레드에서 뒤늦게 덧붙인다
+        if (promptTs != null) {
+            taskRecommender.recommendAndAttach(botToken, channelId, promptTs, boardId, title, blocks, metadata);
         }
     }
 
@@ -183,8 +200,8 @@ public class SlackMentionChecklistService {
     // ==================== 3단계: 선택/버튼 → 항목 생성 ====================
 
     /**
-     * {@code block_actions} 처리. 태스크 셀렉트 선택 또는 "미분류에 바로 추가" 클릭이면
-     * 항목을 생성하고 프롬프트 메시지를 결과 메시지로 갈아끼운다.
+     * {@code block_actions} 처리. 태스크 셀렉트 선택, AI 추천 버튼, "미분류에 바로 추가" 클릭이면
+     * 항목을 생성하고 프롬프트 메시지를 결과 메시지로 갈아끼운다. "취소"는 생성 없이 프롬프트만 닫는다.
      * <p>
      * REQUIRES_NEW: 생성 실패 롤백이 호출측(인터랙션 핸들러) 트랜잭션을 rollback-only로
      * 만들어 슬랙에 500이 나가는 것을 막는다 — 여기서 실패해도 바깥은 200 OK로 응답한다.
@@ -198,6 +215,13 @@ public class SlackMentionChecklistService {
         String slackUserId = user != null ? String.valueOf(user.get("id")) : null;
 
         PromptContext context = extractPromptContext(action, message);
+
+        if (ACTION_CANCEL.equals(actionId)) {
+            String quoted = context != null ? "\n> " + context.title() : "";
+            replaceOriginal(responseUrl, ":wastebasket: 체크리스트 추가를 취소했어요" + quoted, "체크리스트 추가를 취소했어요");
+            return;
+        }
+
         if (context == null || slackUserId == null) {
             log.warn("Slack checklist action {} missing prompt context, ignoring", actionId);
             return;
@@ -208,6 +232,9 @@ public class SlackMentionChecklistService {
             Map<String, Object> selected = (Map<String, Object>) action.get("selected_option");
             if (selected == null) return;
             taskId = String.valueOf(selected.get("value"));
+        } else if (actionId.startsWith(SlackChecklistTaskRecommender.ACTION_PICK_TASK_PREFIX)) {
+            if (action.get("value") == null) return;
+            taskId = String.valueOf(action.get("value"));
         }
 
         try {
@@ -276,14 +303,7 @@ public class SlackMentionChecklistService {
         }
 
         // 프롬프트 메시지를 결과로 교체 — 셀렉트/버튼을 없애 중복 추가를 막는다
-        try {
-            slackApiClient.postToResponseUrl(responseUrl, Map.of(
-                    "replace_original", true,
-                    "blocks", List.of(section(text.toString())),
-                    "text", "체크리스트에 추가했어요: " + title));
-        } catch (Exception e) {
-            log.warn("Failed to replace Slack prompt via response_url: {}", e.getMessage());
-        }
+        replaceOriginal(responseUrl, text.toString(), "체크리스트에 추가했어요: " + title);
 
         log.info("Checklist item created from Slack: board={} task={} by slackUser={}",
                 boardId, task.getId(), slackUserId);
@@ -312,9 +332,13 @@ public class SlackMentionChecklistService {
 
         if (boardId == null) {
             String blockId = String.valueOf(action.get("block_id"));
+            String actionId = String.valueOf(action.get("action_id"));
             if (blockId.startsWith(BLOCK_ID_PREFIX)) {
                 boardId = blockId.substring(BLOCK_ID_PREFIX.length());
-            } else if (ACTION_ADD_INBOX.equals(String.valueOf(action.get("action_id"))) && action.get("value") != null) {
+            } else if (blockId.startsWith(SlackChecklistTaskRecommender.RECO_BLOCK_ID_PREFIX)) {
+                boardId = blockId.substring(SlackChecklistTaskRecommender.RECO_BLOCK_ID_PREFIX.length());
+            } else if ((ACTION_ADD_INBOX.equals(actionId) || ACTION_CANCEL.equals(actionId))
+                    && action.get("value") != null) {
                 boardId = String.valueOf(action.get("value"));
             }
         }
@@ -432,6 +456,18 @@ public class SlackMentionChecklistService {
             slackApiClient.postThreadReply(botToken, channelId, threadTs, List.of(section(text)));
         } catch (Exception e) {
             log.warn("Failed to post Slack thread reply to channel {}: {}", channelId, e.getMessage());
+        }
+    }
+
+    /** 프롬프트 메시지를 셀렉트/버튼 없는 결과 섹션 하나로 갈아끼운다 (best-effort) */
+    private void replaceOriginal(String responseUrl, String mrkdwnText, String fallbackText) {
+        try {
+            slackApiClient.postToResponseUrl(responseUrl, Map.of(
+                    "replace_original", true,
+                    "blocks", List.of(section(mrkdwnText)),
+                    "text", fallbackText));
+        } catch (Exception e) {
+            log.warn("Failed to replace Slack prompt via response_url: {}", e.getMessage());
         }
     }
 

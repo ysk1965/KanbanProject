@@ -150,8 +150,13 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
           return;
         }
 
-        // Board view: 1=칸반, 2=마일스톤 서브탭 전환
-        if (key <= "2" && BOARD_SUB_MODES.includes(opts.viewMode)) {
+        // Board view: 1=대시보드, 2=칸반, 3=마일스톤, 4=마인드맵 서브탭 전환
+        // (dashboard는 F/B 생성 단축키 대상이 아니라 BOARD_SUB_MODES에 넣지 않고 여기서만 허용)
+        if (
+          key <= "4" &&
+          (opts.viewMode === "dashboard" ||
+            BOARD_SUB_MODES.includes(opts.viewMode))
+        ) {
           const boardMode = VIEW_MODE_KEY_MAP[key];
           if (boardMode) {
             opts.onViewModeChange(boardMode);

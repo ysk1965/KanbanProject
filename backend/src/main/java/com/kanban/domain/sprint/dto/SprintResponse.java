@@ -35,8 +35,30 @@ public class SprintResponse {
         private List<Column> columns;          // 동적 컬럼 (START..MIDDLE..END), 모든 스프린트의 카드 포함(카드에 sprint_id)
         private List<ItemCard> backlog;        // 담기 후보 (아직 미담긴 마일스톤 항목)
         private List<FeatureInfo> boardFeatures;  // 보드의 피쳐 전체 (인박스 제외) — 태스크 없는 피쳐도 사이드바에 세울 수 있게 내려준다
-        private List<JiraTask> jiraTasks;      // JIRA 뷰용 — 보드 전체 JIRA 연동 Task (스프린트 담김 무관). 미연동이면 빈 목록.
+        private List<JiraTask> jiraTasks;      // JIRA 뷰용 — 스코프 없으면 보드 전체, 있으면 그 소속만. 미연동이면 빈 목록.
         private LocalDateTime jiraLastSeenAt;  // 이 사용자가 JIRA 뷰를 마지막으로 확인한 시각. 이보다 나중 linkedAt = 신규.
+        private JiraScopeInfo jiraScope;       // 이 마일스톤의 활성 JIRA 스코프. null = 보드 전체(기존 동작).
+    }
+
+    /** 마일스톤별 JIRA 스코프 — JIRA 뷰 머리말이 "무엇을 세고 있는지" 밝히는 데 쓴다. */
+    @Getter
+    @AllArgsConstructor
+    @Builder
+    public static class JiraScopeInfo {
+        private String milestoneId;
+        private String jql;
+        /** 현재 이 스코프 소속으로 내려간 이슈 수(= jira_tasks 크기). */
+        private int taskCount;
+        private LocalDateTime lastClaimedAt;
+
+        public static JiraScopeInfo of(com.kanban.domain.integration.jira.JiraMilestoneScope s, int taskCount) {
+            return JiraScopeInfo.builder()
+                    .milestoneId(s.getMilestone().getId())
+                    .jql(s.getJql())
+                    .taskCount(taskCount)
+                    .lastClaimedAt(s.getLastClaimedAt())
+                    .build();
+        }
     }
 
     /** 피쳐 담기 단위 정보 — 담긴 피쳐 목록(sprint_features)과 담기 후보(board_features)에 공통 사용 */

@@ -40,6 +40,17 @@ public class JiraResponse {
     }
 
     /** 프로젝트의 JIRA Agile 보드 (미러 대상 선택 드롭다운용). */
+    /** 마일스톤별 JIRA 스코프 — 이 마일스톤의 JIRA 뷰가 비추는 범위(JQL). */
+    @Getter @Builder @AllArgsConstructor
+    public static class MilestoneScope {
+        private String milestoneId;
+        private String jql;
+        private boolean active;
+        /** 현재 이 스코프 소속으로 claim된 이슈 링크 수. */
+        private int claimedCount;
+        private java.time.LocalDateTime lastClaimedAt;
+    }
+
     @Getter @Builder @AllArgsConstructor
     public static class AgileBoard {
         private String id;

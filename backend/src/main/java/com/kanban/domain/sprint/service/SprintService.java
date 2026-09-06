@@ -11,6 +11,8 @@ import com.kanban.domain.integration.jira.JiraIntegrationConfigRepository;
 import com.kanban.domain.integration.jira.JiraIssueLink;
 import com.kanban.domain.integration.jira.JiraIssueLinkRepository;
 import com.kanban.domain.integration.jira.JiraLinkTargetType;
+import com.kanban.domain.integration.jira.JiraMilestoneScope;
+import com.kanban.domain.integration.jira.JiraMilestoneScopeRepository;
 import com.kanban.domain.milestone.MilestoneFeatureRepository;
 import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.milestone.MilestoneRepository;
@@ -71,6 +73,7 @@ public class SprintService {
     private final WebSocketEventService webSocketEventService;
     private final JiraIssueLinkRepository jiraIssueLinkRepository;
     private final JiraIntegrationConfigRepository jiraIntegrationConfigRepository;
+    private final JiraMilestoneScopeRepository jiraMilestoneScopeRepository;
 
     // 기본 컬럼 시드 (앞뒤 고정 + 기본 중간 1개)
     private static final String COL_SPRINT = "Sprint";
@@ -743,9 +746,12 @@ public class SprintService {
                 .map(t -> SprintResponse.ItemCard.of(t, checklistsByTask.getOrDefault(t.getId(), List.of())))
                 .toList();
 
-        // JIRA 뷰(컬럼=JIRA 상태)용 — 스프린트 담김과 무관한 보드 전체 JIRA 연동 Task.
+        // JIRA 뷰(컬럼=JIRA 상태)용 — 마일스톤에 활성 스코프가 있으면 그 소속만,
+        // 없으면 기존처럼 보드 전체(스프린트 담김 무관)를 비춘다.
         String boardId = milestone.getBoard().getId();
-        List<SprintResponse.JiraTask> jiraTasks = buildJiraTasks(boardId);
+        JiraMilestoneScope jiraScope = jiraMilestoneScopeRepository
+                .findActiveByMilestoneId(milestone.getId()).orElse(null);
+        List<SprintResponse.JiraTask> jiraTasks = buildJiraTasks(boardId, jiraScope);
 
         // 사이드바가 태스크 없는 피쳐까지 노출할 수 있도록 피쳐 목록을 함께 내려준다 —
         // 단, 보드 전체가 아니라 "이 마일스톤에 연결된" 피쳐만. 다른 마일스톤 소속 피쳐까지
@@ -766,6 +772,9 @@ public class SprintService {
                 .boardFeatures(boardFeatures)
                 .jiraTasks(jiraTasks)
                 .jiraLastSeenAt(resolveJiraLastSeenAt(boardId, userId, jiraTasks.isEmpty()))
+                .jiraScope(jiraScope != null
+                        ? SprintResponse.JiraScopeInfo.of(jiraScope, jiraTasks.size())
+                        : null)
                 .build();
     }
 
@@ -799,16 +808,19 @@ public class SprintService {
     }
 
     /**
-     * JIRA 뷰(보드 스코프) 카드 목록. 보드의 모든 JIRA 연동 Task를 스프린트 담김 여부와 무관하게
-     * 내려준다 — 재동기화로 import된 이슈가 스프린트에 담기지 않아도 JIRA 컬럼에 바로 보이도록.
+     * JIRA 뷰(컬럼=JIRA 상태) 카드 목록.
+     *  · scope == null — 기존 동작: 보드의 모든 JIRA 연동 Task(스프린트 담김 무관).
+     *  · scope != null — 마일스톤 스코프 소속(scope_id) 링크만. 스코프 JQL로 claim된 이슈만 비춘다.
      * 미연동 보드면 빈 목록(추가 쿼리 없음).
      */
-    private List<SprintResponse.JiraTask> buildJiraTasks(String boardId) {
+    private List<SprintResponse.JiraTask> buildJiraTasks(String boardId, JiraMilestoneScope scope) {
         if (jiraIntegrationConfigRepository.findActiveByBoardId(boardId).isEmpty()) {
             return List.of();
         }
-        List<JiraIssueLink> links = jiraIssueLinkRepository
-                .findByBoardIdAndTargetType(boardId, JiraLinkTargetType.TASK);
+        List<JiraIssueLink> links = scope != null
+                ? jiraIssueLinkRepository.findByBoardIdAndTargetTypeAndScopeId(
+                        boardId, JiraLinkTargetType.TASK, scope.getId())
+                : jiraIssueLinkRepository.findByBoardIdAndTargetType(boardId, JiraLinkTargetType.TASK);
         if (links.isEmpty()) {
             return List.of();
         }

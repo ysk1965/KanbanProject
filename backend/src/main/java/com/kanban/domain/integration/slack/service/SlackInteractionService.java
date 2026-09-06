@@ -57,7 +57,9 @@ public class SlackInteractionService {
             }
 
             if (SlackMentionChecklistService.ACTION_TASK_SELECT.equals(actionId)
-                    || SlackMentionChecklistService.ACTION_ADD_INBOX.equals(actionId)) {
+                    || SlackMentionChecklistService.ACTION_ADD_INBOX.equals(actionId)
+                    || SlackMentionChecklistService.ACTION_CANCEL.equals(actionId)
+                    || actionId.startsWith(SlackChecklistTaskRecommender.ACTION_PICK_TASK_PREFIX)) {
                 mentionChecklistService.handleBlockAction(actionId, action, payload);
                 return ResponseEntity.ok().build();
             }

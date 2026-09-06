@@ -486,7 +486,7 @@ export function MilestoneDetailView({
     return map;
   }, [tasks]);
 
-  // featureId → 홈 마일스톤 (태스크 최다, 동률 → 앞선 것) — MilestoneBoard와 동일 규칙
+  // featureId → 홈 마일스톤 (태스크 최다, 동률 → 앞선 것)
   const homeByFeature = useMemo(() => {
     const result = new Map<string, string>();
     for (const [featureId, inner] of grid) {
