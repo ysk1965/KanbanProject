@@ -3,7 +3,30 @@ import { useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Loader2, AlertCircle, Trophy, Check, RotateCcw } from "lucide-react";
 import { imageVoteAPI } from "../utils/api";
-import type { PublicImageVote } from "../types";
+import { PhotoLightbox } from "../components/organization/photo/PhotoLightbox";
+import type { PublicImageVote, OrgPhoto } from "../types";
+
+/** 투표 후보 → PhotoLightbox 재사용을 위한 OrgPhoto 매핑 */
+function candidateToPhoto(
+  c: PublicImageVote["candidates"][number],
+): OrgPhoto {
+  return {
+    id: c.id,
+    tab_id: "",
+    s3_key: "",
+    thumbnail_key: null,
+    url: c.image_url,
+    thumbnail_url: null,
+    original_filename: c.label || "image",
+    file_size: 0,
+    content_type: "image/*",
+    width: null,
+    height: null,
+    caption: c.label,
+    uploaded_by: { id: "", name: "", email: "", profile_image_url: null },
+    created_at: "",
+  };
+}
 
 const VOTER_KEY_STORAGE = "bridge-image-vote-key";
 
@@ -29,7 +52,7 @@ export function ImageVotePage() {
   const [voterName, setVoterName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [view, setView] = useState<"vote" | "results">("vote");
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxPhoto, setLightboxPhoto] = useState<OrgPhoto | null>(null);
 
   const voterKey = useMemo(() => getVoterKey(), []);
 
@@ -183,7 +206,7 @@ export function ImageVotePage() {
                       className="absolute bottom-2 right-2 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-dark/70 text-slate-400 cursor-zoom-in"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setLightboxUrl(c.image_url);
+                        setLightboxPhoto(candidateToPhoto(c));
                       }}
                     >
                       크게 보기
@@ -264,7 +287,7 @@ export function ImageVotePage() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => setLightboxUrl(c.image_url)}
+                      onClick={() => setLightboxPhoto(candidateToPhoto(c))}
                       className="w-14 h-[72px] rounded-lg overflow-hidden bg-black flex-shrink-0 border border-foreground/10 cursor-zoom-in"
                     >
                       <img
@@ -311,19 +334,16 @@ export function ImageVotePage() {
         )}
       </main>
 
-      {/* 라이트박스 */}
-      {lightboxUrl && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
-          onClick={() => setLightboxUrl(null)}
-        >
-          <img
-            src={lightboxUrl}
-            alt="preview"
-            className="max-w-full max-h-full object-contain"
-          />
-        </div>
-      )}
+      {/* 라이트박스 — 자체 줌/팬 지원 (브라우저 확대 불필요) */}
+      <PhotoLightbox
+        photo={lightboxPhoto}
+        photos={vote.candidates.map(candidateToPhoto)}
+        isAdmin={false}
+        onClose={() => setLightboxPhoto(null)}
+        onNavigate={(p) => setLightboxPhoto(p)}
+        onDownload={(p) => window.open(p.url, "_blank", "noopener")}
+        onDelete={() => {}}
+      />
     </div>
   );
 }
