@@ -6,6 +6,7 @@ import com.kanban.domain.integration.slack.service.SlackSignatureVerifier;
 import com.kanban.domain.integration.slack.service.SlackSlashCommandService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.filter.SlackRawBodyFilter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -41,12 +42,14 @@ public class SlackEventsController {
 
     /**
      * Slash commands endpoint
+     * <p>폼 바디는 {@link SlackRawBodyFilter}가 보존한 원본 바이트로 서명을 검증한다
+     * ({@code @RequestBody}는 재인코딩된 문자열이라 HMAC이 어긋난다).
      */
     @PostMapping(value = "/commands", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     public ResponseEntity<Map<String, Object>> handleCommand(
             @RequestHeader("X-Slack-Request-Timestamp") String timestamp,
             @RequestHeader("X-Slack-Signature") String signature,
-            @RequestBody String body,
+            @RequestAttribute(SlackRawBodyFilter.ATTR_RAW_BODY) String body,
             @RequestParam("command") String command,
             @RequestParam("text") String text,
             @RequestParam("team_id") String teamId,
@@ -66,7 +69,7 @@ public class SlackEventsController {
     public ResponseEntity<Map<String, Object>> handleInteraction(
             @RequestHeader("X-Slack-Request-Timestamp") String timestamp,
             @RequestHeader("X-Slack-Signature") String signature,
-            @RequestBody String body) {
+            @RequestAttribute(SlackRawBodyFilter.ATTR_RAW_BODY) String body) {
 
         verifySignature(timestamp, body, signature);
 

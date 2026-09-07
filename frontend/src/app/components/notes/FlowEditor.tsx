@@ -58,6 +58,7 @@ import {
   BringToFront,
   SendToBack,
   Copy,
+  Download,
   ExternalLink,
   ClipboardPaste,
   Trash2,
@@ -79,6 +80,7 @@ import { IconButton } from "../ui/IconButton";
 import { MotionModal } from "../ui/MotionModal";
 import { useAuth } from "../../contexts/AuthContext";
 import { formatDateTime } from "../../utils/dateUtils";
+import { downloadPhoto } from "../../utils/nativeDownload";
 import { fileAPI, imageVoteAPI } from "../../utils/api";
 import type { NoteDetail, NoteTagInfo } from "../../utils/api";
 import type { CollaborationState } from "../../hooks/useCollaboration";
@@ -179,6 +181,24 @@ function fitMediaSize(
     h *= s;
   }
   return { width: Math.round(w), height: Math.round(h) };
+}
+
+// 미디어 다운로드 파일명 — 캡션 우선, 확장자는 URL에서 보충
+function mediaFilename(url: string, caption: string, suffix = ""): string {
+  let seg = "";
+  try {
+    seg = decodeURIComponent(
+      new URL(url, window.location.origin).pathname.split("/").pop() || "",
+    );
+  } catch {
+    // URL 파싱 실패 시 캡션/기본명으로 진행
+  }
+  const ext = /\.[A-Za-z0-9]+$/.exec(seg)?.[0] ?? "";
+  const base =
+    caption.replace(/\.[^.]+$/, "").trim() ||
+    seg.replace(/\.[^.]+$/, "") ||
+    "media";
+  return `${base}${suffix}${ext}`;
 }
 
 const NODE_COLORS = [
@@ -1935,6 +1955,45 @@ function FlowCanvas({
     if (picked.length) clipboardRef.current = picked.map(rfNodeToStored);
   }, []);
 
+  // 이미지·영상 원본 다운로드 (스프라이트는 프레임 전체를 순서대로)
+  const downloadNodeMedia = useCallback(
+    async (id: string) => {
+      const node = nodesRef.current.find((n) => n.id === id);
+      if (!node) return;
+      const data = node.data as {
+        url?: string;
+        frames?: string[];
+        caption?: string;
+      };
+      const urls =
+        node.type === "sprite"
+          ? (data.frames ?? []).filter(Boolean)
+          : data.url
+          ? [data.url]
+          : [];
+      if (urls.length === 0) return;
+      const caption = data.caption || "";
+      let failed = 0;
+      for (let i = 0; i < urls.length; i++) {
+        const suffix = urls.length > 1 ? `_${i + 1}` : "";
+        try {
+          await downloadPhoto(urls[i], mediaFilename(urls[i], caption, suffix));
+        } catch (err) {
+          failed++;
+          console.error("Flow media download failed:", err);
+        }
+        // 연속 다운로드 시 브라우저 차단 방지 딜레이
+        if (i < urls.length - 1) {
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      }
+      if (failed > 0) {
+        toast.error(t("flow.downloadFailed", "다운로드에 실패했습니다"));
+      }
+    },
+    [t],
+  );
+
   const pasteNodes = useCallback(
     (pos?: { x: number; y: number }) => {
       const clip = clipboardRef.current;
@@ -3055,6 +3114,15 @@ function FlowCanvas({
               const id = menu.nodeId;
               const node = nodes.find((n) => n.id === id);
               const locked = !!(node?.data as { locked?: boolean })?.locked;
+              const mediaData = node?.data as {
+                url?: string;
+                frames?: string[];
+              };
+              const downloadable =
+                node?.type === "sprite"
+                  ? (mediaData?.frames?.length ?? 0) > 0
+                  : (node?.type === "image" || node?.type === "video") &&
+                    !!mediaData?.url;
               return (
                 <>
                   <MenuItem
@@ -3111,6 +3179,16 @@ function FlowCanvas({
                       setMenu(null);
                     }}
                   />
+                  {downloadable && (
+                    <MenuItem
+                      icon={Download}
+                      label={t("flow.menu.download", "다운로드")}
+                      onClick={() => {
+                        void downloadNodeMedia(id);
+                        setMenu(null);
+                      }}
+                    />
+                  )}
                   <MenuItem
                     icon={MessageCircle}
                     label={t("flow.menu.comment", "코멘트 달기")}
