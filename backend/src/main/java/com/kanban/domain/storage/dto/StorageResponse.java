@@ -1,6 +1,7 @@
 package com.kanban.domain.storage.dto;
 
 import com.kanban.domain.storage.StorageFile;
+import com.kanban.domain.storage.service.StorageService;
 import com.kanban.domain.storage.StorageFolder;
 import lombok.Builder;
 
@@ -78,6 +79,17 @@ public class StorageResponse {
                     .shareCode(file.getShareCode())
                     .createdAt(file.getCreatedAt())
                     .build();
+        }
+    }
+
+    /** 문서 PDF 미리보기. status: NONE | PENDING | READY | FAILED | UNAVAILABLE, url 은 READY 일 때만. */
+    @Builder
+    public record Preview(
+            String status,
+            String url
+    ) {
+        public static Preview of(StorageService.PreviewInfo info) {
+            return new Preview(info.status(), info.url());
         }
     }
 

@@ -15,6 +15,7 @@ import com.kanban.domain.integration.jira.JiraIntegrationConfigRepository;
 import com.kanban.domain.integration.jira.JiraIssueLink;
 import com.kanban.domain.integration.jira.JiraIssueLinkRepository;
 import com.kanban.domain.integration.jira.JiraLinkTargetType;
+import com.kanban.domain.integration.jira.JiraMilestoneScope;
 import com.kanban.domain.integration.jira.JiraMilestoneScopeRepository;
 import com.kanban.domain.integration.jira.JiraUserMappingRepository;
 import com.kanban.domain.integration.jira.dto.JiraRequest;
@@ -142,18 +143,46 @@ public class JiraConnectionService {
 
     @Transactional
     public JiraResponse.Meta getMeta(String boardId, String userId) {
+        return getMeta(boardId, userId, null);
+    }
+
+    /**
+     * 매핑/미러 뷰 메타. {@code milestoneId}가 있고 그 마일스톤에 전용 프로젝트 스코프가 셋업돼 있으면
+     * 그 스코프 기준(스코프 프로젝트의 상태 + 스코프 미러 블록만)으로 내려준다. 아니면 보드 기본 —
+     * 이때 다른 스코프 소유의 미러 블록은 목록에서 제외해 보드 뷰에 컬럼이 뒤섞이지 않게 한다.
+     */
+    public JiraResponse.Meta getMeta(String boardId, String userId, String milestoneId) {
         boardService.checkViewerOrAbove(boardId, userId);
         JiraIntegrationConfig config = getActiveConfigOrThrow(boardId);
         config.ensureWebhookToken();   // 패널 진입 시 웹훅 토큰 보장(멱등)
         String token = oauthService.resolveToken(config);
 
-        List<JiraResponse.NameRef> statusList = fetchProjectStatuses(config, token);
+        JiraMilestoneScope scope = milestoneId == null ? null
+            : scopeRepository.findActiveByMilestoneId(milestoneId)
+                .filter(s -> s.getBoard().getId().equals(boardId))
+                .orElse(null);
+        boolean scopeMirror = scope != null && scope.hasOwnProject()
+            && scope.getMirrorColumnsJson() != null && !scope.getMirrorColumnsJson().isBlank();
+        String projectKey = scopeMirror ? scope.getProjectKey() : config.getProjectKey();
+
+        List<JiraResponse.NameRef> statusList = fetchProjectStatuses(config, token, projectKey);
 
         // 매핑 UI 좌측: BRIDGE 블록 (Feature 블록 제외 — 카드가 흐르는 칸반 블록만).
         // 미러 컬럼은 jiraStatusId(대표) + jiraStatusIds(묶인 상태 전체) 포함 → FE가 컬럼/배치를 구성.
-        MirrorColumns mirror = MirrorColumns.parse(objectMapper, config.getMirrorColumnsJson());
+        MirrorColumns mirror = MirrorColumns.parse(objectMapper,
+            scopeMirror ? scope.getMirrorColumnsJson() : config.getMirrorColumnsJson());
+        Set<String> allScopeOwned = collectScopeOwnedBlockIds(boardId);
+        Set<String> thisScopeOwned = new HashSet<>();
+        if (scopeMirror) {
+            for (MirrorColumns.Col c : mirror.columns()) thisScopeOwned.add(c.blockId());
+        }
         List<JiraResponse.BlockRef> blockList = blockRepository.findByBoardIdOrderByPositionAsc(boardId).stream()
             .filter(b -> !b.isFeatureBlock())
+            .filter(b -> {
+                if (!b.isJiraMirror()) return true;                       // 일반 블록은 항상 포함
+                if (scopeMirror) return thisScopeOwned.contains(b.getId()); // 스코프 메타 → 그 스코프 컬럼만
+                return !allScopeOwned.contains(b.getId());                // 보드 메타 → 스코프 소유 제외
+            })
             .map(b -> JiraResponse.BlockRef.builder()
                 .id(b.getId())
                 .name(b.getName())
@@ -163,7 +192,24 @@ public class JiraConnectionService {
                 .build())
             .toList();
 
-        return JiraResponse.Meta.builder().statuses(statusList).blocks(blockList).build();
+        return JiraResponse.Meta.builder()
+            .statuses(statusList)
+            .blocks(blockList)
+            .scopeMirror(scopeMirror)
+            .projectKey(projectKey)
+            .build();
+    }
+
+    /** 모든 마일스톤 스코프가 소유한 미러 블록 id 집합 — 보드 미러 재셋업/보드 메타가 이 블록을 건드리지 않게. */
+    private Set<String> collectScopeOwnedBlockIds(String boardId) {
+        Set<String> owned = new HashSet<>();
+        for (JiraMilestoneScope s : scopeRepository.findByBoardId(boardId)) {
+            if (s.getMirrorColumnsJson() == null || s.getMirrorColumnsJson().isBlank()) continue;
+            for (MirrorColumns.Col c : MirrorColumns.parse(objectMapper, s.getMirrorColumnsJson()).columns()) {
+                owned.add(c.blockId());
+            }
+        }
+        return owned;
     }
 
     /** 반려/재작업 계열 상태 — 이름으로 감지해 '진행 중'(indeterminate)으로 재분류(오분류 방지). */
@@ -180,8 +226,13 @@ public class JiraConnectionService {
      * - 반려/재작업 계열 상태명은 statusCategory와 무관하게 '진행 중'(indeterminate)으로 재분류.
      */
     private List<JiraResponse.NameRef> fetchProjectStatuses(JiraIntegrationConfig config, String token) {
+        return fetchProjectStatuses(config, token, config.getProjectKey());
+    }
+
+    private List<JiraResponse.NameRef> fetchProjectStatuses(JiraIntegrationConfig config, String token,
+                                                            String projectKey) {
         JsonNode statusGroups = jiraApiClient.getProjectStatuses(
-            JiraAuthContext.of(config, token), config.getProjectKey());
+            JiraAuthContext.of(config, token), projectKey);
         Map<String, JiraResponse.NameRef> unique = new LinkedHashMap<>();
         if (statusGroups != null && statusGroups.isArray()) {
             for (JsonNode group : statusGroups) {
@@ -265,9 +316,12 @@ public class JiraConnectionService {
                 : "JIRA 보드 구성을 읽지 못해 상태 카테고리(할 일·진행 중·완료)로 컬럼을 구성했습니다.";
         }
 
-        // 2) 기존 미러 컬럼 정리 — 태스크는 TASK 고정 블록으로 대피 후 삭제(초기 import가 새 컬럼으로 재배치)
+        // 2) 기존 미러 컬럼 정리 — 태스크는 TASK 고정 블록으로 대피 후 삭제(초기 import가 새 컬럼으로 재배치).
+        //    단 마일스톤 스코프 소유의 미러 블록은 건드리지 않는다 — 그건 각 스코프 재셋업이 관리한다.
+        Set<String> scopeOwned = collectScopeOwnedBlockIds(boardId);
         Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK).orElse(null);
         for (Block old : blockRepository.findJiraMirrorBlocksByBoardId(boardId)) {
+            if (scopeOwned.contains(old.getId())) continue;
             if (taskBlock != null) taskRepository.moveTasksToBlock(old.getId(), taskBlock);
             blockRepository.delete(old);
         }
@@ -316,6 +370,110 @@ public class JiraConnectionService {
             .build();
     }
 
+    /**
+     * 스코프 전용 미러 셋업 — 스코프 프로젝트의 Agile 보드 컬럼을 이 스코프 소유 블록으로 재생성한다.
+     * 보드 기본 미러와 독립: 기존 스코프 블록만 정리(태스크는 TASK 블록 대피)하고 새로 만든다.
+     * 컬럼 출처를 못 읽으면 스코프 프로젝트 상태의 카테고리 3컬럼으로 폴백(보드 셋업과 동일한 전략).
+     */
+    @Transactional
+    @CacheEvict(value = "blocks", allEntries = true)
+    public JiraResponse.MirrorSetup setupMirrorForScope(String boardId, String userId, String milestoneId) {
+        boardService.checkAdminOrAbove(boardId, userId);
+        JiraIntegrationConfig config = getActiveConfigOrThrow(boardId);
+        String token = oauthService.resolveToken(config);
+        JiraMilestoneScope scope = scopeRepository.findActiveByMilestoneId(milestoneId)
+            .filter(s -> s.getBoard().getId().equals(boardId))
+            .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
+        if (!scope.hasOwnProject()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE); // JQL 스코프는 전용 미러가 없다
+        }
+        Board board = boardRepository.findById(boardId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        // 1) 컬럼 스펙: 스코프 프로젝트의 Agile 보드 우선, 실패 시 상태 카테고리 폴백
+        ColumnFetch fetch = fetchBoardColumns(config, token, scope.getProjectKey(), scope.getAgileBoardId());
+        List<ColumnSpec> specs = fetch.specs();
+        String columnSource = "BOARD_CONFIG";
+        String columnSourceDetail = fetch.detail();
+        if (specs.isEmpty()) {
+            specs = groupStatusesByCategory(fetchProjectStatuses(config, token, scope.getProjectKey()));
+            columnSource = "STATUS_FALLBACK";
+            columnSourceDetail = fetch.detail() != null ? fetch.detail()
+                : "JIRA 보드 구성을 읽지 못해 상태 카테고리(할 일·진행 중·완료)로 컬럼을 구성했습니다.";
+        }
+
+        // 2) 이 스코프의 기존 미러 블록 정리 (태스크 대피 후 삭제)
+        Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK).orElse(null);
+        MirrorColumns oldCols = MirrorColumns.parse(objectMapper, scope.getMirrorColumnsJson());
+        for (MirrorColumns.Col oldCol : oldCols.columns()) {
+            Block old = blockRepository.findById(oldCol.blockId()).orElse(null);
+            if (old == null) continue;
+            if (taskBlock != null) taskRepository.moveTasksToBlock(old.getId(), taskBlock);
+            blockRepository.delete(old);
+        }
+        blockRepository.flush();
+
+        // 3) 새 미러 블록 생성 + 스코프 mirrorColumnsJson 저장. position 600대 — 보드 미러(500대) 뒤에 선다.
+        int position = 600;
+        String[] palette = {"#818cf8", "#6366F1", "#2DD4BF", "#14B8A6", "#10B981", "#F59E0B", "#F43F5E", "#A78BFA"};
+        List<Map<String, Object>> mirrorCols = new ArrayList<>();
+        int idx = 0;
+        for (ColumnSpec spec : specs) {
+            if (spec.statusIds().isEmpty()) continue;
+            String primary = spec.statusIds().get(0);
+            Block mirror = Block.createJiraMirrorBlock(
+                board, truncate50(spec.name()), palette[idx % palette.length], position++, primary);
+            blockRepository.save(mirror);
+            Map<String, Object> col = new LinkedHashMap<>();
+            col.put("block_id", mirror.getId());
+            col.put("name", spec.name());
+            col.put("status_ids", spec.statusIds());
+            col.put("primary", primary);
+            mirrorCols.add(col);
+            idx++;
+        }
+        scope.updateMirrorColumns(toJsonList(mirrorCols));
+
+        log.info("JIRA scope mirror setup: board {} milestone {} project {} → {} columns (source={}, {})",
+            boardId, milestoneId, scope.getProjectKey(), mirrorCols.size(), columnSource, columnSourceDetail);
+
+        return JiraResponse.MirrorSetup.builder()
+            .columns(mirrorCols.size())
+            .created(mirrorCols.size())
+            .reused(0)
+            .status(toStatus(config))
+            .columnSource(columnSource)
+            .columnSourceDetail(columnSourceDetail)
+            .build();
+    }
+
+    /** 스코프 삭제/재설정 시 스코프 소유 미러 블록 정리 — 태스크는 TASK 블록으로 대피. */
+    @Transactional
+    @CacheEvict(value = "blocks", allEntries = true)
+    public void teardownScopeMirror(String boardId, JiraMilestoneScope scope) {
+        MirrorColumns cols = MirrorColumns.parse(objectMapper, scope.getMirrorColumnsJson());
+        if (cols.isEmpty()) return;
+        Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK).orElse(null);
+        for (MirrorColumns.Col c : cols.columns()) {
+            Block old = blockRepository.findById(c.blockId()).orElse(null);
+            if (old == null) continue;
+            if (taskBlock != null) taskRepository.moveTasksToBlock(old.getId(), taskBlock);
+            blockRepository.delete(old);
+        }
+        blockRepository.flush();
+        scope.updateMirrorColumns(null);
+    }
+
+    /** 임의 프로젝트의 상태 목록 — 스코프 위저드의 완료 전환 상태 선택용. */
+    @Transactional(readOnly = true)
+    public List<JiraResponse.NameRef> listProjectStatuses(String boardId, String userId, String projectKey) {
+        boardService.checkViewerOrAbove(boardId, userId);
+        JiraIntegrationConfig config = getActiveConfigOrThrow(boardId);
+        String token = oauthService.resolveToken(config);
+        String key = projectKey != null && !projectKey.isBlank() ? projectKey : config.getProjectKey();
+        return fetchProjectStatuses(config, token, key);
+    }
+
     /** 컬럼 조회 결과 — specs(빈 목록이면 폴백 필요)와 사유/출처 상세. */
     private record ColumnFetch(List<ColumnSpec> specs, String detail) {
         static ColumnFetch ok(List<ColumnSpec> specs, String detail) { return new ColumnFetch(specs, detail); }
@@ -327,15 +485,21 @@ public class JiraConnectionService {
      * 셋업에서 상태 목록으로 폴백하되 사용자에게 이유를 노출한다.
      */
     private ColumnFetch fetchBoardColumns(JiraIntegrationConfig config, String token) {
+        return fetchBoardColumns(config, token, config.getProjectKey(), config.getAgileBoardId());
+    }
+
+    /** 프로젝트/Agile 보드를 지정해 컬럼을 뽑는다 — 보드 기본과 스코프 전용 미러가 공유하는 경로. */
+    private ColumnFetch fetchBoardColumns(JiraIntegrationConfig config, String token,
+                                          String projectKey, String agileBoardId) {
         String boardIdJira;
         try {
             JiraAuthContext ctx = JiraAuthContext.of(config, token);
             // 사용자가 미러 대상 보드를 골랐으면 그 보드를 사용, 없으면 자동 선택(첫 kanban 보드).
-            boardIdJira = config.getAgileBoardId();
+            boardIdJira = agileBoardId;
             if (boardIdJira == null || boardIdJira.isBlank()) {
-                boardIdJira = autoPickAgileBoardId(ctx, config.getProjectKey());
+                boardIdJira = autoPickAgileBoardId(ctx, projectKey);
                 if (boardIdJira == null) {
-                    return ColumnFetch.fail("프로젝트 '" + config.getProjectKey()
+                    return ColumnFetch.fail("프로젝트 '" + projectKey
                         + "'에 연결된 JIRA Agile 보드를 찾지 못했습니다. (보드 미선택 + 자동탐색 실패)");
                 }
             }
@@ -370,7 +534,7 @@ public class JiraConnectionService {
             return ColumnFetch.ok(specs, "JIRA 보드 '" + boardName + "' 구성");
         } catch (Exception e) {
             log.warn("JIRA agile board config fetch failed for {}: {} — falling back to status list",
-                config.getProjectKey(), e.getMessage());
+                projectKey, e.getMessage());
             return ColumnFetch.fail("JIRA 보드 구성 조회 실패: " + e.getMessage());
         }
     }
@@ -391,14 +555,21 @@ public class JiraConnectionService {
     /** 미러 대상으로 고를 수 있는 프로젝트의 Agile 보드 목록. 현재 선택된 보드를 selected로 표시. */
     @Transactional(readOnly = true)
     public List<JiraResponse.AgileBoard> listAgileBoards(String boardId, String userId) {
+        return listAgileBoards(boardId, userId, null);
+    }
+
+    /** projectKey를 주면 그 프로젝트의 보드 목록(스코프 위저드용) — selected 표시는 보드 기본 선택 기준. */
+    @Transactional(readOnly = true)
+    public List<JiraResponse.AgileBoard> listAgileBoards(String boardId, String userId, String projectKey) {
         boardService.checkViewerOrAbove(boardId, userId);
         JiraIntegrationConfig config = getActiveConfigOrThrow(boardId);
         String token = oauthService.resolveToken(config);
+        String targetProject = projectKey != null && !projectKey.isBlank() ? projectKey : config.getProjectKey();
         String selectedId = config.getAgileBoardId();
         List<JiraResponse.AgileBoard> result = new ArrayList<>();
         try {
             JiraAuthContext ctx = JiraAuthContext.of(config, token);
-            JsonNode boards = jiraApiClient.getAgileBoards(ctx, config.getProjectKey());
+            JsonNode boards = jiraApiClient.getAgileBoards(ctx, targetProject);
             JsonNode values = boards != null ? boards.get("values") : null;
             if (values != null && values.isArray()) {
                 for (JsonNode b : values) {
@@ -413,7 +584,7 @@ public class JiraConnectionService {
                 }
             }
         } catch (Exception e) {
-            log.warn("JIRA agile board list fetch failed for {}: {}", config.getProjectKey(), e.getMessage());
+            log.warn("JIRA agile board list fetch failed for {}: {}", targetProject, e.getMessage());
         }
         return result;
     }

@@ -86,6 +86,7 @@ public class JiraAutofixTriageService {
     private final BoardService boardService;
     private final TaskRepository taskRepository;
     private final JiraIssueLinkRepository issueLinkRepository;
+    private final JiraMilestoneScopeRepository milestoneScopeRepository;
     private final JiraIntegrationConfigRepository configRepository;
     private final JiraAutofixTriageRepository triageRepository;
     /** 실행 진행률 원장. 판정이 백그라운드로 도는 동안 화면이 보는 유일한 상태다. */
@@ -372,10 +373,21 @@ public class JiraAutofixTriageService {
         boolean scoped = issueKeys != null && !issueKeys.isEmpty();
         Set<String> wanted = scoped ? new HashSet<>(issueKeys) : Set.of();
 
+        // 종료된 마일스톤 스코프의 이슈는 전건 트리아지에서 제외 — 지난 런칭 단계의 낡은 이슈가
+        // 자동수정 후보로 계속 올라오는 소음을 막는다. 사람이 이슈를 지목한 경우(scoped)는 존중한다.
+        Set<String> endedScopeIds = new HashSet<>();
+        java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneOffset.UTC);
+        for (JiraMilestoneScope s : milestoneScopeRepository.findByBoardId(boardId)) {
+            if (s.getMilestone().getEndDate() != null && s.getMilestone().getEndDate().isBefore(today)) {
+                endedScopeIds.add(s.getId());
+            }
+        }
+
         List<JiraIssueLink> links = issueLinkRepository
                 .findByBoardIdAndTargetType(boardId, JiraLinkTargetType.TASK).stream()
                 .filter(link -> !link.isJiraDeleted())
                 .filter(link -> !scoped || wanted.contains(link.getJiraIssueKey()))
+                .filter(link -> scoped || link.getScopeId() == null || !endedScopeIds.contains(link.getScopeId()))
                 .toList();
 
         Map<String, JiraAutofixTriage> existing = new HashMap<>();

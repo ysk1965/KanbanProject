@@ -3,6 +3,7 @@ package com.kanban.global.websocket;
 import com.kanban.domain.note.NoteDraftDiscardedEvent;
 import com.kanban.domain.note.NoteDraftRestoredEvent;
 import com.kanban.domain.note.NoteSnapshotSavedEvent;
+import com.kanban.domain.note.service.NoteCollabAccessService;
 import com.kanban.domain.note.service.NoteCollabService;
 import com.kanban.global.security.JwtProvider;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,7 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
 
     private final JwtProvider jwtProvider;
     private final NoteCollabService noteCollabService;
+    private final NoteCollabAccessService accessService;
     private final InstanceIdHolder instanceIdHolder;
     private final Optional<StringRedisTemplate> redisTemplate;
     private final Optional<RedisMessageListenerContainer> listenerContainer;
@@ -67,6 +69,7 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
     private static final byte MSG_SEED_GRANT = 5;
 
     private static final String REDIS_CHANNEL_PREFIX = "ws-collab:";
+    private static final String ATTR_CAN_EDIT = "canEdit";
 
     /**
      * Per-room cap on the reconnect replay buffer. The buffer holds a sliding
@@ -84,12 +87,14 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
     public NoteCollabHandler(
             JwtProvider jwtProvider,
             NoteCollabService noteCollabService,
+            NoteCollabAccessService accessService,
             InstanceIdHolder instanceIdHolder,
             Optional<StringRedisTemplate> wsRedisTemplate,
             Optional<RedisMessageListenerContainer> redisMessageListenerContainer
     ) {
         this.jwtProvider = jwtProvider;
         this.noteCollabService = noteCollabService;
+        this.accessService = accessService;
         this.instanceIdHolder = instanceIdHolder;
         this.redisTemplate = wsRedisTemplate;
         this.listenerContainer = redisMessageListenerContainer;
@@ -137,8 +142,19 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
             return;
         }
 
+        // JWT alone is not enough: apply the same board/org/owner rule as the REST
+        // layer so a logged-in user cannot read or overwrite another board's draft
+        // just by knowing the noteId.
+        NoteCollabAccessService.Access access = accessService.resolve(noteId, userId);
+        if (!access.canView()) {
+            log.warn("Collab access denied: noteId={}, userId={}", noteId, userId);
+            session.close(CloseStatus.POLICY_VIOLATION);
+            return;
+        }
+
         session.getAttributes().put("noteId", noteId);
         session.getAttributes().put("userId", userId);
+        session.getAttributes().put(ATTR_CAN_EDIT, access.canEdit());
 
         // DB 상태를 먼저 로드한 후 Redis 구독을 시작하여,
         // 구독 시점에 아직 storedState가 비어있는 레이스 윈도우를 제거
@@ -199,6 +215,19 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
         if (data.length == 0) return;
 
         byte msgType = data[0];
+
+        // Viewer-only sessions may receive state but never mutate it. Drop writes
+        // (and seed requests, which lead to a write) instead of relaying/persisting.
+        boolean canEdit = Boolean.TRUE.equals(session.getAttributes().get(ATTR_CAN_EDIT));
+        if (!canEdit && (msgType == MSG_SYNC_FULL || msgType == MSG_SYNC_UPDATE)) {
+            log.debug("Collab write rejected for read-only session: noteId={}, userId={}, type={}",
+                    noteId, session.getAttributes().get("userId"), msgType);
+            return;
+        }
+        if (!canEdit && msgType == MSG_SEED_REQUEST) {
+            sendTo(session, new byte[] { MSG_SEED_GRANT, (byte) 0 });
+            return;
+        }
 
         switch (msgType) {
             case MSG_SYNC_FULL -> {

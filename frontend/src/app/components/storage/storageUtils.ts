@@ -4,6 +4,8 @@ import {
   File as FileIcon,
   FileArchive,
   FileAudio,
+  FileSpreadsheet,
+  Presentation,
   type LucideIcon,
 } from "lucide-react";
 import type { StorageFolderTree } from "../../utils/api";
@@ -37,12 +39,24 @@ export function fileIconFor(contentType: string | null): LucideIcon {
   if (contentType.startsWith("video/")) return FileVideo;
   if (contentType.startsWith("audio/")) return FileAudio;
   if (contentType === "application/pdf") return FileText;
+  if (
+    contentType.includes("spreadsheet") ||
+    contentType === "application/vnd.ms-excel" ||
+    contentType === "text/csv"
+  )
+    return FileSpreadsheet;
   if (contentType.includes("zip") || contentType.includes("compressed"))
     return FileArchive;
   if (
+    contentType.includes("presentation") ||
+    contentType === "application/vnd.ms-powerpoint"
+  )
+    return Presentation;
+  if (
     contentType.startsWith("text/") ||
     contentType.includes("word") ||
-    contentType.includes("document")
+    contentType.includes("document") ||
+    contentType.includes("hwp")
   )
     return FileText;
   return FileIcon;
@@ -71,4 +85,59 @@ export function folderPath(
   };
   walk(folders, []);
   return path;
+}
+
+const SPREADSHEET_EXTENSIONS = new Set([
+  "xlsx",
+  "xlsm",
+  "xls",
+  "csv",
+  "tsv",
+  "ods",
+]);
+
+/** 확장자 (소문자, 점 없음). 없으면 빈 문자열 */
+export function fileExtension(filename: string): string {
+  const dot = filename.lastIndexOf(".");
+  return dot < 0 ? "" : filename.slice(dot + 1).toLowerCase();
+}
+
+/**
+ * 표 뷰어로 열 수 있는 파일인지. hwp 처럼 브라우저가 타입을 모르는 파일은
+ * content_type 이 octet-stream 으로 저장되므로 확장자를 우선 본다.
+ */
+export function isSpreadsheetFile(file: {
+  original_filename: string;
+  content_type: string | null;
+}): boolean {
+  if (SPREADSHEET_EXTENSIONS.has(fileExtension(file.original_filename)))
+    return true;
+  const type = file.content_type ?? "";
+  return (
+    type.includes("spreadsheet") ||
+    type === "application/vnd.ms-excel" ||
+    type === "text/csv" ||
+    type === "text/tab-separated-values"
+  );
+}
+
+/** 서버가 LibreOffice 로 PDF 변환해 주는 문서 확장자 (DocumentPreviewService 와 동일) */
+const CONVERTIBLE_DOCUMENT_EXTENSIONS = new Set([
+  "doc",
+  "docx",
+  "ppt",
+  "pptx",
+  "hwp",
+  "hwpx",
+  "odt",
+  "odp",
+  "rtf",
+]);
+
+export function isConvertibleDocument(file: {
+  original_filename: string;
+}): boolean {
+  return CONVERTIBLE_DOCUMENT_EXTENSIONS.has(
+    fileExtension(file.original_filename),
+  );
 }

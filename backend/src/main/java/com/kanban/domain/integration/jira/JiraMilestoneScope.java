@@ -46,9 +46,39 @@ public class JiraMilestoneScope {
     @JoinColumn(name = "milestone_id", nullable = false, unique = true)
     private Milestone milestone;
 
-    /** 이 마일스톤이 비출 이슈를 좁히는 JQL (연결된 프로젝트 안에서). */
-    @Column(name = "jql", nullable = false, length = 1000)
+    /**
+     * 이 마일스톤이 비출 이슈를 좁히는 JQL. null이면 {@code project = projectKey} 전체.
+     * (P1에선 필수였으나 P2에서 프로젝트 스코프가 생기며 선택이 됐다)
+     */
+    @Column(name = "jql", length = 1000)
     private String jql;
+
+    /**
+     * 이 스코프가 비출 JIRA 프로젝트 키. null = 보드 연결의 기본 프로젝트(JQL만 좁히는 스코프).
+     * non-null이면 스코프 전용 미러 컬럼·import 경로를 탄다 — 보드와 다른 프로젝트를 통째로 붙이는 경우.
+     */
+    @Column(name = "project_key", length = 50)
+    private String projectKey;
+
+    /** 스코프 전용 미러 대상 JIRA Agile 보드 id. null이면 자동 선택(첫 kanban 보드). */
+    @Column(name = "agile_board_id", length = 30)
+    private String agileBoardId;
+
+    /**
+     * 스코프 전용 미러 컬럼 정의(JSON) — {@link JiraIntegrationConfig#getMirrorColumnsJson()}과 같은 형태.
+     * projectKey가 있는 스코프만 갖는다. 여기 담긴 block_id들이 "이 스코프 소유 블록"의 원장이다 —
+     * 보드 미러 재셋업이 이 블록들을 지우지 않는 근거.
+     */
+    @Column(name = "mirror_columns_json", columnDefinition = "TEXT")
+    private String mirrorColumnsJson;
+
+    /**
+     * 완료 역동기화 대상 상태 id — 이 스코프 소속 이슈에 우선 적용. null이면 보드 기본
+     * ({@link JiraIntegrationConfig#getWriteBackTargetStatusId()})으로 폴백.
+     * 프로젝트가 다르면 상태 id 체계도 달라 보드 기본을 그대로 쓸 수 없어서 존재한다.
+     */
+    @Column(name = "write_back_target_status_id", length = 30)
+    private String writeBackTargetStatusId;
 
     @Column(name = "active", nullable = false)
     @Builder.Default
@@ -86,6 +116,25 @@ public class JiraMilestoneScope {
     public void updateJql(String jql) {
         this.jql = jql;
         this.active = true;
+    }
+
+    /** 스코프 대상 갱신 — 프로젝트가 바뀌면 기존 미러 컬럼은 호출 측이 재셋업한다. */
+    public void updateTarget(String jql, String projectKey, String agileBoardId, String writeBackTargetStatusId) {
+        this.jql = (jql == null || jql.isBlank()) ? null : jql.trim();
+        this.projectKey = (projectKey == null || projectKey.isBlank()) ? null : projectKey.trim();
+        this.agileBoardId = (agileBoardId == null || agileBoardId.isBlank()) ? null : agileBoardId.trim();
+        this.writeBackTargetStatusId =
+            (writeBackTargetStatusId == null || writeBackTargetStatusId.isBlank()) ? null : writeBackTargetStatusId;
+        this.active = true;
+    }
+
+    public void updateMirrorColumns(String mirrorColumnsJson) {
+        this.mirrorColumnsJson = mirrorColumnsJson;
+    }
+
+    /** 이 스코프가 보드와 다른 프로젝트를 통째로 비추는가(전용 미러·전용 import 경로). */
+    public boolean hasOwnProject() {
+        return this.projectKey != null && !this.projectKey.isBlank();
     }
 
     public void markClaimed() {

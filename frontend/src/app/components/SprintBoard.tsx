@@ -695,19 +695,25 @@ export function SprintBoard({
     };
   }, [boardId]);
 
-  // JIRA 화면 진입 시 메타(상태·블록명) 로드 (최초 1회)
+  // JIRA 화면 진입 시 메타(상태·블록명) 로드 (최초 1회). 마일스톤 스코프가 전용 미러를 가지면
+  // 그 스코프 기준 메타가 내려온다 — milestoneId가 바뀌면 아래 리셋 이펙트가 메타를 비워 재조회된다.
   useEffect(() => {
     if (groupBy !== "jira" || !jiraConnected || jiraMeta || jiraMetaLoading)
       return;
     setJiraMetaLoading(true);
     jiraAPI
-      .getMeta(boardId)
+      .getMeta(boardId, milestoneId)
       .then((m) => setJiraMeta(m))
       .catch(() => {
         /* 메타 로드 실패 시 컬럼 라벨은 상태 id 폴백 */
       })
       .finally(() => setJiraMetaLoading(false));
-  }, [groupBy, jiraConnected, jiraMeta, jiraMetaLoading, boardId]);
+  }, [groupBy, jiraConnected, jiraMeta, jiraMetaLoading, boardId, milestoneId]);
+
+  // 마일스톤 전환 시 메타 리셋 — 스코프마다 미러 컬럼 구성이 다를 수 있다.
+  useEffect(() => {
+    setJiraMeta(null);
+  }, [milestoneId]);
 
   // (연동이 끊긴 채 JIRA 화면이 열려 있는 경우의 폴백은 화면 선택을 쥔 부모가 처리한다)
 
@@ -856,7 +862,7 @@ export function SprintBoard({
           if (!s?.connected) setJiraMeta(null);
           else if (full) {
             jiraAPI
-              .getMeta(boardId)
+              .getMeta(boardId, milestoneId)
               .then(setJiraMeta)
               .catch(() => {});
           }
@@ -1655,7 +1661,9 @@ export function SprintBoard({
   const jiraColumns = useMemo<JiraColumnDef[]>(() => {
     if (groupBy !== "jira" || !jiraConnected || !jiraMeta) return [];
     const isMirror =
-      !!jiraStatus?.mirror_ready || jiraStatus?.sync_mode === "MIRROR";
+      !!jiraMeta?.scope_mirror ||
+      !!jiraStatus?.mirror_ready ||
+      jiraStatus?.sync_mode === "MIRROR";
     if (!isMirror && !jiraStatus?.block_status_map) return [];
 
     // 카드 집계용 인덱스: 블록→상태(현재 상태 해석용)
@@ -3975,7 +3983,15 @@ export function SprintBoard({
                 ? `연동 ${jiraBadge.total}건 · 이 마일스톤 스코프만 봅니다`
                 : `연동 ${jiraBadge.total}건 · 스프린트와 무관하게 보드 전체를 봅니다`}
             </span>
-            {board?.jira_scope && (
+            {board?.jira_scope?.project_key && (
+              <span
+                className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent shrink-0"
+                title="이 마일스톤 전용 JIRA 프로젝트"
+              >
+                ◇ {board.jira_scope.project_key}
+              </span>
+            )}
+            {board?.jira_scope?.jql && (
               <span
                 className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0 max-w-[280px] truncate"
                 title={`JQL: ${board.jira_scope.jql}`}
@@ -5673,7 +5689,7 @@ export function SprintBoard({
         boardId={boardId}
         milestoneId={milestoneId}
         milestoneTitle={milestones.find((m) => m.id === milestoneId)?.title}
-        scope={board?.jira_scope ?? null}
+        milestones={milestones}
         projectKey={jiraStatus?.project_key}
         onSaved={() => refreshJiraState(true)}
       />

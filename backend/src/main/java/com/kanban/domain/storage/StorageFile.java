@@ -54,6 +54,15 @@ public class StorageFile extends BaseTimeEntity {
     @Column(name = "thumbnail_key", length = 500)
     private String thumbnailKey;
 
+    /** 문서(docx/pptx/hwp 등) → PDF 변환 결과 S3 키. 변환 전/실패 시 null. */
+    @Column(name = "preview_key", length = 500)
+    private String previewKey;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "preview_status", nullable = false, length = 20)
+    @Builder.Default
+    private PreviewStatus previewStatus = PreviewStatus.NONE;
+
     @Column(name = "content_type", length = 100)
     private String contentType;
 
@@ -130,6 +139,32 @@ public class StorageFile extends BaseTimeEntity {
         this.isShared = false;
         this.shareToken = null;
         this.shareCode = null;
+    }
+
+    public void markPreviewPending() {
+        this.previewStatus = PreviewStatus.PENDING;
+    }
+
+    public void markPreviewReady(String previewKey) {
+        this.previewKey = previewKey;
+        this.previewStatus = PreviewStatus.READY;
+    }
+
+    public void markPreviewFailed() {
+        this.previewKey = null;
+        this.previewStatus = PreviewStatus.FAILED;
+    }
+
+    /** PDF 미리보기 변환 상태 */
+    public enum PreviewStatus {
+        /** 변환 대상 아님 또는 아직 요청 전 */
+        NONE,
+        /** 변환 큐에 들어감 */
+        PENDING,
+        /** previewKey 에 PDF 가 있음 */
+        READY,
+        /** 변환 실패 (재시도 가능) */
+        FAILED
     }
 
     public boolean isImage() {

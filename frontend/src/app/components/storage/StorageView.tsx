@@ -211,6 +211,16 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
     }
   };
 
+  // 표 뷰어의 useEffect 의존성이라 참조를 고정한다
+  const handleLoadBlob = useCallback(
+    (file: StorageFileItem) => api.fetchBlob(file.id),
+    [api],
+  );
+  const handleLoadPreview = useCallback(
+    (file: StorageFileItem) => api.getPreview(file.id),
+    [api],
+  );
+
   const handleDownload = async (file: StorageFileItem) => {
     try {
       await api.downloadAndSave(file.id, file.original_filename);
@@ -547,6 +557,8 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
         file={preview}
         onClose={() => setPreview(null)}
         onDownload={handleDownload}
+        onLoadBlob={handleLoadBlob}
+        onLoadPreview={handleLoadPreview}
         onToggleShare={handleToggleShare}
       />
       <StorageUsageDetailModal

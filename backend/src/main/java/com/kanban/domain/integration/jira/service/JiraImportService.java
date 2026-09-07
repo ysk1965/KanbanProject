@@ -89,6 +89,7 @@ public class JiraImportService {
     private final JiraIntegrationConfigRepository configRepository;
     private final JiraIssueLinkRepository issueLinkRepository;
     private final JiraUserMappingRepository userMappingRepository;
+    private final JiraMilestoneScopeRepository scopeRepository;
     private final ObjectMapper objectMapper;
 
     private final BoardService boardService;
@@ -109,12 +110,29 @@ public class JiraImportService {
 
     @Transactional
     public JiraResponse.ImportResult importIssues(String boardId, String userId, JiraRequest.Import request) {
+        return doImport(boardId, userId, request, null);
+    }
+
+    /**
+     * 전용 프로젝트 스코프 import — 스코프 프로젝트의 이슈를 가져와 스코프 미러 컬럼에 배치하고
+     * 링크에 scope_id를 직접 새긴다(별도 claim 불필요). 스코프 저장 직후·폴링이 호출한다.
+     */
+    @Transactional
+    public JiraResponse.ImportResult importScopeIssues(String boardId, String userId, String milestoneId) {
+        JiraMilestoneScope scope = scopeRepository.findActiveByMilestoneId(milestoneId)
+            .filter(s -> s.getBoard().getId().equals(boardId) && s.hasOwnProject())
+            .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
+        return doImport(boardId, userId, new JiraRequest.Import(null, false), scope);
+    }
+
+    private JiraResponse.ImportResult doImport(String boardId, String userId, JiraRequest.Import request,
+                                               JiraMilestoneScope scope) {
         boardService.checkMemberOrAbove(boardId, userId);
         JiraIntegrationConfig config = configRepository.findActiveByBoardId(boardId)
             .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
         String token = oauthService.resolveToken(config);
         JiraAuthContext ctx = JiraAuthContext.of(config, token);
-        String jql = resolveJql(request, config);
+        String jql = scope != null ? resolveScopeJql(scope) : resolveJql(request, config);
 
         List<ParsedJiraIssue> issues;
         try {
@@ -136,11 +154,18 @@ public class JiraImportService {
         Map<String, String> statusToBlock = readMap(config.getStatusToBlockJson());
         Map<String, String> priorityToTag = readMap(config.getPriorityToTagJson());
         Map<String, String> componentToTag = readMap(config.getComponentToTagJson());
-        BlockStatusMap blockMap = BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
-        MirrorColumns mirror = MirrorColumns.parse(objectMapper, config.getMirrorColumnsJson());
+        // 스코프 import: 블록 매핑·미러는 스코프 것만 쓴다 — 보드 매핑은 보드 프로젝트의 상태 id 기준이라
+        // 다른 프로젝트 이슈에 적용하면 엉뚱한 컬럼으로 흐른다. (태그 매핑은 이름 기반이라 공유해도 안전)
+        BlockStatusMap blockMap = scope != null
+            ? BlockStatusMap.parse(objectMapper, null)
+            : BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
+        MirrorColumns mirror = scope != null
+            ? MirrorColumns.parse(objectMapper, scope.getMirrorColumnsJson())
+            : MirrorColumns.parse(objectMapper, config.getMirrorColumnsJson());
 
-        Milestone currentMilestone = Boolean.TRUE.equals(config.getMilestoneAutoAssign())
-            ? resolveCurrentMilestone(boardId) : null;
+        // 스코프 import는 그 스코프의 마일스톤으로 고정 배정 — 그러려고 스코프를 파는 것이다.
+        Milestone currentMilestone = scope != null ? scope.getMilestone()
+            : (Boolean.TRUE.equals(config.getMilestoneAutoAssign()) ? resolveCurrentMilestone(boardId) : null);
         List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
         Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
             .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
@@ -195,6 +220,10 @@ public class JiraImportService {
                 // 대상 Task가 살아있음 → JIRA 최신값으로 갱신(제목/설명/상태→블록)
                 Task existingTask = taskRepository.findById(taskLink.getTargetId()).orElse(null);
                 if (existingTask != null) {
+                    // 스코프 import가 만난 이슈는 이 스코프 소속 — 비어 있을 때만 새긴다(선점 유지).
+                    if (scope != null && taskLink.getScopeId() == null) {
+                        taskLink.assignScope(scope.getId());
+                    }
                     boolean stale = taskLink.isStaleAgainst(issue.updated());
                     boolean batched = stale && commentSyncOn
                         && commentReconcileKeys.size() < MAX_COMMENT_RECONCILES;
@@ -237,7 +266,8 @@ public class JiraImportService {
             boolean batchedNew = commentSyncOn && commentReconcileKeys.size() < MAX_COMMENT_RECONCILES;
             if (batchedNew) commentReconcileKeys.add(issue.key());
             JiraIssueLink newLink = saveLink(board, issue, JiraLinkTargetType.TASK, task.getId(),
-                commentSyncOn && !batchedNew ? null : issue.updated());
+                commentSyncOn && !batchedNew ? null : issue.updated(),
+                scope != null ? scope.getId() : null);
             c.tasks++;
             c.created++;
 
@@ -267,7 +297,16 @@ public class JiraImportService {
         }
 
         // JIRA 쪽 삭제 반영: 이번 조회에 없는 링크를 실제 삭제인지 확인해 soft-unlink.
-        int deleted = reconcileDeletedInJira(boardId, ctx, taskLinkByKey, importable);
+        // 스코프 import는 그 스코프 소속 링크만 대조한다 — 스코프 JQL엔 보드 프로젝트 이슈가
+        // 원래 없으므로, 전체를 대조하면 멀쩡한 보드 링크를 매번 삭제 후보로 조회하게 된다.
+        Map<String, JiraIssueLink> reconcileMap = taskLinkByKey;
+        if (scope != null) {
+            reconcileMap = new HashMap<>();
+            for (Map.Entry<String, JiraIssueLink> e : taskLinkByKey.entrySet()) {
+                if (scope.getId().equals(e.getValue().getScopeId())) reconcileMap.put(e.getKey(), e.getValue());
+            }
+        }
+        int deleted = reconcileDeletedInJira(boardId, ctx, reconcileMap, importable);
 
         // 댓글 대조 (웹훅 유실 백업). 링크 원장이 에코를 막으므로 몇 번을 돌려도 중복 생성되지 않는다.
         reconcileComments(boardId, commentReconcileKeys);
@@ -312,9 +351,17 @@ public class JiraImportService {
 
         Board board = task.getBoard();
         User importer = userRepository.findById(actorUserId).orElse(task.getCreatedBy());
-        Map<String, String> statusToBlock = readMap(config.getStatusToBlockJson());
-        BlockStatusMap blockMap = BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
-        MirrorColumns mirror = MirrorColumns.parse(objectMapper, config.getMirrorColumnsJson());
+        // 스코프 소속 이슈면 그 스코프의 미러 컬럼으로 배치한다(웹훅 단건 pull의 스코프 라우팅).
+        JiraMilestoneScope linkScope = link.getScopeId() != null
+            ? scopeRepository.findById(link.getScopeId()).orElse(null) : null;
+        boolean scopeMirror = linkScope != null && linkScope.hasOwnProject()
+            && linkScope.getMirrorColumnsJson() != null;
+        Map<String, String> statusToBlock = scopeMirror ? Map.of() : readMap(config.getStatusToBlockJson());
+        BlockStatusMap blockMap = scopeMirror
+            ? BlockStatusMap.parse(objectMapper, null)
+            : BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
+        MirrorColumns mirror = MirrorColumns.parse(objectMapper,
+            scopeMirror ? linkScope.getMirrorColumnsJson() : config.getMirrorColumnsJson());
         Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK).orElse(null);
         SyncMaps maps = new SyncMaps(blockMap, mirror, statusToBlock, taskBlock,
             boardMemberRepository.findByBoardId(boardId),
@@ -1036,13 +1083,14 @@ public class JiraImportService {
      * 그 한 바퀴 동안 담당자 변경만 반영되지 않는 구멍이 생긴다.
      */
     private JiraIssueLink saveLink(Board board, ParsedJiraIssue issue, JiraLinkTargetType type, String targetId,
-                                   LocalDateTime jiraUpdatedAt) {
+                                   LocalDateTime jiraUpdatedAt, String scopeId) {
         return issueLinkRepository.save(JiraIssueLink.builder()
             .board(board)
             .jiraIssueKey(issue.key())
             .jiraIssueId(issue.id())
             .targetType(type)
             .targetId(targetId)
+            .scopeId(scopeId)
             .jiraUpdatedAt(jiraUpdatedAt)
             .lastJiraStatusId(issue.statusId())
             .jiraIssueType(truncate(issue.issueTypeName(), 60))
@@ -1074,6 +1122,12 @@ public class JiraImportService {
         if (request != null && request.getJql() != null && !request.getJql().isBlank()) return request.getJql();
         if (config.getJql() != null && !config.getJql().isBlank()) return config.getJql();
         return "project = " + config.getProjectKey();
+    }
+
+    /** 전용 프로젝트 스코프의 조회 JQL — 지정 JQL이 있으면 그것, 없으면 스코프 프로젝트 전체. */
+    private String resolveScopeJql(JiraMilestoneScope scope) {
+        if (scope.getJql() != null && !scope.getJql().isBlank()) return scope.getJql();
+        return "project = " + scope.getProjectKey();
     }
 
     private Map<String, String> readMap(String json) {

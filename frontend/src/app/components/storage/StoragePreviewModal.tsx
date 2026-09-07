@@ -1,21 +1,34 @@
 import { Download, Link2, X } from "lucide-react";
 import { MotionModal } from "../ui/MotionModal";
 import { ZoomableImage } from "../ui/ZoomableImage";
-import type { StorageFileItem } from "../../utils/api";
-import { formatBytes, fileIconFor } from "./storageUtils";
+import type { StorageFileItem, StoragePreviewInfo } from "../../utils/api";
+import {
+  formatBytes,
+  fileIconFor,
+  isSpreadsheetFile,
+  isConvertibleDocument,
+} from "./storageUtils";
+import { SpreadsheetPreview } from "./SpreadsheetPreview";
+import { DocumentPreview } from "./DocumentPreview";
 
 interface StoragePreviewModalProps {
   file: StorageFileItem | null;
   onClose: () => void;
   onDownload: (file: StorageFileItem) => void;
+  /** 표 뷰어가 원본을 받을 때 쓴다 (storageApi.fetchBlob) */
+  onLoadBlob: (file: StorageFileItem) => Promise<Blob>;
+  /** 문서 PDF 변환 상태 조회 (storageApi.getPreview) */
+  onLoadPreview: (file: StorageFileItem) => Promise<StoragePreviewInfo>;
   onToggleShare: (file: StorageFileItem) => void;
 }
 
-/** 파일 미리보기: 이미지 라이트박스 / 영상 인라인 재생 / 그 외 아이콘 + 다운로드 */
+/** 파일 미리보기: 이미지 / 영상 / PDF / 표(xlsx·csv) / 문서(docx·pptx·hwp → PDF 변환) / 그 외 아이콘 + 다운로드 */
 export function StoragePreviewModal({
   file,
   onClose,
   onDownload,
+  onLoadBlob,
+  onLoadPreview,
   onToggleShare,
 }: StoragePreviewModalProps) {
   if (!file) return null;
@@ -61,6 +74,18 @@ export function StoragePreviewModal({
               src={file.url}
               title={file.original_filename}
               className="w-full h-[60vh]"
+            />
+          ) : isSpreadsheetFile(file) ? (
+            <SpreadsheetPreview
+              file={file}
+              loadBlob={onLoadBlob}
+              heightClass="h-[60vh]"
+            />
+          ) : isConvertibleDocument(file) ? (
+            <DocumentPreview
+              file={file}
+              loadPreview={onLoadPreview}
+              heightClass="h-[60vh]"
             />
           ) : (
             <div className="flex flex-col items-center gap-3 py-16 text-slate-500">

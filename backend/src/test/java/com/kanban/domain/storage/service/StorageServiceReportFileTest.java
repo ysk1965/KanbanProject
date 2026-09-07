@@ -38,6 +38,7 @@ class StorageServiceReportFileTest {
     @Mock StorageQuotaService quotaService;
     @Mock StoragePermissionService permissionService;
     @Mock BoardRepository boardRepository;
+    @Mock DocumentPreviewService documentPreviewService;
 
     @InjectMocks StorageService service;
 

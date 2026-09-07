@@ -40,11 +40,17 @@ public class JiraResponse {
     }
 
     /** 프로젝트의 JIRA Agile 보드 (미러 대상 선택 드롭다운용). */
-    /** 마일스톤별 JIRA 스코프 — 이 마일스톤의 JIRA 뷰가 비추는 범위(JQL). */
+    /** 마일스톤별 JIRA 스코프 — 이 마일스톤의 JIRA 뷰가 비추는 범위. */
     @Getter @Builder @AllArgsConstructor
     public static class MilestoneScope {
         private String milestoneId;
         private String jql;
+        /** null = 보드 기본 프로젝트(JQL 스코프), non-null = 전용 프로젝트 스코프. */
+        private String projectKey;
+        private String agileBoardId;
+        private String writeBackTargetStatusId;
+        /** 전용 미러 컬럼이 셋업되어 있는가(projectKey 스코프만 true 가능). */
+        private boolean mirrorReady;
         private boolean active;
         /** 현재 이 스코프 소속으로 claim된 이슈 링크 수. */
         private int claimedCount;
@@ -87,11 +93,15 @@ public class JiraResponse {
         private String projectName;
     }
 
-    /** 매핑 UI용 메타 (JIRA 상태 목록 + BRIDGE 블록 목록). */
+    /** 매핑 UI용 메타 (JIRA 상태 목록 + BRIDGE 블록 목록). milestone_id를 주면 그 스코프 기준. */
     @Getter @Builder @AllArgsConstructor
     public static class Meta {
         private List<NameRef> statuses;
-        private List<BlockRef> blocks;   // 매핑 UI 좌측(BRIDGE 블록)
+        private List<BlockRef> blocks;   // 매핑 UI 좌측(BRIDGE 블록). 스코프 메타면 그 스코프의 미러 블록만.
+        /** 이 메타가 스코프 전용 미러 기준인가 — FE가 미러 뷰 판정에 OR로 얹는다. */
+        private boolean scopeMirror;
+        /** 이 메타가 비추는 프로젝트 키(스코프 프로젝트 또는 보드 기본). 배너 표기용. */
+        private String projectKey;
     }
 
     @Getter @Builder @AllArgsConstructor

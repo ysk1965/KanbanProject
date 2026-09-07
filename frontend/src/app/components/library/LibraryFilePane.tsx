@@ -1,8 +1,15 @@
 import { Download, Link2, Menu, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 
-import type { StorageFileItem } from "../../utils/api";
-import { formatBytes, fileIconFor } from "../storage/storageUtils";
+import type { StorageFileItem, StoragePreviewInfo } from "../../utils/api";
+import {
+  formatBytes,
+  fileIconFor,
+  isSpreadsheetFile,
+  isConvertibleDocument,
+} from "../storage/storageUtils";
+import { SpreadsheetPreview } from "../storage/SpreadsheetPreview";
+import { DocumentPreview } from "../storage/DocumentPreview";
 import { formatDateTime } from "../../utils/dateUtils";
 import { IconButton } from "../ui/IconButton";
 
@@ -10,6 +17,10 @@ interface LibraryFilePaneProps {
   file: StorageFileItem;
   canEdit: boolean;
   onDownload: (file: StorageFileItem) => void;
+  /** 표 뷰어가 원본을 받을 때 쓴다 (storageApi.fetchBlob) */
+  onLoadBlob: (file: StorageFileItem) => Promise<Blob>;
+  /** 문서 PDF 변환 상태 조회 (storageApi.getPreview) */
+  onLoadPreview: (file: StorageFileItem) => Promise<StoragePreviewInfo>;
   onToggleShare: (file: StorageFileItem) => void;
   onDelete: (file: StorageFileItem) => void;
   onOpenSidebar: () => void;
@@ -23,6 +34,8 @@ export function LibraryFilePane({
   file,
   canEdit,
   onDownload,
+  onLoadBlob,
+  onLoadPreview,
   onToggleShare,
   onDelete,
   onOpenSidebar,
@@ -114,6 +127,18 @@ export function LibraryFilePane({
                 src={file.url}
                 title={file.original_filename}
                 className="w-full h-[56vh]"
+              />
+            ) : isSpreadsheetFile(file) ? (
+              <SpreadsheetPreview
+                file={file}
+                loadBlob={onLoadBlob}
+                heightClass="h-[56vh]"
+              />
+            ) : isConvertibleDocument(file) ? (
+              <DocumentPreview
+                file={file}
+                loadPreview={onLoadPreview}
+                heightClass="h-[56vh]"
               />
             ) : (
               <div className="flex flex-col items-center gap-3 py-16 text-slate-500">

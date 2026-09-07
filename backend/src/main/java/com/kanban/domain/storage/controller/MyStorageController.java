@@ -83,6 +83,12 @@ public class MyStorageController {
 
     // ===== Files =====
 
+    @GetMapping("/files/all")
+    public ResponseEntity<List<StorageResponse.FileItem>> getAllFiles(
+            @AuthenticationPrincipal UserPrincipal p) {
+        return ResponseEntity.ok(storageService.getAllFiles(scope(p), p.getUserId()));
+    }
+
     @GetMapping("/files")
     public ResponseEntity<List<StorageResponse.FileItem>> getFiles(
             @AuthenticationPrincipal UserPrincipal p,
@@ -129,6 +135,13 @@ public class MyStorageController {
     public ResponseEntity<InputStreamResource> downloadFile(
             @PathVariable String fileId, @AuthenticationPrincipal UserPrincipal p) {
         return buildDownload(storageService.downloadFile(scope(p), p.getUserId(), fileId));
+    }
+
+    /** 문서(docx/pptx/hwp 등) PDF 미리보기 상태·URL. 미변환이면 변환을 큐잉하고 PENDING 을 돌려준다. */
+    @GetMapping("/files/{fileId}/preview")
+    public ResponseEntity<StorageResponse.Preview> getFilePreview(
+            @PathVariable String fileId, @AuthenticationPrincipal UserPrincipal p) {
+        return ResponseEntity.ok(StorageResponse.Preview.of(storageService.getPreview(scope(p), p.getUserId(), fileId)));
     }
 
     @PostMapping("/files/{fileId}/share")

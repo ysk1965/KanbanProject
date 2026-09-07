@@ -81,6 +81,12 @@ public class BoardStorageController {
 
     // ===== Files =====
 
+    @GetMapping("/files/all")
+    public ResponseEntity<List<StorageResponse.FileItem>> getAllFiles(
+            @PathVariable String boardId, @AuthenticationPrincipal UserPrincipal p) {
+        return ResponseEntity.ok(storageService.getAllFiles(scope(boardId), p.getUserId()));
+    }
+
     @GetMapping("/files")
     public ResponseEntity<List<StorageResponse.FileItem>> getFiles(
             @PathVariable String boardId, @AuthenticationPrincipal UserPrincipal p,
@@ -128,6 +134,13 @@ public class BoardStorageController {
     public ResponseEntity<InputStreamResource> downloadFile(
             @PathVariable String boardId, @PathVariable String fileId, @AuthenticationPrincipal UserPrincipal p) {
         return MyStorageController.buildDownload(storageService.downloadFile(scope(boardId), p.getUserId(), fileId));
+    }
+
+    /** 문서(docx/pptx/hwp 등) PDF 미리보기 상태·URL. 미변환이면 변환을 큐잉하고 PENDING 을 돌려준다. */
+    @GetMapping("/files/{fileId}/preview")
+    public ResponseEntity<StorageResponse.Preview> getFilePreview(
+            @PathVariable String boardId, @PathVariable String fileId, @AuthenticationPrincipal UserPrincipal p) {
+        return ResponseEntity.ok(StorageResponse.Preview.of(storageService.getPreview(scope(boardId), p.getUserId(), fileId)));
     }
 
     @PostMapping("/files/{fileId}/share")

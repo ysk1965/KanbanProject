@@ -1,3 +1,4 @@
+import { yUndoPluginKey } from "y-prosemirror";
 // BlockNote note content is stored as either:
 //   - JSON: `JSON.stringify(editor.document)` — starts with '[' (Block[])
 //   - HTML: legacy `blocksToHTMLLossy(editor.document)` — starts with '<'
@@ -263,6 +264,30 @@ export async function loadIntoEditor(
   } catch (err) {
     console.error("Failed to load note content into editor:", err);
     return false;
+  }
+}
+
+/**
+ * Drop the Yjs undo history after hydrating an editor from a stored snapshot.
+ *
+ * Hydration goes through editor.replaceBlocks(), i.e. a regular ProseMirror
+ * transaction that y-prosemirror's sync plugin writes into the Y.Doc with the
+ * tracked ySyncPluginKey origin. The UndoManager therefore records the whole
+ * snapshot injection as the first undo item, and one Cmd+Z past the user's own
+ * edits pops it — blanking the document. Clearing the stacks removes that
+ * item; stopCapturing() prevents the user's first keystroke from being merged
+ * into the same capture window (default 500ms) as the hydration.
+ */
+export function clearUndoHistoryAfterHydration(editor: any): void {
+  try {
+    const state = editor?._tiptapEditor?.state;
+    if (!state) return;
+    const undoManager = yUndoPluginKey.getState(state)?.undoManager;
+    if (!undoManager) return;
+    undoManager.clear();
+    undoManager.stopCapturing();
+  } catch (err) {
+    console.warn("Failed to clear undo history after hydration:", err);
   }
 }
 

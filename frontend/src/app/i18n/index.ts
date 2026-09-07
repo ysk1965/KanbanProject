@@ -29,8 +29,12 @@ const dateLocaleMap: Record<string, string> = {
   th: 'th',
 };
 
+const SUPPORTED_LANGUAGES = Object.keys(dateLocaleMap);
+
 function syncDateLocale(lng: string) {
-  const dateLocale = dateLocaleMap[lng] || 'en-US';
+  // 감지 언어가 'ko-KR' 처럼 지역 코드를 달고 오면 기본 언어('ko')로 한 번 더 찾는다.
+  const base = lng?.split('-')[0];
+  const dateLocale = dateLocaleMap[lng] || dateLocaleMap[base] || 'en-US';
   setLocale(dateLocale);
 }
 
@@ -51,6 +55,9 @@ i18n
       th: { translation: th },
     },
     fallbackLng: 'en',
+    // 브라우저 감지값('ko-KR', 'zh-Hant' 등)을 지원 언어('ko', 'zh')로 정규화한다.
+    // 이게 없으면 i18n.language 가 'ko-KR' 로 남아 dateUtils 로케일 매핑이 en-US 로 떨어진다.
+    supportedLngs: SUPPORTED_LANGUAGES,
     interpolation: {
       escapeValue: false,
     },

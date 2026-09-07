@@ -113,15 +113,32 @@ public class JiraController {
         return ResponseEntity.ok(scopeService.getScopes(boardId, principal.getUserId()));
     }
 
-    /** 스코프 저장(업서트) + 즉시 claim. JQL이 잘못됐으면 저장 없이 실패한다. */
+    /**
+     * 스코프 저장(업서트).
+     *  · JQL 스코프 — 저장 + 즉시 claim(JQL 오류면 저장 없이 실패).
+     *  · 프로젝트 스코프 — 저장 후 전용 미러 셋업 → 초기 import를 별도 트랜잭션으로 이어 실행한다
+     *    (보드 미러 셋업 엔드포인트와 같은 관용구 — 중첩 트랜잭션 롤백 오염 방지).
+     */
     @PutMapping("/api/v1/boards/{boardId}/jira/scopes/{milestoneId}")
     public ResponseEntity<JiraResponse.MilestoneScope> saveScope(
             @PathVariable String boardId,
             @PathVariable String milestoneId,
             @RequestBody JiraRequest.MilestoneScopeSave request,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(
-            scopeService.saveScope(boardId, milestoneId, principal.getUserId(), request.getJql()));
+        JiraResponse.MilestoneScope saved =
+            scopeService.saveScope(boardId, milestoneId, principal.getUserId(), request);
+        boolean ownProject = request.getProjectKey() != null && !request.getProjectKey().isBlank();
+        if (ownProject) {
+            connectionService.setupMirrorForScope(boardId, principal.getUserId(), milestoneId);
+            try {
+                importService.importScopeIssues(boardId, principal.getUserId(), milestoneId);
+            } catch (Exception e) {
+                log.warn("JIRA scope initial import failed for board {} milestone {}: {}",
+                    boardId, milestoneId, e.getMessage());
+            }
+            saved = scopeService.getScope(boardId, milestoneId, principal.getUserId());
+        }
+        return ResponseEntity.ok(saved);
     }
 
     /** 스코프 해제 — 이 마일스톤은 다시 보드 전체를 본다(이슈·Task는 보존). */
@@ -149,11 +166,23 @@ public class JiraController {
         return ResponseEntity.ok(connectionService.testConnection(boardId, principal.getUserId()));
     }
 
+    /** milestone_id를 주면 그 마일스톤의 스코프 기준(스코프 프로젝트 상태 + 스코프 미러 블록만). */
     @GetMapping("/api/v1/boards/{boardId}/jira/meta")
     public ResponseEntity<JiraResponse.Meta> meta(
             @PathVariable String boardId,
+            @RequestParam(value = "milestone_id", required = false) String milestoneId,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(connectionService.getMeta(boardId, principal.getUserId()));
+        return ResponseEntity.ok(connectionService.getMeta(boardId, principal.getUserId(), milestoneId));
+    }
+
+    /** 임의 프로젝트의 상태 목록 — 스코프 위저드의 완료 전환 상태 선택용. */
+    @GetMapping("/api/v1/boards/{boardId}/jira/project-statuses")
+    public ResponseEntity<List<JiraResponse.NameRef>> projectStatuses(
+            @PathVariable String boardId,
+            @RequestParam(value = "project_key", required = false) String projectKey,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(
+            connectionService.listProjectStatuses(boardId, principal.getUserId(), projectKey));
     }
 
     @PutMapping("/api/v1/boards/{boardId}/jira/mapping")
@@ -196,12 +225,13 @@ public class JiraController {
         return ResponseEntity.ok(connectionService.getStatus(boardId, principal.getUserId()));
     }
 
-    /** 미러 대상으로 고를 수 있는 프로젝트의 JIRA Agile 보드 목록. */
+    /** 미러 대상으로 고를 수 있는 Agile 보드 목록. project_key를 주면 그 프로젝트 기준(스코프 위저드용). */
     @GetMapping("/api/v1/boards/{boardId}/jira/boards")
     public ResponseEntity<List<JiraResponse.AgileBoard>> agileBoards(
             @PathVariable String boardId,
+            @RequestParam(value = "project_key", required = false) String projectKey,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(connectionService.listAgileBoards(boardId, principal.getUserId()));
+        return ResponseEntity.ok(connectionService.listAgileBoards(boardId, principal.getUserId(), projectKey));
     }
 
     /** 미러 대상 Agile 보드 선택 (빈 값이면 자동 선택). 저장 후 재동기화 필요. */

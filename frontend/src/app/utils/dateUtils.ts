@@ -81,8 +81,10 @@ function getDateFnsLocale(): Locale {
   // localStorage에서 사용자 설정 언어를 직접 확인 (i18n syncDateLocale 호출 전에도 정확한 로케일 제공)
   try {
     const savedLang = localStorage.getItem(LANGUAGE_KEY);
-    if (savedLang && i18nLocales[savedLang]) {
-      return i18nLocales[savedLang];
+    if (savedLang) {
+      // 'ko-KR' 처럼 지역 코드가 붙은 값도 기본 언어로 매칭한다
+      const match = i18nLocales[savedLang] || i18nLocales[savedLang.split("-")[0]];
+      if (match) return match;
     }
   } catch {
     /* SSR or localStorage 미지원 환경 */

@@ -47,6 +47,10 @@ public class SprintResponse {
     public static class JiraScopeInfo {
         private String milestoneId;
         private String jql;
+        /** null = 보드 기본 프로젝트(JQL 스코프), non-null = 전용 프로젝트 스코프. */
+        private String projectKey;
+        /** 전용 미러 컬럼이 셋업된 스코프 — FE가 미러 뷰 판정에 OR로 얹는다. */
+        private boolean mirrorReady;
         /** 현재 이 스코프 소속으로 내려간 이슈 수(= jira_tasks 크기). */
         private int taskCount;
         private LocalDateTime lastClaimedAt;
@@ -55,6 +59,8 @@ public class SprintResponse {
             return JiraScopeInfo.builder()
                     .milestoneId(s.getMilestone().getId())
                     .jql(s.getJql())
+                    .projectKey(s.getProjectKey())
+                    .mirrorReady(s.getMirrorColumnsJson() != null && !s.getMirrorColumnsJson().isBlank())
                     .taskCount(taskCount)
                     .lastClaimedAt(s.getLastClaimedAt())
                     .build();

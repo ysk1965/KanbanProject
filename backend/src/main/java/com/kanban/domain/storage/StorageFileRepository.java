@@ -24,6 +24,10 @@ public interface StorageFileRepository extends JpaRepository<StorageFile, String
     @Query("SELECT f FROM StorageFile f WHERE f.folder IS NULL AND f.isDeleted = false AND " + SCOPE_MATCH + " ORDER BY f.createdAt DESC")
     List<StorageFile> findRootFilesByScope(@Param("type") String type, @Param("sid") String sid);
 
+    /** 스코프 전체 파일(루트 + 모든 폴더). 자료실 트리처럼 폴더별로 나눠 호출하지 않고 한 번에 받을 때 사용. */
+    @Query("SELECT f FROM StorageFile f WHERE f.isDeleted = false AND " + SCOPE_MATCH + " ORDER BY f.createdAt DESC")
+    List<StorageFile> findAllByScope(@Param("type") String type, @Param("sid") String sid);
+
     @Query("SELECT f FROM StorageFile f WHERE f.folder.id = :folderId AND f.isDeleted = false AND " + SCOPE_MATCH + " ORDER BY f.createdAt DESC")
     List<StorageFile> findByScopeAndFolderId(@Param("type") String type, @Param("sid") String sid,
                                              @Param("folderId") String folderId);

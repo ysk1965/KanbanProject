@@ -40,6 +40,20 @@ public class KanbanApplication {
         return executor;
     }
 
+    /** 문서 → PDF 변환 (LibreOffice). soffice 가 무거워서 워커 1개, 나머지는 큐에서 대기. */
+    @Bean(name = "documentPreviewExecutor")
+    public TaskExecutor documentPreviewExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(1);
+        executor.setQueueCapacity(50);
+        executor.setThreadNamePrefix("doc-preview-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(60);
+        executor.initialize();
+        return executor;
+    }
+
     @Bean(name = "thumbnailExecutor")
     public TaskExecutor thumbnailExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();

@@ -56,6 +56,7 @@ class JiraAutofixTriageServiceTest {
     private BoardService boardService;
     private TaskRepository taskRepository;
     private JiraIssueLinkRepository issueLinkRepository;
+    private JiraMilestoneScopeRepository milestoneScopeRepository;
     private JiraIntegrationConfigRepository configRepository;
     private JiraAutofixTriageRepository triageRepository;
     private JiraAutofixTriageRunRepository runRepository;
@@ -77,6 +78,7 @@ class JiraAutofixTriageServiceTest {
         boardService = mock(BoardService.class);
         taskRepository = mock(TaskRepository.class);
         issueLinkRepository = mock(JiraIssueLinkRepository.class);
+        milestoneScopeRepository = mock(JiraMilestoneScopeRepository.class);
         configRepository = mock(JiraIntegrationConfigRepository.class);
         triageRepository = mock(JiraAutofixTriageRepository.class);
         runRepository = mock(JiraAutofixTriageRunRepository.class);
@@ -90,7 +92,8 @@ class JiraAutofixTriageServiceTest {
 
         service = new JiraAutofixTriageService(
                 claudeAIProvider, new ObjectMapper(), boardRepository, boardService,
-                taskRepository, issueLinkRepository, configRepository, triageRepository,
+                taskRepository, issueLinkRepository, milestoneScopeRepository,
+                configRepository, triageRepository,
                 runRepository, eventPublisher, aiUsageLogRepository, aiCreditService,
                 commentRepository, commentAttachmentRepository,
                 checklistItemRepository, boardMemberRepository);

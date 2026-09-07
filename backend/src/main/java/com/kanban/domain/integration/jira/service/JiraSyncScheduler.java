@@ -2,6 +2,8 @@ package com.kanban.domain.integration.jira.service;
 
 import com.kanban.domain.integration.jira.JiraIntegrationConfig;
 import com.kanban.domain.integration.jira.JiraIntegrationConfigRepository;
+import com.kanban.domain.integration.jira.JiraMilestoneScope;
+import com.kanban.domain.integration.jira.JiraMilestoneScopeRepository;
 import com.kanban.domain.integration.jira.dto.JiraRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +25,7 @@ import java.util.List;
 public class JiraSyncScheduler {
 
     private final JiraIntegrationConfigRepository configRepository;
+    private final JiraMilestoneScopeRepository scopeRepository;
     private final JiraWriteBackService writeBackService;
     private final JiraImportService importService;
     private final JiraMilestoneScopeService scopeService;
@@ -63,6 +66,16 @@ public class JiraSyncScheduler {
                 importService.importIssues(boardId, actorId, new JiraRequest.Import(null, false));
             } catch (Exception e) {
                 log.warn("JIRA pull sync failed for board {}: {}", boardId, e.getMessage());
+            }
+            // 전용 프로젝트 스코프 — 보드 프로젝트 JQL엔 잡히지 않으므로 스코프별로 따로 pull한다.
+            for (JiraMilestoneScope scope : scopeRepository.findActiveByBoardId(boardId)) {
+                if (!scope.hasOwnProject()) continue;
+                try {
+                    importService.importScopeIssues(boardId, actorId, scope.getMilestone().getId());
+                } catch (Exception e) {
+                    log.warn("JIRA scope pull failed for board {} milestone {}: {}",
+                        boardId, scope.getMilestone().getId(), e.getMessage());
+                }
             }
             // 마일스톤 스코프 소속(claim) 갱신 — 본 동기화와 독립적으로 수렴(멱등, 스코프 없으면 no-op).
             try {

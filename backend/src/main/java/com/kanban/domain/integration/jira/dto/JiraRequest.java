@@ -69,12 +69,20 @@ public class JiraRequest {
         private boolean preview; // true면 건수만 계산
     }
 
-    /** 마일스톤 스코프 저장 — 이 마일스톤의 JIRA 뷰가 비출 범위(JQL). */
+    /**
+     * 마일스톤 스코프 저장.
+     *  · projectKey 없음 — 보드 프로젝트 안에서 JQL로만 좁힘(P1). jql 필수.
+     *  · projectKey 있음 — 다른 프로젝트를 통째로 비춤(P2). jql 선택(없으면 project 전체),
+     *    agileBoardId로 미러 컬럼 출처 지정, writeBackTargetStatusId로 완료 전환 상태 지정(P3).
+     */
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor
     public static class MilestoneScopeSave {
-        private String jql;   // 예: fixVersion = "소프트런칭"
+        private String jql;                     // 예: fixVersion = "소프트런칭"
+        private String projectKey;              // 예: QASB (null = 보드 기본 프로젝트)
+        private String agileBoardId;            // 스코프 미러 대상 Agile 보드 (null = 자동)
+        private String writeBackTargetStatusId; // 완료 역동기화 대상 상태 (null = 보드 기본)
     }
 
     /** 미러 대상 Agile 보드 선택. 빈 값이면 자동 선택으로 복귀. */

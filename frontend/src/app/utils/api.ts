@@ -6246,10 +6246,16 @@ export interface JiraSiteRef {
   name: string;
 }
 
-/** 마일스톤별 JIRA 스코프 — 이 마일스톤의 JIRA 뷰가 비추는 범위(JQL). */
+/** 마일스톤별 JIRA 스코프 — 이 마일스톤의 JIRA 뷰가 비추는 범위. */
 export interface JiraMilestoneScope {
   milestone_id: string;
-  jql: string;
+  jql: string | null;
+  /** null = 보드 기본 프로젝트(JQL 스코프), non-null = 전용 프로젝트 스코프. */
+  project_key: string | null;
+  agile_board_id: string | null;
+  write_back_target_status_id: string | null;
+  /** 전용 미러 컬럼이 셋업되어 있는가(프로젝트 스코프만 true 가능). */
+  mirror_ready: boolean;
   active: boolean;
   /** 현재 이 스코프 소속으로 claim된 이슈 링크 수. */
   claimed_count: number;
@@ -6284,6 +6290,10 @@ export interface JiraBlockRef {
 export interface JiraMeta {
   statuses: JiraNameRef[];
   blocks: JiraBlockRef[];
+  /** 이 메타가 마일스톤 스코프 전용 미러 기준인가 — 미러 뷰 판정에 OR로 얹는다. */
+  scope_mirror?: boolean;
+  /** 이 메타가 비추는 프로젝트 키(스코프 프로젝트 또는 보드 기본). */
+  project_key?: string | null;
 }
 
 export interface JiraMirrorSetup {
@@ -6775,8 +6785,22 @@ export const jiraAPI = {
     return apiClient.post<JiraTestResult>(`/boards/${boardId}/jira/test`);
   },
 
-  getMeta: async (boardId: string) => {
-    return apiClient.get<JiraMeta>(`/boards/${boardId}/jira/meta`);
+  /** milestoneId를 주면 그 마일스톤 스코프 기준(스코프 프로젝트 상태 + 스코프 미러 블록만). */
+  getMeta: async (boardId: string, milestoneId?: string) => {
+    const query = milestoneId
+      ? `?milestone_id=${encodeURIComponent(milestoneId)}`
+      : "";
+    return apiClient.get<JiraMeta>(`/boards/${boardId}/jira/meta${query}`);
+  },
+
+  /** 임의 프로젝트의 상태 목록 — 스코프 위저드의 완료 전환 상태 선택용. */
+  getProjectStatuses: async (boardId: string, projectKey?: string) => {
+    const query = projectKey
+      ? `?project_key=${encodeURIComponent(projectKey)}`
+      : "";
+    return apiClient.get<JiraNameRef[]>(
+      `/boards/${boardId}/jira/project-statuses${query}`,
+    );
   },
 
   /**
@@ -6813,9 +6837,14 @@ export const jiraAPI = {
     );
   },
 
-  /** 미러 대상으로 고를 수 있는 프로젝트의 JIRA Agile 보드 목록. */
-  getBoards: async (boardId: string) => {
-    return apiClient.get<JiraAgileBoard[]>(`/boards/${boardId}/jira/boards`);
+  /** 미러 대상으로 고를 수 있는 Agile 보드 목록. projectKey를 주면 그 프로젝트 기준(스코프 위저드용). */
+  getBoards: async (boardId: string, projectKey?: string) => {
+    const query = projectKey
+      ? `?project_key=${encodeURIComponent(projectKey)}`
+      : "";
+    return apiClient.get<JiraAgileBoard[]>(
+      `/boards/${boardId}/jira/boards${query}`,
+    );
   },
 
   /** 미러 대상 Agile 보드 선택 (빈 문자열이면 자동 선택). 저장 후 재동기화 필요. */
@@ -6857,11 +6886,29 @@ export const jiraAPI = {
     );
   },
 
-  /** 스코프 저장(업서트) + 즉시 claim. JQL이 잘못됐으면 저장 없이 에러가 돌아온다. */
-  saveScope: async (boardId: string, milestoneId: string, jql: string) => {
+  /**
+   * 스코프 저장(업서트).
+   *  · projectKey 없음 — JQL 스코프: 저장 + 즉시 claim (JQL 오류면 저장 없이 에러).
+   *  · projectKey 있음 — 프로젝트 스코프: 저장 후 서버가 전용 미러 셋업 + 초기 가져오기까지 실행.
+   */
+  saveScope: async (
+    boardId: string,
+    milestoneId: string,
+    data: {
+      jql?: string | null;
+      projectKey?: string | null;
+      agileBoardId?: string | null;
+      writeBackTargetStatusId?: string | null;
+    },
+  ) => {
     return apiClient.put<JiraMilestoneScope>(
       `/boards/${boardId}/jira/scopes/${milestoneId}`,
-      { jql },
+      {
+        jql: data.jql || undefined,
+        project_key: data.projectKey || undefined,
+        agile_board_id: data.agileBoardId || undefined,
+        write_back_target_status_id: data.writeBackTargetStatusId || undefined,
+      },
     );
   },
 
@@ -10301,6 +10348,12 @@ export interface StorageFileItem {
   created_at: string;
 }
 
+/** 문서(docx/pptx/hwp) PDF 미리보기 상태. url 은 READY 일 때만 채워진다. */
+export interface StoragePreviewInfo {
+  status: "NONE" | "PENDING" | "READY" | "FAILED" | "UNAVAILABLE";
+  url: string | null;
+}
+
 export interface StorageUsage {
   used: number;
   quota: number;
@@ -10402,6 +10455,9 @@ export function makeStorageAPI(base: string) {
       const q = folderId ? `?folder_id=${encodeURIComponent(folderId)}` : "";
       return apiClient.get<StorageFileItem[]>(`${base}/files${q}`);
     },
+
+    /** 스코프의 모든 파일(루트 + 전체 폴더)을 한 번에 조회. folder_id 로 그룹핑해 쓴다. */
+    getAllFiles: () => apiClient.get<StorageFileItem[]>(`${base}/files/all`),
 
     /**
      * 파일 업로드: presigned(S3 직접, 대용량/진행률) 우선, 미지원(로컬)이면 multipart 폴백.
@@ -10513,6 +10569,18 @@ export function makeStorageAPI(base: string) {
     emptyTrash: () =>
       apiClient.delete<{ deleted_count: number }>(`${base}/trash`),
 
+    /** 문서 PDF 미리보기 상태 조회. 미변환이면 서버가 변환을 큐잉하고 PENDING 을 준다 */
+    getPreview: (fileId: string) =>
+      apiClient.get<StoragePreviewInfo>(`${base}/files/${fileId}/preview`),
+    /** 인증 경유로 파일 원본 바이트를 받는다 (미리보기 파서용, CORS 무관) */
+    fetchBlob: async (fileId: string): Promise<Blob> => {
+      const response = await authenticatedFetch(
+        `${API_BASE_URL}${base}/files/${fileId}/download`,
+        { method: "GET" },
+      );
+      if (!response.ok) throw new Error("파일을 불러오지 못했습니다");
+      return response.blob();
+    },
     /** 인증 다운로드 후 브라우저 저장 트리거 */
     downloadAndSave: async (
       fileId: string,

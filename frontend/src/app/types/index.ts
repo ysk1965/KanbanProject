@@ -853,7 +853,11 @@ export interface SprintBoard {
   // 스코프가 있으면 jira_tasks가 서버에서 이미 그 소속만으로 걸러져 내려온다.
   jira_scope?: {
     milestone_id: string;
-    jql: string;
+    jql: string | null;
+    // null = 보드 기본 프로젝트(JQL 스코프), non-null = 전용 프로젝트 스코프
+    project_key: string | null;
+    // 전용 미러 컬럼 셋업됨 — JIRA 뷰 미러 판정에 OR로 얹는다
+    mirror_ready: boolean;
     task_count: number;
     last_claimed_at: string | null;
   } | null;

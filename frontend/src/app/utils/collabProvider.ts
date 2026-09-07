@@ -39,6 +39,7 @@ export class CollabProvider {
   private autoSaveTimer: ReturnType<typeof setInterval> | null = null;
   private fullStatePersistTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempt = 0;
+  private static readonly CLOSE_POLICY_VIOLATION = 1008;
   private readOnly = false;
 
   private static readonly RECONNECT_BASE_DELAY = 1000;
@@ -131,12 +132,18 @@ export class CollabProvider {
       }
     };
 
-    this.ws.onclose = () => {
+    this.ws.onclose = (event) => {
       this.updateStatus('disconnected');
       this.stopAutoSave();
       // Fail any in-flight seed requests so an awaiting hydration doesn't hang;
       // it re-requests after the next reconnect + sync.
       this.flushSeedResolvers(false);
+      // 1008 (policy violation) = the server rejected this user for this note
+      // (no board/org access, invalid token). Reconnecting would just loop.
+      if (event.code === CollabProvider.CLOSE_POLICY_VIOLATION) {
+        this.shouldConnect = false;
+        return;
+      }
       if (this.shouldConnect) {
         this.scheduleReconnect();
       }

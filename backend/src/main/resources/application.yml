@@ -270,6 +270,12 @@ app:
   storage:
     # presigned 대용량 업로드 상한 (기본 2GB). direct(multipart) 경로는 app.file 제한을 따른다.
     max-file-size: ${STORAGE_MAX_FILE_SIZE:2147483648}
+    preview:
+      # 문서(docx/pptx/hwp) → PDF 미리보기. soffice 는 .platform/hooks/prebuild/02_install_libreoffice.sh 가 설치한다.
+      enabled: ${STORAGE_PREVIEW_ENABLED:true}
+      soffice-path: ${SOFFICE_PATH:/usr/bin/soffice}
+      timeout-seconds: ${STORAGE_PREVIEW_TIMEOUT:120}
+      max-source-bytes: ${STORAGE_PREVIEW_MAX_SOURCE:52428800}   # 50MB
     quota:
       # 사용자 구독 티어별 스토리지 용량 한도 (바이트)
       base-bytes: ${STORAGE_QUOTA_BASE:1073741824}       # 1GB (체험)

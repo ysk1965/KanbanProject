@@ -68,6 +68,7 @@ import {
 import { blockNoteDictionary } from "../../utils/blocknoteLocale";
 import {
   loadIntoEditor,
+  clearUndoHistoryAfterHydration,
   serializeForSave,
   contentToHtml,
   contentToMarkdown,
@@ -652,7 +653,11 @@ function CollabNoteEditor({
           return;
         }
         const ok = await loadIntoEditor(editor, note.content);
-        if (ok) initialContentLoaded.current = true;
+        if (ok) {
+          initialContentLoaded.current = true;
+          // The snapshot injection must not be undoable — see helper docs.
+          clearUndoHistoryAfterHydration(editor);
+        }
         // Intentionally do NOT sendFullState here. Hydrating the Y.Doc from the
         // published snapshot is purely a local view of the current state —
         // persisting it would create a draft row whose content equals the
@@ -696,7 +701,10 @@ function CollabNoteEditor({
           return;
         }
         const ok = await loadIntoEditor(editor, note.content);
-        if (ok) initialContentLoaded.current = true;
+        if (ok) {
+          initialContentLoaded.current = true;
+          clearUndoHistoryAfterHydration(editor);
+        }
       } finally {
         hydratingRef.current = false;
       }

@@ -635,29 +635,29 @@ export function NotesView({
   const loadStorage = useCallback(async () => {
     if (!withFiles) return;
     try {
-      const [folders, nextUsage] = await Promise.all([
+      const [folders, nextUsage, allFiles] = await Promise.all([
         storageApi.getFolders(),
         storageApi.getUsage(),
+        storageApi.getAllFiles(),
       ]);
-      const flat: StorageFolderTree[] = [];
+
+      // 파일은 한 번에 받아 folder_id 로 그룹핑한다 (폴더 수만큼 요청하지 않는다).
+      // 파일이 없는 폴더도 빈 배열을 갖도록 폴더 트리를 먼저 순회한다.
+      const nextFiles = new Map<string | null, StorageFileItem[]>();
+      nextFiles.set(null, []);
       const walk = (items: StorageFolderTree[]) => {
         items.forEach((folder) => {
-          flat.push(folder);
+          nextFiles.set(folder.id, []);
           walk(folder.children ?? []);
         });
       };
       walk(folders);
-
-      // 폴더별 파일 목록 API라 폴더 수만큼 병렬 조회한다.
-      const lists = await Promise.all([
-        storageApi.getFiles(null),
-        ...flat.map((folder) => storageApi.getFiles(folder.id)),
-      ]);
-      const nextFiles = new Map<string | null, StorageFileItem[]>();
-      nextFiles.set(null, lists[0]);
-      flat.forEach((folder, index) =>
-        nextFiles.set(folder.id, lists[index + 1]),
-      );
+      allFiles.forEach((file) => {
+        const key = file.folder_id ?? null;
+        const bucket = nextFiles.get(key);
+        if (bucket) bucket.push(file);
+        else nextFiles.set(key, [file]);
+      });
 
       setStorageFolders(folders);
       setFilesByFolder(nextFiles);
@@ -773,6 +773,8 @@ export function NotesView({
 
   const fileActions = useMemo(
     () => ({
+      onLoadBlob: (file: StorageFileItem) => storageApi.fetchBlob(file.id),
+      onLoadPreview: (file: StorageFileItem) => storageApi.getPreview(file.id),
       onDownload: (file: StorageFileItem) => {
         void storageApi
           .downloadAndSave(file.id, file.original_filename)
@@ -1288,6 +1290,8 @@ export function NotesView({
             file={selectedFile}
             canEdit={canEdit}
             onDownload={fileActions.onDownload}
+            onLoadBlob={fileActions.onLoadBlob}
+            onLoadPreview={fileActions.onLoadPreview}
             onToggleShare={fileActions.onToggleShare}
             onDelete={fileActions.onDelete}
             onOpenSidebar={() => setMobileSidebarOpen(true)}

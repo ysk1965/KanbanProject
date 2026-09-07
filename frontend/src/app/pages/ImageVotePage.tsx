@@ -1,12 +1,20 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Loader2, AlertCircle, Trophy, Check, RotateCcw, Lock } from "lucide-react";
+import {
+  Loader2,
+  AlertCircle,
+  Trophy,
+  Check,
+  RotateCcw,
+  Lock,
+} from "lucide-react";
 import { imageVoteAPI } from "../utils/api";
 import { PhotoLightbox } from "../components/organization/photo/PhotoLightbox";
 import {
   ImageVoteResultList,
   candidateToPhoto,
+  MEDALS,
 } from "../components/vote/ImageVoteResultList";
 import type { PublicImageVote, OrgPhoto } from "../types";
 
@@ -36,6 +44,11 @@ export function ImageVotePage() {
   const [lightboxPhoto, setLightboxPhoto] = useState<OrgPhoto | null>(null);
 
   const voterKey = useMemo(() => getVoterKey(), []);
+
+  const candidateById = useMemo(
+    () => new Map((vote?.candidates ?? []).map((c) => [c.id, c])),
+    [vote],
+  );
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -261,16 +274,16 @@ export function ImageVotePage() {
             />
 
             {!vote.closed && (
-            <div className="mt-6 flex justify-center">
-              <button
-                type="button"
-                onClick={() => setView("vote")}
-                className="px-5 py-2.5 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl text-sm font-medium hover:bg-foreground/10 transition-all flex items-center gap-1.5"
-              >
-                <RotateCcw className="w-4 h-4" />
-                다시 투표하기
-              </button>
-            </div>
+              <div className="mt-6 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setView("vote")}
+                  className="px-5 py-2.5 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl text-sm font-medium hover:bg-foreground/10 transition-all flex items-center gap-1.5"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  다시 투표하기
+                </button>
+              </div>
             )}
           </>
         )}

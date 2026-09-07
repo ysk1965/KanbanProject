@@ -39,6 +39,7 @@ public class JiraMilestoneScopeService {
 
     private final JiraApiClient jiraApiClient;
     private final JiraOAuthService oauthService;
+    private final JiraConnectionService connectionService;
     private final JiraIntegrationConfigRepository configRepository;
     private final JiraMilestoneScopeRepository scopeRepository;
     private final JiraIssueLinkRepository issueLinkRepository;
@@ -58,15 +59,31 @@ public class JiraMilestoneScopeService {
 
     // ── 저장/삭제 ─────────────────────────────────
 
+    @Transactional(readOnly = true)
+    public JiraResponse.MilestoneScope getScope(String boardId, String milestoneId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+        return scopeRepository.findByMilestoneId(milestoneId)
+            .filter(s -> s.getBoard().getId().equals(boardId))
+            .map(this::toDto)
+            .orElse(null);
+    }
+
     /**
-     * 스코프 업서트 + 즉시 claim. JQL이 잘못됐으면 JIRA 검색이 실패해 저장 전에 튕긴다 —
-     * 저장은 됐는데 화면이 비는 "조용한 오타"를 만들지 않기 위해 검증과 저장을 한 호출로 묶는다.
+     * 스코프 업서트.
+     *  · JQL 스코프(projectKey 없음) — 저장 + 즉시 claim. JQL이 잘못됐으면 검색이 실패해 저장 전에
+     *    튕긴다("저장됐는데 화면이 비는" 조용한 오타 방지).
+     *  · 프로젝트 스코프(projectKey 있음) — 프로젝트 존재를 검증하고 저장만 한다. 미러 셋업과
+     *    초기 import는 무거워서 호출 측(컨트롤러)이 별도 트랜잭션으로 이어 실행한다.
      */
     @Transactional
-    public JiraResponse.MilestoneScope saveScope(String boardId, String milestoneId, String userId, String jql) {
+    public JiraResponse.MilestoneScope saveScope(String boardId, String milestoneId, String userId,
+                                                 com.kanban.domain.integration.jira.dto.JiraRequest.MilestoneScopeSave request) {
         boardService.checkAdminOrAbove(boardId, userId);
-        if (jql == null || jql.isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        String jql = request.getJql();
+        String projectKey = request.getProjectKey() != null && !request.getProjectKey().isBlank()
+            ? request.getProjectKey().trim() : null;
+        if (projectKey == null && (jql == null || jql.isBlank())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE); // JQL 스코프는 JQL이 전부다
         }
         JiraIntegrationConfig config = configRepository.findActiveByBoardId(boardId)
             .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
@@ -76,30 +93,49 @@ public class JiraMilestoneScopeService {
             throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
         }
 
+        // 프로젝트 스코프는 저장 전에 프로젝트 접근을 검증 — 오타 난 키로 빈 스코프가 남지 않게.
+        if (projectKey != null && !projectKey.equals(config.getProjectKey())) {
+            try {
+                String token = oauthService.resolveToken(config);
+                jiraApiClient.getProject(JiraAuthContext.of(config, token), projectKey);
+            } catch (BusinessException e) {
+                throw e.getErrorCode() == ErrorCode.JIRA_ISSUE_NOT_FOUND
+                    ? new BusinessException(ErrorCode.JIRA_PROJECT_NOT_FOUND) : e;
+            }
+        }
+
         JiraMilestoneScope scope = scopeRepository.findByMilestoneId(milestoneId).orElse(null);
         if (scope == null) {
             User creator = userRepository.findById(userId).orElse(null);
             scope = scopeRepository.save(JiraMilestoneScope.builder()
                 .board(milestone.getBoard())
                 .milestone(milestone)
-                .jql(jql.trim())
                 .createdBy(creator)
                 .build());
-        } else {
-            scope.updateJql(jql.trim());
         }
+        scope.updateTarget(jql, projectKey, request.getAgileBoardId(), request.getWriteBackTargetStatusId());
 
-        int claimed = claimScope(config, scope); // JQL 오류면 여기서 throw → 롤백
-        return toDto(scope, claimed);
+        if (projectKey == null) {
+            // 프로젝트 스코프였다가 JQL 스코프로 되돌아온 경우 전용 미러를 걷는다.
+            if (scope.getMirrorColumnsJson() != null) {
+                connectionService.teardownScopeMirror(boardId, scope);
+            }
+            int claimed = claimScope(config, scope); // JQL 오류면 여기서 throw → 롤백
+            return toDto(scope, claimed);
+        }
+        return toDto(scope);
     }
 
-    /** 스코프 삭제 — 소속 링크는 보드 기본(null)으로 반납한다. Task·이슈 링크 자체는 보존. */
+    /** 스코프 삭제 — 전용 미러 블록을 걷고, 소속 링크는 보드 기본(null)으로 반납. Task·링크는 보존. */
     @Transactional
     public void deleteScope(String boardId, String milestoneId, String userId) {
         boardService.checkAdminOrAbove(boardId, userId);
         scopeRepository.findByMilestoneId(milestoneId).ifPresent(scope -> {
             if (!scope.getBoard().getId().equals(boardId)) {
                 throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
+            }
+            if (scope.getMirrorColumnsJson() != null) {
+                connectionService.teardownScopeMirror(boardId, scope);
             }
             issueLinkRepository.clearScope(scope.getId());
             scopeRepository.delete(scope);
@@ -133,7 +169,10 @@ public class JiraMilestoneScopeService {
         String token = oauthService.resolveToken(config);
         JiraAuthContext ctx = JiraAuthContext.of(config, token);
 
-        KeySearch search = fetchKeys(ctx, scope.getJql());
+        String jql = scope.getJql() != null && !scope.getJql().isBlank()
+            ? scope.getJql()
+            : "project = " + scope.getProjectKey();   // 프로젝트 스코프는 JQL이 선택
+        KeySearch search = fetchKeys(ctx, jql);
         String boardId = scope.getBoard().getId();
         List<JiraIssueLink> links = issueLinkRepository
             .findByBoardIdAndTargetType(boardId, JiraLinkTargetType.TASK);
@@ -192,6 +231,10 @@ public class JiraMilestoneScopeService {
         return JiraResponse.MilestoneScope.builder()
             .milestoneId(scope.getMilestone().getId())
             .jql(scope.getJql())
+            .projectKey(scope.getProjectKey())
+            .agileBoardId(scope.getAgileBoardId())
+            .writeBackTargetStatusId(scope.getWriteBackTargetStatusId())
+            .mirrorReady(scope.getMirrorColumnsJson() != null && !scope.getMirrorColumnsJson().isBlank())
             .active(Boolean.TRUE.equals(scope.getActive()))
             .claimedCount(claimedCount)
             .lastClaimedAt(scope.getLastClaimedAt())
