@@ -471,10 +471,10 @@ export function SprintBoard({
       else next.add(label);
       return next;
     });
-  // 카드 안 체크리스트 펼침 집합. 키는 "스코프:카드id" —
+  // 카드 안 체크리스트 "접힘" 집합. 기본은 펼침이라 접은 카드만 기억한다. 키는 "스코프:카드id" —
   // 구성원 뷰는 같은 태스크가 여러 컬럼에 서기 때문에 컬럼 주인별로 따로 기억한다.
   // (태스크 모달로 나가지 않고 카드 자리에서 전체 항목을 보고 체크하기 위한 상태)
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [collapsedCards, setCollapsedCards] = useState<Set<string>>(new Set());
   // 업무 리스트 헤더 "+" → 인라인 새 피쳐 입력. 제목만 받고 생성 후 상세 모달로 이어 작성한다.
   const [addingFeature, setAddingFeature] = useState(false);
   const [newFeatureTitle, setNewFeatureTitle] = useState("");
@@ -1253,7 +1253,7 @@ export function SprintBoard({
   };
   // 카드 체크리스트 펼치기/접기.
   const toggleCardExpand = (key: string) => {
-    setExpandedCards((prev) => {
+    setCollapsedCards((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -2450,7 +2450,7 @@ export function SprintBoard({
     const scoped = !!memberScope && myLines.length > 0;
     // 펼침 키 — 구성원 뷰는 컬럼 주인별로, Feature 뷰는 카드별로 기억한다.
     const cardKey = `${memberScope?.id ?? "feat"}:${it.id}`;
-    const expanded = expandedCards.has(cardKey);
+    const expanded = !collapsedCards.has(cardKey);
     // 진척의 분모: 구성원 뷰는 "내 몫", Feature 뷰는 태스크 전체(서버 롤업).
     const baseLines = scoped ? myLines : lines;
     const cTotal = scoped

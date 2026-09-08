@@ -1293,7 +1293,9 @@ export function ScheduleResourceView({
   // 행 자체가 숨어 "더 보기"를 펼친 결과가 보이지 않기 때문.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key !== "w" && e.key !== "W") return;
+      // 한글 IME 상태에서는 e.key가 "ㅈ"으로 들어오므로 물리 키(e.code)로도 판정
+      const isW = e.code === "KeyW" || e.key === "w" || e.key === "W";
+      if (!isW) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
@@ -3649,7 +3651,10 @@ export function ScheduleResourceView({
                                 className="shrink-0 w-4 h-4 mr-1.5 -ml-0.5 rounded-full bg-amber-400 text-amber-950 flex items-center justify-center"
                                 aria-hidden="true"
                               >
-                                <Highlighter className="w-2.5 h-2.5" strokeWidth={3} />
+                                <Highlighter
+                                  className="w-2.5 h-2.5"
+                                  strokeWidth={3}
+                                />
                               </span>
                             )}
 
