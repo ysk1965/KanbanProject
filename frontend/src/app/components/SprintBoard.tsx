@@ -4539,10 +4539,11 @@ export function SprintBoard({
                 const takeCol =
                   canEdit && !!scopeSprintId && uiFeatures.showBacklog;
                 // 피쳐 행·태스크 행·컬럼 헤더가 같은 그리드를 쓴다 — 숫자가 한 축에 정렬되어야
-                // 리스트가 표처럼 스캔된다. [이름 | 체크(바+분수) | 담김 | 셰브런]
+                // 리스트가 표처럼 스캔된다. [이름 | 체크(분수) | 담김 | 셰브런]
+                // 체크는 분수만 — 미니바까지 두면 이름 칸이 좁아져 피쳐명이 잘린다.
                 const rowGrid = takeCol
-                  ? "grid-cols-[minmax(0,1fr)_92px_56px_20px]"
-                  : "grid-cols-[minmax(0,1fr)_92px_20px]";
+                  ? "grid-cols-[minmax(0,1fr)_48px_56px_20px]"
+                  : "grid-cols-[minmax(0,1fr)_48px_20px]";
                 const q = listQuery.trim().toLowerCase();
                 const taskMatches = (t: SprintItemCard) =>
                   t.title.toLowerCase().includes(q);
@@ -4955,10 +4956,6 @@ export function SprintBoard({
                               taken &&
                               !!col &&
                               col.kind !== "START";
-                            const rowPct =
-                              cTotal > 0
-                                ? Math.round((cDone / cTotal) * 100)
-                                : 0;
                             return (
                               <div
                                 key={it.id}
@@ -5048,7 +5045,7 @@ export function SprintBoard({
                                     </button>
                                   )}
                                 </div>
-                                {/* 체크 — 미니바 + 분수. 완료 행은 에메랄드 풀바. */}
+                                {/* 체크 — 분수만. 완료 행은 에메랄드. */}
                                 <div
                                   className="flex items-center justify-end gap-1.5"
                                   title={
@@ -5058,26 +5055,14 @@ export function SprintBoard({
                                   }
                                 >
                                   {cTotal > 0 && (
-                                    <>
-                                      <span className="w-8 h-1 rounded-full bg-foreground/10 overflow-hidden shrink-0">
-                                        <span
-                                          className={`block h-full transition-[width] motion-reduce:transition-none ${
-                                            it.completed
-                                              ? "bg-emerald-500"
-                                              : "bg-foreground/40"
-                                          }`}
-                                          style={{
-                                            width: `${it.completed ? 100 : rowPct}%`,
-                                          }}
-                                        />
+                                    <span className="text-xs tabular-nums text-slate-500">
+                                      <span
+                                        className={`font-bold ${it.completed ? "text-emerald-500" : "text-slate-400"}`}
+                                      >
+                                        {it.completed ? cTotal : cDone}
                                       </span>
-                                      <span className="text-xs tabular-nums text-slate-500">
-                                        <span className="font-bold text-slate-400">
-                                          {it.completed ? cTotal : cDone}
-                                        </span>
-                                        /{cTotal}
-                                      </span>
-                                    </>
+                                      /{cTotal}
+                                    </span>
                                   )}
                                 </div>
                                 {/* 담김 — 담김(✓, 호버 시 빼기) / 담기 버튼 / 옮겨 담기(호버) */}
@@ -5255,7 +5240,7 @@ export function SprintBoard({
                                     </button>
                                   )}
                                 </div>
-                                {/* 체크 — 미니바 + 분수. %는 툴팁으로. */}
+                                {/* 체크 — 분수만. %는 툴팁으로. */}
                                 <div
                                   className="flex items-center justify-end gap-1.5"
                                   title={
@@ -5265,28 +5250,18 @@ export function SprintBoard({
                                   }
                                 >
                                   {isEmpty ? (
-                                    <span className="text-xs text-slate-500">
+                                    <span className="text-xs text-slate-500 whitespace-nowrap">
                                       태스크 0
                                     </span>
                                   ) : (
-                                    <>
-                                      <span className="w-9 h-1 rounded-full bg-foreground/10 overflow-hidden shrink-0">
-                                        <span
-                                          className={`block h-full transition-[width] motion-reduce:transition-none ${
-                                            isComplete
-                                              ? "bg-emerald-500"
-                                              : "bg-foreground/50"
-                                          }`}
-                                          style={{ width: `${pct}%` }}
-                                        />
+                                    <span className="text-xs tabular-nums text-slate-400">
+                                      <span
+                                        className={`font-bold ${isComplete ? "text-emerald-500" : "text-foreground"}`}
+                                      >
+                                        {feat.unitDone}
                                       </span>
-                                      <span className="text-xs tabular-nums text-slate-400">
-                                        <span className="font-bold text-foreground">
-                                          {feat.unitDone}
-                                        </span>
-                                        /{feat.unitTotal}
-                                      </span>
-                                    </>
+                                      /{feat.unitTotal}
+                                    </span>
                                   )}
                                 </div>
                                 {/* 담김 — 담긴 태스크/전체 태스크. 덜 담긴 피쳐는 호버 시 "남은 n개 담기". */}
