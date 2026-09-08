@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { isNative } from '../utils/platform';
 
 const STORAGE_KEY = 'bridge_holiday_country';
@@ -180,11 +180,18 @@ async function computeLibraryHolidays(
     if (!cancelled) setHolidayMap(new Map());
     return;
   }
+  const map = await buildLibraryHolidayMap(country, year);
+  if (!cancelled) setHolidayMap(map);
+}
 
-  if (!HolidaysClass) await loadHolidays();
-  if (cancelled) return;
-
+/** date-holidays 라이브러리로 한 해의 공휴일 맵을 만든다 (순수 함수, 상태 없음) */
+async function buildLibraryHolidayMap(
+  country: string,
+  year: number,
+): Promise<Map<string, HolidayInfo[]>> {
   const map = new Map<string, HolidayInfo[]>();
+  if (!country) return map;
+  if (!HolidaysClass) await loadHolidays();
   try {
     const hd = new HolidaysClass(country);
     const list = hd.getHolidays(year);
@@ -213,5 +220,86 @@ async function computeLibraryHolidays(
     }
   } catch { /* unsupported country */ }
 
-  if (!cancelled) setHolidayMap(map);
+  return map;
+}
+
+/** 소스 설정(기기/라이브러리/끄기)에 따라 한 해의 공휴일 맵을 만든다 */
+async function resolveHolidayMap(
+  source: HolidaySource,
+  country: string,
+  year: number,
+): Promise<Map<string, HolidayInfo[]>> {
+  if (source === 'off') return new Map();
+  if (source === 'device' && isNative()) {
+    try {
+      const { fetchDeviceHolidays, requestCalendarPermission } = await import('../utils/nativeCalendar');
+      const perm = await requestCalendarPermission();
+      if (perm === 'granted') {
+        const deviceMap = await fetchDeviceHolidays(year);
+        if (deviceMap && deviceMap.size > 0) return deviceMap;
+      }
+    } catch (e) {
+      console.warn('[useHolidays] Device calendar error, falling back to library:', e);
+    }
+  }
+  return buildLibraryHolidayMap(country, year);
+}
+
+/**
+ * 여러 연도의 공휴일을 하나의 맵으로 합쳐 준다.
+ * 타임라인처럼 표시 범위가 스크롤로 늘어나는 뷰용 — `years`가 바뀌면 새로 필요한 해만 추가 로드한다.
+ */
+export function useHolidaysForYears(locale: string, years: number[]) {
+  const defaultCountry = LOCALE_TO_COUNTRY[locale] || 'US';
+
+  const [country, setCountry] = useState<string>(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEY) || defaultCountry;
+    } catch {
+      return defaultCountry;
+    }
+  });
+  const [holidaySource] = useState<HolidaySource>(getInitialSource);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) {
+        setCountry(LOCALE_TO_COUNTRY[locale] || 'US');
+      }
+    } catch { /* ignore */ }
+  }, [locale]);
+
+  // 연도별 캐시 — 키에 소스·국가를 넣어 설정이 바뀌면 자연히 다시 계산된다
+  const cacheRef = useRef(new Map<string, Map<string, HolidayInfo[]>>());
+  const [version, setVersion] = useState(0);
+  const yearsKey = years.join(',');
+
+  useEffect(() => {
+    let cancelled = false;
+    const missing = years.filter((y) => !cacheRef.current.has(`${holidaySource}:${country}:${y}`));
+    if (missing.length === 0) return;
+    (async () => {
+      for (const y of missing) {
+        const map = await resolveHolidayMap(holidaySource, country, y);
+        if (cancelled) return;
+        cacheRef.current.set(`${holidaySource}:${country}:${y}`, map);
+      }
+      if (!cancelled) setVersion((v) => v + 1);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [yearsKey, country, holidaySource]);
+
+  const holidayMap = useMemo(() => {
+    const merged = new Map<string, HolidayInfo[]>();
+    for (const y of years) {
+      const m = cacheRef.current.get(`${holidaySource}:${country}:${y}`);
+      if (m) m.forEach((v, k) => merged.set(k, v));
+    }
+    return merged;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [yearsKey, country, holidaySource, version]);
+
+  return { holidayMap, country };
 }

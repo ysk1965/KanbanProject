@@ -554,6 +554,16 @@ html {
   animation: spot-pulse 4s ease-in-out infinite;
 }
 
+/* 워크로드 하이라이트 — 켜질 때 한 번 살짝 커졌다 제자리로 (reduced-motion 은 아래 안전망이 처리) */
+@keyframes highlight-settle {
+  0% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.animate-highlight-settle {
+  animation: highlight-settle 0.45s ease-out;
+}
+
 .gradient-blur {
   position: fixed;
   width: 600px;

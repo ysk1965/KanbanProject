@@ -73,7 +73,7 @@ export function ChecklistDragItem({
         bg-bridge-dark overflow-hidden select-none
         transition-all group
         ${isHighlighted
-          ? 'border-bridge-accent/50 ring-2 ring-bridge-accent/70 bg-bridge-accent/5'
+          ? 'border-amber-400/50 ring-2 ring-amber-400 bg-amber-400/5'
           : 'border-foreground/[0.08] hover:border-foreground/[0.12]'}
         ${isScheduled
           ? 'opacity-40 cursor-pointer hover:opacity-60'

@@ -26,6 +26,7 @@ import {
   CalendarPlus,
   Clock,
   MessageSquare,
+  X,
 } from "lucide-react";
 import { BoardMember } from "../ShareBoardModal";
 import { BoardContractor, Feature, JobRole, Milestone } from "../../types";
@@ -61,7 +62,7 @@ import {
   buildMilestoneColorMap,
   resolveMilestoneColor,
 } from "../../utils/milestoneColor";
-import { useHolidays, HolidayInfo } from "../../hooks/useHolidays";
+import { useHolidaysForYears, HolidayInfo } from "../../hooks/useHolidays";
 
 // ========================================
 // Constants
@@ -100,6 +101,14 @@ const DRAG_SLOP = 6;
 /** 외부 카드를 끌 때 타임라인을 자동으로 밀어 주는 가장자리 폭(px)과 한 번에 미는 양 */
 const EDGE_SCROLL_ZONE = 48;
 const EDGE_SCROLL_STEP = 18;
+
+/** 타임라인 초기 범위 — 오늘 기준 과거/미래 일수. 스크롤이 끝에 가까워지면 양쪽으로 계속 늘어난다 */
+const INITIAL_PAST_DAYS = 84; // 12주
+const INITIAL_FUTURE_DAYS = 280; // 40주
+/** 끝에 닿았을 때 한 번에 늘리는 일수 */
+const EXTEND_DAYS = 84;
+/** 가장자리에서 이 칸 수 안으로 들어오면 미리 늘린다 */
+const EXTEND_THRESHOLD_DAYS = 14;
 
 /** 주말/공휴일/부재 빗금(hatching) 오버레이 배경 패턴 */
 const HATCH_WEEKEND_BG = `url("data:image/svg+xml,%3Csvg width='8' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-1 5L5-1M3 9L9 3' stroke='rgba(255,255,255,0.10)' stroke-width='1'/%3E%3C/svg%3E"), rgba(255,255,255,0.03)`;
@@ -603,33 +612,35 @@ export function ScheduleResourceView({
     hasTimeblockZone: boolean;
   } | null>(null);
 
-  // ─── Timeline range: wide fixed range (12 weeks before + 40 weeks after today) ───
-  const { timelineDays, todayIndex, rangeStart, rangeEnd } = useMemo(() => {
+  // ─── Timeline range: 오늘 기준 초기 창에서 시작해 스크롤이 끝에 닿으면 양쪽으로 늘어난다 ───
+  const [range, setRange] = useState<{ start: string; end: string }>(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const todayStr = formatDateStr(today);
+    return {
+      start: addDaysToDate(todayStr, -INITIAL_PAST_DAYS),
+      end: addDaysToDate(todayStr, INITIAL_FUTURE_DAYS),
+    };
+  });
+  const rangeStart = range.start;
+  const rangeEnd = range.end;
 
-    const start = new Date(today);
-    start.setDate(start.getDate() - 84); // 12 weeks before
-    const end = new Date(today);
-    end.setDate(end.getDate() + 280); // 40 weeks after
-
+  const { timelineDays, todayIndex } = useMemo(() => {
     const days: Date[] = [];
-    const cur = new Date(start);
+    const cur = parseDate(rangeStart);
+    const end = parseDate(rangeEnd);
     while (cur <= end) {
       days.push(new Date(cur));
       cur.setDate(cur.getDate() + 1);
     }
-
-    const todayStr = formatDateStr(today);
-    const todayIdx = days.findIndex((d) => formatDateStr(d) === todayStr);
-
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayIdx = diffDays(rangeStart, formatDateStr(today));
     return {
       timelineDays: days,
-      todayIndex: todayIdx,
-      rangeStart: formatDateStr(start),
-      rangeEnd: formatDateStr(end),
+      todayIndex: todayIdx >= 0 && todayIdx < days.length ? todayIdx : -1,
     };
-  }, []);
+  }, [rangeStart, rangeEnd]);
 
   // ─── 월 세그먼트 — 헤더 월 밴드 + 본문 월 경계선 공용 (365칸 → 13개 내외) ───
   const monthSegments = useMemo(() => {
@@ -659,16 +670,15 @@ export function ScheduleResourceView({
     return segs;
   }, [timelineDays]);
 
-  // ─── Holidays (covers ~52w timeline crossing up to 3 calendar years) ───
-  const currentYear = new Date().getFullYear();
-  const { holidayMap: hPrev } = useHolidays(i18n.language, currentYear - 1);
-  const { holidayMap: hCur } = useHolidays(i18n.language, currentYear);
-  const { holidayMap: hNext } = useHolidays(i18n.language, currentYear + 1);
-  const holidayMap = useMemo(() => {
-    const merged = new Map<string, HolidayInfo[]>();
-    [hPrev, hCur, hNext].forEach((m) => m.forEach((v, k) => merged.set(k, v)));
-    return merged;
-  }, [hPrev, hCur, hNext]);
+  // ─── Holidays — 타임라인이 걸치는 모든 연도 (범위가 늘어나면 새 해만 추가 로드) ───
+  const holidayYears = useMemo(() => {
+    const from = parseDate(rangeStart).getFullYear();
+    const to = parseDate(rangeEnd).getFullYear();
+    const years: number[] = [];
+    for (let y = from; y <= to; y++) years.push(y);
+    return years;
+  }, [rangeStart, rangeEnd]);
+  const { holidayMap } = useHolidaysForYears(i18n.language, holidayYears);
 
   // ─── 특별 일정 파생 (달력 예외 병합 / 팀 이벤트 / 개인 부재) ───
   const { mergedHolidayMap, forcedWorkdaySet, teamEvents, memberAbsencesById } =
@@ -746,9 +756,12 @@ export function ScheduleResourceView({
   );
 
   // ─── Fetch data ───
+  /** 마지막 요청 번호 — 범위 확장으로 연달아 나간 요청 중 오래된(좁은 범위) 응답이 새 것을 덮지 않게 한다 */
+  const fetchSeqRef = useRef(0);
   const fetchData = useCallback(
     async (silent = false) => {
       if (!boardId) return;
+      const seq = ++fetchSeqRef.current;
       try {
         if (!silent) setLoading(true);
         const [result, contractorList, eventList] = await Promise.all([
@@ -759,6 +772,7 @@ export function ScheduleResourceView({
           contractorAPI.list(boardId).catch(() => ({ contractors: [] })),
           calendarEventAPI.list(boardId).catch(() => ({ events: [] })),
         ]);
+        if (seq !== fetchSeqRef.current) return;
         setData(result);
         setContractors(contractorList.contractors as BoardContractor[]);
         setCalendarEvents(eventList.events);
@@ -771,9 +785,13 @@ export function ScheduleResourceView({
     [boardId, rangeStart, rangeEnd],
   );
 
+  // 첫 로드(보드 진입)만 전체 로딩 화면, 범위 확장으로 인한 재조회는 조용히 — 스크롤 컨테이너를 살려 두기 위해
+  const loadedBoardRef = useRef<string | null>(null);
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const silent = loadedBoardRef.current === boardId;
+    loadedBoardRef.current = boardId;
+    fetchData(silent);
+  }, [fetchData, boardId]);
 
   // Refresh when parent triggers (e.g. after external drop) — debounced to batch rapid updates
   useEffect(() => {
@@ -783,11 +801,18 @@ export function ScheduleResourceView({
     }
   }, [refreshTrigger, fetchData]);
 
-  // Scroll to today on mount
+  // Scroll to today on mount — 범위 확장으로 todayIndex가 바뀔 때는 다시 뛰지 않는다
+  const didInitialScrollRef = useRef(false);
   useEffect(() => {
-    if (!loading && scrollContainerRef.current && todayIndex >= 0) {
+    if (loading) {
+      didInitialScrollRef.current = false;
+      return;
+    }
+    if (didInitialScrollRef.current) return;
+    if (scrollContainerRef.current && todayIndex >= 0) {
       const scrollTo = todayIndex * dayWidth - 4 * dayWidth;
       scrollContainerRef.current.scrollLeft = Math.max(0, scrollTo);
+      didInitialScrollRef.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, todayIndex]);
@@ -817,6 +842,58 @@ export function ScheduleResourceView({
     );
   }, [dayWidth]);
 
+  // ─── 무한 스크롤: 양 끝에 가까워지면 범위를 늘린다 ───
+  // 요청은 방향별로 한 번에 하나만 — 늘어난 범위가 렌더될 때까지 잠근다.
+  const extendLockRef = useRef({ past: false, future: false });
+  const externalDragRef = useRef(externalDragItem);
+  externalDragRef.current = externalDragItem;
+  const maybeExtendRange = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const threshold = EXTEND_THRESHOLD_DAYS * dayWidth;
+    const { scrollLeft, clientWidth } = container;
+
+    // 과거로 늘리면 모든 day-index가 밀린다. 드래그 중에는 시작 인덱스가 어긋나므로 미룬다.
+    const dragging =
+      dragStateRef.current ||
+      drawStateRef.current ||
+      eventDrawRef.current ||
+      bandDragRef.current ||
+      externalDragRef.current;
+    if (scrollLeft < threshold && !extendLockRef.current.past && !dragging) {
+      extendLockRef.current.past = true;
+      setRange((r) => ({ ...r, start: addDaysToDate(r.start, -EXTEND_DAYS) }));
+    }
+
+    const contentWidth = LEFT_COL_WIDTH + timelineDays.length * dayWidth;
+    if (
+      scrollLeft + clientWidth > contentWidth - threshold &&
+      !extendLockRef.current.future
+    ) {
+      extendLockRef.current.future = true;
+      setRange((r) => ({ ...r, end: addDaysToDate(r.end, EXTEND_DAYS) }));
+    }
+  }, [dayWidth, timelineDays.length]);
+
+  // 과거로 늘어난 만큼 scrollLeft를 밀어 화면이 제자리에 머물게 한다 (paint 전에 보정)
+  const prevRangeStartRef = useRef(rangeStart);
+  useLayoutEffect(() => {
+    const prev = prevRangeStartRef.current;
+    if (prev === rangeStart) return;
+    prevRangeStartRef.current = rangeStart;
+    const shift = diffDays(rangeStart, prev);
+    const container = scrollContainerRef.current;
+    if (container && shift !== 0) {
+      container.scrollLeft += shift * dayWidth;
+    }
+    extendLockRef.current.past = false;
+    measureVisibleRange();
+  }, [rangeStart, dayWidth, measureVisibleRange]);
+
+  useLayoutEffect(() => {
+    extendLockRef.current.future = false;
+  }, [rangeEnd]);
+
   // onScroll 핸들러 (rAF 쓰로틀)
   const scrollRafRef = useRef<number | null>(null);
   const handleTimelineScroll = useCallback(() => {
@@ -824,8 +901,9 @@ export function ScheduleResourceView({
     scrollRafRef.current = requestAnimationFrame(() => {
       scrollRafRef.current = null;
       measureVisibleRange();
+      maybeExtendRange();
     });
-  }, [measureVisibleRange]);
+  }, [measureVisibleRange, maybeExtendRange]);
 
   // 마운트/줌 변경 시 측정 + 윈도우 리사이즈 대응
   useEffect(() => {
@@ -1305,6 +1383,40 @@ export function ScheduleResourceView({
     const timer = setTimeout(() => setHighlightedItemId(null), 2000);
     return () => clearTimeout(timer);
   }, [scrollToItem, data, getBarPosition]);
+
+  // ─── 하이라이트 요약 (칩 제목 + 마커를 달 행) ───
+  const highlightSummary = useMemo(() => {
+    if (!highlightedTaskId) return null;
+    const rowIds = new Set<string>();
+    let title: string | null = null;
+    for (const row of rows) {
+      for (const item of row.items) {
+        if (item.task?.id !== highlightedTaskId) continue;
+        rowIds.add(row.id);
+        if (!title) title = item.task?.title || item.title || null;
+      }
+    }
+    return { title, rowIds };
+  }, [highlightedTaskId, rows]);
+
+  // 하이라이트 중 Esc 로 해제 (설정 팝오버 등 다른 Esc 핸들러와 독립)
+  useEffect(() => {
+    if (!highlightedTaskId || !onToggleHighlight) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      )
+        return;
+      onToggleHighlight(highlightedTaskId);
+    };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [highlightedTaskId, onToggleHighlight]);
 
   // ─── Milestone bar positions ───
   const milestoneBarData = useMemo(() => {
@@ -2332,6 +2444,32 @@ export function ScheduleResourceView({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-bridge-dark relative">
+      {/* 하이라이트 중 칩 — 켜져 있음을 알리고 바로 해제할 수 있는 유일한 자리 */}
+      {highlightedTaskId && highlightSummary && (
+        <div
+          className="absolute right-4 z-30 inline-flex items-center gap-2 pl-3 pr-1.5 py-1 rounded-full
+            bg-amber-400 text-amber-950 text-xs font-bold shadow-[0_6px_18px_rgba(0,0,0,0.35)] max-w-[60%]"
+          style={{ top: HEADER_HEIGHT + 8 }}
+          role="status"
+        >
+          <Highlighter className="w-3.5 h-3.5 shrink-0" strokeWidth={2.5} />
+          <span className="truncate">
+            {highlightSummary.title ??
+              t("schedule.resource.highlight", "하이라이트")}
+          </span>
+          {onToggleHighlight && (
+            <button
+              type="button"
+              onClick={() => onToggleHighlight(highlightedTaskId)}
+              className="shrink-0 w-5 h-5 rounded-full bg-amber-950/15 hover:bg-amber-950/30 flex items-center justify-center transition-colors"
+              aria-label={t("schedule.resource.unhighlight", "하이라이트 해제")}
+              title={t("schedule.resource.unhighlight", "하이라이트 해제")}
+            >
+              <X className="w-3 h-3" strokeWidth={3} />
+            </button>
+          )}
+        </div>
+      )}
       {/* Main scrollable container */}
       <div
         ref={scrollContainerRef}
@@ -3146,6 +3284,11 @@ export function ScheduleResourceView({
                 BAR_TOP_OFFSET * 2,
             );
 
+            // 이 행에 하이라이트된 태스크의 바가 있으면 이름 컬럼에 앰버 마커 —
+            // 가로 스크롤로 바가 화면 밖에 있어도 위치를 알 수 있다
+            const isHighlightRow =
+              !!highlightSummary && highlightSummary.rowIds.has(row.id);
+
             return (
               <Fragment key={row.id}>
                 {groupHeader}
@@ -3158,7 +3301,8 @@ export function ScheduleResourceView({
                   {/* Left label */}
                   <div
                     className={`shrink-0 sticky left-0 z-10 bg-bridge-obsidian border-r border-foreground/[0.08]
-                    flex flex-col ${row.kind === "contractor" ? "pl-8 pr-4" : "px-4"} pt-3 ${isCrossRowTarget ? "ring-2 ring-bridge-accent/30 ring-inset" : ""}`}
+                    flex flex-col ${row.kind === "contractor" ? "pl-8 pr-4" : "px-4"} pt-3 ${isCrossRowTarget ? "ring-2 ring-bridge-accent/30 ring-inset" : ""}
+                    ${isHighlightRow ? "shadow-[inset_3px_0_0_0_#fbbf24]" : ""}`}
                     style={{
                       width: LEFT_COL_WIDTH,
                       minHeight: dynamicRowHeight,
@@ -3203,7 +3347,9 @@ export function ScheduleResourceView({
                         </div>
                       )}
                       <div className="flex flex-col min-w-0 mt-0.5">
-                        <span className="text-sm font-medium text-foreground truncate">
+                        <span
+                          className={`text-sm font-medium truncate ${isHighlightRow ? "text-amber-600 dark:text-amber-400" : "text-foreground"}`}
+                        >
                           {row.name}
                         </span>
                         {row.kind === "contractor" && (
@@ -3392,13 +3538,11 @@ export function ScheduleResourceView({
                         if (!pos) return null;
 
                         const lane = barLanes[item.id] || 0;
-                        // Hide bars beyond MAX_VISIBLE_LANES when collapsed
-                        if (
-                          !isExpanded &&
-                          needsCollapse &&
-                          lane >= MAX_VISIBLE_LANES
-                        )
-                          return null;
+                        // 행 높이는 "현재 가시 날짜 범위의 바"만 기준으로 잡히지만 레인은
+                        // 전역이라, 화면 밖 바가 더 깊은 레인에 있으면 행 아래로 삐져나와
+                        // 좌측 이름 컬럼 밑에 노출된다. 행 높이에 못 들어가는 레인은
+                        // (접힘으로 숨긴 레인 포함) 어차피 가시 범위 밖이므로 그리지 않는다.
+                        if (lane > visibleMaxLane) return null;
 
                         const featureColor = item.feature?.color || "#6366F1";
                         const barTop =
@@ -3408,6 +3552,12 @@ export function ScheduleResourceView({
                         const isTaskHighlighted =
                           !!highlightedTaskId &&
                           item.task?.id === highlightedTaskId;
+                        // 하이라이트 중이면 대상 외 바는 흐리게 — 바 색과 무관하게 대상이 드러난다
+                        const isSpotlightDimmed =
+                          !!highlightedTaskId &&
+                          !isTaskHighlighted &&
+                          !isHighlightTarget &&
+                          !isItemDragging;
                         // 축 이동 판정 중 — 바는 원래 칸에 남아 자리를 비울 모습이 된다
                         const isVacating =
                           isItemDragging && !!dragState?.axisZone;
@@ -3430,7 +3580,8 @@ export function ScheduleResourceView({
                                 : ""
                           }
                           ${isHighlightTarget ? "z-30 ring-2 ring-white/70 shadow-[0_0_16px_rgba(255,255,255,0.4)] animate-pulse" : ""}
-                          ${isTaskHighlighted && !isHighlightTarget ? "z-20 ring-2 ring-bridge-accent shadow-[0_0_16px_rgba(99,102,241,0.5)]" : ""}`}
+                          ${isTaskHighlighted && !isHighlightTarget ? "z-20 ring-2 ring-amber-400 ring-offset-2 ring-offset-amber-400/25 shadow-[0_8px_24px_rgba(0,0,0,0.55)] animate-highlight-settle" : ""}
+                          ${isSpotlightDimmed ? "opacity-25 saturate-[.3]" : ""}`}
                             style={{
                               left: pos.left,
                               width: pos.width,
@@ -3491,6 +3642,16 @@ export function ScheduleResourceView({
                                 )
                               }
                             />
+
+                            {/* 하이라이트 핀 — 우클릭 메뉴의 Highlighter 와 같은 은유 */}
+                            {isTaskHighlighted && !isHighlightTarget && (
+                              <span
+                                className="shrink-0 w-4 h-4 mr-1.5 -ml-0.5 rounded-full bg-amber-400 text-amber-950 flex items-center justify-center"
+                                aria-hidden="true"
+                              >
+                                <Highlighter className="w-2.5 h-2.5" strokeWidth={3} />
+                              </span>
+                            )}
 
                             {/* Content */}
                             <span
