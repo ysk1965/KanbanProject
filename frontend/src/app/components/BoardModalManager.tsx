@@ -25,6 +25,7 @@ import { JobRoleManageModal } from "./JobRoleManageModal";
 import { SubscriptionModal } from "./SubscriptionModal";
 import { InquiryModal } from "./InquiryModal";
 import { MilestoneModal } from "./MilestoneModal";
+import { MilestoneConsoleModal } from "./MilestoneConsoleModal";
 import { MilestoneOnboardingModal } from "./MilestoneOnboardingModal";
 import { UpgradeModal } from "./UpgradeModal";
 import { PremiumBenefitsModal } from "./PremiumBenefitsModal";
@@ -288,6 +289,8 @@ interface BoardModalManagerProps {
   onSaveMilestone: (data: any) => void;
   onDeleteMilestone: (id: string) => void;
   onSelectMilestone: (milestone: Milestone | null) => void;
+  /** 마일스톤 콘솔에서 체크리스트 카드 클릭 → 태스크 상세 */
+  onOpenChecklistItem?: (taskId: string, checklistItemId?: string) => void;
   // Milestone Onboarding
   isMilestoneOnboardingOpen: boolean;
   onCloseMilestoneOnboarding: () => void;
@@ -496,6 +499,10 @@ function OrgSeatLimitModalInline({
 
 export function BoardModalManager(props: BoardModalManagerProps) {
   const [isJobRoleManagerOpen, setIsJobRoleManagerOpen] = useState(false);
+  // 마일스톤 관리 모달에서 "콘솔 열기"로 띄우는 콘솔 대상 마일스톤
+  const [consoleMilestoneId, setConsoleMilestoneId] = useState<string | null>(
+    null,
+  );
   return (
     <>
       <FeatureDetailModal
@@ -652,7 +659,30 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         onSave={props.onSaveMilestone}
         onDelete={props.onDeleteMilestone}
         onSelectMilestone={props.onSelectMilestone}
+        onOpenFeature={props.onOpenFeature}
+        onOpenConsole={(milestoneId) => setConsoleMilestoneId(milestoneId)}
       />
+
+      {/* 마일스톤 관리 모달 → 콘솔 (닫으면 선택 마일스톤 상세를 다시 받아 KPI 갱신) */}
+      {consoleMilestoneId && (
+        <MilestoneConsoleModal
+          open={!!consoleMilestoneId}
+          onClose={() => {
+            setConsoleMilestoneId(null);
+            if (props.selectedMilestone) {
+              props.onSelectMilestone(props.selectedMilestone);
+            }
+          }}
+          boardId={props.boardId}
+          milestoneId={consoleMilestoneId}
+          milestoneTitle={
+            props.milestones.find((m) => m.id === consoleMilestoneId)?.title
+          }
+          milestones={props.milestones}
+          canEdit={props.canEdit}
+          onOpenChecklistItem={props.onOpenChecklistItem}
+        />
+      )}
 
       <MilestoneOnboardingModal
         isOpen={props.isMilestoneOnboardingOpen}

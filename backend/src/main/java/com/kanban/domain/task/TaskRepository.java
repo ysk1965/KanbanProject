@@ -189,7 +189,8 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     List<Task> findByFeatureIds(@Param("featureIds") List<String> featureIds);
 
     /**
-     * 보드의 (마일스톤, 피처)별 태스크 수 집계 — 마일스톤 진행률 + 마일스톤-스코프 피처 카운트용.
+     * 보드의 (마일스톤, 피처)별 태스크 수 집계 — 마일스톤-스코프 피처 태스크 카운트용.
+     * (마일스톤 진행률은 ChecklistItemRepository.countByMilestoneAndFeature의 체크리스트 항목 기준으로 계산한다.)
      * 반환: [milestoneId, featureId, totalCount(Long), completedCount(Long)]
      */
     @Query("SELECT t.milestone.id, t.feature.id, COUNT(t), " +

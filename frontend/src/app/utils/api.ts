@@ -775,6 +775,10 @@ export interface MilestoneFeatureInfoResponse {
   color: string;
   total_tasks: number;
   completed_tasks: number;
+  total_items: number;
+  completed_items: number;
+  overdue_items: number;
+  unassigned_items: number;
   progress_percentage: number;
   is_primary: boolean;
 }
@@ -796,6 +800,12 @@ export interface MilestoneDetailResponse {
   end_date: string;
   feature_count: number;
   progress_percentage: number;
+  total_tasks: number;
+  completed_tasks: number;
+  total_items: number;
+  completed_items: number;
+  overdue_items: number;
+  unassigned_items: number;
   features: MilestoneFeatureInfoResponse[];
   created_by: { id: string; name: string };
   created_at: string;

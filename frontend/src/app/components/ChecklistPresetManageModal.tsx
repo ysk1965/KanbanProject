@@ -1,13 +1,27 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { GripVertical, ListChecks, Loader2, Plus, Trash2 } from "lucide-react";
 import {
-  ChevronDown,
-  ChevronUp,
-  ListChecks,
-  Loader2,
-  Plus,
-  Trash2,
-} from "lucide-react";
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  restrictToParentElement,
+  restrictToVerticalAxis,
+} from "@dnd-kit/modifiers";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { ChecklistPreset } from "../types";
 import { checklistPresetService } from "../utils/services";
 import { MotionModal } from "./ui/MotionModal";
@@ -49,7 +63,7 @@ const toDraft = (preset: ChecklistPreset | undefined): Draft =>
 
 /**
  * 체크리스트 프리셋 관리 모달 — 좌측 목록에서 고르고 우측에서
- * 이름/항목(인라인 수정·추가·삭제·순서 이동)을 편집한다. 저장은 PUT 전체 교체.
+ * 이름/항목(인라인 수정·추가·삭제·드래그 정렬)을 편집한다. 저장은 PUT 전체 교체.
  */
 export function ChecklistPresetManageModal({
   open,
@@ -117,15 +131,20 @@ export function ChecklistPresetManageModal({
   const removeItem = (key: string) =>
     setDraft((d) => ({ ...d, items: d.items.filter((i) => i.key !== key) }));
 
-  const moveItem = (key: string, dir: -1 | 1) =>
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
     setDraft((d) => {
-      const idx = d.items.findIndex((i) => i.key === key);
-      const to = idx + dir;
-      if (idx < 0 || to < 0 || to >= d.items.length) return d;
-      const items = [...d.items];
-      [items[idx], items[to]] = [items[to], items[idx]];
-      return { ...d, items };
+      const from = d.items.findIndex((i) => i.key === active.id);
+      const to = d.items.findIndex((i) => i.key === over.id);
+      if (from < 0 || to < 0) return d;
+      return { ...d, items: arrayMove(d.items, from, to) };
     });
+  };
 
   const addItem = () => {
     const title = newItemTitle.trim();
@@ -218,9 +237,9 @@ export function ChecklistPresetManageModal({
       </div>
 
       {/* Body */}
-      <div className="px-5 pb-5 pt-4 flex gap-4 min-h-[280px]">
+      <div className="px-5 pb-5 pt-4 flex gap-4 min-h-[480px] max-h-[80vh]">
         {/* 좌: 프리셋 목록 */}
-        <div className="w-44 flex-shrink-0 border-r border-foreground/[0.08] pr-3 space-y-0.5 max-h-80 overflow-y-auto custom-scrollbar">
+        <div className="w-44 flex-shrink-0 border-r border-foreground/[0.08] pr-3 space-y-0.5 overflow-y-auto custom-scrollbar">
           {presets.map((p) => (
             <button
               key={p.id}
@@ -254,7 +273,7 @@ export function ChecklistPresetManageModal({
         </div>
 
         {/* 우: 편집 영역 */}
-        <div className="flex-1 min-w-0 space-y-3">
+        <div className="flex-1 min-w-0 flex flex-col gap-3 min-h-0">
           <label className="block">
             <span className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">
               {t("milestone.preset.nameLabel", { defaultValue: "이름" })}
@@ -271,54 +290,33 @@ export function ChecklistPresetManageModal({
             />
           </label>
 
-          <div>
+          <div className="flex-1 min-h-0 flex flex-col">
             <span className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">
               {t("milestone.preset.itemsLabel", { defaultValue: "항목" })}
             </span>
-            <div className="space-y-1 max-h-52 overflow-y-auto custom-scrollbar">
-              {draft.items.map((item, idx) => (
-                <div key={item.key} className="flex items-center gap-1.5">
-                  <input
-                    value={item.title}
-                    onChange={(e) => patchItem(item.key, e.target.value)}
-                    className="flex-1 min-w-0 bg-foreground/[0.03] border border-foreground/10 rounded-lg px-2.5 py-1 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-                  />
-                  <ItemAssigneePicker
-                    members={members}
-                    assigneeId={item.assigneeId}
-                    onChange={(id) => patchAssignee(item.key, id)}
-                  />
-                  <button
-                    onClick={() => moveItem(item.key, -1)}
-                    disabled={idx === 0}
-                    aria-label={t("milestone.preset.moveUp", {
-                      defaultValue: "위로",
-                    })}
-                    className="p-1 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                  >
-                    <ChevronUp className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => moveItem(item.key, 1)}
-                    disabled={idx === draft.items.length - 1}
-                    aria-label={t("milestone.preset.moveDown", {
-                      defaultValue: "아래로",
-                    })}
-                    className="p-1 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                  >
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => removeItem(item.key)}
-                    aria-label={t("milestone.preset.removeItem", {
-                      defaultValue: "항목 삭제",
-                    })}
-                    className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-foreground/5 transition-colors"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))}
+            <div className="flex-1 min-h-0 space-y-1 overflow-y-auto custom-scrollbar">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={draft.items.map((i) => i.key)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {draft.items.map((item) => (
+                    <SortableDraftItemRow
+                      key={item.key}
+                      item={item}
+                      members={members}
+                      onTitleChange={(title) => patchItem(item.key, title)}
+                      onAssigneeChange={(id) => patchAssignee(item.key, id)}
+                      onRemove={() => removeItem(item.key)}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
               <input
                 value={newItemTitle}
                 onChange={(e) => setNewItemTitle(e.target.value)}
@@ -389,6 +387,76 @@ export function ChecklistPresetManageModal({
         </button>
       </div>
     </MotionModal>
+  );
+}
+
+/** 드래그 핸들로 순서를 바꾸는 항목 행 — 제목 인라인 수정·담당자·삭제 */
+function SortableDraftItemRow({
+  item,
+  members,
+  onTitleChange,
+  onAssigneeChange,
+  onRemove,
+}: {
+  item: DraftItem;
+  members: { id: string; name: string }[];
+  onTitleChange: (title: string) => void;
+  onAssigneeChange: (id: string | null) => void;
+  onRemove: () => void;
+}) {
+  const { t } = useTranslation();
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.key });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        zIndex: isDragging ? 10 : undefined,
+      }}
+      className="relative flex items-center gap-1.5"
+    >
+      <button
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...listeners}
+        aria-label={t("milestone.preset.dragToReorder", {
+          defaultValue: "드래그하여 순서 변경",
+        })}
+        className="p-1 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 cursor-grab active:cursor-grabbing touch-none transition-colors"
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </button>
+      <input
+        value={item.title}
+        onChange={(e) => onTitleChange(e.target.value)}
+        className="flex-1 min-w-0 bg-foreground/[0.03] border border-foreground/10 rounded-lg px-2.5 py-1 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+      />
+      <ItemAssigneePicker
+        members={members}
+        assigneeId={item.assigneeId}
+        onChange={onAssigneeChange}
+      />
+      <button
+        onClick={onRemove}
+        aria-label={t("milestone.preset.removeItem", {
+          defaultValue: "항목 삭제",
+        })}
+        className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-foreground/5 transition-colors"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+    </div>
   );
 }
 

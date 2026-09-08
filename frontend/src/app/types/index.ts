@@ -584,6 +584,12 @@ export interface MilestoneFeatureInfo {
   color: string;
   total_tasks: number;
   completed_tasks: number;
+  /** 체크리스트 기준 집계 (마일스톤 스코프) */
+  total_items?: number;
+  completed_items?: number;
+  overdue_items?: number;
+  unassigned_items?: number;
+  /** 체크리스트 기준 진행률 */
   progress_percentage: number;
   is_primary: boolean;
 }
@@ -595,7 +601,15 @@ export interface Milestone {
   start_date: string;
   end_date: string;
   feature_count: number;
+  /** 체크리스트 기준 진행률 */
   progress_percentage: number;
+  /** 마일스톤 스코프 집계 (태스크·체크리스트·지연·미배정) */
+  total_tasks?: number;
+  completed_tasks?: number;
+  total_items?: number;
+  completed_items?: number;
+  overdue_items?: number;
+  unassigned_items?: number;
   /** 보드 생성 시 자동 생성된 기본 마일스톤 여부. true(미편집)면 overdue 경고를 숨긴다. */
   is_default?: boolean;
   features?: MilestoneFeatureInfo[];

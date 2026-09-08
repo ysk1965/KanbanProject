@@ -145,6 +145,24 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
            "ORDER BY c.position ASC")
     List<ChecklistItem> findByTaskSprintId(@Param("sprintId") String sprintId);
 
+    /**
+     * 보드의 (마일스톤, 피처)별 체크리스트 카운트 — 마일스톤 진행률·KPI 집계 소스.
+     * 반환 행: {@code [milestoneId, featureId, total, completed, overdue, unassigned]}
+     * <ul>
+     *   <li>overdue: 미완료 + 마감일이 {@code today} 이전</li>
+     *   <li>unassigned: 미완료 + 담당자·외주 모두 없음</li>
+     * </ul>
+     * 소프트 삭제된 항목/태스크는 @SQLRestriction으로 제외된다.
+     */
+    @Query("SELECT t.milestone.id, t.feature.id, COUNT(c), " +
+           "SUM(CASE WHEN c.isCompleted = true THEN 1L ELSE 0L END), " +
+           "SUM(CASE WHEN c.isCompleted = false AND c.dueDate IS NOT NULL AND c.dueDate < :today THEN 1L ELSE 0L END), " +
+           "SUM(CASE WHEN c.isCompleted = false AND c.assignee IS NULL AND c.contractor IS NULL THEN 1L ELSE 0L END) " +
+           "FROM ChecklistItem c JOIN c.task t " +
+           "WHERE t.board.id = :boardId AND t.milestone.id IS NOT NULL " +
+           "GROUP BY t.milestone.id, t.feature.id")
+    List<Object[]> countByMilestoneAndFeature(@Param("boardId") String boardId, @Param("today") LocalDate today);
+
     /** 마일스톤 내 전체 체크리스트 (좌측 트리·백로그 카드 진척 집계용) */
     @Query("SELECT c FROM ChecklistItem c " +
            "LEFT JOIN FETCH c.assignee " +

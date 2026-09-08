@@ -318,14 +318,26 @@ export function MilestoneTableView({
     [checklists],
   );
 
+  /**
+   * 태스크 상태 — 체크리스트 완료 여부가 기준이다.
+   *  · 체크리스트가 있으면: 전부 완료 = done / 일부 완료 = doing / 0개 완료 = todo
+   *    (태스크 완료 플래그가 꺼져 있어도 항목이 모두 체크되면 done으로 본다)
+   *  · 체크리스트가 없으면: 태스크 완료 플래그로 폴백
+   */
   const statusOf = useCallback(
     (tk: Task): TaskStatus => {
-      if (tk.completed) return "done";
       const state = checklists[tk.id];
       const done = state?.loaded
         ? state.items.filter((i) => i.completed).length
         : (tk.checklist_completed ?? 0);
-      return done > 0 ? "doing" : "todo";
+      const total = state?.loaded
+        ? state.items.length
+        : (tk.checklist_total ?? 0);
+      if (total > 0) {
+        if (done >= total) return "done";
+        return done > 0 ? "doing" : "todo";
+      }
+      return tk.completed ? "done" : "todo";
     },
     [checklists],
   );
@@ -347,7 +359,7 @@ export function MilestoneTableView({
   const taskMatches = useCallback(
     (tk: Task): boolean => {
       if (statusFilter === "doing" && statusOf(tk) !== "doing") return false;
-      if (statusFilter === "open" && tk.completed) return false;
+      if (statusFilter === "open" && statusOf(tk) === "done") return false;
       if (sprintFilter) {
         const sprintId = sprintInfoByTask.get(tk.id)?.sprintId ?? null;
         if (
@@ -1225,12 +1237,12 @@ export function MilestoneTableView({
                               <div className="flex items-baseline gap-1.5">
                                 <span
                                   className={`text-xs flex-shrink-0 ${
-                                    tk.completed
+                                    statusOf(tk) === "done"
                                       ? "text-emerald-500"
                                       : "text-slate-400"
                                   }`}
                                 >
-                                  {tk.completed
+                                  {statusOf(tk) === "done"
                                     ? "✓"
                                     : statusOf(tk) === "doing"
                                       ? "◐"

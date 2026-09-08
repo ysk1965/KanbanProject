@@ -117,7 +117,7 @@ export function ChecklistPresetPopover({
             className="fixed inset-0 z-30 block"
             onClick={() => setOpen(false)}
           />
-          <span className="absolute top-full left-0 mt-1 z-40 w-80 bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl block">
+          <span className="absolute top-full left-0 mt-1 z-40 w-[30rem] max-w-[calc(100vw-2rem)] bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl block">
             {presets.length === 0 ? (
               /* 빈 상태 — 아직 프리셋이 없다 */
               <span className="block p-4 space-y-3">
@@ -169,7 +169,7 @@ export function ChecklistPresetPopover({
             ) : (
               <>
                 {/* 좌: 프리셋 목록 / 우: 선택 프리셋 항목 미리보기 */}
-                <span className="flex max-h-60">
+                <span className="flex max-h-[26rem]">
                   <span className="block w-[45%] border-r border-foreground/[0.08] overflow-y-auto custom-scrollbar py-1.5">
                     {presets.map((p) => {
                       const on = p.id === selected?.id;

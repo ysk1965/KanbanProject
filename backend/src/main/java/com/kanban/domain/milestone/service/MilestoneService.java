@@ -6,6 +6,7 @@ import com.kanban.domain.block.FixedBlockType;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.milestone.Milestone;
@@ -36,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,6 +61,7 @@ public class MilestoneService {
     private final BoardRepository boardRepository;
     private final BlockRepository blockRepository;
     private final TaskRepository taskRepository;
+    private final ChecklistItemRepository checklistItemRepository;
     private final UserRepository userRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final BoardService boardService;
@@ -78,7 +81,7 @@ public class MilestoneService {
         List<Milestone> milestones = milestoneRepository.findByBoardIdWithDetailsOrderByStartDateAsc(boardId);
 
         if (milestones.isEmpty()) {
-            return MilestoneResponse.ListResponse.of(milestones, Map.of(), Map.of(), Map.of(), Map.of());
+            return MilestoneResponse.ListResponse.of(milestones, Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
         }
 
         // 1회 쿼리로 모든 마일스톤의 features 조회 (N+1 해결)
@@ -93,16 +96,17 @@ public class MilestoneService {
                 .collect(Collectors.toMap(Milestone::getId, Milestone::getStartDate));
         Map<String, String> homeByFeature = deriveHomeMilestones(allMilestoneFeatures, msStart);
 
-        // (마일스톤, 피처)별 태스크 카운트 1회 집계 — 진행률 + 피처별 카운트 공용
-        Map<String, Map<String, int[]>> countsMap = taskCountsByMilestoneFeature(boardId);
+        // (마일스톤, 피처)별 태스크/체크리스트 카운트 각 1회 집계 — 진행률 + 피처별 카운트 공용
+        Map<String, Map<String, int[]>> taskCountsMap = taskCountsByMilestoneFeature(boardId);
+        Map<String, Map<String, int[]>> itemCountsMap = checklistCountsByMilestoneFeature(boardId);
 
-        // 각 마일스톤의 진행률 계산 — 그 마일스톤에 배정된 태스크 기준
+        // 각 마일스톤의 진행률 계산 — 그 마일스톤에 배정된 태스크의 체크리스트 항목 기준 (완료 항목 / 전체 항목)
         Map<String, Integer> progressMap = new HashMap<>();
         for (Milestone milestone : milestones) {
-            progressMap.put(milestone.getId(), progressFromCounts(countsMap.get(milestone.getId())));
+            progressMap.put(milestone.getId(), progressFromCounts(itemCountsMap.get(milestone.getId())));
         }
 
-        return MilestoneResponse.ListResponse.of(milestones, linksMap, progressMap, countsMap, homeByFeature);
+        return MilestoneResponse.ListResponse.of(milestones, linksMap, progressMap, taskCountsMap, itemCountsMap, homeByFeature);
     }
 
     public MilestoneResponse.Detail getMilestone(String boardId, String milestoneId, String userId) {
@@ -301,12 +305,18 @@ public class MilestoneService {
                 featureId, milestoneId, userId, orphanTasks.size());
     }
 
-    /** 마일스톤 상세 응답 구성 — 표시용 전체 링크 + 진행률/피처 카운트(태스크 단위, 이 마일스톤 스코프) */
+    /**
+     * 마일스톤 상세 응답 구성 — 표시용 전체 링크 + 진행률/피처 카운트(이 마일스톤 스코프).
+     * 진행률은 체크리스트 항목 기준(완료 항목 / 전체 항목), 태스크 카운트는 참고용으로 함께 내려준다.
+     */
     private MilestoneResponse.Detail buildDetail(Milestone milestone) {
+        String boardId = milestone.getBoard().getId();
         List<MilestoneFeature> links = milestoneFeatureRepository.findWithFeatureByMilestoneId(milestone.getId());
-        Map<String, int[]> featureCounts = taskCountsByMilestoneFeature(milestone.getBoard().getId())
+        Map<String, int[]> taskCounts = taskCountsByMilestoneFeature(boardId)
                 .getOrDefault(milestone.getId(), Map.of());
-        int progress = progressFromCounts(featureCounts);
+        Map<String, int[]> itemCounts = checklistCountsByMilestoneFeature(boardId)
+                .getOrDefault(milestone.getId(), Map.of());
+        int progress = progressFromCounts(itemCounts);
 
         // 이 마일스톤에 속한 각 피처의 홈(대표) 마일스톤 파생 (가장 이른 시작일, 동률 시 마일스톤 id)
         Map<String, String> homeByFeature = new HashMap<>();
@@ -320,7 +330,7 @@ public class MilestoneService {
                     .ifPresent(first -> homeByFeature.put(featureId, first.getMilestone().getId()));
         }
 
-        return MilestoneResponse.Detail.of(milestone, links, progress, featureCounts, homeByFeature);
+        return MilestoneResponse.Detail.of(milestone, links, progress, taskCounts, itemCounts, homeByFeature);
     }
 
     /**
@@ -391,7 +401,7 @@ public class MilestoneService {
     }
 
     /**
-     * 보드의 (마일스톤, 피처)별 태스크 카운트 집계.
+     * 보드의 (마일스톤, 피처)별 태스크 카운트 집계 (참고용 — 진행률은 체크리스트 기준).
      * 반환: milestoneId → (featureId → [total, completed])
      */
     private Map<String, Map<String, int[]>> taskCountsByMilestoneFeature(String boardId) {
@@ -407,7 +417,28 @@ public class MilestoneService {
         return result;
     }
 
-    /** 마일스톤의 피처별 카운트 맵에서 진행률(%) 산출 */
+    /**
+     * 보드의 (마일스톤, 피처)별 체크리스트 항목 카운트 집계 — 진행률·KPI 소스.
+     * 반환: milestoneId → (featureId → [total, completed, overdue, unassigned])
+     * overdue 판정 기준일은 UTC 오늘.
+     */
+    private Map<String, Map<String, int[]>> checklistCountsByMilestoneFeature(String boardId) {
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        Map<String, Map<String, int[]>> result = new HashMap<>();
+        for (Object[] row : checklistItemRepository.countByMilestoneAndFeature(boardId, today)) {
+            String milestoneId = (String) row[0];
+            String featureId = (String) row[1];
+            int total = ((Number) row[2]).intValue();
+            int completed = ((Number) row[3]).intValue();
+            int overdue = ((Number) row[4]).intValue();
+            int unassigned = ((Number) row[5]).intValue();
+            result.computeIfAbsent(milestoneId, k -> new HashMap<>())
+                    .put(featureId, new int[]{total, completed, overdue, unassigned});
+        }
+        return result;
+    }
+
+    /** 피처별 카운트 맵([total, completed, ...])에서 진행률(%) 산출 — 항목이 없으면 0 */
     private int progressFromCounts(Map<String, int[]> featureCounts) {
         if (featureCounts == null || featureCounts.isEmpty()) {
             return 0;

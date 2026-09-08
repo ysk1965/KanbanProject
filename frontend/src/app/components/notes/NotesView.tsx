@@ -591,7 +591,7 @@ export function NotesView({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 보고서 아카이브 패널 — 트리와 분리된 하단 고정 영역, 구분선 드래그로 높이 조절
-  const [archiveOpen, setArchiveOpen] = useState(true);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiveHeight, setArchiveHeight] = useState<number>(() => {
     const saved = Number(localStorage.getItem(ARCHIVE_HEIGHT_KEY));
     return Number.isFinite(saved) && saved >= ARCHIVE_MIN_HEIGHT

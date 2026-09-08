@@ -3883,6 +3883,7 @@ export function KanbanBoardPage() {
           allFeatures={allFeatures}
           featureMilestoneCountMap={featureMilestoneCountMap}
           featurePrimaryMilestoneMap={featurePrimaryMilestoneMap}
+          onOpenChecklistItem={handleViewTaskWithChecklist}
           onSaveMilestone={handleSaveMilestone}
           onDeleteMilestone={handleDeleteMilestone}
           onSelectMilestone={async (ms) => {

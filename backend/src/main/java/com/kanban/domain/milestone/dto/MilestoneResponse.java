@@ -43,6 +43,7 @@ public class MilestoneResponse {
     /**
      * 상세 정보가 포함된 마일스톤 응답 (features 포함)
      * N+1 문제 해결을 위해 getMilestones에서 사용
+     * <p>진행률·KPI(total/completed/overdue/unassigned items)는 체크리스트 항목 기준, 태스크 카운트는 참고용.</p>
      */
     @Getter
     @AllArgsConstructor
@@ -55,20 +56,27 @@ public class MilestoneResponse {
         private LocalDate endDate;
         private int featureCount;
         private int progressPercentage;
+        private int totalTasks;
+        private int completedTasks;
+        private int totalItems;
+        private int completedItems;
+        private int overdueItems;
+        private int unassignedItems;
         private Boolean isDefault;
         private List<FeatureInfo> features;
         private CreatorInfo createdBy;
         private LocalDateTime createdAt;
 
+        /**
+         * @param progressPercentage 체크리스트 기준 진행률 (completedItems / totalItems)
+         * @param taskCounts   featureId → [total, completed] (태스크 단위, 이 마일스톤 스코프)
+         * @param itemCounts   featureId → [total, completed, overdue, unassigned] (체크리스트 단위, 이 마일스톤 스코프)
+         */
         public static DetailSimple of(Milestone milestone, List<MilestoneFeature> links, int progressPercentage,
-                                      Map<String, int[]> featureCounts, Map<String, String> homeByFeature) {
-            List<FeatureInfo> featureInfos = links.stream()
-                    .map(link -> {
-                        int[] c = featureCounts.getOrDefault(link.getFeature().getId(), new int[]{0, 0});
-                        boolean isHome = milestone.getId().equals(homeByFeature.get(link.getFeature().getId()));
-                        return FeatureInfo.of(link, c[0], c[1], isHome);
-                    })
-                    .toList();
+                                      Map<String, int[]> taskCounts, Map<String, int[]> itemCounts,
+                                      Map<String, String> homeByFeature) {
+            List<FeatureInfo> featureInfos = buildFeatureInfos(milestone, links, taskCounts, itemCounts, homeByFeature);
+            Totals totals = Totals.of(taskCounts, itemCounts);
 
             return DetailSimple.builder()
                     .id(milestone.getId())
@@ -78,6 +86,12 @@ public class MilestoneResponse {
                     .endDate(milestone.getEndDate())
                     .featureCount(links.size())
                     .progressPercentage(progressPercentage)
+                    .totalTasks(totals.totalTasks)
+                    .completedTasks(totals.completedTasks)
+                    .totalItems(totals.totalItems)
+                    .completedItems(totals.completedItems)
+                    .overdueItems(totals.overdueItems)
+                    .unassignedItems(totals.unassignedItems)
                     .isDefault(milestone.getIsDefault())
                     .features(featureInfos)
                     .createdBy(CreatorInfo.of(milestone.getCreatedBy()))
@@ -97,20 +111,27 @@ public class MilestoneResponse {
         private LocalDate endDate;
         private int featureCount;
         private int progressPercentage;
+        private int totalTasks;
+        private int completedTasks;
+        private int totalItems;
+        private int completedItems;
+        private int overdueItems;
+        private int unassignedItems;
         private Boolean isDefault;
         private List<FeatureInfo> features;
         private CreatorInfo createdBy;
         private LocalDateTime createdAt;
 
+        /**
+         * @param progressPercentage 체크리스트 기준 진행률 (completedItems / totalItems)
+         * @param taskCounts   featureId → [total, completed] (태스크 단위, 이 마일스톤 스코프)
+         * @param itemCounts   featureId → [total, completed, overdue, unassigned] (체크리스트 단위, 이 마일스톤 스코프)
+         */
         public static Detail of(Milestone milestone, List<MilestoneFeature> links, int progressPercentage,
-                                Map<String, int[]> featureCounts, Map<String, String> homeByFeature) {
-            List<FeatureInfo> featureInfos = links.stream()
-                    .map(link -> {
-                        int[] c = featureCounts.getOrDefault(link.getFeature().getId(), new int[]{0, 0});
-                        boolean isHome = milestone.getId().equals(homeByFeature.get(link.getFeature().getId()));
-                        return FeatureInfo.of(link, c[0], c[1], isHome);
-                    })
-                    .toList();
+                                Map<String, int[]> taskCounts, Map<String, int[]> itemCounts,
+                                Map<String, String> homeByFeature) {
+            List<FeatureInfo> featureInfos = buildFeatureInfos(milestone, links, taskCounts, itemCounts, homeByFeature);
+            Totals totals = Totals.of(taskCounts, itemCounts);
 
             return Detail.builder()
                     .id(milestone.getId())
@@ -120,11 +141,58 @@ public class MilestoneResponse {
                     .endDate(milestone.getEndDate())
                     .featureCount(links.size())
                     .progressPercentage(progressPercentage)
+                    .totalTasks(totals.totalTasks)
+                    .completedTasks(totals.completedTasks)
+                    .totalItems(totals.totalItems)
+                    .completedItems(totals.completedItems)
+                    .overdueItems(totals.overdueItems)
+                    .unassignedItems(totals.unassignedItems)
                     .isDefault(milestone.getIsDefault())
                     .features(featureInfos)
                     .createdBy(CreatorInfo.of(milestone.getCreatedBy()))
                     .createdAt(milestone.getCreatedAt())
                     .build();
+        }
+    }
+
+    /** 링크별 FeatureInfo 구성 — 태스크/체크리스트 카운트는 이 마일스톤 스코프, 홈 여부는 파생값 */
+    private static List<FeatureInfo> buildFeatureInfos(Milestone milestone, List<MilestoneFeature> links,
+                                                       Map<String, int[]> taskCounts, Map<String, int[]> itemCounts,
+                                                       Map<String, String> homeByFeature) {
+        return links.stream()
+                .map(link -> {
+                    String featureId = link.getFeature().getId();
+                    int[] t = taskCounts.getOrDefault(featureId, EMPTY_TASK_COUNTS);
+                    int[] c = itemCounts.getOrDefault(featureId, EMPTY_ITEM_COUNTS);
+                    boolean isHome = milestone.getId().equals(homeByFeature.get(featureId));
+                    return FeatureInfo.of(link, t[0], t[1], c[0], c[1], c[2], c[3], isHome);
+                })
+                .toList();
+    }
+
+    private static final int[] EMPTY_TASK_COUNTS = new int[]{0, 0};
+    private static final int[] EMPTY_ITEM_COUNTS = new int[]{0, 0, 0, 0};
+
+    /**
+     * 마일스톤 단위 합계 — (마일스톤, 피처) 행 전부를 합산한다.
+     * 피처 없는 태스크(featureId null 키) 행도 포함.
+     */
+    private record Totals(int totalTasks, int completedTasks,
+                          int totalItems, int completedItems, int overdueItems, int unassignedItems) {
+        static Totals of(Map<String, int[]> taskCounts, Map<String, int[]> itemCounts) {
+            int totalTasks = 0, completedTasks = 0;
+            for (int[] t : taskCounts.values()) {
+                totalTasks += t[0];
+                completedTasks += t[1];
+            }
+            int totalItems = 0, completedItems = 0, overdueItems = 0, unassignedItems = 0;
+            for (int[] c : itemCounts.values()) {
+                totalItems += c[0];
+                completedItems += c[1];
+                overdueItems += c[2];
+                unassignedItems += c[3];
+            }
+            return new Totals(totalTasks, completedTasks, totalItems, completedItems, overdueItems, unassignedItems);
         }
     }
 
@@ -140,14 +208,16 @@ public class MilestoneResponse {
         public static ListResponse of(List<Milestone> milestones,
                                       Map<String, List<MilestoneFeature>> linksMap,
                                       Map<String, Integer> progressMap,
-                                      Map<String, Map<String, int[]>> countsMap,
+                                      Map<String, Map<String, int[]>> taskCountsMap,
+                                      Map<String, Map<String, int[]>> itemCountsMap,
                                       Map<String, String> homeByFeature) {
             List<DetailSimple> detailList = milestones.stream()
                     .map(m -> DetailSimple.of(
                             m,
                             linksMap.getOrDefault(m.getId(), List.of()),
                             progressMap.getOrDefault(m.getId(), 0),
-                            countsMap.getOrDefault(m.getId(), Map.of()),
+                            taskCountsMap.getOrDefault(m.getId(), Map.of()),
+                            itemCountsMap.getOrDefault(m.getId(), Map.of()),
                             homeByFeature
                     ))
                     .toList();
@@ -164,23 +234,35 @@ public class MilestoneResponse {
         private String color;
         private int totalTasks;
         private int completedTasks;
+        private int totalItems;
+        private int completedItems;
+        private int overdueItems;
+        private int unassignedItems;
         private int progressPercentage;
         private boolean isPrimary;
 
         /**
          * 마일스톤-스코프 카운트로 FeatureInfo 생성.
-         * total/completed는 "이 마일스톤에 배정된 이 피처의 태스크" 기준 (피처 전역 카운트 아님).
+         * 모든 카운트는 "이 마일스톤에 배정된 이 피처의 태스크(와 그 체크리스트)" 기준 (피처 전역 카운트 아님).
+         * progressPercentage는 체크리스트 항목 기준(completedItems / totalItems, 항목 없으면 0).
          * isPrimary(홈 여부)는 저장값이 아니라 "가장 이른 마일스톤" 규칙으로 파생해 넘겨받는다.
          */
-        public static FeatureInfo of(MilestoneFeature link, int totalTasks, int completedTasks, boolean isPrimary) {
+        public static FeatureInfo of(MilestoneFeature link,
+                                     int totalTasks, int completedTasks,
+                                     int totalItems, int completedItems, int overdueItems, int unassignedItems,
+                                     boolean isPrimary) {
             Feature feature = link.getFeature();
-            int pct = totalTasks == 0 ? 0 : (int) Math.round((double) completedTasks / totalTasks * 100);
+            int pct = totalItems == 0 ? 0 : (int) Math.round((double) completedItems / totalItems * 100);
             return FeatureInfo.builder()
                     .id(feature.getId())
                     .title(feature.getTitle())
                     .color(feature.getColor())
                     .totalTasks(totalTasks)
                     .completedTasks(completedTasks)
+                    .totalItems(totalItems)
+                    .completedItems(completedItems)
+                    .overdueItems(overdueItems)
+                    .unassignedItems(unassignedItems)
                     .progressPercentage(pct)
                     .isPrimary(isPrimary)
                     .build();
