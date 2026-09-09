@@ -63,6 +63,12 @@ public class StorageService {
 
     public record DownloadResource(InputStream stream, String filename, String contentType) {}
 
+    /** presigned 다운로드 링크. url 이 null 이면 S3 미지원(로컬) → 프록시 스트리밍으로 폴백. */
+    public record DownloadLink(String url, String mode) {
+        public static DownloadLink presigned(String url) { return new DownloadLink(url, "presigned"); }
+        public static DownloadLink proxy() { return new DownloadLink(null, "proxy"); }
+    }
+
     /** 문서 PDF 미리보기 조회 결과. status 는 PreviewStatus 이름 또는 UNAVAILABLE(변환 불가/soffice 없음). */
     public record PreviewInfo(String status, String url) {}
 
@@ -392,6 +398,19 @@ public class StorageService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FILE_NOT_FOUND));
         InputStream stream = fileUploadService.getAsStream(file.getS3Key());
         return new DownloadResource(stream, file.getOriginalFilename(), file.getContentType());
+    }
+
+    /**
+     * 브라우저가 S3 에서 직접 받도록 presigned GET URL 을 발급한다. 대용량 파일이 백엔드를 경유하지 않게
+     * 하는 기본 다운로드 경로이며, 로컬(파일시스템) 환경처럼 presign 미지원이면 proxy 모드를 돌려준다.
+     */
+    public DownloadLink downloadLink(StorageScope scope, String userId, String fileId) {
+        permissionService.checkRead(scope, userId);
+        StorageFile file = fileRepository.findByIdAndScope(fileId, scope.typeName(), scope.scopeId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FILE_NOT_FOUND));
+        String url = fileUploadService.presignDownload(
+                file.getS3Key(), file.getOriginalFilename(), file.getContentType());
+        return url != null ? DownloadLink.presigned(url) : DownloadLink.proxy();
     }
 
     // ==================== Document preview (PDF) ====================

@@ -53,6 +53,15 @@ public interface FileUploadService {
     /** S3 key로부터 InputStream 반환 (ZIP 다운로드 등) */
     InputStream getAsStream(String key);
 
+    /**
+     * 브라우저가 S3 에서 직접 받는 presigned GET URL 생성 (S3 전용, 미지원 시 null 반환).
+     * 응답 헤더에 Content-Disposition(attachment; 원본 파일명)·Content-Type 을 실어 저장 파일명이 보존된다.
+     * null 이면 호출측은 백엔드 프록시 스트리밍으로 폴백한다.
+     */
+    default String presignDownload(String key, String filename, String contentType) {
+        return null;
+    }
+
     /** 임시 파일 → 영구 경로 이동 + 썸네일 생성 */
     PermanentResult moveToPermanent(String tempKey, String boardId, String commentId);
 

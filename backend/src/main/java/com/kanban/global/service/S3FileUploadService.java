@@ -12,12 +12,16 @@ import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
+import org.springframework.http.ContentDisposition;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -191,6 +195,30 @@ public class S3FileUploadService implements FileUploadService {
             log.error("Failed to get stream from S3: {}", key, e);
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    @Override
+    public String presignDownload(String key, String filename, String contentType) {
+        String disposition = ContentDisposition.attachment()
+                .filename(filename != null && !filename.isBlank() ? filename : "download", StandardCharsets.UTF_8)
+                .build()
+                .toString();
+        String effectiveType = contentType != null && !contentType.isBlank()
+                ? contentType : "application/octet-stream";
+
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(10))
+                .getObjectRequest(GetObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(key)
+                        .responseContentDisposition(disposition)
+                        .responseContentType(effectiveType)
+                        .build())
+                .build();
+
+        PresignedGetObjectRequest presigned = s3Presigner.presignGetObject(presignRequest);
+        log.debug("Presigned download URL generated: {}", key);
+        return presigned.url().toString();
     }
 
     @Override

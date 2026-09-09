@@ -4290,16 +4290,7 @@ export const myStorageService = {
   permanentDeleteFolder: myStorageAPI.permanentDeleteFolder,
   emptyTrash: myStorageAPI.emptyTrash,
 
-  /** 인증 다운로드 후 브라우저 저장 트리거 */
-  downloadAndSave: async (fileId: string, filename: string): Promise<void> => {
-    const blob = await myStorageAPI.downloadFile(fileId);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  },
+  /** presigned GET 으로 브라우저 직접 다운로드 (미지원 시 프록시 폴백) */
+  getDownloadUrl: myStorageAPI.getDownloadUrl,
+  downloadAndSave: myStorageAPI.downloadAndSave,
 };

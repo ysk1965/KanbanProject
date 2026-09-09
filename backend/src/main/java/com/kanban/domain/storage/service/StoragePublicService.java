@@ -36,12 +36,22 @@ public class StoragePublicService {
     }
 
     public StorageService.DownloadResource downloadSharedFile(String shareCode) {
-        StorageFile file = fileRepository.findByShareCodeAndIsSharedTrue(shareCode)
-                .filter(f -> !Boolean.TRUE.equals(f.getIsDeleted()))
-                .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FILE_NOT_FOUND));
+        StorageFile file = sharedFile(shareCode);
         return new StorageService.DownloadResource(
                 fileUploadService.getAsStream(file.getS3Key()),
                 file.getOriginalFilename(), file.getContentType());
+    }
+
+    /** 공유 파일의 presigned GET URL. S3 미지원(로컬)이면 null → 컨트롤러가 스트리밍으로 폴백. */
+    public String sharedFileDownloadUrl(String shareCode) {
+        StorageFile file = sharedFile(shareCode);
+        return fileUploadService.presignDownload(file.getS3Key(), file.getOriginalFilename(), file.getContentType());
+    }
+
+    private StorageFile sharedFile(String shareCode) {
+        return fileRepository.findByShareCodeAndIsSharedTrue(shareCode)
+                .filter(f -> !Boolean.TRUE.equals(f.getIsDeleted()))
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FILE_NOT_FOUND));
     }
 
     // ===== 폴더 공유 =====
@@ -63,18 +73,27 @@ public class StoragePublicService {
     }
 
     public StorageService.DownloadResource downloadSharedFolderFile(String shareCode, String fileId) {
+        StorageFile file = sharedFolderFile(shareCode, fileId);
+        return new StorageService.DownloadResource(
+                fileUploadService.getAsStream(file.getS3Key()),
+                file.getOriginalFilename(), file.getContentType());
+    }
+
+    /** 공유 폴더 내 파일의 presigned GET URL. S3 미지원(로컬)이면 null → 컨트롤러가 스트리밍으로 폴백. */
+    public String sharedFolderFileDownloadUrl(String shareCode, String fileId) {
+        StorageFile file = sharedFolderFile(shareCode, fileId);
+        return fileUploadService.presignDownload(file.getS3Key(), file.getOriginalFilename(), file.getContentType());
+    }
+
+    private StorageFile sharedFolderFile(String shareCode, String fileId) {
         StorageFolder folder = folderRepository.findByShareCodeAndIsSharedTrue(shareCode)
                 .filter(f -> !Boolean.TRUE.equals(f.getIsDeleted()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FOLDER_NOT_FOUND));
 
-        StorageFile file = fileRepository.findById(fileId)
+        return fileRepository.findById(fileId)
                 .filter(f -> !Boolean.TRUE.equals(f.getIsDeleted()))
                 .filter(f -> f.getFolder() != null && f.getFolder().getId().equals(folder.getId()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FILE_NOT_FOUND));
-
-        return new StorageService.DownloadResource(
-                fileUploadService.getAsStream(file.getS3Key()),
-                file.getOriginalFilename(), file.getContentType());
     }
 
     private StorageResponse.PublicFile toPublicFile(StorageFile file) {

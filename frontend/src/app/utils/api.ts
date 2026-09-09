@@ -10613,11 +10613,25 @@ export function makeStorageAPI(base: string) {
       if (!response.ok) throw new Error("파일을 불러오지 못했습니다");
       return response.blob();
     },
-    /** 인증 다운로드 후 브라우저 저장 트리거 */
+    /** presigned GET 링크 발급. mode="proxy" 면 url 이 null → /download 스트리밍으로 폴백 */
+    getDownloadUrl: (fileId: string) =>
+      apiClient.get<StorageDownloadUrl>(`${base}/files/${fileId}/download-url`),
+
+    /**
+     * 파일 다운로드. presigned URL 을 받아 브라우저가 S3 에서 직접 받게 한다(네이티브 진행률, 메모리 부담 없음).
+     * presign 미지원(로컬)일 때만 인증 fetch → Blob 폴백.
+     */
     downloadAndSave: async (
       fileId: string,
       filename: string,
     ): Promise<void> => {
+      const link = await apiClient.get<StorageDownloadUrl>(
+        `${base}/files/${fileId}/download-url`,
+      );
+      if (link.mode === "presigned" && link.url) {
+        triggerBrowserDownload(link.url, filename);
+        return;
+      }
       const response = await authenticatedFetch(
         `${API_BASE_URL}${base}/files/${fileId}/download`,
         { method: "GET" },
@@ -10625,15 +10639,26 @@ export function makeStorageAPI(base: string) {
       if (!response.ok) throw new Error("다운로드에 실패했습니다");
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      triggerBrowserDownload(url, filename);
       URL.revokeObjectURL(url);
     },
   };
+}
+
+export interface StorageDownloadUrl {
+  mode: "presigned" | "proxy";
+  url: string | null;
+}
+
+/** <a download> 클릭으로 브라우저 저장을 트리거한다. 교차 출처 URL 은 서버의 Content-Disposition 이 파일명을 정한다. */
+function triggerBrowserDownload(href: string, filename: string): void {
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 export type StorageApi = ReturnType<typeof makeStorageAPI>;

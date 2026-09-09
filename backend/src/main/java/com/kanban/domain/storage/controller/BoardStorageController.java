@@ -136,6 +136,13 @@ public class BoardStorageController {
         return MyStorageController.buildDownload(storageService.downloadFile(scope(boardId), p.getUserId(), fileId));
     }
 
+    /** presigned GET 링크 발급 — 브라우저가 S3 에서 직접 받는다. mode="proxy" 면 /download 로 폴백. */
+    @GetMapping("/files/{fileId}/download-url")
+    public ResponseEntity<StorageResponse.DownloadUrl> getDownloadUrl(
+            @PathVariable String boardId, @PathVariable String fileId, @AuthenticationPrincipal UserPrincipal p) {
+        return ResponseEntity.ok(StorageResponse.DownloadUrl.of(storageService.downloadLink(scope(boardId), p.getUserId(), fileId)));
+    }
+
     /** 문서(docx/pptx/hwp 등) PDF 미리보기 상태·URL. 미변환이면 변환을 큐잉하고 PENDING 을 돌려준다. */
     @GetMapping("/files/{fileId}/preview")
     public ResponseEntity<StorageResponse.Preview> getFilePreview(

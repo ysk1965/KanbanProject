@@ -117,6 +117,17 @@ public class StorageResponse {
             List<CategoryUsage> categories
     ) {}
 
+    /** presigned 다운로드 링크. mode="presigned" 이면 url 로 브라우저가 S3 직접 GET, "proxy" 이면 /download 스트리밍으로 폴백. */
+    @Builder
+    public record DownloadUrl(
+            String mode,
+            String url
+    ) {
+        public static DownloadUrl of(StorageService.DownloadLink link) {
+            return new DownloadUrl(link.mode(), link.url());
+        }
+    }
+
     /** presigned 발급 결과. mode="presigned" 이면 uploadUrl 로 S3 직접 PUT, "direct" 이면 multipart 업로드로 폴백. */
     @Builder
     public record PresignResult(
