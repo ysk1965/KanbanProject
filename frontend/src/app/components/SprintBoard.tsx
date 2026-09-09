@@ -247,6 +247,8 @@ const SPRINT_TREE_WIDTH_KEY = "bridge:sprint-tree:width";
 const SPRINT_UNCAT_COLLAPSED_KEY = "bridge:sprint-uncategorized:collapsed";
 /** 우측 도크(In Review·Done)에서 마지막으로 보던 탭(컬럼 id) 저장 키. */
 const SPRINT_DOCK_TAB_KEY = "bridge:sprint-dock:tab";
+/** 우측 도크 폭(px) 저장 키(새로고침해도 유지). */
+const SPRINT_DOCK_WIDTH_KEY = "bridge:sprint-dock:width";
 /** 피쳐 컬럼 접힘 상태(피쳐 id → 접힘 여부) 저장 키. 명시 토글만 저장하고, 없으면 카드 0장일 때 접힘. */
 const SPRINT_FEATURE_COLS_KEY = "bridge:sprint-feature-cols:collapsed";
 
@@ -316,6 +318,10 @@ const DONE_VIS_OPTIONS: { key: DoneVisibility; label: string; hint: string }[] =
 const PANEL_MIN_WIDTH = 240;
 const PANEL_MAX_WIDTH = 480;
 const PANEL_DEFAULT_WIDTH = 300;
+/** 우측 리뷰·완료 도크 폭 범위 — 기본 200px, 왼쪽 경계 드래그로 420px까지. */
+const DOCK_MIN_WIDTH = 200;
+const DOCK_MAX_WIDTH = 420;
+const DOCK_DEFAULT_WIDTH = 200;
 
 /** apiClient는 ApiError 객체({code,message})를 throw하므로 message를 우선 추출 */
 function errMessage(e: unknown, fallback: string): string {
@@ -559,6 +565,56 @@ export function SprintBoard({
       /* 프라이빗 모드 등 localStorage 접근 불가 시 무시 */
     }
   }, [dockTab]);
+  // 도크 폭 — 왼쪽 경계 드래그로 조절(200~420px). 더블클릭하면 기본 폭으로.
+  const [dockWidth, setDockWidth] = useState<number>(() => {
+    try {
+      const raw = Number(localStorage.getItem(SPRINT_DOCK_WIDTH_KEY));
+      if (Number.isFinite(raw) && raw > 0) {
+        return Math.min(DOCK_MAX_WIDTH, Math.max(DOCK_MIN_WIDTH, raw));
+      }
+    } catch {
+      /* 무시 */
+    }
+    return DOCK_DEFAULT_WIDTH;
+  });
+  const [dockResizing, setDockResizing] = useState(false);
+  useEffect(() => {
+    try {
+      localStorage.setItem(SPRINT_DOCK_WIDTH_KEY, String(dockWidth));
+    } catch {
+      /* 무시 */
+    }
+  }, [dockWidth]);
+  // 왼쪽 경계라 왼쪽으로 끌수록 넓어진다(startX - clientX). 좌측 트리 패널 핸들과 같은 패턴.
+  const handleDockResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startW = dockWidth;
+      setDockResizing(true);
+      const onMove = (ev: MouseEvent) => {
+        setDockWidth(
+          Math.min(
+            DOCK_MAX_WIDTH,
+            Math.max(DOCK_MIN_WIDTH, startW + (startX - ev.clientX)),
+          ),
+        );
+      };
+      const onUp = () => {
+        setDockResizing(false);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [dockWidth],
+  );
 
   // ── 피쳐 컬럼 접힘 ──
   // 헤더 클릭으로 44px 레일로 접는다. 명시적으로 토글한 것만 저장하고,
@@ -3367,8 +3423,11 @@ export function SprintBoard({
             setDragOverCol((c) => (c === active.id ? null : c));
         }}
         onDrop={(e) => void onDropColumn(e, active)}
-        style={isOver ? { borderColor: accent } : undefined}
-        className={`w-[200px] shrink-0 self-start max-h-full flex flex-col rounded-2xl border bg-sprint-col overflow-hidden transition-colors ${
+        style={{
+          width: dockWidth,
+          ...(isOver ? { borderColor: accent } : {}),
+        }}
+        className={`shrink-0 self-start max-h-full flex flex-col rounded-2xl border bg-sprint-col overflow-hidden transition-colors ${
           draggingSource === "sprint" && !isOver
             ? "border-foreground/20"
             : "border-sprint-border"
@@ -5947,7 +6006,30 @@ export function SprintBoard({
                     구성원 뷰에선 숨긴다 — "지금 누가 뭘 하나"에 집중하는 화면이라서다.
                     카드를 리뷰/완료로 보내는 건 카드 액션 버튼(showReview/showDone)이 대신한다. */}
                 {groupBy !== "member" && dockColumns.length > 0 && (
-                  <div className="shrink-0 flex py-3 md:py-4 pr-3 md:pr-4 min-h-0">
+                  <div className="relative shrink-0 flex py-3 md:py-4 pl-3 md:pl-4 pr-3 md:pr-4 min-h-0 bg-sprint-dock-ground border-l border-sprint-dock-edge">
+                    {/* 리사이즈 핸들 — 도크 영역 왼쪽 경계. 왼쪽으로 끌면 넓어진다(200~420px), 더블클릭 초기화. */}
+                    <div
+                      onMouseDown={handleDockResizeStart}
+                      onDoubleClick={() => setDockWidth(DOCK_DEFAULT_WIDTH)}
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label="리뷰·완료 도크 폭 조절"
+                      aria-valuemin={DOCK_MIN_WIDTH}
+                      aria-valuemax={DOCK_MAX_WIDTH}
+                      aria-valuenow={dockWidth}
+                      title="드래그해서 폭 조절 · 더블클릭 초기화"
+                      className={`group absolute top-0 left-0 h-full w-[9px] -translate-x-1/2 cursor-col-resize z-30 ${
+                        canEdit && draggingSource ? "pointer-events-none" : ""
+                      }`}
+                    >
+                      <div
+                        className={`absolute inset-y-0 left-[4px] w-px transition-colors ${
+                          dockResizing
+                            ? "bg-bridge-accent w-[2px] left-[3.5px]"
+                            : "bg-transparent group-hover:bg-bridge-accent"
+                        }`}
+                      />
+                    </div>
                     {renderDock()}
                   </div>
                 )}

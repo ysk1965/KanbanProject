@@ -28,6 +28,9 @@
   --sprint-card-hover:   #2b3752;
   --sprint-border:       rgba(148,163,184,0.16);
   --sprint-border-hover: rgba(148,163,184,0.30);
+  /* 우측 리뷰·완료 도크가 놓이는 영역 — 스크롤되는 본문과 한 단 어둡게 구분 */
+  --sprint-dock-ground:  #141a26;
+  --sprint-dock-edge:    rgba(148,163,184,0.12);
 
   /* Border Scale (4-level semantic borders) */
   --border-subtle: rgba(255,255,255,0.05);
@@ -149,6 +152,8 @@
   --sprint-card-hover:   #fbf7f0;
   --sprint-border:       rgba(60,50,40,0.12);
   --sprint-border-hover: rgba(60,50,40,0.22);
+  --sprint-dock-ground:  rgba(61,46,31,0.05);
+  --sprint-dock-edge:    rgba(61,46,31,0.10);
 
   /* Border Scale */
   --border-subtle: rgba(0,0,0,0.05);
@@ -319,6 +324,8 @@
   --color-sprint-card-hover: var(--sprint-card-hover);
   --color-sprint-border: var(--sprint-border);
   --color-sprint-border-hover: var(--sprint-border-hover);
+  --color-sprint-dock-ground: var(--sprint-dock-ground);
+  --color-sprint-dock-edge: var(--sprint-dock-edge);
 
   /* Border Scale Utilities */
   --color-border-subtle: var(--border-subtle);
