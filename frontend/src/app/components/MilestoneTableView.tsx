@@ -33,6 +33,7 @@ import type {
   ChecklistPreset,
   Feature,
   Milestone,
+  SprintBoard,
   SprintInfo,
   Task,
 } from "../types";
@@ -42,7 +43,7 @@ import {
   memberService,
   taskService,
 } from "../utils/services";
-import { checklistAPI } from "../utils/api";
+import { checklistAPI, sprintAPI } from "../utils/api";
 import {
   SprintChip,
   toShortDate,
@@ -76,6 +77,8 @@ interface MilestoneTableViewProps {
   onRefresh?: () => void;
   /** 스프린트 담기/옮기기 — toSprintId가 null이면 백로그로 빼기 */
   onMoveSprint?: (taskId: string, toSprintId: string | null) => void;
+  /** 체크리스트 줄을 다른 스프린트로 보낸 뒤 받은 보드 — 상위의 스프린트 칩 정보를 즉시 갱신한다 */
+  onSprintBoardChange?: (board: SprintBoard) => void;
 }
 
 type StatusFilter = "all" | "doing" | "open";
@@ -146,6 +149,7 @@ export function MilestoneTableView({
   onFeatureClick,
   onRefresh,
   onMoveSprint,
+  onSprintBoardChange,
 }: MilestoneTableViewProps) {
   const { t } = useTranslation();
   const mid = milestone.id;
@@ -362,12 +366,15 @@ export function MilestoneTableView({
       if (statusFilter === "open" && statusOf(tk) === "done") return false;
       if (sprintFilter) {
         const sprintId = sprintInfoByTask.get(tk.id)?.sprintId ?? null;
-        if (
-          sprintFilter === "none"
-            ? sprintId !== null
-            : sprintId !== sprintFilter
-        )
-          return false;
+        if (sprintFilter === "none") {
+          if (sprintId !== null) return false;
+        } else if (sprintId !== sprintFilter) {
+          // 태스크는 다른 스프린트여도 그 스프린트로 보낸 줄이 있으면 행이 선다(줄만 걸러 보여준다).
+          const sentHere = (checklists[tk.id]?.items ?? []).some(
+            (i) => (i.sprint_id ?? sprintId) === sprintFilter,
+          );
+          if (!sentHere) return false;
+        }
       }
       if (assigneeFilter) {
         const inTask = (tk.assignees ?? []).some(
@@ -559,6 +566,54 @@ export function MilestoneTableView({
       });
     },
     [boardId, patchLocalItem],
+  );
+
+  /**
+   * 줄 스프린트 지정 — 태스크와 다른 스프린트로 보내거나(sprintId) 태스크 따라가기(null).
+   * 낙관적으로 칩을 바꾸고, 응답 보드로 상위 스프린트 정보를 갱신한다. 실패 시 되돌린다.
+   */
+  const handleLineSprint = useCallback(
+    (taskId: string, item: ChecklistItem, sprintId: string | null) => {
+      if (!canEdit) return;
+      const prev: Partial<ChecklistItem> = {
+        sprint_id: item.sprint_id ?? null,
+        sprint_seq: item.sprint_seq ?? null,
+        sprint_overridden: item.sprint_overridden ?? false,
+      };
+      const taskSprintId = sprintInfoByTask.get(taskId)?.sprintId ?? null;
+      const effective = sprintId ?? taskSprintId;
+      const bucket = effective
+        ? sprints.find((s) => s.id === effective)
+        : undefined;
+      patchLocalItem(taskId, item.id, {
+        sprint_id: effective,
+        sprint_seq: bucket?.sequence_no ?? null,
+        sprint_overridden: !!sprintId && sprintId !== taskSprintId,
+      });
+      sprintAPI
+        .setChecklistSprint(boardId, {
+          item_ids: [item.id],
+          sprint_id: sprintId,
+        })
+        .then((board) => onSprintBoardChange?.(board))
+        .catch(() => {
+          patchLocalItem(taskId, item.id, prev);
+          toast.error(
+            t("milestone.table.lineSprintFailed", {
+              defaultValue: "항목 스프린트 변경에 실패했어요",
+            }),
+          );
+        });
+    },
+    [
+      boardId,
+      canEdit,
+      patchLocalItem,
+      sprintInfoByTask,
+      sprints,
+      onSprintBoardChange,
+      t,
+    ],
   );
 
   const handleToggleItem = useCallback(
@@ -835,8 +890,15 @@ export function MilestoneTableView({
               item.start_date || item.due_date
                 ? `${item.start_date ?? ""}~${item.due_date ?? ""}`
                 : "";
+            // 다른 스프린트로 보낸 줄은 그 줄의 스프린트로 적는다.
+            const lineSprint =
+              item.sprint_overridden && item.sprint_seq != null
+                ? `S${item.sprint_seq}`
+                : sprint;
             rows.push([
-              ...base,
+              ...base.slice(0, 4),
+              lineSprint,
+              base[5],
               item.title,
               period,
               item.completed ? "O" : "X",
@@ -1217,6 +1279,17 @@ export function MilestoneTableView({
 
                       const rows = g.visibleTasks.map((tk, i) => {
                         const items = itemsOf(tk.id);
+                        const taskSprintId =
+                          sprintInfoByTask.get(tk.id)?.sprintId ?? null;
+                        // 스프린트 필터 중엔 그 스프린트 몫의 줄만 보여준다 — 행은 태스크지만 줄은 스프린트 단위다.
+                        const shownItems =
+                          sprintFilter && sprintFilter !== "none"
+                            ? items.filter(
+                                (it) =>
+                                  (it.sprint_id ?? taskSprintId) ===
+                                  sprintFilter,
+                              )
+                            : items;
                         const state = checklists[tk.id];
                         const dueOver =
                           !tk.completed &&
@@ -1346,13 +1419,27 @@ export function MilestoneTableView({
                                   </div>
                                 ) : (
                                   <div className="space-y-1">
-                                    {items.map((item) => (
+                                    {shownItems.map((item) => (
                                       <SortableChecklistLine
                                         key={item.id}
                                         item={item}
                                         taskId={tk.id}
                                         canEdit={canEdit}
                                         members={members}
+                                        sprintPick={
+                                          sprintEnabled && sprints.length > 1
+                                            ? {
+                                                taskSprintId,
+                                                sprints,
+                                                onChange: (sid) =>
+                                                  handleLineSprint(
+                                                    tk.id,
+                                                    item,
+                                                    sid,
+                                                  ),
+                                              }
+                                            : undefined
+                                        }
                                         onToggle={() =>
                                           handleToggleItem(tk.id, item)
                                         }
@@ -1496,6 +1583,7 @@ function SortableChecklistLine({
   onDates,
   unassignedLabel,
   delayedLabel,
+  sprintPick,
 }: {
   item: ChecklistItem;
   taskId: string;
@@ -1510,6 +1598,12 @@ function SortableChecklistLine({
   }) => void;
   unassignedLabel: string;
   delayedLabel: string;
+  /** 줄 스프린트 지정 — 없으면(스프린트 1개 이하) 칩을 그리지 않는다 */
+  sprintPick?: {
+    taskSprintId: string | null;
+    sprints: SprintInfo[];
+    onChange: (sprintId: string | null) => void;
+  };
 }) {
   const { t } = useTranslation();
   const datesLabel = t("milestone.table.setDates", { defaultValue: "기간" });
@@ -1522,6 +1616,11 @@ function SortableChecklistLine({
   const [draft, setDraft] = useState(item.title);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
+  const [sprintOpen, setSprintOpen] = useState(false);
+  const overridden = !!item.sprint_overridden;
+  const followLabel = t("milestone.table.lineSprintFollow", {
+    defaultValue: "태스크 따라가기",
+  });
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: item.id,
     data: { taskId },
@@ -1600,6 +1699,103 @@ function SortableChecklistLine({
         >
           {item.title}
         </span>
+      )}
+
+      {/* 줄 스프린트 칩 — 상속 중이면 호버에서만(점선), 태스크와 다른 스프린트로 보낸 줄이면 항상(틸).
+          태스크 칩이 이미 스프린트를 말하고 있으니 예외에만 눈에 띄게 한다. */}
+      {sprintPick && (
+        <div className="relative flex-shrink-0">
+          <button
+            type="button"
+            onClick={canEdit ? () => setSprintOpen((v) => !v) : undefined}
+            disabled={!canEdit}
+            aria-label={t("milestone.table.lineSprint", {
+              defaultValue: "이 항목의 스프린트",
+            })}
+            title={
+              overridden
+                ? t("milestone.table.lineSprintOverridden", {
+                    defaultValue: "태스크와 다른 스프린트로 보낸 항목",
+                  })
+                : followLabel
+            }
+            className={`text-xs font-bold px-1.5 rounded-full leading-[18px] tabular-nums whitespace-nowrap transition-opacity focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+              overridden
+                ? "bg-bridge-secondary/15 text-bridge-secondary"
+                : `border border-dashed border-foreground/20 text-slate-500 ${
+                    sprintOpen
+                      ? ""
+                      : "opacity-0 group-hover/cl:opacity-100 focus:opacity-100"
+                  }`
+            }${canEdit ? " cursor-pointer" : ""}`}
+          >
+            S{item.sprint_seq ?? "?"}
+          </button>
+          {sprintOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setSprintOpen(false)}
+              />
+              <div className="absolute top-full right-0 mt-1 z-40 w-56 bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSprintOpen(false);
+                    sprintPick.onChange(null);
+                  }}
+                  className={`flex items-center justify-between gap-2 w-full px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors ${
+                    !overridden
+                      ? "bg-bridge-accent/15 text-foreground font-bold"
+                      : "text-slate-300 hover:bg-foreground/5"
+                  }`}
+                >
+                  <span>{followLabel}</span>
+                  <span className="text-slate-500 tabular-nums">
+                    {sprintPick.sprints.find(
+                      (s) => s.id === sprintPick.taskSprintId,
+                    )?.name ??
+                      t("milestone.detail.backlog", { defaultValue: "백로그" })}
+                  </span>
+                </button>
+                <div className="my-1 border-t border-foreground/[0.08]" />
+                {sprintPick.sprints.map((sp) => {
+                  const selected = overridden && item.sprint_id === sp.id;
+                  return (
+                    <button
+                      key={sp.id}
+                      type="button"
+                      onClick={() => {
+                        setSprintOpen(false);
+                        sprintPick.onChange(sp.id);
+                      }}
+                      className={`flex items-center justify-between gap-2 w-full px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors ${
+                        selected
+                          ? "bg-bridge-accent/15 text-foreground font-bold"
+                          : sp.state === "PAST"
+                            ? "text-slate-500 hover:bg-foreground/5"
+                            : "text-slate-300 hover:bg-foreground/5"
+                      }`}
+                    >
+                      <span className="truncate">{sp.name}</span>
+                      <span
+                        className={`shrink-0 tabular-nums ${
+                          sp.state === "CURRENT"
+                            ? "text-bridge-secondary"
+                            : "text-slate-500"
+                        }`}
+                      >
+                        {sp.start_date && sp.end_date
+                          ? `${toShortDate(sp.start_date)}~${toShortDate(sp.end_date)}`
+                          : ""}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
       )}
 
       {/* 기간 (시작~마감) — 클릭 시 편집, 마감 지남 + 미완료면 빨강 */}

@@ -177,15 +177,33 @@ public class SprintController {
                 request.getTaskDistribution(), userPrincipal.getUserId()));
     }
 
-    /** 지난 스프린트의 미완료 태스크를 다음 스프린트로 일괄 이동 (이월 배지 +1) — 관리자 */
+    /**
+     * 지난 스프린트의 미완료를 다음 스프린트로 보내기 — 줄 단위 (관리자).
+     * 본문이 없으면 미완료 전부, 있으면 고른 줄(item_ids)·줄 없는 태스크(task_ids)만.
+     */
     @PostMapping("/sprints/{sprintId}/push-unfinished")
     public ResponseEntity<SprintResponse.Board> pushUnfinished(
             @PathVariable String boardId,
             @PathVariable String sprintId,
+            @RequestBody(required = false) SprintRequest.PushUnfinished request,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
-        return ResponseEntity.ok(
-                sprintService.pushUnfinished(boardId, sprintId, userPrincipal.getUserId()));
+        return ResponseEntity.ok(sprintService.pushUnfinished(
+                boardId, sprintId,
+                request != null ? request.getItemIds() : null,
+                request != null ? request.getTaskIds() : null,
+                userPrincipal.getUserId()));
+    }
+
+    /** 체크리스트 줄을 태스크와 다른 스프린트로 보내기 / 되돌리기(sprint_id = null) — 멤버+ */
+    @PatchMapping("/checklist-items/sprint")
+    public ResponseEntity<SprintResponse.Board> setChecklistSprint(
+            @PathVariable String boardId,
+            @Valid @RequestBody SprintRequest.SetChecklistSprint request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(sprintService.setChecklistSprint(
+                boardId, request.getItemIds(), request.getSprintId(), userPrincipal.getUserId()));
     }
 
     /** 특정 스프린트에 담긴 태스크 카드 목록 (지난 스프린트 열람용) */

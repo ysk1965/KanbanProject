@@ -497,10 +497,20 @@ public class BoardProgressCollector {
         Sprint sprint = pickReportSprint(sprints, sprintIdsWithTasks, today);
         List<Task> tasks = taskRepository.findBySprintId(sprint.getId());
 
-        // 스프린트에 담긴 태스크의 체크리스트를 한 번에 읽어 태스크별로 묶는다.
+        // 이 스프린트에 속한 줄(태스크 상속 + 줄 지정으로 보내온 것)을 한 번에 읽어 태스크별로 묶는다.
+        // 홈 태스크의 줄이라도 다른 스프린트로 보낸 줄은 여기 없다 — 게이지와 같은 귀속 규칙.
         Map<String, List<ChecklistItem>> checklistByTask = new HashMap<>();
+        Map<String, Task> foreignTaskById = new HashMap<>();
+        Set<String> homeTaskIds = new HashSet<>();
+        for (Task t : tasks) {
+            homeTaskIds.add(t.getId());
+        }
         for (ChecklistItem item : checklistItemRepository.findByTaskSprintId(sprint.getId())) {
-            checklistByTask.computeIfAbsent(item.getTask().getId(), k -> new ArrayList<>()).add(item);
+            String taskId = item.getTask().getId();
+            checklistByTask.computeIfAbsent(taskId, k -> new ArrayList<>()).add(item);
+            if (!homeTaskIds.contains(taskId)) {
+                foreignTaskById.putIfAbsent(taskId, item.getTask());
+            }
         }
 
         int taskTotal = tasks.size();
@@ -543,6 +553,28 @@ public class BoardProgressCollector {
                 inProgress += remaining;
             }
             // 그 외는 미착수 — 별도 버킷 없이 total에만 포함
+        }
+        // 다른 태스크에서 이 스프린트로 보내온 줄(부분 카드) — 줄 수 그대로 더한다.
+        for (Map.Entry<String, Task> e : foreignTaskById.entrySet()) {
+            List<ChecklistItem> items = checklistByTask.getOrDefault(e.getKey(), List.of());
+            int completed = 0;
+            for (ChecklistItem c : items) {
+                if (Boolean.TRUE.equals(c.getIsCompleted())) {
+                    completed++;
+                }
+            }
+            total += items.size();
+            done += completed;
+            int remaining = items.size() - completed;
+            if (remaining <= 0) {
+                continue;
+            }
+            Task t = e.getValue();
+            if (t.getDueDate() != null && t.getDueDate().isBefore(today)) {
+                delayed += remaining;
+            } else if (t.getStartDate() != null && !t.getStartDate().isAfter(today)) {
+                inProgress += remaining;
+            }
         }
 
         int percentage = total == 0 ? 0 : (int) Math.round(done * 100.0 / total);

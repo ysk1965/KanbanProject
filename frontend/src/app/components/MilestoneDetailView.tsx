@@ -536,7 +536,8 @@ export function MilestoneDetailView({
     if (!sprintBoard) return map;
     // 카드에는 버킷 id만 실려 오므로 회차·시점은 sprints에서 조인해 채운다.
     const put = (item: SprintItemCard) => {
-      if (!item.task_id) return;
+      // 부분 카드(다른 스프린트로 보낸 줄)는 태스크의 귀속이 아니다 — 홈 카드만 읽는다.
+      if (!item.task_id || item.partial) return;
       const bucket = item.sprint_id ? sprintById.get(item.sprint_id) : undefined;
       map.set(item.task_id, {
         sprintId: item.sprint_id ?? null,
@@ -1055,6 +1056,7 @@ export function MilestoneDetailView({
             onFeatureClick={onFeatureClick}
             onRefresh={onRefresh}
             onMoveSprint={sprints.length > 0 ? handleMoveSprint : undefined}
+            onSprintBoardChange={setSprintBoard}
           />
         ) : scopedTotal === 0 ? (
           <div className="flex flex-col items-center py-12 text-slate-500">

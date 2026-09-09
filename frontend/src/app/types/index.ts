@@ -664,6 +664,11 @@ export interface ChecklistItem {
    * 목록 조회에만 실려 오므로, 단건 갱신 때는 기존 값을 유지한다.
    */
   comment_count?: number;
+  /** 실제 귀속 스프린트(지정 ?? 태스크). 백로그면 null. */
+  sprint_id?: string | null;
+  sprint_seq?: number | null;
+  /** true면 태스크와 다른 스프린트로 직접 보낸 줄 — 화면은 이 예외에만 칩을 붙인다. */
+  sprint_overridden?: boolean;
 }
 
 export interface Checklist {
@@ -721,6 +726,18 @@ export interface SprintChecklistLine {
     manager_user_id: string | null;
     manager_name: string | null;
   } | null;
+  // ── 줄의 스프린트 귀속 ──
+  sprint_id?: string | null; // 실제 귀속(지정 ?? 태스크). 백로그면 null
+  sprint_seq?: number | null; // "S{n}" 표기용
+  sprint_overridden?: boolean; // true면 태스크와 다른 스프린트로 직접 보낸 줄
+}
+
+/** 홈 카드에 붙는 "다른 스프린트로 보낸 줄" 요약 — "S3에 2줄" 배지 재료. */
+export interface SprintSliceCount {
+  sprint_id: string;
+  sprint_seq: number | null;
+  total: number;
+  done: number;
 }
 
 /**
@@ -754,6 +771,12 @@ export interface SprintItemCard {
   checklist_done: number;
   checklist_total: number;
   checklist_items?: SprintChecklistLine[];
+  // ── 줄 단위 스프린트 분배 ──
+  // partial=true면 태스크의 홈은 다른 스프린트(또는 백로그)이고 이 카드는 "이 스프린트로 보낸 줄"만 담는다.
+  // id는 "{taskId}@{sprintId}"라 홈 카드와 다르며, 컬럼 이동·빼기 조작은 홈 카드에서만 한다.
+  partial?: boolean;
+  home_sprint_id?: string | null;
+  foreign_line_counts?: SprintSliceCount[]; // 홈 카드 전용
   // ── JIRA 뷰 전용 (컬럼=JIRA 상태 그루핑용) ──
   block_id?: string | null; // 부모 Task의 현재 칸반 블록 = 매핑된 JIRA 상태(push 시 최신)
   qa_state?: "REVIEW" | "VERIFIED" | "REJECTED" | null; // JIRA pull QA 상태 (읽기전용)

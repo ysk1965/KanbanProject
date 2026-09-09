@@ -41,15 +41,21 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 스프린트 보드 서비스.
  *
  * <p>담기 단위는 <b>태스크</b>다. 체크리스트는 태스크에 딸린 내용물이라 따로 담지 않으며,
  * 태스크가 스프린트에 들어가 있으면 그 뒤에 추가된 체크리스트도 자동으로 같은 스프린트 안에 있게 된다.
+ *
+ * <p>예외로 체크리스트 <b>줄</b>은 태스크와 다른 스프린트로 보낼 수 있다({@code checklist_items.sprint_id}).
+ * 보낸 줄은 그 스프린트에 "부분 카드"({@code partial=true}, id = taskId@sprintId)로 서고, 게이지·이월은
+ * 줄이 실제로 속한 스프린트({@code ChecklistItem.effectiveSprint()}) 기준으로 센다.
  *
  * <p>완료 판정은 <b>END(Done) 컬럼 도달</b>이다. 체크리스트 진척은 카드에 표시되는 참고 값일 뿐
  * 완료를 좌우하지 않으며, 칸반 블록 기준 완료(task.isCompleted)와도 별개로 움직인다.
@@ -172,6 +178,49 @@ public class SprintService {
         Milestone milestone = sprint.getMilestone();
         ensureColumns(milestone);
         task.assignToSprint(sprint, requireColumn(milestone, SprintColumnKind.START));
+        normalizeOverrides(checklistItemRepository.findByTaskIdOrderByPositionAsc(taskId));
+        broadcastSprintChanged(boardId, userId);
+        return buildBoard(milestone, userId);
+    }
+
+    // ==================== 줄 단위 스프린트 지정 (멤버+) ====================
+
+    /**
+     * 체크리스트 줄을 태스크와 다른 스프린트로 보내거나(sprintId) 되돌린다(null).
+     * 태스크의 스프린트와 같은 값은 지정을 지워 상속으로 정규화한다.
+     */
+    @Transactional
+    public SprintResponse.Board setChecklistSprint(String boardId, List<String> itemIds, String sprintId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+        if (itemIds == null || itemIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
+        }
+        List<ChecklistItem> items = checklistItemRepository.findByIdInWithTaskAndSprint(itemIds);
+        if (items.size() != new HashSet<>(itemIds).size()) {
+            throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
+        }
+        Sprint target = sprintId == null ? null : loadSprint(boardId, sprintId);
+        Milestone milestone = null;
+        for (ChecklistItem c : items) {
+            Task t = c.getTask();
+            if (t == null || t.getBoard() == null || !t.getBoard().getId().equals(boardId)) {
+                throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+            }
+            Milestone tm = t.getMilestone();
+            if (tm == null) {
+                throw new BusinessException(ErrorCode.SPRINT_TASK_NOT_IN_MILESTONE);
+            }
+            if (target != null && !tm.getId().equals(target.getMilestone().getId())) {
+                throw new BusinessException(ErrorCode.SPRINT_TASK_NOT_IN_MILESTONE);
+            }
+            if (milestone == null) {
+                milestone = tm;
+            } else if (!milestone.getId().equals(tm.getId())) {
+                throw new BusinessException(ErrorCode.SPRINT_TASK_NOT_IN_MILESTONE);
+            }
+            c.assignSprint(target);
+        }
+        ensureColumns(milestone);
         broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone, userId);
     }
@@ -393,11 +442,15 @@ public class SprintService {
                 Sprint removed = existing.get(i);
                 taskRepository.findBySprintId(removed.getId())
                         .forEach(t -> t.assignToSprint(lastKept, t.getSprintColumn()));
+                // 사라지는 버킷을 가리키던 줄 지정은 상속으로 되돌린다(FK SET NULL과 같은 결과를 세션 안에서 보장).
+                checklistItemRepository.clearSprintOverrideBySprintId(removed.getId());
                 sprintRepository.delete(removed);
             }
         }
 
         applyTaskDistribution(milestone, buckets, taskDistribution);
+        // 태스크가 옮겨진 뒤 지정값이 태스크와 같아진 줄은 지정을 지운다.
+        normalizeOverrides(checklistItemRepository.findByTaskMilestoneId(milestoneId));
 
         log.info("Milestone {} split into {} sprints (distribution={})", milestoneId, count, taskDistribution);
         broadcastSprintChanged(boardId, userId);
@@ -405,12 +458,20 @@ public class SprintService {
     }
 
     /**
-     * 지난 스프린트의 미완료 태스크를 다음 스프린트로 일괄 이동한다.
-     * 자동 이월의 대체 — 사람이 정리 시점을 정하는 액션이며, carryOverCount가 1 올라
-     * "이월 N" 배지로 히스토리가 남는다.
+     * 지난 스프린트의 미완료를 다음 스프린트로 보낸다 — <b>줄 단위</b>.
+     * 자동 이월의 대체로, 사람이 정리 시점을 정하는 액션이다.
+     *
+     * <ul>
+     *   <li>itemIds/taskIds 가 모두 null 이면 이 스프린트의 미완료 줄 전부(+체크리스트 없는 미완료 태스크)가 대상.</li>
+     *   <li>홈 태스크의 미완료 줄이 전부 대상이면 태스크 자체를 옮긴다(carryOverCount +1).
+     *       이때 이미 끝낸 줄은 지난 스프린트에 지정으로 남겨 기록이 비지 않게 한다.</li>
+     *   <li>일부만 대상이면 그 줄만 다음 스프린트로 지정한다 — 태스크는 제자리, 다음 스프린트엔 부분 카드.</li>
+     *   <li>다른 태스크에서 이 스프린트로 보내온 줄(부분 카드의 줄)은 지정만 다음으로 바꾼다.</li>
+     * </ul>
      */
     @Transactional
-    public SprintResponse.Board pushUnfinished(String boardId, String sprintId, String userId) {
+    public SprintResponse.Board pushUnfinished(String boardId, String sprintId,
+                                               List<String> itemIds, List<String> taskIds, String userId) {
         boardService.checkAdminOrAbove(boardId, userId);
         Sprint sprint = loadSprint(boardId, sprintId);
         Milestone milestone = sprint.getMilestone();
@@ -419,13 +480,85 @@ public class SprintService {
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(ErrorCode.SPRINT_NO_NEXT_SPRINT));
         ensureColumns(milestone);
-        List<Task> unfinished = taskRepository.findNotDoneBySprintId(sprintId, SprintColumnKind.END);
-        if (!unfinished.isEmpty()) {
-            SprintColumn start = requireColumn(milestone, SprintColumnKind.START);
-            unfinished.forEach(t -> t.carryOverTo(next, start));
-            log.info("Sprint {} — {} unfinished tasks pushed to {}",
-                    sprint.getName(), unfinished.size(), next.getName());
+        SprintColumn start = requireColumn(milestone, SprintColumnKind.START);
+
+        boolean selective = itemIds != null || taskIds != null;
+        Set<String> wantItems = itemIds == null ? Set.of() : new HashSet<>(itemIds);
+        Set<String> wantTasks = taskIds == null ? Set.of() : new HashSet<>(taskIds);
+
+        // 이 스프린트에 속한 줄(홈 상속 + 지정으로 보내온 줄) 중 미완료
+        List<ChecklistItem> sprintLines = checklistItemRepository.findByTaskSprintId(sprintId);
+        Map<String, List<ChecklistItem>> unfinishedByTask = new LinkedHashMap<>();
+        for (ChecklistItem c : sprintLines) {
+            if (Boolean.TRUE.equals(c.getIsCompleted()) || c.getTask() == null) {
+                continue;
+            }
+            unfinishedByTask.computeIfAbsent(c.getTask().getId(), k -> new ArrayList<>()).add(c);
         }
+        // 태스크가 체크리스트를 하나라도 갖는지(=줄 없는 태스크 판정)는 마일스톤 전체 줄로 본다.
+        Map<String, List<ChecklistItem>> allByTask =
+                groupByTask(checklistItemRepository.findByTaskMilestoneId(milestone.getId()));
+
+        int movedTasks = 0;
+        int movedLines = 0;
+        // 1) 홈 태스크(이 스프린트에 담긴 태스크, END 미도달)
+        for (Task t : taskRepository.findNotDoneBySprintId(sprintId, SprintColumnKind.END)) {
+            List<ChecklistItem> all = allByTask.getOrDefault(t.getId(), List.of());
+            if (all.isEmpty()) {
+                // 줄이 없는 태스크는 태스크 자체가 한 줄 — 태스크 단위로만 보낼 수 있다.
+                if (!selective || wantTasks.contains(t.getId())) {
+                    t.carryOverTo(next, start);
+                    movedTasks++;
+                }
+                continue;
+            }
+            List<ChecklistItem> unfinishedHome = unfinishedByTask.getOrDefault(t.getId(), List.of());
+            if (unfinishedHome.isEmpty()) {
+                continue; // 이 스프린트 몫은 다 끝났다 — 옮길 게 없다(Done 컬럼 이동은 사람이 한다)
+            }
+            List<ChecklistItem> selected = selective
+                    ? unfinishedHome.stream().filter(c -> wantItems.contains(c.getId())).toList()
+                    : unfinishedHome;
+            if (selected.isEmpty()) {
+                continue;
+            }
+            if (selected.size() == unfinishedHome.size()) {
+                // 미완료 몫 전부 → 태스크 이동. 끝낸 줄은 지난 스프린트에 남긴다.
+                t.carryOverTo(next, start);
+                movedTasks++;
+                for (ChecklistItem c : all) {
+                    if (c.isSprintOverridden()) {
+                        // 다음 스프린트로 미리 보내둔 줄은 이제 태스크와 같아졌으니 지정을 지운다.
+                        if (next.getId().equals(c.getSprint().getId())) {
+                            c.assignSprint(next);
+                        }
+                    } else if (Boolean.TRUE.equals(c.getIsCompleted())) {
+                        c.assignSprint(sprint);
+                    }
+                }
+            } else {
+                for (ChecklistItem c : selected) {
+                    c.assignSprint(next);
+                    movedLines++;
+                }
+            }
+        }
+        // 2) 다른 태스크에서 이 스프린트로 보내온 줄(홈이 여기가 아닌 태스크의 줄)
+        for (List<ChecklistItem> lines : unfinishedByTask.values()) {
+            for (ChecklistItem c : lines) {
+                Task t = c.getTask();
+                boolean homeHere = t.getSprint() != null && sprintId.equals(t.getSprint().getId());
+                if (homeHere || !c.isSprintOverridden()) {
+                    continue;
+                }
+                if (!selective || wantItems.contains(c.getId())) {
+                    c.assignSprint(next);
+                    movedLines++;
+                }
+            }
+        }
+        log.info("Sprint {} — {} tasks / {} lines pushed to {}",
+                sprint.getName(), movedTasks, movedLines, next.getName());
         broadcastSprintChanged(boardId, userId);
         return buildBoard(milestone, userId);
     }
@@ -433,11 +566,22 @@ public class SprintService {
     /** 특정 스프린트에 담긴 태스크 카드 목록 (아카이브 열람 / 재개 UI용) */
     public List<SprintResponse.ItemCard> getSprintTasks(String boardId, String sprintId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
-        loadSprint(boardId, sprintId);
-        Map<String, List<ChecklistItem>> byTask = groupByTask(checklistItemRepository.findByTaskSprintId(sprintId));
-        return taskRepository.findBySprintId(sprintId).stream()
-                .map(t -> SprintResponse.ItemCard.of(t, byTask.getOrDefault(t.getId(), List.of())))
-                .toList();
+        Sprint sprint = loadSprint(boardId, sprintId);
+        Milestone milestone = sprint.getMilestone();
+        List<Sprint> sprints = sprintRepository.findByMilestoneIdOrderBySequenceNoAsc(milestone.getId());
+        List<SprintColumn> cols = sprintColumnRepository.findByMilestoneIdOrderByPositionAsc(milestone.getId());
+        Map<String, List<ChecklistItem>> byTask =
+                groupByTask(checklistItemRepository.findByTaskMilestoneId(milestone.getId()));
+        List<SprintResponse.ItemCard> out = new ArrayList<>();
+        for (Task t : taskRepository.findAllByMilestoneIdWithSprint(milestone.getId())) {
+            for (SprintResponse.ItemCard card : assembleCards(t, byTask.getOrDefault(t.getId(), List.of()),
+                    sprints, cols, null, null)) {
+                if (sprintId.equals(card.getSprintId())) {
+                    out.add(card);
+                }
+            }
+        }
+        return out;
     }
 
     /**
@@ -449,12 +593,112 @@ public class SprintService {
         loadMilestone(boardId, milestoneId);
         Map<String, List<ChecklistItem>> byTask =
                 groupByTask(checklistItemRepository.findByTaskMilestoneId(milestoneId));
+        Map<String, Integer> seq = seqBySprintId(sprintRepository.findByMilestoneIdOrderBySequenceNoAsc(milestoneId));
+        // 콘솔은 태스크 트리라 부분 카드를 만들지 않는다 — 태스크 한 장에 줄 전체(각 줄에 귀속 스프린트 표기).
         return taskRepository.findAllByMilestoneIdWithSprint(milestoneId).stream()
-                .map(t -> SprintResponse.ItemCard.of(t, byTask.getOrDefault(t.getId(), List.of())))
+                .map(t -> SprintResponse.ItemCard.home(t, byTask.getOrDefault(t.getId(), List.of()),
+                        null, null, List.of(), seq))
                 .toList();
     }
 
     // ==================== Helpers ====================
+
+    private Map<String, Integer> seqBySprintId(List<Sprint> sprints) {
+        Map<String, Integer> m = new HashMap<>();
+        for (Sprint sp : sprints) {
+            m.put(sp.getId(), sp.getSequenceNo());
+        }
+        return m;
+    }
+
+    /** 지정값이 태스크의 스프린트와 같아진 줄의 지정을 지운다(상속으로 정규화). */
+    private void normalizeOverrides(List<ChecklistItem> items) {
+        for (ChecklistItem c : items) {
+            if (!c.isSprintOverridden() || c.getTask() == null) {
+                continue;
+            }
+            Sprint ts = c.getTask().getSprint();
+            if (ts != null && ts.getId().equals(c.getSprint().getId())) {
+                c.assignSprint(null);
+            }
+        }
+    }
+
+    /**
+     * 태스크의 줄을 "홈 몫"과 "다른 스프린트로 보낸 몫"으로 나눈다.
+     * 홈 = 태스크의 스프린트(백로그면 null). 이 마일스톤에 없는 스프린트를 가리키는 지정은 홈으로 취급한다.
+     */
+    private record LineSplit(List<ChecklistItem> home, Map<String, List<ChecklistItem>> foreign) {}
+
+    private LineSplit splitLines(Task t, List<ChecklistItem> all, Map<String, Sprint> sprintById) {
+        String homeId = t.getSprint() != null ? t.getSprint().getId() : null;
+        List<ChecklistItem> home = new ArrayList<>();
+        Map<String, List<ChecklistItem>> foreign = new LinkedHashMap<>();
+        for (ChecklistItem c : all) {
+            Sprint eff = c.effectiveSprint();
+            String effId = eff != null ? eff.getId() : null;
+            if (effId == null || effId.equals(homeId) || !sprintById.containsKey(effId)) {
+                home.add(c);
+            } else {
+                foreign.computeIfAbsent(effId, k -> new ArrayList<>()).add(c);
+            }
+        }
+        return new LineSplit(home, foreign);
+    }
+
+    /**
+     * 태스크 한 건을 카드로 편다 — 첫 장은 홈 카드(태스크가 담긴 스프린트/백로그), 뒤는 보낸 줄이 있는
+     * 스프린트마다 부분 카드 한 장. 부분 카드의 컬럼은 저장하지 않고 파생한다(전부 완료 → END, 아니면 START).
+     */
+    private List<SprintResponse.ItemCard> assembleCards(Task t, List<ChecklistItem> all,
+                                                        List<Sprint> sprints, List<SprintColumn> cols,
+                                                        String jiraIssueKey, String jiraStatusId) {
+        Map<String, Sprint> sprintById = new HashMap<>();
+        for (Sprint sp : sprints) {
+            sprintById.put(sp.getId(), sp);
+        }
+        Map<String, Integer> seq = seqBySprintId(sprints);
+        SprintColumn startCol = cols.stream().filter(SprintColumn::isStart).findFirst().orElse(null);
+        SprintColumn endCol = cols.stream().filter(SprintColumn::isEnd).findFirst().orElse(null);
+
+        LineSplit split = splitLines(t, all, sprintById);
+        List<SprintResponse.SliceCount> counts = new ArrayList<>();
+        for (Map.Entry<String, List<ChecklistItem>> e : split.foreign().entrySet()) {
+            int done = (int) e.getValue().stream().filter(c -> Boolean.TRUE.equals(c.getIsCompleted())).count();
+            counts.add(SprintResponse.SliceCount.builder()
+                    .sprintId(e.getKey())
+                    .sprintSeq(seq.get(e.getKey()))
+                    .total(e.getValue().size())
+                    .done(done)
+                    .build());
+        }
+        counts.sort((a, b) -> Integer.compare(
+                a.getSprintSeq() == null ? 0 : a.getSprintSeq(),
+                b.getSprintSeq() == null ? 0 : b.getSprintSeq()));
+
+        List<SprintResponse.ItemCard> out = new ArrayList<>();
+        out.add(SprintResponse.ItemCard.home(t, split.home(), jiraIssueKey, jiraStatusId, counts, seq));
+        for (Map.Entry<String, List<ChecklistItem>> e : split.foreign().entrySet()) {
+            Sprint slice = sprintById.get(e.getKey());
+            boolean allDone = e.getValue().stream().allMatch(c -> Boolean.TRUE.equals(c.getIsCompleted()));
+            out.add(SprintResponse.ItemCard.slice(t, e.getValue(), slice, allDone ? endCol : startCol, seq));
+        }
+        return out;
+    }
+
+    /**
+     * 홈 카드의 진척 단위. 태스크에 줄이 하나도 없으면 태스크 자체가 한 줄(1/1)이고,
+     * 줄은 있는데 전부 다른 스프린트로 보냈으면 이 스프린트 몫은 0이다(1로 환산하면 유령 분모가 생긴다).
+     */
+    private int[] homeUnits(List<ChecklistItem> all, List<ChecklistItem> home, boolean done) {
+        if (all.isEmpty()) {
+            return progressUnits(home, done);
+        }
+        if (home.isEmpty()) {
+            return new int[] {0, 0};
+        }
+        return progressUnits(home, done);
+    }
 
     /** 체크리스트를 부모 태스크 id로 묶는다 (카드 진척 집계용). */
     private Map<String, List<ChecklistItem>> groupByTask(List<ChecklistItem> items) {
@@ -690,7 +934,6 @@ public class SprintService {
         // FE가 선택된 스프린트로 즉시 필터링한다 (스프린트 전환에 재조회 없음).
         List<Task> allTasks = taskRepository.findAllByMilestoneIdWithSprint(milestoneId);
         List<Task> inSprint = allTasks.stream().filter(Task::isInSprint).toList();
-        List<Task> backlogTasks = allTasks.stream().filter(t -> !t.isInSprint()).toList();
 
         // JIRA 뷰(컬럼=JIRA 상태)용 — 연동 보드일 때만 JIRA 링크를 배치 조회(N+1 방지)
         Map<String, JiraIssueLink> jiraLinkByTaskId = resolveJiraLinks(milestone.getBoard().getId(), inSprint);
@@ -701,24 +944,47 @@ public class SprintService {
         }
         String fallbackColId = cols.isEmpty() ? null : cols.get(0).getId();
         Map<String, int[]> unitsBySprint = new HashMap<>();
-        for (Task t : inSprint) {
-            List<ChecklistItem> cls = checklistsByTask.getOrDefault(t.getId(), List.of());
-            JiraIssueLink jiraLink = jiraLinkByTaskId.get(t.getId());
-            SprintResponse.ItemCard card = SprintResponse.ItemCard.of(
-                    t,
-                    cls,
-                    jiraLink != null ? jiraLink.getJiraIssueKey() : null,
-                    jiraLink != null ? jiraLink.getLastJiraStatusId() : null);
-            SprintColumn tc = t.getSprintColumn();
-            if (tc != null && byCol.containsKey(tc.getId())) {
-                byCol.get(tc.getId()).add(card);
+        Map<String, Sprint> sprintById = new HashMap<>();
+        for (Sprint sp : sprints) {
+            sprintById.put(sp.getId(), sp);
+        }
+        // 카드를 컬럼에 놓는다 — 홈 카드는 저장된 컬럼, 부분 카드는 파생 컬럼(START/END).
+        java.util.function.BiConsumer<SprintResponse.ItemCard, String> place = (card, colId) -> {
+            if (colId != null && byCol.containsKey(colId)) {
+                byCol.get(colId).add(card);
             } else if (fallbackColId != null) {
                 byCol.get(fallbackColId).add(card);
             }
-            int[] u = progressUnits(cls, tc != null && tc.isEnd());
-            int[] acc = unitsBySprint.computeIfAbsent(t.getSprint().getId(), k -> new int[2]);
+        };
+        java.util.function.BiConsumer<String, int[]> accumulate = (sprintId, u) -> {
+            int[] acc = unitsBySprint.computeIfAbsent(sprintId, k -> new int[2]);
             acc[0] += u[0];
             acc[1] += u[1];
+        };
+        List<SprintResponse.ItemCard> backlog = new ArrayList<>();
+        for (Task t : allTasks) {
+            List<ChecklistItem> cls = checklistsByTask.getOrDefault(t.getId(), List.of());
+            JiraIssueLink jiraLink = jiraLinkByTaskId.get(t.getId());
+            List<SprintResponse.ItemCard> cards = assembleCards(t, cls, sprints, cols,
+                    jiraLink != null ? jiraLink.getJiraIssueKey() : null,
+                    jiraLink != null ? jiraLink.getLastJiraStatusId() : null);
+            SprintResponse.ItemCard home = cards.get(0);
+            if (t.isInSprint()) {
+                SprintColumn tc = t.getSprintColumn();
+                place.accept(home, tc != null ? tc.getId() : null);
+                List<ChecklistItem> homeLines = splitLines(t, cls, sprintById).home();
+                accumulate.accept(t.getSprint().getId(), homeUnits(cls, homeLines, tc != null && tc.isEnd()));
+            } else {
+                backlog.add(home);
+            }
+            // 부분 카드 — 보낸 줄이 있는 스프린트마다 한 장. 게이지도 그 몫만 그 스프린트에 더한다.
+            for (int i = 1; i < cards.size(); i++) {
+                SprintResponse.ItemCard slice = cards.get(i);
+                place.accept(slice, slice.getSprintColumnId());
+                accumulate.accept(slice.getSprintId(),
+                        new int[] {slice.isCompleted() ? slice.getChecklistTotal() : slice.getChecklistDone(),
+                                slice.getChecklistTotal()});
+            }
         }
 
         List<SprintResponse.Column> columnDtos = cols.stream()
@@ -741,10 +1007,6 @@ public class SprintService {
         } else {
             gauge = SprintResponse.Gauge.of(0, 0);
         }
-
-        List<SprintResponse.ItemCard> backlog = backlogTasks.stream()
-                .map(t -> SprintResponse.ItemCard.of(t, checklistsByTask.getOrDefault(t.getId(), List.of())))
-                .toList();
 
         // JIRA 뷰(컬럼=JIRA 상태)용 — 마일스톤에 활성 스코프가 있으면 그 소속만,
         // 없으면 기존처럼 보드 전체(스프린트 담김 무관)를 비춘다.

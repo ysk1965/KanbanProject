@@ -235,6 +235,12 @@ public class SprintResponse {
         private int checklistDone;
         private int checklistTotal;
         private List<ChecklistLine> checklistItems;
+        // ── 줄 단위 스프린트 분배 ──
+        // partial=true 면 태스크의 홈은 다른 스프린트(또는 백로그)이고, 이 카드는 "이 스프린트로 보낸 줄"만 담는다.
+        // id는 "{taskId}@{sprintId}"로 홈 카드와 구분되며, 조작(컬럼 이동·빼기)은 홈 카드에서만 한다.
+        private boolean partial;
+        private String homeSprintId;                // 태스크가 담긴 스프린트. 백로그면 null
+        private List<SliceCount> foreignLineCounts; // 홈 카드 전용 — 다른 스프린트로 보낸 줄 요약("S3에 2줄")
         // ── JIRA 뷰 전용 (컬럼=JIRA 상태 그루핑용) ──
         private String blockId;           // 현재 칸반 블록 = 매핑된 JIRA 상태(push 시 최신)
         private String qaState;           // JIRA pull QA 상태 (REVIEW/VERIFIED/REJECTED), 없으면 null
@@ -248,9 +254,73 @@ public class SprintResponse {
         /** JIRA 뷰용 — JIRA 이슈 키 + 실제 JIRA 상태 id를 함께 주입. */
         public static ItemCard of(Task task, List<ChecklistItem> checklists,
                                   String jiraIssueKey, String jiraStatusId) {
-            Feature feature = task.getFeature();
-            SprintColumn col = task.getSprintColumn();
+            return home(task, checklists, jiraIssueKey, jiraStatusId, List.of(), Map.of());
+        }
 
+        /**
+         * 홈 카드 — 태스크가 담긴 스프린트(또는 백로그)에 서는 카드.
+         * {@code checklists}는 이 스프린트 몫의 줄만 넘긴다(다른 스프린트로 보낸 줄은 foreignLineCounts로 요약).
+         */
+        public static ItemCard home(Task task, List<ChecklistItem> checklists,
+                                    String jiraIssueKey, String jiraStatusId,
+                                    List<SliceCount> foreignLineCounts,
+                                    Map<String, Integer> seqBySprintId) {
+            SprintColumn col = task.getSprintColumn();
+            LocalDateTime sprintDoneAt = task.getSprintDoneAt();
+            Sprint sprint = task.getSprint();
+            return base(task, checklists, seqBySprintId)
+                    .id(task.getId())
+                    .completed(task.isSprintDone())
+                    .sprintColumnId(col != null ? col.getId() : null)
+                    .doneDate(sprintDoneAt != null ? sprintDoneAt.toLocalDate() : null)
+                    .completedAt(sprintDoneAt)
+                    .carryOverCount(task.getCarryOverCount())
+                    .sprintId(sprint != null ? sprint.getId() : null)
+                    .sprintSeq(sprint != null ? sprint.getSequenceNo() : null)
+                    .partial(false)
+                    .homeSprintId(sprint != null ? sprint.getId() : null)
+                    .foreignLineCounts(foreignLineCounts)
+                    .jiraIssueKey(jiraIssueKey)
+                    .jiraStatusId(jiraStatusId)
+                    .build();
+        }
+
+        /**
+         * 부분 카드 — 태스크의 홈이 아닌 스프린트에 "그 스프린트로 보낸 줄"만 들고 서는 카드.
+         * 컬럼은 저장하지 않고 파생한다: 몫이 전부 완료면 END, 아니면 START.
+         */
+        public static ItemCard slice(Task task, List<ChecklistItem> sliceLines, Sprint slice,
+                                     SprintColumn derivedColumn, Map<String, Integer> seqBySprintId) {
+            boolean allDone = !sliceLines.isEmpty()
+                    && sliceLines.stream().allMatch(c -> Boolean.TRUE.equals(c.getIsCompleted()));
+            LocalDateTime doneAt = null;
+            if (allDone) {
+                doneAt = sliceLines.stream()
+                        .map(ChecklistItem::getCompletedAt)
+                        .filter(java.util.Objects::nonNull)
+                        .max(java.util.Comparator.naturalOrder())
+                        .orElse(null);
+            }
+            Sprint home = task.getSprint();
+            return base(task, sliceLines, seqBySprintId)
+                    .id(task.getId() + "@" + slice.getId())
+                    .completed(allDone)
+                    .sprintColumnId(derivedColumn != null ? derivedColumn.getId() : null)
+                    .doneDate(doneAt != null ? doneAt.toLocalDate() : null)
+                    .completedAt(doneAt)
+                    .carryOverCount(0)
+                    .sprintId(slice.getId())
+                    .sprintSeq(slice.getSequenceNo())
+                    .partial(true)
+                    .homeSprintId(home != null ? home.getId() : null)
+                    .foreignLineCounts(List.of())
+                    .build();
+        }
+
+        /** 홈/부분 카드 공통 필드 — 태스크 정체성 + 줄 롤업(담당·진척·목록). */
+        private static ItemCardBuilder base(Task task, List<ChecklistItem> checklists,
+                                            Map<String, Integer> seqBySprintId) {
+            Feature feature = task.getFeature();
             List<ChecklistLine> lines = new ArrayList<>();
             Map<String, AssigneeInfo> assignees = new LinkedHashMap<>();
             Map<String, ContractorInfo> contractors = new LinkedHashMap<>();
@@ -259,7 +329,7 @@ public class SprintResponse {
                 if (Boolean.TRUE.equals(c.getIsCompleted())) {
                     done++;
                 }
-                lines.add(ChecklistLine.of(c));
+                lines.add(ChecklistLine.of(c, seqBySprintId));
                 if (c.getAssignee() != null) {
                     assignees.putIfAbsent(c.getAssignee().getId(), AssigneeInfo.of(c.getAssignee()));
                 }
@@ -269,21 +339,12 @@ public class SprintResponse {
             }
             List<AssigneeInfo> assigneeList = new ArrayList<>(assignees.values());
             List<ContractorInfo> contractorList = new ArrayList<>(contractors.values());
-            LocalDateTime sprintDoneAt = task.getSprintDoneAt();
 
             return ItemCard.builder()
-                    .id(task.getId())
                     .title(task.getTitle())
-                    .completed(task.isSprintDone())
-                    .sprintColumnId(col != null ? col.getId() : null)
                     .position(task.getPosition())
                     .dueDate(task.getDueDate())
                     .startDate(task.getStartDate())
-                    .doneDate(sprintDoneAt != null ? sprintDoneAt.toLocalDate() : null)
-                    .completedAt(sprintDoneAt)
-                    .carryOverCount(task.getCarryOverCount())
-                    .sprintId(task.getSprint() != null ? task.getSprint().getId() : null)
-                    .sprintSeq(task.getSprint() != null ? task.getSprint().getSequenceNo() : null)
                     .featureId(feature != null ? feature.getId() : null)
                     .featureTitle(feature != null ? feature.getTitle() : null)
                     .featureColor(feature != null ? feature.getColor() : null)
@@ -299,11 +360,19 @@ public class SprintResponse {
                     .checklistTotal(checklists.size())
                     .checklistItems(lines)
                     .blockId(task.getBlock() != null ? task.getBlock().getId() : null)
-                    .qaState(task.getQaState() != null ? task.getQaState().name() : null)
-                    .jiraIssueKey(jiraIssueKey)
-                    .jiraStatusId(jiraStatusId)
-                    .build();
+                    .qaState(task.getQaState() != null ? task.getQaState().name() : null);
         }
+    }
+
+    /** 홈 카드에 붙는 "다른 스프린트로 보낸 줄" 요약 한 건. */
+    @Getter
+    @AllArgsConstructor
+    @Builder
+    public static class SliceCount {
+        private String sprintId;
+        private Integer sprintSeq;
+        private int total;
+        private int done;
     }
 
     /** 카드 안쪽에 나열되는 체크리스트 한 줄. 담기 대상이 아니라 표시·토글 대상이다. */
@@ -318,8 +387,23 @@ public class SprintResponse {
         private LocalDate dueDate;
         private AssigneeInfo assignee;
         private ContractorInfo contractor;
+        // ── 줄의 스프린트 귀속 ──
+        private String sprintId;          // 실제 귀속(지정 ?? 태스크). 백로그면 null
+        private Integer sprintSeq;        // "S{n}" 표기용
+        private boolean sprintOverridden; // true면 태스크와 다른 스프린트로 직접 보낸 줄
 
         public static ChecklistLine of(ChecklistItem c) {
+            return of(c, Map.of());
+        }
+
+        public static ChecklistLine of(ChecklistItem c, Map<String, Integer> seqBySprintId) {
+            Sprint eff = c.effectiveSprint();
+            String sprintId = eff != null ? eff.getId() : null;
+            Integer seq = sprintId == null ? null : seqBySprintId.get(sprintId);
+            if (seq == null && eff != null && c.isSprintOverridden()) {
+                // 지정 스프린트는 fetch join으로 이미 로드돼 있다 — 맵에 없으면 엔티티에서 읽는다.
+                seq = eff.getSequenceNo();
+            }
             return ChecklistLine.builder()
                     .id(c.getId())
                     .title(c.getTitle())
@@ -328,6 +412,9 @@ public class SprintResponse {
                     .dueDate(c.getDueDate())
                     .assignee(c.getAssignee() != null ? AssigneeInfo.of(c.getAssignee()) : null)
                     .contractor(c.getContractor() != null ? ContractorInfo.of(c.getContractor()) : null)
+                    .sprintId(sprintId)
+                    .sprintSeq(seq)
+                    .sprintOverridden(c.isSprintOverridden())
                     .build();
         }
     }

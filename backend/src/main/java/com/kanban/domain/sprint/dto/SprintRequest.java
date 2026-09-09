@@ -76,6 +76,31 @@ public class SprintRequest {
         private String taskDistribution;
     }
 
+    /**
+     * 체크리스트 줄의 스프린트 지정 일괄 변경.
+     *  · sprintId = null 이면 지정 해제(태스크 따라가기).
+     *  · 태스크의 스프린트와 같은 값을 주면 서버가 지정을 지워 상속으로 정규화한다.
+     */
+    @Getter
+    @NoArgsConstructor
+    public static class SetChecklistSprint {
+        @NotNull
+        private List<String> itemIds;
+        private String sprintId;
+    }
+
+    /**
+     * 미완료 이월 — 줄 단위. 둘 다 비어 있으면(본문 없음) 이 스프린트의 미완료 줄 전부가 대상이다.
+     *  · itemIds = 다음 스프린트로 보낼 미완료 줄
+     *  · taskIds = 체크리스트가 없는 태스크(줄이 없어 태스크 자체가 한 줄) 중 보낼 것
+     */
+    @Getter
+    @NoArgsConstructor
+    public static class PushUnfinished {
+        private List<String> itemIds;
+        private List<String> taskIds;
+    }
+
     /** 중간 컬럼 순서 재정렬 (START 다음 ~ END 이전, 순서대로의 컬럼 id 목록) */
     @Getter
     @NoArgsConstructor

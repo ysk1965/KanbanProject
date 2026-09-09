@@ -39,6 +39,7 @@ import {
   SendHorizontal,
   MoreHorizontal,
   Search,
+  CornerDownLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import { sprintAPI, checklistAPI, taskAPI, jiraAPI } from "../utils/api";
@@ -180,7 +181,14 @@ function progressUnits(
 ): { done: number; total: number } {
   const scoped = lines ?? it.checklist_items;
   const total = scoped ? scoped.length : (it.checklist_total ?? 0);
-  if (total <= 0) return { done: isDone ? 1 : 0, total: 1 };
+  if (total <= 0) {
+    // 줄은 있는데 전부 다른 스프린트로 보낸 홈 카드 — 이 스프린트 몫은 0이다.
+    // 1로 환산하면 보낸 줄이 여기에도 남아 게이지 분모가 부풀어 오른다.
+    if (!lines && (it.foreign_line_counts?.length ?? 0) > 0) {
+      return { done: 0, total: 0 };
+    }
+    return { done: isDone ? 1 : 0, total: 1 };
+  }
   if (isDone) return { done: total, total };
   const done = scoped
     ? scoped.filter((l) => l.completed).length
@@ -1155,14 +1163,20 @@ export function SprintBoard({
       const isDone =
         it.completed ||
         (!!it.sprint_column_id && endColIds.has(it.sprint_column_id));
-      feat.tasks.push(it);
-      feat.total += 1;
-      if (takenHere(it)) feat.taken += 1;
-      if (it.completed) feat.completed += 1;
       // 피쳐 게이지도 체크리스트 줄 기준 — 백로그 포함 그 피쳐의 전체 할 일이 분모다.
       const u = progressUnits(it, isDone);
       feat.unitDone += u.done;
       feat.unitTotal += u.total;
+      // 부분 카드는 같은 태스크의 "보낸 줄"이라 행으로 세우지 않는다 — 줄 수만 게이지에 더하고,
+      // 이 스프린트에 보낸 줄이 있으면 피쳐를 "이번 스프린트" 섹션에 세운다.
+      if (it.partial) {
+        if (takenHere(it)) feat.inSprint = true;
+        continue;
+      }
+      feat.tasks.push(it);
+      feat.total += 1;
+      if (takenHere(it)) feat.taken += 1;
+      if (it.completed) feat.completed += 1;
     }
     // 이 마일스톤에 태스크가 없는 피쳐도 노드로 세운다 — 담기 후보(board_features)는
     // 필터가 꺼져 있을 때만(필터 중 빈 피쳐는 소음이다). 여기서 첫 태스크를 만들어야
@@ -1186,9 +1200,9 @@ export function SprintBoard({
         });
       }
     }
-    // 담김 판정 — 담기 단위가 태스크라 "담긴 태스크가 있는가"가 전부다.
+    // 담김 판정 — 담긴 태스크가 있거나, 이 스프린트로 보낸 줄(부분 카드)이 있으면 담긴 피쳐다.
     for (const feat of featMap.values()) {
-      feat.inSprint = feat.taken > 0;
+      feat.inSprint = feat.inSprint || feat.taken > 0;
     }
     // Feature 생성 순서(created_at 오름차순)로 컬럼/트리 정렬.
     // 생성일 동률이거나 없으면 안정 정렬로 첫 등장 순서를 유지하고, "기타"(피쳐 없음)는 항상 맨 뒤로.
@@ -2122,7 +2136,11 @@ export function SprintBoard({
     item: SprintItemCard,
     source: "backlog" | "sprint",
   ) => {
-    if (!canEdit) return;
+    // 부분 카드는 홈이 다른 스프린트라 컬럼 이동 대상이 아니다(1단계: 컬럼은 파생값).
+    if (!canEdit || item.partial) {
+      e.preventDefault();
+      return;
+    }
     e.dataTransfer.setData(DRAG_ITEM, item.id);
     e.dataTransfer.setData(DRAG_SOURCE, source);
     e.dataTransfer.effectAllowed = "move";
@@ -2188,8 +2206,9 @@ export function SprintBoard({
 
   // ==================== 버킷 액션 ====================
   const gauge = filteredBoard?.gauge; // 표시용(담당자 필터 반영) — 체크리스트 줄 기준
-  // 스프린트별 미완료(END 미도달) 태스크 수. 세그먼트의 "미완료 N" 칩과 "다음으로 보내기"의
-  // 근거라 필터와 무관하게 원본 보드에서 센다 — 필터로 0처럼 보이면 안 되는 숫자다.
+  // 스프린트별 미완료 항목 수 — 체크리스트 줄 단위(줄이 없는 태스크는 태스크 자체가 한 줄).
+  // 세그먼트의 "미완료 N" 칩과 "다음으로 보내기"의 근거라 필터와 무관하게 원본 보드에서 센다.
+  // 이월이 줄 단위가 되면서 "태스크 몇 개"가 아니라 "몇 줄이 남았나"가 정직한 숫자다.
   const unfinishedBySprint = useMemo(() => {
     const endColIds = new Set(
       (board?.columns ?? []).filter((c) => c.kind === "END").map((c) => c.id),
@@ -2199,7 +2218,15 @@ export function SprintBoard({
       for (const it of c.items) {
         if (!it.sprint_id || !it.sprint_column_id) continue;
         if (it.completed || endColIds.has(it.sprint_column_id)) continue;
-        counts[it.sprint_id] = (counts[it.sprint_id] ?? 0) + 1;
+        const lines = it.checklist_items ?? [];
+        const open =
+          lines.length > 0
+            ? lines.filter((l) => !l.completed).length
+            : (it.foreign_line_counts?.length ?? 0) > 0
+              ? 0
+              : 1;
+        if (open === 0) continue;
+        counts[it.sprint_id] = (counts[it.sprint_id] ?? 0) + open;
       }
     }
     return counts;
@@ -2226,13 +2253,129 @@ export function SprintBoard({
     remainingTasks > 0 &&
     !!nextSprint;
 
+  // "다음으로 보내기"는 바로 옮기지 않고 미완료 줄을 고르는 다이얼로그를 연다 — 줄 단위 이월.
+  const [pushOpen, setPushOpen] = useState(false);
   const pushUnfinished = () => {
     if (!selectedSprint || !nextSprint) return;
-    const moved = remainingTasks;
+    setPushOpen(true);
+  };
+  /**
+   * 이월 후보 — 선택 스프린트에 속한 미완료 줄을 태스크별로 묶는다(홈 카드 + 부분 카드).
+   * 줄이 없는 태스크는 태스크 자체가 한 줄이라 task 항목으로 세운다.
+   */
+  const pushCandidates = useMemo(() => {
+    if (!selectedSprint || !board) return [];
+    const endColIds = new Set(
+      board.columns.filter((c) => c.kind === "END").map((c) => c.id),
+    );
+    type Group = {
+      taskId: string;
+      title: string;
+      partial: boolean;
+      taskOnly: boolean; // 줄이 없어 태스크 단위로만 보낼 수 있음
+      lines: SprintChecklistLine[];
+      unfinishedTotal: number; // 이 스프린트 몫의 미완료 줄 수(=전부 고르면 태스크 이동)
+    };
+    const groups: Group[] = [];
+    for (const c of board.columns) {
+      for (const it of c.items) {
+        if (it.sprint_id !== selectedSprint.id || !it.sprint_column_id)
+          continue;
+        if (it.completed || endColIds.has(it.sprint_column_id)) continue;
+        const taskId = it.task_id ?? it.id;
+        const lines = (it.checklist_items ?? []).filter((l) => !l.completed);
+        if (lines.length === 0) {
+          if ((it.foreign_line_counts?.length ?? 0) > 0) continue;
+          if ((it.checklist_total ?? 0) > 0) continue; // 몫은 다 끝났고 Done만 안 찍힌 태스크
+          groups.push({
+            taskId,
+            title: it.title,
+            partial: !!it.partial,
+            taskOnly: true,
+            lines: [],
+            unfinishedTotal: 0,
+          });
+          continue;
+        }
+        groups.push({
+          taskId,
+          title: it.title,
+          partial: !!it.partial,
+          taskOnly: false,
+          lines,
+          unfinishedTotal: lines.length,
+        });
+      }
+    }
+    return groups;
+  }, [board, selectedSprint]);
+  const submitPush = async (itemIds: string[], taskIds: string[]) => {
+    if (!selectedSprint || !nextSprint) return;
     const targetName = nextSprint.name;
+    const count = itemIds.length + taskIds.length;
+    setPushOpen(false);
+    await run(async () => {
+      const next = await sprintAPI.pushUnfinished(boardId, selectedSprint.id, {
+        item_ids: itemIds,
+        task_ids: taskIds,
+      });
+      toast.success(`미완료 ${count}개를 ${targetName}(으)로 보냈어요`);
+      return next;
+    });
+  };
+
+  // ── 줄 단위 스프린트 지정 ──
+  // 카드 안 체크리스트 줄의 스프린트 칩 → 팝오버. 고르는 즉시 이동하고 토스트로 되돌리기만 준다.
+  const [lineSprintPickerFor, setLineSprintPickerFor] = useState<string | null>(
+    null,
+  );
+  const sprintNameOf = (sprintId: string | null | undefined) =>
+    sprintId
+      ? (board?.sprints.find((s) => s.id === sprintId)?.name ?? "스프린트")
+      : "백로그";
+  const setLineSprint = (
+    taskId: string | null,
+    lines: SprintChecklistLine[],
+    target: string | null,
+  ) => {
+    setLineSprintPickerFor(null);
+    if (!canEdit || !taskId || lines.length === 0) return;
+    // 되돌리기 재료 — 지정돼 있던 줄은 그 값으로, 상속이던 줄은 null로 돌린다.
+    const prev = new Map<string | null, string[]>();
+    for (const l of lines) {
+      const was = l.sprint_overridden ? (l.sprint_id ?? null) : null;
+      prev.set(was, [...(prev.get(was) ?? []), l.id]);
+    }
+    const targetLabel = target ? sprintNameOf(target) : "태스크";
     void run(async () => {
-      const next = await sprintAPI.pushUnfinished(boardId, selectedSprint.id);
-      toast.success(`미완료 ${moved}개를 ${targetName}(으)로 보냈어요`);
+      const next = await sprintAPI.setChecklistSprint(boardId, {
+        item_ids: lines.map((l) => l.id),
+        sprint_id: target,
+      });
+      toast.success(
+        lines.length === 1
+          ? `‘${lines[0].title}’을(를) ${targetLabel}(으)로 보냈어요`
+          : `항목 ${lines.length}개를 ${targetLabel}(으)로 보냈어요`,
+        {
+          action: {
+            label: "되돌리기",
+            onClick: () => {
+              void run(async () => {
+                let restored: SprintBoardData | null = null;
+                for (const [sprintId, ids] of prev) {
+                  restored = await sprintAPI.setChecklistSprint(boardId, {
+                    item_ids: ids,
+                    sprint_id: sprintId,
+                  });
+                }
+                return (
+                  restored ?? sprintAPI.getSprintBoard(boardId, milestoneId)
+                );
+              });
+            },
+          },
+        },
+      );
       return next;
     });
   };
@@ -2389,6 +2532,10 @@ export function SprintBoard({
       ? columnById.get(it.sprint_column_id)
       : undefined;
     const isDoneItem = it.completed || curCol?.kind === "END";
+    // 부분 카드 — 홈이 다른 스프린트(또는 백로그)인 태스크의 "이 스프린트로 보낸 줄"만 담은 카드.
+    // 컬럼은 파생값(몫 전부 완료 → Done)이라 드래그·리뷰·완료·빼기 조작을 두지 않는다.
+    const isPartial = !!it.partial;
+    const homeLabel = sprintNameOf(it.home_sprint_id);
     // 마감 D-day — 완료된 카드는 긴급도 표시 안 함(완료 배지로 대체).
     const dday = !isDoneItem && it.due_date ? getDDay(it.due_date) : null;
     const overdue = dday?.urgency === "overdue";
@@ -2426,17 +2573,26 @@ export function SprintBoard({
     const showReview =
       canEdit &&
       !readOnly &&
+      !isPartial &&
       uiFeatures.has("review") &&
       !!firstMiddleColumn &&
       !isDoneItem &&
       it.sprint_column_id !== firstMiddleColumn.id;
     // 완료 = END(Done)로 이동. 이미 완료면 숨김.
-    const showDone = canEdit && !readOnly && !!endColumn && !isDoneItem;
+    const showDone =
+      canEdit && !readOnly && !isPartial && !!endColumn && !isDoneItem;
     // 상세 = Task 모달 열기. 미리보기 제외.
     const showDetail = !readOnly && !!it.task_id;
     // 빼기 = 이 태스크만 백로그로 복귀. 담기 단위가 태스크라 카드에서 바로 뺄 수 있다.
     const showRemove =
-      canEdit && !readOnly && !!scopeSprintId && !!it.sprint_column_id;
+      canEdit &&
+      !readOnly &&
+      !isPartial &&
+      !!scopeSprintId &&
+      !!it.sprint_column_id;
+    // 줄 스프린트 칩 — 나눌 스프린트가 둘 이상일 때만 의미가 있다.
+    const showLineSprint =
+      canEdit && !readOnly && !!it.task_id && (board?.sprints.length ?? 0) > 1;
     const showActions = showRemove || showReview || showDone || showDetail;
     // 카드 안쪽 체크리스트 — 담긴 뒤 항목이 추가돼도 여기 그대로 반영된다.
     const lines = it.checklist_items ?? [];
@@ -2501,7 +2657,7 @@ export function SprintBoard({
     return (
       <div
         key={it.id}
-        draggable={canEdit && !readOnly}
+        draggable={canEdit && !readOnly && !isPartial}
         onDragStart={(e) => !readOnly && onDragStartItem(e, it, "sprint")}
         onDragEnd={onDragEndItem}
         // 좌측 3px 스트라이프 — 상태 전용. 지연 로즈 > 리뷰 중 앰버 > 평시 없음.
@@ -2516,7 +2672,7 @@ export function SprintBoard({
         className={`group relative rounded-xl border border-l-[3px] border-sprint-border px-2.5 py-2 space-y-1.5 transition-colors ${
           overdue ? "bg-rose-500/[0.07]" : "bg-sprint-card"
         } ${
-          readOnly
+          readOnly || isPartial
             ? "cursor-default"
             : `hover:border-sprint-border-hover cursor-grab ${
                 overdue
@@ -2525,6 +2681,24 @@ export function SprintBoard({
               }`
         }`}
       >
+        {/* 부분 카드 리본 — "어디서 이어진 몫인가"를 제목보다 먼저 말한다. 클릭하면 홈 스프린트로 점프. */}
+        {isPartial && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (it.home_sprint_id) setSelectedSprintId(it.home_sprint_id);
+            }}
+            disabled={!it.home_sprint_id}
+            className="w-full flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-bold text-left text-bridge-secondary bg-bridge-secondary/10 border border-bridge-secondary/20 hover:bg-bridge-secondary/15 disabled:hover:bg-bridge-secondary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+            title={`태스크는 ${homeLabel}에 있어요 · 이 스프린트로 보낸 항목 ${cTotal}개만 여기 보여요`}
+          >
+            <CornerDownLeft className="w-3 h-3 shrink-0" />
+            <span className="truncate">
+              {homeLabel}에서 이어짐 · 이 스프린트 몫 {cTotal}줄
+            </span>
+          </button>
+        )}
         {/* 1줄 — 제목 · 예외 칩(이월/직접 지정/예정/마감 임박·지연) · 담당.
             피쳐는 컬럼이, 상속 기간은 스프린트 헤더가 이미 말했으므로 카드는 되풀이하지 않는다.
             칩은 예외일 때만 붙어 "칩이 있는 카드 = 봐야 할 카드"가 된다. */}
@@ -2545,6 +2719,28 @@ export function SprintBoard({
             >
               이월 {it.carry_over_count}
             </span>
+          )}
+          {/* 보낸 줄 배지 — 사라진 줄이 아니라 다른 스프린트로 옮겨간 줄임을 알린다. 클릭하면 그 스프린트로. */}
+          {!isPartial && (it.foreign_line_counts?.length ?? 0) > 0 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedSprintId(it.foreign_line_counts![0].sprint_id);
+              }}
+              className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary tabular-nums hover:bg-bridge-secondary/25 transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+              title={`다른 스프린트로 보낸 항목 · ${it
+                .foreign_line_counts!.map(
+                  (c) => `S${c.sprint_seq ?? "?"} ${c.done}/${c.total}`,
+                )
+                .join(", ")}`}
+            >
+              {it
+                .foreign_line_counts!.map(
+                  (c) => `S${c.sprint_seq ?? "?"}에 ${c.total}줄`,
+                )
+                .join(" · ")}
+            </button>
           )}
           {/* 직접 지정 — 주기와 다른 기간을 들고 있는 예외. 주기가 바뀌어도 날짜가 따라가지 않는다. */}
           {dateSource === "override" && sprintPeriod && (
@@ -2772,7 +2968,7 @@ export function SprintBoard({
             {shownLines.map((line) => (
               <li
                 key={line.id}
-                className={`flex items-center gap-1.5 ${
+                className={`group/line flex items-center gap-1.5 ${
                   scoped && !lineOwnedBy(line, memberScope!.id)
                     ? "opacity-60"
                     : ""
@@ -2812,6 +3008,101 @@ export function SprintBoard({
                 >
                   {line.title}
                 </span>
+                {/* 줄 스프린트 칩 — 상속 중이면 호버에서만 점선으로, 직접 보낸 줄이면 항상 틸로. 클릭 → 팝오버. */}
+                {showLineSprint && (
+                  <Popover
+                    open={lineSprintPickerFor === `${it.id}:${line.id}`}
+                    onOpenChange={(o) =>
+                      setLineSprintPickerFor(o ? `${it.id}:${line.id}` : null)
+                    }
+                  >
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label="이 항목의 스프린트"
+                        title={
+                          line.sprint_overridden
+                            ? `${sprintNameOf(line.sprint_id)}(으)로 직접 보낸 항목 — 클릭해서 바꾸기`
+                            : "태스크를 따라가는 항목 — 클릭해서 다른 스프린트로 보내기"
+                        }
+                        className={`shrink-0 text-xs font-bold px-1.5 rounded-full leading-[18px] tabular-nums transition-opacity focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
+                          line.sprint_overridden
+                            ? "bg-bridge-secondary/15 text-bridge-secondary"
+                            : "border border-dashed border-foreground/20 text-slate-500 opacity-0 group-hover/line:opacity-100 focus:opacity-100 data-[state=open]:opacity-100"
+                        }`}
+                      >
+                        S{line.sprint_seq ?? "?"}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="end"
+                      className="w-60 p-1 bg-bridge-obsidian border-foreground/10"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="px-2.5 py-1.5 text-xs font-bold uppercase tracking-widest text-slate-500">
+                        이 항목의 스프린트
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setLineSprint(it.task_id, [line], null)}
+                        className={`flex items-center justify-between gap-2 w-full px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors ${
+                          !line.sprint_overridden
+                            ? "bg-bridge-accent/15 text-foreground font-bold"
+                            : "text-slate-300 hover:bg-foreground/5"
+                        }`}
+                      >
+                        <span>태스크 따라가기</span>
+                        <span className="text-slate-500 tabular-nums">
+                          {sprintNameOf(
+                            isPartial ? it.home_sprint_id : it.sprint_id,
+                          )}
+                        </span>
+                      </button>
+                      <div className="my-1 border-t border-foreground/[0.08]" />
+                      {(board?.sprints ?? []).map((sp) => {
+                        const selected =
+                          line.sprint_overridden && line.sprint_id === sp.id;
+                        const period =
+                          sp.start_date && sp.end_date
+                            ? `${formatDate(sp.start_date, "M/d")}~${formatDate(sp.end_date, "M/d")}`
+                            : "";
+                        return (
+                          <button
+                            key={sp.id}
+                            type="button"
+                            onClick={() =>
+                              setLineSprint(it.task_id, [line], sp.id)
+                            }
+                            className={`flex items-center justify-between gap-2 w-full px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors ${
+                              selected
+                                ? "bg-bridge-accent/15 text-foreground font-bold"
+                                : sp.state === "PAST"
+                                  ? "text-slate-500 hover:bg-foreground/5"
+                                  : "text-slate-300 hover:bg-foreground/5"
+                            }`}
+                          >
+                            <span className="truncate">{sp.name}</span>
+                            <span
+                              className={`shrink-0 tabular-nums ${
+                                sp.state === "CURRENT"
+                                  ? "text-bridge-secondary"
+                                  : "text-slate-500"
+                              }`}
+                            >
+                              {period}
+                              {sp.state === "CURRENT"
+                                ? " · 현재"
+                                : sp.state === "PAST"
+                                  ? " · 지남"
+                                  : ""}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </PopoverContent>
+                  </Popover>
+                )}
                 {/* 줄 담당 모노그램 — 섞여 있을 때만. */}
                 {showLineOwner && (line.assignee || line.contractor) && (
                   <span
@@ -4415,7 +4706,7 @@ export function SprintBoard({
                   >
                     <div className="px-2.5 py-2 text-xs text-slate-500 tabular-nums border-b border-foreground/[0.08] mb-1">
                       {remainingTasks > 0
-                        ? `이 스프린트 남은 태스크 ${remainingTasks}개`
+                        ? `이 스프린트 남은 항목 ${remainingTasks}개`
                         : "이 스프린트 전부 완료"}
                     </div>
                     {/* 이월의 새 모습 — 지난 버킷의 미완료를 다음 버킷으로 한 번에 민다 */}
@@ -4427,7 +4718,7 @@ export function SprintBoard({
                           pushUnfinished();
                         }}
                         className="flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-xs font-bold text-left text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors"
-                        title={`END에 닿지 못한 태스크 ${remainingTasks}개를 ${nextSprint.name}(으)로 옮기고 이월 횟수를 1 올립니다`}
+                        title={`미완료 항목 ${remainingTasks}개를 골라 ${nextSprint.name}(으)로 보냅니다 — 끝낸 항목은 여기 남아요`}
                       >
                         <SendHorizontal className="w-3.5 h-3.5 shrink-0" />
                         <span className="truncate">
@@ -5937,6 +6228,18 @@ export function SprintBoard({
         </div>
       </MotionModal>
 
+      {/* 미완료 정리 — 지난 스프린트의 미완료 줄을 골라 다음 스프린트로 보낸다(관리자, 줄 단위) */}
+      {selectedSprint && nextSprint && (
+        <PushUnfinishedDialog
+          open={pushOpen}
+          onClose={() => setPushOpen(false)}
+          sprintName={selectedSprint.name}
+          nextName={nextSprint.name}
+          groups={pushCandidates}
+          onSubmit={(itemIds, taskIds) => void submitPush(itemIds, taskIds)}
+        />
+      )}
+
       {/* 스프린트 나누기 — 개수·기간 경계·태스크 배분을 한 화면에서 정한다(관리자) */}
       <SprintSplitModal
         open={splitOpen}
@@ -6046,5 +6349,186 @@ export function SprintBoard({
         onOpenTask={openTask}
       />
     </div>
+  );
+}
+
+/**
+ * 미완료 정리 다이얼로그 — 이월은 태스크가 아니라 줄 단위다.
+ * 전부 체크된 상태가 기본이라 그대로 확인하면 예전처럼 "미완료 전부"가 넘어가되, 끝낸 줄은 제자리에 남는다.
+ * 태스크의 미완료 줄을 전부 고르면 서버가 태스크 자체를 옮기고(이월 +1), 일부만 고르면 그 줄만 보낸다.
+ */
+function PushUnfinishedDialog({
+  open,
+  onClose,
+  sprintName,
+  nextName,
+  groups,
+  onSubmit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  sprintName: string;
+  nextName: string;
+  groups: {
+    taskId: string;
+    title: string;
+    partial: boolean;
+    taskOnly: boolean;
+    lines: SprintChecklistLine[];
+    unfinishedTotal: number;
+  }[];
+  onSubmit: (itemIds: string[], taskIds: string[]) => void;
+}) {
+  const [excluded, setExcluded] = useState<Set<string>>(new Set());
+  // 열릴 때마다 "전부 선택"으로 시작한다 — 예전 동작(전부 이월)이 기본값.
+  useEffect(() => {
+    if (open) setExcluded(new Set());
+  }, [open]);
+  const keyOf = (taskId: string, lineId?: string) =>
+    lineId ? `l:${lineId}` : `t:${taskId}`;
+  const toggle = (key: string) =>
+    setExcluded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  const totalCount = groups.reduce(
+    (n, g) => n + (g.taskOnly ? 1 : g.lines.length),
+    0,
+  );
+  const selectedItemIds = groups.flatMap((g) =>
+    g.lines
+      .filter((l) => !excluded.has(keyOf(g.taskId, l.id)))
+      .map((l) => l.id),
+  );
+  const selectedTaskIds = groups
+    .filter((g) => g.taskOnly && !excluded.has(keyOf(g.taskId)))
+    .map((g) => g.taskId);
+  const selectedCount = selectedItemIds.length + selectedTaskIds.length;
+  const box = (on: boolean) =>
+    `w-[14px] h-[14px] rounded shrink-0 border grid place-items-center transition-colors ${
+      on
+        ? "bg-bridge-accent border-bridge-accent"
+        : "border-slate-600 hover:border-bridge-accent"
+    }`;
+  return (
+    <MotionModal
+      open={open}
+      onClose={onClose}
+      accentColor
+      aria-labelledby="push-unfinished-title"
+      className="w-full sm:max-w-md"
+    >
+      <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+        <span className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-500 grid place-items-center shrink-0">
+          <SendHorizontal className="w-4 h-4" />
+        </span>
+        <div className="min-w-0">
+          <h4
+            id="push-unfinished-title"
+            className="text-sm font-bold text-foreground"
+          >
+            미완료 {totalCount}개를 {nextName}(으)로 보낼까요?
+          </h4>
+          <p className="text-xs text-slate-500">
+            끝낸 항목은 {sprintName}에 남아요. 체크를 풀면 그 항목도{" "}
+            {sprintName}에 그대로 둡니다.
+          </p>
+        </div>
+      </div>
+      <div className="px-5 pb-2 pt-3 max-h-[60vh] overflow-y-auto custom-scrollbar space-y-3">
+        {groups.length === 0 && (
+          <p className="text-sm text-slate-400">보낼 미완료 항목이 없어요.</p>
+        )}
+        {groups.map((g) => {
+          const pickedHere = g.lines.filter(
+            (l) => !excluded.has(keyOf(g.taskId, l.id)),
+          ).length;
+          const wholeTask =
+            g.taskOnly || (pickedHere > 0 && pickedHere === g.unfinishedTotal);
+          return (
+            <div key={`${g.taskId}:${g.partial ? "p" : "h"}`}>
+              <div className="flex items-center gap-2 mb-1 min-w-0">
+                <span className="text-xs font-bold text-foreground truncate">
+                  {g.title}
+                </span>
+                <span className="shrink-0 text-xs text-slate-500 tabular-nums">
+                  {g.taskOnly
+                    ? "체크리스트 없음 · 태스크 이동"
+                    : g.partial
+                      ? `${pickedHere}/${g.lines.length}줄 · 보낸 항목`
+                      : wholeTask
+                        ? `${pickedHere}/${g.lines.length}줄 · 태스크 이동`
+                        : `${pickedHere}/${g.lines.length}줄 · 부분 이동`}
+                </span>
+              </div>
+              {g.taskOnly ? (
+                <button
+                  type="button"
+                  onClick={() => toggle(keyOf(g.taskId))}
+                  className="flex items-center gap-2 w-full px-1.5 py-1 rounded-md text-xs text-left text-slate-300 hover:bg-foreground/5 transition-colors"
+                >
+                  <span className={box(!excluded.has(keyOf(g.taskId)))}>
+                    {!excluded.has(keyOf(g.taskId)) && (
+                      <Check
+                        className="w-2.5 h-2.5 text-white"
+                        strokeWidth={4}
+                      />
+                    )}
+                  </span>
+                  <span className="truncate">
+                    태스크 자체를 {nextName}(으)로
+                  </span>
+                </button>
+              ) : (
+                <ul className="space-y-0.5">
+                  {g.lines.map((l) => {
+                    const on = !excluded.has(keyOf(g.taskId, l.id));
+                    return (
+                      <li key={l.id}>
+                        <button
+                          type="button"
+                          onClick={() => toggle(keyOf(g.taskId, l.id))}
+                          className="flex items-center gap-2 w-full px-1.5 py-1 rounded-md text-xs text-left text-slate-300 hover:bg-foreground/5 transition-colors"
+                        >
+                          <span className={box(on)}>
+                            {on && (
+                              <Check
+                                className="w-2.5 h-2.5 text-white"
+                                strokeWidth={4}
+                              />
+                            )}
+                          </span>
+                          <span className="flex-1 min-w-0 truncate">
+                            {l.title}
+                          </span>
+                          {l.due_date && (
+                            <span className="shrink-0 text-slate-500 tabular-nums">
+                              {formatDate(l.due_date, "M/d")}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
+        <span className="text-xs text-slate-600">Esc 닫기</span>
+        <button
+          type="button"
+          disabled={selectedCount === 0}
+          onClick={() => onSubmit(selectedItemIds, selectedTaskIds)}
+          className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+        >
+          {selectedCount}개 보내기
+        </button>
+      </div>
+    </MotionModal>
   );
 }

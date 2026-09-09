@@ -4000,10 +4000,32 @@ export const sprintAPI = {
     );
   },
 
-  /** 미완료(END 미도달) 태스크를 다음 시퀀스 스프린트로 일괄 이동 (관리자) */
-  pushUnfinished: async (boardId: string, sprintId: string) => {
+  /**
+   * 미완료를 다음 시퀀스 스프린트로 보내기 — 줄 단위 (관리자).
+   * payload가 없으면 미완료 전부, 있으면 고른 줄(item_ids)·줄 없는 태스크(task_ids)만.
+   */
+  pushUnfinished: async (
+    boardId: string,
+    sprintId: string,
+    payload?: { item_ids?: string[]; task_ids?: string[] },
+  ) => {
     return apiClient.post<SprintBoard>(
       `/boards/${boardId}/sprints/${sprintId}/push-unfinished`,
+      payload,
+    );
+  },
+
+  /**
+   * 체크리스트 줄을 태스크와 다른 스프린트로 보내기 / 되돌리기 (멤버+).
+   * sprint_id = null 이면 지정 해제(태스크 따라가기). 태스크와 같은 스프린트를 주면 서버가 지정을 지운다.
+   */
+  setChecklistSprint: async (
+    boardId: string,
+    payload: { item_ids: string[]; sprint_id: string | null },
+  ) => {
+    return apiClient.patch<SprintBoard>(
+      `/boards/${boardId}/checklist-items/sprint`,
+      payload,
     );
   },
 

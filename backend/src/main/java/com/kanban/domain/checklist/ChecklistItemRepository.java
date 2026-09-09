@@ -136,14 +136,31 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     // 스프린트 멤버십은 태스크 단위이므로 담기/컬럼 이동 관련 조회는 TaskRepository로 옮겼다.
     // 여기 남은 것은 태스크 카드에 붙일 "체크리스트 진척" 집계 소스뿐이다.
 
-    /** 스프린트에 담긴 태스크들의 체크리스트 (카드 진척·담당자 집계용) */
+    /**
+     * 스프린트에 속한 체크리스트 (카드 진척·담당자 집계용).
+     * 귀속 = 줄 지정(c.sprint)이 있으면 그것, 없으면 태스크의 스프린트 — {@code ChecklistItem.effectiveSprint()}와 같은 규칙.
+     */
     @Query("SELECT c FROM ChecklistItem c " +
+           "JOIN FETCH c.task t " +
            "LEFT JOIN FETCH c.assignee " +
            "LEFT JOIN FETCH c.contractor " +
            "LEFT JOIN FETCH c.completedBy " +
-           "WHERE c.task.sprint.id = :sprintId " +
+           "WHERE (c.sprint.id = :sprintId) OR (c.sprint IS NULL AND t.sprint.id = :sprintId) " +
            "ORDER BY c.position ASC")
     List<ChecklistItem> findByTaskSprintId(@Param("sprintId") String sprintId);
+
+    /** 줄 스프린트 지정 일괄 변경/이월용 — 태스크·스프린트까지 함께 읽는다. */
+    @Query("SELECT c FROM ChecklistItem c " +
+           "JOIN FETCH c.task t " +
+           "LEFT JOIN FETCH t.sprint " +
+           "LEFT JOIN FETCH c.sprint " +
+           "WHERE c.id IN :ids")
+    List<ChecklistItem> findByIdInWithTaskAndSprint(@Param("ids") List<String> ids);
+
+    /** 스프린트 삭제(재분할 축소) 전에 그 버킷을 가리키는 줄 지정을 상속으로 되돌린다. */
+    @Modifying
+    @Query("UPDATE ChecklistItem c SET c.sprint = null WHERE c.sprint.id = :sprintId")
+    int clearSprintOverrideBySprintId(@Param("sprintId") String sprintId);
 
     /**
      * 보드의 (마일스톤, 피처)별 체크리스트 카운트 — 마일스톤 진행률·KPI 집계 소스.
@@ -163,11 +180,12 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
            "GROUP BY t.milestone.id, t.feature.id")
     List<Object[]> countByMilestoneAndFeature(@Param("boardId") String boardId, @Param("today") LocalDate today);
 
-    /** 마일스톤 내 전체 체크리스트 (좌측 트리·백로그 카드 진척 집계용) */
+    /** 마일스톤 내 전체 체크리스트 (좌측 트리·백로그 카드 진척 집계용). 줄 지정 스프린트까지 함께 읽는다. */
     @Query("SELECT c FROM ChecklistItem c " +
            "LEFT JOIN FETCH c.assignee " +
            "LEFT JOIN FETCH c.contractor " +
            "LEFT JOIN FETCH c.completedBy " +
+           "LEFT JOIN FETCH c.sprint " +
            "WHERE c.task.milestone.id = :milestoneId " +
            "ORDER BY c.position ASC")
     List<ChecklistItem> findByTaskMilestoneId(@Param("milestoneId") String milestoneId);

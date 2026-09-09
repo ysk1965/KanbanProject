@@ -46,14 +46,23 @@ public class ChecklistResponse {
          * 토글 한 번마다 카운트 쿼리를 더 돌릴 이유가 없다.</p>
          */
         private Integer commentCount;
+        /** 실제 귀속 스프린트(지정 ?? 태스크). 백로그면 null. */
+        private String sprintId;
+        private Integer sprintSeq;
+        /** true면 태스크와 다른 스프린트로 직접 보낸 줄 — 화면은 이 예외에만 칩을 붙인다. */
+        private boolean sprintOverridden;
 
         public static Detail of(ChecklistItem item) {
             return of(item, null);
         }
 
         public static Detail of(ChecklistItem item, Integer commentCount) {
+            com.kanban.domain.sprint.Sprint eff = item.effectiveSprint();
             return Detail.builder()
                     .id(item.getId())
+                    .sprintId(eff != null ? eff.getId() : null)
+                    .sprintSeq(eff != null ? eff.getSequenceNo() : null)
+                    .sprintOverridden(item.isSprintOverridden())
                     .title(item.getTitle())
                     .completed(item.getIsCompleted())
                     .assignee(item.getAssignee() != null ? AssigneeInfo.of(item) : null)
