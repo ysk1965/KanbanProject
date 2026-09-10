@@ -45,7 +45,11 @@ export const TEAM_TYPES: CalendarTypeMeta[] = [
   },
 ];
 
-/** 개인 부재 — 사유 분류 없이 단일 타입(내용 텍스트로 표현). 중립색. */
+/**
+ * 개인 일정 — 부재(근무일인데 없음)와 그 거울상인 휴일근무(비근무일인데 있음).
+ * 부재는 사유 분류 없이 단일 타입(내용 텍스트로 표현). 중립색.
+ * 휴일근무는 보드 전체 근무일(WORKDAY)과 같은 초록으로 "근무" 의미를 통일.
+ */
 export const MEMBER_TYPES: CalendarTypeMeta[] = [
   {
     key: "ABSENCE",
@@ -54,7 +58,24 @@ export const MEMBER_TYPES: CalendarTypeMeta[] = [
     color: "#94a3b8",
     category: "MEMBER",
   },
+  {
+    key: "HOLIDAY_WORK",
+    label: "휴일근무",
+    icon: "🛠",
+    color: "#34d399",
+    category: "MEMBER",
+  },
 ];
+
+/** 개인 휴일근무 타입 여부 — 그 멤버 행의 주말/휴무일 빗금을 해제한다. */
+export function isHolidayWorkType(eventType: string): boolean {
+  return eventType === "HOLIDAY_WORK";
+}
+
+/** 개인 부재 계열(ABSENCE + 레거시) 여부 */
+export function isAbsenceType(eventType: string): boolean {
+  return categoryOf(eventType) === "MEMBER" && !isHolidayWorkType(eventType);
+}
 
 /** 레거시 부재 타입(하위호환 렌더용) — 신규 UI는 생성하지 않음 */
 export const LEGACY_MEMBER_TYPES: CalendarTypeMeta[] = [

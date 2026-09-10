@@ -27,7 +27,8 @@ import { BoardMember } from "../ShareBoardModal";
 import { calendarEventAPI, CalendarEventItem } from "../../utils/api";
 import { formatRelativeTime } from "../../utils/dateUtils";
 import { useHolidays, HolidayInfo } from "../../hooks/useHolidays";
-import { calendarTypeMeta } from "./calendarEventMeta";
+import { calendarTypeMeta, isHolidayWorkType } from "./calendarEventMeta";
+import { isBoardOffDay } from "../../utils/workloadBar";
 import {
   CalendarEventModal,
   CalendarEventModalInitial,
@@ -54,7 +55,7 @@ interface ScheduleCalendarViewProps {
 }
 
 /** 캘린더 격자에 올릴 바 하나 (팀 이벤트 / 개인 부재 / 마일스톤) */
-type BarKind = "event" | "absence" | "milestone";
+type BarKind = "event" | "absence" | "holidayWork" | "milestone";
 
 interface BarItem {
   id: string;
@@ -80,7 +81,7 @@ interface BarSegment {
 }
 
 /** 레이어 토글 키 */
-type LayerKey = "event" | "absence" | "holiday" | "milestone";
+type LayerKey = "event" | "absence" | "holidayWork" | "holiday" | "milestone";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -161,6 +162,7 @@ const MORE_LABEL_HEIGHT = 16;
 const LAYER_META: { key: LayerKey; label: string; color: string }[] = [
   { key: "event", label: "이벤트", color: "#6366F1" },
   { key: "absence", label: "부재", color: "#f59e0b" },
+  { key: "holidayWork", label: "휴일근무", color: "#34d399" },
   { key: "holiday", label: "휴무일", color: "#f87171" },
   { key: "milestone", label: "마일스톤", color: "#818cf8" },
 ];
@@ -385,17 +387,24 @@ export function ScheduleCalendarView({
         });
     }
 
-    if (!hiddenLayers.has("absence")) {
+    // 개인 일정 — 부재와 휴일근무는 레이어를 따로 둔다
+    (["absence", "holidayWork"] as const).forEach((kind) => {
+      if (hiddenLayers.has(kind)) return;
       calendarEvents
-        .filter((e) => e.category === "MEMBER" && e.member)
+        .filter(
+          (e) =>
+            e.category === "MEMBER" &&
+            e.member &&
+            isHolidayWorkType(e.event_type) === (kind === "holidayWork"),
+        )
         .forEach((e) => {
           const meta = calendarTypeMeta(e.event_type);
           const label = e.title
             ? `${e.member!.name} · ${e.title}`
-            : e.member!.name;
+            : `${e.member!.name} · ${meta.label}`;
           items.push({
             id: `ab-${e.id}`,
-            kind: "absence",
+            kind,
             title: label,
             startDate: e.start_date,
             endDate: e.end_date,
@@ -405,7 +414,7 @@ export function ScheduleCalendarView({
             event: e,
           });
         });
-    }
+    });
 
     if (!hiddenLayers.has("milestone")) {
       milestones
@@ -497,8 +506,14 @@ export function ScheduleCalendarView({
     const events = calendarEvents.filter(
       (e) => e.category === "TEAM" && activeOn(e),
     );
-    const absences = calendarEvents.filter(
+    const memberEvents = calendarEvents.filter(
       (e) => e.category === "MEMBER" && e.member && activeOn(e),
+    );
+    const absences = memberEvents.filter(
+      (e) => !isHolidayWorkType(e.event_type),
+    );
+    const holidayWorks = memberEvents.filter((e) =>
+      isHolidayWorkType(e.event_type),
     );
     const calItems = calendarEvents.filter(
       (e) => e.category === "CALENDAR" && activeOn(e),
@@ -515,11 +530,25 @@ export function ScheduleCalendarView({
       milestones: ms,
       events,
       absences,
+      holidayWorks,
       customHolidays,
       workdayEvents,
       publicHolidays,
     };
   }, [selectedDate, calendarEvents, milestones, holidayMap]);
+
+  /** 보드 달력 기준 비근무일 여부 — 특별일 모달의 휴일근무 안내용 */
+  const isOffDayStr = useCallback(
+    (ds: string) => {
+      const dow = parseDate(ds).getDay();
+      return isBoardOffDay({
+        weekend: dow === 0 || dow === 6,
+        holiday: mergedHolidayMap.has(ds),
+        forcedWorkday: forcedWorkdaySet.has(ds),
+      });
+    },
+    [mergedHolidayMap, forcedWorkdaySet],
+  );
 
   // ------ 공휴일을 근무일로 지정 (오버라이드 이벤트 생성) ------
   const openDesignateWorkday = useCallback(
@@ -603,7 +632,8 @@ export function ScheduleCalendarView({
           }
           onMouseLeave={item.event ? () => setEventTip(null) : undefined}
         >
-          {item.kind === "absence" && item.avatar ? (
+          {(item.kind === "absence" || item.kind === "holidayWork") &&
+          item.avatar ? (
             <img
               src={item.avatar}
               alt=""
@@ -944,6 +974,7 @@ export function ScheduleCalendarView({
         members={memberOptions}
         initial={eventModal.initial}
         editing={eventModal.editing}
+        isOffDay={isOffDayStr}
         onSaved={fetchData}
       />
     </div>

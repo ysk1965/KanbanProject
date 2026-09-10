@@ -171,6 +171,7 @@ public enum ErrorCode {
 
     // Calendar Event (워크로드 특별 일정)
     CALENDAR_EVENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CE001", "특별 일정을 찾을 수 없습니다"),
+    CALENDAR_EVENT_MEMBER_CONFLICT(HttpStatus.CONFLICT, "CE002", "같은 기간에 이미 부재 또는 휴일근무가 등록되어 있습니다"),
 
     // Weight Level
     WEIGHT_LEVEL_NOT_FOUND(HttpStatus.NOT_FOUND, "W001", "가중치 레벨을 찾을 수 없습니다"),

@@ -55,7 +55,8 @@ import {
   CalendarEventModal,
   CalendarEventModalInitial,
 } from "./CalendarEventModal";
-import { calendarTypeMeta } from "./calendarEventMeta";
+import { calendarTypeMeta, isHolidayWorkType } from "./calendarEventMeta";
+import { isBoardOffDay } from "../../utils/workloadBar";
 import { formatRelativeTime } from "../../utils/dateUtils";
 import { getInitials, getAssigneeHex } from "../../utils/assigneeColor";
 import {
@@ -114,6 +115,9 @@ const EXTEND_THRESHOLD_DAYS = 14;
 const HATCH_WEEKEND_BG = `url("data:image/svg+xml,%3Csvg width='8' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-1 5L5-1M3 9L9 3' stroke='rgba(255,255,255,0.10)' stroke-width='1'/%3E%3C/svg%3E"), rgba(255,255,255,0.03)`;
 const HATCH_HOLIDAY_BG = `url("data:image/svg+xml,%3Csvg width='8' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-1 5L5-1M3 9L9 3' stroke='rgba(239,68,68,0.18)' stroke-width='1'/%3E%3C/svg%3E"), rgba(239,68,68,0.06)`;
 const HATCH_OVERLAY_Z = 25;
+/** 개인 휴일근무 칸 — 빗금 대신 옅은 초록 틴트 + 점선 아웃라인으로 "이 사람만 근무" 표시 */
+const HOLIDAY_WORK_CELL_BG = "rgba(52,211,153,0.07)";
+const HOLIDAY_WORK_CELL_OUTLINE = "1px dashed rgba(52,211,153,0.45)";
 
 /** 이벤트/부재 칩의 네이티브 title 툴팁에 붙일 공유 메모 미리보기 */
 function memoTitleSuffix(event: CalendarEventItem): string {
@@ -681,58 +685,86 @@ export function ScheduleResourceView({
   const { holidayMap } = useHolidaysForYears(i18n.language, holidayYears);
 
   // ─── 특별 일정 파생 (달력 예외 병합 / 팀 이벤트 / 개인 부재) ───
-  const { mergedHolidayMap, forcedWorkdaySet, teamEvents, memberAbsencesById } =
-    useMemo(() => {
-      // 라이브러리 공휴일에서 시작 (복제)
-      const holiMap = new Map<string, HolidayInfo[]>();
-      holidayMap.forEach((v, k) => holiMap.set(k, [...v]));
-      const workdaySet = new Set<string>();
+  const {
+    mergedHolidayMap,
+    forcedWorkdaySet,
+    teamEvents,
+    memberAbsencesById,
+    holidayWorkDatesById,
+  } = useMemo(() => {
+    // 라이브러리 공휴일에서 시작 (복제)
+    const holiMap = new Map<string, HolidayInfo[]>();
+    holidayMap.forEach((v, k) => holiMap.set(k, [...v]));
+    const workdaySet = new Set<string>();
 
-      // CALENDAR 타입(휴무일/근무일)을 표시 창(window) 전체에 확장 (반복 포함)
-      const calendarItems = calendarEvents.filter(
-        (e) => e.category === "CALENDAR",
-      );
-      if (calendarItems.length > 0) {
-        for (const day of timelineDays) {
-          const ds = formatDateStr(day);
-          const mmdd = ds.slice(5); // "MM-DD"
-          for (const e of calendarItems) {
-            const inRange = ds >= e.start_date && ds <= e.end_date;
-            const recurringMatch =
-              e.recurring &&
-              mmdd >= e.start_date.slice(5) &&
-              mmdd <= e.end_date.slice(5);
-            if (!inRange && !recurringMatch) continue;
-            if (e.event_type === "WORKDAY") {
-              workdaySet.add(ds);
-            } else {
-              const arr = holiMap.get(ds) || [];
-              arr.push({ date: ds, name: e.title || "휴무일", type: "custom" });
-              holiMap.set(ds, arr);
-            }
+    // CALENDAR 타입(휴무일/근무일)을 표시 창(window) 전체에 확장 (반복 포함)
+    const calendarItems = calendarEvents.filter(
+      (e) => e.category === "CALENDAR",
+    );
+    if (calendarItems.length > 0) {
+      for (const day of timelineDays) {
+        const ds = formatDateStr(day);
+        const mmdd = ds.slice(5); // "MM-DD"
+        for (const e of calendarItems) {
+          const inRange = ds >= e.start_date && ds <= e.end_date;
+          const recurringMatch =
+            e.recurring &&
+            mmdd >= e.start_date.slice(5) &&
+            mmdd <= e.end_date.slice(5);
+          if (!inRange && !recurringMatch) continue;
+          if (e.event_type === "WORKDAY") {
+            workdaySet.add(ds);
+          } else {
+            const arr = holiMap.get(ds) || [];
+            arr.push({ date: ds, name: e.title || "휴무일", type: "custom" });
+            holiMap.set(ds, arr);
           }
         }
       }
-      // 근무일 지정은 공휴일/주말 셰이딩을 덮어씀
-      workdaySet.forEach((ds) => holiMap.delete(ds));
+    }
+    // 근무일 지정은 공휴일/주말 셰이딩을 덮어씀
+    workdaySet.forEach((ds) => holiMap.delete(ds));
 
-      const team = calendarEvents.filter((e) => e.category === "TEAM");
-      const absById = new Map<string, CalendarEventItem[]>();
-      calendarEvents
-        .filter((e) => e.category === "MEMBER" && e.member)
-        .forEach((e) => {
-          const arr = absById.get(e.member!.id) || [];
-          arr.push(e);
-          absById.set(e.member!.id, arr);
-        });
+    const team = calendarEvents.filter((e) => e.category === "TEAM");
+    // 개인 일정(부재 + 휴일근무) — 둘 다 멤버 행에 바로 그려지므로 한 맵에 모은다
+    const absById = new Map<string, CalendarEventItem[]>();
+    // 멤버별 휴일근무 날짜 집합 — 그 행의 해당 날짜 주말/휴무일 빗금을 해제한다
+    const hwDatesById = new Map<string, Set<string>>();
+    calendarEvents
+      .filter((e) => e.category === "MEMBER" && e.member)
+      .forEach((e) => {
+        const arr = absById.get(e.member!.id) || [];
+        arr.push(e);
+        absById.set(e.member!.id, arr);
+        if (isHolidayWorkType(e.event_type)) {
+          const set = hwDatesById.get(e.member!.id) || new Set<string>();
+          for (const day of timelineDays) {
+            const ds = formatDateStr(day);
+            if (ds >= e.start_date && ds <= e.end_date) set.add(ds);
+          }
+          hwDatesById.set(e.member!.id, set);
+        }
+      });
 
-      return {
-        mergedHolidayMap: holiMap,
-        forcedWorkdaySet: workdaySet,
-        teamEvents: team,
-        memberAbsencesById: absById,
-      };
-    }, [holidayMap, calendarEvents, timelineDays]);
+    return {
+      mergedHolidayMap: holiMap,
+      forcedWorkdaySet: workdaySet,
+      teamEvents: team,
+      memberAbsencesById: absById,
+      holidayWorkDatesById: hwDatesById,
+    };
+  }, [holidayMap, calendarEvents, timelineDays]);
+
+  /** 보드 달력 기준 비근무일(주말·휴무일·공휴일, 보드 근무일 지정은 제외) 여부 — 모달의 기본 탭/안내용 */
+  const isOffDayStr = useCallback(
+    (ds: string) =>
+      isBoardOffDay({
+        weekend: isWeekend(parseDate(ds)),
+        holiday: mergedHolidayMap.has(ds),
+        forcedWorkday: forcedWorkdaySet.has(ds),
+      }),
+    [mergedHolidayMap, forcedWorkdaySet],
+  );
 
   // 특별 일정 저장 후 리로드
   const reloadCalendarEvents = useCallback(async () => {
@@ -2504,7 +2536,7 @@ export function ScheduleResourceView({
                 onClick={() => openEventModal()}
                 className="inline-flex items-center gap-1.5 shrink-0 h-8 px-2.5 rounded-lg text-xs font-medium
                   text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
-                title="특별 일정 추가 (이벤트/부재/휴무일)"
+                title="특별 일정 추가 (이벤트/부재·휴일근무/휴무일)"
                 aria-label="특별 일정 추가"
               >
                 <CalendarPlus className="w-4 h-4" />
@@ -3251,6 +3283,10 @@ export function ScheduleResourceView({
             //  부재 바 사이에 빈 레인이 노출되던 문제 제거)
             const rowAbsences =
               row.kind === "member" ? memberAbsencesById.get(row.id) || [] : [];
+            const rowHolidayWorkDates =
+              row.kind === "member"
+                ? holidayWorkDatesById.get(row.id)
+                : undefined;
             const absenceBars = rowAbsences
               .map((a) => ({
                 absence: a,
@@ -3453,6 +3489,10 @@ export function ScheduleResourceView({
                       const isHoliday = mergedHolidayMap.has(dateStr);
                       const weekend =
                         isWeekend(day) && !forcedWorkdaySet.has(dateStr);
+                      // 이 멤버의 휴일근무 날짜 — 비근무일 셰이딩을 걷고 초록 틴트로 "근무 칸" 표시
+                      const holidayWorkOverride =
+                        (isHoliday || weekend) &&
+                        !!rowHolidayWorkDates?.has(dateStr);
                       const isHighlighted =
                         dropHighlight?.rowIndex === rowIndex &&
                         dropHighlight?.dayIndex === idx;
@@ -3462,9 +3502,19 @@ export function ScheduleResourceView({
                           key={`grid-${idx}`}
                           data-day-index={idx}
                           className={`absolute top-0 bottom-0 border-r border-foreground/[0.04]
-                          ${isHoliday ? "bg-red-500/[0.04]" : weekend ? "bg-foreground/[0.02]" : ""}
+                          ${holidayWorkOverride ? "" : isHoliday ? "bg-red-500/[0.04]" : weekend ? "bg-foreground/[0.02]" : ""}
                           ${isHighlighted ? "bg-bridge-accent/10 ring-2 ring-bridge-accent/30 ring-inset" : ""}`}
-                          style={{ left: idx * dayWidth, width: dayWidth }}
+                          style={{
+                            left: idx * dayWidth,
+                            width: dayWidth,
+                            ...(holidayWorkOverride && !isHighlighted
+                              ? {
+                                  backgroundColor: HOLIDAY_WORK_CELL_BG,
+                                  outline: HOLIDAY_WORK_CELL_OUTLINE,
+                                  outlineOffset: -1,
+                                }
+                              : {}),
+                          }}
                         />
                       );
                     })}
@@ -3690,11 +3740,12 @@ export function ScheduleResourceView({
                       },
                     )}
 
-                    {/* 개인 부재 오버레이 바 (휴가/출장/병가/재택) */}
+                    {/* 개인 일정 오버레이 바 — 부재(점선+빗금) / 휴일근무(실선, 빗금 없음) */}
                     {absenceBars.map(({ absence, pos, laneIndex }) => {
                       if (!pos) return null;
                       const meta = calendarTypeMeta(absence.event_type);
                       const c = absence.color || meta.color;
+                      const holidayWork = isHolidayWorkType(absence.event_type);
                       const top =
                         BAR_TOP_OFFSET +
                         laneIndex * (BAR_HEIGHT + BAR_TOP_OFFSET);
@@ -3710,9 +3761,16 @@ export function ScheduleResourceView({
                             top,
                             height: BAR_HEIGHT,
                             color: "#e9edf5",
-                            border: `1px dashed ${c}99`,
-                            backgroundColor: `${c}1f`,
-                            backgroundImage: `repeating-linear-gradient(45deg, ${c}44 0 5px, ${c}14 5px 10px)`,
+                            ...(holidayWork
+                              ? {
+                                  border: `1px solid ${c}e6`,
+                                  backgroundColor: `${c}29`,
+                                }
+                              : {
+                                  border: `1px dashed ${c}99`,
+                                  backgroundColor: `${c}1f`,
+                                  backgroundImage: `repeating-linear-gradient(45deg, ${c}44 0 5px, ${c}14 5px 10px)`,
+                                }),
                           }}
                           title={`${meta.label}${
                             absence.title ? " · " + absence.title : ""
@@ -3742,6 +3800,8 @@ export function ScheduleResourceView({
                       const isWknd =
                         isWeekend(day) && !forcedWorkdaySet.has(dateStr);
                       if (!isHol && !isWknd) return null;
+                      // 이 멤버의 휴일근무 날짜는 빗금을 그리지 않는다 (개인 단위 근무일)
+                      if (rowHolidayWorkDates?.has(dateStr)) return null;
                       return (
                         <div
                           key={`hatch-${idx}`}
@@ -3762,6 +3822,8 @@ export function ScheduleResourceView({
                     {row.kind === "member" &&
                       absenceBars.map(({ absence, pos: hPos, laneIndex }) => {
                         if (!hPos) return null;
+                        // 휴일근무는 "있음"이므로 부재 빗금을 씌우지 않는다
+                        if (isHolidayWorkType(absence.event_type)) return null;
                         const meta = calendarTypeMeta(absence.event_type);
                         const c = absence.color || meta.color;
                         const hatchHeight =
@@ -3974,6 +4036,7 @@ export function ScheduleResourceView({
         }
         startDate={pendingCreate?.startDate || ""}
         dueDate={pendingCreate?.dueDate || ""}
+        isOffDay={isOffDayStr}
         onCreated={() => {
           setPendingCreate(null);
           fetchData(true);
@@ -4008,6 +4071,7 @@ export function ScheduleResourceView({
           }))}
         initial={eventModal.initial}
         editing={eventModal.editing}
+        isOffDay={isOffDayStr}
         onSaved={reloadCalendarEvents}
       />
 

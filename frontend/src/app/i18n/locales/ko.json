@@ -1083,6 +1083,7 @@
       "layer": {
         "event": "이벤트",
         "absence": "부재",
+        "holidayWork": "휴일근무",
         "holiday": "휴무일",
         "milestone": "마일스톤"
       }

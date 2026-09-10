@@ -1082,6 +1082,7 @@
       "layer": {
         "event": "Events",
         "absence": "Absence",
+        "holidayWork": "Holiday work",
         "holiday": "Holidays",
         "milestone": "Milestones"
       }

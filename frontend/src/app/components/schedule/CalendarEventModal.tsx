@@ -14,7 +14,9 @@ import {
   MEMBER_TYPES,
   TEAM_TYPES,
   calendarTypeMeta,
+  isHolidayWorkType,
 } from "./calendarEventMeta";
+import { expandDateRange } from "../../utils/workloadBar";
 
 export interface CalendarMemberOption {
   id: string;
@@ -37,12 +39,18 @@ interface CalendarEventModalProps {
   members: CalendarMemberOption[];
   initial?: CalendarEventModalInitial;
   editing?: CalendarEventItem | null;
+  /** 보드 달력 기준 비근무일(주말·휴무일·공휴일) 판정 — 휴일근무에 평일이 섞였을 때 안내용 */
+  isOffDay?: (dateStr: string) => boolean;
   onSaved: () => void;
 }
 
 const TABS: { category: CalendarCategory; label: string; hint: string }[] = [
   { category: "TEAM", label: "이벤트", hint: "팀 전체에 표시" },
-  { category: "MEMBER", label: "부재", hint: "특정 멤버가 자리를 비움" },
+  {
+    category: "MEMBER",
+    label: "개인",
+    hint: "특정 멤버의 부재 또는 휴일근무",
+  },
   { category: "CALENDAR", label: "휴무일", hint: "날짜 성격 재정의" },
 ];
 
@@ -82,6 +90,7 @@ export function CalendarEventModal({
   members,
   initial,
   editing,
+  isOffDay,
   onSaved,
 }: CalendarEventModalProps) {
   const [category, setCategory] = useState<CalendarCategory>("TEAM");
@@ -195,7 +204,12 @@ export function CalendarEventModal({
       onClose();
     } catch (err) {
       console.warn("Failed to save calendar event", err);
-      setError("저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      const code = (err as { code?: string } | null)?.code;
+      setError(
+        code === "CE002"
+          ? "같은 기간에 이미 부재 또는 휴일근무가 등록되어 있어요."
+          : "저장에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      );
       setSaving(false);
     }
   };
@@ -272,13 +286,34 @@ export function CalendarEventModal({
     setMemoEditing(false);
   };
 
-  const types = typesFor(category);
+  const isHolidayWork = category === "MEMBER" && isHolidayWorkType(eventType);
+  // 레거시 부재 타입(VACATION/TRIP/…)을 편집할 때는 선택기에 그 타입도 보여준다
+  const types = useMemo(() => {
+    const base = typesFor(category);
+    if (
+      category === "MEMBER" &&
+      editing &&
+      !base.some((t) => t.key === eventType)
+    ) {
+      return [...base, calendarTypeMeta(eventType)];
+    }
+    return base;
+  }, [category, editing, eventType]);
   const titlePlaceholder =
     category === "CALENDAR"
       ? "예: 창립기념일"
       : category === "MEMBER"
-        ? "예: 부산 출장 · 오전 반차 · 재택"
+        ? isHolidayWork
+          ? "예: 빌드 대응 · 오전만 · 휴일 재택"
+          : "예: 부산 출장 · 오전 반차 · 재택"
         : "예: v1.2 클라이언트 빌드";
+
+  // 휴일근무 기간에 평일이 섞였는지 — 저장은 허용하되 표시 범위를 안내
+  const holidayWorkWeekdayCount = useMemo(() => {
+    if (!isHolidayWork || !isOffDay || !startDate) return 0;
+    const end = endDate && endDate >= startDate ? endDate : startDate;
+    return expandDateRange(startDate, end).filter((ds) => !isOffDay(ds)).length;
+  }, [isHolidayWork, isOffDay, startDate, endDate]);
 
   const memoCountClass =
     memoDraft.length > MEMO_MAX * 0.9
@@ -287,8 +322,7 @@ export function CalendarEventModal({
 
   const memoTextareaProps = {
     maxLength: MEMO_MAX,
-    placeholder:
-      "메모 남기기…\n예: 배포 범위 · 롤백 기준 · 릴리스 노트 링크",
+    placeholder: "메모 남기기…\n예: 배포 범위 · 롤백 기준 · 릴리스 노트 링크",
     className:
       "w-full flex-1 bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-foreground placeholder-slate-500 outline-none resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all",
   } as const;
@@ -344,44 +378,42 @@ export function CalendarEventModal({
             {TABS.find((t) => t.category === category)?.hint}
           </p>
 
-          {/* 종류 — 부재(MEMBER)는 사유 분류 없이 단일 타입이라 선택기 숨김 */}
-          {category !== "MEMBER" && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                종류
-              </label>
-              <div className="grid grid-cols-2 gap-1.5">
-                {types.map((t) => {
-                  const active = t.key === eventType;
-                  return (
-                    <button
-                      key={t.key}
-                      type="button"
-                      onClick={() => setEventType(t.key)}
-                      className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium border whitespace-nowrap transition-colors ${
-                        active
-                          ? "text-foreground"
-                          : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5"
-                      }`}
-                      style={
-                        active
-                          ? {
-                              borderColor: `${t.color}99`,
-                              backgroundColor: `${t.color}26`,
-                            }
-                          : undefined
-                      }
-                    >
-                      <span>{t.icon}</span>
-                      {t.label}
-                    </button>
-                  );
-                })}
-              </div>
+          {/* 종류 — 개인(MEMBER)은 부재/휴일근무 두 갈래, 나머지는 세부 타입 */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              종류
+            </label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {types.map((t) => {
+                const active = t.key === eventType;
+                return (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setEventType(t.key)}
+                    className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium border whitespace-nowrap transition-colors ${
+                      active
+                        ? "text-foreground"
+                        : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5"
+                    }`}
+                    style={
+                      active
+                        ? {
+                            borderColor: `${t.color}99`,
+                            backgroundColor: `${t.color}26`,
+                          }
+                        : undefined
+                    }
+                  >
+                    <span>{t.icon}</span>
+                    {t.label}
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </div>
 
-          {/* 대상 멤버 (부재 전용) */}
+          {/* 대상 멤버 (개인 일정 전용) */}
           {category === "MEMBER" && (
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
@@ -455,7 +487,15 @@ export function CalendarEventModal({
             </div>
             {category !== "CALENDAR" && (
               <p className="text-xs text-slate-500">
-                하루 일정이면 시작·종료를 같은 날짜로 두세요.
+                {isHolidayWork
+                  ? "주말·휴일에 이 멤버만 근무하는 날로 표시됩니다."
+                  : "하루 일정이면 시작·종료를 같은 날짜로 두세요."}
+              </p>
+            )}
+            {holidayWorkWeekdayCount > 0 && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                평일 {holidayWorkWeekdayCount}일이 포함되어 있어요. 휴일근무는
+                주말·휴일에만 표시됩니다.
               </p>
             )}
 

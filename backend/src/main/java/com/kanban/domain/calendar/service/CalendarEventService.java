@@ -46,6 +46,7 @@ public class CalendarEventService {
         CalendarEventType type = request.getEventType();
         validateDateRange(request.getStartDate(), request.getEndDate());
         User member = resolveMember(type, request.getMemberId());
+        validateMemberConflict(boardId, type, member, request.getStartDate(), request.getEndDate(), null);
 
         User creator = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -85,6 +86,9 @@ public class CalendarEventService {
         LocalDate effectiveStart = request.getStartDate() != null ? request.getStartDate() : event.getStartDate();
         LocalDate effectiveEnd = request.getEndDate() != null ? request.getEndDate() : event.getEndDate();
         validateDateRange(effectiveStart, effectiveEnd);
+
+        User effectiveMember = member != null ? member : event.getMember();
+        validateMemberConflict(boardId, effectiveType, effectiveMember, effectiveStart, effectiveEnd, eventId);
 
         event.updateInfo(
                 request.getEventType(),
@@ -145,6 +149,25 @@ public class CalendarEventService {
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         }
         return null;
+    }
+
+    /**
+     * 개인 일정 충돌 검증 — 같은 멤버·같은 날짜에 부재와 휴일근무가 동시에 있을 수 없다.
+     * (부재 ↔ 부재, 휴일근무 ↔ 휴일근무 겹침은 허용: 반차 두 개, 사유가 다른 부재 등)
+     */
+    private void validateMemberConflict(String boardId, CalendarEventType type, User member,
+                                        LocalDate start, LocalDate end, String selfId) {
+        if (type == null || !type.requiresMember() || member == null || start == null || end == null) {
+            return;
+        }
+        boolean conflict = calendarEventRepository
+                .findOverlappingMemberEvents(boardId, member.getId(), start, end)
+                .stream()
+                .filter(e -> selfId == null || !e.getId().equals(selfId))
+                .anyMatch(e -> e.getEventType().isHolidayWork() != type.isHolidayWork());
+        if (conflict) {
+            throw new BusinessException(ErrorCode.CALENDAR_EVENT_MEMBER_CONFLICT);
+        }
     }
 
     private void validateDateRange(LocalDate start, LocalDate end) {

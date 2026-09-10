@@ -4044,7 +4044,7 @@ export const sprintAPI = {
 /** 워크로드 특별 일정 항목 (팀 이벤트 / 개인 부재 / 달력 예외) */
 export interface CalendarEventItem {
   id: string;
-  event_type: string; // BUILD/RELEASE/DEADLINE/EVENT/VACATION/TRIP/SICK/REMOTE/HOLIDAY/WORKDAY
+  event_type: string; // BUILD/RELEASE/DEADLINE/EVENT/ABSENCE/(VACATION/TRIP/SICK/REMOTE)/HOLIDAY_WORK/HOLIDAY/WORKDAY
   category: string; // TEAM/MEMBER/CALENDAR
   member: { id: string; name: string; profile_image: string | null } | null;
   title: string | null;
