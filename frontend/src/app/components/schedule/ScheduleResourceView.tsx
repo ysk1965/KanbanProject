@@ -115,6 +115,9 @@ const EXTEND_THRESHOLD_DAYS = 14;
 const HATCH_WEEKEND_BG = `url("data:image/svg+xml,%3Csvg width='8' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-1 5L5-1M3 9L9 3' stroke='rgba(255,255,255,0.10)' stroke-width='1'/%3E%3C/svg%3E"), rgba(255,255,255,0.03)`;
 const HATCH_HOLIDAY_BG = `url("data:image/svg+xml,%3Csvg width='8' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-1 5L5-1M3 9L9 3' stroke='rgba(239,68,68,0.18)' stroke-width='1'/%3E%3C/svg%3E"), rgba(239,68,68,0.06)`;
 const HATCH_OVERLAY_Z = 25;
+/** 개인 일정(부재/휴일근무) 띠 — 태스크 레인과 분리해 행 바닥에 고정하는 얇은 상태 띠 */
+const PERSONAL_STRIP_HEIGHT = 18;
+const PERSONAL_STRIP_GAP = 3;
 /** 개인 휴일근무 칸 — 빗금 대신 옅은 초록 틴트 + 점선 아웃라인으로 "이 사람만 근무" 표시 */
 const HOLIDAY_WORK_CELL_BG = "rgba(52,211,153,0.07)";
 const HOLIDAY_WORK_CELL_OUTLINE = "1px dashed rgba(52,211,153,0.45)";
@@ -3277,49 +3280,46 @@ export function ScheduleResourceView({
                   ).length
                 : 0;
 
-            // 개인 부재 바 — "행 전체 최대 레인" 아래가 아니라, 그 부재 날짜에
-            // 실제로 걸치는 태스크의 최대 레인 바로 아래에 배치한다.
-            // (전역 최대 레인에 고정하면, 부재 날짜에 태스크가 적을 때 태스크와
-            //  부재 바 사이에 빈 레인이 노출되던 문제 제거)
+            // 개인 일정(부재/휴일근무) 띠 — 태스크 레인과 섞지 않고 행 바닥에 고정한다.
+            // 부재는 "그 날의 상태"라 태스크처럼 보이면 안 되고, 어느 행이든 같은 자리(바닥)에서
+            // 읽혀야 한다. 같은 날짜에 개인 일정이 겹치면(오전 반차 + 오후 반차) 바닥에서 위로 쌓는다.
             const rowAbsences =
               row.kind === "member" ? memberAbsencesById.get(row.id) || [] : [];
             const rowHolidayWorkDates =
               row.kind === "member"
                 ? holidayWorkDatesById.get(row.id)
                 : undefined;
-            const absenceBars = rowAbsences
+            const absenceBarsRaw = rowAbsences
               .map((a) => ({
                 absence: a,
                 pos: getBarPosition(a.start_date, a.end_date),
               }))
-              .filter((d) => d.pos !== null)
-              .map((d) => {
-                // 이 부재 기간과 겹치는 태스크 바 중 (접힘 시 숨겨지는 레인 제외)
-                // 가장 아래 레인을 찾아 그 바로 아래 레인에 부재 바를 놓는다.
-                let localMaxLane = -1;
-                for (const vb of itemsWithBars) {
-                  const lane = barLanes[vb.item.id] || 0;
-                  if (lane > visibleMaxLane) continue; // 접힘 상태에서 숨겨진 바
-                  if (
-                    vb.pos!.startDayIndex <= d.pos!.endDayIndex &&
-                    vb.pos!.endDayIndex >= d.pos!.startDayIndex
-                  ) {
-                    if (lane > localMaxLane) localMaxLane = lane;
-                  }
-                }
-                const laneIndex = Math.min(localMaxLane, visibleMaxLane) + 1;
-                return { ...d, laneIndex };
-              });
-            const maxAbsenceLaneIndex = absenceBars.length
-              ? Math.max(...absenceBars.map((d) => d.laneIndex))
-              : -1;
+              .filter((d) => d.pos !== null);
+            const personalLanes = computeBarLanes(
+              absenceBarsRaw.map((d) => ({
+                id: d.absence.id,
+                startDayIndex: d.pos!.startDayIndex,
+                endDayIndex: d.pos!.endDayIndex,
+              })),
+            );
+            // laneIndex 0 = 맨 바닥, 커질수록 위로
+            const absenceBars = absenceBarsRaw.map((d) => ({
+              ...d,
+              laneIndex: personalLanes[d.absence.id] || 0,
+            }));
+            const personalLaneCount = absenceBars.length
+              ? Math.max(...absenceBars.map((d) => d.laneIndex)) + 1
+              : 0;
+            // 개인 일정 띠가 차지하는 높이 — 태스크 레인 아래에 더해진다
+            const personalBandHeight =
+              personalLaneCount * (PERSONAL_STRIP_HEIGHT + PERSONAL_STRIP_GAP);
 
-            // 행 높이는 태스크 최대 레인과 부재 바 최대 레인 중 더 깊은 쪽 기준.
-            const deepestLane = Math.max(visibleMaxLane, maxAbsenceLaneIndex);
+            // 행 높이 = 태스크 레인 + 개인 일정 띠. 개인 일정이 없는 행은 기존과 동일.
             const dynamicRowHeight = Math.max(
               ROW_HEIGHT,
-              (deepestLane + 1) * (BAR_HEIGHT + BAR_TOP_OFFSET) +
-                BAR_TOP_OFFSET * 2,
+              (visibleMaxLane + 1) * (BAR_HEIGHT + BAR_TOP_OFFSET) +
+                BAR_TOP_OFFSET * 2 +
+                personalBandHeight,
             );
 
             // 이 행에 하이라이트된 태스크의 바가 있으면 이름 컬럼에 앰버 마커 —
@@ -3740,36 +3740,37 @@ export function ScheduleResourceView({
                       },
                     )}
 
-                    {/* 개인 일정 오버레이 바 — 부재(점선+빗금) / 휴일근무(실선, 빗금 없음) */}
+                    {/* 개인 일정 띠 — 행 바닥 고정. 부재(점선+빗금) / 휴일근무(실선, 빗금 없음) */}
                     {absenceBars.map(({ absence, pos, laneIndex }) => {
                       if (!pos) return null;
                       const meta = calendarTypeMeta(absence.event_type);
                       const c = absence.color || meta.color;
                       const holidayWork = isHolidayWorkType(absence.event_type);
-                      const top =
+                      const bottom =
                         BAR_TOP_OFFSET +
-                        laneIndex * (BAR_HEIGHT + BAR_TOP_OFFSET);
+                        laneIndex *
+                          (PERSONAL_STRIP_HEIGHT + PERSONAL_STRIP_GAP);
                       return (
                         <div
                           key={absence.id}
                           data-bar="true"
-                          className="absolute rounded-lg flex items-center gap-1 px-2 text-xs font-medium
+                          className="absolute rounded-md flex items-center gap-1 px-1.5 text-xs font-medium leading-none
                           cursor-pointer hover:brightness-110 transition-all overflow-hidden"
                           style={{
                             left: pos.left,
                             width: pos.width,
-                            top,
-                            height: BAR_HEIGHT,
-                            color: "#e9edf5",
+                            bottom,
+                            height: PERSONAL_STRIP_HEIGHT,
+                            zIndex: HATCH_OVERLAY_Z + 1,
+                            color: holidayWork ? "#a7f3d0" : "#dbe1ec",
                             ...(holidayWork
                               ? {
                                   border: `1px solid ${c}e6`,
-                                  backgroundColor: `${c}29`,
+                                  backgroundColor: `${c}47`,
                                 }
                               : {
-                                  border: `1px dashed ${c}99`,
-                                  backgroundColor: `${c}1f`,
-                                  backgroundImage: `repeating-linear-gradient(45deg, ${c}44 0 5px, ${c}14 5px 10px)`,
+                                  border: `1px dashed ${c}b3`,
+                                  backgroundColor: `${c}38`,
                                 }),
                           }}
                           title={`${meta.label}${
@@ -3817,27 +3818,21 @@ export function ScheduleResourceView({
                         />
                       );
                     })}
-                    {/* Member absence hatching — 태스크 + 부재 바까지만 칠하고
-                        그 아래 빈 레인은 칠하지 않는다(빈 줄처럼 보이던 문제 제거) */}
+                    {/* Member absence hatching — 주말/휴무일과 같은 언어로 그 날짜 열 전체를 덮는다 */}
                     {row.kind === "member" &&
-                      absenceBars.map(({ absence, pos: hPos, laneIndex }) => {
+                      absenceBars.map(({ absence, pos: hPos }) => {
                         if (!hPos) return null;
                         // 휴일근무는 "있음"이므로 부재 빗금을 씌우지 않는다
                         if (isHolidayWorkType(absence.event_type)) return null;
                         const meta = calendarTypeMeta(absence.event_type);
                         const c = absence.color || meta.color;
-                        const hatchHeight =
-                          BAR_TOP_OFFSET +
-                          laneIndex * (BAR_HEIGHT + BAR_TOP_OFFSET) +
-                          BAR_HEIGHT;
                         return (
                           <div
                             key={`abs-hatch-${absence.id}`}
-                            className="absolute top-0 pointer-events-none"
+                            className="absolute top-0 bottom-0 pointer-events-none"
                             style={{
                               left: hPos.left,
                               width: hPos.width,
-                              height: hatchHeight,
                               zIndex: HATCH_OVERLAY_Z,
                               background: makeAbsenceHatchBg(c),
                             }}
