@@ -1484,7 +1484,7 @@
     },
     "moveChecklistToTaskTitle": "ย้ายรายการเช็คลิสต์",
     "moveCompletedSection": "เสร็จสิ้น",
-    "moveChecklistToTaskDesc": "เลือก Task ที่ต้องการย้ายไป",
+    "moveChecklistToTaskDesc": "เลือก Task ที่ต้องการย้ายไป หรือสร้าง Task ใหม่",
     "deleteChecklistTitle": "ลบรายการเช็คลิสต์?",
     "deleteChecklistDesc": "รายการที่ลบแล้วไม่สามารถกู้คืนได้",
     "date": "วันที่",

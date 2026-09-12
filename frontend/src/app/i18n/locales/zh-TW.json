@@ -1469,7 +1469,7 @@
     },
     "moveChecklistToTaskTitle": "移動清單項目",
     "moveCompletedSection": "已完成",
-    "moveChecklistToTaskDesc": "請選擇要移動到的Task。",
+    "moveChecklistToTaskDesc": "請選擇要移動到的Task，或新建一個。",
     "deleteChecklistTitle": "刪除清單項？",
     "deleteChecklistDesc": "已刪除的項目無法復原。",
     "date": "日期",

@@ -193,8 +193,13 @@ interface BoardModalManagerProps {
   onMoveChecklistToTask: (
     checklistItemId: string,
     sourceTaskId: string,
-    targetTaskId: string,
-  ) => void;
+    targetTaskId: string | null,
+    newTask?: {
+      title: string;
+      feature_id: string;
+      milestone_id?: string | null;
+    },
+  ) => void | Promise<void>;
   features: Feature[];
   allTasks: Task[];
   wsCommentEvent: BoardWebSocketEvent | null;

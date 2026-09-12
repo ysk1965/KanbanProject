@@ -1966,16 +1966,26 @@ export const checklistAPI = {
     );
   },
 
+  /**
+   * 체크리스트 항목을 다른 Task로 이동.
+   * - 기존 Task로: `target_task_id`
+   * - 새 Task를 만들어 이동: `new_task.title` + `target_feature_id` (+ `target_milestone_id`).
+   *   서버가 한 트랜잭션으로 Task 생성 + 이동을 처리하고 `created_task`를 응답에 실어 준다.
+   */
   moveToTask: async (
     boardId: string,
     taskId: string,
     itemId: string,
-    data: { target_task_id: string },
+    data: {
+      target_task_id?: string;
+      target_feature_id?: string;
+      target_milestone_id?: string;
+      new_task?: { title: string };
+    },
   ) => {
-    return apiClient.put<ChecklistItemResponse>(
-      `/boards/${boardId}/tasks/${taskId}/checklist/${itemId}/move-task`,
-      data,
-    );
+    return apiClient.put<
+      ChecklistItemResponse & { created_task?: TaskResponse }
+    >(`/boards/${boardId}/tasks/${taskId}/checklist/${itemId}/move-task`, data);
   },
 
   reorderItems: async (

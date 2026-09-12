@@ -1484,7 +1484,7 @@
     },
     "moveChecklistToTaskTitle": "Mover item da checklist",
     "moveCompletedSection": "Concluídas",
-    "moveChecklistToTaskDesc": "Selecione um task para mover.",
+    "moveChecklistToTaskDesc": "Selecione um task para mover ou crie um novo.",
     "deleteChecklistTitle": "Excluir item do checklist?",
     "deleteChecklistDesc": "Itens excluídos não podem ser recuperados.",
     "date": "Data",

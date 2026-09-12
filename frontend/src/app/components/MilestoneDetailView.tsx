@@ -315,14 +315,21 @@ function TaskCard({
                 >
                   {item.title}
                 </span>
+                {/* 담당 — 멤버 ?? 외주. 외주도 배정된 것이라 미배정(앰버)으로 보이면 안 된다 */}
                 <span
                   className={`text-xs ml-auto flex-shrink-0 ${
-                    item.assignee
+                    item.assignee || item.contractor
                       ? "text-slate-500"
                       : "text-amber-600 dark:text-amber-400"
                   }`}
+                  title={
+                    item.contractor && !item.assignee
+                      ? `${t("task.contractorSection", { defaultValue: "외주 작업자" })} · ${item.contractor.name}`
+                      : undefined
+                  }
                 >
                   {item.assignee?.name ??
+                    item.contractor?.name ??
                     t("milestone.detail.unassigned", {
                       defaultValue: "미배정",
                     })}

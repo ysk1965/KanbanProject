@@ -2767,17 +2767,56 @@ export function KanbanBoardPage() {
     }
   };
 
+  /**
+   * 체크리스트 항목을 다른 Task로 이동.
+   * targetTaskId 가 null 이고 newTask 가 있으면 서버가 그 피처에 Task를 만들어 옮긴다(한 트랜잭션).
+   * 실패는 호출자(이동 모달)가 인라인으로 보여줄 수 있게 다시 던진다.
+   */
   const handleMoveChecklistToTask = async (
     checklistItemId: string,
     sourceTaskId: string,
-    targetTaskId: string,
+    targetTaskId: string | null,
+    newTask?: {
+      title: string;
+      feature_id: string;
+      milestone_id?: string | null;
+    },
   ) => {
     if (!boardId) return;
+    if (!targetTaskId && !newTask) return;
 
     try {
-      await checklistAPI.moveToTask(boardId, sourceTaskId, checklistItemId, {
-        target_task_id: targetTaskId,
-      });
+      const moved = await checklistAPI.moveToTask(
+        boardId,
+        sourceTaskId,
+        checklistItemId,
+        newTask
+          ? {
+              target_feature_id: newTask.feature_id,
+              target_milestone_id: newTask.milestone_id ?? undefined,
+              new_task: { title: newTask.title },
+            }
+          : { target_task_id: targetTaskId! },
+      );
+      const createdTask = moved.created_task;
+      const resolvedTargetTaskId = createdTask?.id ?? targetTaskId;
+      if (!resolvedTargetTaskId) return;
+
+      if (createdTask) {
+        // 새 Task를 보드 상태에 먼저 넣는다 — TASK_CREATED 웹소켓 이벤트가 먼저 왔을 수 있으니 중복 방지.
+        setTasks((prev) =>
+          prev.some((tk) => tk.id === createdTask.id)
+            ? prev
+            : [...prev, createdTask],
+        );
+        setFeatures((prev) =>
+          prev.map((f) =>
+            f.id === createdTask.feature_id
+              ? { ...f, total_tasks: (f.total_tasks || 0) + 1 }
+              : f,
+          ),
+        );
+      }
 
       // checklistDataMap에서 항목을 원본 → 대상 Task로 이동 (보드 즉시 반영)
       let movedChecklistItem: ChecklistItem | undefined;
@@ -2787,7 +2826,7 @@ export function KanbanBoardPage() {
         if (!movedChecklistItem) return prev;
 
         const nextSource = sourceItems.filter((i) => i.id !== checklistItemId);
-        const targetItems = prev[targetTaskId] || [];
+        const targetItems = prev[resolvedTargetTaskId] || [];
         const maxPosition = targetItems.reduce(
           (max, i) => Math.max(max, i.position ?? 0),
           -1,
@@ -2799,7 +2838,7 @@ export function KanbanBoardPage() {
         return {
           ...prev,
           [sourceTaskId]: nextSource,
-          [targetTaskId]: nextTarget,
+          [resolvedTargetTaskId]: nextTarget,
         };
       });
 
@@ -2816,7 +2855,7 @@ export function KanbanBoardPage() {
               checklist_version: (t.checklist_version || 0) + 1,
             };
           }
-          if (t.id === targetTaskId) {
+          if (t.id === resolvedTargetTaskId) {
             return {
               ...t,
               checklist_total: (t.checklist_total || 0) + 1,
@@ -2832,8 +2871,27 @@ export function KanbanBoardPage() {
 
       notifyScheduleRefresh();
       setManagementRefreshKey((prev) => prev + 1);
+
+      if (createdTask) {
+        toast.success(
+          t("task.moveNewTaskSuccess", {
+            title: createdTask.title,
+            defaultValue: "체크리스트 항목을 새 Task {{title}}(으)로 옮겼어요",
+          }),
+          {
+            action: {
+              label: t("task.moveOpenTask", "Task 열기"),
+              onClick: () => {
+                setSelectedTask(createdTask);
+                setIsTaskModalOpen(true);
+              },
+            },
+          },
+        );
+      }
     } catch (error) {
       console.error("Failed to move checklist item:", error);
+      throw error;
     }
   };
 

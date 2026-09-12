@@ -1484,7 +1484,7 @@
     },
     "moveChecklistToTaskTitle": "移动清单项",
     "moveCompletedSection": "已完成",
-    "moveChecklistToTaskDesc": "请选择要移动到的Task。",
+    "moveChecklistToTaskDesc": "请选择要移动到的Task，或新建一个。",
     "deleteChecklistTitle": "删除清单项？",
     "deleteChecklistDesc": "已删除的项目无法恢复。",
     "date": "日期",

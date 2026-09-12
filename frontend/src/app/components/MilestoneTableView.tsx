@@ -26,9 +26,11 @@ import {
   GripVertical,
   Loader2,
   Plus,
+  Wrench,
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
+  BoardContractor,
   ChecklistItem,
   ChecklistPreset,
   Feature,
@@ -43,7 +45,7 @@ import {
   memberService,
   taskService,
 } from "../utils/services";
-import { checklistAPI, sprintAPI } from "../utils/api";
+import { checklistAPI, contractorAPI, sprintAPI } from "../utils/api";
 import {
   SprintChip,
   toShortDate,
@@ -87,6 +89,17 @@ type TaskStatus = "done" | "doing" | "todo";
 interface ChecklistState {
   items: ChecklistItem[];
   loaded: boolean;
+}
+
+/** 담당 피커 후보 — 보드 멤버 또는 외주(BoardContractor). 둘은 서로 배타적으로 저장된다. */
+type ContractorOption = { id: string; name: string; color: string | null };
+type AssigneePick =
+  | { kind: "member"; id: string; name: string }
+  | { kind: "contractor"; id: string; name: string; color: string | null };
+
+/** 줄의 담당 표시 이름 — 멤버 ?? 외주. 둘 다 없으면 null(미배정). */
+function itemOwnerName(item: ChecklistItem): string | null {
+  return item.assignee?.name ?? item.contractor?.name ?? null;
 }
 
 /** CSV 필드 이스케이프 — 항상 따옴표로 감싼다 */
@@ -170,6 +183,7 @@ export function MilestoneTableView({
   const [saving, setSaving] = useState(false);
   /** 담당자 피커용 보드 멤버 (user id 기준) — 편집 가능할 때만 로드 */
   const [members, setMembers] = useState<{ id: string; name: string }[]>([]);
+  const [contractors, setContractors] = useState<ContractorOption[]>([]);
   /** 보드 공용 체크리스트 프리셋 — 칩 이름 표시에도 쓰므로 항상 로드 */
   const [presets, setPresets] = useState<ChecklistPreset[]>([]);
   const [presetManageOpen, setPresetManageOpen] = useState(false);
@@ -268,6 +282,29 @@ export function MilestoneTableView({
     };
   }, [boardId, canEdit]);
 
+  // 보드 외주 로드 — 담당 피커의 "외주 작업자" 섹션용. 숨김 처리된 외주는 후보에서 뺀다.
+  useEffect(() => {
+    if (!canEdit) return;
+    let cancelled = false;
+    contractorAPI
+      .list(boardId)
+      .then((res) => {
+        if (cancelled) return;
+        // api.ts의 ContractorInfo에는 hidden이 없어 보드 타입으로 읽는다 (ScheduleResourceView와 동일)
+        setContractors(
+          ((res.contractors ?? []) as BoardContractor[])
+            .filter((c) => !c.hidden)
+            .map((c) => ({ id: c.id, name: c.name, color: c.color ?? null })),
+        );
+      })
+      .catch(() => {
+        /* 실패 시 외주 섹션만 비표시 */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [boardId, canEdit]);
+
   // 체크리스트 프리셋 로드 — 실패해도 칩만 빈 상태로 동작
   useEffect(() => {
     let cancelled = false;
@@ -346,13 +383,15 @@ export function MilestoneTableView({
     [checklists],
   );
 
-  /** 담당자 필터 후보 — 태스크 담당자 합집합 + 체크리스트 담당자 */
+  /** 담당자 필터 후보 — 태스크 담당자 합집합 + 체크리스트 담당자(멤버·외주) */
   const assigneeOptions = useMemo(() => {
     const map = new Map<string, string>();
     for (const tk of tasks) {
       for (const a of tk.assignees ?? []) map.set(a.id, a.name);
       for (const item of checklists[tk.id]?.items ?? []) {
         if (item.assignee) map.set(item.assignee.id, item.assignee.name);
+        else if (item.contractor)
+          map.set(item.contractor.id, item.contractor.name);
       }
     }
     return [...map.entries()]
@@ -381,7 +420,9 @@ export function MilestoneTableView({
           (a) => a.id === assigneeFilter,
         );
         const inChecklist = (checklists[tk.id]?.items ?? []).some(
-          (i) => i.assignee?.id === assigneeFilter,
+          (i) =>
+            i.assignee?.id === assigneeFilter ||
+            i.contractor?.id === assigneeFilter,
         );
         if (!inTask && !inChecklist) return false;
       }
@@ -528,25 +569,34 @@ export function MilestoneTableView({
     [boardId, patchLocalItem],
   );
 
-  /** 담당자 배정/교체/해제 — 낙관적 갱신 후 실패 롤백 */
+  /**
+   * 담당 배정/교체/해제 — 멤버와 외주는 배타적이라 두 키를 항상 함께 보낸다
+   * (한쪽을 고르면 다른 쪽은 명시적으로 null 클리어). 낙관적 갱신 후 실패 롤백.
+   */
   const handleAssignItem = useCallback(
-    (
-      taskId: string,
-      item: ChecklistItem,
-      member: { id: string; name: string } | null,
-    ) => {
-      const prev = item.assignee ?? null;
+    (taskId: string, item: ChecklistItem, pick: AssigneePick | null) => {
+      const prevAssignee = item.assignee ?? null;
+      const prevContractor = item.contractor ?? null;
       patchLocalItem(taskId, item.id, {
-        assignee: member
-          ? { id: member.id, name: member.name, profile_image: null }
-          : null,
+        assignee:
+          pick?.kind === "member"
+            ? { id: pick.id, name: pick.name, profile_image: null }
+            : null,
+        contractor:
+          pick?.kind === "contractor"
+            ? { id: pick.id, name: pick.name, color: pick.color }
+            : null,
       });
       checklistAPI
         .patchItem(boardId, taskId, item.id, {
-          assignee_id: member?.id ?? null,
+          assignee_id: pick?.kind === "member" ? pick.id : null,
+          contractor_id: pick?.kind === "contractor" ? pick.id : null,
         })
         .catch(() => {
-          patchLocalItem(taskId, item.id, { assignee: prev });
+          patchLocalItem(taskId, item.id, {
+            assignee: prevAssignee,
+            contractor: prevContractor,
+          });
         });
     },
     [boardId, patchLocalItem],
@@ -902,7 +952,7 @@ export function MilestoneTableView({
               item.title,
               period,
               item.completed ? "O" : "X",
-              item.assignee?.name ?? "",
+              itemOwnerName(item) ?? "",
             ]);
           }
         }
@@ -1426,6 +1476,7 @@ export function MilestoneTableView({
                                         taskId={tk.id}
                                         canEdit={canEdit}
                                         members={members}
+                                        contractors={contractors}
                                         sprintPick={
                                           sprintEnabled && sprints.length > 1
                                             ? {
@@ -1577,6 +1628,7 @@ function SortableChecklistLine({
   taskId,
   canEdit,
   members,
+  contractors,
   onToggle,
   onRename,
   onAssign,
@@ -1589,9 +1641,11 @@ function SortableChecklistLine({
   taskId: string;
   canEdit: boolean;
   members: { id: string; name: string }[];
+  /** 보드 외주 후보 — 비어 있으면 피커에 외주 섹션을 그리지 않는다 */
+  contractors: ContractorOption[];
   onToggle: () => void;
   onRename: (title: string) => void;
-  onAssign: (member: { id: string; name: string } | null) => void;
+  onAssign: (pick: AssigneePick | null) => void;
   onDates: (patch: {
     start_date?: string | null;
     due_date?: string | null;
@@ -1606,6 +1660,10 @@ function SortableChecklistLine({
   };
 }) {
   const { t } = useTranslation();
+  const ownerName = itemOwnerName(item);
+  const contractorSectionLabel = t("task.contractorSection", {
+    defaultValue: "외주 작업자",
+  });
   const datesLabel = t("milestone.table.setDates", { defaultValue: "기간" });
   const startLabel = t("milestone.table.dateStart", { defaultValue: "시작" });
   const endLabel = t("milestone.table.dateEnd", { defaultValue: "마감" });
@@ -1878,18 +1936,28 @@ function SortableChecklistLine({
         </div>
       )}
 
-      {/* 담당자 — 클릭 시 배정/교체/해제 드롭다운 */}
+      {/* 담당 — 멤버 이름 / 외주(렌치 아이콘 + 외주 색) / 미배정. 클릭 시 배정/교체/해제 드롭다운 */}
       <div className="relative flex-shrink-0">
         <button
           onClick={canEdit ? () => setPickerOpen((v) => !v) : undefined}
           disabled={!canEdit}
-          className={`text-xs ${
-            item.assignee
-              ? "text-slate-500"
-              : "text-amber-600 dark:text-amber-400"
+          title={
+            item.contractor
+              ? `${contractorSectionLabel} · ${item.contractor.name}`
+              : undefined
+          }
+          className={`text-xs inline-flex items-center gap-1 ${
+            ownerName ? "text-slate-500" : "text-amber-600 dark:text-amber-400"
           }${canEdit ? " cursor-pointer hover:text-foreground hover:underline" : ""}`}
         >
-          {item.assignee?.name ?? unassignedLabel}
+          {item.contractor && !item.assignee && (
+            <Wrench
+              className="w-3 h-3 shrink-0"
+              style={{ color: item.contractor.color || "#6366F1" }}
+              aria-hidden="true"
+            />
+          )}
+          {ownerName ?? unassignedLabel}
         </button>
         {pickerOpen && (
           <>
@@ -1897,14 +1965,14 @@ function SortableChecklistLine({
               className="fixed inset-0 z-30"
               onClick={() => setPickerOpen(false)}
             />
-            <div className="absolute top-full right-0 mt-1 z-40 w-40 max-h-48 overflow-y-auto custom-scrollbar bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1.5">
+            <div className="absolute top-full right-0 mt-1 z-40 w-40 max-h-64 overflow-y-auto custom-scrollbar bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1.5">
               <button
                 onClick={() => {
                   onAssign(null);
                   setPickerOpen(false);
                 }}
                 className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
-                  !item.assignee
+                  !ownerName
                     ? "text-bridge-accent font-bold bg-bridge-accent/10"
                     : "text-slate-400 hover:bg-foreground/5"
                 }`}
@@ -1915,7 +1983,7 @@ function SortableChecklistLine({
                 <button
                   key={m.id}
                   onClick={() => {
-                    onAssign(m);
+                    onAssign({ kind: "member", id: m.id, name: m.name });
                     setPickerOpen(false);
                   }}
                   className={`w-full px-3 py-1.5 text-left text-xs truncate transition-colors ${
@@ -1927,6 +1995,40 @@ function SortableChecklistLine({
                   {m.name}
                 </button>
               ))}
+              {contractors.length > 0 && (
+                <>
+                  <div className="my-1 border-t border-foreground/[0.08]" />
+                  <div className="px-3 py-1 text-xs font-bold uppercase tracking-widest text-slate-400">
+                    {contractorSectionLabel}
+                  </div>
+                  {contractors.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => {
+                        onAssign({
+                          kind: "contractor",
+                          id: c.id,
+                          name: c.name,
+                          color: c.color,
+                        });
+                        setPickerOpen(false);
+                      }}
+                      className={`w-full px-3 py-1.5 text-left text-xs truncate transition-colors inline-flex items-center gap-1.5 ${
+                        item.contractor?.id === c.id
+                          ? "text-bridge-accent font-bold bg-bridge-accent/10"
+                          : "text-foreground hover:bg-foreground/5"
+                      }`}
+                    >
+                      <Wrench
+                        className="w-3 h-3 shrink-0"
+                        style={{ color: c.color || "#6366F1" }}
+                        aria-hidden="true"
+                      />
+                      <span className="truncate">{c.name}</span>
+                    </button>
+                  ))}
+                </>
+              )}
             </div>
           </>
         )}

@@ -1484,7 +1484,7 @@
     },
     "moveChecklistToTaskTitle": "Mover elemento de checklist",
     "moveCompletedSection": "Completadas",
-    "moveChecklistToTaskDesc": "Selecciona un task al que mover.",
+    "moveChecklistToTaskDesc": "Selecciona un task al que mover o crea uno nuevo.",
     "deleteChecklistTitle": "¿Eliminar elemento de lista de verificación?",
     "deleteChecklistDesc": "Los elementos eliminados no se pueden recuperar.",
     "date": "Fecha",

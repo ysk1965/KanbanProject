@@ -1484,7 +1484,7 @@
     },
     "moveChecklistToTaskTitle": "चेकलिस्ट आइटम ले जाएं",
     "moveCompletedSection": "पूर्ण",
-    "moveChecklistToTaskDesc": "ले जाने के लिए Task चुनें।",
+    "moveChecklistToTaskDesc": "ले जाने के लिए Task चुनें या नया बनाएं।",
     "deleteChecklistTitle": "चेकलिस्ट आइटम हटाएं?",
     "deleteChecklistDesc": "हटाए गए आइटम पुनर्प्राप्त नहीं किए जा सकते।",
     "date": "तारीख",

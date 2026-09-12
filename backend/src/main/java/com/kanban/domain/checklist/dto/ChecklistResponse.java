@@ -1,5 +1,6 @@
 package com.kanban.domain.checklist.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.kanban.domain.block.Block;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.contractor.dto.BoardContractorResponse;
@@ -8,6 +9,7 @@ import com.kanban.domain.feature.Feature;
 import com.kanban.domain.jobrole.dto.JobRoleResponse;
 import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.task.Task;
+import com.kanban.domain.task.dto.TaskResponse;
 import com.kanban.domain.user.User;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -51,6 +53,17 @@ public class ChecklistResponse {
         private Integer sprintSeq;
         /** true면 태스크와 다른 스프린트로 직접 보낸 줄 — 화면은 이 예외에만 칩을 붙인다. */
         private boolean sprintOverridden;
+        /**
+         * move-task 에서 새 Task를 만들어 옮긴 경우에만 채운다 — 클라이언트가 보드 상태에 Task를
+         * 추가하고 "Task 열기" 링크를 만들 때 쓴다. 그 외 응답에서는 직렬화되지 않는다.
+         */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private TaskResponse.Detail createdTask;
+
+        public Detail withCreatedTask(TaskResponse.Detail createdTask) {
+            this.createdTask = createdTask;
+            return this;
+        }
 
         public static Detail of(ChecklistItem item) {
             return of(item, null);

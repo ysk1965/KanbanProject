@@ -141,11 +141,20 @@ interface TaskDetailModalProps {
   onMoveToDone?: (taskId: string) => void;
   onMoveToBlock?: (taskId: string, blockId: string) => void;
   onMoveToFeature?: (taskId: string, featureId: string) => void;
+  /**
+   * 체크리스트 항목을 다른 Task로 이동. targetTaskId 가 null 이면 newTask 로 Task를 만들어 옮긴다.
+   * 새 Task 경로는 모달이 결과를 기다려 실패를 인라인으로 보여주므로 Promise 를 돌려줘야 한다.
+   */
   onMoveChecklistToTask?: (
     checklistItemId: string,
     sourceTaskId: string,
-    targetTaskId: string,
-  ) => void;
+    targetTaskId: string | null,
+    newTask?: {
+      title: string;
+      feature_id: string;
+      milestone_id?: string | null;
+    },
+  ) => void | Promise<void>;
   blocks?: Block[];
   features?: Feature[];
   allTasks?: Task[];
@@ -252,6 +261,14 @@ export function TaskDetailModal({
   const [selectedTargetFeatureId, setSelectedTargetFeatureId] = useState<
     string | null
   >(null);
+  // 체크리스트 이동: 새 Task 인라인 생성 폼 (제목 하나만 받고, 실제 생성은 "만들고 이동" 시점)
+  const [newTaskMode, setNewTaskMode] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [moveBusy, setMoveBusy] = useState(false);
+  const [moveError, setMoveError] = useState<string | null>(null);
+  // 폼이 열린 채 피처를 바꿔 입력이 버려졌을 때 한 줄 안내
+  const [newTaskDiscarded, setNewTaskDiscarded] = useState(false);
+  const newTaskInputRef = useRef<HTMLInputElement>(null);
   // 체크리스트 병합: 대표 항목(시작점) + 흡수할 소스 항목 선택
   const [mergeTargetItemId, setMergeTargetItemId] = useState<string | null>(
     null,
@@ -1004,6 +1021,15 @@ export function TaskDetailModal({
         tasks: typeof moveMilestoneTasks;
       }
     >();
+    // Task가 하나도 없는 피처도 "새 Task 만들기" 진입점으로 보여야 하므로
+    // 마일스톤(미선택 시 보드)의 피처 목록을 먼저 깔고 그 위에 Task를 얹는다.
+    const baseFeatures = moveTargetMilestoneId
+      ? (milestones.find((m) => m.id === moveTargetMilestoneId)?.features ??
+        [])
+      : features;
+    for (const f of baseFeatures) {
+      map.set(f.id, { id: f.id, title: f.title, color: f.color, tasks: [] });
+    }
     for (const mt of moveMilestoneTasks) {
       let group = map.get(mt.feature_id);
       if (!group) {
@@ -1018,7 +1044,7 @@ export function TaskDetailModal({
       group.tasks.push(mt);
     }
     return Array.from(map.values());
-  }, [moveMilestoneTasks]);
+  }, [moveMilestoneTasks, moveTargetMilestoneId, milestones, features]);
 
   // 기본 선택: 현재 항목이 속한 피처를 자동 선택 (없으면 첫 피처)
   useEffect(() => {
@@ -1029,6 +1055,128 @@ export function TaskDetailModal({
       return (current ?? moveTargetFeatures[0]).id;
     });
   }, [showMoveChecklistDialog, moveTargetFeatures, task?.feature_id]);
+
+  // 옮기는 체크리스트 텍스트 — 새 Task 제목 기본값 (항목 하나를 옮기면 그 텍스트가 곧 Task 제목인 경우가 대부분)
+  const movingChecklistTitle = useMemo(
+    () =>
+      checklistItems.find((ci) => ci.id === moveChecklistItemId)?.title ?? "",
+    [checklistItems, moveChecklistItemId],
+  );
+
+  const openNewTaskForm = useCallback(() => {
+    setSelectedTargetTaskId(null);
+    setNewTaskTitle(movingChecklistTitle.trim());
+    setNewTaskMode(true);
+    setMoveError(null);
+    setNewTaskDiscarded(false);
+  }, [movingChecklistTitle]);
+
+  const closeNewTaskForm = useCallback(() => {
+    setNewTaskMode(false);
+    setNewTaskTitle("");
+    setMoveError(null);
+  }, []);
+
+  // 폼이 열리면 제목 입력에 포커스 + 전체 선택 (기본값을 바로 덮어쓸 수 있게)
+  useEffect(() => {
+    if (!newTaskMode) return;
+    const el = newTaskInputRef.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+  }, [newTaskMode]);
+
+  // 단축키 N: 이동 다이얼로그에서 피처가 선택돼 있으면 새 Task 폼을 연다
+  useEffect(() => {
+    if (!showMoveChecklistDialog) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== "n" || e.metaKey || e.ctrlKey || e.altKey)
+        return;
+      const target = e.target as HTMLElement | null;
+      if (target && /input|textarea|select/i.test(target.tagName)) return;
+      if (target?.isContentEditable) return;
+      if (!selectedTargetFeatureId || newTaskMode || !canEdit) return;
+      e.preventDefault();
+      openNewTaskForm();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [
+    showMoveChecklistDialog,
+    selectedTargetFeatureId,
+    newTaskMode,
+    canEdit,
+    openNewTaskForm,
+  ]);
+
+  const closeMoveChecklistDialog = () => {
+    setShowMoveChecklistDialog(false);
+    setMoveChecklistItemId(null);
+    setSelectedTargetTaskId(null);
+    setSelectedTargetFeatureId(null);
+    setMoveTargetMilestoneId(null);
+    setNewTaskMode(false);
+    setNewTaskTitle("");
+    setMoveBusy(false);
+    setMoveError(null);
+    setNewTaskDiscarded(false);
+  };
+
+  /**
+   * 이동 확정. 기존 Task 경로는 기존처럼 낙관적으로 닫고, 새 Task 경로는 서버 응답을 기다린다 —
+   * 실패하면 모달을 닫지 않고 입력값을 보존한 채 에러를 보여 재시도할 수 있게 한다.
+   */
+  const handleMoveChecklistConfirm = async () => {
+    if (!task || !onMoveChecklistToTask || !moveChecklistItemId) return;
+    const itemId = moveChecklistItemId;
+    const sourceTask = task;
+
+    const applyLocalRemoval = () => {
+      setChecklistItems((prev) => prev.filter((ci) => ci.id !== itemId));
+      const remaining = checklistItems.filter((ci) => ci.id !== itemId);
+      const completedCount = remaining.filter((ci) => ci.completed).length;
+      onUpdate({
+        checklist_total: remaining.length,
+        checklist_completed: completedCount,
+        checklist_version: (sourceTask.checklist_version || 0) + 1,
+      });
+    };
+
+    if (newTaskMode) {
+      const title = newTaskTitle.trim();
+      if (!title || !selectedTargetFeatureId || moveBusy) return;
+      setMoveBusy(true);
+      setMoveError(null);
+      try {
+        await onMoveChecklistToTask(itemId, sourceTask.id, null, {
+          title,
+          feature_id: selectedTargetFeatureId,
+          milestone_id: moveTargetMilestoneId,
+        });
+        applyLocalRemoval();
+        closeMoveChecklistDialog();
+      } catch {
+        setMoveBusy(false);
+        setMoveError(
+          t(
+            "task.moveNewTaskFailed",
+            "Task를 만들지 못했어요. 입력한 제목은 그대로 두었으니 다시 시도해 주세요.",
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!selectedTargetTaskId) return;
+    Promise.resolve(
+      onMoveChecklistToTask(itemId, sourceTask.id, selectedTargetTaskId),
+    ).catch((error) => {
+      console.error("Failed to move checklist item:", error);
+      toast.error(t("common.error", "오류가 발생했습니다"));
+    });
+    applyLocalRemoval();
+    closeMoveChecklistDialog();
+  };
 
   /*
    * 자동수정 위임 — 훅은 전부 early return 위에 둔다(React #310).
@@ -3026,13 +3174,7 @@ export function TaskDetailModal({
       {/* 체크리스트 항목 Task 이동 다이얼로그 */}
       <MotionModal
         open={showMoveChecklistDialog}
-        onClose={() => {
-          setShowMoveChecklistDialog(false);
-          setMoveChecklistItemId(null);
-          setSelectedTargetTaskId(null);
-          setSelectedTargetFeatureId(null);
-          setMoveTargetMilestoneId(null);
-        }}
+        onClose={closeMoveChecklistDialog}
         className="sm:max-w-2xl p-6"
       >
         <h3 className="text-lg font-bold text-foreground">
@@ -3056,6 +3198,8 @@ export function TaskDetailModal({
                     setMoveTargetMilestoneId(m.id);
                     setSelectedTargetTaskId(null);
                     setSelectedTargetFeatureId(null);
+                    closeNewTaskForm();
+                    setNewTaskDiscarded(false);
                   }}
                   className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
                     moveTargetMilestoneId === m.id
@@ -3099,8 +3243,16 @@ export function TaskDetailModal({
                   <button
                     key={f.id}
                     onClick={() => {
+                      if (on) return;
+                      // 폼이 열린 채 피처를 바꾸면 입력을 버린다 — 확인 다이얼로그 대신 한 줄 안내만.
+                      const typed =
+                        newTaskMode &&
+                        newTaskTitle.trim().length > 0 &&
+                        newTaskTitle.trim() !== movingChecklistTitle.trim();
                       setSelectedTargetFeatureId(f.id);
                       setSelectedTargetTaskId(null);
+                      closeNewTaskForm();
+                      setNewTaskDiscarded(typed);
                     }}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-left border-l-2 transition-colors ${
                       on
@@ -3130,68 +3282,250 @@ export function TaskDetailModal({
             )}
           </div>
           {/* Task 컬럼 */}
-          <div className="min-h-[300px] max-h-[340px] overflow-y-auto custom-scrollbar">
-            <div className="sticky top-0 z-10 bg-bridge-obsidian px-4 pt-3 pb-2">
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                Task
-              </span>
-            </div>
+          <div className="min-h-[300px] max-h-[340px] overflow-y-auto custom-scrollbar flex flex-col">
             {(() => {
               const selFeat = moveTargetFeatures.find(
                 (f) => f.id === selectedTargetFeatureId,
               );
+              const header = (
+                <div className="sticky top-0 z-10 bg-bridge-obsidian px-4 pt-3 pb-2 flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                    Task
+                  </span>
+                  {selFeat && (
+                    <span className="ml-auto text-xs text-slate-500 tabular-nums">
+                      {selFeat.tasks.length}
+                    </span>
+                  )}
+                </div>
+              );
               if (!selFeat) {
                 return (
-                  <div className="flex flex-col items-center justify-center gap-3 h-[240px] px-4 text-center text-slate-500">
-                    <ChevronRight className="w-8 h-8 opacity-40" />
-                    <p className="text-sm">
-                      {t(
-                        "task.movePickFeatureFirst",
-                        "왼쪽에서 피처를 먼저 선택하세요",
-                      )}
-                    </p>
-                  </div>
+                  <>
+                    {header}
+                    <div className="flex flex-col items-center justify-center gap-3 h-[240px] px-4 text-center text-slate-500">
+                      <ChevronRight className="w-8 h-8 opacity-40" />
+                      <p className="text-sm">
+                        {t(
+                          "task.movePickFeatureFirst",
+                          "왼쪽에서 피처를 먼저 선택하세요",
+                        )}
+                      </p>
+                    </div>
+                  </>
                 );
               }
               const tasks = [...selFeat.tasks].sort(
                 (a, b) => Number(a.completed) - Number(b.completed),
               );
-              return tasks.map((mt) => {
-                const isSource = mt.id === task?.id;
-                const sel = selectedTargetTaskId === mt.id;
-                return (
-                  <button
-                    key={mt.id}
-                    disabled={isSource}
-                    onClick={() => setSelectedTargetTaskId(mt.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                      sel ? "bg-bridge-accent/15" : "hover:bg-foreground/5"
-                    } ${isSource ? "opacity-40 cursor-not-allowed" : ""}`}
+              const trimmedTitle = newTaskTitle.trim();
+              const duplicateTitle =
+                trimmedTitle.length > 0 &&
+                selFeat.tasks.some((mt) => mt.title.trim() === trimmedTitle);
+              const prefilled =
+                trimmedTitle.length > 0 &&
+                trimmedTitle === movingChecklistTitle.trim();
+              const hint = !trimmedTitle
+                ? {
+                    cls: "text-rose-600 dark:text-rose-400",
+                    text: t(
+                      "task.moveNewTaskHintEmpty",
+                      "제목을 입력해야 만들 수 있어요.",
+                    ),
+                  }
+                : duplicateTitle
+                  ? {
+                      cls: "text-amber-600 dark:text-amber-400",
+                      text: t(
+                        "task.moveNewTaskHintDuplicate",
+                        "같은 이름의 Task가 이 피처에 이미 있어요. 그대로 만들 수도 있고, 위 목록에서 기존 Task를 골라도 됩니다.",
+                      ),
+                    }
+                  : prefilled
+                    ? {
+                        cls: "text-slate-500",
+                        text: t(
+                          "task.moveNewTaskHintPrefilled",
+                          "체크리스트 텍스트를 제목으로 미리 채웠어요. 고쳐 써도 됩니다.",
+                        ),
+                      }
+                    : {
+                        cls: "text-slate-500",
+                        text: t(
+                          "task.moveNewTaskHintCreate",
+                          '"만들고 이동"을 누를 때 Task가 실제로 생성됩니다.',
+                        ),
+                      };
+              const newTaskForm = (
+                <div className="sticky bottom-0 z-10 bg-bridge-obsidian p-2">
+                  <div
+                    className={`rounded-xl border p-3 flex flex-col gap-2 bg-foreground/[0.03] ${
+                      trimmedTitle ? "border-bridge-accent" : "border-rose-500/60"
+                    }`}
                   >
-                    <span
-                      className={`flex-1 truncate text-sm font-medium text-foreground ${
-                        mt.completed ? "line-through text-slate-400" : ""
-                      }`}
-                    >
-                      {mt.title}
-                      {isSource && (
-                        <span className="ml-2 text-xs font-normal text-slate-500">
-                          · {t("task.moveCurrentLocation", "현재 위치")}
-                        </span>
-                      )}
+                    <input
+                      ref={newTaskInputRef}
+                      value={newTaskTitle}
+                      maxLength={200}
+                      disabled={moveBusy}
+                      onChange={(e) => {
+                        setNewTaskTitle(e.target.value);
+                        if (moveError) setMoveError(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          closeNewTaskForm();
+                        } else if (e.key === "Enter") {
+                          e.preventDefault();
+                          if (trimmedTitle && !moveBusy)
+                            void handleMoveChecklistConfirm();
+                        }
+                      }}
+                      placeholder={t("task.moveNewTaskPlaceholder", "Task 제목")}
+                      aria-label={t("task.moveNewTaskRow", "새 Task 만들기")}
+                      className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 px-3 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                    />
+                    <p className={`text-xs ${hint.cls}`}>{hint.text}</p>
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={closeNewTaskForm}
+                        disabled={moveBusy}
+                        className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                      >
+                        {t("common.cancel")}
+                        <kbd className="text-xs text-slate-500 border border-foreground/10 rounded px-1">
+                          Esc
+                        </kbd>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+              const addRow = (
+                <div className="sticky bottom-0 z-10 bg-bridge-obsidian p-2">
+                  <button
+                    type="button"
+                    onClick={openNewTaskForm}
+                    disabled={!canEdit}
+                    title={
+                      !canEdit
+                        ? t("task.moveNewTaskNoPermission", "Task 생성 권한이 없어요")
+                        : undefined
+                    }
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-dashed border-foreground/15 text-sm text-slate-400 hover:border-bridge-accent hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-foreground/15 disabled:hover:text-slate-400"
+                  >
+                    <span className="w-5 h-5 rounded-md bg-foreground/5 flex items-center justify-center text-bridge-accent flex-shrink-0">
+                      <Plus className="w-3.5 h-3.5" />
                     </span>
-                    <span
-                      className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
-                        sel
-                          ? "bg-bridge-accent border-bridge-accent"
-                          : "border-foreground/20"
-                      }`}
-                    >
-                      {sel && <Check className="w-3 h-3 text-white" />}
-                    </span>
+                    <span>{t("task.moveNewTaskRow", "새 Task 만들기")}</span>
+                    <kbd className="ml-auto text-xs text-slate-500 border border-foreground/10 rounded px-1">
+                      N
+                    </kbd>
                   </button>
+                </div>
+              );
+              if (tasks.length === 0 && !newTaskMode) {
+                // 시안 B: Task가 없는 피처는 빈 패널 자체를 생성 진입점으로 쓴다
+                return (
+                  <>
+                    {header}
+                    <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4 py-6 text-center">
+                      <span className="w-11 h-11 rounded-xl bg-foreground/5 flex items-center justify-center text-slate-500">
+                        <Plus className="w-5 h-5" />
+                      </span>
+                      <p className="text-sm font-bold text-foreground">
+                        {t(
+                          "task.moveNewTaskEmptyTitle",
+                          "이 피처에는 아직 Task가 없어요",
+                        )}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {t(
+                          "task.moveNewTaskEmptyDesc",
+                          "새 Task를 만들면 체크리스트 항목이 그 안으로 이동합니다.",
+                        )}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={openNewTaskForm}
+                        disabled={!canEdit}
+                        title={
+                          !canEdit
+                            ? t(
+                                "task.moveNewTaskNoPermission",
+                                "Task 생성 권한이 없어요",
+                              )
+                            : undefined
+                        }
+                        className="mt-1 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        {t("task.moveNewTaskRow", "새 Task 만들기")}
+                      </button>
+                    </div>
+                  </>
                 );
-              });
+              }
+              return (
+                <>
+                  {header}
+                  {newTaskDiscarded && (
+                    <p className="px-4 pb-1 text-xs text-amber-600 dark:text-amber-400">
+                      {t(
+                        "task.moveNewTaskDiscarded",
+                        "피처를 바꿔서 입력한 제목이 사라졌어요.",
+                      )}
+                    </p>
+                  )}
+                  <div className="flex-1">
+                    {tasks.map((mt) => {
+                      const isSource = mt.id === task?.id;
+                      const sel = !newTaskMode && selectedTargetTaskId === mt.id;
+                      return (
+                        <button
+                          key={mt.id}
+                          disabled={isSource || moveBusy}
+                          onClick={() => {
+                            // 기존 Task를 고르면 인라인 폼은 닫고 원래 플로우로 돌아간다
+                            closeNewTaskForm();
+                            setNewTaskDiscarded(false);
+                            setSelectedTargetTaskId(mt.id);
+                          }}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                            sel ? "bg-bridge-accent/15" : "hover:bg-foreground/5"
+                          } ${isSource ? "opacity-40 cursor-not-allowed" : ""}`}
+                        >
+                          <span
+                            className={`flex-1 truncate text-sm font-medium text-foreground ${
+                              mt.completed ? "line-through text-slate-400" : ""
+                            }`}
+                          >
+                            {mt.title}
+                            {isSource && (
+                              <span className="ml-2 text-xs font-normal text-slate-500">
+                                · {t("task.moveCurrentLocation", "현재 위치")}
+                              </span>
+                            )}
+                          </span>
+                          <span
+                            className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                              sel
+                                ? "bg-bridge-accent border-bridge-accent"
+                                : "border-foreground/20"
+                            }`}
+                          >
+                            {sel && <Check className="w-3 h-3 text-white" />}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {newTaskMode ? newTaskForm : addRow}
+                </>
+              );
             })()}
           </div>
         </div>
@@ -3200,11 +3534,12 @@ export function TaskDetailModal({
           const selFeat = moveTargetFeatures.find(
             (f) => f.id === selectedTargetFeatureId,
           );
-          const selTask = selFeat?.tasks.find(
-            (tk) => tk.id === selectedTargetTaskId,
-          );
+          const selTask = newTaskMode
+            ? undefined
+            : selFeat?.tasks.find((tk) => tk.id === selectedTargetTaskId);
           const ms = milestones.find((m) => m.id === moveTargetMilestoneId);
-          const ready = !!selTask;
+          const trimmedTitle = newTaskTitle.trim();
+          const ready = !!selTask || (newTaskMode && trimmedTitle.length > 0);
           return (
             <div
               className={`mt-3 flex items-center gap-2 flex-wrap px-4 py-3 rounded-xl border text-sm ${
@@ -3230,7 +3565,22 @@ export function TaskDetailModal({
                   />
                   <span className="text-slate-300">{selFeat.title}</span>
                   <span className="text-slate-600">›</span>
-                  {selTask ? (
+                  {newTaskMode ? (
+                    <>
+                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex-shrink-0">
+                        NEW
+                      </span>
+                      {trimmedTitle ? (
+                        <span className="text-foreground font-bold truncate">
+                          {trimmedTitle}
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">
+                          {t("task.moveNewTaskTyping", "제목 입력 중")}
+                        </span>
+                      )}
+                    </>
+                  ) : selTask ? (
                     <span className="text-foreground font-bold">
                       {selTask.title}
                     </span>
@@ -3248,64 +3598,43 @@ export function TaskDetailModal({
             </div>
           );
         })()}
-        <div className="flex justify-end gap-2">
+        {moveError && (
+          <p
+            role="alert"
+            className="mt-2 text-xs text-rose-600 dark:text-rose-400"
+          >
+            {moveError}
+          </p>
+        )}
+        <div className="flex justify-end gap-2 mt-3">
           <Button
             variant="outline"
-            onClick={() => {
-              setShowMoveChecklistDialog(false);
-              setMoveChecklistItemId(null);
-              setSelectedTargetTaskId(null);
-              setSelectedTargetFeatureId(null);
-              setMoveTargetMilestoneId(null);
-            }}
+            disabled={moveBusy}
+            onClick={closeMoveChecklistDialog}
             className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
           >
             {t("common.cancel")}
           </Button>
           <Button
-            onClick={() => {
-              if (
-                task &&
-                onMoveChecklistToTask &&
-                moveChecklistItemId &&
-                selectedTargetTaskId
-              ) {
-                onMoveChecklistToTask(
-                  moveChecklistItemId,
-                  task.id,
-                  selectedTargetTaskId,
-                );
-                // UI에서 항목 제거
-                setChecklistItems((prev) =>
-                  prev.filter((ci) => ci.id !== moveChecklistItemId),
-                );
-                const remaining = checklistItems.filter(
-                  (ci) => ci.id !== moveChecklistItemId,
-                );
-                const completedCount = remaining.filter(
-                  (ci) => ci.completed,
-                ).length;
-                onUpdate({
-                  checklist_total: remaining.length,
-                  checklist_completed: completedCount,
-                  checklist_version: (task.checklist_version || 0) + 1,
-                });
-              }
-              setShowMoveChecklistDialog(false);
-              setMoveChecklistItemId(null);
-              setSelectedTargetTaskId(null);
-              setSelectedTargetFeatureId(null);
-              setMoveTargetMilestoneId(null);
-            }}
-            disabled={!selectedTargetTaskId}
+            onClick={() => void handleMoveChecklistConfirm()}
+            disabled={
+              moveBusy ||
+              (newTaskMode ? !newTaskTitle.trim() : !selectedTargetTaskId)
+            }
             className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
           >
-            {selectedTargetTaskId
-              ? `${t("task.move")} → ${
-                  moveMilestoneTasks.find((x) => x.id === selectedTargetTaskId)
-                    ?.title ?? ""
-                }`
-              : t("task.move")}
+            {moveBusy ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : newTaskMode ? (
+              t("task.moveCreateAndMove", "만들고 이동")
+            ) : selectedTargetTaskId ? (
+              `${t("task.move")} → ${
+                moveMilestoneTasks.find((x) => x.id === selectedTargetTaskId)
+                  ?.title ?? ""
+              }`
+            ) : (
+              t("task.move")
+            )}
           </Button>
         </div>
       </MotionModal>

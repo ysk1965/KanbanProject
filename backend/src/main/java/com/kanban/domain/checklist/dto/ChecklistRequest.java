@@ -1,6 +1,7 @@
 package com.kanban.domain.checklist.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -142,11 +143,44 @@ public class ChecklistRequest {
         private String milestoneId;
     }
 
+    /**
+     * 체크리스트 항목 Task 이동 요청.
+     * <p>
+     * 두 가지 모드 중 하나:
+     * <ul>
+     *   <li>기존 Task로 이동: {@code targetTaskId} 지정</li>
+     *   <li>새 Task를 만들어 이동: {@code newTask.title} + {@code targetFeatureId} 지정
+     *       ({@code targetMilestoneId}는 선택). Task 생성과 이동은 한 트랜잭션으로 처리되어
+     *       이동이 실패하면 Task도 남지 않는다.</li>
+     * </ul>
+     */
     @Getter
     @NoArgsConstructor
     public static class MoveTask {
-        @NotNull(message = "이동할 Task ID는 필수입니다")
+        /** 기존 Task로 옮길 때의 대상 Task ID. {@code newTask}가 있으면 무시된다. */
         private String targetTaskId;
+
+        /** 새 Task를 만들 피처 ID ({@code newTask}가 있을 때 필수) */
+        private String targetFeatureId;
+
+        /** 새 Task에 배정할 마일스톤 ID (선택, 없으면 피처의 대표 마일스톤) */
+        private String targetMilestoneId;
+
+        /** 있으면 이 제목으로 Task를 먼저 만들고 그 Task로 옮긴다. */
+        @Valid
+        private NewTask newTask;
+
+        public boolean hasNewTask() {
+            return newTask != null;
+        }
+
+        @Getter
+        @NoArgsConstructor
+        public static class NewTask {
+            @NotBlank(message = "새 Task 제목은 필수입니다")
+            @Size(max = 200, message = "Task 제목은 200자 이내여야 합니다")
+            private String title;
+        }
     }
 
     @Getter

@@ -38,6 +38,9 @@ import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
+import com.kanban.domain.task.dto.TaskRequest;
+import com.kanban.domain.task.dto.TaskResponse;
+import com.kanban.domain.task.service.TaskService;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
@@ -66,6 +69,7 @@ public class ChecklistService {
 
     private final ChecklistItemRepository checklistItemRepository;
     private final TaskRepository taskRepository;
+    private final TaskService taskService;
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final BoardMemberRepository boardMemberRepository;
@@ -735,16 +739,38 @@ public class ChecklistService {
             throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
         }
 
-        Task targetTask = taskRepository.findById(request.getTargetTaskId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        // 대상 Task 결정: 새로 만들어 옮기거나(new_task), 기존 Task로 옮기거나.
+        // 새 Task 생성은 같은 트랜잭션 안에서 일어나므로 아래 이동 단계가 실패하면 Task도 함께 롤백된다.
+        TaskResponse.Detail createdTask = null;
+        Task targetTask;
+        if (request.hasNewTask()) {
+            if (request.getTargetFeatureId() == null || request.getTargetFeatureId().isBlank()) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+            }
+            String title = request.getNewTask().getTitle().trim();
+            if (title.isEmpty()) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+            }
+            // TaskService.createTask 를 그대로 태워 Task 키 발급·제한 검사·활동 로그·TASK_CREATED 이벤트를 재사용한다.
+            createdTask = taskService.createTask(boardId, request.getTargetFeatureId(), userId,
+                    TaskRequest.Create.withMilestone(title, request.getTargetMilestoneId()));
+            targetTask = taskRepository.findById(createdTask.getId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        } else {
+            if (request.getTargetTaskId() == null || request.getTargetTaskId().isBlank()) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+            }
+            targetTask = taskRepository.findById(request.getTargetTaskId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
-        if (!targetTask.getBoard().getId().equals(boardId)) {
-            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
-        }
+            if (!targetTask.getBoard().getId().equals(boardId)) {
+                throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+            }
 
-        // 같은 Task로의 이동은 무시
-        if (sourceTask.getId().equals(targetTask.getId())) {
-            return ChecklistResponse.Detail.of(item);
+            // 같은 Task로의 이동은 무시
+            if (sourceTask.getId().equals(targetTask.getId())) {
+                return ChecklistResponse.Detail.of(item);
+            }
         }
 
         // 대상 Task에서 마지막 position 계산
@@ -769,10 +795,11 @@ public class ChecklistService {
                 Map.of("checklistTitle", item.getTitle(),
                         "fromTask", sourceTask.getTitle(),
                         "toTask", targetTask.getTitle(),
-                        "taskId", targetTask.getId()));
+                        "taskId", targetTask.getId(),
+                        "createdTask", createdTask != null));
 
-        log.info("Checklist item moved: {} from task {} to task {} by user: {}",
-                itemId, taskId, targetTask.getId(), userId);
+        log.info("Checklist item moved: {} from task {} to task {} (new task: {}) by user: {}",
+                itemId, taskId, targetTask.getId(), createdTask != null, userId);
 
         ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_MOVED, userId, user.getName(),
@@ -780,6 +807,9 @@ public class ChecklistService {
                         "source_task_id", taskId,
                         "target_task_id", targetTask.getId()));
 
+        if (createdTask != null) {
+            response.withCreatedTask(createdTask);
+        }
         return response;
     }
 
