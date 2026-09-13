@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { FileText, Tag as TagIcon, Loader2 } from 'lucide-react';
 import { noteService } from '../../utils/services';
 import { formatDate } from '../../utils/dateUtils';
+import { NoteStatusChip } from './NoteTreeSidebar';
 import type { NoteListItem, NoteTagInfo } from '../../utils/api';
 
 interface NoteListViewProps {
@@ -83,7 +84,9 @@ export function NoteListView({ boardId, selectedNoteId, searchQuery, onSelect, t
       {/* List items */}
       {filteredItems.length === 0 ? (
         <div className="text-center text-slate-500 text-xs py-8">
-          {searchQuery || filterTagId ? '검색 결과가 없습니다' : '문서가 없습니다'}
+          {searchQuery || filterTagId
+            ? t('notes.search.noResults', '검색 결과 없음')
+            : t('notes.emptyList', '문서가 없습니다')}
         </div>
       ) : (
         filteredItems.map(item => (
@@ -99,6 +102,7 @@ export function NoteListView({ boardId, selectedNoteId, searchQuery, onSelect, t
             <div className="flex items-center gap-2">
               <FileText size={12} className="flex-shrink-0 text-slate-400" />
               <span className="text-xs font-medium truncate flex-1">{item.title}</span>
+              <NoteStatusChip status={item.status} />
               <span className="text-xs text-slate-500 flex-shrink-0">
                 {formatDate(item.updated_at)}
               </span>

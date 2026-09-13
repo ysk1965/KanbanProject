@@ -10,7 +10,10 @@ import {
   Trash2,
   GitCompare,
   FileText,
+  Pencil,
+  StickyNote,
 } from "lucide-react";
+import { IconButton } from "../ui/IconButton";
 import DOMPurify from "dompurify";
 import { useCreateBlockNote } from "@blocknote/react";
 import { noteService, orgNoteService, myNoteService } from "../../utils/services";
@@ -89,6 +92,47 @@ export function NoteVersionHistory({
   const [restoring, setRestoring] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [clearingAll, setClearingAll] = useState(false);
+  // 변경 메모 인라인 편집 — 한 번에 한 버전만
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
+
+  const beginEditNote = useCallback((version: NoteVersionInfo) => {
+    setEditingNoteId(version.id);
+    setNoteDraft(version.note ?? "");
+  }, []);
+
+  const cancelEditNote = useCallback(() => {
+    setEditingNoteId(null);
+    setNoteDraft("");
+  }, []);
+
+  // Enter/blur 저장 — 값이 그대로면 요청 없이 닫는다. 빈 문자열은 null(메모 삭제)로 보낸다.
+  const commitEditNote = useCallback(async () => {
+    const versionId = editingNoteId;
+    if (!versionId) return;
+    const current = versions.find((v) => v.id === versionId);
+    const next = noteDraft.trim().slice(0, 500) || null;
+    if ((current?.note ?? null) === next) {
+      cancelEditNote();
+      return;
+    }
+    setSavingNoteId(versionId);
+    try {
+      await svc.updateVersionNote(scopeId, noteId, versionId, next);
+      setVersions((prev) =>
+        prev.map((v) => (v.id === versionId ? { ...v, note: next } : v)),
+      );
+      setSelectedVersion((prev) =>
+        prev && prev.id === versionId ? { ...prev, note: next } : prev,
+      );
+      cancelEditNote();
+    } catch (err) {
+      console.error("Failed to update version note:", err);
+    } finally {
+      setSavingNoteId(null);
+    }
+  }, [editingNoteId, versions, noteDraft, svc, scopeId, noteId, cancelEditNote]);
 
   const loadVersions = useCallback(async () => {
     setLoading(true);
@@ -322,6 +366,12 @@ export function NoteVersionHistory({
                       {selectedVersion.created_by?.name} ·{" "}
                       {formatDateTime(selectedVersion.created_at)}
                     </p>
+                    {selectedVersion.note && (
+                      <p className="text-xs text-slate-500 mt-0.5 flex items-start gap-1">
+                        <StickyNote size={10} className="mt-0.5 flex-shrink-0" />
+                        <span className="break-words">{selectedVersion.note}</span>
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
                     {/* Compare target selector */}
@@ -484,7 +534,64 @@ export function NoteVersionHistory({
                             {version.created_by?.name} ·{" "}
                             {formatDateTime(version.created_at)}
                           </p>
+                          {editingNoteId !== version.id && version.note && (
+                            <p className="text-xs text-slate-500 mt-1 flex items-start gap-1 pr-6">
+                              <StickyNote
+                                size={10}
+                                className="mt-0.5 flex-shrink-0"
+                              />
+                              <span className="break-words line-clamp-2">
+                                {version.note}
+                              </span>
+                            </p>
+                          )}
                         </button>
+                        {/* 변경 메모 인라인 편집 — Enter/blur 저장, Esc 취소 */}
+                        {editingNoteId === version.id && (
+                          <div className="px-3 pb-2.5 -mt-1">
+                            <input
+                              autoFocus
+                              value={noteDraft}
+                              maxLength={500}
+                              disabled={savingNoteId === version.id}
+                              onChange={(e) => setNoteDraft(e.target.value)}
+                              onBlur={() => void commitEditNote()}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  void commitEditNote();
+                                }
+                                if (e.key === "Escape") {
+                                  e.preventDefault();
+                                  cancelEditNote();
+                                }
+                              }}
+                              placeholder={t(
+                                "notes.versionNotePlaceholder",
+                                "변경 메모",
+                              )}
+                              aria-label={t("notes.versionNote", "변경 메모")}
+                              className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1.5 px-2.5 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all disabled:opacity-60"
+                            />
+                          </div>
+                        )}
+                        {canEdit && editingNoteId !== version.id && (
+                          <IconButton
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              beginEditNote(version);
+                            }}
+                            className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                            aria-label={t(
+                              "notes.editVersionNote",
+                              "변경 메모 수정",
+                            )}
+                            title={t("notes.editVersionNote", "변경 메모 수정")}
+                          >
+                            <Pencil />
+                          </IconButton>
+                        )}
                         {canEdit && (
                           <button
                             onClick={(e) => {

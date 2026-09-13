@@ -1,5 +1,6 @@
 package com.kanban.domain.note;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -144,4 +145,33 @@ public interface NoteRepository extends JpaRepository<Note, String> {
 
     @Query("SELECT n FROM Note n WHERE n.organization.id = :orgId AND n.isDeleted = true")
     List<Note> findAllTrashByOrganizationId(@Param("orgId") String orgId);
+
+    // ===== Full-text search (title + search_text, scope 별) =====
+    // pattern 은 소문자 + LIKE 이스케이프('!') 처리된 "%q%". FOLDER 제외, 휴지통 제외, 최근 수정순.
+
+    @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy LEFT JOIN FETCH n.parent " +
+           "WHERE n.board.id = :boardId AND n.isDeleted = false AND n.type <> com.kanban.domain.note.NoteType.FOLDER " +
+           "AND (LOWER(n.title) LIKE :pattern ESCAPE '!' OR n.searchText LIKE :pattern ESCAPE '!') " +
+           "ORDER BY n.updatedAt DESC")
+    List<Note> searchByBoardId(@Param("boardId") String boardId, @Param("pattern") String pattern, Pageable pageable);
+
+    @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy LEFT JOIN FETCH n.parent " +
+           "WHERE n.organization.id = :orgId AND n.isDeleted = false AND n.type <> com.kanban.domain.note.NoteType.FOLDER " +
+           "AND (LOWER(n.title) LIKE :pattern ESCAPE '!' OR n.searchText LIKE :pattern ESCAPE '!') " +
+           "ORDER BY n.updatedAt DESC")
+    List<Note> searchByOrganizationId(@Param("orgId") String orgId, @Param("pattern") String pattern, Pageable pageable);
+
+    @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy LEFT JOIN FETCH n.parent " +
+           "WHERE n.owner.id = :userId AND n.isDeleted = false AND n.type <> com.kanban.domain.note.NoteType.FOLDER " +
+           "AND (LOWER(n.title) LIKE :pattern ESCAPE '!' OR n.searchText LIKE :pattern ESCAPE '!') " +
+           "ORDER BY n.updatedAt DESC")
+    List<Note> searchByOwnerUserId(@Param("userId") String userId, @Param("pattern") String pattern, Pageable pageable);
+
+    // ===== search_text 백필 =====
+
+    @Query("SELECT n FROM Note n WHERE n.searchText IS NULL ORDER BY n.createdAt ASC")
+    List<Note> findBySearchTextIsNull(Pageable pageable);
+
+    @Query("SELECT COUNT(n) FROM Note n WHERE n.searchText IS NULL")
+    long countBySearchTextIsNull();
 }

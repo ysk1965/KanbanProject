@@ -33,6 +33,7 @@ import {
   jobRoleAPI,
   contractorAPI,
 } from "./api";
+import type { NoteStatus, NoteUpdateData } from "./api";
 import {
   mockBoards,
   mockFeatures,
@@ -3030,11 +3031,7 @@ export const noteService = {
   update: async (
     boardId: string,
     noteId: string,
-    data: {
-      title?: string;
-      content?: string;
-      tagIds?: string[];
-    },
+    data: NoteUpdateData,
     createVersion = true,
     discardDraft = true,
   ) => {
@@ -3045,6 +3042,27 @@ export const noteService = {
       createVersion,
       discardDraft,
     );
+  },
+
+  search: async (boardId: string, q: string) => {
+    return await noteAPI.search(boardId, q);
+  },
+
+  updateStatus: async (
+    boardId: string,
+    noteId: string,
+    status: NoteStatus | null,
+  ) => {
+    return await noteAPI.updateStatus(boardId, noteId, status);
+  },
+
+  updateVersionNote: async (
+    boardId: string,
+    noteId: string,
+    versionId: string,
+    note: string | null,
+  ) => {
+    return await noteAPI.updateVersionNote(boardId, noteId, versionId, note);
   },
 
   delete: async (boardId: string, noteId: string) => {
@@ -3236,7 +3254,7 @@ export const orgNoteService = {
   update: async (
     orgId: string,
     noteId: string,
-    data: { title?: string; content?: string; tagIds?: string[] },
+    data: NoteUpdateData,
     createVersion = true,
     discardDraft = true,
   ) => {
@@ -3247,6 +3265,24 @@ export const orgNoteService = {
       createVersion,
       discardDraft,
     );
+  },
+  search: async (orgId: string, q: string) => {
+    return await orgNoteAPI.search(orgId, q);
+  },
+  updateStatus: async (
+    orgId: string,
+    noteId: string,
+    status: NoteStatus | null,
+  ) => {
+    return await orgNoteAPI.updateStatus(orgId, noteId, status);
+  },
+  updateVersionNote: async (
+    orgId: string,
+    noteId: string,
+    versionId: string,
+    note: string | null,
+  ) => {
+    return await orgNoteAPI.updateVersionNote(orgId, noteId, versionId, note);
   },
   delete: async (orgId: string, noteId: string) => {
     return await orgNoteAPI.delete(orgId, noteId);
@@ -3400,7 +3436,7 @@ export const myNoteService = {
   update: async (
     scopeId: string,
     noteId: string,
-    data: { title?: string; content?: string; tagIds?: string[] },
+    data: NoteUpdateData,
     createVersion = true,
     discardDraft = true,
   ) => {
@@ -3411,6 +3447,24 @@ export const myNoteService = {
       createVersion,
       discardDraft,
     );
+  },
+  search: async (scopeId: string, q: string) => {
+    return await myNoteAPI.search(scopeId, q);
+  },
+  updateStatus: async (
+    scopeId: string,
+    noteId: string,
+    status: NoteStatus | null,
+  ) => {
+    return await myNoteAPI.updateStatus(scopeId, noteId, status);
+  },
+  updateVersionNote: async (
+    scopeId: string,
+    noteId: string,
+    versionId: string,
+    note: string | null,
+  ) => {
+    return await myNoteAPI.updateVersionNote(scopeId, noteId, versionId, note);
   },
   delete: async (scopeId: string, noteId: string) => {
     return await myNoteAPI.delete(scopeId, noteId);

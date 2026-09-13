@@ -7059,6 +7059,24 @@ export const reportAPI = {
 // Note API
 // ========================================
 
+/** 노트 페이지 상태 — null이면 상태 없음. @see utils/noteStatus.ts */
+export type NoteStatus = "DRAFT" | "IN_REVIEW" | "DONE";
+
+/** 본문 검색 결과 (GET .../notes/search?q=) — 2자 미만이면 서버가 빈 배열을 준다 */
+export interface NoteSearchResult {
+  id: string;
+  title: string;
+  type: "FOLDER" | "DOCUMENT" | "BOARD";
+  parent_id: string | null;
+  parent_title: string | null;
+  status: NoteStatus | null;
+  /** 검색어 주변 평문 발췌 */
+  excerpt: string | null;
+  match_in: "title" | "content";
+  updated_at: string;
+  updated_by: NoteUserInfo | null;
+}
+
 export interface NoteTreeItem {
   id: string;
   parent_id: string | null;
@@ -7071,6 +7089,7 @@ export interface NoteTreeItem {
   title: string;
   position: number;
   depth: number;
+  status?: NoteStatus | null;
   tags: NoteTagInfo[];
   created_by: NoteUserInfo;
   updated_by: NoteUserInfo;
@@ -7106,6 +7125,9 @@ export interface NoteDetail {
   tags: NoteTagInfo[];
   created_by: NoteUserInfo;
   updated_by: NoteUserInfo;
+  /** 버전을 남긴 사용자들 — 최근 순. 구버전 서버는 내려주지 않을 수 있다. */
+  contributors?: NoteUserInfo[];
+  status?: NoteStatus | null;
   created_at: string;
   updated_at: string;
   version_count: number;
@@ -7155,6 +7177,7 @@ export interface NoteListItem {
   title: string;
   parent_id: string | null;
   parent_title: string | null;
+  status?: NoteStatus | null;
   tags: NoteTagInfo[];
   updated_by: NoteUserInfo;
   created_at: string;
@@ -7190,6 +7213,8 @@ export interface NoteVersionInfo {
   id: string;
   version_number: number;
   title: string;
+  /** 저장 시 남긴 변경 메모 */
+  note?: string | null;
   created_by: NoteUserInfo;
   created_at: string;
 }
@@ -7199,8 +7224,23 @@ export interface NoteVersionDetail {
   version_number: number;
   title: string;
   content: string | null;
+  note?: string | null;
   created_by: NoteUserInfo;
   created_at: string;
+}
+
+/** 노트 수정(PUT) 요청 — versionNote는 version_note로 보낸다 */
+export interface NoteUpdateData {
+  title?: string;
+  content?: string;
+  tagIds?: string[];
+  versionNote?: string;
+}
+
+function buildNoteUpdateBody(data: NoteUpdateData) {
+  const { versionNote, ...rest } = data;
+  const trimmed = versionNote?.trim();
+  return trimmed ? { ...rest, version_note: trimmed } : rest;
 }
 
 export interface NoteCommentAuthor {
@@ -7350,18 +7390,43 @@ export const noteAPI = {
   update: async (
     boardId: string,
     noteId: string,
-    data: {
-      title?: string;
-      content?: string;
-      tagIds?: string[];
-    },
+    data: NoteUpdateData,
     createVersion = true,
     discardDraft = true,
   ) => {
     const params = buildNoteUpdateParams(createVersion, discardDraft);
     return apiClient.put<NoteDetail>(
       `/boards/${boardId}/notes/${noteId}${params}`,
-      data,
+      buildNoteUpdateBody(data),
+    );
+  },
+
+  search: async (boardId: string, q: string) => {
+    return apiClient.get<NoteSearchResult[]>(
+      `/boards/${boardId}/notes/search?q=${encodeURIComponent(q)}`,
+    );
+  },
+
+  updateStatus: async (
+    boardId: string,
+    noteId: string,
+    status: NoteStatus | null,
+  ) => {
+    return apiClient.put<NoteDetail>(
+      `/boards/${boardId}/notes/${noteId}/status`,
+      { status },
+    );
+  },
+
+  updateVersionNote: async (
+    boardId: string,
+    noteId: string,
+    versionId: string,
+    note: string | null,
+  ) => {
+    return apiClient.patch<NoteVersionInfo>(
+      `/boards/${boardId}/notes/${noteId}/versions/${versionId}/note`,
+      { note },
     );
   },
 
@@ -7581,18 +7646,43 @@ export const orgNoteAPI = {
   update: async (
     orgId: string,
     noteId: string,
-    data: {
-      title?: string;
-      content?: string;
-      tagIds?: string[];
-    },
+    data: NoteUpdateData,
     createVersion = true,
     discardDraft = true,
   ) => {
     const params = buildNoteUpdateParams(createVersion, discardDraft);
     return apiClient.put<NoteDetail>(
       `/organizations/${orgId}/notes/${noteId}${params}`,
-      data,
+      buildNoteUpdateBody(data),
+    );
+  },
+
+  search: async (orgId: string, q: string) => {
+    return apiClient.get<NoteSearchResult[]>(
+      `/organizations/${orgId}/notes/search?q=${encodeURIComponent(q)}`,
+    );
+  },
+
+  updateStatus: async (
+    orgId: string,
+    noteId: string,
+    status: NoteStatus | null,
+  ) => {
+    return apiClient.put<NoteDetail>(
+      `/organizations/${orgId}/notes/${noteId}/status`,
+      { status },
+    );
+  },
+
+  updateVersionNote: async (
+    orgId: string,
+    noteId: string,
+    versionId: string,
+    note: string | null,
+  ) => {
+    return apiClient.patch<NoteVersionInfo>(
+      `/organizations/${orgId}/notes/${noteId}/versions/${versionId}/note`,
+      { note },
     );
   },
 
@@ -7850,16 +7940,43 @@ export const myNoteAPI = {
   update: async (
     _scopeId: string,
     noteId: string,
-    data: {
-      title?: string;
-      content?: string;
-      tagIds?: string[];
-    },
+    data: NoteUpdateData,
     createVersion = true,
     discardDraft = true,
   ) => {
     const params = buildNoteUpdateParams(createVersion, discardDraft);
-    return apiClient.put<NoteDetail>(`/me/notes/${noteId}${params}`, data);
+    return apiClient.put<NoteDetail>(
+      `/me/notes/${noteId}${params}`,
+      buildNoteUpdateBody(data),
+    );
+  },
+
+  search: async (_scopeId: string, q: string) => {
+    return apiClient.get<NoteSearchResult[]>(
+      `/me/notes/search?q=${encodeURIComponent(q)}`,
+    );
+  },
+
+  updateStatus: async (
+    _scopeId: string,
+    noteId: string,
+    status: NoteStatus | null,
+  ) => {
+    return apiClient.put<NoteDetail>(`/me/notes/${noteId}/status`, {
+      status,
+    });
+  },
+
+  updateVersionNote: async (
+    _scopeId: string,
+    noteId: string,
+    versionId: string,
+    note: string | null,
+  ) => {
+    return apiClient.patch<NoteVersionInfo>(
+      `/me/notes/${noteId}/versions/${versionId}/note`,
+      { note },
+    );
   },
 
   delete: async (_scopeId: string, noteId: string) => {

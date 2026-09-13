@@ -4,6 +4,7 @@ import {
   useCallback,
   useMemo,
   useRef,
+  type ReactNode,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -22,7 +23,17 @@ import {
   Trash2,
   Upload,
   HardDrive,
+  ChevronDown,
+  LayoutTemplate,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+} from "../ui/dropdown-menu";
+import { NOTE_TEMPLATES, type NoteTemplate } from "../../utils/noteTemplates";
 import { NoteTreeSidebar } from "./NoteTreeSidebar";
 import { NoteEditor } from "./NoteEditor";
 import { NoteListView } from "./NoteListView";
@@ -62,7 +73,9 @@ import type {
   NoteTreeItem,
   NoteDetail,
   NoteListItem,
+  NoteSearchResult,
   NoteTagInfo,
+  NoteUpdateData,
   BoardNoteSection,
   StorageFileItem,
   StorageFolderTree,
@@ -74,6 +87,10 @@ import type { BreadcrumbItem } from "./NoteEditor";
 const ARCHIVE_HEIGHT_KEY = "library.archiveHeight";
 const ARCHIVE_DEFAULT_HEIGHT = 240;
 const ARCHIVE_MIN_HEIGHT = 130;
+
+/** 본문 검색 — 서버는 2자 미만이면 빈 결과를 주므로 그 전엔 요청하지 않는다 */
+const SEARCH_MIN_LENGTH = 2;
+const SEARCH_DEBOUNCE_MS = 300;
 
 interface NotesViewProps {
   boardId?: string;
@@ -151,6 +168,54 @@ function applyLocalMove(
   return insert(without);
 }
 
+/**
+ * '새 문서' 분할 버튼의 화살표 쪽 — 템플릿 목록 드롭다운.
+ * trigger는 호출 측이 스타일링한 버튼을 asChild로 넘긴다.
+ */
+function TemplateMenu({
+  trigger,
+  onPick,
+}: {
+  trigger: ReactNode;
+  onPick: (template: NoteTemplate) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        sideOffset={4}
+        className="bg-bridge-obsidian border-foreground/10 rounded-lg shadow-xl min-w-[220px]"
+      >
+        <DropdownMenuLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">
+          {t("notes.templates.title", "템플릿으로 만들기")}
+        </DropdownMenuLabel>
+        {NOTE_TEMPLATES.map((template) => (
+          <DropdownMenuItem
+            key={template.id}
+            onClick={() => onPick(template)}
+            className="flex items-start gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground cursor-pointer"
+          >
+            <LayoutTemplate
+              size={14}
+              className="mt-0.5 flex-shrink-0 text-bridge-accent"
+            />
+            <span className="flex flex-col min-w-0">
+              <span className="font-medium text-foreground">
+                {t(template.labelKey, template.defaultLabel)}
+              </span>
+              <span className="text-xs text-slate-500">
+                {t(template.descriptionKey, template.defaultDescription)}
+              </span>
+            </span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function NotesView({
   boardId,
   orgId,
@@ -173,6 +238,11 @@ export function NotesView({
   const [noteLoading, setNoteLoading] = useState(false);
   const [viewType, setViewType] = useState<"tree" | "list">("tree");
   const [searchQuery, setSearchQuery] = useState("");
+  // 서버 본문 검색 — 트리의 제목·태그 필터와 별개로 300ms 디바운스 후 호출
+  const [searchResults, setSearchResults] = useState<NoteSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  // 응답이 늦게 돌아온 이전 검색어의 결과를 버리기 위한 시퀀스
+  const searchSeqRef = useRef(0);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [boardNoteSections, setBoardNoteSections] = useState<
     BoardNoteSection[]
@@ -284,6 +354,32 @@ export function NotesView({
     loadTags();
     loadBoardNotes();
   }, [loadTree, loadTags, loadBoardNotes]);
+
+  // 본문 검색 — 검색어가 바뀌면 이전 요청의 응답은 시퀀스 불일치로 무시한다
+  useEffect(() => {
+    const q = searchQuery.trim();
+    const seq = ++searchSeqRef.current;
+    if (q.length < SEARCH_MIN_LENGTH) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const results = await svc.search(scopeId, q);
+        if (seq !== searchSeqRef.current) return;
+        setSearchResults(results);
+      } catch (err) {
+        if (seq !== searchSeqRef.current) return;
+        console.error("Failed to search notes:", err);
+        setSearchResults([]);
+      } finally {
+        if (seq === searchSeqRef.current) setSearching(false);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchQuery, svc, scopeId]);
 
   // 새로고침 시 URL의 note ID로 노트 디테일 복원
   useEffect(() => {
@@ -416,15 +512,18 @@ export function NotesView({
     [scopeId, svc, canEdit, loadTree, t],
   );
 
+  // template이 있으면 템플릿 제목·본문(BlockNote JSON)으로 만든다
   const handleCreateDocument = useCallback(
-    async (parentId?: string | null) => {
+    async (parentId?: string | null, template?: NoteTemplate) => {
       if (!canEdit) return;
       try {
-        const title = t("notes.newDocument", "새 문서");
+        const built = template?.build(t);
+        const title = built?.title ?? t("notes.newDocument", "새 문서");
         const created = await svc.create(scopeId, {
           title,
           type: "DOCUMENT",
           parentId: parentId || null,
+          content: built?.content,
         });
         await loadTree();
 
@@ -517,7 +616,7 @@ export function NotesView({
   const handleSaveNote = useCallback(
     async (
       noteId: string,
-      data: { title?: string; content?: string; tagIds?: string[] },
+      data: NoteUpdateData,
       createVersion = true,
       discardDraft = true,
     ) => {
@@ -969,8 +1068,8 @@ export function NotesView({
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={
               withFiles
-                ? t("library.searchPlaceholder", "노트 · 파일 검색")
-                : t("notes.searchPlaceholder", "검색...")
+                ? t("library.searchPlaceholder", "노트 · 파일 · 본문 검색")
+                : t("notes.searchPlaceholder", "제목 · 태그 · 본문 검색")
             }
             className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 pl-9 pr-3 text-sm text-foreground placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 transition-all"
           />
@@ -978,13 +1077,30 @@ export function NotesView({
         {/* Create Actions — 가장 잦은 '새 문서'를 주 버튼으로, 보드·폴더는 아이콘 버튼으로 분리 */}
         {canEdit && (
           <div className="grid grid-cols-[1fr_auto_auto] gap-1.5 mt-3">
-            <button
-              onClick={() => handleCreateDocument(null)}
-              className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-bold text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 transition-colors"
-            >
-              <FilePlus size={15} />
-              {t("notes.newDocument", "새 문서")}
-            </button>
+            {/* 분할 버튼 — 본체는 빈 문서, 화살표는 템플릿 목록 */}
+            <div className="flex min-w-0">
+              <button
+                onClick={() => handleCreateDocument(null)}
+                className="flex-1 min-w-0 flex items-center justify-center gap-2 px-3 py-2 text-sm font-bold text-white bg-bridge-accent rounded-l-lg hover:bg-bridge-accent/90 transition-colors"
+              >
+                <FilePlus size={15} />
+                <span className="truncate">
+                  {t("notes.newDocument", "새 문서")}
+                </span>
+              </button>
+              <TemplateMenu
+                onPick={(template) => handleCreateDocument(null, template)}
+                trigger={
+                  <button
+                    aria-label={t("notes.templates.title", "템플릿으로 만들기")}
+                    title={t("notes.templates.title", "템플릿으로 만들기")}
+                    className="flex items-center justify-center w-8 text-white bg-bridge-accent border-l border-white/20 rounded-r-lg hover:bg-bridge-accent/90 transition-colors"
+                  >
+                    <ChevronDown size={14} />
+                  </button>
+                }
+              />
+            </div>
             {withFiles ? (
               <button
                 onClick={() => fileInputRef.current?.click()}
@@ -1074,6 +1190,8 @@ export function NotesView({
               tree={library.tree}
               selectedNoteId={selectedFileNodeId ?? selectedNoteId}
               searchQuery={searchQuery}
+              searchResults={searchResults}
+              searching={searching}
               onSelect={handleSelectTreeNode}
               onCreateFolder={handleCreateFolder}
               onCreateDocument={handleCreateDocument}
@@ -1368,13 +1486,30 @@ export function NotesView({
             </p>
             {canEdit && (
               <div className="mt-4 flex items-center gap-2">
-                <button
-                  onClick={() => handleCreateDocument(null)}
-                  className="px-4 py-2 bg-bridge-accent text-white rounded-xl text-xs font-bold hover:bg-bridge-accent/90 transition-all"
-                >
-                  <FilePlus size={14} className="inline mr-1.5" />
-                  {t("notes.createFirstDocument", "첫 문서 만들기")}
-                </button>
+                <div className="flex">
+                  <button
+                    onClick={() => handleCreateDocument(null)}
+                    className="px-4 py-2 bg-bridge-accent text-white rounded-l-xl text-xs font-bold hover:bg-bridge-accent/90 transition-all"
+                  >
+                    <FilePlus size={14} className="inline mr-1.5" />
+                    {t("notes.createFirstDocument", "첫 문서 만들기")}
+                  </button>
+                  <TemplateMenu
+                    onPick={(template) => handleCreateDocument(null, template)}
+                    trigger={
+                      <button
+                        aria-label={t(
+                          "notes.templates.title",
+                          "템플릿으로 만들기",
+                        )}
+                        title={t("notes.templates.title", "템플릿으로 만들기")}
+                        className="px-2 py-2 bg-bridge-accent text-white rounded-r-xl border-l border-white/20 hover:bg-bridge-accent/90 transition-all"
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                    }
+                  />
+                </div>
                 {withFiles && (
                   <button
                     onClick={() => fileInputRef.current?.click()}

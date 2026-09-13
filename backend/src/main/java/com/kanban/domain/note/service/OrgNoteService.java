@@ -24,6 +24,8 @@ import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.PageRequest;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -37,12 +39,10 @@ public class OrgNoteService {
     private final NoteTagRepository noteTagRepository;
     private final NoteTagMappingRepository noteTagMappingRepository;
     private final NoteVersionRepository noteVersionRepository;
-    private final NoteCommentRepository noteCommentRepository;
-    private final NoteCommentReactionRepository noteCommentReactionRepository;
-    private final NoteCollabStateRepository noteCollabStateRepository;
-    private final NoteDraftArchiveRepository noteDraftArchiveRepository;
     private final NoteCollabService noteCollabService;
     private final NoteLikeRepository noteLikeRepository;
+    private final NoteHardDeleteSupport noteHardDeleteSupport;
+    private final NoteContributorService noteContributorService;
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
     private final OrganizationService organizationService;
@@ -161,7 +161,7 @@ public class OrgNoteService {
         int likeCount = noteLikeRepository.countByNoteId(noteId);
         boolean liked = noteLikeRepository.existsByNoteIdAndUserId(noteId, userId);
 
-        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft, likeCount, liked);
+        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft, likeCount, liked).withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
@@ -184,7 +184,7 @@ public class OrgNoteService {
         int likeCount = noteLikeRepository.countByNoteId(noteId);
         boolean liked = !exists;
 
-        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft, likeCount, liked);
+        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft, likeCount, liked).withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
@@ -231,7 +231,7 @@ public class OrgNoteService {
         }
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(note.getId());
-        return NoteResponse.Detail.of(note, tags, 0);
+        return NoteResponse.Detail.of(note, tags, 0).withContributors(noteContributorService.resolve(note));
     }
 
     // 동시 명시 저장으로 note_versions(note_id, version_number) UNIQUE 충돌 시 재시도.
@@ -260,7 +260,7 @@ public class OrgNoteService {
 
         if (createVersion && hasChanges) {
             versionCount = versionCount + 1;
-            NoteVersion version = NoteVersion.createFrom(note, user, versionCount);
+            NoteVersion version = NoteVersion.createFrom(note, user, versionCount, request.getVersionNote());
             noteVersionRepository.save(version);
         }
 
@@ -299,7 +299,7 @@ public class OrgNoteService {
         boolean draftDiscarded = publishedNewSnapshot && discardDraft;
         boolean hasDraft = !draftDiscarded
                 && noteCollabService.hasUnpublishedDraft(noteId, note.getUpdatedAt());
-        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft);
+        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft).withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
@@ -347,7 +347,7 @@ public class OrgNoteService {
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
-        return NoteResponse.Detail.of(note, tags, versionCount);
+        return NoteResponse.Detail.of(note, tags, versionCount).withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
@@ -428,7 +428,7 @@ public class OrgNoteService {
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
-        return NoteResponse.Detail.of(note, tags, versionCount);
+        return NoteResponse.Detail.of(note, tags, versionCount).withContributors(noteContributorService.resolve(note));
     }
 
     // ===== Version =====
@@ -480,7 +480,8 @@ public class OrgNoteService {
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
         if (snapshotDiffers) {
             versionCount = versionCount + 1;
-            NoteVersion currentSnapshot = NoteVersion.create(note, snapshotTitle, snapshotContent, user, versionCount);
+            NoteVersion currentSnapshot = NoteVersion.create(note, snapshotTitle, snapshotContent, user, versionCount,
+                    "v" + version.getVersionNumber() + " 복원 전 자동 저장");
             noteVersionRepository.save(currentSnapshot);
         }
 
@@ -493,7 +494,7 @@ public class OrgNoteService {
         eventPublisher.publishEvent(new NoteSnapshotSavedEvent(noteId));
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
-        return NoteResponse.Detail.of(note, tags, versionCount, false);
+        return NoteResponse.Detail.of(note, tags, versionCount, false).withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
@@ -603,7 +604,7 @@ public class OrgNoteService {
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
-        return NoteResponse.Detail.of(note, tags, versionCount);
+        return NoteResponse.Detail.of(note, tags, versionCount).withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
@@ -615,7 +616,7 @@ public class OrgNoteService {
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
-        return NoteResponse.Detail.of(note, tags, versionCount);
+        return NoteResponse.Detail.of(note, tags, versionCount).withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
@@ -630,7 +631,54 @@ public class OrgNoteService {
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
-        return NoteResponse.Detail.of(note, tags, versionCount);
+        return NoteResponse.Detail.of(note, tags, versionCount).withContributors(noteContributorService.resolve(note));
+    }
+
+    // ===== Search =====
+
+    public List<NoteResponse.SearchResult> searchNotes(String orgId, String userId, String rawQuery) {
+        organizationService.getOrgMemberOrThrow(orgId, userId);
+
+        String query = NoteSearchSupport.normalizeQuery(rawQuery);
+        if (query == null) return List.of();
+
+        return noteRepository.searchByOrganizationId(orgId, NoteSearchSupport.likePattern(query),
+                        PageRequest.of(0, NoteSearchSupport.MAX_RESULTS))
+                .stream()
+                .map(n -> NoteSearchSupport.toResult(n, query))
+                .toList();
+    }
+
+    // ===== Status =====
+
+    @Transactional
+    public NoteResponse.Detail updateStatus(String orgId, String noteId, String userId, String rawStatus) {
+        organizationService.getOrgMemberOrThrow(orgId, userId);
+
+        Note note = getNoteOrThrow(orgId, noteId);
+        NoteStatus status = NoteStatusParser.parse(rawStatus);
+        if (note.isFolder()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "폴더에는 상태를 지정할 수 없습니다");
+        }
+        note.updateStatus(status);
+
+        List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
+        int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
+        return NoteResponse.Detail.of(note, tags, versionCount).withContributors(noteContributorService.resolve(note));
+    }
+
+    // ===== Version memo =====
+
+    @Transactional
+    public NoteResponse.VersionInfo updateVersionNote(String orgId, String noteId, String versionId, String userId,
+                                                      String memo) {
+        organizationService.getOrgMemberOrThrow(orgId, userId);
+        getNoteOrThrow(orgId, noteId);
+
+        NoteVersion version = noteVersionRepository.findByIdAndNoteId(versionId, noteId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_VERSION_NOT_FOUND));
+        version.updateMemo(memo);
+        return NoteResponse.VersionInfo.of(version);
     }
 
     // ===== Helper Methods =====
@@ -710,18 +758,7 @@ public class OrgNoteService {
     }
 
     private void hardDeleteRecursive(Note note) {
-        List<Note> children = noteRepository.findAllChildrenIncludingDeleted(note.getId());
-        for (Note child : children) {
-            hardDeleteRecursive(child);
-        }
-        noteLikeRepository.deleteByNoteId(note.getId());
-        noteCommentReactionRepository.deleteByNoteId(note.getId());
-        noteCommentRepository.deleteByNoteId(note.getId());
-        noteTagMappingRepository.deleteAllByNoteId(note.getId());
-        noteVersionRepository.deleteAllByNoteId(note.getId());
-        noteCollabStateRepository.deleteById(note.getId());
-        noteDraftArchiveRepository.deleteById(note.getId());
-        noteRepository.delete(note);
+        noteHardDeleteSupport.hardDeleteRecursive(note);
     }
 
     private boolean isDescendant(String ancestorId, String targetId) {

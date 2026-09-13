@@ -1125,6 +1125,23 @@ table:hover [data-table-handle],
   display: inline;
 }
 
+/* Non-list blocks nested under a parent block (image/file under a list item,
+   children of a paragraph, …). contentToHtml wraps each run in this div so the
+   static view keeps the editor's .bn-block-group indentation (1.5em) and the
+   `li > p` unwrap/inline rules above don't swallow nested paragraphs. */
+.note-view-render .note-nested-children,
+.shared-note-viewer .note-nested-children {
+  padding-left: 1.5rem;
+}
+
+/* Column layout — contentToHtml now nests the columns inside the flex
+   container, so give each one equal width. */
+.note-view-render [data-block-type="columnLayout"] > [data-block-type="column"],
+.shared-note-viewer [data-block-type="columnLayout"] > [data-block-type="column"] {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 /* Check list — lossy export uses <ul data-checked-list> with <li
    data-checked="true|false"> + leading checkbox span/input. Render a
    simple ☐/☑ glyph so completed items are visually distinct. */

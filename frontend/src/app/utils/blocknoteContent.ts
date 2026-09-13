@@ -304,6 +304,166 @@ interface HtmlExportEditor extends MinimalEditor {
   blocksToFullHTML: (blocks?: any) => Promise<string>;
 }
 
+/**
+ * Wrapper class for a run of non-list child blocks nested under a parent block
+ * in the static view HTML. Styled in blocknote-dark.css (.note-view-render /
+ * .shared-note-viewer) and notePrint.ts with the same 1.5rem indent that nested
+ * <ul>/<ol> get, so it mirrors the editor's .bn-block-group indentation.
+ */
+export const NESTED_CHILDREN_CLASS = "note-nested-children";
+
+const LIST_TAGS = new Set(["UL", "OL"]);
+
+function isListEl(node: Node | null | undefined): node is HTMLElement {
+  return !!node && node.nodeType === 1 && LIST_TAGS.has(node.nodeName);
+}
+
+/**
+ * Merge consecutive <ul>/<ul> or <ol>/<ol> siblings into one list. Block-by-block
+ * export emits a separate list per item, and BlockNote's own serializer would
+ * have merged them; merging also keeps <ol> numbering continuous.
+ */
+function mergeAdjacentLists(parent: ParentNode): void {
+  let node = parent.firstChild;
+  while (node) {
+    const next = node.nextSibling;
+    if (
+      isListEl(node) &&
+      isListEl(next) &&
+      node.nodeName === next.nodeName
+    ) {
+      while (next.firstChild) node.appendChild(next.firstChild);
+      next.remove();
+      continue; // re-check `node` against its new next sibling
+    }
+    node = next;
+  }
+}
+
+/**
+ * Append serialized child blocks into the parent's own markup so the static
+ * view keeps the editor's nesting. BlockNote's external HTML serializer only
+ * nests leading <ul>/<ol> children into a list item and flattens everything
+ * else (images, files, paragraphs, and any list after them) up to the parent's
+ * level — see serializeBlocksExternalHTML.ts in @blocknote/core.
+ *
+ * Placement by parent type:
+ *   - list items:    lists go straight into the <li>; runs of non-list nodes
+ *                    are wrapped in a NESTED_CHILDREN_CLASS div so they don't
+ *                    match the `li > p` unwrap/inline rules
+ *   - toggle:        inside <details>, after <summary>
+ *   - columnLayout:  columns straight inside the flex container
+ *   - column:        inside the column's outer div, after its inline content
+ *   - anything else: a NESTED_CHILDREN_CLASS div appended after the block
+ */
+function attachChildren(
+  doc: Document,
+  blockType: string,
+  blockNodes: Node[],
+  childFrag: DocumentFragment,
+): Node[] {
+  const lastEl = [...blockNodes].reverse().find((n) => n.nodeType === 1) as
+    | HTMLElement
+    | undefined;
+
+  const wrapRun = (host: ParentNode) => {
+    let run: HTMLElement | null = null;
+    while (childFrag.firstChild) {
+      const child = childFrag.firstChild;
+      if (isListEl(child)) {
+        run = null;
+        host.appendChild(child);
+      } else {
+        if (!run) {
+          run = doc.createElement("div");
+          run.className = NESTED_CHILDREN_CLASS;
+          host.appendChild(run);
+        }
+        run.appendChild(child);
+      }
+    }
+    mergeAdjacentLists(host);
+  };
+
+  if (lastEl && isListEl(lastEl)) {
+    const li = lastEl.lastElementChild;
+    if (li && li.nodeName === "LI") {
+      wrapRun(li);
+      return blockNodes;
+    }
+  }
+
+  if (lastEl && blockType === "toggle" && lastEl.nodeName === "DETAILS") {
+    wrapRun(lastEl);
+    return blockNodes;
+  }
+
+  if (
+    lastEl &&
+    (blockType === "columnLayout" || blockType === "column") &&
+    lastEl.getAttribute("data-block-type") === blockType
+  ) {
+    while (childFrag.firstChild) lastEl.appendChild(childFrag.firstChild);
+    mergeAdjacentLists(lastEl);
+    return blockNodes;
+  }
+
+  const wrapper = doc.createElement("div");
+  wrapper.className = NESTED_CHILDREN_CLASS;
+  wrapper.appendChild(childFrag);
+  mergeAdjacentLists(wrapper);
+  return [...blockNodes, wrapper];
+}
+
+/**
+ * Serialize a block tree to external (lossy) HTML while preserving nesting.
+ * Each block is exported on its own (children stripped) via blocksToHTMLLossy
+ * and its children are recursively attached by attachChildren. A block whose
+ * lossy export throws falls back to blocksToFullHTML for that block only, so a
+ * single broken custom block no longer blanks the whole document.
+ *
+ * The caller must have already loaded the full document into `editor` —
+ * blocksToHTMLLossy(blocks) doesn't touch editor.document, but custom blocks
+ * such as tableOfContents read it during export.
+ */
+async function serializeBlocksNested(
+  editor: HtmlExportEditor,
+  blocks: any[],
+  doc: Document,
+): Promise<DocumentFragment> {
+  const frag = doc.createDocumentFragment();
+  for (const block of blocks) {
+    if (!block || typeof block !== "object") continue;
+    const { children, ...rest } = block;
+    const solo = [{ ...rest, children: [] }];
+    let html = "";
+    try {
+      html = await editor.blocksToHTMLLossy(solo);
+    } catch (err) {
+      console.error(
+        `contentToHtml: blocksToHTMLLossy failed for block "${block.type}", falling back to full HTML:`,
+        err,
+      );
+      try {
+        html = await editor.blocksToFullHTML(solo);
+      } catch (err2) {
+        console.error("contentToHtml: blocksToFullHTML failed:", err2);
+      }
+    }
+    const tpl = doc.createElement("template");
+    tpl.innerHTML = html;
+    let nodes: Node[] = Array.from(tpl.content.childNodes);
+
+    if (Array.isArray(children) && children.length > 0) {
+      const childFrag = await serializeBlocksNested(editor, children, doc);
+      nodes = attachChildren(doc, String(block.type ?? ""), nodes, childFrag);
+    }
+    frag.append(...nodes);
+  }
+  mergeAdjacentLists(frag);
+  return frag;
+}
+
 interface MarkdownExportEditor extends MinimalEditor {
   blocksToMarkdownLossy: (blocks?: any) => Promise<string>;
 }
@@ -349,14 +509,21 @@ export async function contentToHtml(
         return "";
       }
       // Primary: lossy export (simple HTML tuned for the static .note-view-render
-      // CSS + clean copy/paste round-trip). It walks each block's toExternalHTML,
-      // so one custom block with a throwing toExternalHTML aborts the whole doc.
+      // CSS + clean copy/paste round-trip), done block-by-block so nested
+      // children (images/files under a list item, toggle bodies, columns) stay
+      // nested instead of being flattened by BlockNote's external serializer.
       try {
-        const html = await editor.blocksToHTMLLossy(editor.document);
-        return unwrapListItemParagraphs(html);
+        const frag = await serializeBlocksNested(
+          editor,
+          editor.document,
+          document,
+        );
+        const holder = document.createElement("div");
+        holder.appendChild(frag);
+        return unwrapListItemParagraphs(holder.innerHTML);
       } catch (err) {
         console.error(
-          "contentToHtml: blocksToHTMLLossy failed, falling back to full HTML:",
+          "contentToHtml: nested lossy export failed, falling back to full HTML:",
           err,
         );
       }

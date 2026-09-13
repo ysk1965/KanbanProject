@@ -51,6 +51,18 @@ public class Note {
     @Column(name = "content", columnDefinition = "TEXT")
     private String content;
 
+    /**
+     * 전문 검색용 소문자 평문: title + "\n" + plainText(content). 제목/본문이 바뀌는 모든 경로
+     * (updateTitle/updateContent/persist)에서 갱신된다. 기존 행은 NoteSearchTextBackfillRunner 가 채운다.
+     */
+    @Column(name = "search_text", columnDefinition = "TEXT")
+    private String searchText;
+
+    /** 페이지 진행 상태 (DRAFT / IN_REVIEW / DONE). null = 미지정. 폴더에는 없다. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 20)
+    private NoteStatus status;
+
     @Column(name = "position", nullable = false)
     @Builder.Default
     private Integer position = 0;
@@ -113,6 +125,9 @@ public class Note {
         if (this.updatedAt == null) {
             this.updatedAt = now;
         }
+        if (this.searchText == null) {
+            refreshSearchText();
+        }
     }
 
     @PreUpdate
@@ -123,12 +138,23 @@ public class Note {
     public void updateTitle(String title) {
         if (title != null) {
             this.title = title;
+            refreshSearchText();
         }
     }
 
     public void updateContent(String content, User updatedBy) {
         this.content = content;
         this.updatedBy = updatedBy;
+        refreshSearchText();
+    }
+
+    /** title/content 로부터 search_text 를 다시 계산한다. */
+    public void refreshSearchText() {
+        this.searchText = NoteExcerptExtractor.buildSearchText(this.title, this.content, this.type);
+    }
+
+    public void updateStatus(NoteStatus status) {
+        this.status = status;
     }
 
     public void moveTo(Note newParent, int newPosition) {

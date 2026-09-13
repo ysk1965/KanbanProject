@@ -29,6 +29,9 @@ import {
   Film,
   FolderClock,
   Check,
+  Loader2,
+  TextSearch,
+  LayoutTemplate,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -36,7 +39,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "../ui/dropdown-menu";
+import { formatRelativeTime } from "../../utils/dateUtils";
+import { getNoteStatusMeta, asNoteStatus } from "../../utils/noteStatus";
+import { NOTE_TEMPLATES, type NoteTemplate } from "../../utils/noteTemplates";
 import {
   DndContext,
   DragOverlay,
@@ -55,15 +64,25 @@ import type {
   NoteTreeItem,
   BoardNoteSection,
   StorageFileItem,
+  NoteSearchResult,
 } from "../../utils/api";
+
+/** 새 문서 생성 콜백 — template을 넘기면 템플릿 제목·본문으로 만든다 */
+export type CreateDocumentHandler = (
+  parentId?: string | null,
+  template?: NoteTemplate,
+) => void;
 
 interface NoteTreeSidebarProps {
   tree: NoteTreeItem[];
   selectedNoteId: string | null;
   searchQuery: string;
+  /** 서버 본문 검색 결과 — 트리에 이미 보이는 항목은 걸러서 보여준다 */
+  searchResults?: NoteSearchResult[];
+  searching?: boolean;
   onSelect: (noteId: string) => void;
   onCreateFolder: (parentId?: string | null) => void;
-  onCreateDocument: (parentId?: string | null) => void;
+  onCreateDocument: CreateDocumentHandler;
   onCreateBoard: (parentId?: string | null) => void;
   onDelete: (noteId: string) => void;
   onRename: (noteId: string, newTitle: string) => void;
@@ -133,6 +152,148 @@ function getMaxSubtreeDepth(item: NoteTreeItem): number {
   return 1 + Math.max(...item.children.map(getMaxSubtreeDepth));
 }
 
+/** 트리·리스트 행 제목 뒤에 붙는 작은 상태 칩 */
+export function NoteStatusChip({
+  status,
+  compact,
+}: {
+  status: string | null | undefined;
+  compact?: boolean;
+}) {
+  const { t } = useTranslation();
+  const resolved = asNoteStatus(status);
+  if (!resolved) return null;
+  const meta = getNoteStatusMeta(resolved);
+  if (compact) {
+    return (
+      <span
+        className={`flex-shrink-0 w-2 h-2 rounded-full ${meta.dotClass}`}
+        title={t(meta.labelKey, meta.defaultLabel)}
+        aria-label={t(meta.labelKey, meta.defaultLabel)}
+      />
+    );
+  }
+  return (
+    <span
+      className={`flex-shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full ${meta.chipClass}`}
+    >
+      {t(meta.labelKey, meta.defaultLabel)}
+    </span>
+  );
+}
+
+/** 발췌문에서 검색어와 일치하는 부분을 굵게 강조한다 (대소문자 무시) */
+function highlightMatch(text: string, query: string) {
+  const q = query.trim();
+  if (!q) return text;
+  const lower = text.toLowerCase();
+  const needle = q.toLowerCase();
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+  let idx = lower.indexOf(needle, cursor);
+  while (idx !== -1) {
+    if (idx > cursor) parts.push(text.slice(cursor, idx));
+    parts.push(
+      <strong key={idx} className="font-bold text-bridge-accent">
+        {text.slice(idx, idx + needle.length)}
+      </strong>,
+    );
+    cursor = idx + needle.length;
+    idx = lower.indexOf(needle, cursor);
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return parts;
+}
+
+/** '본문 검색 결과' — 제목·태그 필터로는 안 잡히고 본문에만 검색어가 있는 노트들 */
+function SearchResultsSection({
+  results,
+  searching,
+  query,
+  selectedNoteId,
+  onSelect,
+}: {
+  results: NoteSearchResult[];
+  searching: boolean;
+  query: string;
+  selectedNoteId: string | null;
+  onSelect: (noteId: string) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="mt-3">
+      <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-bold uppercase tracking-widest text-slate-400">
+        <TextSearch size={12} className="flex-shrink-0 text-bridge-accent" />
+        <span className="truncate">
+          {t("notes.search.contentResults", "본문 검색 결과")}
+        </span>
+        {searching ? (
+          <Loader2 size={12} className="ml-auto animate-spin text-bridge-accent" />
+        ) : (
+          results.length > 0 && (
+            <span className="ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent normal-case tracking-normal">
+              {results.length}
+            </span>
+          )
+        )}
+      </div>
+      {results.length === 0 ? (
+        !searching && (
+          <p className="px-2 py-2 text-xs text-slate-500">
+            {t("notes.search.noContentResults", "본문에서 찾은 문서가 없습니다")}
+          </p>
+        )
+      ) : (
+        <div className="space-y-0.5">
+          {results.map((result) => (
+            <button
+              key={result.id}
+              type="button"
+              onClick={() => onSelect(result.id)}
+              className={`w-full text-left px-2.5 py-2 rounded-lg transition-colors ${
+                selectedNoteId === result.id
+                  ? "bg-bridge-accent/15 text-foreground"
+                  : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+              }`}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                {result.type === "BOARD" ? (
+                  <PenTool
+                    size={14}
+                    className="flex-shrink-0 text-bridge-secondary"
+                  />
+                ) : (
+                  <FileText size={14} className="flex-shrink-0 text-slate-400" />
+                )}
+                <span className="flex-1 min-w-0 truncate text-sm font-medium text-foreground">
+                  {result.title}
+                </span>
+                <NoteStatusChip status={result.status} />
+              </div>
+              {result.excerpt && (
+                <p className="mt-1 ml-[22px] text-xs text-slate-400 leading-relaxed line-clamp-2 break-words">
+                  {highlightMatch(result.excerpt, query)}
+                </p>
+              )}
+              <p className="mt-1 ml-[22px] text-xs text-slate-500 truncate">
+                {result.parent_title && (
+                  <>
+                    <Folder size={10} className="inline mr-1 -mt-0.5" />
+                    {result.parent_title}
+                    <span className="mx-1">·</span>
+                  </>
+                )}
+                {formatRelativeTime(result.updated_at)}
+                {result.updated_by?.name && ` · ${result.updated_by.name}`}
+              </p>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // 형제 사이(before/after)로 끼워넣는 위치를 알리는 강조 삽입선 — 발광 + 시작점 도트
 function DropLine({ indent }: { indent: number }) {
   return (
@@ -156,6 +317,8 @@ export function NoteTreeSidebar({
   tree,
   selectedNoteId,
   searchQuery,
+  searchResults,
+  searching = false,
   onSelect,
   onCreateFolder,
   onCreateDocument,
@@ -170,6 +333,7 @@ export function NoteTreeSidebar({
   fileActions,
   selection,
 }: NoteTreeSidebarProps) {
+  const { t } = useTranslation();
   const [activeItem, setActiveItem] = useState<NoteTreeItem | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTargetInfo | null>(null);
   // 기본 전체 펼침 — collapsedIds에 있는 항목만 접힘
@@ -427,14 +591,44 @@ export function NoteTreeSidebar({
   const hasBoardSections =
     filteredBoardSections && filteredBoardSections.length > 0;
 
+  // 본문 검색 — 트리(및 보드 섹션)에 이미 보이는 노트는 중복이라 뺀다
+  const trimmedQuery = searchQuery.trim();
+  const showSearchSection = trimmedQuery.length >= 2;
+  const visibleIds = new Set<string>();
+  if (showSearchSection) {
+    const collect = (items: NoteTreeItem[]) => {
+      for (const item of items) {
+        visibleIds.add(item.id);
+        if (item.children) collect(item.children);
+      }
+    };
+    collect(filteredTree);
+    filteredBoardSections?.forEach((section) => collect(section.tree));
+  }
+  const serverResults = showSearchSection
+    ? (searchResults ?? []).filter((r) => !visibleIds.has(r.id))
+    : [];
+  const hasServerResults = searching || serverResults.length > 0;
+
   if (filteredTree.length === 0 && !hasBoardSections) {
+    if (showSearchSection && hasServerResults) {
+      return (
+        <SearchResultsSection
+          results={serverResults}
+          searching={searching}
+          query={trimmedQuery}
+          selectedNoteId={selectedNoteId}
+          onSelect={onSelect}
+        />
+      );
+    }
     return (
       <div className="text-center text-slate-500 text-xs py-8">
         {searchQuery
-          ? "검색 결과가 없습니다"
+          ? t("notes.search.noResults", "검색 결과 없음")
           : fileActions
-            ? "노트와 파일이 없습니다"
-            : "노트가 없습니다"}
+            ? t("library.emptyTree", "노트와 파일이 없습니다")
+            : t("notes.emptyTree", "노트가 없습니다")}
       </div>
     );
   }
@@ -515,6 +709,17 @@ export function NoteTreeSidebar({
               defaultExpanded={!!searchQuery}
             />
           ))}
+
+        {/* 본문 검색 결과 — 트리 필터에 안 걸린 문서만 */}
+        {showSearchSection && (
+          <SearchResultsSection
+            results={serverResults}
+            searching={searching}
+            query={trimmedQuery}
+            selectedNoteId={selectedNoteId}
+            onSelect={onSelect}
+          />
+        )}
       </DndContext>
     </FileActionsContext.Provider>
     </SweepContext.Provider>
@@ -546,7 +751,7 @@ function SiblingGroup({
   selectedNoteId: string | null;
   onSelect: (noteId: string) => void;
   onCreateFolder: (parentId?: string | null) => void;
-  onCreateDocument: (parentId?: string | null) => void;
+  onCreateDocument: CreateDocumentHandler;
   onCreateBoard: (parentId?: string | null) => void;
   onDelete: (noteId: string) => void;
   onRename: (noteId: string, newTitle: string) => void;
@@ -614,7 +819,7 @@ interface TreeItemComponentProps {
   selectedNoteId: string | null;
   onSelect: (noteId: string) => void;
   onCreateFolder: (parentId?: string | null) => void;
-  onCreateDocument: (parentId?: string | null) => void;
+  onCreateDocument: CreateDocumentHandler;
   onCreateBoard: (parentId?: string | null) => void;
   onDelete: (noteId: string) => void;
   onRename: (noteId: string, newTitle: string) => void;
@@ -876,6 +1081,11 @@ function TreeItemComponent({
           </span>
         )}
 
+        {/* 페이지 상태 — 설정된 문서만 작은 칩으로 */}
+        {!isFolder && !isFile && !renaming && !isInsideTarget && (
+          <NoteStatusChip status={item.status} />
+        )}
+
         {/* 폴더 안으로 드롭 중임을 명확히 알리는 라벨 */}
         {isInsideTarget && (
           <span className="flex-shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-md bg-bridge-accent/20 text-bridge-accent">
@@ -1004,6 +1214,23 @@ function TreeItemComponent({
                       <FilePlus size={14} />{" "}
                       {t("notes.newDocumentInFolder", "문서 추가")}
                     </DropdownMenuItem>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground cursor-pointer">
+                        <LayoutTemplate size={14} />{" "}
+                        {t("notes.templates.addFromTemplate", "템플릿으로 추가")}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="bg-bridge-obsidian border-foreground/10 rounded-lg shadow-xl min-w-[160px]">
+                        {NOTE_TEMPLATES.map((template) => (
+                          <DropdownMenuItem
+                            key={template.id}
+                            onClick={() => onCreateDocument(item.id, template)}
+                            className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground cursor-pointer"
+                          >
+                            {t(template.labelKey, template.defaultLabel)}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
                     <DropdownMenuItem
                       onClick={() => onCreateBoard(item.id)}
                       className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground cursor-pointer"
@@ -1219,6 +1446,7 @@ function ReadOnlyTreeItem({
 
         {/* Title */}
         <span className="flex-1 min-w-0 truncate">{item.title}</span>
+        {!isFolder && <NoteStatusChip status={item.status} compact />}
       </div>
 
       {/* Children */}

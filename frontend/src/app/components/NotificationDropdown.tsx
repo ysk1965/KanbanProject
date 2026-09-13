@@ -24,6 +24,7 @@ import { StandupConfigPanel } from "./StandupConfigPanel";
 import { NotificationItem, ActivityLog, NotificationType } from "../types";
 import { Button } from "./ui/button";
 import { getAssigneeClasses } from "../utils/assigneeColor";
+import { asNoteStatus, getNoteStatusMeta } from "../utils/noteStatus";
 import {
   formatDate,
   formatRelativeTime as dateUtilsFormatRelativeTime,
@@ -100,8 +101,45 @@ function getTimeAgo(dateStr: string, t: TFunction) {
   return formatDate(dateStr, "yyyy-MM-dd");
 }
 
+/** NOTE_* 활동 → notification.activity.action{Key} */
+const NOTE_ACTION_KEYS: Record<string, string> = {
+  NOTE_CREATED: "actionNoteCreated",
+  NOTE_PUBLISHED: "actionNotePublished",
+  NOTE_DELETED: "actionNoteDeleted",
+  NOTE_RESTORED: "actionNoteRestored",
+  NOTE_PERMANENTLY_DELETED: "actionNotePermanentlyDeleted",
+  NOTE_VERSION_RESTORED: "actionNoteVersionRestored",
+  NOTE_SHARED: "actionNoteShared",
+  NOTE_UNSHARED: "actionNoteUnshared",
+  NOTE_STATUS_CHANGED: "actionNoteStatusChanged",
+};
+
 function getActionText(activity: ActivityLog, t: TFunction) {
   const { action, user, metadata } = activity;
+
+  const noteKey = NOTE_ACTION_KEYS[action];
+  if (noteKey) {
+    const title =
+      (metadata.title as string | undefined) ||
+      t("notification.activity.noteFallbackTitle");
+    const status = asNoteStatus(metadata.status as string | undefined);
+    const statusLabel = status
+      ? t(getNoteStatusMeta(status).labelKey)
+      : t("notes.status.none");
+    const version = metadata.version_number as number | undefined;
+    return (
+      <>
+        <span className="font-medium text-foreground">{user.name}</span>
+        <span className="text-foreground/80">
+          {t(`notification.activity.${noteKey}`, {
+            status: statusLabel,
+            version: version ?? "",
+          })}
+        </span>
+        <span className="font-medium text-teal-400">{title}</span>
+      </>
+    );
+  }
 
   switch (action) {
     case "BLOCK_CREATED":

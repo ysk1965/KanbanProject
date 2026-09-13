@@ -6,6 +6,20 @@ import { MotionModal } from './ui/MotionModal';
 import { ActivityLog } from '../utils/api';
 import { getInitials } from '../utils/assigneeColor';
 import { formatRelativeTime } from '../utils/dateUtils';
+import { asNoteStatus, getNoteStatusMeta } from '../utils/noteStatus';
+
+/** NOTE_* 활동의 접두/접미 i18n 키 — 제목은 가운데에 강조해서 끼운다 */
+const NOTE_ACTIVITY_KEYS: Record<string, string> = {
+  NOTE_CREATED: 'noteCreated',
+  NOTE_PUBLISHED: 'notePublished',
+  NOTE_DELETED: 'noteDeleted',
+  NOTE_RESTORED: 'noteRestored',
+  NOTE_PERMANENTLY_DELETED: 'notePermanentlyDeleted',
+  NOTE_VERSION_RESTORED: 'noteVersionRestored',
+  NOTE_SHARED: 'noteShared',
+  NOTE_UNSHARED: 'noteUnshared',
+  NOTE_STATUS_CHANGED: 'noteStatusChanged',
+};
 
 interface ActivityLogModalProps {
   open: boolean;
@@ -40,6 +54,39 @@ export function ActivityLogModal({
 
   const getActionText = (activity: ActivityLog) => {
     const { action, user, metadata } = activity;
+
+    // 노트(자료실) 활동 — metadata: title, version_number, version_note, status
+    const noteKey = NOTE_ACTIVITY_KEYS[action];
+    if (noteKey) {
+      const title =
+        (metadata.title as string | undefined) || t('activity.noteFallbackTitle');
+      const status = asNoteStatus(metadata.status as string | undefined);
+      const statusLabel = status
+        ? t(getNoteStatusMeta(status).labelKey)
+        : t('notes.status.none');
+      const version = metadata.version_number as number | undefined;
+      const versionNote = metadata.version_note as string | undefined;
+      return (
+        <>
+          <span className="font-medium text-foreground">{user.name}</span>
+          <span className="text-slate-400">{t(`activity.${noteKey}Prefix`)}</span>
+          <span className="font-medium text-teal-400">{title}</span>
+          <span className="text-slate-400">
+            {t(`activity.${noteKey}Suffix`, { status: statusLabel, version: version ?? '' })}
+          </span>
+          {version != null && action !== 'NOTE_STATUS_CHANGED' && (
+            <span className="ml-1 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+              v{version}
+            </span>
+          )}
+          {versionNote && (
+            <span className="block text-xs text-slate-500 mt-0.5 truncate">
+              {versionNote}
+            </span>
+          )}
+        </>
+      );
+    }
 
     switch (action) {
       case 'BLOCK_CREATED':

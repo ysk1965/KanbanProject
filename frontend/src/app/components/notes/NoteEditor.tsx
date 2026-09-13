@@ -34,7 +34,31 @@ import {
   RotateCcw,
   Heart,
   Folder,
+  Printer,
+  ChevronDown,
+  CircleDashed,
+  StickyNote,
 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "../ui/dropdown-menu";
+import { getInitials, getAssigneeHex } from "../../utils/assigneeColor";
+import {
+  NOTE_STATUSES,
+  getNoteStatusMeta,
+  asNoteStatus,
+} from "../../utils/noteStatus";
+import { openNotePrintWindow, escapeHtml } from "../../utils/notePrint";
+import {
+  noteService,
+  orgNoteService,
+  myNoteService,
+} from "../../utils/services";
 
 const ExcalidrawEditor = React.lazy(() => import("./ExcalidrawEditor"));
 const FlowEditor = React.lazy(() => import("./FlowEditor"));
@@ -79,12 +103,16 @@ import {
   needsImageRewrite,
   plainTextListToHtml,
 } from "../../utils/blocknoteContent";
+import { normalizeLayoutHtml } from "../../utils/htmlLayoutNormalize";
 import DOMPurify from "dompurify";
 import type {
   NoteDetail,
   NoteTagInfo,
   NoteAISuggestionResponse,
   NoteTreeItem,
+  NoteUpdateData,
+  NoteStatus,
+  NoteUserInfo,
 } from "../../utils/api";
 import { NoteShareButton } from "./NoteShareButton";
 import { NoteBottomComments } from "./NoteBottomComments";
@@ -107,7 +135,7 @@ interface NoteEditorProps {
   canEdit: boolean;
   onSave: (
     noteId: string,
-    data: { title?: string; content?: string; tagIds?: string[] },
+    data: NoteUpdateData,
     createVersion?: boolean,
     discardDraft?: boolean,
   ) => void;
@@ -119,6 +147,142 @@ interface NoteEditorProps {
   currentUserColor: string;
   breadcrumbs?: BreadcrumbItem[];
   onBreadcrumbClick?: (noteId: string) => void;
+}
+
+const MAX_CONTRIBUTOR_AVATARS = 5;
+const VERSION_NOTE_MAX_LENGTH = 500;
+
+/**
+ * 버전을 남긴 사용자들을 겹친 아바타로. 최대 5명 + "+N", 1명 이하면 그리지 않는다
+ * (작성자 한 줄 메타와 중복이라서).
+ */
+function NoteContributors({
+  contributors,
+}: {
+  contributors: NoteUserInfo[] | undefined;
+}) {
+  const { t } = useTranslation();
+  if (!contributors || contributors.length <= 1) return null;
+  const shown = contributors.slice(0, MAX_CONTRIBUTOR_AVATARS);
+  const rest = contributors.length - shown.length;
+  const names = contributors.map((c) => c.name).join(", ");
+  return (
+    <span
+      className="flex items-center -space-x-1.5 flex-shrink-0"
+      title={`${t("notes.contributors", "기여자")}: ${names}`}
+      aria-label={`${t("notes.contributors", "기여자")}: ${names}`}
+    >
+      {shown.map((user) =>
+        user.profile_image ? (
+          <img
+            key={user.id}
+            src={user.profile_image}
+            alt={user.name}
+            className="w-5 h-5 rounded-full object-cover ring-2 ring-bridge-dark"
+          />
+        ) : (
+          <span
+            key={user.id}
+            className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-bridge-dark"
+            style={{ backgroundColor: getAssigneeHex(user.name) }}
+          >
+            {getInitials(user.name)}
+          </span>
+        ),
+      )}
+      {rest > 0 && (
+        <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold bg-foreground/10 text-slate-400 ring-2 ring-bridge-dark">
+          +{rest}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** 페이지 상태 칩 — 편집 권한이 있으면 눌러서 바꾸는 드롭다운, 아니면 읽기 전용 칩 */
+function NoteStatusControl({
+  status,
+  canEdit,
+  updating,
+  onChange,
+}: {
+  status: string | null | undefined;
+  canEdit: boolean;
+  updating: boolean;
+  onChange: (status: NoteStatus | null) => void;
+}) {
+  const { t } = useTranslation();
+  const current = asNoteStatus(status);
+  const meta = current ? getNoteStatusMeta(current) : null;
+  const chip = (
+    <span
+      className={`inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${
+        meta
+          ? meta.chipClass
+          : "text-slate-500 border border-dashed border-foreground/15"
+      }`}
+    >
+      {updating ? (
+        <Loader2 size={10} className="animate-spin" />
+      ) : (
+        !meta && <CircleDashed size={10} />
+      )}
+      {meta
+        ? t(meta.labelKey, meta.defaultLabel)
+        : t("notes.status.none", "상태 없음")}
+      {canEdit && <ChevronDown size={10} className="opacity-70" />}
+    </span>
+  );
+  if (!canEdit) return current ? chip : null;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          disabled={updating}
+          className="rounded-full hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 disabled:opacity-60"
+          aria-label={t("notes.status.change", "페이지 상태 변경")}
+          title={t("notes.status.change", "페이지 상태 변경")}
+        >
+          {chip}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        sideOffset={4}
+        className="bg-bridge-obsidian border-foreground/10 rounded-lg shadow-xl min-w-[150px]"
+      >
+        {NOTE_STATUSES.map((value) => {
+          const m = getNoteStatusMeta(value);
+          return (
+            <DropdownMenuItem
+              key={value}
+              onClick={() => onChange(value)}
+              className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground cursor-pointer"
+            >
+              <span className={`w-2 h-2 rounded-full ${m.dotClass}`} />
+              <span className="flex-1">{t(m.labelKey, m.defaultLabel)}</span>
+              {current === value && (
+                <Check size={12} className="text-bridge-accent" />
+              )}
+            </DropdownMenuItem>
+          );
+        })}
+        {current && (
+          <>
+            <DropdownMenuSeparator className="border-foreground/[0.08]" />
+            <DropdownMenuItem
+              onClick={() => onChange(null)}
+              className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-slate-400 hover:bg-foreground/5 hover:text-foreground cursor-pointer"
+            >
+              <X size={12} />
+              {t("notes.status.clear", "상태 지우기")}
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 /** True when the editor holds only a single empty paragraph (a pristine doc). */
@@ -258,7 +422,7 @@ interface CollabEditorProps {
   canEdit: boolean;
   onSave: (
     noteId: string,
-    data: { title?: string; content?: string; tagIds?: string[] },
+    data: NoteUpdateData,
     createVersion?: boolean,
     discardDraft?: boolean,
   ) => void;
@@ -300,6 +464,17 @@ function CollabNoteEditor({
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState<"view" | "edit">("view");
+  // 저장 시 버전에 남길 변경 메모 (선택). 저장 성공·노트 전환 시 비운다.
+  const [versionNote, setVersionNote] = useState("");
+  const [statusUpdating, setStatusUpdating] = useState(false);
+
+  // 이 노트가 속한 스코프의 서비스 — 상태 변경 등 NotesView를 거치지 않는 호출에 쓴다
+  const svc = personal
+    ? myNoteService
+    : boardId
+      ? noteService
+      : orgNoteService;
+  const scopeId = personal ? "me" : boardId || orgId || "";
   // Bumped when the collab stack is force-rebuilt while EDIT stays mounted
   // (version restore) so BlockNoteView remounts cleanly with the new editor
   // instead of swapping editor instances on a live view.
@@ -541,7 +716,11 @@ function CollabNoteEditor({
           }
           return defaultPasteHandler();
         }
-        const cleaned = cleanHtml(html);
+        // External HTML only: dashboards / reports paste KPI card grids,
+        // heatmaps and SVG charts that BlockNote would flatten into one bare
+        // paragraph per cell. Rewrite them into tables / one compact line
+        // first (no-op for ordinary prose — returns the same string).
+        const cleaned = cleanHtml(normalizeLayoutHtml(html));
         // Nothing to clean AND no images to rewrite → delegate to the default
         // pipeline (avoids the blank-line regression e5f4628 fixed).
         if (cleaned === html && !needsImageRewrite(cleaned)) {
@@ -722,6 +901,7 @@ function CollabNoteEditor({
   useEffect(() => {
     setTitle(note.title);
     setHasChanges(false);
+    setVersionNote("");
     initialContentLoaded.current = false;
     hydratingRef.current = false;
 
@@ -951,12 +1131,14 @@ function CollabNoteEditor({
       // editor and it's safe to clear the draft. With peers present we keep it so
       // their in-flight edits aren't nuked out from under them.
       const discardDraft = editorPeers.length === 0;
+      const memo = versionNote.trim();
       await onSave(
         note.id,
         {
           title: title !== note.title ? title : undefined,
           content: json,
           tagIds: note.tags.map((t) => t.id),
+          versionNote: memo || undefined,
         },
         true,
         discardDraft,
@@ -967,6 +1149,7 @@ function CollabNoteEditor({
       setViewHtml(html);
       initialContentLoaded.current = true;
       setHasChanges(false);
+      setVersionNote("");
       setMode("view");
     } finally {
       setSaving(false);
@@ -983,7 +1166,67 @@ function CollabNoteEditor({
     note.tags,
     viewConverter,
     editorPeers,
+    versionNote,
   ]);
+
+  // 페이지 상태 변경 — 서버가 돌려준 NoteDetail로 상위 상태를 갈아 끼운다
+  const handleStatusChange = useCallback(
+    async (status: NoteStatus | null) => {
+      if (!canEdit || statusUpdating) return;
+      if ((note.status ?? null) === status) return;
+      setStatusUpdating(true);
+      try {
+        const updated = await svc.updateStatus(scopeId, note.id, status);
+        onNoteUpdate?.(updated);
+      } catch (err) {
+        console.error("Failed to update note status:", err);
+        toast.error(
+          t("notes.statusUpdateFailed", "상태를 변경하지 못했습니다"),
+        );
+      } finally {
+        setStatusUpdating(false);
+      }
+    },
+    [canEdit, statusUpdating, note.status, note.id, svc, scopeId, onNoteUpdate, t],
+  );
+
+  // PDF 내보내기 — 발행 스냅샷(viewHtml)을 새 창에 찍고 브라우저 인쇄를 띄운다
+  const handleExportPdf = useCallback(() => {
+    const bodyHtml = DOMPurify.sanitize(viewHtml, {
+      ADD_TAGS: ["iframe", "details", "summary"],
+      ADD_ATTR: [
+        "data-block-type",
+        "data-callout-type",
+        "data-content-type",
+        "data-url",
+        "data-columns",
+        "data-id",
+        "open",
+        "target",
+        "rel",
+      ],
+    });
+    const metaHtml = [
+      escapeHtml(formatDateTime(note.updated_at)),
+      note.updated_by ? escapeHtml(note.updated_by.name) : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    const opened = openNotePrintWindow({
+      title: note.title,
+      metaHtml,
+      bodyHtml,
+      lang: i18n.language,
+    });
+    if (!opened) {
+      toast.error(
+        t(
+          "notes.pdf.popupBlocked",
+          "팝업이 차단되어 PDF 창을 열 수 없어요. 팝업을 허용한 뒤 다시 시도해 주세요.",
+        ),
+      );
+    }
+  }, [viewHtml, note.title, note.updated_at, note.updated_by, i18n.language, t]);
 
   const handleEnterEdit = useCallback(() => {
     if (!canEdit) return;
@@ -1269,6 +1512,13 @@ function CollabNoteEditor({
               {formatDateTime(note.updated_at)}
               {note.updated_by && ` · ${note.updated_by.name}`}
             </span>
+            <NoteContributors contributors={note.contributors} />
+            <NoteStatusControl
+              status={note.status}
+              canEdit={canEdit}
+              updating={statusUpdating}
+              onChange={handleStatusChange}
+            />
             <span className="text-xs flex items-center gap-1 whitespace-nowrap">
               <span className="text-slate-600">·</span>
               {syncDisplay === "view" ? (
@@ -1401,7 +1651,47 @@ function CollabNoteEditor({
             </span>
           </button>
 
+          {mode === "view" && (
+            <button
+              onClick={handleExportPdf}
+              className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors text-slate-400 hover:text-foreground hover:bg-foreground/5"
+              title={t("notes.pdf.export", "PDF로 저장 (인쇄)")}
+            >
+              <Printer size={14} />
+              <span className="hidden lg:inline">
+                {t("notes.pdf.short", "PDF")}
+              </span>
+            </button>
+          )}
+
           <div className="w-px h-5 bg-white/10 hidden sm:block" />
+
+          {/* 변경 메모 — 저장 시 버전에 함께 남는다 (선택) */}
+          {canEdit && mode === "edit" && (
+            <label className="hidden lg:flex items-center gap-1.5 relative">
+              <StickyNote
+                size={12}
+                className="absolute left-2 text-slate-500 pointer-events-none"
+              />
+              <input
+                type="text"
+                value={versionNote}
+                onChange={(e) =>
+                  setVersionNote(
+                    e.target.value.slice(0, VERSION_NOTE_MAX_LENGTH),
+                  )
+                }
+                maxLength={VERSION_NOTE_MAX_LENGTH}
+                placeholder={t("notes.versionNotePlaceholder", "변경 메모")}
+                aria-label={t("notes.versionNote", "변경 메모")}
+                title={t(
+                  "notes.versionNoteHint",
+                  "저장할 때 이 버전에 남길 메모 (선택)",
+                )}
+                className="w-40 xl:w-52 bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1.5 pl-7 pr-2 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+              />
+            </label>
+          )}
 
           {mode === "edit" && (
             <NoteTagManager
