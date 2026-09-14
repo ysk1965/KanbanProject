@@ -59,6 +59,27 @@ public class NoteComment {
     @Column(name = "mentions", columnDefinition = "TEXT")
     private String mentions;
 
+    // ── 인라인 메모 앵커 (텍스트 범위) ──
+    // block_id 블록 평문 기준. 없으면(anchor_text == null) 블록 댓글.
+    @Column(name = "anchor_text", columnDefinition = "TEXT")
+    private String anchorText;
+
+    @Column(name = "anchor_prefix", length = 64)
+    private String anchorPrefix;
+
+    @Column(name = "anchor_suffix", length = 64)
+    private String anchorSuffix;
+
+    @Column(name = "anchor_start")
+    private Integer anchorStart;
+
+    @Column(name = "anchor_end")
+    private Integer anchorEnd;
+
+    /** ATTACHED / ORPHANED — 클라이언트 재탐색 결과 보고 */
+    @Column(name = "anchor_status", length = 16)
+    private String anchorStatus;
+
     @Column(name = "is_resolved", nullable = false)
     @Builder.Default
     private Boolean isResolved = false;
@@ -103,6 +124,27 @@ public class NoteComment {
     public void updateContent(String content, String mentions) {
         this.content = content;
         this.mentions = mentions;
+    }
+
+    public void updateAnchor(String text, String prefix, String suffix, Integer start, Integer end, String status) {
+        this.anchorText = text;
+        this.anchorPrefix = prefix;
+        this.anchorSuffix = suffix;
+        this.anchorStart = start;
+        this.anchorEnd = end;
+        this.anchorStatus = status;
+    }
+
+    public void updateBlockId(String blockId) {
+        this.blockId = blockId;
+    }
+
+    public void updateAnchorStatus(String status) {
+        this.anchorStatus = status;
+    }
+
+    public boolean hasAnchor() {
+        return this.anchorText != null && !this.anchorText.isEmpty();
     }
 
     public void toggleResolved(User user) {

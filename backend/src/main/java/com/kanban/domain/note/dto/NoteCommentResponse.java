@@ -23,6 +23,8 @@ public class NoteCommentResponse {
         private AuthorInfo author;
         private String content;
         private List<String> mentions;
+        private AnchorInfo anchor;
+        private String anchorStatus;
         private List<ReactionInfo> reactions;
         private boolean isResolved;
         private AuthorInfo resolvedBy;
@@ -70,6 +72,16 @@ public class NoteCommentResponse {
                     .author(authorInfo)
                     .content(comment.getContent())
                     .mentions(mentionList)
+                    .anchor(comment.hasAnchor()
+                            ? AnchorInfo.builder()
+                                    .text(comment.getAnchorText())
+                                    .prefix(comment.getAnchorPrefix())
+                                    .suffix(comment.getAnchorSuffix())
+                                    .start(comment.getAnchorStart())
+                                    .end(comment.getAnchorEnd())
+                                    .build()
+                            : null)
+                    .anchorStatus(comment.hasAnchor() ? comment.getAnchorStatus() : null)
                     .reactions(reactionList)
                     .isResolved(comment.getIsResolved())
                     .resolvedBy(resolvedByInfo)
@@ -111,6 +123,17 @@ public class NoteCommentResponse {
                     })
                     .toList();
         }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class AnchorInfo {
+        private String text;
+        private String prefix;
+        private String suffix;
+        private Integer start;
+        private Integer end;
     }
 
     @Getter

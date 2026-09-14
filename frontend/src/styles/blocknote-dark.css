@@ -1485,3 +1485,61 @@ table:hover [data-table-handle],
   text-decoration: underline;
 }
 
+
+
+/* ── Inline memo highlights ──────────────────────────────────────────────
+   Read mode paints <mark> elements into the static view; edit mode paints
+   ProseMirror decorations (plain spans) over the same passages. Neither form
+   is ever part of the stored note content, so both are styled here rather
+   than through the document schema. */
+.note-view-render .note-inline-memo,
+.bn-editor .note-inline-memo {
+  background: rgba(99, 102, 241, 0.22);
+  color: inherit;
+  border-radius: 3px;
+  padding: 1px 0;
+  box-shadow: 0 2px 0 rgba(99, 102, 241, 0.9);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.note-view-render .note-inline-memo:hover,
+.note-view-render .note-inline-memo.is-active,
+.bn-editor .note-inline-memo:hover,
+.bn-editor .note-inline-memo.is-active {
+  background: rgba(99, 102, 241, 0.4);
+}
+.note-view-render .note-inline-memo[data-resolved="true"],
+.bn-editor .note-inline-memo.is-resolved {
+  background: rgba(45, 212, 191, 0.14);
+  box-shadow: 0 2px 0 rgba(45, 212, 191, 0.7);
+}
+.note-view-render .note-inline-memo[data-resolved="true"]:hover,
+.note-view-render .note-inline-memo[data-resolved="true"].is-active,
+.bn-editor .note-inline-memo.is-resolved:hover,
+.bn-editor .note-inline-memo.is-resolved.is-active {
+  background: rgba(45, 212, 191, 0.3);
+}
+/* Provisional highlight while a composer is open over the passage. */
+.note-view-render .note-inline-memo[data-pending],
+.bn-editor .note-inline-memo.is-pending {
+  cursor: text;
+  animation: note-inline-memo-pulse 1.2s ease-in-out infinite;
+}
+.note-view-render .note-inline-memo.is-flash,
+.bn-editor .note-inline-memo.is-flash {
+  animation: note-inline-memo-pulse 0.7s ease-in-out 2;
+}
+@keyframes note-inline-memo-pulse {
+  50% {
+    background: rgba(99, 102, 241, 0.48);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-view-render .note-inline-memo[data-pending],
+  .note-view-render .note-inline-memo.is-flash,
+  .bn-editor .note-inline-memo.is-pending,
+  .bn-editor .note-inline-memo.is-flash {
+    animation: none;
+    background: rgba(99, 102, 241, 0.4);
+  }
+}

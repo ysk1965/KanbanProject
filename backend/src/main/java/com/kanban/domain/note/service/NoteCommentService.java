@@ -107,6 +107,12 @@ public class NoteCommentService {
                 .mentions(mentionsStr)
                 .build();
 
+        NoteCommentRequest.Anchor anchor = request.getAnchor();
+        if (anchor != null && parent == null) {
+            comment.updateAnchor(anchor.getText(), anchor.getPrefix(), anchor.getSuffix(),
+                    anchor.getStart(), anchor.getEnd(), "ATTACHED");
+        }
+
         noteCommentRepository.save(comment);
 
         // Send mention notifications
@@ -186,6 +192,35 @@ public class NoteCommentService {
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.NOTE_COMMENT_RESOLVED,
                 userId, user.getName(), response);
         return response;
+    }
+
+    /**
+     * 인라인 메모 앵커 재탐색 결과 보고 (오프셋 갱신 / 고아 처리). 멤버 누구나 가능.
+     */
+    @Transactional
+    public NoteCommentResponse.Detail updateAnchor(String boardId, String commentId, String userId,
+                                                   NoteCommentRequest.UpdateAnchor request) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        NoteComment comment = noteCommentRepository.findById(commentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_COMMENT_NOT_FOUND));
+        if (!comment.isRootComment() || !comment.hasAnchor()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        applyAnchorUpdate(comment, request);
+        return NoteCommentResponse.Detail.of(comment, List.of());
+    }
+
+    static void applyAnchorUpdate(NoteComment comment, NoteCommentRequest.UpdateAnchor request) {
+        NoteCommentRequest.Anchor a = request.getAnchor();
+        if (request.getBlockId() != null && !request.getBlockId().isBlank()) {
+            comment.updateBlockId(request.getBlockId());
+        }
+        if (a != null) {
+            comment.updateAnchor(a.getText(), a.getPrefix(), a.getSuffix(), a.getStart(), a.getEnd(), request.getStatus());
+        } else {
+            comment.updateAnchorStatus(request.getStatus());
+        }
     }
 
     /**

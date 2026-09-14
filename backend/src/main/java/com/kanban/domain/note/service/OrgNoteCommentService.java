@@ -101,6 +101,12 @@ public class OrgNoteCommentService {
                 .mentions(mentionsStr)
                 .build();
 
+        NoteCommentRequest.Anchor anchor = request.getAnchor();
+        if (anchor != null && parent == null) {
+            comment.updateAnchor(anchor.getText(), anchor.getPrefix(), anchor.getSuffix(),
+                    anchor.getStart(), anchor.getEnd(), "ATTACHED");
+        }
+
         noteCommentRepository.save(comment);
 
         NoteCommentResponse.Detail response = NoteCommentResponse.Detail.of(comment, List.of());
@@ -175,6 +181,20 @@ public class OrgNoteCommentService {
         webSocketEventService.sendOrgEvent(orgId, BoardEventType.NOTE_COMMENT_RESOLVED,
                 userId, user.getName(), response);
         return response;
+    }
+
+    @Transactional
+    public NoteCommentResponse.Detail updateAnchor(String orgId, String commentId, String userId,
+                                                   NoteCommentRequest.UpdateAnchor request) {
+        organizationService.getOrgMemberOrThrow(orgId, userId);
+
+        NoteComment comment = noteCommentRepository.findById(commentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_COMMENT_NOT_FOUND));
+        if (!comment.isRootComment() || !comment.hasAnchor()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        NoteCommentService.applyAnchorUpdate(comment, request);
+        return NoteCommentResponse.Detail.of(comment, List.of());
     }
 
     @Transactional

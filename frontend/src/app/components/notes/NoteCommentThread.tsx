@@ -9,6 +9,8 @@ import {
   MessageSquare,
   ChevronDown,
   ChevronUp,
+  Quote,
+  Unlink,
 } from "lucide-react";
 import { formatRelativeTime } from "../../utils/dateUtils";
 import { NoteCommentInput } from "./NoteCommentInput";
@@ -38,6 +40,10 @@ interface NoteCommentThreadProps {
   ) => Promise<void>;
   onDelete: (commentId: string) => Promise<void>;
   onToggleResolved: (commentId: string) => Promise<void>;
+  /** Highlighted (its inline memo was clicked in the note body). */
+  active?: boolean;
+  /** Inline memo: scroll the note body to the quoted passage. */
+  onJumpToAnchor?: (commentId: string) => void;
 }
 
 export function NoteCommentThread({
@@ -52,6 +58,8 @@ export function NoteCommentThread({
   onUpdate,
   onDelete,
   onToggleResolved,
+  active = false,
+  onJumpToAnchor,
 }: NoteCommentThreadProps) {
   const { t } = useTranslation();
   const [showReply, setShowReply] = useState(false);
@@ -177,12 +185,18 @@ export function NoteCommentThread({
     </div>
   );
 
+  const isInline = !!thread.anchor;
+  const isOrphan = isInline && thread.anchor_status === "ORPHANED";
+
   return (
     <div
+      data-thread-id={thread.id}
       className={`rounded-xl border transition-all ${
-        thread.is_resolved
-          ? "border-foreground/5 bg-white/[0.02] opacity-70"
-          : "border-foreground/10 bg-white/[0.03]"
+        active
+          ? "border-bridge-accent ring-2 ring-bridge-accent/30 bg-bridge-accent/5"
+          : thread.is_resolved
+            ? "border-foreground/5 bg-white/[0.02] opacity-70"
+            : "border-foreground/10 bg-white/[0.03]"
       }`}
     >
       {/* Thread header */}
@@ -210,10 +224,24 @@ export function NoteCommentThread({
           </button>
         )}
 
-        {thread.block_id && (
-          <span className="text-xs font-mono text-slate-600 truncate max-w-[100px]">
-            #{thread.block_id.substring(0, 8)}
+        {isInline ? (
+          <span
+            className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
+              isOrphan
+                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                : "bg-bridge-accent/15 text-bridge-accent"
+            }`}
+          >
+            {isOrphan
+              ? t("notes.inlineMemo.orphan", "원문 위치 없음")
+              : t("notes.inlineMemo.badge", "인라인")}
           </span>
+        ) : (
+          thread.block_id && (
+            <span className="text-xs font-mono text-slate-600 truncate max-w-[100px]">
+              #{thread.block_id.substring(0, 8)}
+            </span>
+          )
         )}
 
         {thread.is_resolved && thread.resolved_by && (
@@ -237,6 +265,34 @@ export function NoteCommentThread({
           </button>
         )}
       </div>
+
+      {/* Quoted passage (inline memo) */}
+      {isInline && thread.anchor && (
+        <button
+          type="button"
+          onClick={() => !isOrphan && onJumpToAnchor?.(thread.id)}
+          disabled={isOrphan || !onJumpToAnchor}
+          title={
+            isOrphan
+              ? t("notes.inlineMemo.orphan", "원문 위치 없음")
+              : t("notes.inlineMemo.jump", "본문에서 보기")
+          }
+          className={`mx-3 mt-2 flex items-start gap-1.5 w-[calc(100%-1.5rem)] text-left text-xs rounded-lg px-2 py-1.5 border-l-2 transition-colors ${
+            isOrphan
+              ? "border-amber-500/60 bg-amber-500/5 text-slate-500 cursor-default"
+              : thread.is_resolved
+                ? "border-bridge-secondary/60 bg-bridge-secondary/5 text-slate-500 line-through decoration-slate-500/60 hover:bg-bridge-secondary/10"
+                : "border-bridge-accent bg-bridge-accent/5 text-slate-400 hover:bg-bridge-accent/10 hover:text-foreground"
+          }`}
+        >
+          {isOrphan ? (
+            <Unlink className="h-3 w-3 mt-0.5 flex-shrink-0 text-amber-500" />
+          ) : (
+            <Quote className="h-3 w-3 mt-0.5 flex-shrink-0 text-bridge-accent" />
+          )}
+          <span className="line-clamp-2 break-words">{thread.anchor.text}</span>
+        </button>
+      )}
 
       {/* Root comment */}
       <div className="px-3">{renderComment(thread, true)}</div>

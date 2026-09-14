@@ -27,6 +27,7 @@ import jakarta.persistence.EntityManager;
 import org.springframework.dao.DataIntegrityViolationException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -99,8 +100,9 @@ public class AuthService {
         user.updateLastLoginAt();
         userRepository.save(user);
 
-        // 기존 리프레시 토큰 정리 (다중 세션 토큰 누적 방지)
-        refreshTokenRepository.deleteByUserId(user.getId());
+        // 다른 기기 세션은 유지하고, 만료분과 상한 초과분만 정리한다.
+        // 예전엔 전부 삭제해서 폰에서 로그인하면 다음 날 PC가 튕겼다.
+        pruneRefreshTokens(user.getId());
 
         log.info("User logged in: {}", user.getEmail());
         return createTokenResponse(user);
@@ -174,8 +176,8 @@ public class AuthService {
             // 기존 Google 사용자 - 로그인 처리
             user.updateLastLoginAt();
             userRepository.save(user);
-            // 기존 리프레시 토큰 정리
-            refreshTokenRepository.deleteByUserId(user.getId());
+            // 다른 기기 세션 유지, 만료분·상한 초과분만 정리
+            pruneRefreshTokens(user.getId());
             log.info("Google user logged in: {}", user.getEmail());
             return createTokenResponse(user);
         }
@@ -193,8 +195,8 @@ public class AuthService {
                 }
                 user.updateLastLoginAt();
                 userRepository.save(user);
-                // 기존 리프레시 토큰 정리
-                refreshTokenRepository.deleteByUserId(user.getId());
+                // 다른 기기 세션 유지, 만료분·상한 초과분만 정리
+                pruneRefreshTokens(user.getId());
                 log.info("Google account linked to existing user: {}", user.getEmail());
                 return createTokenResponse(user);
             } else {
@@ -221,6 +223,26 @@ public class AuthService {
         log.info("New Google user created: {}", user.getEmail());
 
         return createTokenResponse(user);
+    }
+
+    /** 유저당 동시 세션(리프레시 토큰) 상한. 초과분은 오래된 것부터 지운다. */
+    private static final int MAX_REFRESH_TOKENS_PER_USER = 10;
+
+    /**
+     * 로그인 직전 호출. 만료된 토큰과 상한을 넘는 오래된 토큰만 지우고
+     * 나머지 기기 세션은 그대로 둔다. 새 토큰이 곧 추가되므로 상한-1개까지만 남긴다.
+     */
+    private void pruneRefreshTokens(String userId) {
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        refreshTokenRepository.deleteExpiredTokensByUserId(userId, now);
+
+        List<RefreshToken> alive = refreshTokenRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+        int keep = MAX_REFRESH_TOKENS_PER_USER - 1;
+        if (alive.size() > keep) {
+            List<RefreshToken> excess = alive.subList(keep, alive.size());
+            refreshTokenRepository.deleteAll(excess);
+            log.info("Pruned {} excess refresh tokens for user: {}", excess.size(), userId);
+        }
     }
 
     private TokenResponse createTokenResponse(User user) {

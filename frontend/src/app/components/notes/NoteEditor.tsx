@@ -68,6 +68,9 @@ import {
   SuggestionMenuController,
   getDefaultReactSlashMenuItems,
   TableHandlesController,
+  FormattingToolbar,
+  FormattingToolbarController,
+  getFormattingToolbarItems,
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
 import "@blocknote/core/fonts/inter.css";
@@ -76,6 +79,22 @@ import { NoteTagManager } from "./NoteTagManager";
 import { NoteVersionHistory } from "./NoteVersionHistory";
 import { NoteAIInlineSection } from "./NoteAIInlineSection";
 import { NoteCommentSidebar } from "./NoteCommentSidebar";
+import { NoteInlineMemoLayer } from "./NoteInlineMemoLayer";
+import type { MemoComposerRequest } from "./NoteInlineMemoLayer";
+import { NoteMemoToolbarButton } from "./NoteMemoToolbarButton";
+import { useNoteCommentThreads } from "../../hooks/useNoteCommentThreads";
+import type { AnchorDraft } from "../../utils/noteAnchor";
+import {
+  createNoteMemoPlugin,
+  setMemoDecorations,
+  setPendingMemoRange,
+  readMemoPositions,
+  anchorFromEditorSelection,
+  selectionRect,
+  MEMO_DECORATION_CLASS,
+} from "../../utils/noteMemoPm";
+import type { MemoSpec } from "../../utils/noteMemoPm";
+import type { NoteCommentUpdateAnchorData } from "../../utils/api";
 import { CollabPresence } from "./CollabPresence";
 import { useAuth } from "../../contexts/AuthContext";
 import { noteSchema as schema } from "./blocks/schema";
@@ -598,6 +617,34 @@ function CollabNoteEditor({
   const hoveredBlockIdRef = useRef<string | null>(null);
   const commentsPanelRef = useRef<HTMLDivElement>(null);
 
+  // Inline memo state — threads are loaded here (not only in the panel) so
+  // highlights render in read mode even while the comments panel is closed.
+  const {
+    threads: commentThreads,
+    reload: reloadCommentThreads,
+    svc: commentSvc,
+    scopeId: commentScopeId,
+  } = useNoteCommentThreads({ boardId, orgId, personal }, note.id);
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const [memoJumpNonce, setMemoJumpNonce] = useState(0);
+  const [commentsRefreshKey, setCommentsRefreshKey] = useState(0);
+  const [memoRequest, setMemoRequest] = useState<MemoComposerRequest | null>(
+    null,
+  );
+  const memoRequestNonce = useRef(0);
+
+  // Block-level left border marks BLOCK comments only — inline memos already
+  // show as a highlight on the passage itself, so a border would double up.
+  useEffect(() => {
+    setCommentBlockIds(
+      new Set(
+        commentThreads
+          .filter((c) => c.block_id && !c.anchor)
+          .map((c) => c.block_id!),
+      ),
+    );
+  }, [commentThreads]);
+
   // AI state
   const [aiData, setAiData] = useState<NoteAISuggestionResponse | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -625,10 +672,18 @@ function CollabNoteEditor({
     [boardId, orgId, personal],
   );
 
+  // Inline memo highlights for EDIT mode. A ProseMirror plugin (not document
+  // marks) so highlights never reach the saved content or the Yjs doc, and are
+  // mapped through local typing and remote collab edits for free.
+  const memoPluginRef = useRef(createNoteMemoPlugin());
+
   // Create BlockNote editor with Yjs collaboration
   const editor = useCreateBlockNote(
     {
       schema,
+      _extensions: {
+        noteInlineMemo: { plugin: memoPluginRef.current },
+      },
       dictionary,
       trailingBlock: true,
       tabBehavior: "prefer-indent",
@@ -1143,6 +1198,10 @@ function CollabNoteEditor({
         true,
         discardDraft,
       );
+      // Persist where the inline memos ended up. Decorations tracked them
+      // through every edit in this session; the stored offsets are only now
+      // brought back in line with the published text.
+      persistMemoPositionsRef.current();
       // Update VIEW mode's static HTML preview immediately so the snapshot
       // shows without waiting for the note.content prop useEffect.
       const html = await contentToHtml(viewConverter as any, json);
@@ -1417,6 +1476,183 @@ function CollabNoteEditor({
       commentsPanelRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 100);
   }, []);
+
+  // ── Inline memos (read mode) ──
+  const handleCreateInlineMemo = useCallback(
+    async (draft: AnchorDraft, content: string, mentions: string[]) => {
+      try {
+        const created = await commentSvc.createComment(commentScopeId, note.id, {
+          content,
+          block_id: draft.block_id,
+          mentions: mentions.length > 0 ? mentions : undefined,
+          anchor: {
+            text: draft.text,
+            prefix: draft.prefix,
+            suffix: draft.suffix,
+            start: draft.start,
+            end: draft.end,
+          },
+        });
+        await reloadCommentThreads();
+        setCommentsRefreshKey((k) => k + 1);
+        setShowComments(true);
+        setActiveCommentId(created.id);
+        toast.success(t("notes.inlineMemo.created", "메모를 남겼습니다"));
+      } catch (err) {
+        console.error("Failed to create inline memo:", err);
+        toast.error(t("notes.inlineMemo.createFailed", "메모를 남기지 못했습니다"));
+        throw err;
+      }
+    },
+    [commentSvc, commentScopeId, note.id, reloadCommentThreads, t],
+  );
+
+  const handleOpenMemoThread = useCallback((commentId: string) => {
+    setShowComments(true);
+    setActiveCommentId(commentId);
+    setTimeout(() => {
+      commentsPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 120);
+  }, []);
+
+  const handleJumpToAnchor = useCallback(
+    (commentId: string) => {
+      setActiveCommentId(commentId);
+      if (mode === "edit") {
+        // Read mode scrolls via the memo layer; edit mode's highlights are
+        // ProseMirror decorations, so reach for the decorated span directly.
+        const dom = editor.prosemirrorView?.dom as HTMLElement | undefined;
+        const el = dom?.querySelector<HTMLElement>(
+          `.${MEMO_DECORATION_CLASS}[data-comment-id="${CSS.escape(commentId)}"]`,
+        );
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("is-flash");
+          setTimeout(() => el.classList.remove("is-flash"), 1400);
+        } else {
+          toast.info(
+            t(
+              "notes.inlineMemo.orphanToast",
+              "원문 위치를 찾을 수 없어요. 본문이 바뀌었을 수 있습니다.",
+            ),
+          );
+        }
+        return;
+      }
+      setMemoJumpNonce((n) => n + 1);
+    },
+    [mode, editor, t],
+  );
+
+  // ── Edit mode: draw / refresh the decoration highlights ──
+  const memoSpecs = useMemo<MemoSpec[]>(
+    () =>
+      commentThreads
+        .filter((c) => c.anchor && !c.parent_id)
+        .map((c) => ({
+          id: c.id,
+          blockId: c.block_id,
+          anchor: c.anchor!,
+          resolved: c.is_resolved,
+          active: c.id === activeCommentId,
+        })),
+    [commentThreads, activeCommentId],
+  );
+
+  useEffect(() => {
+    if (mode !== "edit") return;
+    const view = editor.prosemirrorView;
+    if (!view) return;
+    setMemoDecorations(view, memoSpecs);
+  }, [mode, editor, memoSpecs, editorGen]);
+
+  // Toolbar button → build an anchor from the live selection and open the composer
+  const handleEditModeAddMemo = useCallback(() => {
+    const view = editor.prosemirrorView;
+    if (!view) return;
+    const draft = anchorFromEditorSelection(view.state);
+    const rect = selectionRect(view);
+    if (!draft || !rect) {
+      toast.error(
+        t("notes.inlineMemo.selectFirst", "메모를 남길 문장을 먼저 선택하세요"),
+      );
+      return;
+    }
+    const { from, to } = view.state.selection;
+    setPendingMemoRange(view, { from, to });
+    memoRequestNonce.current += 1;
+    setMemoRequest({ draft, rect, nonce: memoRequestNonce.current });
+  }, [editor, t]);
+
+  const handleMemoComposerClosed = useCallback(() => {
+    const view = editor.prosemirrorView;
+    if (view) setPendingMemoRange(view, null);
+    setMemoRequest(null);
+  }, [editor]);
+
+  // Click a decoration highlight in edit mode → open its thread
+  useEffect(() => {
+    if (mode !== "edit") return;
+    const dom = editor.prosemirrorView?.dom as HTMLElement | undefined;
+    if (!dom) return;
+    const onClick = (e: MouseEvent) => {
+      const el = (e.target as HTMLElement).closest?.(
+        `.${MEMO_DECORATION_CLASS}[data-comment-id]`,
+      ) as HTMLElement | null;
+      const id = el?.getAttribute("data-comment-id");
+      if (!id) return;
+      setShowComments(true);
+      setActiveCommentId(id);
+    };
+    dom.addEventListener("click", onClick);
+    return () => dom.removeEventListener("click", onClick);
+  }, [mode, editor, editorGen]);
+
+  // Client-side re-anchoring found the passage elsewhere (or lost it) → tell the server.
+  const handleAnchorChanged = useCallback(
+    (commentId: string, update: NoteCommentUpdateAnchorData) => {
+      commentSvc
+        .updateAnchor(commentScopeId, note.id, commentId, update)
+        .catch((err) => console.warn("Failed to update memo anchor:", err));
+    },
+    [commentSvc, commentScopeId, note.id],
+  );
+
+  // Write back every memo whose passage moved while this note was being edited.
+  const persistMemoPositions = useCallback(() => {
+    const view = editor.prosemirrorView;
+    if (!view) return;
+    const positions = readMemoPositions(view.state);
+    for (const thread of commentThreads) {
+      if (!thread.anchor || thread.parent_id) continue;
+      const next = positions.get(thread.id);
+      if (!next) {
+        if (thread.anchor_status !== "ORPHANED") {
+          handleAnchorChanged(thread.id, { status: "ORPHANED" });
+        }
+        continue;
+      }
+      const unchanged =
+        thread.anchor_status === "ATTACHED" &&
+        thread.block_id === next.blockId &&
+        thread.anchor.start === next.start &&
+        thread.anchor.end === next.end;
+      if (unchanged) continue;
+      handleAnchorChanged(thread.id, {
+        status: "ATTACHED",
+        block_id: next.blockId,
+        anchor: {
+          text: thread.anchor.text,
+          prefix: thread.anchor.prefix ?? "",
+          suffix: thread.anchor.suffix ?? "",
+          start: next.start,
+          end: next.end,
+        },
+      });
+    }
+  }, [editor, commentThreads, handleAnchorChanged]);
+  const persistMemoPositionsRef = useRef(persistMemoPositions);
+  persistMemoPositionsRef.current = persistMemoPositions;
 
   // CSS for block comment indicators
   const blockIndicatorStyle = useMemo(() => {
@@ -1841,7 +2077,8 @@ function CollabNoteEditor({
       </div>
 
       {/* BlockNote Editor + AI Section + Bottom Comments */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 flex flex-col md:flex-row min-h-0">
+        <div className="flex-1 min-w-0 overflow-y-auto p-4">
         {/* Block comment indicator CSS */}
         {blockIndicatorStyle && <style>{blockIndicatorStyle}</style>}
 
@@ -1946,6 +2183,17 @@ function CollabNoteEditor({
               editable={canEdit && mode === "edit"}
               onChange={handleEditorChange}
             >
+              <FormattingToolbarController
+                formattingToolbar={() => (
+                  <FormattingToolbar>
+                    {...getFormattingToolbarItems()}
+                    <NoteMemoToolbarButton
+                      key="inlineMemo"
+                      onAddMemo={handleEditModeAddMemo}
+                    />
+                  </FormattingToolbar>
+                )}
+              />
               <SuggestionMenuController
                 triggerCharacter="/"
                 getItems={async (query) =>
@@ -1958,6 +2206,27 @@ function CollabNoteEditor({
               />
               <TableHandlesController />
             </BlockNoteView>
+          )}
+
+          {/* Inline memos — read mode: select text → memo → highlight */}
+          {currentUser && (
+            <NoteInlineMemoLayer
+              containerRef={editorContainerRef}
+              mode={mode === "edit" ? "edit" : "view"}
+              enabled={mode === "view" || (mode === "edit" && canEdit)}
+              viewKey={viewHtml}
+              threads={commentThreads}
+              canComment={canEdit}
+              boardId={boardId}
+              scopeId={commentScopeId}
+              activeCommentId={activeCommentId}
+              jumpNonce={memoJumpNonce}
+              onCreate={handleCreateInlineMemo}
+              onOpenThread={handleOpenMemoThread}
+              onAnchorChanged={handleAnchorChanged}
+              request={memoRequest}
+              onRequestClosed={handleMemoComposerClosed}
+            />
           )}
 
           {/* Floating block comment button — Edit mode only */}
@@ -2009,26 +2278,6 @@ function CollabNoteEditor({
           </div>
         )}
 
-        {/* Block/Thread Comments Panel (toggled) */}
-        {showComments && currentUser && (
-          <div ref={commentsPanelRef}>
-            <NoteCommentSidebar
-              boardId={boardId}
-              orgId={orgId}
-              personal={personal}
-              noteId={note.id}
-              currentUserId={currentUser.id}
-              canEdit={canEdit}
-              onClose={() => {
-                setShowComments(false);
-                setActiveBlockId(null);
-              }}
-              activeBlockId={activeBlockId}
-              onBlockIdsChange={setCommentBlockIds}
-            />
-          </div>
-        )}
-
         {/* Bottom Confluence-style Comments Panel (always visible) */}
         {currentUser && (
           <NoteBottomComments
@@ -2039,6 +2288,36 @@ function CollabNoteEditor({
             currentUserId={currentUser.id}
             canEdit={canEdit}
           />
+        )}
+        </div>
+
+        {/* Comments rail — right side on md+, stacked below on mobile */}
+        {showComments && currentUser && (
+          <aside
+            ref={commentsPanelRef}
+            className="w-full md:w-[340px] lg:w-[380px] shrink-0 flex flex-col min-h-0
+              max-h-[45vh] md:max-h-none border-t md:border-t-0 md:border-l
+              border-foreground/[0.08] bg-bridge-obsidian"
+          >
+            <NoteCommentSidebar
+              variant="rail"
+              boardId={boardId}
+              orgId={orgId}
+              personal={personal}
+              noteId={note.id}
+              currentUserId={currentUser.id}
+              canEdit={canEdit}
+              onClose={() => {
+                setShowComments(false);
+                setActiveBlockId(null);
+                setActiveCommentId(null);
+              }}
+              activeBlockId={activeBlockId}
+              activeCommentId={activeCommentId}
+              refreshKey={commentsRefreshKey}
+              onJumpToAnchor={handleJumpToAnchor}
+            />
+          </aside>
         )}
       </div>
     </div>

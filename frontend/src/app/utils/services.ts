@@ -33,7 +33,12 @@ import {
   jobRoleAPI,
   contractorAPI,
 } from "./api";
-import type { NoteStatus, NoteUpdateData } from "./api";
+import type {
+  NoteStatus,
+  NoteUpdateData,
+  NoteCommentCreateData,
+  NoteCommentUpdateAnchorData,
+} from "./api";
 import {
   mockBoards,
   mockFeatures,
@@ -3166,12 +3171,7 @@ export const noteCommentService = {
   createComment: async (
     boardId: string,
     noteId: string,
-    data: {
-      content: string;
-      block_id?: string | null;
-      parent_id?: string | null;
-      mentions?: string[];
-    },
+    data: NoteCommentCreateData,
   ) => {
     return await noteCommentAPI.createComment(boardId, noteId, data);
   },
@@ -3198,6 +3198,15 @@ export const noteCommentService = {
     commentId: string,
   ) => {
     return await noteCommentAPI.toggleResolved(boardId, noteId, commentId);
+  },
+
+  updateAnchor: async (
+    boardId: string,
+    noteId: string,
+    commentId: string,
+    data: NoteCommentUpdateAnchorData,
+  ) => {
+    return await noteCommentAPI.updateAnchor(boardId, noteId, commentId, data);
   },
 
   toggleReaction: async (
@@ -3362,12 +3371,7 @@ export const orgNoteCommentService = {
   createComment: async (
     orgId: string,
     noteId: string,
-    data: {
-      content: string;
-      block_id?: string | null;
-      parent_id?: string | null;
-      mentions?: string[];
-    },
+    data: NoteCommentCreateData,
   ) => {
     return await orgNoteCommentAPI.createComment(orgId, noteId, data);
   },
@@ -3389,6 +3393,14 @@ export const orgNoteCommentService = {
   },
   toggleResolved: async (orgId: string, noteId: string, commentId: string) => {
     return await orgNoteCommentAPI.toggleResolved(orgId, noteId, commentId);
+  },
+  updateAnchor: async (
+    orgId: string,
+    noteId: string,
+    commentId: string,
+    data: NoteCommentUpdateAnchorData,
+  ) => {
+    return await orgNoteCommentAPI.updateAnchor(orgId, noteId, commentId, data);
   },
   toggleReaction: async (
     orgId: string,
@@ -3544,12 +3556,7 @@ export const myNoteCommentService = {
   createComment: async (
     scopeId: string,
     noteId: string,
-    data: {
-      content: string;
-      block_id?: string | null;
-      parent_id?: string | null;
-      mentions?: string[];
-    },
+    data: NoteCommentCreateData,
   ) => {
     return await myNoteCommentAPI.createComment(scopeId, noteId, data);
   },
@@ -3575,6 +3582,14 @@ export const myNoteCommentService = {
     commentId: string,
   ) => {
     return await myNoteCommentAPI.toggleResolved(scopeId, noteId, commentId);
+  },
+  updateAnchor: async (
+    scopeId: string,
+    noteId: string,
+    commentId: string,
+    data: NoteCommentUpdateAnchorData,
+  ) => {
+    return await myNoteCommentAPI.updateAnchor(scopeId, noteId, commentId, data);
   },
   toggleReaction: async (
     scopeId: string,

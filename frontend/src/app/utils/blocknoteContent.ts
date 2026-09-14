@@ -416,6 +416,26 @@ function attachChildren(
 }
 
 /**
+ * Stamp the block's id onto the element that represents it in the static view
+ * (`data-id`, the same attribute BlockNote uses in the editor DOM). Inline
+ * memos anchor to `[data-id]` + a character offset inside that block's own
+ * text, so the view HTML must expose block identity. For list items the <li>
+ * is stamped rather than the <ul>/<ol>: mergeAdjacentLists later folds sibling
+ * lists together and would drop an attribute on the list element.
+ */
+function stampBlockId(nodes: Node[], blockId: unknown): void {
+  if (typeof blockId !== "string" || !blockId) return;
+  const first = nodes.find((n): n is HTMLElement => n.nodeType === 1);
+  if (!first) return;
+  let target: HTMLElement = first;
+  if (LIST_TAGS.has(first.nodeName)) {
+    const li = first.querySelector(":scope > li");
+    if (li) target = li as HTMLElement;
+  }
+  if (!target.hasAttribute("data-id")) target.setAttribute("data-id", blockId);
+}
+
+/**
  * Serialize a block tree to external (lossy) HTML while preserving nesting.
  * Each block is exported on its own (children stripped) via blocksToHTMLLossy
  * and its children are recursively attached by attachChildren. A block whose
@@ -453,6 +473,7 @@ async function serializeBlocksNested(
     const tpl = doc.createElement("template");
     tpl.innerHTML = html;
     let nodes: Node[] = Array.from(tpl.content.childNodes);
+    stampBlockId(nodes, block.id);
 
     if (Array.isArray(children) && children.length > 0) {
       const childFrag = await serializeBlocksNested(editor, children, doc);

@@ -3584,6 +3584,22 @@
     "featureAiCredits": "AI Credits: {{credits}}/month"
   },
   "notes": {
+    "inlineMemo": {
+      "toolbar": "Selected text",
+      "selectFirst": "Select the text you want to annotate first",
+      "add": "Add memo",
+      "composer": "Write inline memo",
+      "placeholder": "Memo on this passage… @ to mention",
+      "copyFailed": "Couldn't copy",
+      "orphanToast": "Couldn't find this passage. The note body may have changed.",
+      "orphan": "Passage not found",
+      "badge": "Inline",
+      "filter": "Inline memos",
+      "section": "Inline memos",
+      "jump": "Show in note",
+      "created": "Memo added",
+      "createFailed": "Couldn't add memo"
+    },
     "moveFailed": "Failed to move the note",
     "moveInto": "Into",
     "title": "Notes",

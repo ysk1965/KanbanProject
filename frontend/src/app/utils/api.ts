@@ -122,6 +122,9 @@ export interface ApiError {
 // 신호를 발행하지 않는다(신호 → 재확인 → 실패 → 신호 루프 방지).
 const HEALTH_ENDPOINT = "/system/status";
 
+// 탭 간 refresh 직렬화용 Web Locks 이름 (같은 origin의 모든 탭이 공유)
+const AUTH_REFRESH_LOCK = "bridge-auth-refresh";
+
 // API 클라이언트
 class ApiClient {
   private baseURL: string;
@@ -352,17 +355,52 @@ class ApiClient {
   }
 
   private async tryRefreshToken(): Promise<boolean> {
-    // 이미 refresh 진행 중이면 해당 Promise를 공유하여 중복 요청 방지
+    // 이미 refresh 진행 중이면 해당 Promise를 공유하여 중복 요청 방지 (탭 내부)
     if (this.refreshPromise) {
       return this.refreshPromise;
     }
 
-    this.refreshPromise = this.executeRefreshToken();
+    this.refreshPromise = this.executeRefreshTokenAcrossTabs();
     try {
       return await this.refreshPromise;
     } finally {
       this.refreshPromise = null;
     }
+  }
+
+  /**
+   * 탭 간 refresh 직렬화. refresh token은 1회용(회전)이라 탭 두 개가 같은 토큰으로
+   * 동시에 갱신하면 늦은 쪽이 401을 받고 localStorage를 지워 앞선 탭 세션까지 날렸다.
+   * Web Locks로 한 번에 한 탭만 갱신하고, 락을 잡은 뒤 이미 다른 탭이 갱신했으면 건너뛴다.
+   * Web Locks 미지원 브라우저는 락 없이 실행하며 executeRefreshToken의 사후 검사가 받쳐 준다.
+   */
+  private async executeRefreshTokenAcrossTabs(): Promise<boolean> {
+    const before = getRefreshToken();
+    if (!before) {
+      this.redirectToLogin();
+      return false;
+    }
+
+    const run = async (): Promise<boolean> => {
+      const current = getRefreshToken();
+      if (current && current !== before) {
+        // 락 대기 중 다른 탭이 이미 갱신 완료 — 새 토큰이 localStorage에 있다
+        console.log("✅ [Auth] 다른 탭이 토큰을 갱신함, 재사용");
+        return true;
+      }
+      return this.executeRefreshToken();
+    };
+
+    const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+    if (locks?.request) {
+      try {
+        return await locks.request(AUTH_REFRESH_LOCK, run);
+      } catch (error) {
+        // 락 API 자체가 실패한 경우(권한/컨텍스트 문제)만 락 없이 진행
+        console.warn("⚠️ [Auth] Web Locks 사용 불가, 락 없이 갱신", error);
+      }
+    }
+    return run();
   }
 
   private async executeRefreshToken(): Promise<boolean> {
@@ -399,6 +437,14 @@ class ApiClient {
         reportServerUnreachable("/auth/refresh");
         return false;
       }
+    }
+
+    // 4xx인데 그 사이 localStorage의 refresh token이 바뀌었다면 다른 탭(또는 락 미지원
+    // 브라우저의 다른 탭)이 먼저 회전시킨 것 — 세션은 살아 있으니 지우지 않는다.
+    const latest = getRefreshToken();
+    if (latest && latest !== refreshToken) {
+      console.log("✅ [Auth] 갱신 경쟁에서 밀렸지만 다른 탭이 갱신 완료, 세션 유지");
+      return true;
     }
 
     // 세션 만료 - 로그인 페이지로 리다이렉트
@@ -7249,6 +7295,33 @@ export interface NoteCommentAuthor {
   profile_image: string | null;
 }
 
+/** 인라인 메모 텍스트 범위 앵커 (block_id 블록 평문 기준) */
+export interface NoteCommentAnchor {
+  text: string;
+  prefix?: string | null;
+  suffix?: string | null;
+  start?: number | null;
+  end?: number | null;
+}
+
+export type NoteCommentAnchorStatus = "ATTACHED" | "ORPHANED";
+
+export interface NoteCommentCreateData {
+  content: string;
+  block_id?: string | null;
+  parent_id?: string | null;
+  mentions?: string[];
+  /** 있으면 인라인 메모, 없으면 블록 댓글 */
+  anchor?: NoteCommentAnchor | null;
+}
+
+export interface NoteCommentUpdateAnchorData {
+  anchor?: NoteCommentAnchor | null;
+  /** set when re-anchoring found the quote in a different block */
+  block_id?: string | null;
+  status: NoteCommentAnchorStatus;
+}
+
 export interface NoteCommentDetail {
   id: string;
   note_id: string;
@@ -7257,6 +7330,8 @@ export interface NoteCommentDetail {
   author: NoteCommentAuthor;
   content: string;
   mentions: string[];
+  anchor: NoteCommentAnchor | null;
+  anchor_status: NoteCommentAnchorStatus | null;
   is_resolved: boolean;
   resolved_by: NoteCommentAuthor | null;
   resolved_at: string | null;
@@ -7281,12 +7356,7 @@ export const noteCommentAPI = {
   createComment: async (
     boardId: string,
     noteId: string,
-    data: {
-      content: string;
-      block_id?: string | null;
-      parent_id?: string | null;
-      mentions?: string[];
-    },
+    data: NoteCommentCreateData,
   ) => {
     return apiClient.post<NoteCommentDetail>(
       `/boards/${boardId}/notes/${noteId}/comments`,
@@ -7322,6 +7392,18 @@ export const noteCommentAPI = {
   ) => {
     return apiClient.post<NoteCommentDetail>(
       `/boards/${boardId}/notes/${noteId}/comments/${commentId}/resolve`,
+    );
+  },
+
+  updateAnchor: async (
+    boardId: string,
+    noteId: string,
+    commentId: string,
+    data: NoteCommentUpdateAnchorData,
+  ) => {
+    return apiClient.put<NoteCommentDetail>(
+      `/boards/${boardId}/notes/${noteId}/comments/${commentId}/anchor`,
+      data,
     );
   },
 
@@ -7846,12 +7928,7 @@ export const orgNoteCommentAPI = {
   createComment: async (
     orgId: string,
     noteId: string,
-    data: {
-      content: string;
-      block_id?: string | null;
-      parent_id?: string | null;
-      mentions?: string[];
-    },
+    data: NoteCommentCreateData,
   ) => {
     return apiClient.post<NoteCommentDetail>(
       `/organizations/${orgId}/notes/${noteId}/comments`,
@@ -7883,6 +7960,18 @@ export const orgNoteCommentAPI = {
   toggleResolved: async (orgId: string, noteId: string, commentId: string) => {
     return apiClient.post<NoteCommentDetail>(
       `/organizations/${orgId}/notes/${noteId}/comments/${commentId}/resolve`,
+    );
+  },
+
+  updateAnchor: async (
+    orgId: string,
+    noteId: string,
+    commentId: string,
+    data: NoteCommentUpdateAnchorData,
+  ) => {
+    return apiClient.put<NoteCommentDetail>(
+      `/organizations/${orgId}/notes/${noteId}/comments/${commentId}/anchor`,
+      data,
     );
   },
 
@@ -8109,12 +8198,7 @@ export const myNoteCommentAPI = {
   createComment: async (
     _scopeId: string,
     noteId: string,
-    data: {
-      content: string;
-      block_id?: string | null;
-      parent_id?: string | null;
-      mentions?: string[];
-    },
+    data: NoteCommentCreateData,
   ) => {
     return apiClient.post<NoteCommentDetail>(
       `/me/notes/${noteId}/comments`,
@@ -8154,6 +8238,18 @@ export const myNoteCommentAPI = {
   ) => {
     return apiClient.post<NoteCommentDetail>(
       `/me/notes/${noteId}/comments/${commentId}/resolve`,
+    );
+  },
+
+  updateAnchor: async (
+    _scopeId: string,
+    noteId: string,
+    commentId: string,
+    data: NoteCommentUpdateAnchorData,
+  ) => {
+    return apiClient.put<NoteCommentDetail>(
+      `/me/notes/${noteId}/comments/${commentId}/anchor`,
+      data,
     );
   },
 
