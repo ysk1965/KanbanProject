@@ -83,6 +83,13 @@ interface MilestoneTableViewProps {
   onSprintBoardChange?: (board: SprintBoard) => void;
 }
 
+/** 줄 기간 경고 기준이 되는 스프린트 기간 */
+type SprintWindow = {
+  name: string;
+  start: string | null;
+  end: string | null;
+};
+
 type StatusFilter = "all" | "doing" | "open";
 type TaskStatus = "done" | "doing" | "todo";
 
@@ -403,23 +410,26 @@ export function MilestoneTableView({
     (tk: Task): boolean => {
       if (statusFilter === "doing" && statusOf(tk) !== "doing") return false;
       if (statusFilter === "open" && statusOf(tk) === "done") return false;
+      const sprintId = sprintInfoByTask.get(tk.id)?.sprintId ?? null;
+      // 스프린트 필터에 걸린 줄만 남긴 목록 — 담당자 판정도 이 범위로 한다
+      // (S2로 걸러진 행인데 S1 줄의 담당자로 행이 서는 것 방지).
+      let scoped = checklists[tk.id]?.items ?? [];
       if (sprintFilter) {
-        const sprintId = sprintInfoByTask.get(tk.id)?.sprintId ?? null;
         if (sprintFilter === "none") {
           if (sprintId !== null) return false;
-        } else if (sprintId !== sprintFilter) {
-          // 태스크는 다른 스프린트여도 그 스프린트로 보낸 줄이 있으면 행이 선다(줄만 걸러 보여준다).
-          const sentHere = (checklists[tk.id]?.items ?? []).some(
+        } else {
+          scoped = scoped.filter(
             (i) => (i.sprint_id ?? sprintId) === sprintFilter,
           );
-          if (!sentHere) return false;
+          // 태스크는 다른 스프린트여도 그 스프린트로 보낸 줄이 있으면 행이 선다(줄만 걸러 보여준다).
+          if (sprintId !== sprintFilter && scoped.length === 0) return false;
         }
       }
       if (assigneeFilter) {
         const inTask = (tk.assignees ?? []).some(
           (a) => a.id === assigneeFilter,
         );
-        const inChecklist = (checklists[tk.id]?.items ?? []).some(
+        const inChecklist = scoped.some(
           (i) =>
             i.assignee?.id === assigneeFilter ||
             i.contractor?.id === assigneeFilter,
@@ -436,6 +446,55 @@ export function MilestoneTableView({
       sprintInfoByTask,
       checklists,
     ],
+  );
+
+  /**
+   * 필터가 걸린 동안 보여줄 체크 줄 — 행은 태스크지만 줄은 스프린트·담당자 단위다.
+   *  · 스프린트 필터: 그 스프린트 몫의 줄만 남긴다.
+   *  · 담당자 필터: 그 담당자(멤버·외주)의 줄만 남긴다. 단 걸리는 줄이 하나도
+   *    없으면 태스크 담당자로 걸린 행이므로 줄은 그대로 전부 보여준다.
+   */
+  const shownItemsOf = useCallback(
+    (tk: Task): ChecklistItem[] => {
+      let list = itemsOf(tk.id);
+      if (sprintFilter && sprintFilter !== "none") {
+        const taskSprintId = sprintInfoByTask.get(tk.id)?.sprintId ?? null;
+        list = list.filter(
+          (it) => (it.sprint_id ?? taskSprintId) === sprintFilter,
+        );
+      }
+      if (assigneeFilter) {
+        const mine = list.filter(
+          (it) =>
+            it.assignee?.id === assigneeFilter ||
+            it.contractor?.id === assigneeFilter,
+        );
+        if (mine.length > 0) list = mine;
+      }
+      return list;
+    },
+    [itemsOf, sprintFilter, sprintInfoByTask, assigneeFilter],
+  );
+
+  const sprintById = useMemo(
+    () => new Map(sprints.map((sp) => [sp.id, sp])),
+    [sprints],
+  );
+
+  /**
+   * 줄이 속한 스프린트의 기간 — 줄 기간이 이 밖으로 나가면 빨갛게 경고한다.
+   * 줄 스프린트(없으면 태스크 스프린트) 기준. 기간이 안 잡힌 스프린트면 undefined.
+   */
+  const sprintWindowOf = useCallback(
+    (item: ChecklistItem, taskSprintId: string | null): SprintWindow | undefined => {
+      if (!sprintEnabled) return undefined;
+      const sid = item.sprint_id ?? taskSprintId;
+      if (!sid) return undefined;
+      const sp = sprintById.get(sid);
+      if (!sp || (!sp.start_date && !sp.end_date)) return undefined;
+      return { name: sp.name, start: sp.start_date, end: sp.end_date };
+    },
+    [sprintEnabled, sprintById],
   );
 
   /** 피처 그룹 — 완료율 높은 순 (보드 컬럼과 동일 규칙) */
@@ -931,7 +990,7 @@ export function MilestoneTableView({
           sprint,
           tk.due_date ?? "",
         ];
-        const items = itemsOf(tk.id);
+        const items = shownItemsOf(tk);
         if (items.length === 0) {
           rows.push([...base, "", "", "", ""]);
         } else {
@@ -975,7 +1034,7 @@ export function MilestoneTableView({
     sprintInfoByTask,
     currentSeq,
     statusOf,
-    itemsOf,
+    shownItemsOf,
     milestone.title,
     t,
   ]);
@@ -1331,15 +1390,7 @@ export function MilestoneTableView({
                         const items = itemsOf(tk.id);
                         const taskSprintId =
                           sprintInfoByTask.get(tk.id)?.sprintId ?? null;
-                        // 스프린트 필터 중엔 그 스프린트 몫의 줄만 보여준다 — 행은 태스크지만 줄은 스프린트 단위다.
-                        const shownItems =
-                          sprintFilter && sprintFilter !== "none"
-                            ? items.filter(
-                                (it) =>
-                                  (it.sprint_id ?? taskSprintId) ===
-                                  sprintFilter,
-                              )
-                            : items;
+                        const shownItems = shownItemsOf(tk);
                         const state = checklists[tk.id];
                         const dueOver =
                           !tk.completed &&
@@ -1449,7 +1500,7 @@ export function MilestoneTableView({
                                   <span className="text-xs text-slate-600">
                                     —
                                   </span>
-                                ) : items.length === 0 &&
+                                ) : shownItems.length === 0 &&
                                   addingItemFor !== tk.id ? (
                                   <div className="flex items-center gap-2">
                                     <span className="text-xs text-slate-600">
@@ -1477,6 +1528,10 @@ export function MilestoneTableView({
                                         canEdit={canEdit}
                                         members={members}
                                         contractors={contractors}
+                                        sprintWindow={sprintWindowOf(
+                                          item,
+                                          taskSprintId,
+                                        )}
                                         sprintPick={
                                           sprintEnabled && sprints.length > 1
                                             ? {
@@ -1635,6 +1690,7 @@ function SortableChecklistLine({
   onDates,
   unassignedLabel,
   delayedLabel,
+  sprintWindow,
   sprintPick,
 }: {
   item: ChecklistItem;
@@ -1652,6 +1708,8 @@ function SortableChecklistLine({
   }) => void;
   unassignedLabel: string;
   delayedLabel: string;
+  /** 줄이 속한 스프린트의 기간 — 밖으로 나간 날짜를 빨갛게 표시하는 기준 */
+  sprintWindow?: SprintWindow;
   /** 줄 스프린트 지정 — 없으면(스프린트 1개 이하) 칩을 그리지 않는다 */
   sprintPick?: {
     taskSprintId: string | null;
@@ -1676,6 +1734,31 @@ function SortableChecklistLine({
   const [dateOpen, setDateOpen] = useState(false);
   const [sprintOpen, setSprintOpen] = useState(false);
   const overridden = !!item.sprint_overridden;
+  /**
+   * 스프린트 기간 이탈 — 시작일·마감일을 따로 본다.
+   * 스프린트 기간이 잡혀 있을 때만 판정하며, 벗어난 쪽 날짜만 빨갛게 표시한다.
+   */
+  const outOfSprint = (d?: string | null): boolean => {
+    if (!d || !sprintWindow) return false;
+    const v = d.slice(0, 10);
+    if (sprintWindow.start && v < sprintWindow.start.slice(0, 10)) return true;
+    if (sprintWindow.end && v > sprintWindow.end.slice(0, 10)) return true;
+    return false;
+  };
+  const startOut = outOfSprint(item.start_date);
+  const dueOut = outOfSprint(item.due_date);
+  const overdue =
+    !item.completed && !!item.due_date && daysUntil(item.due_date) < 0;
+  const outOfSprintTitle =
+    sprintWindow && (startOut || dueOut)
+      ? t("milestone.table.outOfSprintRange", {
+          defaultValue: "{{name}} 기간({{range}}) 밖입니다",
+          name: sprintWindow.name,
+          range: `${toShortDate(sprintWindow.start)}~${toShortDate(
+            sprintWindow.end,
+          )}`,
+        })
+      : undefined;
   const followLabel = t("milestone.table.lineSprintFollow", {
     defaultValue: "태스크 따라가기",
   });
@@ -1856,27 +1939,34 @@ function SortableChecklistLine({
         </div>
       )}
 
-      {/* 기간 (시작~마감) — 클릭 시 편집, 마감 지남 + 미완료면 빨강 */}
+      {/* 기간 (시작~마감) — 클릭 시 편집. 마감 지남 + 미완료면 전체 빨강,
+          스프린트 기간을 벗어난 날짜는 그 쪽만 빨강 */}
       {(item.start_date || item.due_date || canEdit) && (
         <div className="relative flex-shrink-0">
           <button
             onClick={canEdit ? () => setDateOpen((v) => !v) : undefined}
             disabled={!canEdit}
+            title={outOfSprintTitle}
             className={`text-xs tabular-nums whitespace-nowrap ${
-              !item.completed && item.due_date && daysUntil(item.due_date) < 0
-                ? "font-bold text-red-500"
-                : "text-slate-600"
+              overdue ? "font-bold text-red-500" : "text-slate-600"
             }${canEdit ? " cursor-pointer hover:text-foreground hover:underline" : ""}`}
           >
             {item.start_date || item.due_date ? (
               <>
-                {item.start_date ? toShortDate(item.start_date) : ""}~
-                {item.due_date ? toShortDate(item.due_date) : ""}
-                {!item.completed &&
-                item.due_date &&
-                daysUntil(item.due_date) < 0
-                  ? ` ${delayedLabel}`
-                  : ""}
+                <span
+                  className={
+                    !overdue && startOut ? "font-bold text-red-500" : ""
+                  }
+                >
+                  {item.start_date ? toShortDate(item.start_date) : ""}
+                </span>
+                ~
+                <span
+                  className={!overdue && dueOut ? "font-bold text-red-500" : ""}
+                >
+                  {item.due_date ? toShortDate(item.due_date) : ""}
+                </span>
+                {overdue ? ` ${delayedLabel}` : ""}
               </>
             ) : (
               <span className="opacity-0 group-hover/cl:opacity-100 transition-opacity">
