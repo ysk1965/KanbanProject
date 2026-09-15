@@ -2580,9 +2580,6 @@ export function SprintBoard({
     it: SprintItemCard,
     readOnly = false,
     memberScope?: { id: string; name: string },
-    // 피쳐 칩 — 컬럼이 피쳐 축이면(Feature 컬럼·도크 소그룹) 컬럼이 이미 말한 것이라 끈다.
-    // 구성원 컬럼·START 폴백처럼 여러 피쳐가 섞이는 곳에서만 켠다.
-    showFeatureTag = true,
   ) => {
     const curCol = it.sprint_column_id
       ? columnById.get(it.sprint_column_id)
@@ -2707,9 +2704,19 @@ export function SprintBoard({
     // 리뷰 중(MIDDLE) — 좌측 스트라이프를 앰버로. 지연이 이긴다.
     const inReview = !isDoneItem && curCol?.kind === "MIDDLE";
     const pct = cTotal > 0 ? Math.round((cDone / cTotal) * 100) : 0;
-    // 액션 — 아이콘만. 2줄 우측 빈 자리에 호버 시 나타나 담당·예외 칩을 덮지 않는다.
+    // 액션 — 아이콘만. 1줄 제목 옆(담당 앞)에 호버 시 나타난다. 손이 카드에 올라간 순간
+    // 필요한 건 예외 칩이 아니라 동작이라, 칩(이월·직접·D-day)은 그동안 자리를 비켜 준다.
+    // 칩을 밀어내는 대신 자리를 바꾸는 이유 — 칩이 둘 붙은 카드에서 제목이 두 글자로 잘리기 때문.
     const actionBtn =
       "inline-grid place-items-center w-[22px] h-[22px] rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50";
+    // 액션이 없는 카드(미리보기·부분 카드)는 칩을 숨길 이유가 없다.
+    const chipHide = showActions
+      ? "group-hover:hidden group-focus-within:hidden"
+      : "";
+    // 다른 스프린트로 보낸 줄 — 1줄의 "S1에 2줄" 칩을 걷어내고 2줄 분수 옆 +N으로 압축했다.
+    // 신호는 남겨야 한다: 이 카드가 3/5인데 태스크 자체는 더 크다는 사실을 못 읽으면 분모를 오해한다.
+    const sentCounts = isPartial ? [] : (it.foreign_line_counts ?? []);
+    const sentTotal = sentCounts.reduce((s, c) => s + c.total, 0);
     return (
       <div
         key={it.id}
@@ -2770,38 +2777,16 @@ export function SprintBoard({
           {/* 이월 배지 — 이번이 몇 번째 스프린트인지. */}
           {!isDoneItem && (it.carry_over_count ?? 0) > 0 && (
             <span
-              className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 tabular-nums"
+              className={`shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 tabular-nums ${chipHide}`}
               title={`${(it.carry_over_count ?? 0) + 1}번째 스프린트째 진행 중`}
             >
               이월 {it.carry_over_count}
             </span>
           )}
-          {/* 보낸 줄 배지 — 사라진 줄이 아니라 다른 스프린트로 옮겨간 줄임을 알린다. 클릭하면 그 스프린트로. */}
-          {!isPartial && (it.foreign_line_counts?.length ?? 0) > 0 && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedSprintId(it.foreign_line_counts![0].sprint_id);
-              }}
-              className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary tabular-nums hover:bg-bridge-secondary/25 transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-              title={`다른 스프린트로 보낸 항목 · ${it
-                .foreign_line_counts!.map(
-                  (c) => `S${c.sprint_seq ?? "?"} ${c.done}/${c.total}`,
-                )
-                .join(", ")}`}
-            >
-              {it
-                .foreign_line_counts!.map(
-                  (c) => `S${c.sprint_seq ?? "?"}에 ${c.total}줄`,
-                )
-                .join(" · ")}
-            </button>
-          )}
           {/* 직접 지정 — 주기와 다른 기간을 들고 있는 예외. 주기가 바뀌어도 날짜가 따라가지 않는다. */}
           {dateSource === "override" && sprintPeriod && (
             <span
-              className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400"
+              className={`shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 ${chipHide}`}
               title={`기간 직접 지정 · ${selectedSprint?.name ?? "이 스프린트"}은 ${sprintPeriod}`}
             >
               직접
@@ -2810,7 +2795,7 @@ export function SprintBoard({
           {/* 기간 칩 — 시작 전이면 시작 D-day, 임박·지연이면 마감 D-day. 평범한 마감은 표시하지 않는다. */}
           {upcoming ? (
             <span
-              className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-xs font-bold tabular-nums bg-foreground/[0.06] text-slate-400"
+              className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-xs font-bold tabular-nums bg-foreground/[0.06] text-slate-400 ${chipHide}`}
               title={`${formatDate(it.start_date, "M/d")} 시작`}
             >
               <Calendar className="w-3 h-3" />
@@ -2818,12 +2803,74 @@ export function SprintBoard({
             </span>
           ) : dday && dday.urgency !== "normal" ? (
             <span
-              className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-xs font-bold tabular-nums ${DDAY_BADGE[dday.urgency]}`}
+              className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-xs font-bold tabular-nums ${DDAY_BADGE[dday.urgency]} ${chipHide}`}
               title={formatDate(it.due_date)}
             >
               {dday.text}
             </span>
           ) : null}
+          {/* 호버 액션 — 빼기 / 리뷰 / 완료 / 상세. 아이콘만, 이름은 툴팁.
+              칩이 비켜 준 자리에 들어와 제목 길이를 건드리지 않는다. */}
+          {showActions && (
+            <div className="hidden group-hover:flex group-focus-within:flex items-center gap-0.5 shrink-0">
+              {showRemove && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeTaskFromSprint(it.task_id ?? it.id);
+                  }}
+                  className={`${actionBtn} bg-rose-500/15 text-rose-500 hover:bg-rose-500 hover:text-white`}
+                  aria-label="스프린트에서 빼기"
+                  title="스프린트에서 빼기 — 백로그로 돌아가요"
+                >
+                  <Minus className="w-3 h-3" strokeWidth={2.5} />
+                </button>
+              )}
+              {showReview && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    moveItemToColumn(it, firstMiddleColumn);
+                  }}
+                  className={`${actionBtn} bg-amber-500/15 text-amber-500 hover:bg-amber-500 hover:text-amber-950`}
+                  aria-label={`${firstMiddleColumn?.name ?? "In Review"}로 이동`}
+                  title={`${firstMiddleColumn?.name ?? "In Review"}로 이동`}
+                >
+                  <Eye className="w-3 h-3" />
+                </button>
+              )}
+              {showDone && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    moveItemToColumn(it, endColumn);
+                  }}
+                  className={`${actionBtn} bg-bridge-secondary/15 text-bridge-secondary hover:bg-bridge-secondary hover:text-teal-950`}
+                  aria-label="완료(Done)로 이동"
+                  title="완료(Done)로 이동"
+                >
+                  <Check className="w-3 h-3" strokeWidth={3} />
+                </button>
+              )}
+              {showDetail && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openItem(it);
+                  }}
+                  className={`${actionBtn} bg-foreground/[0.08] text-slate-400 hover:bg-bridge-accent hover:text-white`}
+                  aria-label="상세 보기"
+                  title="상세 보기"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          )}
           {/* 담당 — 20px 원 + 한 글자. 완료 카드는 담당 대신 완료 표식. */}
           {it.completed ? (
             <span
@@ -2854,25 +2901,11 @@ export function SprintBoard({
           ) : null}
         </div>
 
-        {/* 2줄 — [피쳐 칩] 진행(미니바+분수) · (호버) 액션 · 함께 · 펼치기.
+        {/* 2줄 — 진행(미니바+분수) · 보낸 줄 · 함께 · 펼치기. 숫자만 남은 줄로 읽힌다.
+            피쳐 이름은 컬럼 상단 레일과 좌측 업무 리스트가 이미 말하므로 카드에서 뺐다.
             체크리스트 롤업은 담긴 뒤 항목이 추가돼도 그대로 반영된다. */}
-        {(cTotal > 0 ||
-          coOwners.length > 0 ||
-          showActions ||
-          showFeatureTag) && (
+        {(cTotal > 0 || coOwners.length > 0 || sentTotal > 0) && (
           <div className="flex items-center gap-1.5 min-w-0">
-            {showFeatureTag && (
-              <span
-                className="text-xs font-bold px-1.5 py-0.5 rounded-md shrink-0 truncate max-w-[96px]"
-                style={{
-                  background: `${it.feature_color ?? "#6366F1"}26`,
-                  color: it.feature_color ?? "#93c5fd",
-                }}
-                title={it.feature_title ?? "기타"}
-              >
-                {it.feature_title ?? "기타"}
-              </span>
-            )}
             {cTotal > 0 && (
               <>
                 <span
@@ -2897,72 +2930,30 @@ export function SprintBoard({
                 </span>
               </>
             )}
+            {/* 보낸 줄 — "이 태스크에 다른 스프린트로 간 몫이 N줄 더 있다". 분모를 오해하지 않게
+                분수 바로 옆에 붙인다. 클릭하면 그 스프린트로 이동(1줄 칩이 하던 일). */}
+            {sentTotal > 0 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedSprintId(sentCounts[0].sprint_id);
+                }}
+                className="shrink-0 text-xs font-bold tabular-nums px-1 rounded text-bridge-secondary hover:bg-bridge-secondary/15 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-colors"
+                title={`다른 스프린트로 보낸 항목 ${sentTotal}줄 · ${sentCounts
+                  .map((c) => `S${c.sprint_seq ?? "?"} ${c.done}/${c.total}`)
+                  .join(", ")} · 눌러서 이동`}
+                aria-label={`다른 스프린트로 보낸 항목 ${sentTotal}줄 보기`}
+              >
+                +{sentTotal}
+              </button>
+            )}
             <div className="flex-1 min-w-0 flex items-center justify-end gap-1">
-              {/* 호버 액션 — 빼기 / 리뷰 / 완료 / 상세. 아이콘만, 이름은 툴팁. */}
-              {showActions && (
-                <div className="hidden group-hover:flex group-focus-within:flex items-center gap-0.5">
-                  {showRemove && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeTaskFromSprint(it.task_id ?? it.id);
-                      }}
-                      className={`${actionBtn} bg-rose-500/15 text-rose-500 hover:bg-rose-500 hover:text-white`}
-                      aria-label="스프린트에서 빼기"
-                      title="스프린트에서 빼기 — 백로그로 돌아가요"
-                    >
-                      <Minus className="w-3 h-3" strokeWidth={2.5} />
-                    </button>
-                  )}
-                  {showReview && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        moveItemToColumn(it, firstMiddleColumn);
-                      }}
-                      className={`${actionBtn} bg-amber-500/15 text-amber-500 hover:bg-amber-500 hover:text-amber-950`}
-                      aria-label={`${firstMiddleColumn?.name ?? "In Review"}로 이동`}
-                      title={`${firstMiddleColumn?.name ?? "In Review"}로 이동`}
-                    >
-                      <Eye className="w-3 h-3" />
-                    </button>
-                  )}
-                  {showDone && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        moveItemToColumn(it, endColumn);
-                      }}
-                      className={`${actionBtn} bg-bridge-secondary/15 text-bridge-secondary hover:bg-bridge-secondary hover:text-teal-950`}
-                      aria-label="완료(Done)로 이동"
-                      title="완료(Done)로 이동"
-                    >
-                      <Check className="w-3 h-3" strokeWidth={3} />
-                    </button>
-                  )}
-                  {showDetail && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openItem(it);
-                      }}
-                      className={`${actionBtn} bg-foreground/[0.08] text-slate-400 hover:bg-bridge-accent hover:text-white`}
-                      aria-label="상세 보기"
-                      title="상세 보기"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              )}
-              {/* 함께 미는 사람 — 이 카드가 다른 컬럼에도 서 있다는 사실을 얼굴로 알린다. 호버 시 액션에 자리를 내준다. */}
+              {/* 함께 미는 사람 — 이 카드가 다른 컬럼에도 서 있다는 사실을 얼굴로 알린다.
+                  액션이 1줄로 올라갔으므로 호버해도 자리를 비켜 주지 않는다. */}
               {coOwners.length > 0 && (
                 <span
-                  className={`flex items-center ${showActions ? "group-hover:hidden group-focus-within:hidden" : ""}`}
+                  className="flex items-center"
                   title={`함께 진행 · ${coOwners.map((o) => o.name).join(", ")}`}
                   aria-label={`함께 진행 ${coOwners.length}명`}
                 >
@@ -3368,10 +3359,7 @@ export function SprintBoard({
                         {g.items.length}
                       </span>
                     </div>
-                    {/* 소그룹 헤더가 피쳐를 말하므로 카드의 피쳐 칩은 끈다 */}
-                    {g.items.map((it) =>
-                      renderCard(it, false, undefined, false),
-                    )}
+                    {g.items.map((it) => renderCard(it))}
                   </div>
                 ));
               })()}
@@ -3620,10 +3608,9 @@ export function SprintBoard({
         </div>
 
         {/* 태스크 카드 스택 — 카드 1건이 태스크 1건이라 소그룹 없이 평면 나열한다.
-            컬럼은 내용 높이만큼만(self-start) 서고, 화면을 넘치면 이 영역이 스크롤된다.
-            피쳐 컬럼은 피쳐 축이라 카드의 피쳐 칩은 끈다. */}
+            컬럼은 내용 높이만큼만(self-start) 서고, 화면을 넘치면 이 영역이 스크롤된다. */}
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-2 space-y-1.5">
-          {fc.items.map((it) => renderCard(it, false, undefined, false))}
+          {fc.items.map((it) => renderCard(it))}
         </div>
         {/* 인라인 태스크 생성(갈래 ②) — 여기서 만들면 생성 즉시 이 컬럼(START)에 담긴다.
             카드 스택 바로 아래 붙어 빈 컬럼이 바닥까지 늘어나지 않는다. */}
