@@ -1735,29 +1735,42 @@ function SortableChecklistLine({
   const [sprintOpen, setSprintOpen] = useState(false);
   const overridden = !!item.sprint_overridden;
   /**
-   * 스프린트 기간 이탈 — 시작일·마감일을 따로 본다.
-   * 스프린트 기간이 잡혀 있을 때만 판정하며, 벗어난 쪽 날짜만 빨갛게 표시한다.
+   * 스프린트 기간 이탈 — 시작일·마감일을 따로, 어느 쪽으로 벗어났는지까지 본다.
+   * 두 이탈은 성격이 다르므로 색을 나눈다: 마감을 넘긴 "after"는 되찾아야 할 지연이라
+   * 빨강, 시작 전인 "before"는 이미 지나간 앞선 일정이라 경보색을 쓰지 않는다.
    */
-  const outOfSprint = (d?: string | null): boolean => {
-    if (!d || !sprintWindow) return false;
+  const outOfSprint = (d?: string | null): "before" | "after" | null => {
+    if (!d || !sprintWindow) return null;
     const v = d.slice(0, 10);
-    if (sprintWindow.start && v < sprintWindow.start.slice(0, 10)) return true;
-    if (sprintWindow.end && v > sprintWindow.end.slice(0, 10)) return true;
-    return false;
+    if (sprintWindow.start && v < sprintWindow.start.slice(0, 10))
+      return "before";
+    if (sprintWindow.end && v > sprintWindow.end.slice(0, 10)) return "after";
+    return null;
   };
   const startOut = outOfSprint(item.start_date);
   const dueOut = outOfSprint(item.due_date);
   const overdue =
     !item.completed && !!item.due_date && daysUntil(item.due_date) < 0;
+  // 이탈 방향별 색 — after(오버)는 지연과 같은 빨강, before는 스카이.
+  const outClass = (dir: "before" | "after" | null) =>
+    dir === "after"
+      ? "font-bold text-red-500"
+      : dir === "before"
+        ? "font-bold text-sky-600 dark:text-sky-400"
+        : "";
   const outOfSprintTitle =
     sprintWindow && (startOut || dueOut)
-      ? t("milestone.table.outOfSprintRange", {
-          defaultValue: "{{name}} 기간({{range}}) 밖입니다",
-          name: sprintWindow.name,
-          range: `${toShortDate(sprintWindow.start)}~${toShortDate(
-            sprintWindow.end,
-          )}`,
-        })
+      ? [startOut, dueOut].includes("after")
+        ? t("milestone.table.afterSprintRange", {
+            defaultValue: "{{name}} 마감({{end}})을 넘겼습니다",
+            name: sprintWindow.name,
+            end: toShortDate(sprintWindow.end),
+          })
+        : t("milestone.table.beforeSprintRange", {
+            defaultValue: "{{name}} 시작({{start}}) 전입니다",
+            name: sprintWindow.name,
+            start: toShortDate(sprintWindow.start),
+          })
       : undefined;
   const followLabel = t("milestone.table.lineSprintFollow", {
     defaultValue: "태스크 따라가기",
@@ -1940,7 +1953,7 @@ function SortableChecklistLine({
       )}
 
       {/* 기간 (시작~마감) — 클릭 시 편집. 마감 지남 + 미완료면 전체 빨강,
-          스프린트 기간을 벗어난 날짜는 그 쪽만 빨강 */}
+          스프린트 기간을 벗어난 날짜는 그 쪽만 — 마감 넘김은 빨강, 시작 전은 스카이 */}
       {(item.start_date || item.due_date || canEdit) && (
         <div className="relative flex-shrink-0">
           <button
@@ -1953,17 +1966,11 @@ function SortableChecklistLine({
           >
             {item.start_date || item.due_date ? (
               <>
-                <span
-                  className={
-                    !overdue && startOut ? "font-bold text-red-500" : ""
-                  }
-                >
+                <span className={overdue ? "" : outClass(startOut)}>
                   {item.start_date ? toShortDate(item.start_date) : ""}
                 </span>
                 ~
-                <span
-                  className={!overdue && dueOut ? "font-bold text-red-500" : ""}
-                >
+                <span className={overdue ? "" : outClass(dueOut)}>
                   {item.due_date ? toShortDate(item.due_date) : ""}
                 </span>
                 {overdue ? ` ${delayedLabel}` : ""}
