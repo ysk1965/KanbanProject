@@ -83,8 +83,8 @@ interface MilestoneTableViewProps {
   onSprintBoardChange?: (board: SprintBoard) => void;
 }
 
-/** 줄 기간 경고 기준이 되는 스프린트 기간 */
-type SprintWindow = {
+/** 줄 기간 색 표시의 기준 창 — 스프린트 필터를 걸면 그 스프린트, 아니면 마일스톤 */
+type DateWindow = {
   name: string;
   start: string | null;
   end: string | null;
@@ -482,20 +482,34 @@ export function MilestoneTableView({
   );
 
   /**
-   * 줄이 속한 스프린트의 기간 — 줄 기간이 이 밖으로 나가면 빨갛게 경고한다.
-   * 줄 스프린트(없으면 태스크 스프린트) 기준. 기간이 안 잡힌 스프린트면 undefined.
+   * 날짜 색의 기준 창 — 스프린트 필터를 걸면 그 스프린트 기간, 안 걸면 마일스톤 기간.
+   *
+   * 줄마다 자기 스프린트로 재면 필터 없이 전체를 볼 때 화면 절반이 이탈색으로 물들어
+   * (S1 줄은 S2·S3 기간 밖이니 전부 이탈) 정작 봐야 할 이탈이 묻힌다.
+   * 필터를 걸었다는 건 "이 스프린트 기준으로 보겠다"는 선언이라 그때만 창을 좁힌다.
+   * 미배정 필터는 기준 삼을 스프린트가 없으므로 마일스톤으로 떨어진다.
    */
-  const sprintWindowOf = useCallback(
-    (item: ChecklistItem, taskSprintId: string | null): SprintWindow | undefined => {
-      if (!sprintEnabled) return undefined;
-      const sid = item.sprint_id ?? taskSprintId;
-      if (!sid) return undefined;
-      const sp = sprintById.get(sid);
-      if (!sp || (!sp.start_date && !sp.end_date)) return undefined;
-      return { name: sp.name, start: sp.start_date, end: sp.end_date };
-    },
-    [sprintEnabled, sprintById],
-  );
+  const dateWindow = useMemo<DateWindow | undefined>(() => {
+    if (sprintEnabled && sprintFilter && sprintFilter !== "none") {
+      const sp = sprintById.get(sprintFilter);
+      if (sp && (sp.start_date || sp.end_date))
+        return { name: sp.name, start: sp.start_date, end: sp.end_date };
+      return undefined;
+    }
+    if (!milestone.start_date && !milestone.end_date) return undefined;
+    return {
+      name: milestone.title,
+      start: milestone.start_date,
+      end: milestone.end_date,
+    };
+  }, [
+    sprintEnabled,
+    sprintFilter,
+    sprintById,
+    milestone.title,
+    milestone.start_date,
+    milestone.end_date,
+  ]);
 
   /** 피처 그룹 — 완료율 높은 순 (보드 컬럼과 동일 규칙) */
   const groups = useMemo(() => {
@@ -1528,10 +1542,7 @@ export function MilestoneTableView({
                                         canEdit={canEdit}
                                         members={members}
                                         contractors={contractors}
-                                        sprintWindow={sprintWindowOf(
-                                          item,
-                                          taskSprintId,
-                                        )}
+                                        dateWindow={dateWindow}
                                         sprintPick={
                                           sprintEnabled && sprints.length > 1
                                             ? {
@@ -1690,7 +1701,7 @@ function SortableChecklistLine({
   onDates,
   unassignedLabel,
   delayedLabel,
-  sprintWindow,
+  dateWindow,
   sprintPick,
 }: {
   item: ChecklistItem;
@@ -1708,8 +1719,8 @@ function SortableChecklistLine({
   }) => void;
   unassignedLabel: string;
   delayedLabel: string;
-  /** 줄이 속한 스프린트의 기간 — 밖으로 나간 날짜를 빨갛게 표시하는 기준 */
-  sprintWindow?: SprintWindow;
+  /** 날짜 색 기준 창(스프린트 필터 시 그 스프린트, 아니면 마일스톤) */
+  dateWindow?: DateWindow;
   /** 줄 스프린트 지정 — 없으면(스프린트 1개 이하) 칩을 그리지 않는다 */
   sprintPick?: {
     taskSprintId: string | null;
@@ -1735,20 +1746,19 @@ function SortableChecklistLine({
   const [sprintOpen, setSprintOpen] = useState(false);
   const overridden = !!item.sprint_overridden;
   /**
-   * 스프린트 기간 이탈 — 시작일·마감일을 따로, 어느 쪽으로 벗어났는지까지 본다.
+   * 기준 창 이탈 — 시작일·마감일을 따로, 어느 쪽으로 벗어났는지까지 본다.
    * 두 이탈은 성격이 다르므로 색을 나눈다: 마감을 넘긴 "after"는 되찾아야 할 지연이라
    * 빨강, 시작 전인 "before"는 이미 지나간 앞선 일정이라 경보색을 쓰지 않는다.
    */
-  const outOfSprint = (d?: string | null): "before" | "after" | null => {
-    if (!d || !sprintWindow) return null;
+  const outOfWindow = (d?: string | null): "before" | "after" | null => {
+    if (!d || !dateWindow) return null;
     const v = d.slice(0, 10);
-    if (sprintWindow.start && v < sprintWindow.start.slice(0, 10))
-      return "before";
-    if (sprintWindow.end && v > sprintWindow.end.slice(0, 10)) return "after";
+    if (dateWindow.start && v < dateWindow.start.slice(0, 10)) return "before";
+    if (dateWindow.end && v > dateWindow.end.slice(0, 10)) return "after";
     return null;
   };
-  const startOut = outOfSprint(item.start_date);
-  const dueOut = outOfSprint(item.due_date);
+  const startOut = outOfWindow(item.start_date);
+  const dueOut = outOfWindow(item.due_date);
   const overdue =
     !item.completed && !!item.due_date && daysUntil(item.due_date) < 0;
   // 이탈 방향별 색 — after(오버)는 지연과 같은 빨강, before는 스카이.
@@ -1759,17 +1769,17 @@ function SortableChecklistLine({
         ? "font-bold text-sky-600 dark:text-sky-400"
         : "";
   const outOfSprintTitle =
-    sprintWindow && (startOut || dueOut)
+    dateWindow && (startOut || dueOut)
       ? [startOut, dueOut].includes("after")
         ? t("milestone.table.afterSprintRange", {
             defaultValue: "{{name}} 마감({{end}})을 넘겼습니다",
-            name: sprintWindow.name,
-            end: toShortDate(sprintWindow.end),
+            name: dateWindow.name,
+            end: toShortDate(dateWindow.end),
           })
         : t("milestone.table.beforeSprintRange", {
             defaultValue: "{{name}} 시작({{start}}) 전입니다",
-            name: sprintWindow.name,
-            start: toShortDate(sprintWindow.start),
+            name: dateWindow.name,
+            start: toShortDate(dateWindow.start),
           })
       : undefined;
   const followLabel = t("milestone.table.lineSprintFollow", {
@@ -1953,7 +1963,8 @@ function SortableChecklistLine({
       )}
 
       {/* 기간 (시작~마감) — 클릭 시 편집. 마감 지남 + 미완료면 전체 빨강,
-          스프린트 기간을 벗어난 날짜는 그 쪽만 — 마감 넘김은 빨강, 시작 전은 스카이 */}
+          기준 창(스프린트 필터 시 그 스프린트, 아니면 마일스톤)을 벗어난 날짜는
+          그 쪽만 — 마감 넘김은 빨강, 시작 전은 스카이 */}
       {(item.start_date || item.due_date || canEdit) && (
         <div className="relative flex-shrink-0">
           <button
