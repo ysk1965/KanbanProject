@@ -451,8 +451,9 @@ export function MilestoneTableView({
   /**
    * 필터가 걸린 동안 보여줄 체크 줄 — 행은 태스크지만 줄은 스프린트·담당자 단위다.
    *  · 스프린트 필터: 그 스프린트 몫의 줄만 남긴다.
-   *  · 담당자 필터: 그 담당자(멤버·외주)의 줄만 남긴다. 단 걸리는 줄이 하나도
-   *    없으면 태스크 담당자로 걸린 행이므로 줄은 그대로 전부 보여준다.
+   *  · 담당자 필터: 그 담당자(멤버·외주)의 줄만 남긴다. 걸리는 줄이 없으면 빈 칸이다
+   *    (태스크 담당으로 행은 섰지만 그 사람 몫 줄은 없는 경우) — 예전엔 이때 전 줄을
+   *    되살렸는데, 남의 줄이 필터를 통과한 것처럼 보여서 걷어냈다.
    */
   const shownItemsOf = useCallback(
     (tk: Task): ChecklistItem[] => {
@@ -464,12 +465,11 @@ export function MilestoneTableView({
         );
       }
       if (assigneeFilter) {
-        const mine = list.filter(
+        list = list.filter(
           (it) =>
             it.assignee?.id === assigneeFilter ||
             it.contractor?.id === assigneeFilter,
         );
-        if (mine.length > 0) list = mine;
       }
       return list;
     },
