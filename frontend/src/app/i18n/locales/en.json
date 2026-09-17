@@ -840,7 +840,10 @@
       "sprintToBacklog": "Move to backlog",
       "sprintArchivedLock": "Past sprint history cannot be changed",
       "copyLink": "Copy link",
-      "copyFilteredLink": "Copy a link with the current filters"
+      "copyFilteredLink": "Copy a link with the current filters",
+      "noPlan": "No plan",
+      "noItemsInScope": "No items for {{scope}}",
+      "noChecklist": "No checklist"
     },
     "preset": {
       "chip": "Preset",

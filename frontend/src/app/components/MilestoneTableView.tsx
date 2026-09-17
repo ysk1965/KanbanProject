@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import {
   DndContext,
   DragOverlay,
@@ -95,6 +96,16 @@ export interface MilestoneTableFilters {
   /** 담당자 id(멤버 또는 외주) · null(전체) */
   assignee?: string | null;
 }
+
+/** 공유 링크가 싣고 다니는 쿼리 — 테이블이 떠날 때 같이 걷어낸다 */
+const LINK_PARAMS = [
+  "view",
+  "milestone",
+  "mlayout",
+  "mstatus",
+  "msprint",
+  "massignee",
+] as const;
 
 /** 줄 기간 색 표시의 기준 창 — 스프린트 필터를 걸면 그 스프린트, 아니면 마일스톤 */
 type DateWindow = {
@@ -186,6 +197,7 @@ export function MilestoneTableView({
   initialFilters,
 }: MilestoneTableViewProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const mid = milestone.id;
 
   const [checklists, setChecklists] = useState<{
@@ -1085,6 +1097,43 @@ export function MilestoneTableView({
   ]);
 
   /**
+   * 주소창 동기화 — 지금 보고 있는 마일스톤·레이아웃·필터를 쿼리에 실어 둔다.
+   * 주소 자체가 곧 화면이라 "링크 복사"를 안 쓰고 주소를 복사해도 같은 화면이 열리고,
+   * 링크로 들어와 필터를 더 만져도 주소가 따라온다.
+   */
+  useEffect(() => {
+    const next = new URLSearchParams(window.location.search);
+    next.set("view", "milestone");
+    next.set("milestone", mid);
+    next.set("mlayout", "table");
+    const put = (key: string, value: string | null) => {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    };
+    put("mstatus", statusFilter === "all" ? null : statusFilter);
+    put("msprint", sprintFilter);
+    put("massignee", assigneeFilter);
+    const search = `?${next.toString()}`;
+    if (search === window.location.search) return;
+    navigate({ search }, { replace: true });
+  }, [mid, statusFilter, sprintFilter, assigneeFilter, navigate]);
+
+  /**
+   * 테이블을 떠나면(다른 탭·보드 레이아웃) 쿼리도 걷어낸다 — 칸반을 보면서
+   * 마일스톤 주소를 복사하는 일이 없도록. 보드 밖으로 나갔으면 새 주소는 건드리지 않는다.
+   */
+  useEffect(() => {
+    const path = window.location.pathname;
+    return () => {
+      if (window.location.pathname !== path) return;
+      const next = new URLSearchParams(window.location.search);
+      for (const key of LINK_PARAMS) next.delete(key);
+      const rest = next.toString();
+      navigate({ search: rest ? `?${rest}` : "" }, { replace: true });
+    };
+  }, [navigate]);
+
+  /**
    * 링크 복사 — 지금 보고 있는 화면(이 마일스톤 · 테이블 · 걸린 필터)을
    * 그대로 여는 주소를 만든다. 받는 쪽은 KanbanBoardPage가 쿼리를 읽어
    * 마일스톤 탭 → 테이블 레이아웃 → 필터 순으로 복원한다.
@@ -1166,6 +1215,13 @@ export function MilestoneTableView({
       : sprintFilter
         ? (sprints.find((s) => s.id === sprintFilter)?.name ?? "")
         : null;
+
+  /**
+   * 「계획 없음」 슬롯에 붙일 범위 문구 — 어느 필터 때문에 빈 칸인지 밝힌다.
+   * (예: "Sprint 2 · 민준태 몫 항목 없음") 필터가 없으면 그냥 체크리스트가 없는 태스크다.
+   */
+  const emptyScopeLabel =
+    [sprintFilterLabel, assigneeFilterName].filter(Boolean).join(" · ") || null;
 
   const sprintStateLabel = (state: SprintInfo["state"]) =>
     state === "CURRENT"
@@ -1485,6 +1541,13 @@ export function MilestoneTableView({
                           sprintInfoByTask.get(tk.id)?.sprintId ?? null;
                         const shownItems = shownItemsOf(tk);
                         const state = checklists[tk.id];
+                        /**
+                         * 계획 없음 — 체크리스트를 다 불러왔는데 필터를 통과한 줄이 0개.
+                         * 행은 태스크 담당자로 섰지만 그 범위 몫 줄이 아직 없다는 뜻이라,
+                         * 빈 칸으로 두지 않고 상태로 드러낸다(로딩 중은 제외).
+                         */
+                        const clLoaded = !!state?.loaded;
+                        const noPlan = clLoaded && shownItems.length === 0;
                         const dueOver =
                           !tk.completed &&
                           !!tk.due_date &&
@@ -1533,6 +1596,13 @@ export function MilestoneTableView({
                                 >
                                   {tk.title}
                                 </span>
+                                {noPlan && (
+                                  <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 whitespace-nowrap flex-shrink-0">
+                                    {t("milestone.table.noPlan", {
+                                      defaultValue: "계획 없음",
+                                    })}
+                                  </span>
+                                )}
                               </div>
                               <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                                 {sprintEnabled && (
@@ -1589,20 +1659,28 @@ export function MilestoneTableView({
                             {/* 체크리스트 셀 */}
                             <td className="align-top px-4 py-3">
                               <ItemsDropArea taskId={tk.id} enabled={canEdit}>
-                                {state && !state.loaded ? (
+                                {!clLoaded ? (
                                   <span className="text-xs text-slate-600">
                                     —
                                   </span>
-                                ) : shownItems.length === 0 &&
-                                  addingItemFor !== tk.id ? (
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-slate-600">
-                                      —
+                                ) : noPlan && addingItemFor !== tk.id ? (
+                                  // 빈 칸이 아니라 "채울 자리" — 왜 비었는지 말하고 바로 추가로 잇는다
+                                  <div className="flex items-center gap-2 flex-wrap border border-dashed border-foreground/[0.14] rounded-lg px-3 py-2">
+                                    <span className="text-xs text-slate-500">
+                                      {emptyScopeLabel
+                                        ? t("milestone.table.noItemsInScope", {
+                                            defaultValue:
+                                              "{{scope}} 몫 항목 없음",
+                                            scope: emptyScopeLabel,
+                                          })
+                                        : t("milestone.table.noChecklist", {
+                                            defaultValue: "체크리스트 없음",
+                                          })}
                                     </span>
                                     {canEdit && (
                                       <button
                                         onClick={() => setAddingItemFor(tk.id)}
-                                        className="flex items-center gap-1 text-xs text-slate-500 hover:text-bridge-secondary transition-colors"
+                                        className="ml-auto flex items-center gap-1 text-xs font-bold text-bridge-accent hover:text-bridge-accent/80 transition-colors"
                                       >
                                         <Plus className="h-3 w-3" />
                                         {t("milestone.table.addItem", {

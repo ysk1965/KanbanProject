@@ -267,31 +267,32 @@ export function KanbanBoardPage() {
   /**
    * 마일스톤 테이블 공유 링크 — 보낸 사람이 보던 마일스톤·레이아웃·필터를 그대로 연다.
    * (MilestoneTableView의 "링크 복사"가 만드는 주소)
-   * 아래 정리 effect가 쿼리를 지우므로 첫 렌더 값만 ref에 담아 둔다.
+   *
+   * 아래 정리 effect가 지우는 다른 딥링크와 달리 이 쿼리는 주소에 남겨 둔다.
+   * 테이블이 필터를 바꿀 때마다 같은 쿼리를 갱신하므로, 주소 자체가 곧 지금 화면이다
+   * — 한 번 찍어 둔 스냅샷에 기대지 않아 읽는 시점이 언제든 값이 살아 있다.
    */
-  const milestoneDeepLinkRef = useRef<MilestoneDeepLink | undefined>(
-    (() => {
-      const milestoneId = searchParams.get("milestone");
-      const layout = searchParams.get("mlayout");
-      const status = searchParams.get("mstatus");
-      const sprint = searchParams.get("msprint");
-      const assignee = searchParams.get("massignee");
-      if (!milestoneId && !layout && !status && !sprint && !assignee)
-        return undefined;
-      return {
-        milestoneId,
-        layout: layout === "table" || layout === "board" ? layout : undefined,
-        filters: {
-          status:
-            status === "doing" || status === "open" || status === "all"
-              ? status
-              : undefined,
-          sprint: sprint ?? null,
-          assignee: assignee ?? null,
-        },
-      };
-    })(),
-  );
+  const milestoneDeepLink = useMemo<MilestoneDeepLink | undefined>(() => {
+    const milestoneId = searchParams.get("milestone");
+    const layout = searchParams.get("mlayout");
+    const status = searchParams.get("mstatus");
+    const sprint = searchParams.get("msprint");
+    const assignee = searchParams.get("massignee");
+    if (!milestoneId && !layout && !status && !sprint && !assignee)
+      return undefined;
+    return {
+      milestoneId,
+      layout: layout === "table" || layout === "board" ? layout : undefined,
+      filters: {
+        status:
+          status === "doing" || status === "open" || status === "all"
+            ? status
+            : undefined,
+        sprint: sprint ?? null,
+        assignee: assignee ?? null,
+      },
+    };
+  }, [searchParams]);
   const pendingDeepLinkTaskId = useRef<string | null>(urlTaskId);
   const milestoneIdRef = useRef<string>("");
   // WebSocket 핸들러(useCallback [])에서 최신 tasks 접근용 (stale closure 방지)
@@ -477,8 +478,7 @@ export function KanbanBoardPage() {
       urlTaskId ||
       urlChecklistItemId ||
       urlMemberName ||
-      urlOverdueOnly ||
-      milestoneDeepLinkRef.current
+      urlOverdueOnly
     ) {
       searchParams.delete("view");
       searchParams.delete("tab");
@@ -486,11 +486,6 @@ export function KanbanBoardPage() {
       searchParams.delete("checklist");
       searchParams.delete("member");
       searchParams.delete("overdue");
-      searchParams.delete("milestone");
-      searchParams.delete("mlayout");
-      searchParams.delete("mstatus");
-      searchParams.delete("msprint");
-      searchParams.delete("massignee");
       setSearchParams(searchParams, { replace: true });
     }
   }, []);
@@ -3566,7 +3561,7 @@ export function KanbanBoardPage() {
                       reloadFeaturesAndTasks(milestoneId);
                     }
                   }}
-                  deepLink={milestoneDeepLinkRef.current}
+                  deepLink={milestoneDeepLink}
                 />
               </Suspense>
             </div>

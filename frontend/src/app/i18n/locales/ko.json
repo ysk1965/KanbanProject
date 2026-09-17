@@ -841,7 +841,10 @@
       "sprintToBacklog": "백로그로 이동",
       "sprintArchivedLock": "지난 스프린트 이력은 변경할 수 없어요",
       "copyLink": "링크 복사",
-      "copyFilteredLink": "지금 필터 그대로 링크 복사"
+      "copyFilteredLink": "지금 필터 그대로 링크 복사",
+      "noPlan": "계획 없음",
+      "noItemsInScope": "{{scope}} 몫 항목 없음",
+      "noChecklist": "체크리스트 없음"
     },
     "preset": {
       "chip": "프리셋",
