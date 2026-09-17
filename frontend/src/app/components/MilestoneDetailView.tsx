@@ -26,7 +26,10 @@ import type {
 import { checklistService } from "../utils/services";
 import { sprintAPI } from "../utils/api";
 import { getMilestoneStatus } from "./MilestoneView";
-import { MilestoneTableView } from "./MilestoneTableView";
+import {
+  MilestoneTableView,
+  type MilestoneTableFilters,
+} from "./MilestoneTableView";
 
 const UNASSIGNED = "__unassigned__";
 
@@ -50,6 +53,10 @@ interface MilestoneDetailViewProps {
   canEdit?: boolean;
   /** 테이블 뷰에서 태스크 생성 후 보드 데이터 리로드 */
   onRefresh?: () => void;
+  /** 공유 링크로 들어왔을 때 강제할 레이아웃 — localStorage 기억값보다 우선 */
+  initialLayout?: LayoutMode;
+  /** 공유 링크로 들어왔을 때의 테이블 초기 필터 */
+  initialTableFilters?: MilestoneTableFilters;
 }
 
 /**
@@ -366,6 +373,8 @@ export function MilestoneDetailView({
   onViewInKanban,
   canEdit = false,
   onRefresh,
+  initialLayout,
+  initialTableFilters,
 }: MilestoneDetailViewProps) {
   const { t } = useTranslation();
   const reduced = useReducedMotion();
@@ -374,6 +383,8 @@ export function MilestoneDetailView({
   // 레이아웃: 보드(컬럼) ↔ 테이블. 보드별 localStorage 영속화.
   const layoutKey = `milestoneDetailLayout_${boardId}`;
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(() => {
+    // 공유 링크가 레이아웃을 지정했으면 그게 우선 — 보낸 화면 그대로 열린다
+    if (initialLayout) return initialLayout;
     if (typeof window === "undefined") return "board";
     return localStorage.getItem(layoutKey) === "table" ? "table" : "board";
   });
@@ -1064,6 +1075,7 @@ export function MilestoneDetailView({
             onRefresh={onRefresh}
             onMoveSprint={sprints.length > 0 ? handleMoveSprint : undefined}
             onSprintBoardChange={setSprintBoard}
+            initialFilters={initialTableFilters}
           />
         ) : scopedTotal === 0 ? (
           <div className="flex flex-col items-center py-12 text-slate-500">

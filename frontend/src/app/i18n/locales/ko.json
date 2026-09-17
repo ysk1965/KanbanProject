@@ -839,7 +839,9 @@
       "sprintCurrent": "S{{seq}} · 현재 스프린트",
       "sprintAddTo": "S{{seq}}에 담기",
       "sprintToBacklog": "백로그로 이동",
-      "sprintArchivedLock": "지난 스프린트 이력은 변경할 수 없어요"
+      "sprintArchivedLock": "지난 스프린트 이력은 변경할 수 없어요",
+      "copyLink": "링크 복사",
+      "copyFilteredLink": "지금 필터 그대로 링크 복사"
     },
     "preset": {
       "chip": "프리셋",

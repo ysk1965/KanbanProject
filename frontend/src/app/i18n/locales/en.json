@@ -838,7 +838,9 @@
       "sprintCurrent": "S{{seq}} · Current sprint",
       "sprintAddTo": "Add to S{{seq}}",
       "sprintToBacklog": "Move to backlog",
-      "sprintArchivedLock": "Past sprint history cannot be changed"
+      "sprintArchivedLock": "Past sprint history cannot be changed",
+      "copyLink": "Copy link",
+      "copyFilteredLink": "Copy a link with the current filters"
     },
     "preset": {
       "chip": "Preset",

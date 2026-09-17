@@ -21,9 +21,11 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import {
+  Check,
   ChevronDown,
   Download,
   GripVertical,
+  Link as LinkIcon,
   Loader2,
   Plus,
   Wrench,
@@ -81,6 +83,17 @@ interface MilestoneTableViewProps {
   onMoveSprint?: (taskId: string, toSprintId: string | null) => void;
   /** 체크리스트 줄을 다른 스프린트로 보낸 뒤 받은 보드 — 상위의 스프린트 칩 정보를 즉시 갱신한다 */
   onSprintBoardChange?: (board: SprintBoard) => void;
+  /** 공유 링크(?mstatus=&msprint=&massignee=)로 들어왔을 때의 초기 필터 */
+  initialFilters?: MilestoneTableFilters;
+}
+
+/** 공유 링크로 주고받는 테이블 필터 상태 */
+export interface MilestoneTableFilters {
+  status?: StatusFilter;
+  /** sprint id · "none"(미배정) · null(전체) */
+  sprint?: string | null;
+  /** 담당자 id(멤버 또는 외주) · null(전체) */
+  assignee?: string | null;
 }
 
 /** 줄 기간 색 표시의 기준 창 — 스프린트 필터를 걸면 그 스프린트, 아니면 마일스톤 */
@@ -170,6 +183,7 @@ export function MilestoneTableView({
   onRefresh,
   onMoveSprint,
   onSprintBoardChange,
+  initialFilters,
 }: MilestoneTableViewProps) {
   const { t } = useTranslation();
   const mid = milestone.id;
@@ -178,11 +192,17 @@ export function MilestoneTableView({
     [taskId: string]: ChecklistState;
   }>({});
   const [checklistsLoading, setChecklistsLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(
+    initialFilters?.status ?? "all",
+  );
+  const [assigneeFilter, setAssigneeFilter] = useState<string | null>(
+    initialFilters?.assignee ?? null,
+  );
   const [assigneeOpen, setAssigneeOpen] = useState(false);
   /** 스프린트 필터 — sprint id, "none" = 미배정(백로그), null = 전체 */
-  const [sprintFilter, setSprintFilter] = useState<string | null>(null);
+  const [sprintFilter, setSprintFilter] = useState<string | null>(
+    initialFilters?.sprint ?? null,
+  );
   const [sprintOpen, setSprintOpen] = useState(false);
   /** 인라인 입력 활성 위치 — 태스크 추가(featureId) / 항목 추가(taskId) */
   const [addingTaskFor, setAddingTaskFor] = useState<string | null>(null);
@@ -409,7 +429,6 @@ export function MilestoneTableView({
   const taskMatches = useCallback(
     (tk: Task): boolean => {
       if (statusFilter === "doing" && statusOf(tk) !== "doing") return false;
-      if (statusFilter === "open" && statusOf(tk) === "done") return false;
       const sprintId = sprintInfoByTask.get(tk.id)?.sprintId ?? null;
       // 스프린트 필터에 걸린 줄만 남긴 목록 — 담당자 판정도 이 범위로 한다
       // (S2로 걸러진 행인데 S1 줄의 담당자로 행이 서는 것 방지).
@@ -426,15 +445,21 @@ export function MilestoneTableView({
         }
       }
       if (assigneeFilter) {
+        const mine = (i: ChecklistItem) =>
+          i.assignee?.id === assigneeFilter ||
+          i.contractor?.id === assigneeFilter;
         const inTask = (tk.assignees ?? []).some(
           (a) => a.id === assigneeFilter,
         );
-        const inChecklist = scoped.some(
-          (i) =>
-            i.assignee?.id === assigneeFilter ||
-            i.contractor?.id === assigneeFilter,
-        );
+        const inChecklist = scoped.some(mine);
         if (!inTask && !inChecklist) return false;
+        scoped = scoped.filter(mine);
+      }
+      // 미완료만 — 기준은 체크리스트 줄이다. 필터를 통과한 줄이 전부 완료면
+      // 행 자체를 내린다(줄이 없거나 아직 로드 전이면 태스크 상태로 폴백).
+      if (statusFilter === "open") {
+        if (scoped.length > 0) return scoped.some((i) => !i.completed);
+        return statusOf(tk) !== "done";
       }
       return true;
     },
@@ -451,6 +476,7 @@ export function MilestoneTableView({
   /**
    * 필터가 걸린 동안 보여줄 체크 줄 — 행은 태스크지만 줄은 스프린트·담당자 단위다.
    *  · 스프린트 필터: 그 스프린트 몫의 줄만 남긴다.
+   *  · 미완료만: 완료된 줄을 뺀다 — 남은 일만 훑는 용도라 줄 단위로 건다.
    *  · 담당자 필터: 그 담당자(멤버·외주)의 줄만 남긴다. 걸리는 줄이 없으면 빈 칸이다
    *    (태스크 담당으로 행은 섰지만 그 사람 몫 줄은 없는 경우) — 예전엔 이때 전 줄을
    *    되살렸는데, 남의 줄이 필터를 통과한 것처럼 보여서 걷어냈다.
@@ -471,9 +497,11 @@ export function MilestoneTableView({
             it.contractor?.id === assigneeFilter,
         );
       }
+      // 미완료만: 완료된 줄은 감춘다 — 칩 이름 그대로 "미완료" 줄만 남는다
+      if (statusFilter === "open") list = list.filter((it) => !it.completed);
       return list;
     },
-    [itemsOf, sprintFilter, sprintInfoByTask, assigneeFilter],
+    [itemsOf, sprintFilter, sprintInfoByTask, assigneeFilter, statusFilter],
   );
 
   const sprintById = useMemo(
@@ -587,6 +615,9 @@ export function MilestoneTableView({
   const groupWeight = (g: (typeof visibleGroups)[number]) =>
     1 +
     g.visibleTasks.reduce((acc, tk) => {
+      // 필터 중엔 실제로 그려질 줄 수로 잰다 — 전체 항목 수로 재면
+      // (미완료만처럼 줄이 대거 빠질 때) 한쪽 컬럼만 길어진다.
+      if (isFiltered) return acc + Math.max(2, shownItemsOf(tk).length);
       const counts = frozenItemCount.current;
       if (!counts.has(tk.id) && checklists[tk.id]?.loaded) {
         counts.set(tk.id, checklists[tk.id].items.length);
@@ -1053,6 +1084,39 @@ export function MilestoneTableView({
     t,
   ]);
 
+  /**
+   * 링크 복사 — 지금 보고 있는 화면(이 마일스톤 · 테이블 · 걸린 필터)을
+   * 그대로 여는 주소를 만든다. 받는 쪽은 KanbanBoardPage가 쿼리를 읽어
+   * 마일스톤 탭 → 테이블 레이아웃 → 필터 순으로 복원한다.
+   */
+  const [linkCopied, setLinkCopied] = useState(false);
+  const handleCopyLink = useCallback(async () => {
+    const params = new URLSearchParams({
+      view: "milestone",
+      milestone: mid,
+      mlayout: "table",
+    });
+    if (statusFilter !== "all") params.set("mstatus", statusFilter);
+    if (sprintFilter) params.set("msprint", sprintFilter);
+    if (assigneeFilter) params.set("massignee", assigneeFilter);
+    const url = `${window.location.origin}/boards/${boardId}?${params.toString()}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const input = document.createElement("input");
+      input.value = url;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      input.remove();
+    }
+    setLinkCopied(true);
+    toast.success(
+      t("share.linkCopied", { defaultValue: "링크를 복사했습니다" }),
+    );
+    setTimeout(() => setLinkCopied(false), 2000);
+  }, [boardId, mid, statusFilter, sprintFilter, assigneeFilter, t]);
+
   // ── 렌더 ──
   const filterChips: { key: StatusFilter; label: string }[] = [
     {
@@ -1091,6 +1155,7 @@ export function MilestoneTableView({
     />
   );
 
+  // 딥링크로 들어와 아직 후보가 안 찼으면 이름이 비는데, 그때는 기본 라벨로 떨어진다
   const assigneeFilterName = assigneeFilter
     ? (assigneeOptions.find((a) => a.id === assigneeFilter)?.name ?? "")
     : null;
@@ -1139,7 +1204,7 @@ export function MilestoneTableView({
                   : "bg-foreground/[0.03] border-foreground/10 text-slate-400 hover:text-foreground"
               }`}
             >
-              {sprintFilterLabel ??
+              {sprintFilterLabel ||
                 t("milestone.table.filterSprint", { defaultValue: "스프린트" })}
               <ChevronDown className="h-3 w-3" />
             </button>
@@ -1223,7 +1288,7 @@ export function MilestoneTableView({
                 : "bg-foreground/[0.03] border-foreground/10 text-slate-400 hover:text-foreground"
             }`}
           >
-            {assigneeFilterName ??
+            {assigneeFilterName ||
               t("milestone.table.filterAssignee", { defaultValue: "담당자" })}
             <ChevronDown className="h-3 w-3" />
           </button>
@@ -1272,6 +1337,20 @@ export function MilestoneTableView({
           {checklistsLoading && (
             <Loader2 className="w-4 h-4 animate-spin text-bridge-accent" />
           )}
+          <button
+            onClick={handleCopyLink}
+            title={t("milestone.table.copyFilteredLink", {
+              defaultValue: "지금 필터 그대로 링크 복사",
+            })}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-foreground bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-all"
+          >
+            {linkCopied ? (
+              <Check className="h-3.5 w-3.5 text-emerald-400" />
+            ) : (
+              <LinkIcon className="h-3.5 w-3.5" />
+            )}
+            {t("milestone.table.copyLink", { defaultValue: "링크 복사" })}
+          </button>
           <button
             onClick={handleExport}
             disabled={checklistsLoading}

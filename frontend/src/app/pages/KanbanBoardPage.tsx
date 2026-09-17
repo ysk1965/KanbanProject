@@ -84,6 +84,7 @@ import {
   JobRole,
   BoardContractor,
 } from "../types";
+import type { MilestoneDeepLink } from "../components/MilestoneView";
 import {
   DndContext,
   DragOverlay,
@@ -263,6 +264,34 @@ export function KanbanBoardPage() {
   const urlMemberName = searchParams.get("member");
   // 보고서의 지연 진입점(?overdue=1) — 마감 지난 카드만 남긴 상태로 연다.
   const urlOverdueOnly = searchParams.get("overdue") === "1";
+  /**
+   * 마일스톤 테이블 공유 링크 — 보낸 사람이 보던 마일스톤·레이아웃·필터를 그대로 연다.
+   * (MilestoneTableView의 "링크 복사"가 만드는 주소)
+   * 아래 정리 effect가 쿼리를 지우므로 첫 렌더 값만 ref에 담아 둔다.
+   */
+  const milestoneDeepLinkRef = useRef<MilestoneDeepLink | undefined>(
+    (() => {
+      const milestoneId = searchParams.get("milestone");
+      const layout = searchParams.get("mlayout");
+      const status = searchParams.get("mstatus");
+      const sprint = searchParams.get("msprint");
+      const assignee = searchParams.get("massignee");
+      if (!milestoneId && !layout && !status && !sprint && !assignee)
+        return undefined;
+      return {
+        milestoneId,
+        layout: layout === "table" || layout === "board" ? layout : undefined,
+        filters: {
+          status:
+            status === "doing" || status === "open" || status === "all"
+              ? status
+              : undefined,
+          sprint: sprint ?? null,
+          assignee: assignee ?? null,
+        },
+      };
+    })(),
+  );
   const pendingDeepLinkTaskId = useRef<string | null>(urlTaskId);
   const milestoneIdRef = useRef<string>("");
   // WebSocket 핸들러(useCallback [])에서 최신 tasks 접근용 (stale closure 방지)
@@ -448,7 +477,8 @@ export function KanbanBoardPage() {
       urlTaskId ||
       urlChecklistItemId ||
       urlMemberName ||
-      urlOverdueOnly
+      urlOverdueOnly ||
+      milestoneDeepLinkRef.current
     ) {
       searchParams.delete("view");
       searchParams.delete("tab");
@@ -456,6 +486,11 @@ export function KanbanBoardPage() {
       searchParams.delete("checklist");
       searchParams.delete("member");
       searchParams.delete("overdue");
+      searchParams.delete("milestone");
+      searchParams.delete("mlayout");
+      searchParams.delete("mstatus");
+      searchParams.delete("msprint");
+      searchParams.delete("massignee");
       setSearchParams(searchParams, { replace: true });
     }
   }, []);
@@ -3531,6 +3566,7 @@ export function KanbanBoardPage() {
                       reloadFeaturesAndTasks(milestoneId);
                     }
                   }}
+                  deepLink={milestoneDeepLinkRef.current}
                 />
               </Suspense>
             </div>

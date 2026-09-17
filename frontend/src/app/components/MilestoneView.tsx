@@ -5,6 +5,7 @@ import type { Feature, Task, Milestone } from "../types";
 import { getTodayDateString } from "../utils/dateUtils";
 import { MilestoneMatrix } from "./MilestoneMatrix";
 import { MilestoneDetailView } from "./MilestoneDetailView";
+import type { MilestoneTableFilters } from "./MilestoneTableView";
 
 type MilestoneViewMode = "detail" | "matrix";
 
@@ -27,6 +28,17 @@ interface MilestoneViewProps {
   onViewInKanban?: (milestoneId: string) => void;
   /** 상세 테이블 뷰 인라인 편집(태스크/체크 항목 추가, 토글) 허용 */
   canEdit?: boolean;
+  /**
+   * 공유 링크(?view=milestone&milestone=&mlayout=&mstatus=…)로 들어온 진입점.
+   * 보낸 사람이 보던 마일스톤·레이아웃·필터를 그대로 연다.
+   */
+  deepLink?: MilestoneDeepLink;
+}
+
+export interface MilestoneDeepLink {
+  milestoneId?: string | null;
+  layout?: "board" | "table";
+  filters?: MilestoneTableFilters;
 }
 
 export type MilestoneStatusKey =
@@ -95,18 +107,21 @@ export function MilestoneView({
   onTaskClick,
   onViewInKanban,
   canEdit = false,
+  deepLink,
 }: MilestoneViewProps) {
   const { t } = useTranslation();
 
   // 마일스톤 클릭 → 풀 페이지 상세 (컬럼=피처, 카드=태스크)
   const [detailMilestoneId, setDetailMilestoneId] = useState<string | null>(
-    null,
+    deepLink?.milestoneId ?? null,
   );
 
   // 뷰 모드: 디테일(기본) · 매트릭스. 보드별 localStorage 영속화.
   // 구 값(board/cards)은 뷰가 제거되어 detail로 폴백.
   const viewModeKey = `milestoneViewMode_v2_${boardId}`;
   const [viewMode, setViewMode] = useState<MilestoneViewMode>(() => {
+    // 공유 링크는 늘 디테일을 겨눈다 — 매트릭스 기억값이 있어도 무시
+    if (deepLink?.milestoneId) return "detail";
     if (typeof window === "undefined") return "detail";
     const saved = localStorage.getItem(viewModeKey);
     return saved === "matrix" ? "matrix" : "detail";
@@ -290,6 +305,8 @@ export function MilestoneView({
           onViewInKanban={onViewInKanban}
           canEdit={canEdit}
           onRefresh={onRefresh}
+          initialLayout={deepLink?.layout}
+          initialTableFilters={deepLink?.filters}
         />
       ) : (
         <MilestoneMatrix
