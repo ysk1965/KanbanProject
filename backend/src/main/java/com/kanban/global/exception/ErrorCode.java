@@ -320,18 +320,10 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     PERSONAL_TAG_DUPLICATE(HttpStatus.CONFLICT, "PT004", "이미 동일한 이름의 태그가 존재합니다"),
     PERSONAL_TAG_ALREADY_ASSIGNED(HttpStatus.CONFLICT, "PT005", "이미 할당된 태그입니다"),
     PERSONAL_HABIT_NOT_FOUND(HttpStatus.NOT_FOUND, "PH001", "습관을 찾을 수 없습니다"),
-
-    // Diary
-    DIARY_NOT_FOUND(HttpStatus.NOT_FOUND, "DI001", "일기를 찾을 수 없습니다"),
-    DIARY_ALREADY_EXISTS(HttpStatus.CONFLICT, "DI002", "해당 날짜에 이미 일기가 존재합니다"),
-    DIARY_ACCESS_DENIED(HttpStatus.FORBIDDEN, "DI003", "본인의 일기만 접근할 수 있습니다"),
-    DIARY_ALREADY_COMPLETED(HttpStatus.BAD_REQUEST, "DI004", "이미 완성된 일기입니다"),
-
-    // Diary Voice
-    DIARY_VOICE_FILE_EMPTY(HttpStatus.BAD_REQUEST, "DV001", "음성 파일이 비어있습니다"),
-    DIARY_VOICE_FILE_TOO_LARGE(HttpStatus.BAD_REQUEST, "DV002", "음성 파일이 25MB를 초과합니다"),
-    DIARY_VOICE_STT_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "DV003", "음성 인식에 실패했습니다"),
-    DIARY_VOICE_TTS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "DV004", "음성 생성에 실패했습니다"),
+    PERSONAL_FEATURE_DOC_NOT_FOUND(HttpStatus.NOT_FOUND, "PF001", "문서를 찾을 수 없습니다"),
+    PERSONAL_FEATURE_UNKNOWN(HttpStatus.NOT_FOUND, "PF002", "알 수 없는 기능입니다"),
+    PERSONAL_FEATURE_CONTENT_TOO_LARGE(HttpStatus.BAD_REQUEST, "PF003", "문서 내용이 256KB를 초과합니다"),
+    PERSONAL_FEATURE_DOC_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "PF004", "기능당 문서는 최대 200개까지 만들 수 있습니다"),
 
     // Custom Icon
     CUSTOMICON_REFERENCE_NOT_FOUND(HttpStatus.NOT_FOUND, "CI001", "레퍼런스 이미지를 찾을 수 없습니다"),

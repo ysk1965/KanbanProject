@@ -114,7 +114,7 @@ public class AiCreditService {
         }
     }
 
-    // === User-Level Credit Consumption (Personal features like Diary) ===
+    // === User-Level Credit Consumption (Personal features) ===
 
     @Transactional
     public void consumeUserCredit(String userId, String featureType, int creditCost) {

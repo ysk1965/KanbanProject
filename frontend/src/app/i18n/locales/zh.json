@@ -108,7 +108,7 @@
       },
       "personal": {
         "title": "Personal Productivity Hub",
-        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+        "desc": "Eisenhower Matrix task board and habit tracker with streaks — your personal growth toolkit lives right next to your team workspace."
       }
     },
     "myspace": {
@@ -119,8 +119,7 @@
       "tabs": {
         "overview": "Overview",
         "matrix": "Matrix",
-        "habits": "Habits",
-        "diary": "AI Diary"
+        "habits": "Habits"
       },
       "matrix": {
         "title": "Eisenhower Matrix",
@@ -129,10 +128,6 @@
       "habits": {
         "title": "Habit Tracker",
         "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
-      },
-      "diary": {
-        "title": "AI Diary",
-        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
       },
       "calendar": {
         "title": "Personal Calendar",
@@ -213,10 +208,6 @@
       "insights": {
         "title": "Personal & Team Insights",
         "text": "个人绩效叙事和团队动态分析。一目了然地了解工作负载分配和协作模式。"
-      },
-      "diary": {
-        "title": "AI Conversational Diary",
-        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
       }
     },
     "pricing": {
@@ -372,7 +363,7 @@
     "searchPlaceholder": "搜索项目...",
     "logout": "退出登录",
     "mySpace": "我的空间",
-    "mySpaceDesc": "个人日程 & AI日记",
+    "mySpaceDesc": "个人日程 & 习惯",
     "mySpaceSetup": "创建你的个人空间",
     "mySpaceCreate": "创建",
     "mySpaceIntroTitle": "我的空间",
@@ -383,8 +374,6 @@
     "mySpaceIntroHabitDesc": "追踪每日习惯，持续成长",
     "mySpaceIntroEventTitle": "Events",
     "mySpaceIntroEventDesc": "一目了然地管理日程和事件",
-    "mySpaceIntroDiaryTitle": "AI Diary",
-    "mySpaceIntroDiaryDesc": "AI助力的感性日记",
     "mySpaceIntroStart": "开始使用",
     "mySpaceIntroClose": "关闭",
     "yourProjects": "我的项目",
@@ -1705,7 +1694,6 @@
       "personalBoards": "个人看板",
       "adoptionRate": "采用率",
       "activePersonalBoards": "活跃 (30天)",
-      "totalDiaryEntries": "日记数",
       "boardTypeDistribution": "看板类型分布"
     },
     "analytics": {
@@ -1741,11 +1729,6 @@
       "totalPersonalBoards": "全部个人看板",
       "adoptionRateLabel": "采用率",
       "pbCreated": "PB创建",
-      "diaryEngagement": "日记参与度",
-      "totalDiaryEntries": "全部日记",
-      "diaryCompletionRate": "完成率",
-      "diaryActiveUsers": "活跃用户",
-      "diaryEntries": "日记创建",
       "pbConversion": "Personal Board转化",
       "personalOnly": "仅Personal",
       "personalAndTeam": "Personal + Team",
@@ -2012,8 +1995,6 @@
       "seatCountUpdateSuccess": "座位数已更改为{{count}}个。",
       "updateSeatCount": "更改座位数",
       "personalActivity": "个人活动",
-      "diaryEntries": "日记",
-      "completionRate": "{{rate}}% 完成",
       "events": "日程",
       "lastActivity": "最近活动"
     },
@@ -3197,7 +3178,64 @@
       "schedule": "日程",
       "calendar": "日历",
       "notes": "笔记",
-      "diary": "AI日记"
+      "features": "功能"
+    },
+    "features": {
+      "timetable": "时间表",
+      "timetable_new": "新建时间表",
+      "timetable_default_title": "新时间表",
+      "songlist": "歌曲列表",
+      "attendance": "出勤表",
+      "soon": "即将推出",
+      "soon_toast": "即将推出",
+      "empty_title": "创建你的第一个时间表",
+      "empty_desc": "用表格整理排练和礼拜流程,并导出为 PDF",
+      "saved_ago": "已保存",
+      "saving": "保存中…",
+      "duplicate": "复制",
+      "export_pdf": "导出 PDF",
+      "delete": "删除",
+      "delete_confirm_title": "删除此时间表?",
+      "delete_confirm_desc": "删除后无法恢复",
+      "untitled": "无标题",
+      "timetable_editor": {
+        "add_column": "添加列",
+        "add_day": "添加日期",
+        "add_row": "添加行",
+        "auto_merge": "自动合并相同值",
+        "auto_merge_none": "没有连续相同值的单元格",
+        "auto_merge_title": "一次合并同一列中连续相同值(相同颜色)的单元格",
+        "auto_merged": "已合并 {{count}} 处，均可用“取消合并”还原",
+        "cell_color": "单元格颜色",
+        "color_default": "默认色",
+        "column_deleted": "已删除列",
+        "date": "日期",
+        "delete_column": "删除列",
+        "delete_day": "删除日期",
+        "delete_day_title": "删除日期块",
+        "delete_row": "删除行",
+        "hint_idle": "先选择单元格再点颜色 · Shift+点击选择合并范围",
+        "hint_selected": "更改颜色，或 Shift+点击选择范围后合并",
+        "merge": "合并单元格",
+        "merge_same_column_only": "只能在同一列内合并",
+        "merged_rows": "已合并 {{count}} 行，可用“取消合并”还原",
+        "move_left": "列左移",
+        "move_right": "列右移",
+        "new_column": "新列",
+        "no_date": "无日期",
+        "pick_cell_first": "请先选择要上色的单元格",
+        "place_note": "场地备注(右上)",
+        "place_placeholder": "例: B1 艺术工作室 / 大礼拜堂",
+        "stat": "{{days}}天 · {{rows}}行 · {{cols}}列 · 合并 {{merged}} 处",
+        "term_forgotten": "已从记忆中删除“{{value}}”",
+        "time_hint_filled": "已从上一行的结束时间接续填写",
+        "time_inverted": "结束早于开始",
+        "unmerge": "取消合并",
+        "unmerged": "已取消合并，隐藏的值原样恢复",
+        "version_label": "版本标注(右上)",
+        "version_placeholder": "例: 2026. 9. 10. ver",
+        "weekdays": "日,一,二,三,四,五,六"
+      }
     },
     "overview": {
       "noEvents": "今天没有活动",
@@ -3287,11 +3325,6 @@
       "checkInConfirm": "确认完成\"{{name}}\"？",
       "checkInStreak": "完成后将达成连续{{count}}天！",
       "checkInComplete": "完成"
-    },
-    "diary": {
-      "completionSuggestion": "今天聊了很多呢。要整理成日记吗？ ✨",
-      "continueChat": "继续聊聊",
-      "dayCutoffHint": "凌晨5点前的记录算作前一天"
     },
     "schedule": {
       "overlapWarning": "与{{count}}个日程时间冲突",

@@ -146,10 +146,6 @@ export function AdminDashboardTab() {
             <p className="text-slate-400 text-xs mb-1">{t('admin.dashboard.activePersonalBoards', 'Active (30d)')}</p>
             <p className="text-2xl font-bold text-foreground">{(statistics.active_personal_boards ?? 0).toLocaleString()}</p>
           </div>
-          <div className="bg-foreground/5 rounded-xl p-4">
-            <p className="text-slate-400 text-xs mb-1">{t('admin.dashboard.totalDiaryEntries', 'Diary Entries')}</p>
-            <p className="text-2xl font-bold text-foreground">{(statistics.total_diary_entries ?? 0).toLocaleString()}</p>
-          </div>
         </div>
 
         {/* Board Type Distribution */}

@@ -108,7 +108,7 @@
       },
       "personal": {
         "title": "Personal Productivity Hub",
-        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+        "desc": "Eisenhower Matrix task board and habit tracker with streaks — your personal growth toolkit lives right next to your team workspace."
       }
     },
     "myspace": {
@@ -119,8 +119,7 @@
       "tabs": {
         "overview": "Overview",
         "matrix": "Matrix",
-        "habits": "Habits",
-        "diary": "AI Diary"
+        "habits": "Habits"
       },
       "matrix": {
         "title": "Eisenhower Matrix",
@@ -129,10 +128,6 @@
       "habits": {
         "title": "Habit Tracker",
         "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
-      },
-      "diary": {
-        "title": "AI Diary",
-        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
       },
       "calendar": {
         "title": "Personal Calendar",
@@ -201,10 +196,6 @@
       "insights": {
         "text": "Phân tích hiệu suất cá nhân và động lực nhóm. Nắm bắt phân bổ công việc và mô hình cộng tác chỉ trong nháy mắt.",
         "title": "Personal & Team Insights"
-      },
-      "diary": {
-        "title": "AI Conversational Diary",
-        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
       },
       "label": "AI Intelligence",
       "narrative": {
@@ -372,7 +363,7 @@
     "searchPlaceholder": "Tìm kiếm dự án...",
     "logout": "Đăng xuất",
     "mySpace": "Không gian của tôi",
-    "mySpaceDesc": "Lịch cá nhân & Nhật ký AI",
+    "mySpaceDesc": "Lịch cá nhân & Thói quen",
     "mySpaceSetup": "Tạo không gian cá nhân của bạn",
     "mySpaceCreate": "Tạo",
     "mySpaceIntroTitle": "Không gian của tôi",
@@ -383,8 +374,6 @@
     "mySpaceIntroHabitDesc": "Theo dõi thói quen hàng ngày và phát triển đều đặn",
     "mySpaceIntroEventTitle": "Events",
     "mySpaceIntroEventDesc": "Quản lý lịch trình và sự kiện một cách trực quan",
-    "mySpaceIntroDiaryTitle": "AI Diary",
-    "mySpaceIntroDiaryDesc": "Viết nhật ký cảm xúc với sự hỗ trợ của AI",
     "mySpaceIntroStart": "Bắt đầu",
     "mySpaceIntroClose": "Đóng",
     "yourProjects": "Dự án của bạn",
@@ -1705,7 +1694,6 @@
       "personalBoards": "Bảng cá nhân",
       "adoptionRate": "Tỷ lệ sử dụng",
       "activePersonalBoards": "Hoạt động (30 ngày)",
-      "totalDiaryEntries": "Số nhật ký",
       "boardTypeDistribution": "Phân bố loại bảng"
     },
     "analytics": {
@@ -1741,11 +1729,6 @@
       "totalPersonalBoards": "Tổng Personal Board",
       "adoptionRateLabel": "Tỷ lệ áp dụng",
       "pbCreated": "PB đã tạo",
-      "diaryEngagement": "Tương tác Nhật ký",
-      "totalDiaryEntries": "Tổng mục",
-      "diaryCompletionRate": "Tỷ lệ hoàn thành",
-      "diaryActiveUsers": "Người dùng hoạt động",
-      "diaryEntries": "Nhật ký viết",
       "pbConversion": "Chuyển đổi Personal Board",
       "personalOnly": "Chỉ Personal",
       "personalAndTeam": "Personal + Team",
@@ -2012,8 +1995,6 @@
       "seatCountUpdateSuccess": "Số chỗ đã được cập nhật thành {{count}}.",
       "updateSeatCount": "Cập nhật số chỗ",
       "personalActivity": "Hoạt động cá nhân",
-      "diaryEntries": "Nhật ký",
-      "completionRate": "{{rate}}% Hoàn thành",
       "events": "Sự kiện",
       "lastActivity": "Hoạt động gần đây"
     },
@@ -3187,7 +3168,64 @@
       "schedule": "Lịch trình",
       "calendar": "Lịch",
       "notes": "Ghi chú",
-      "diary": "Nhật ký AI"
+      "features": "Tính năng"
+    },
+    "features": {
+      "timetable": "Thời gian biểu",
+      "timetable_new": "Thời gian biểu mới",
+      "timetable_default_title": "Thời gian biểu mới",
+      "songlist": "Danh sách bài hát",
+      "attendance": "Bảng điểm danh",
+      "soon": "Sắp ra mắt",
+      "soon_toast": "Sắp ra mắt",
+      "empty_title": "Tạo thời gian biểu đầu tiên",
+      "empty_desc": "Sắp xếp lịch tập dượt và thứ tự buổi lễ thành bảng rồi xuất PDF",
+      "saved_ago": "Đã lưu",
+      "saving": "Đang lưu…",
+      "duplicate": "Nhân bản",
+      "export_pdf": "Xuất PDF",
+      "delete": "Xóa",
+      "delete_confirm_title": "Xóa thời gian biểu này?",
+      "delete_confirm_desc": "Không thể hoàn tác sau khi xóa",
+      "untitled": "Chưa có tiêu đề",
+      "timetable_editor": {
+        "add_column": "Thêm cột",
+        "add_day": "Thêm ngày",
+        "add_row": "Thêm hàng",
+        "auto_merge": "Tự gộp ô giống nhau",
+        "auto_merge_none": "Không có ô liên tiếp cùng giá trị",
+        "auto_merge_title": "Gộp một lần các ô liên tiếp cùng giá trị (cùng màu) trong một cột",
+        "auto_merged": "Đã gộp {{count}} chỗ. Có thể hoàn tác từng chỗ bằng “Bỏ gộp”",
+        "cell_color": "Màu ô",
+        "color_default": "Mặc định",
+        "column_deleted": "Đã xóa cột",
+        "date": "Ngày",
+        "delete_column": "Xóa cột",
+        "delete_day": "Xóa ngày",
+        "delete_day_title": "Xóa khối ngày",
+        "delete_row": "Xóa hàng",
+        "hint_idle": "Chọn ô rồi chọn màu · Shift+nhấp để chọn vùng gộp",
+        "hint_selected": "Đổi màu, hoặc Shift+nhấp để chọn vùng rồi gộp",
+        "merge": "Gộp ô",
+        "merge_same_column_only": "Chỉ gộp được trong cùng một cột",
+        "merged_rows": "Đã gộp {{count}} hàng. “Bỏ gộp” sẽ khôi phục",
+        "move_left": "Chuyển cột sang trái",
+        "move_right": "Chuyển cột sang phải",
+        "new_column": "Cột mới",
+        "no_date": "Chưa có ngày",
+        "pick_cell_first": "Hãy chọn ô cần tô màu trước",
+        "place_note": "Ghi chú địa điểm (góc trên phải)",
+        "place_placeholder": "VD: B1 Art Studio / Thánh đường chính",
+        "stat": "{{days}} ngày · {{rows}} hàng · {{cols}} cột · {{merged}} chỗ gộp",
+        "term_forgotten": "Đã xóa “{{value}}” khỏi bộ nhớ",
+        "time_hint_filled": "Đã điền tiếp từ giờ kết thúc của hàng trước",
+        "time_inverted": "Giờ kết thúc trước giờ bắt đầu",
+        "unmerge": "Bỏ gộp",
+        "unmerged": "Đã bỏ gộp. Các giá trị ẩn được khôi phục nguyên vẹn",
+        "version_label": "Nhãn phiên bản (góc trên phải)",
+        "version_placeholder": "VD: 2026. 9. 10. ver",
+        "weekdays": "CN,T2,T3,T4,T5,T6,T7"
+      }
     },
     "overview": {
       "noEvents": "Không có sự kiện hôm nay",
@@ -3277,11 +3315,6 @@
       "checkInConfirm": "Hoàn thành \"{{name}}\" hôm nay?",
       "checkInStreak": "Sẽ đạt chuỗi {{count}} ngày liên tiếp!",
       "checkInComplete": "Hoàn thành"
-    },
-    "diary": {
-      "completionSuggestion": "Có vẻ chúng ta đã chia sẻ nhiều hôm nay. Viết thành nhật ký nhé? ✨",
-      "continueChat": "Nói thêm chút nữa",
-      "dayCutoffHint": "Trước 5 giờ sáng được tính là ngày hôm trước"
     },
     "schedule": {
       "overlapWarning": "Trùng lịch với {{count}} sự kiện",

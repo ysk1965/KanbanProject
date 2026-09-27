@@ -112,7 +112,6 @@ ai:
       personal: ${CLAUDE_MODEL_PERSONAL:claude-haiku-4-5-20251001}
       standup: ${CLAUDE_MODEL_STANDUP:claude-haiku-4-5-20251001}
       meeting: ${CLAUDE_MODEL_MEETING:claude-haiku-4-5-20251001}
-      diary: ${CLAUDE_MODEL_DIARY:claude-haiku-4-5-20251001}
       # MILKYWAY 커밋 플랜 — ai.provider 값과 무관하게 항상 Claude로 호출된다.
       # 비용을 줄이려면 CLAUDE_MODEL_COMMIT_PLAN=claude-haiku-4-5 로 교체.
       commit-plan: ${CLAUDE_MODEL_COMMIT_PLAN:claude-opus-4-8}
@@ -126,7 +125,6 @@ ai:
       personal: ${OPENAI_MODEL_PERSONAL:gpt-4o-mini}
       standup: ${OPENAI_MODEL_STANDUP:gpt-4o-mini}
       meeting: ${OPENAI_MODEL_MEETING:gpt-4o-mini}
-      diary: ${OPENAI_MODEL_DIARY:gpt-4o-mini}
   credit:
     reset-cron: "0 0 0 * * *"  # 매일 자정 UTC
 

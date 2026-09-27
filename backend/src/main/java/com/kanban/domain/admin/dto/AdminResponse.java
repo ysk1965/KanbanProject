@@ -377,26 +377,6 @@ public class AdminResponse {
         }
     }
 
-    // ==================== Diary Stats ====================
-
-    @Getter
-    @Builder
-    @AllArgsConstructor
-    public static class DiaryStats {
-        private long totalEntries;
-        private double completionRate;
-        private long activeUsers;
-        private List<DailyCount> trend;
-
-        @Getter
-        @Builder
-        @AllArgsConstructor
-        public static class DailyCount {
-            private String date;
-            private long count;
-        }
-    }
-
     // ==================== Personal Conversion Stats ====================
 
     @Getter

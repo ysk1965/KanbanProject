@@ -108,7 +108,7 @@
       },
       "personal": {
         "title": "Personal Productivity Hub",
-        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+        "desc": "Eisenhower Matrix task board and habit tracker with streaks — your personal growth toolkit lives right next to your team workspace."
       }
     },
     "myspace": {
@@ -119,8 +119,7 @@
       "tabs": {
         "overview": "Overview",
         "matrix": "Matrix",
-        "habits": "Habits",
-        "diary": "AI Diary"
+        "habits": "Habits"
       },
       "matrix": {
         "title": "Eisenhower Matrix",
@@ -129,10 +128,6 @@
       "habits": {
         "title": "Habit Tracker",
         "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
-      },
-      "diary": {
-        "title": "AI Diary",
-        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
       },
       "calendar": {
         "title": "Personal Calendar",
@@ -201,10 +196,6 @@
       "insights": {
         "text": "個人のパフォーマンスナラティブとチームダイナミクスの分析。業務配分とコラボレーションパターンを一目で把握できます。",
         "title": "Personal & Team Insights"
-      },
-      "diary": {
-        "title": "AI Conversational Diary",
-        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
       },
       "label": "AI Intelligence",
       "narrative": {
@@ -372,7 +363,7 @@
     "searchPlaceholder": "プロジェクトを検索...",
     "logout": "ログアウト",
     "mySpace": "マイスペース",
-    "mySpaceDesc": "個人スケジュール & AIダイアリー",
+    "mySpaceDesc": "個人スケジュール & 習慣",
     "mySpaceSetup": "自分だけのスペースを作りましょう",
     "mySpaceCreate": "作成",
     "mySpaceIntroTitle": "マイスペース",
@@ -383,8 +374,6 @@
     "mySpaceIntroHabitDesc": "毎日の習慣を追跡し、着実に成長しましょう",
     "mySpaceIntroEventTitle": "Events",
     "mySpaceIntroEventDesc": "スケジュールとイベントを一目で管理しましょう",
-    "mySpaceIntroDiaryTitle": "AI Diary",
-    "mySpaceIntroDiaryDesc": "AIがサポートする感性ダイアリーを書きましょう",
     "mySpaceIntroStart": "始める",
     "mySpaceIntroClose": "閉じる",
     "yourProjects": "マイプロジェクト",
@@ -1705,7 +1694,6 @@
       "personalBoards": "パーソナルボード",
       "adoptionRate": "採用率",
       "activePersonalBoards": "アクティブ (30日)",
-      "totalDiaryEntries": "日記数",
       "boardTypeDistribution": "ボードタイプ分布"
     },
     "analytics": {
@@ -1741,11 +1729,6 @@
       "totalPersonalBoards": "全Personal Board",
       "adoptionRateLabel": "採用率",
       "pbCreated": "PB作成",
-      "diaryEngagement": "日記エンゲージメント",
-      "totalDiaryEntries": "全エントリ",
-      "diaryCompletionRate": "完了率",
-      "diaryActiveUsers": "アクティブユーザー",
-      "diaryEntries": "日記作成",
       "pbConversion": "Personal Board転換",
       "personalOnly": "Personalのみ",
       "personalAndTeam": "Personal + Team",
@@ -2012,8 +1995,6 @@
       "seatCountUpdateSuccess": "シート数が{{count}}に変更されました。",
       "updateSeatCount": "シート数を変更",
       "personalActivity": "個人アクティビティ",
-      "diaryEntries": "日記",
-      "completionRate": "{{rate}}% 完了",
       "events": "イベント",
       "lastActivity": "最終アクティビティ"
     },
@@ -3197,7 +3178,64 @@
       "schedule": "スケジュール",
       "calendar": "カレンダー",
       "notes": "ノート",
-      "diary": "AIダイアリー"
+      "features": "機能"
+    },
+    "features": {
+      "timetable": "タイムテーブル",
+      "timetable_new": "新しいタイムテーブル",
+      "timetable_default_title": "新しいタイムテーブル",
+      "songlist": "曲リスト",
+      "attendance": "出席表",
+      "soon": "準備中",
+      "soon_toast": "近日提供予定です",
+      "empty_title": "タイムテーブルを作ってみましょう",
+      "empty_desc": "リハーサル・礼拝の進行を表にまとめてPDFで書き出せます",
+      "saved_ago": "保存済み",
+      "saving": "保存中…",
+      "duplicate": "複製",
+      "export_pdf": "PDF書き出し",
+      "delete": "削除",
+      "delete_confirm_title": "このタイムテーブルを削除しますか?",
+      "delete_confirm_desc": "削除すると元に戻せません",
+      "untitled": "無題",
+      "timetable_editor": {
+        "add_column": "列を追加",
+        "add_day": "日付を追加",
+        "add_row": "行を追加",
+        "auto_merge": "同じ値を自動結合",
+        "auto_merge_none": "連続して同じ値のセルはありません",
+        "auto_merge_title": "同じ列で連続して同じ値(同じ色)のセルを一括結合",
+        "auto_merged": "{{count}}か所を結合しました。それぞれ「結合解除」で戻せます",
+        "cell_color": "セルの色",
+        "color_default": "既定色",
+        "column_deleted": "列を削除しました",
+        "date": "日付",
+        "delete_column": "列を削除",
+        "delete_day": "日付を削除",
+        "delete_day_title": "日付ブロックを削除",
+        "delete_row": "行を削除",
+        "hint_idle": "セルを選んでから色を押してください · Shift+クリックで結合範囲",
+        "hint_selected": "色を変えるか、Shift+クリックで範囲を選んで結合",
+        "merge": "セルを結合",
+        "merge_same_column_only": "結合は同じ列内でのみ可能です",
+        "merged_rows": "{{count}}行を結合しました。「結合解除」で戻せます",
+        "move_left": "列を左へ",
+        "move_right": "列を右へ",
+        "new_column": "新しい列",
+        "no_date": "日付なし",
+        "pick_cell_first": "先に色を付けるセルを選んでください",
+        "place_note": "場所メモ(右上)",
+        "place_placeholder": "例: B1 アートスタジオ / 大聖殿",
+        "stat": "{{days}}日 · {{rows}}行 · {{cols}}列 · 結合{{merged}}か所",
+        "term_forgotten": "「{{value}}」を記憶から削除しました",
+        "time_hint_filled": "前の行の終了時刻から続けて入力しました",
+        "time_inverted": "終了が開始より前です",
+        "unmerge": "結合解除",
+        "unmerged": "結合を解除しました。隠していた値がそのまま戻ります",
+        "version_label": "バージョン表記(右上)",
+        "version_placeholder": "例: 2026. 9. 10. ver",
+        "weekdays": "日,月,火,水,木,金,土"
+      }
     },
     "overview": {
       "noEvents": "今日のイベントはありません",
@@ -3287,11 +3325,6 @@
       "checkInConfirm": "「{{name}}」を完了にしますか？",
       "checkInStreak": "完了すると{{count}}日連続達成！",
       "checkInComplete": "完了"
-    },
-    "diary": {
-      "completionSuggestion": "今日の話はたくさんできましたね。日記にまとめましょうか？ ✨",
-      "continueChat": "もう少し話す",
-      "dayCutoffHint": "午前5時までは前日の日記として記録されます"
     },
     "schedule": {
       "overlapWarning": "{{count}}件のイベントと時間が重複しています",

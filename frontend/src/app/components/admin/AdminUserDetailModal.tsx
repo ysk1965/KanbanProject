@@ -434,7 +434,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                     {t('admin.userDetail.personalBoard', 'Personal Board')}
                   </h4>
                   {user.has_personal_board ? (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                       <div className="bg-foreground/5 rounded-lg p-3">
                         <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
                           {t('admin.userDetail.pbTasks', 'Tasks')}
@@ -442,15 +442,6 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                         <p className="text-foreground text-sm flex items-center gap-2">
                           <ListTodo className="h-3.5 w-3.5 text-purple-400" />
                           {user.personal_board_task_count ?? 0}
-                        </p>
-                      </div>
-                      <div className="bg-foreground/5 rounded-lg p-3">
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
-                          {t('admin.userDetail.pbDiary', 'Diary')}
-                        </p>
-                        <p className="text-foreground text-sm flex items-center gap-2">
-                          <BookOpen className="h-3.5 w-3.5 text-purple-400" />
-                          {user.personal_board_diary_count ?? 0}
                         </p>
                       </div>
                       <div className="bg-foreground/5 rounded-lg p-3">

@@ -646,20 +646,6 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                       </div>
                       <div className="bg-foreground/5 rounded-xl p-4">
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                          {t('admin.boardDetail.diaryEntries', 'Diary Entries')}
-                        </p>
-                        <p className="text-foreground text-xl font-bold flex items-center gap-2">
-                          <BookOpen className="h-5 w-5 text-bridge-accent" />
-                          {board.diary_count ?? 0}
-                        </p>
-                        {board.diary_completion_rate != null && (
-                          <p className="text-slate-400 text-sm mt-1">
-                            {t('admin.boardDetail.completionRate', '{{rate}}% completed').replace('{{rate}}', String(board.diary_completion_rate))}
-                          </p>
-                        )}
-                      </div>
-                      <div className="bg-foreground/5 rounded-xl p-4">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                           {t('admin.boardDetail.events', 'Events')}
                         </p>
                         <p className="text-foreground text-xl font-bold flex items-center gap-2">

@@ -4837,7 +4837,6 @@ export interface AdminUserDetail extends AdminUserSummary {
   personal_board_id?: string | null;
   personal_board_created_at?: string | null;
   personal_board_task_count?: number | null;
-  personal_board_diary_count?: number | null;
   personal_board_event_count?: number | null;
   // Personal AI Credits
   personal_ai_credits?: number | null;
@@ -4882,8 +4881,6 @@ export interface AdminBoardDetail extends AdminBoardSummary {
   purchased_credits?: number | null;
   credits_reset_date?: string | null;
   // Personal Board fields
-  diary_count?: number | null;
-  diary_completion_rate?: number | null;
   personal_event_count?: number | null;
   last_activity_at?: string | null;
 }
@@ -4900,7 +4897,6 @@ export interface AdminStatistics {
   personal_boards?: number;
   personal_board_adoption?: number;
   active_personal_boards?: number;
-  total_diary_entries?: number;
 }
 
 // Analytics Types
@@ -4942,18 +4938,6 @@ export interface ConversionStats {
   trial_in_progress: number;
   trial_expired_not_converted: number;
   trend: MonthlyConversion[];
-}
-
-export interface DiaryStatsData {
-  date: string;
-  count: number;
-}
-
-export interface DiaryStats {
-  total_entries: number;
-  completion_rate: number;
-  active_users: number;
-  trend: DiaryStatsData[];
 }
 
 export interface PersonalConversionStats {
@@ -5595,11 +5579,6 @@ export const adminAPI = {
     return apiClient.get<ConversionStats>(
       `/admin/statistics/conversion?days=${days}`,
     );
-  },
-
-  // Analytics: Diary 통계
-  getDiaryStats: async (days: number = 30) => {
-    return apiClient.get<DiaryStats>(`/admin/statistics/diary?days=${days}`);
   },
 
   // Analytics: Personal → Team 전환 통계
@@ -8270,18 +8249,7 @@ export const myNoteCommentAPI = {
 // Task Dependency API
 // ========================================
 
-import type {
-  PersonalEvent,
-  DiaryDetail,
-  DiarySimple,
-  DiaryAiReply,
-  DiaryVoiceReply,
-  DiaryVoiceSettings,
-  AiCredits,
-  AiCreditPurchaseRequest,
-  AiCreditPurchaseResult,
-  DiaryWorkContextData,
-} from "../types";
+import type { PersonalEvent } from "../types";
 
 // ========================================
 // Personal Space API
@@ -8361,135 +8329,6 @@ export const personalEventAPI = {
   delete: async (eventId: string, scope?: string): Promise<void> => {
     const query = scope ? `?scope=${scope}` : "";
     return apiClient.delete(`/personal/events/${eventId}${query}`);
-  },
-};
-
-// ========================================
-// Diary API
-// ========================================
-
-export const diaryAPI = {
-  getByDate: async (date: string): Promise<DiaryDetail | null> => {
-    const data = await apiClient.get<DiaryDetail | null>(`/diary?date=${date}`);
-    // Backend returns null (empty body) when no diary exists → apiClient returns {}
-    return data && (data as DiaryDetail).id ? data : null;
-  },
-
-  getById: async (diaryId: string): Promise<DiaryDetail> => {
-    return apiClient.get(`/diary/${diaryId}`);
-  },
-
-  getList: async (year: number, month: number): Promise<DiarySimple[]> => {
-    return apiClient.get(`/diary/list?year=${year}&month=${month}`);
-  },
-
-  create: async (
-    diaryDate: string,
-    language?: string,
-  ): Promise<DiaryDetail> => {
-    const params = language ? `?language=${encodeURIComponent(language)}` : "";
-    return apiClient.post(`/diary${params}`, { diary_date: diaryDate });
-  },
-
-  sendMessage: async (
-    diaryId: string,
-    content: string,
-    language?: string,
-  ): Promise<DiaryAiReply> => {
-    const params = language ? `?language=${encodeURIComponent(language)}` : "";
-    return apiClient.post(`/diary/${diaryId}/messages${params}`, { content });
-  },
-
-  complete: async (
-    diaryId: string,
-    data: {
-      title?: string;
-      content?: string;
-      mood?: string;
-    },
-    language?: string,
-  ): Promise<DiaryDetail> => {
-    const params = language ? `?language=${encodeURIComponent(language)}` : "";
-    return apiClient.put(`/diary/${diaryId}/complete${params}`, data);
-  },
-
-  reopen: async (diaryId: string): Promise<DiaryDetail> => {
-    return apiClient.put(`/diary/${diaryId}/reopen`, {});
-  },
-
-  reset: async (diaryId: string, language?: string): Promise<DiaryDetail> => {
-    const params = language ? `?language=${encodeURIComponent(language)}` : "";
-    return apiClient.put(`/diary/${diaryId}/reset${params}`, {});
-  },
-
-  update: async (
-    diaryId: string,
-    data: {
-      title?: string;
-      content?: string;
-      mood?: string;
-    },
-  ): Promise<DiaryDetail> => {
-    return apiClient.put(`/diary/${diaryId}`, data);
-  },
-
-  delete: async (diaryId: string): Promise<void> => {
-    return apiClient.delete(`/diary/${diaryId}`);
-  },
-
-  // Voice endpoints
-  sendVoiceMessage: async (
-    diaryId: string,
-    audioBlob: Blob,
-    language?: string,
-  ): Promise<DiaryVoiceReply> => {
-    const formData = new FormData();
-    formData.append("file", audioBlob, "recording.webm");
-
-    const params = language ? `?language=${encodeURIComponent(language)}` : "";
-    const response = await authenticatedFetch(
-      `${API_BASE_URL}/diary/${diaryId}/voice-message${params}`,
-      {
-        method: "POST",
-        body: formData,
-      },
-    );
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({
-        code: "UNKNOWN",
-        message: response.statusText,
-      }));
-      throw errData;
-    }
-
-    return response.json();
-  },
-
-  getVoiceSettings: async (): Promise<DiaryVoiceSettings> => {
-    return apiClient.get("/diary/voice-settings");
-  },
-
-  updateVoiceSettings: async (
-    data: Partial<DiaryVoiceSettings>,
-  ): Promise<DiaryVoiceSettings> => {
-    return apiClient.put("/diary/voice-settings", data);
-  },
-
-  // Personal AI Credits
-  getPersonalCredits: async (): Promise<AiCredits> => {
-    return apiClient.get("/diary/credits");
-  },
-
-  purchasePersonalCredits: async (
-    data: AiCreditPurchaseRequest,
-  ): Promise<AiCreditPurchaseResult> => {
-    return apiClient.post("/diary/credits/purchase", data);
-  },
-
-  getWorkContext: async (date?: string): Promise<DiaryWorkContextData> => {
-    const params = date ? `?date=${date}` : "";
-    return apiClient.get(`/personal/diary/work-context${params}`);
   },
 };
 

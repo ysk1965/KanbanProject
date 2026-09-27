@@ -22,7 +22,6 @@ import {
   ListTodo,
   Flame,
   Clock,
-  BookOpen,
 } from "lucide-react";
 import { IconButton } from '../ui/IconButton';
 import { motion, AnimatePresence } from "framer-motion";
@@ -573,10 +572,6 @@ export function Dashboard({
                       <div className="flex items-center gap-1.5">
                         <Clock size={13} />
                         <span className="text-xs">Events</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <BookOpen size={13} />
-                        <span className="text-xs">Diary</span>
                       </div>
                     </div>
                     <span className="text-xs text-slate-500">
@@ -1147,12 +1142,6 @@ export function Dashboard({
                 titleKey: "mySpaceIntroEventTitle",
                 descKey: "mySpaceIntroEventDesc",
                 color: "text-bridge-secondary",
-              },
-              {
-                icon: BookOpen,
-                titleKey: "mySpaceIntroDiaryTitle",
-                descKey: "mySpaceIntroDiaryDesc",
-                color: "text-rose-400",
               },
             ].map((item, index) => (
               <motion.div

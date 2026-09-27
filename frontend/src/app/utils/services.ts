@@ -2479,7 +2479,6 @@ import {
   SignupTrend,
   ActiveUserStats,
   ConversionStats,
-  DiaryStats,
   PersonalConversionStats,
   RetentionAnalysis,
   InactiveUserList,
@@ -2705,11 +2704,6 @@ export const adminService = {
   // Analytics: 결제 전환율
   getConversionStats: async (days: number = 365): Promise<ConversionStats> => {
     return await adminAPI.getConversionStats(days);
-  },
-
-  // Analytics: Diary 통계
-  getDiaryStats: async (days: number = 30): Promise<DiaryStats> => {
-    return await adminAPI.getDiaryStats(days);
   },
 
   // Analytics: Personal → Team 전환 통계
@@ -3714,16 +3708,8 @@ export const aiCreditService = {
 // Task Dependency Service
 // ========================================
 
-import { taskDependencyAPI, personalEventAPI, diaryAPI } from "./api";
-import type {
-  TaskDependency,
-  PersonalEvent,
-  DiaryDetail,
-  DiarySimple,
-  DiaryAiReply,
-  DiaryVoiceReply,
-  DiaryVoiceSettings,
-} from "../types";
+import { taskDependencyAPI, personalEventAPI } from "./api";
+import type { TaskDependency, PersonalEvent } from "../types";
 
 export const taskDependencyService = {
   getByBoard: async (boardId: string) => {
@@ -3808,103 +3794,76 @@ export const personalEventService = {
   },
 };
 
-// ========================================
-// Diary Service
-// ========================================
+// ─── Personal Feature Docs (마이 스페이스 「기능」 탭) ───
+// 기획서: docs/Design/myspace-features-timetable.html §06
+// 기능마다 문서 여러 개 + 추천 용어(terms). 계약 타입: components/personal/features/types.ts
 
-export const diaryService = {
-  getByDate: async (date: string): Promise<DiaryDetail | null> => {
-    return diaryAPI.getByDate(date);
+import type {
+  PersonalFeatureDoc,
+  PersonalFeatureDocSummary,
+  PersonalFeatureTerm,
+} from "../components/personal/features/types";
+
+const featureBase = (featureKey: string) =>
+  `/personal/features/${encodeURIComponent(featureKey)}`;
+
+export const personalFeatureAPI = {
+  listDocs: async (featureKey: string): Promise<PersonalFeatureDocSummary[]> => {
+    return apiClient.get(`${featureBase(featureKey)}/docs`);
   },
 
-  getById: async (diaryId: string): Promise<DiaryDetail> => {
-    return diaryAPI.getById(diaryId);
+  getDoc: async <C = unknown>(
+    featureKey: string,
+    id: string,
+  ): Promise<PersonalFeatureDoc<C>> => {
+    return apiClient.get(`${featureBase(featureKey)}/docs/${id}`);
   },
 
-  getList: async (year: number, month: number): Promise<DiarySimple[]> => {
-    return diaryAPI.getList(year, month);
+  createDoc: async <C = unknown>(
+    featureKey: string,
+    body: { title: string; content: C; schema_ver: number },
+  ): Promise<PersonalFeatureDoc<C>> => {
+    return apiClient.post(`${featureBase(featureKey)}/docs`, body);
   },
 
-  create: async (
-    diaryDate: string,
-    language?: string,
-  ): Promise<DiaryDetail> => {
-    return diaryAPI.create(diaryDate, language);
+  updateDoc: async <C = unknown>(
+    featureKey: string,
+    id: string,
+    body: { title?: string; content?: C },
+  ): Promise<PersonalFeatureDoc<C>> => {
+    return apiClient.patch(`${featureBase(featureKey)}/docs/${id}`, body);
   },
 
-  sendMessage: async (
-    diaryId: string,
-    content: string,
-    language?: string,
-  ): Promise<DiaryAiReply> => {
-    return diaryAPI.sendMessage(diaryId, content, language);
+  duplicateDoc: async <C = unknown>(
+    featureKey: string,
+    id: string,
+  ): Promise<PersonalFeatureDoc<C>> => {
+    return apiClient.post(`${featureBase(featureKey)}/docs/${id}/duplicate`);
   },
 
-  complete: async (
-    diaryId: string,
-    data: {
-      title?: string;
-      content?: string;
-      mood?: string;
-    },
-    language?: string,
-  ): Promise<DiaryDetail> => {
-    return diaryAPI.complete(diaryId, data, language);
+  deleteDoc: async (featureKey: string, id: string): Promise<void> => {
+    return apiClient.delete(`${featureBase(featureKey)}/docs/${id}`);
   },
 
-  reopen: async (diaryId: string): Promise<DiaryDetail> => {
-    return diaryAPI.reopen(diaryId);
+  /** 추천 용어. field(열 이름)를 주면 그 열의 것만. */
+  listTerms: async (
+    featureKey: string,
+    field?: string,
+  ): Promise<PersonalFeatureTerm[]> => {
+    const query = field ? `?field=${encodeURIComponent(field)}` : "";
+    return apiClient.get(`${featureBase(featureKey)}/terms${query}`);
   },
 
-  reset: async (diaryId: string, language?: string): Promise<DiaryDetail> => {
-    return diaryAPI.reset(diaryId, language);
+  /** 추천 항목의 ✕ — 서버 기억 삭제 */
+  forgetTerm: async (
+    featureKey: string,
+    field: string,
+    value: string,
+  ): Promise<void> => {
+    return apiClient.delete(
+      `${featureBase(featureKey)}/terms?field=${encodeURIComponent(field)}&value=${encodeURIComponent(value)}`,
+    );
   },
-
-  update: async (
-    diaryId: string,
-    data: {
-      title?: string;
-      content?: string;
-      mood?: string;
-    },
-  ): Promise<DiaryDetail> => {
-    return diaryAPI.update(diaryId, data);
-  },
-
-  delete: async (diaryId: string): Promise<void> => {
-    return diaryAPI.delete(diaryId);
-  },
-
-  sendVoiceMessage: async (
-    diaryId: string,
-    audioBlob: Blob,
-    language?: string,
-  ): Promise<DiaryVoiceReply> => {
-    return diaryAPI.sendVoiceMessage(diaryId, audioBlob, language);
-  },
-
-  getVoiceSettings: async (): Promise<DiaryVoiceSettings> => {
-    return diaryAPI.getVoiceSettings();
-  },
-
-  updateVoiceSettings: async (
-    data: Partial<DiaryVoiceSettings>,
-  ): Promise<DiaryVoiceSettings> => {
-    return diaryAPI.updateVoiceSettings(data);
-  },
-
-  // Personal AI Credits
-  getPersonalCredits: async (): Promise<AiCredits> => {
-    return diaryAPI.getPersonalCredits();
-  },
-
-  purchasePersonalCredits: async (
-    data: AiCreditPurchaseRequest,
-  ): Promise<AiCreditPurchaseResult> => {
-    return diaryAPI.purchasePersonalCredits(data);
-  },
-
-  getWorkContext: diaryAPI.getWorkContext,
 };
 
 // ─── Personal Task Service (v9.0) ───

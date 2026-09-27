@@ -108,7 +108,7 @@
       },
       "personal": {
         "title": "Personal Productivity Hub",
-        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+        "desc": "Eisenhower Matrix task board and habit tracker with streaks — your personal growth toolkit lives right next to your team workspace."
       }
     },
     "myspace": {
@@ -119,8 +119,7 @@
       "tabs": {
         "overview": "Overview",
         "matrix": "Matrix",
-        "habits": "Habits",
-        "diary": "AI Diary"
+        "habits": "Habits"
       },
       "matrix": {
         "title": "Eisenhower Matrix",
@@ -129,10 +128,6 @@
       "habits": {
         "title": "Habit Tracker",
         "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
-      },
-      "diary": {
-        "title": "AI Diary",
-        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
       },
       "calendar": {
         "title": "Personal Calendar",
@@ -213,11 +208,7 @@
       },
       "subtitle": "เหนือกว่าแดชบอร์ดและกราฟ AI วิเคราะห์งาน, ไทม์บล็อก, เช็คลิสต์ และคอมเมนต์เพื่อสร้างข้อมูลเชิงลึกที่มนุษย์อาจมองข้าม",
       "titleLine1": "AI อ่าน",
-      "titleLine2": "full context",
-      "diary": {
-        "title": "AI Conversational Diary",
-        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
-      }
+      "titleLine2": "full context"
     },
     "pricing": {
       "badge": "PREMIUM ทดลองใช้ฟรี 3 วัน",
@@ -372,7 +363,7 @@
     "searchPlaceholder": "ค้นหาโปรเจกต์...",
     "logout": "ออกจากระบบ",
     "mySpace": "พื้นที่ของฉัน",
-    "mySpaceDesc": "ตารางส่วนตัว & ไดอารี่ AI",
+    "mySpaceDesc": "ตารางส่วนตัว & นิสัย",
     "mySpaceSetup": "สร้างพื้นที่ส่วนตัวของคุณ",
     "mySpaceCreate": "สร้าง",
     "mySpaceIntroTitle": "พื้นที่ของฉัน",
@@ -383,8 +374,6 @@
     "mySpaceIntroHabitDesc": "ติดตามนิสัยประจำวันและเติบโตอย่างสม่ำเสมอ",
     "mySpaceIntroEventTitle": "Events",
     "mySpaceIntroEventDesc": "จัดการตารางและกิจกรรมได้ในที่เดียว",
-    "mySpaceIntroDiaryTitle": "AI Diary",
-    "mySpaceIntroDiaryDesc": "เขียนไดอารี่ด้วยความช่วยเหลือจาก AI",
     "mySpaceIntroStart": "เริ่มต้น",
     "mySpaceIntroClose": "ปิด",
     "yourProjects": "โปรเจกต์ของคุณ",
@@ -1705,7 +1694,6 @@
       "personalBoards": "บอร์ดส่วนตัว",
       "adoptionRate": "อัตราการใช้งาน",
       "activePersonalBoards": "ใช้งานอยู่ (30 วัน)",
-      "totalDiaryEntries": "จำนวนไดอารี่",
       "boardTypeDistribution": "การกระจายประเภทบอร์ด"
     },
     "analytics": {
@@ -1741,11 +1729,6 @@
       "totalPersonalBoards": "Personal Board ทั้งหมด",
       "adoptionRateLabel": "อัตราการใช้งาน",
       "pbCreated": "PB สร้าง",
-      "diaryEngagement": "การมีส่วนร่วม Diary",
-      "totalDiaryEntries": "รายการทั้งหมด",
-      "diaryCompletionRate": "อัตราเสร็จสิ้น",
-      "diaryActiveUsers": "ผู้ใช้ที่ใช้งาน",
-      "diaryEntries": "Diary เขียน",
       "pbConversion": "การแปลง Personal Board",
       "personalOnly": "Personal เท่านั้น",
       "personalAndTeam": "Personal + Team",
@@ -2012,8 +1995,6 @@
       "seatCountUpdateSuccess": "จำนวนที่นั่งถูกเปลี่ยนเป็น {{count}} แล้ว",
       "updateSeatCount": "อัปเดตจำนวนที่นั่ง",
       "personalActivity": "กิจกรรมส่วนตัว",
-      "diaryEntries": "ไดอารี่",
-      "completionRate": "{{rate}}% เสร็จสิ้น",
       "events": "กิจกรรม",
       "lastActivity": "กิจกรรมล่าสุด"
     },
@@ -3187,7 +3168,64 @@
       "schedule": "กำหนดการ",
       "calendar": "ปฏิทิน",
       "notes": "บันทึก",
-      "diary": "ไดอารี่ AI"
+      "features": "ฟีเจอร์"
+    },
+    "features": {
+      "timetable": "ตารางเวลา",
+      "timetable_new": "ตารางเวลาใหม่",
+      "timetable_default_title": "ตารางเวลาใหม่",
+      "songlist": "รายชื่อเพลง",
+      "attendance": "ใบเช็คชื่อ",
+      "soon": "เร็วๆ นี้",
+      "soon_toast": "เร็วๆ นี้",
+      "empty_title": "สร้างตารางเวลาแรกของคุณ",
+      "empty_desc": "จัดลำดับการซ้อมและพิธีนมัสการเป็นตารางแล้วส่งออกเป็น PDF",
+      "saved_ago": "บันทึกแล้ว",
+      "saving": "กำลังบันทึก…",
+      "duplicate": "ทำสำเนา",
+      "export_pdf": "ส่งออก PDF",
+      "delete": "ลบ",
+      "delete_confirm_title": "ลบตารางเวลานี้หรือไม่?",
+      "delete_confirm_desc": "ลบแล้วไม่สามารถกู้คืนได้",
+      "untitled": "ไม่มีชื่อ",
+      "timetable_editor": {
+        "add_column": "เพิ่มคอลัมน์",
+        "add_day": "เพิ่มวันที่",
+        "add_row": "เพิ่มแถว",
+        "auto_merge": "รวมค่าซ้ำอัตโนมัติ",
+        "auto_merge_none": "ไม่มีเซลล์ติดกันที่มีค่าเหมือนกัน",
+        "auto_merge_title": "รวมเซลล์ที่ติดกันในคอลัมน์เดียวกันซึ่งมีค่า (และสี) เหมือนกันในครั้งเดียว",
+        "auto_merged": "รวมแล้ว {{count}} จุด แต่ละจุดย้อนกลับได้ด้วย “ยกเลิกการรวม”",
+        "cell_color": "สีเซลล์",
+        "color_default": "ค่าเริ่มต้น",
+        "column_deleted": "ลบคอลัมน์แล้ว",
+        "date": "วันที่",
+        "delete_column": "ลบคอลัมน์",
+        "delete_day": "ลบวันที่",
+        "delete_day_title": "ลบบล็อกวันที่",
+        "delete_row": "ลบแถว",
+        "hint_idle": "เลือกเซลล์แล้วกดสี · Shift+คลิกเพื่อเลือกช่วงรวม",
+        "hint_selected": "เปลี่ยนสี หรือ Shift+คลิกเลือกช่วงเพื่อรวม",
+        "merge": "รวมเซลล์",
+        "merge_same_column_only": "รวมได้เฉพาะภายในคอลัมน์เดียวกัน",
+        "merged_rows": "รวมแล้ว {{count}} แถว “ยกเลิกการรวม” จะคืนค่าเดิม",
+        "move_left": "ย้ายคอลัมน์ไปซ้าย",
+        "move_right": "ย้ายคอลัมน์ไปขวา",
+        "new_column": "คอลัมน์ใหม่",
+        "no_date": "ไม่มีวันที่",
+        "pick_cell_first": "เลือกเซลล์ที่จะใส่สีก่อน",
+        "place_note": "หมายเหตุสถานที่ (มุมขวาบน)",
+        "place_placeholder": "เช่น B1 Art Studio / โบสถ์ใหญ่",
+        "stat": "{{days}} วัน · {{rows}} แถว · {{cols}} คอลัมน์ · รวม {{merged}} จุด",
+        "term_forgotten": "ลบ “{{value}}” ออกจากความจำแล้ว",
+        "time_hint_filled": "เติมต่อจากเวลาสิ้นสุดของแถวก่อนหน้า",
+        "time_inverted": "เวลาสิ้นสุดอยู่ก่อนเวลาเริ่ม",
+        "unmerge": "ยกเลิกการรวม",
+        "unmerged": "ยกเลิกการรวมแล้ว ค่าที่ซ่อนไว้กลับมาเหมือนเดิม",
+        "version_label": "ป้ายเวอร์ชัน (มุมขวาบน)",
+        "version_placeholder": "เช่น 2026. 9. 10. ver",
+        "weekdays": "อา,จ,อ,พ,พฤ,ศ,ส"
+      }
     },
     "overview": {
       "noEvents": "ไม่มีกิจกรรมวันนี้",
@@ -3277,11 +3315,6 @@
       "checkInConfirm": "ทำ \"{{name}}\" สำเร็จวันนี้?",
       "checkInStreak": "จะครบ {{count}} วันติดต่อกัน!",
       "checkInComplete": "สำเร็จ"
-    },
-    "diary": {
-      "completionSuggestion": "ดูเหมือนเราคุยกันเยอะแล้ววันนี้ เขียนเป็นไดอารี่กันไหม? ✨",
-      "continueChat": "คุยต่อ",
-      "dayCutoffHint": "ก่อนตี 5 จะนับเป็นไดอารี่ของวันก่อนหน้า"
     },
     "schedule": {
       "overlapWarning": "ซ้อนทับกับ {{count}} กิจกรรม",

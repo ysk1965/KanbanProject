@@ -41,7 +41,6 @@ export interface AdminUserDetail extends AdminUser {
   personal_board_id?: string | null;
   personal_board_created_at?: string | null;
   personal_board_task_count?: number | null;
-  personal_board_diary_count?: number | null;
   personal_board_event_count?: number | null;
 }
 
@@ -74,8 +73,6 @@ export interface AdminBoardDetail extends AdminBoardSummary {
     joined_at: string;
   }[];
   // Personal Board fields
-  diary_count?: number | null;
-  diary_completion_rate?: number | null;
   personal_event_count?: number | null;
   last_activity_at?: string | null;
 }
@@ -92,7 +89,6 @@ export interface AdminStatistics {
   personal_boards?: number;
   personal_board_adoption?: number;
   active_personal_boards?: number;
-  total_diary_entries?: number;
 }
 
 export interface AdminSubscription {
@@ -2389,64 +2385,6 @@ export interface PersonalEvent {
   updated_at?: string;
 }
 
-// ========================================
-// AI 일기 (Diary)
-// ========================================
-
-export type DiaryStatus = "CHATTING" | "COMPLETED";
-
-export interface DiarySimple {
-  id: string;
-  diary_date: string;
-  title?: string | null;
-  mood?: string | null;
-  status: DiaryStatus;
-  created_at: string;
-}
-
-export interface DiaryMessage {
-  id: string;
-  role: "USER" | "AI";
-  content: string;
-  message_order: number;
-  audio_url?: string | null;
-  audio_duration_seconds?: number | null;
-  created_at: string;
-}
-
-export interface DiaryDetail {
-  id: string;
-  diary_date: string;
-  title?: string | null;
-  content?: string | null;
-  mood?: string | null;
-  status: DiaryStatus;
-  messages: DiaryMessage[];
-  created_at: string;
-  updated_at?: string;
-}
-
-export interface DiaryAiReply {
-  diary_id: string;
-  user_message: DiaryMessage;
-  ai_message: DiaryMessage;
-}
-
-export interface DiaryVoiceReply {
-  diary_id: string;
-  user_text: string;
-  user_message: DiaryMessage;
-  ai_text: string;
-  ai_message: DiaryMessage;
-  ai_audio_url: string;
-}
-
-export interface DiaryVoiceSettings {
-  voice_type: string;
-  auto_play: boolean;
-  speed: number;
-}
-
 // ─── Personal Task (v9.0 MySpace) ───
 
 export type PersonalTaskStatus = "TODO" | "IN_PROGRESS" | "DONE" | "ARCHIVED";
@@ -2545,22 +2483,6 @@ export interface HabitWeeklyMatrix {
   end_date: string;
 }
 
-export interface DiaryTodayInfo {
-  id: string;
-  status: DiaryStatus;
-  title?: string | null;
-  mood?: string | null;
-}
-
-export interface DiaryOverviewInfo {
-  id: string;
-  status: DiaryStatus;
-  title?: string | null;
-  mood?: string | null;
-  last_message_content?: string | null;
-  last_message_role?: string | null;
-}
-
 export interface PersonalOverviewData {
   all_tasks: PersonalTask[];
   all_habits: PersonalHabit[];
@@ -2573,7 +2495,6 @@ export interface PersonalOverviewData {
   habit_completion_rate: number;
   active_task_count: number;
   completed_today_count: number;
-  diary_today: DiaryOverviewInfo | null;
 }
 
 export interface PersonalDashboardToday {
@@ -2585,7 +2506,6 @@ export interface PersonalDashboardToday {
   habit_completion_rate: number;
   active_task_count: number;
   completed_today_count: number;
-  diary_today: DiaryTodayInfo | null;
 }
 
 // ========================================
@@ -3547,42 +3467,6 @@ export interface CelebrationItem {
 
 export interface CelebrationsData {
   celebrations: CelebrationItem[];
-}
-
-// Feature #9: AI 다이어리 업무 회고
-export interface BoardCompletedItem {
-  type: "CHECKLIST_ITEM";
-  title: string;
-  task_title: string;
-  feature_title?: string;
-  completed_at: string;
-}
-
-export interface BoardCompletedGroup {
-  board_name: string;
-  board_emoji?: string;
-  items: BoardCompletedItem[];
-}
-
-export interface PersonalCompletedItem {
-  title: string;
-  type: "HABIT" | "TASK";
-  completed_at: string;
-}
-
-export interface DiaryWorkContextWeeklySummary {
-  total_completed: number;
-  previous_week_completed: number;
-  change_percentage: number;
-  most_active_board?: string;
-  habit_streak_highlights?: { habit_title: string; current_streak: number }[];
-}
-
-export interface DiaryWorkContextData {
-  date: string;
-  completed_today: BoardCompletedGroup[];
-  personal_completed_today: PersonalCompletedItem[];
-  weekly_summary: DiaryWorkContextWeeklySummary | null;
 }
 
 // ===== OKR Types =====

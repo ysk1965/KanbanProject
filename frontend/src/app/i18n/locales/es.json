@@ -108,7 +108,7 @@
       },
       "personal": {
         "title": "Personal Productivity Hub",
-        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+        "desc": "Eisenhower Matrix task board and habit tracker with streaks — your personal growth toolkit lives right next to your team workspace."
       }
     },
     "myspace": {
@@ -119,8 +119,7 @@
       "tabs": {
         "overview": "Overview",
         "matrix": "Matrix",
-        "habits": "Habits",
-        "diary": "AI Diary"
+        "habits": "Habits"
       },
       "matrix": {
         "title": "Eisenhower Matrix",
@@ -129,10 +128,6 @@
       "habits": {
         "title": "Habit Tracker",
         "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
-      },
-      "diary": {
-        "title": "AI Diary",
-        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
       },
       "calendar": {
         "title": "Personal Calendar",
@@ -213,11 +208,7 @@
       },
       "subtitle": "Más allá de dashboards y gráficos. La IA analiza tus tareas, bloques de tiempo, checklists y comentarios para generar insights narrativos que conectan lo que las personas podrían pasar por alto.",
       "titleLine1": "La IA lee el",
-      "titleLine2": "full context",
-      "diary": {
-        "title": "AI Conversational Diary",
-        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
-      }
+      "titleLine2": "full context"
     },
     "pricing": {
       "badge": "PREMIUM 7 DÍAS DE PRUEBA GRATIS",
@@ -372,7 +363,7 @@
     "searchPlaceholder": "Buscar proyectos...",
     "logout": "Cerrar sesión",
     "mySpace": "Mi espacio",
-    "mySpaceDesc": "Agenda personal y diario con IA",
+    "mySpaceDesc": "Agenda personal y hábitos",
     "mySpaceSetup": "Crea tu espacio personal",
     "mySpaceCreate": "Crear",
     "mySpaceIntroTitle": "Mi espacio",
@@ -383,8 +374,6 @@
     "mySpaceIntroHabitDesc": "Sigue tus hábitos diarios y crece de forma constante",
     "mySpaceIntroEventTitle": "Events",
     "mySpaceIntroEventDesc": "Gestiona horarios y eventos de un vistazo",
-    "mySpaceIntroDiaryTitle": "AI Diary",
-    "mySpaceIntroDiaryDesc": "Escribe un diario personal con ayuda de IA",
     "mySpaceIntroStart": "Comenzar",
     "mySpaceIntroClose": "Cerrar",
     "yourProjects": "Mis proyectos",
@@ -1705,7 +1694,6 @@
       "personalBoards": "Tableros Personales",
       "adoptionRate": "Tasa de Adopción",
       "activePersonalBoards": "Activos (30d)",
-      "totalDiaryEntries": "Entradas de Diario",
       "boardTypeDistribution": "Distribución de Tipos de Tablero"
     },
     "analytics": {
@@ -1741,11 +1729,6 @@
       "totalPersonalBoards": "Total Personal Boards",
       "adoptionRateLabel": "Tasa de adopción",
       "pbCreated": "PB creados",
-      "diaryEngagement": "Participación del diario",
-      "totalDiaryEntries": "Total entradas",
-      "diaryCompletionRate": "Tasa de finalización",
-      "diaryActiveUsers": "Usuarios activos",
-      "diaryEntries": "Entradas de diario",
       "pbConversion": "Conversión de Personal Board",
       "personalOnly": "Solo Personal",
       "personalAndTeam": "Personal + Team",
@@ -2012,8 +1995,6 @@
       "seatCountUpdateSuccess": "La cantidad de puestos se actualizó a {{count}}.",
       "updateSeatCount": "Actualizar puestos",
       "personalActivity": "Actividad Personal",
-      "diaryEntries": "Diario",
-      "completionRate": "{{rate}}% Completado",
       "events": "Eventos",
       "lastActivity": "Última Actividad"
     },
@@ -3187,7 +3168,64 @@
       "schedule": "Horario",
       "calendar": "Calendario",
       "notes": "Notas",
-      "diary": "Diario IA"
+      "features": "Funciones"
+    },
+    "features": {
+      "timetable": "Horario",
+      "timetable_new": "Nuevo horario",
+      "timetable_default_title": "Nuevo horario",
+      "songlist": "Lista de canciones",
+      "attendance": "Asistencia",
+      "soon": "Próximamente",
+      "soon_toast": "Próximamente",
+      "empty_title": "Crea tu primer horario",
+      "empty_desc": "Organiza ensayos y el orden del culto en una tabla y expórtala a PDF",
+      "saved_ago": "Guardado",
+      "saving": "Guardando…",
+      "duplicate": "Duplicar",
+      "export_pdf": "Exportar PDF",
+      "delete": "Eliminar",
+      "delete_confirm_title": "¿Eliminar este horario?",
+      "delete_confirm_desc": "Esta acción no se puede deshacer",
+      "untitled": "Sin título",
+      "timetable_editor": {
+        "add_column": "Añadir columna",
+        "add_day": "Añadir fecha",
+        "add_row": "Añadir fila",
+        "auto_merge": "Combinar iguales automáticamente",
+        "auto_merge_none": "No hay celdas consecutivas con el mismo valor",
+        "auto_merge_title": "Combina de una vez las celdas consecutivas de una columna con el mismo valor y color",
+        "auto_merged": "Se combinaron {{count}} lugares. Cada uno se deshace con “Separar”",
+        "cell_color": "Color de celda",
+        "color_default": "Predeterminado",
+        "column_deleted": "Columna eliminada",
+        "date": "Fecha",
+        "delete_column": "Eliminar columna",
+        "delete_day": "Eliminar fecha",
+        "delete_day_title": "Eliminar bloque de fecha",
+        "delete_row": "Eliminar fila",
+        "hint_idle": "Elige una celda y luego un color · Shift+clic para seleccionar el rango a combinar",
+        "hint_selected": "Cambia el color o usa Shift+clic para seleccionar un rango y combinar",
+        "merge": "Combinar celdas",
+        "merge_same_column_only": "Solo se puede combinar dentro de una misma columna",
+        "merged_rows": "Se combinaron {{count}} filas. “Separar” las restaura",
+        "move_left": "Mover columna a la izquierda",
+        "move_right": "Mover columna a la derecha",
+        "new_column": "Nueva columna",
+        "no_date": "Sin fecha",
+        "pick_cell_first": "Primero elige la celda a colorear",
+        "place_note": "Nota de lugar (arriba a la derecha)",
+        "place_placeholder": "p. ej. B1 Art Studio / Santuario principal",
+        "stat": "{{days}} días · {{rows}} filas · {{cols}} columnas · {{merged}} combinaciones",
+        "term_forgotten": "Se olvidó “{{value}}”",
+        "time_hint_filled": "Rellenado desde la hora de fin de la fila anterior",
+        "time_inverted": "El fin es anterior al inicio",
+        "unmerge": "Separar",
+        "unmerged": "Separado. Los valores ocultos vuelven tal como estaban",
+        "version_label": "Etiqueta de versión (arriba a la derecha)",
+        "version_placeholder": "p. ej. 2026. 9. 10. ver",
+        "weekdays": "Dom,Lun,Mar,Mié,Jue,Vie,Sáb"
+      }
     },
     "overview": {
       "noEvents": "No hay eventos hoy",
@@ -3277,11 +3315,6 @@
       "checkInConfirm": "¿Completar \"{{name}}\" para hoy?",
       "checkInStreak": "¡Será una racha de {{count}} días!",
       "checkInComplete": "Completar"
-    },
-    "diary": {
-      "completionSuggestion": "Parece que hemos compartido mucho hoy. ¿Lo convertimos en una entrada de diario? ✨",
-      "continueChat": "Seguir hablando",
-      "dayCutoffHint": "Las entradas antes de las 5 AM cuentan como el día anterior"
     },
     "schedule": {
       "overlapWarning": "Se superpone con {{count}} evento(s)",

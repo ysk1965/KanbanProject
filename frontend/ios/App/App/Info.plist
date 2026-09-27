@@ -46,7 +46,7 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>BRIDGE needs microphone access for meeting recordings and diary voice notes.</string>
+	<string>BRIDGE needs microphone access for meeting recordings.</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>BRIDGE uses your calendar to display public holidays on schedule views.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>

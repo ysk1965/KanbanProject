@@ -28,7 +28,6 @@ import type {
   SignupTrend,
   ActiveUserStats,
   ConversionStats,
-  DiaryStats,
   PersonalConversionStats,
 } from '../../utils/api';
 
@@ -39,13 +38,11 @@ export function AdminAnalyticsTab() {
   const [signupTrend, setSignupTrend] = useState<SignupTrend | null>(null);
   const [activeUserStats, setActiveUserStats] = useState<ActiveUserStats | null>(null);
   const [conversionStats, setConversionStats] = useState<ConversionStats | null>(null);
-  const [diaryStats, setDiaryStats] = useState<DiaryStats | null>(null);
   const [pbConversionStats, setPbConversionStats] = useState<PersonalConversionStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [signupDays, setSignupDays] = useState<PeriodOption>(30);
   const [dauDays, setDauDays] = useState<PeriodOption>(30);
-  const [diaryDays, setDiaryDays] = useState<PeriodOption>(30);
 
   useEffect(() => {
     loadAllData();
@@ -59,25 +56,19 @@ export function AdminAnalyticsTab() {
     loadActiveUserStats();
   }, [dauDays]);
 
-  useEffect(() => {
-    loadDiaryStats();
-  }, [diaryDays]);
-
   const loadAllData = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const [signup, active, conversion, diary, pbConversion] = await Promise.all([
+      const [signup, active, conversion, pbConversion] = await Promise.all([
         adminService.getSignupTrend(signupDays),
         adminService.getActiveUserStats(dauDays),
         adminService.getConversionStats(365),
-        adminService.getDiaryStats(diaryDays),
         adminService.getPersonalConversionStats(365),
       ]);
       setSignupTrend(signup);
       setActiveUserStats(active);
       setConversionStats(conversion);
-      setDiaryStats(diary);
       setPbConversionStats(pbConversion);
     } catch (err) {
       console.error('Failed to load analytics:', err);
@@ -102,15 +93,6 @@ export function AdminAnalyticsTab() {
       setActiveUserStats(data);
     } catch (err) {
       console.error('Failed to load active user stats:', err);
-    }
-  };
-
-  const loadDiaryStats = async () => {
-    try {
-      const data = await adminService.getDiaryStats(diaryDays);
-      setDiaryStats(data);
-    } catch (err) {
-      console.error('Failed to load diary stats:', err);
     }
   };
 
@@ -375,55 +357,6 @@ export function AdminAnalyticsTab() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Diary Engagement Chart */}
-      {diaryStats && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 md:p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <UserCheck className="h-5 w-5 text-emerald-400" />
-              <h3 className="text-lg font-bold text-foreground">{t('admin.analytics.diaryEngagement', 'Diary Engagement')}</h3>
-            </div>
-            <PeriodSelector value={diaryDays} onChange={setDiaryDays} options={periodOptions} />
-          </div>
-
-          {/* Diary Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
-            <ConversionMetric
-              label={t('admin.analytics.totalDiaryEntries', 'Total Entries')}
-              value={diaryStats.total_entries}
-            />
-            <ConversionMetric
-              label={t('admin.analytics.diaryCompletionRate', 'Completion Rate')}
-              value={`${diaryStats.completion_rate}%`}
-              highlight
-            />
-            <ConversionMetric
-              label={t('admin.analytics.diaryActiveUsers', 'Active Users')}
-              value={diaryStats.active_users}
-              positive
-            />
-          </div>
-
-          {diaryStats.trend.length > 0 && (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={diaryStats.trend}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="date" tickFormatter={formatDate} stroke="#64748b" fontSize={12} />
-                  <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    labelFormatter={(label) => `${t('admin.analytics.date')}: ${label}`}
-                    formatter={(value: number) => [value, t('admin.analytics.diaryEntries', 'Diary Entries')]}
-                  />
-                  <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
             </div>
           )}
         </div>

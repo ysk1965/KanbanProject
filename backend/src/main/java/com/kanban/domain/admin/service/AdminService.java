@@ -19,8 +19,6 @@ import com.kanban.domain.subscription.BillingCycle;
 import com.kanban.domain.subscription.OrgPlan;
 import com.kanban.domain.subscription.OrgSubscription;
 import com.kanban.domain.subscription.OrgSubscriptionRepository;
-import com.kanban.domain.diary.DiaryEntryRepository;
-import com.kanban.domain.diary.DiaryStatus;
 import com.kanban.domain.user.service.UserService;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionRepository;
@@ -69,7 +67,6 @@ public class AdminService {
     private final UserService userService;
     private final AnnouncementRepository announcementRepository;
     private final SystemConfigRepository systemConfigRepository;
-    private final DiaryEntryRepository diaryEntryRepository;
     private final ActivityLogRepository activityLogRepository;
     private final ObjectMapper objectMapper;
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
@@ -986,33 +983,6 @@ public class AdminService {
                 .conversionRate(Math.round(conversionRate * 10.0) / 10.0)
                 .trialInProgress(trialInProgress)
                 .trialExpiredNotConverted(trialExpiredNotConverted)
-                .trend(trend)
-                .build();
-    }
-
-    public AdminResponse.DiaryStats getDiaryStats(int days) {
-        LocalDateTime startDate = LocalDateTime.now(ZoneOffset.UTC).minusDays(days);
-
-        long totalEntries = diaryEntryRepository.count();
-        long completedEntries = diaryEntryRepository.countByStatus(DiaryStatus.COMPLETED);
-        double completionRate = totalEntries > 0
-                ? Math.round((double) completedEntries / totalEntries * 1000.0) / 10.0
-                : 0.0;
-        long activeUsers = diaryEntryRepository.countActiveDiaryUsers(startDate);
-
-        List<Object[]> rows = diaryEntryRepository.getDiaryTrend(startDate);
-        List<AdminResponse.DiaryStats.DailyCount> trend = new java.util.ArrayList<>();
-        for (Object[] row : rows) {
-            trend.add(AdminResponse.DiaryStats.DailyCount.builder()
-                    .date(row[0].toString())
-                    .count(((Number) row[1]).longValue())
-                    .build());
-        }
-
-        return AdminResponse.DiaryStats.builder()
-                .totalEntries(totalEntries)
-                .completionRate(completionRate)
-                .activeUsers(activeUsers)
                 .trend(trend)
                 .build();
     }

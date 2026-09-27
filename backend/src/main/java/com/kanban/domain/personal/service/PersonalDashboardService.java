@@ -7,8 +7,6 @@ import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.dailychecklist.DailyChecklist;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
-import com.kanban.domain.diary.DiaryEntry;
-import com.kanban.domain.diary.DiaryEntryRepository;
 import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.meeting.MeetingRepository;
 import com.kanban.domain.organization.*;
@@ -16,7 +14,6 @@ import com.kanban.domain.organization.repository.OrgAnniversarySettingRepository
 import com.kanban.domain.organization.repository.OrgCelebrationMessageRepository;
 import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.personal.*;
-import com.kanban.domain.diary.DiaryMessage;
 import com.kanban.domain.personal.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,7 +39,6 @@ public class PersonalDashboardService {
     private final PersonalHabitLogRepository habitLogRepository;
     private final PersonalEventRepository personalEventRepository;
     private final PersonalHabitService personalHabitService;
-    private final DiaryEntryRepository diaryEntryRepository;
 
     // Cross-Domain Integration dependencies
     private final BoardMemberRepository boardMemberRepository;
@@ -121,17 +117,6 @@ public class PersonalDashboardService {
                 ? (double) completedHabitsToday / totalHabitsToday
                 : 0.0;
 
-        // Diary today
-        Optional<DiaryEntry> diaryOpt = diaryEntryRepository.findByUserIdAndDate(userId, today);
-        PersonalDashboardResponse.DiaryTodayInfo diaryToday = diaryOpt
-                .map(d -> PersonalDashboardResponse.DiaryTodayInfo.builder()
-                        .id(d.getId())
-                        .status(d.getStatus().name())
-                        .title(d.getTitle())
-                        .mood(d.getMood())
-                        .build())
-                .orElse(null);
-
         return PersonalDashboardResponse.builder()
                 .dueTodayTasks(dueTodayTasks)
                 .inProgressTasks(inProgressTasks)
@@ -141,7 +126,6 @@ public class PersonalDashboardService {
                 .habitCompletionRate(Math.round(habitCompletionRate * 100.0) / 100.0)
                 .activeTaskCount(activeTaskCount)
                 .completedTodayCount(completedTodayCount)
-                .diaryToday(diaryToday)
                 .build();
     }
 
@@ -166,23 +150,6 @@ public class PersonalDashboardService {
         PersonalHabitResponse.WeeklyMatrix weeklyMatrix =
                 personalHabitService.getWeeklyMatrix(userId, weekStart, weekEnd);
 
-        // Diary with last message
-        Optional<DiaryEntry> diaryOpt = diaryEntryRepository.findByUserIdAndDate(userId, today);
-        PersonalOverviewResponse.DiaryOverviewInfo diaryToday = diaryOpt
-                .map(d -> {
-                    List<DiaryMessage> messages = d.getMessages();
-                    DiaryMessage lastMsg = messages.isEmpty() ? null : messages.get(messages.size() - 1);
-                    return PersonalOverviewResponse.DiaryOverviewInfo.builder()
-                            .id(d.getId())
-                            .status(d.getStatus().name())
-                            .title(d.getTitle())
-                            .mood(d.getMood())
-                            .lastMessageContent(lastMsg != null ? lastMsg.getContent() : null)
-                            .lastMessageRole(lastMsg != null ? lastMsg.getRole() : null)
-                            .build();
-                })
-                .orElse(null);
-
         return PersonalOverviewResponse.builder()
                 .allTasks(allTasks)
                 .allHabits(allHabits)
@@ -195,7 +162,6 @@ public class PersonalDashboardService {
                 .habitCompletionRate(dashboard.getHabitCompletionRate())
                 .activeTaskCount(dashboard.getActiveTaskCount())
                 .completedTodayCount(dashboard.getCompletedTodayCount())
-                .diaryToday(diaryToday)
                 .build();
     }
 

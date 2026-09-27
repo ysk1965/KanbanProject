@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { FEATURE_COLORS } from "../constants";
 import {
   CalendarDays,
-  BookHeart,
   ArrowLeft,
   LayoutGrid,
   Calendar,
@@ -20,19 +19,20 @@ import {
   ChevronUp,
   FileText,
   HardDrive,
+  Blocks,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   PersonalSchedule,
   type TabSwipeHandle,
 } from "../components/personal/PersonalSchedule";
-import { PersonalDiary } from "../components/personal/PersonalDiary";
 import { PersonalTaskBoard } from "../components/personal/PersonalTaskBoard";
 
 import { PersonalOverview } from "../components/personal/PersonalOverview";
 import { PersonalCalendar } from "../components/personal/PersonalCalendar";
 import { PersonalNotes } from "../components/personal/PersonalNotes";
 import { PersonalStorage } from "../components/personal/PersonalStorage";
+import { PersonalFeatures } from "../components/personal/PersonalFeatures";
 import { UserMenu } from "../components/UserMenu";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -52,7 +52,7 @@ type TabType =
   | "calendar"
   | "notes"
   | "storage"
-  | "diary";
+  | "features";
 const TAB_ORDER: TabType[] = [
   "overview",
   "tasks",
@@ -60,14 +60,19 @@ const TAB_ORDER: TabType[] = [
   "calendar",
   "notes",
   "storage",
-  "diary",
+  "features",
 ];
 
 export function PersonalBoardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { currentUser, logout, hideBilling } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>("overview");
+  const [searchParams] = useSearchParams();
+  // ?tab=features&feature=timetable&doc=… 딥링크: 첫 렌더에서만 탭을 맞춘다 (이후는 클릭이 결정)
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const fromUrl = searchParams.get("tab");
+    return fromUrl && (TAB_ORDER as string[]).includes(fromUrl) ? (fromUrl as TabType) : "overview";
+  });
   const [tasks, setTasks] = useState<PersonalTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
@@ -105,9 +110,9 @@ export function PersonalBoardPage() {
       icon: HardDrive,
     },
     {
-      key: "diary" as TabType,
-      label: t("personal.tabs.diary", "AI Diary"),
-      icon: BookHeart,
+      key: "features" as TabType,
+      label: t("personal.tabs.features", "Features"),
+      icon: Blocks,
     },
   ];
 
@@ -199,7 +204,6 @@ export function PersonalBoardPage() {
   // 탭별 스와이프 네비게이션 ref
   const scheduleRef = useRef<TabSwipeHandle>(null);
   const calendarRef = useRef<TabSwipeHandle>(null);
-  const diaryRef = useRef<TabSwipeHandle>(null);
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
 
@@ -259,13 +263,6 @@ export function PersonalBoardPage() {
     if (currentTab === "calendar") {
       if (deltaX < 0) calendarRef.current?.swipeNext();
       else calendarRef.current?.swipePrev();
-      return;
-    }
-
-    // AI다이어리: 전날/다음날
-    if (currentTab === "diary") {
-      if (deltaX < 0) diaryRef.current?.swipeNext();
-      else diaryRef.current?.swipePrev();
       return;
     }
   }, []);
@@ -385,7 +382,7 @@ export function PersonalBoardPage() {
             {activeTab === "calendar" && <PersonalCalendar ref={calendarRef} />}
             {activeTab === "notes" && <PersonalNotes />}
             {activeTab === "storage" && <PersonalStorage />}
-            {activeTab === "diary" && <PersonalDiary ref={diaryRef} />}
+            {activeTab === "features" && <PersonalFeatures />}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -423,7 +420,7 @@ export function PersonalBoardPage() {
               <button
                 key={tab.key}
                 onClick={() => changeTab(tab.key)}
-                className="relative flex flex-col items-center gap-0.5 min-w-[3rem] min-h-[44px] px-2 py-1 rounded-lg"
+                className="relative flex flex-col items-center gap-0.5 flex-1 min-w-0 min-h-[44px] px-1 py-1 rounded-lg"
               >
                 {isActive && (
                   <motion.div

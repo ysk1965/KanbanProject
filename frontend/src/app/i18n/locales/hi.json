@@ -108,7 +108,7 @@
       },
       "personal": {
         "title": "Personal Productivity Hub",
-        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+        "desc": "Eisenhower Matrix task board and habit tracker with streaks — your personal growth toolkit lives right next to your team workspace."
       }
     },
     "myspace": {
@@ -119,8 +119,7 @@
       "tabs": {
         "overview": "Overview",
         "matrix": "Matrix",
-        "habits": "Habits",
-        "diary": "AI Diary"
+        "habits": "Habits"
       },
       "matrix": {
         "title": "Eisenhower Matrix",
@@ -129,10 +128,6 @@
       "habits": {
         "title": "Habit Tracker",
         "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
-      },
-      "diary": {
-        "title": "AI Diary",
-        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
       },
       "calendar": {
         "title": "Personal Calendar",
@@ -213,11 +208,7 @@
       },
       "subtitle": "डैशबोर्ड और चार्ट से परे। AI आपके टास्क, टाइम ब्लॉक, चेकलिस्ट और कमेंट का विश्लेषण करके ऐसे इनसाइट्स तैयार करता है जो इंसान चूक सकते हैं।",
       "titleLine1": "AI आपकी टीम का",
-      "titleLine2": "full context",
-      "diary": {
-        "title": "AI Conversational Diary",
-        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
-      }
+      "titleLine2": "full context"
     },
     "pricing": {
       "badge": "PREMIUM 3 दिन मुफ़्त ट्रायल",
@@ -372,7 +363,7 @@
     "searchPlaceholder": "प्रोजेक्ट खोजें...",
     "logout": "लॉग आउट",
     "mySpace": "मेरा स्पेस",
-    "mySpaceDesc": "व्यक्तिगत शेड्यूल & AI डायरी",
+    "mySpaceDesc": "व्यक्तिगत शेड्यूल & आदतें",
     "mySpaceSetup": "अपना निजी स्पेस बनाएं",
     "mySpaceCreate": "बनाएं",
     "mySpaceIntroTitle": "मेरा स्पेस",
@@ -383,8 +374,6 @@
     "mySpaceIntroHabitDesc": "दैनिक आदतों को ट्रैक करें और लगातार बढ़ें",
     "mySpaceIntroEventTitle": "Events",
     "mySpaceIntroEventDesc": "शेड्यूल और इवेंट्स को एक नज़र में प्रबंधित करें",
-    "mySpaceIntroDiaryTitle": "AI Diary",
-    "mySpaceIntroDiaryDesc": "AI की मदद से व्यक्तिगत डायरी लिखें",
     "mySpaceIntroStart": "शुरू करें",
     "mySpaceIntroClose": "बंद करें",
     "yourProjects": "मेरे प्रोजेक्ट",
@@ -1705,7 +1694,6 @@
       "personalBoards": "व्यक्तिगत बोर्ड",
       "adoptionRate": "अपनाने की दर",
       "activePersonalBoards": "सक्रिय (30 दिन)",
-      "totalDiaryEntries": "डायरी प्रविष्टियाँ",
       "boardTypeDistribution": "बोर्ड प्रकार वितरण"
     },
     "analytics": {
@@ -1741,11 +1729,6 @@
       "totalPersonalBoards": "कुल Personal Board",
       "adoptionRateLabel": "अपनाने की दर",
       "pbCreated": "PB बनाए गए",
-      "diaryEngagement": "डायरी सहभागिता",
-      "totalDiaryEntries": "कुल प्रविष्टियाँ",
-      "diaryCompletionRate": "पूर्णता दर",
-      "diaryActiveUsers": "सक्रिय उपयोगकर्ता",
-      "diaryEntries": "डायरी प्रविष्टियाँ",
       "pbConversion": "Personal Board रूपांतरण",
       "personalOnly": "केवल Personal",
       "personalAndTeam": "Personal + Team",
@@ -2012,8 +1995,6 @@
       "seatCountUpdateSuccess": "सीट संख्या {{count}} में अपडेट की गई।",
       "updateSeatCount": "सीट संख्या अपडेट करें",
       "personalActivity": "व्यक्तिगत गतिविधि",
-      "diaryEntries": "डायरी",
-      "completionRate": "{{rate}}% पूर्ण",
       "events": "कार्यक्रम",
       "lastActivity": "अंतिम गतिविधि"
     },
@@ -3187,7 +3168,64 @@
       "schedule": "शेड्यूल",
       "calendar": "कैलेंडर",
       "notes": "नोट्स",
-      "diary": "AI डायरी"
+      "features": "फ़ीचर"
+    },
+    "features": {
+      "timetable": "समय सारणी",
+      "timetable_new": "नई समय सारणी",
+      "timetable_default_title": "नई समय सारणी",
+      "songlist": "गीत सूची",
+      "attendance": "उपस्थिति",
+      "soon": "जल्द आ रहा है",
+      "soon_toast": "जल्द उपलब्ध होगा",
+      "empty_title": "अपनी पहली समय सारणी बनाएँ",
+      "empty_desc": "रिहर्सल और आराधना क्रम को तालिका में सजाएँ और PDF निर्यात करें",
+      "saved_ago": "सहेजा गया",
+      "saving": "सहेजा जा रहा है…",
+      "duplicate": "डुप्लिकेट",
+      "export_pdf": "PDF निर्यात",
+      "delete": "हटाएँ",
+      "delete_confirm_title": "यह समय सारणी हटाएँ?",
+      "delete_confirm_desc": "हटाने के बाद वापस नहीं लाया जा सकता",
+      "untitled": "शीर्षकहीन",
+      "timetable_editor": {
+        "add_column": "कॉलम जोड़ें",
+        "add_day": "तारीख़ जोड़ें",
+        "add_row": "पंक्ति जोड़ें",
+        "auto_merge": "समान मान स्वतः मिलाएँ",
+        "auto_merge_none": "लगातार समान मान वाले सेल नहीं हैं",
+        "auto_merge_title": "एक ही कॉलम में लगातार समान मान (समान रंग) वाले सेल एक साथ मिलाएँ",
+        "auto_merged": "{{count}} जगह मिलाई गईं। हर एक को “अलग करें” से वापस किया जा सकता है",
+        "cell_color": "सेल रंग",
+        "color_default": "डिफ़ॉल्ट",
+        "column_deleted": "कॉलम हटाया गया",
+        "date": "तारीख़",
+        "delete_column": "कॉलम हटाएँ",
+        "delete_day": "तारीख़ हटाएँ",
+        "delete_day_title": "तारीख़ ब्लॉक हटाएँ",
+        "delete_row": "पंक्ति हटाएँ",
+        "hint_idle": "पहले सेल चुनें, फिर रंग · मिलाने की सीमा के लिए Shift+क्लिक",
+        "hint_selected": "रंग बदलें, या सीमा चुनकर मिलाने के लिए Shift+क्लिक",
+        "merge": "सेल मिलाएँ",
+        "merge_same_column_only": "मिलाना केवल एक ही कॉलम में संभव है",
+        "merged_rows": "{{count}} पंक्तियाँ मिलाई गईं। “अलग करें” से वापस होंगी",
+        "move_left": "कॉलम बाएँ ले जाएँ",
+        "move_right": "कॉलम दाएँ ले जाएँ",
+        "new_column": "नया कॉलम",
+        "no_date": "तारीख़ नहीं",
+        "pick_cell_first": "पहले रंग देने वाला सेल चुनें",
+        "place_note": "स्थान नोट (ऊपर दाएँ)",
+        "place_placeholder": "जैसे: B1 Art Studio / मुख्य सभागार",
+        "stat": "{{days}} दिन · {{rows}} पंक्तियाँ · {{cols}} कॉलम · {{merged}} मिलान",
+        "term_forgotten": "“{{value}}” को स्मृति से हटाया गया",
+        "time_hint_filled": "पिछली पंक्ति के समाप्ति समय से आगे भरा गया",
+        "time_inverted": "समाप्ति समय आरंभ से पहले है",
+        "unmerge": "अलग करें",
+        "unmerged": "अलग किया गया। छिपे मान वैसे ही वापस आ गए",
+        "version_label": "संस्करण लेबल (ऊपर दाएँ)",
+        "version_placeholder": "जैसे: 2026. 9. 10. ver",
+        "weekdays": "रवि,सोम,मंगल,बुध,गुरु,शुक्र,शनि"
+      }
     },
     "overview": {
       "noEvents": "आज कोई कार्यक्रम नहीं",
@@ -3277,11 +3315,6 @@
       "checkInConfirm": "\"{{name}}\" को पूरा करें?",
       "checkInStreak": "{{count}} दिन की लगातार स्ट्रीक होगी!",
       "checkInComplete": "पूरा करें"
-    },
-    "diary": {
-      "completionSuggestion": "लगता है आज हमने काफ़ी बातें की हैं। इसे डायरी में लिखें? ✨",
-      "continueChat": "और बात करें",
-      "dayCutoffHint": "सुबह 5 बजे से पहले की प्रविष्टियाँ पिछले दिन की मानी जाती हैं"
     },
     "schedule": {
       "overlapWarning": "{{count}} इवेंट के साथ ओवरलैप",

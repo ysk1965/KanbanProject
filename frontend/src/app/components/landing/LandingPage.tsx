@@ -20,7 +20,6 @@ import {
   MySpaceOverviewDiagram,
   EisenhowerDiagram,
   HabitTrackerDiagram,
-  AIDiaryDiagram,
 } from "./Diagrams";
 import { PricingSection } from "./PricingSection";
 import { motion, Variants, AnimatePresence } from "framer-motion";
@@ -44,7 +43,6 @@ import {
   Users,
   Heart,
   Flame,
-  BookHeart,
   CalendarDays,
   LayoutGrid,
 } from "lucide-react";
@@ -165,7 +163,7 @@ export const LandingPage: React.FC = () => {
     "timeblock",
   );
   const [mySpaceTab, setMySpaceTab] = useState<
-    "overview" | "matrix" | "habits" | "diary"
+    "overview" | "matrix" | "habits"
   >("overview");
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -623,11 +621,6 @@ export const LandingPage: React.FC = () => {
                       text: t("landing.myspace.habits.text"),
                     },
                     {
-                      icon: BookHeart,
-                      title: t("landing.myspace.diary.title"),
-                      text: t("landing.myspace.diary.text"),
-                    },
-                    {
                       icon: CalendarDays,
                       title: t("landing.myspace.calendar.title"),
                       text: t("landing.myspace.calendar.text"),
@@ -662,7 +655,7 @@ export const LandingPage: React.FC = () => {
               <div className="lg:col-span-7">
                 <div className="flex justify-center mb-6">
                   <div className="inline-flex bg-white/5 border border-white/10 rounded-2xl p-1.5">
-                    {(["overview", "matrix", "habits", "diary"] as const).map(
+                    {(["overview", "matrix", "habits"] as const).map(
                       (tab) => (
                         <button
                           key={tab}
@@ -713,17 +706,6 @@ export const LandingPage: React.FC = () => {
                         transition={{ duration: 0.3 }}
                       >
                         <HabitTrackerDiagram />
-                      </motion.div>
-                    )}
-                    {mySpaceTab === "diary" && (
-                      <motion.div
-                        key="diary"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <AIDiaryDiagram />
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -854,11 +836,6 @@ export const LandingPage: React.FC = () => {
                       icon: Users,
                       title: t("landing.ai.insights.title"),
                       text: t("landing.ai.insights.text"),
-                    },
-                    {
-                      icon: BookHeart,
-                      title: t("landing.ai.diary.title"),
-                      text: t("landing.ai.diary.text"),
                     },
                   ].map((item, i) => (
                     <motion.div

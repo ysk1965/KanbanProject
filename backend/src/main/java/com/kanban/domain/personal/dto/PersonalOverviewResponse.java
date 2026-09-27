@@ -21,17 +21,4 @@ public class PersonalOverviewResponse {
     private double habitCompletionRate;
     private long activeTaskCount;
     private long completedTodayCount;
-    private DiaryOverviewInfo diaryToday;
-
-    @Getter
-    @Builder
-    @AllArgsConstructor
-    public static class DiaryOverviewInfo {
-        private String id;
-        private String status;
-        private String title;
-        private String mood;
-        private String lastMessageContent;
-        private String lastMessageRole;
-    }
 }

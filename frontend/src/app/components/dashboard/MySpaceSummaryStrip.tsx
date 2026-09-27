@@ -4,9 +4,6 @@ import {
   ListTodo,
   Flame,
   Clock,
-  BookOpen,
-  CheckCircle2,
-  Circle,
   ChevronRight,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -29,8 +26,6 @@ export default function MySpaceSummaryStrip({ todayData, onClick }: MySpaceSumma
   const habitsCompleted = todayData?.habits_today.filter((h) => h.is_completed).length ?? 0;
 
   const eventsCount = todayData?.personal_events.length ?? 0;
-
-  const diaryCompleted = todayData?.diary_today?.status === 'COMPLETED';
 
   return (
     <motion.button
@@ -78,17 +73,6 @@ export default function MySpaceSummaryStrip({ todayData, onClick }: MySpaceSumma
             <Clock size={14} className="text-slate-400 shrink-0" />
             <span className="text-xs text-slate-400">Events</span>
             <span className="text-[13px] font-bold text-purple-400">{eventsCount}</span>
-          </div>
-
-          {/* Diary */}
-          <div className="flex items-center gap-2 pl-4 pr-4 border-l border-foreground/[0.08]">
-            <BookOpen size={14} className="text-slate-400 shrink-0" />
-            <span className="text-xs text-slate-400">Diary</span>
-            {diaryCompleted ? (
-              <CheckCircle2 size={14} className="text-emerald-400" />
-            ) : (
-              <Circle size={14} className="text-slate-500" />
-            )}
           </div>
         </div>
       )}

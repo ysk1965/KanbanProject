@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'rea
 import { useTranslation } from 'react-i18next';
 import { FEATURE_COLORS } from '../../constants';
 import {
-  Clock, CalendarDays, CheckCircle2, BookHeart, Sparkles,
+  Clock, CalendarDays, CheckCircle2,
   ArrowRight, Sun, Sunrise, Sunset, Moon, Loader2, Flame, Check,
   Plus, X, ChevronDown, ChevronUp, ListTodo, Zap, Trophy,
 } from 'lucide-react';
@@ -11,17 +11,17 @@ import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { MotionModal } from '../ui/MotionModal';
 import { IconButton } from '../ui/IconButton';
 import { ColorPickerPopover } from '../ui/ColorPickerPopover';
-import { personalEventService, diaryService } from '../../utils/services';
+import { personalEventService } from '../../utils/services';
 import { personalTaskAPI, personalHabitAPI, personalDashboardAPI } from '../../utils/api';
 import { getTodayDateString } from '../../utils/dateUtils';
-import { PersonalEvent, DiaryDetail, PersonalTask, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix, PersonalTaskPriority, PersonalDashboardToday, PersonalOverviewData, DiaryOverviewInfo } from '../../types';
+import { PersonalEvent, PersonalTask, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix, PersonalTaskPriority, PersonalDashboardToday, PersonalOverviewData } from '../../types';
 import { CheckInConfirmModal, TaskCompleteConfirmModal, HabitFormModal, DeleteConfirmModal } from './PersonalHabits';
 import { TaskDetailModal } from './PersonalTaskBoard';
 import { BoardTasksWidget } from './BoardTasksWidget';
 import { CelebrationsWidget } from './CelebrationsWidget';
 import { useAuth } from '../../contexts/AuthContext';
 
-type TabType = 'overview' | 'tasks' | 'schedule' | 'habits' | 'calendar' | 'diary';
+type TabType = 'overview' | 'tasks' | 'schedule' | 'habits' | 'calendar';
 
 interface PersonalOverviewProps {
   onNavigateTab: (tab: TabType) => void;
@@ -1396,160 +1396,6 @@ function OverviewWeeklyDonut({ completed, target, color }: {
   );
 }
 
-// ── 우하단: AI Diary ─────────────────────────────────────────────────
-
-const MOODS: Record<string, string> = {
-  happy: '😊',
-  calm: '😌',
-  thoughtful: '🤔',
-  tired: '😔',
-  sad: '😢',
-  frustrated: '😠',
-  excited: '🤩',
-  bored: '🥱',
-};
-
-function DiaryWidget({
-  todayDate,
-  onViewAll,
-  diaryInfo,
-}: {
-  todayDate: string;
-  onViewAll: () => void;
-  diaryInfo?: DiaryOverviewInfo | null;
-}) {
-  const { t } = useTranslation();
-  const [diary, setDiary] = useState<DiaryDetail | null | undefined>(undefined);
-  const hasExternalData = diaryInfo !== undefined;
-
-  useEffect(() => {
-    if (hasExternalData) return;
-    (async () => {
-      try {
-        const data = await diaryService.getByDate(todayDate);
-        setDiary(data);
-      } catch {
-        console.error('Failed to load diary');
-        setDiary(null);
-      }
-    })();
-  }, [todayDate, hasExternalData]);
-
-  // Use external data when available, fallback to self-fetched data
-  const diaryData = hasExternalData
-    ? (diaryInfo ? {
-        id: diaryInfo.id,
-        status: diaryInfo.status as 'CHATTING' | 'COMPLETED',
-        title: diaryInfo.title,
-        mood: diaryInfo.mood,
-        messages: diaryInfo.last_message_content
-          ? [{ id: 'last', content: diaryInfo.last_message_content, role: diaryInfo.last_message_role || 'AI', message_order: 0 }]
-          : [],
-      } : null)
-    : diary;
-
-  const isLoading = hasExternalData ? false : diary === undefined;
-
-  const hour = new Date().getHours();
-  const greeting = hour < 5
-    ? { text: t('personal.overview.lateNight', "It's late — how was your day?"), icon: <Moon size={20} className="text-indigo-400" /> }
-    : hour < 9
-    ? { text: t('personal.overview.earlyMorning', 'Fresh morning! How are you feeling?'), icon: <Sunrise size={20} className="text-violet-400" /> }
-    : hour < 12
-    ? { text: t('personal.overview.goodMorning', 'How are you feeling today?'), icon: <Sun size={20} className="text-amber-400" /> }
-    : hour < 18
-    ? { text: t('personal.overview.goodAfternoon', "How's your day going?"), icon: <Sunset size={20} className="text-orange-400" /> }
-    : { text: t('personal.overview.goodEvening', 'How was your day?'), icon: <Moon size={20} className="text-indigo-400" /> };
-
-  return (
-    <WidgetCard
-      icon={<BookHeart size={16} className="text-rose-400" />}
-      title={t('personal.overview.aiDiary', 'AI Diary')}
-      badge={
-        diaryData && diaryData.status === 'COMPLETED' ? (
-          <span className="text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 px-1.5 py-0.5 rounded-full">
-            {t('personal.overview.done', 'Done')}
-          </span>
-        ) : diaryData && diaryData.status === 'CHATTING' ? (
-          <span className="text-xs font-bold text-amber-400 bg-amber-400/15 px-1.5 py-0.5 rounded-full">
-            {t('personal.overview.inProgress', 'In progress')}
-          </span>
-        ) : null
-      }
-      action={diaryData ? <ViewAllButton onClick={onViewAll} label={t('personal.overview.readMore', 'Read more')} /> : undefined}
-      delay={0.15}
-    >
-      {isLoading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-5 h-5 animate-spin text-bridge-accent" />
-        </div>
-      ) : !diaryData ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center gap-1.5 md:gap-3 px-4">
-          {greeting.icon}
-          <div>
-            <p className="text-sm md:text-base font-bold text-foreground mb-0.5 md:mb-1">{greeting.text}</p>
-            <p className="text-xs md:text-xs text-slate-500 leading-relaxed hidden md:block">
-              {t('personal.overview.diaryPrompt', 'Take a moment to reflect on your day')}
-            </p>
-          </div>
-          <button
-            onClick={onViewAll}
-            className="mt-1 md:mt-2 flex items-center gap-2 px-4 py-2 md:px-5 md:py-2.5 bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white text-xs md:text-sm font-bold rounded-xl hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"
-          >
-            <Sparkles size={14} />
-            {t('personal.overview.startDiary', "Start today's diary")}
-          </button>
-        </div>
-      ) : diaryData.status === 'CHATTING' ? (
-        <div className="flex-1 flex flex-col">
-          <div className="flex-1 space-y-3">
-            {diaryData.messages.length > 0 && (
-              <div className="bg-white/[0.03] rounded-xl p-3">
-                <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">
-                  {diaryData.messages[diaryData.messages.length - 1].content}
-                </p>
-                <span className="text-xs text-slate-600 mt-1 block">
-                  {diaryData.messages[diaryData.messages.length - 1].role === 'AI' ? t('personal.overview.roleAI', 'AI') : t('personal.overview.roleYou', 'You')}
-                </span>
-              </div>
-            )}
-          </div>
-          <button
-            onClick={onViewAll}
-            className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-foreground/5 border border-foreground/10 text-foreground text-sm font-medium rounded-xl hover:bg-foreground/10 transition-all"
-          >
-            <BookHeart size={14} />
-            {t('personal.overview.continueDiary', 'Continue writing')}
-          </button>
-        </div>
-      ) : (
-        <button onClick={onViewAll} className="flex-1 flex flex-col text-left">
-          <div className="flex items-center gap-2 mb-3">
-            {diaryData.mood && MOODS[diaryData.mood] && (
-              <span className="text-2xl">{MOODS[diaryData.mood]}</span>
-            )}
-            <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-bold text-foreground truncate">
-                {diaryData.title || t('personal.overview.diaryTitle', "Today's diary")}
-              </h4>
-            </div>
-          </div>
-          {'content' in diaryData && diaryData.content && (
-            <div className="flex-1">
-              <p className="text-xs text-slate-400 leading-relaxed line-clamp-5">
-                {diaryData.content}
-              </p>
-            </div>
-          )}
-          <div className="mt-3 text-xs text-bridge-secondary hover:text-bridge-secondary/80 transition-colors">
-            {t('personal.overview.readFull', 'Read full diary →')}
-          </div>
-        </button>
-      )}
-    </WidgetCard>
-  );
-}
-
 // ── Mobile Greeting Header ───────────────────────────────────────────
 
 function MobileGreetingHeader({
@@ -1590,29 +1436,18 @@ function MobileGreetingHeader({
   const dueTodayDone = dueTodayTasks.filter(t => t.status === 'DONE').length;
   const dueTodayTotal = dueTodayTasks.length;
 
-  // AI Diary status
-  const diary = dashboardData?.diary_today;
-  const MOOD_EMOJI: Record<string, string> = { happy: '😊', calm: '😌', thoughtful: '🤔', tired: '😔', sad: '😢', frustrated: '😠', excited: '🤩', bored: '🥱' };
-  const diaryLabel = !diary
-    ? t('personal.mobile.diaryNotStarted', 'Not started')
-    : diary.status === 'COMPLETED'
-    ? t('personal.mobile.diaryDone', 'Done')
-    : t('personal.mobile.diaryChatting', 'Writing...');
-  const diaryEmoji = diary?.mood ? MOOD_EMOJI[diary.mood] : undefined;
-
   const habitsRate = habitsTotal > 0 ? habitsDone / habitsTotal : 0;
   const tasksRate = dueTodayTotal > 0 ? dueTodayDone / dueTodayTotal : undefined;
-  const diaryRate = !diary ? 0 : diary.status === 'COMPLETED' ? 1 : 0.5;
 
   // celebrate: visual state (teal, trophy, sparkles) — set when gauge ARRIVES at 100%
   // burstKeys: counter that fires a one-shot confetti each time it increments
   // bounce: temporary scale-up on the card at the moment of celebration
-  const [celebrate, setCelebrate] = useState({ habits: false, tasks: false, diary: false });
-  const [burstKeys, setBurstKeys] = useState({ habits: 0, tasks: 0, diary: 0 });
-  const [bounce, setBounce] = useState({ habits: false, tasks: false, diary: false });
+  const [celebrate, setCelebrate] = useState({ habits: false, tasks: false });
+  const [burstKeys, setBurstKeys] = useState({ habits: 0, tasks: 0 });
+  const [bounce, setBounce] = useState({ habits: false, tasks: false });
 
   // Called by gauge bar's onAnimationComplete — fires at the exact moment the bar finishes
-  const handleGaugeDone = useCallback((key: 'habits' | 'tasks' | 'diary', rate: number) => {
+  const handleGaugeDone = useCallback((key: 'habits' | 'tasks', rate: number) => {
     if (rate >= 1) {
       setCelebrate(prev => prev[key] ? prev : { ...prev, [key]: true });
       setBurstKeys(prev => ({ ...prev, [key]: prev[key] + 1 }));
@@ -1643,17 +1478,6 @@ function MobileGreetingHeader({
         : <ListTodo size={14} className="text-bridge-accent" />,
       rate: tasksRate,
       onTap: () => onNavigateTab('tasks'),
-    },
-    {
-      key: 'diary' as const,
-      label: t('personal.mobile.diary', 'AI Diary'),
-      value: diaryEmoji || (diary ? (diary.status === 'COMPLETED' ? '✅' : '✍️') : '—'),
-      sub: diaryLabel,
-      icon: celebrate.diary
-        ? <Trophy size={14} className="text-bridge-secondary" />
-        : <BookHeart size={14} className="text-rose-400" />,
-      rate: diaryRate,
-      onTap: () => onNavigateTab('diary'),
     },
   ];
 
@@ -1736,9 +1560,6 @@ function MobileGreetingHeader({
                   <span className={`text-lg font-bold transition-colors duration-500 ${
                     isCelebrating ? 'text-bridge-secondary' : 'text-foreground'
                   }`}>{stat.value}</span>
-                  {stat.sub && <span className={`text-xs font-medium transition-colors duration-500 ${
-                    isCelebrating ? 'text-bridge-secondary/70' : 'text-slate-400'
-                  }`}>{stat.sub}</span>}
                 </div>
                 {stat.rate !== undefined && stat.rate >= 0 && (
                   <div className="mt-1.5 h-1 rounded-full bg-foreground/10 overflow-hidden">
@@ -1748,7 +1569,6 @@ function MobileGreetingHeader({
                         backgroundColor: isCelebrating
                           ? '#2DD4BF'
                           : stat.key === 'tasks' ? '#6366F1'
-                          : stat.key === 'diary' ? '#D494CE'
                           : '#8B5CF6',
                         ...(isCelebrating ? { boxShadow: '0 0 8px rgba(45,212,191,0.5)' } : {}),
                       }}
@@ -2039,7 +1859,6 @@ export function PersonalOverview({ onNavigateTab, onRefreshTasks }: PersonalOver
     habit_completion_rate: overviewData.habit_completion_rate,
     active_task_count: overviewData.active_task_count,
     completed_today_count: overviewData.completed_today_count,
-    diary_today: overviewData.diary_today,
   } : null;
 
   // Optimistically update overviewData when habit is toggled from the quick strip
@@ -2082,8 +1901,8 @@ export function PersonalOverview({ onNavigateTab, onRefreshTasks }: PersonalOver
           <MobileQuickHabits dashboardData={dashboardData} onNavigateTab={onNavigateTab} onHabitToggle={handleHabitToggle} />
         </div>
 
-        {/* 2x2 Widget grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 lg:grid-rows-2 gap-2.5 md:gap-5 flex-1">
+        {/* Widget grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 md:gap-5 flex-1">
           <TodayScheduleWidget
             todayDate={todayDate}
             onViewAll={() => onNavigateTab('schedule')}
@@ -2097,7 +1916,7 @@ export function PersonalOverview({ onNavigateTab, onRefreshTasks }: PersonalOver
             onRefresh={refreshOverview}
           />
           {/* Habits widget: hidden on mobile (quick strip replaces it), visible on desktop */}
-          <div className="hidden md:block">
+          <div className="hidden md:block lg:col-span-2">
             <HabitsTodayWidget
               onViewAll={() => onNavigateTab('tasks')}
               allHabits={overviewData?.all_habits}
@@ -2106,11 +1925,6 @@ export function PersonalOverview({ onNavigateTab, onRefreshTasks }: PersonalOver
               onRefresh={refreshOverview}
             />
           </div>
-          <DiaryWidget
-            todayDate={todayDate}
-            onViewAll={() => onNavigateTab('diary')}
-            diaryInfo={overviewData ? overviewData.diary_today : undefined}
-          />
         </div>
 
         {/* Celebrations (conditional - only shows when celebrations exist) */}
