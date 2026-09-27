@@ -96,8 +96,8 @@ export interface TimetableDay {
 export interface TimetableContent {
   /** @deprecated 예전 문서 호환용. UI·인쇄에서 더 이상 쓰지 않는다 */
   version_label?: string;
-  /** 우상단 장소 줄. 비워 두면 표의 「장소」 열 값들이 자동으로 들어간다 */
-  place_note: string;
+  /** @deprecated 예전 문서 호환용. 우상단 장소는 표의 「장소」 열에서 자동으로 모은다 */
+  place_note?: string;
   columns: TimetableColumn[];
   days: TimetableDay[];
 }

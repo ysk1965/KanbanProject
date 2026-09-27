@@ -168,9 +168,6 @@ export function setCellColor(content: TimetableContent, di: number, ri: number, 
   return setCell(content, di, ri, key, { c: color });
 }
 
-export function setHeader(content: TimetableContent, patch: Partial<Pick<TimetableContent, 'place_note'>>): TimetableContent {
-  return { ...content, ...patch };
-}
 
 /* ───────────── 장소 ───────────── */
 
@@ -210,8 +207,7 @@ export function autoPlaceNote(content: TimetableContent): string {
 
 /** 우상단에 실제로 보일 장소 줄: 직접 적은 값이 있으면 그것, 없으면 표에서 모은 값 */
 export function effectivePlaceNote(content: TimetableContent): string {
-  const manual = (content.place_note || '').trim();
-  return manual || autoPlaceNote(content);
+  return autoPlaceNote(content); // 우상단 장소는 표의 장소 열에서만 모은다 (직접 입력 없음)
 }
 
 /* ───────────── 병합 ───────────── */

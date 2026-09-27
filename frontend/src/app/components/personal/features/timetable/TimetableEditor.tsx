@@ -13,7 +13,6 @@ import {
   autoMerge,
   cellOf,
   colOf,
-  autoPlaceNote,
   collectDocTerms,
   countMerged,
   countRows,
@@ -45,7 +44,6 @@ import {
   setCellText,
   setColumnLabel,
   setDayDate,
-  setHeader,
   spanOf,
   summarizeDayTimes,
   unionTerms,
@@ -91,9 +89,6 @@ interface SuggState {
   idx: number;
 }
 
-const INPUT_CLS =
-  'w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 px-3 text-sm text-foreground placeholder-slate-500 ' +
-  'focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all';
 const GHOST_BTN_CLS =
   'inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-foreground hover:bg-foreground/5 ' +
   'transition-colors disabled:opacity-40 disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-slate-400';
@@ -253,10 +248,6 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
   forgottenRef.current = forgotten;
 
   const allTerms = useMemo(() => unionTerms(terms, collectDocTerms(content)), [terms, content]);
-  const autoPlace = useMemo(() => autoPlaceNote(content), [content]);
-  const manualPlace = (content.place_note || '').trim();
-  const placeOverridden = manualPlace !== '' && manualPlace !== autoPlace;
-  const shownPlace = manualPlace || autoPlace;
   const allTermsRef = useRef(allTerms);
   allTermsRef.current = allTerms;
 
@@ -1078,40 +1069,6 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
       className="tt-editor flex flex-col gap-3 p-3 md:p-4 h-full overflow-y-auto custom-scrollbar"
       onKeyDown={editable ? onRootKeyDown : undefined}
     >
-      {/* 상단 필드: 장소 (표의 장소 열에서 자동으로 채워지고, 직접 고쳐 쓸 수 있다) */}
-      <label className="flex flex-col gap-1">
-        <span className="flex items-center gap-2">
-          <span className={LABEL_CLS}>{tt('place_note', '장소 (우상단)')}</span>
-          <span className="text-xs text-slate-500">
-            {placeOverridden ? tt('place_manual', '직접 입력') : tt('place_auto', '표의 장소 열에서 자동으로')}
-          </span>
-          {editable && placeOverridden && (
-            <button
-              type="button"
-              className="text-xs text-bridge-accent hover:underline"
-              onClick={() => update((cur) => setHeader(cur, { place_note: '' }))}
-            >
-              {tt('place_reset', '자동으로 되돌리기')}
-            </button>
-          )}
-        </span>
-        {editable ? (
-          <input
-            className={INPUT_CLS}
-            value={shownPlace}
-            placeholder={tt('place_placeholder', '표의 장소 열을 채우면 여기에 모입니다 · 직접 적어도 됩니다')}
-            onChange={(e) => {
-              const v = e.target.value;
-              // 자동값과 같으면 비워 두어 표를 따라가게 한다 (지우면 자동으로 돌아온다)
-              update((cur) => setHeader(cur, { place_note: v.trim() === autoPlaceNote(cur) ? '' : v }));
-            }}
-            autoComplete="off"
-          />
-        ) : (
-          <span className="text-sm text-foreground min-h-[1.5rem]">{shownPlace || '—'}</span>
-        )}
-      </label>
-
       {/* 툴바 */}
       {editable && (
         <div className="flex flex-wrap items-center gap-1.5 px-2.5 py-2 rounded-xl border border-foreground/[0.08] bg-bridge-obsidian">
