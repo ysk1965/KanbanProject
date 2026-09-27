@@ -334,6 +334,7 @@ table.tt-table td.tt-overlap::before {
   margin-bottom: 18px;
 }
 .tt-paper .print-kicker {
+  white-space: nowrap;
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.14em;
@@ -391,6 +392,7 @@ table.tt-table td.tt-overlap::before {
   letter-spacing: -0.01em;
 }
 .tt-paper .print-date-w {
+  white-space: nowrap;
   font-size: 11px;
   font-weight: 500;
   border: 1px solid rgba(255, 255, 255, 0.55);
@@ -401,6 +403,8 @@ table.tt-table td.tt-overlap::before {
 }
 .tt-paper .print-date-sum {
   margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap; /* 「13:00 – 16:00 · 5개 일정」은 항상 한 줄 */
   font-family: var(--tt-mono);
   font-size: 11.5px;
   opacity: 0.75;
@@ -514,6 +518,7 @@ table.tt-table td.tt-overlap::before {
   color: var(--tt-p-ink-3);
 }
 .tt-paper .print-mark {
+  white-space: nowrap;
   font-family: var(--tt-mono);
   font-weight: 700;
   letter-spacing: 0.18em;
