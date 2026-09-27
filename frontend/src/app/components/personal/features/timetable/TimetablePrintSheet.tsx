@@ -1,6 +1,6 @@
 import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import type { FeaturePrintProps, TimetableColumn, TimetableContent, TimetableDay } from '../types';
-import { cellOf, covers, effectivePlaceNote, fmtT, formatDayLabel, parseRange, spanOf, timeColumn } from './timetableModel';
+import { cellOf, covers, effectivePlaceNote, fmtT, formatDayLabel, parseRange, placeColumn, spanOf, timeColumn } from './timetableModel';
 import './timetable.css';
 
 /**
@@ -13,7 +13,7 @@ import './timetable.css';
  * - 날짜 옆 요약 「13:00 – 16:00 · 5개 일정」 (시간 열이 있을 때)
  * - 행 사이 시간이 비면 「쉬는 시간 N분」 줄 (시간 열이 있을 때)
  * - 시간 칸 아래 소요 시간 「40분」
- * - 열 역할: 시간 열은 고정폭 숫자, 내용 열(추천 없는 첫 글 열)은 굵게, 마지막 열은 회색 작게, 병합 셀은 알약 테두리
+ * - 열 역할: 시간 열은 고정폭 숫자, 장소 열은 가운데 정렬로 조금 크게, 내용 열(추천 없는 첫 글 열)은 굵게, 마지막 열은 회색 작게, 병합 셀은 가운데
  */
 
 interface Gap {
@@ -101,6 +101,7 @@ export function TimetablePrintSheet({ doc }: FeaturePrintProps<TimetableContent>
   const days = content?.days || [];
   const timeKey = content ? timeColumn(content)?.key ?? null : null;
   const mainKey = mainColumnKey(columns);
+  const placeKey = content ? placeColumn(content)?.key ?? null : null;
   const lastKey = columns.length ? columns[columns.length - 1].key : null;
   const placeNote = content ? effectivePlaceNote(content) : '';
 
@@ -189,7 +190,7 @@ export function TimetablePrintSheet({ doc }: FeaturePrintProps<TimetableContent>
               <thead>
                 <tr>
                   {columns.map((c) => (
-                    <th key={c.key} style={c.width ? { width: `${c.width}%` } : undefined}>
+                    <th key={c.key} className={c.key === placeKey ? 'tt-p-place' : undefined} style={c.width ? { width: `${c.width}%` } : undefined}>
                       {c.label}
                     </th>
                   ))}
@@ -210,6 +211,7 @@ export function TimetablePrintSheet({ doc }: FeaturePrintProps<TimetableContent>
                           const cls = [
                             isTime ? 'tt-p-time' : '',
                             c.key === mainKey ? 'tt-p-main' : '',
+                            !isTime && c.key === placeKey ? 'tt-p-place' : '',
                             !isTime && c.key !== mainKey && c.key === lastKey ? 'tt-p-note' : '',
                             n > 1 ? 'tt-p-merged' : '',
                             cell.c ? `c-${cell.c}` : '',
@@ -218,13 +220,7 @@ export function TimetablePrintSheet({ doc }: FeaturePrintProps<TimetableContent>
                             .join(' ');
                           return (
                             <td key={c.key} rowSpan={n > 1 ? n : undefined} className={cls || undefined}>
-                              {isTime ? (
-                                <TimeText text={cell.t} duration />
-                              ) : n > 1 && cell.t ? (
-                                <span className="tt-p-pill">{cell.t}</span>
-                              ) : (
-                                cell.t
-                              )}
+                              {isTime ? <TimeText text={cell.t} duration /> : cell.t}
                             </td>
                           );
                         })}
