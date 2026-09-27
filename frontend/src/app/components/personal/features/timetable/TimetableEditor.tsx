@@ -946,17 +946,21 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
   };
 
   /* ── 이미지로 복사 ── */
-  /** 오프스크린 종이를 그려 PNG Blob 으로. (Safari 는 ClipboardItem 에 Promise 를 넘겨야 하므로 동기적으로 시작한다) */
+  /** 오프스크린 종이(PDF 와 같은 TimetablePrintSheet)를 그려 PNG Blob 으로. (Safari 는 ClipboardItem 에 Promise 를 넘겨야 하므로 동기적으로 시작한다)
+   *  html2canvas 는 Tailwind v4 의 oklch() 색(body 배경 · 전역 border-color)을 못 읽고 throw 하므로,
+   *  브라우저가 직접 그린 DOM 을 SVG foreignObject 로 옮겨 찍는 modern-screenshot 을 쓴다 (셀 세로 정렬·뱃지 등이 종이와 동일). */
   const renderSheetPng = async (): Promise<Blob> => {
     flushSync(() => setCopyingImage(true));
     await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
     const el = shotRef.current;
     if (!el) throw new Error('sheet not mounted');
-    const { default: html2canvas } = await import('html2canvas');
-    const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
-    return new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/png');
-    });
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]);
+    }
+    const { domToBlob } = await import('modern-screenshot');
+    const blob = await domToBlob(el, { scale: 2, backgroundColor: '#ffffff', type: 'image/png' });
+    if (!blob) throw new Error('toBlob failed');
+    return blob;
   };
 
   const doCopyImage = () => {
@@ -1409,7 +1413,7 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
         <span className="text-xs text-slate-500">{stat}</span>
       </div>
 
-      {/* 이미지로 복사용 오프스크린 종이 (html2canvas 가 찍는 동안만 마운트) */}
+      {/* 이미지로 복사용 오프스크린 종이 — PDF 와 같은 TimetablePrintSheet (찍는 동안만 마운트) */}
       {copyingImage && (
         <div
           ref={shotRef}
