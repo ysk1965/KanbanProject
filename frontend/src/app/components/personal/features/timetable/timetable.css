@@ -508,23 +508,6 @@ table.tt-table td.tt-overlap::before {
   border-color: currentColor;
 }
 
-/* 바닥글: 워드마크 */
-.tt-paper .print-foot {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 16px;
-  font-size: 11px;
-  color: var(--tt-p-ink-3);
-}
-.tt-paper .print-mark {
-  white-space: nowrap;
-  font-family: var(--tt-mono);
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: var(--tt-p-ink-2);
-}
-
 @page {
   size: A4 landscape;
   margin: 12mm;

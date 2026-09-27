@@ -237,10 +237,6 @@ export function TimetablePrintSheet({ doc }: FeaturePrintProps<TimetableContent>
           </div>
         );
       })}
-
-      <div className="print-foot">
-        <span className="print-mark">BRIDGE</span>
-      </div>
     </div>
   );
 }
