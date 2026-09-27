@@ -958,7 +958,25 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
       await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]);
     }
     const { domToBlob } = await import('modern-screenshot');
-    const blob = await domToBlob(el, { scale: 2, backgroundColor: '#ffffff', type: 'image/png' });
+    const blob = await domToBlob(el, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      type: 'image/png',
+      // 복제본에는 원본에서 잰 픽셀 폭·높이(inline-size/block-size)가 고정값으로 박힌다.
+      // 브라우저 배율(75% 등)이 걸린 페이지에서는 잰 글자 폭과 캡처 렌더링의 글자 폭이 어긋나
+      // 제목·장소 알약·요약이 상자 밖으로 꺾여 나가므로, 고정 크기를 걷어내고 CSS 대로 다시 흐르게 한다.
+      // (표 폭 100% 는 computed width 가 복사되지 않아 여기서 다시 준다)
+      onCloneEachNode: (cloned) => {
+        if (!(cloned instanceof HTMLElement) || cloned.hasAttribute('data-shot-root')) return;
+        const tag = cloned.tagName;
+        cloned.style.removeProperty('height');
+        cloned.style.removeProperty('block-size');
+        if (tag === 'COL' || tag === 'TH' || tag === 'TD') return; // 열 폭(col width %)은 원본 배분을 그대로 쓴다
+        cloned.style.removeProperty('width');
+        cloned.style.removeProperty('inline-size');
+        if (tag === 'TABLE') cloned.style.width = '100%';
+      },
+    });
     if (!blob) throw new Error('toBlob failed');
     return blob;
   };
@@ -1417,6 +1435,7 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
       {copyingImage && (
         <div
           ref={shotRef}
+          data-shot-root=""
           aria-hidden="true"
           style={{
             position: 'fixed',

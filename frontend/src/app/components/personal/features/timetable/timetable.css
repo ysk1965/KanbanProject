@@ -347,11 +347,15 @@ table.tt-table td.tt-overlap::before {
   line-height: 1.25;
   white-space: pre-wrap;
 }
+.tt-paper .print-top > :first-child {
+  min-width: 0; /* 제목이 길면 잘리지 않고 접힌다 */
+}
 .tt-paper .print-meta {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+  max-width: 50%; /* 장소가 길면 알약 안에서 접히고, 제목 자리를 뺏지 않는다 */
   font-size: 12px;
   color: var(--tt-p-ink-2);
 }
@@ -500,7 +504,7 @@ table.tt-table td.tt-overlap::before {
   border-color: currentColor;
 }
 
-/* 바닥글: 워드마크 왼쪽, 문서 · 날짜 오른쪽 */
+/* 바닥글: 워드마크 */
 .tt-paper .print-foot {
   display: flex;
   justify-content: space-between;

@@ -1,7 +1,6 @@
 import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import type { FeaturePrintProps, TimetableColumn, TimetableContent, TimetableDay } from '../types';
 import { cellOf, covers, effectivePlaceNote, fmtT, formatDayLabel, parseRange, spanOf, timeColumn } from './timetableModel';
-import { getTodayDateString } from '../../../../utils/dateUtils';
 import './timetable.css';
 
 /**
@@ -241,9 +240,6 @@ export function TimetablePrintSheet({ doc }: FeaturePrintProps<TimetableContent>
 
       <div className="print-foot">
         <span className="print-mark">BRIDGE</span>
-        <span>
-          {doc.title} · {getTodayDateString()} 내보냄
-        </span>
       </div>
     </div>
   );
