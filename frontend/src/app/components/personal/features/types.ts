@@ -94,8 +94,10 @@ export interface TimetableDay {
 }
 
 export interface TimetableContent {
-  version_label: string; // 우상단 1줄 (예: "2026. 9. 10. ver")
-  place_note: string; // 우상단 2줄 (예: "B1 아트스튜디오 / 대성전")
+  /** @deprecated 예전 문서 호환용. UI·인쇄에서 더 이상 쓰지 않는다 */
+  version_label?: string;
+  /** 우상단 장소 줄. 비워 두면 표의 「장소」 열 값들이 자동으로 들어간다 */
+  place_note: string;
   columns: TimetableColumn[];
   days: TimetableDay[];
 }

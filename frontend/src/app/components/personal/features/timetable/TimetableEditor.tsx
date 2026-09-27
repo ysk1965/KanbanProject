@@ -13,6 +13,7 @@ import {
   autoMerge,
   cellOf,
   colOf,
+  autoPlaceNote,
   collectDocTerms,
   countMerged,
   countRows,
@@ -252,6 +253,10 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
   forgottenRef.current = forgotten;
 
   const allTerms = useMemo(() => unionTerms(terms, collectDocTerms(content)), [terms, content]);
+  const autoPlace = useMemo(() => autoPlaceNote(content), [content]);
+  const manualPlace = (content.place_note || '').trim();
+  const placeOverridden = manualPlace !== '' && manualPlace !== autoPlace;
+  const shownPlace = manualPlace || autoPlace;
   const allTermsRef = useRef(allTerms);
   allTermsRef.current = allTerms;
 
@@ -1051,37 +1056,39 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
       className="tt-editor flex flex-col gap-3 p-3 md:p-4 h-full overflow-y-auto custom-scrollbar"
       onKeyDown={editable ? onRootKeyDown : undefined}
     >
-      {/* 상단 필드: 버전 표기 · 장소 메모 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <label className="flex flex-col gap-1">
-          <span className={LABEL_CLS}>{tt('version_label', '버전 표기 (우상단)')}</span>
-          {editable ? (
-            <input
-              className={INPUT_CLS}
-              value={content.version_label}
-              placeholder={tt('version_placeholder', '예: 2026. 9. 10. ver')}
-              onChange={(e) => update((cur) => setHeader(cur, { version_label: e.target.value }))}
-              autoComplete="off"
-            />
-          ) : (
-            <span className="text-sm text-foreground min-h-[1.5rem]">{content.version_label || '—'}</span>
+      {/* 상단 필드: 장소 (표의 장소 열에서 자동으로 채워지고, 직접 고쳐 쓸 수 있다) */}
+      <label className="flex flex-col gap-1">
+        <span className="flex items-center gap-2">
+          <span className={LABEL_CLS}>{tt('place_note', '장소 (우상단)')}</span>
+          <span className="text-xs text-slate-500">
+            {placeOverridden ? tt('place_manual', '직접 입력') : tt('place_auto', '표의 장소 열에서 자동으로')}
+          </span>
+          {editable && placeOverridden && (
+            <button
+              type="button"
+              className="text-xs text-bridge-accent hover:underline"
+              onClick={() => update((cur) => setHeader(cur, { place_note: '' }))}
+            >
+              {tt('place_reset', '자동으로 되돌리기')}
+            </button>
           )}
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className={LABEL_CLS}>{tt('place_note', '장소 메모 (우상단)')}</span>
-          {editable ? (
-            <input
-              className={INPUT_CLS}
-              value={content.place_note}
-              placeholder={tt('place_placeholder', '예: B1 아트스튜디오 / 대성전')}
-              onChange={(e) => update((cur) => setHeader(cur, { place_note: e.target.value }))}
-              autoComplete="off"
-            />
-          ) : (
-            <span className="text-sm text-foreground min-h-[1.5rem]">{content.place_note || '—'}</span>
-          )}
-        </label>
-      </div>
+        </span>
+        {editable ? (
+          <input
+            className={INPUT_CLS}
+            value={shownPlace}
+            placeholder={tt('place_placeholder', '표의 장소 열을 채우면 여기에 모입니다 · 직접 적어도 됩니다')}
+            onChange={(e) => {
+              const v = e.target.value;
+              // 자동값과 같으면 비워 두어 표를 따라가게 한다 (지우면 자동으로 돌아온다)
+              update((cur) => setHeader(cur, { place_note: v.trim() === autoPlaceNote(cur) ? '' : v }));
+            }}
+            autoComplete="off"
+          />
+        ) : (
+          <span className="text-sm text-foreground min-h-[1.5rem]">{shownPlace || '—'}</span>
+        )}
+      </label>
 
       {/* 툴바 */}
       {editable && (

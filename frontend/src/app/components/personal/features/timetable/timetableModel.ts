@@ -43,7 +43,6 @@ export function createDefaultTimetable(): TimetableContent {
   const rows: TimetableRow[] = [];
   for (let i = 0; i < DEFAULT_ROW_COUNT; i++) rows.push(emptyRow(columns));
   return {
-    version_label: '',
     place_note: '',
     columns,
     days: [{ date: getTodayDateString(), rows }],
@@ -169,11 +168,50 @@ export function setCellColor(content: TimetableContent, di: number, ri: number, 
   return setCell(content, di, ri, key, { c: color });
 }
 
-export function setHeader(
-  content: TimetableContent,
-  patch: Partial<Pick<TimetableContent, 'version_label' | 'place_note'>>,
-): TimetableContent {
+export function setHeader(content: TimetableContent, patch: Partial<Pick<TimetableContent, 'place_note'>>): TimetableContent {
   return { ...content, ...patch };
+}
+
+/* ───────────── 장소 ───────────── */
+
+const PLACE_LABEL_RE = /^(장소|place|venue|location)$/i;
+
+/** 「장소」 열. 라벨로 찾고, 없으면 기본 문서의 두 번째 열(c2)이 텍스트 열이면 그것 */
+export function placeColumn(content: TimetableContent): TimetableColumn | undefined {
+  const byLabel = content.columns.find((c) => c.type !== 'time' && PLACE_LABEL_RE.test((c.label || '').trim()));
+  if (byLabel) return byLabel;
+  const c2 = content.columns.find((c) => c.key === 'c2');
+  return c2 && c2.type !== 'time' ? c2 : undefined;
+}
+
+/** 표에 기입된 장소들 (중복 제거, 등장 순서). 병합으로 숨은 셀도 값이 있으면 포함 */
+export function collectPlaces(content: TimetableContent): string[] {
+  const col = placeColumn(content);
+  if (!col) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const day of content.days) {
+    for (const row of day.rows) {
+      const t = (cellOf(row, col.key).t || '').trim();
+      if (!t) continue;
+      const k = normTerm(t);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(t);
+    }
+  }
+  return out;
+}
+
+/** 표의 장소들을 우상단 한 줄로 */
+export function autoPlaceNote(content: TimetableContent): string {
+  return collectPlaces(content).join(' / ');
+}
+
+/** 우상단에 실제로 보일 장소 줄: 직접 적은 값이 있으면 그것, 없으면 표에서 모은 값 */
+export function effectivePlaceNote(content: TimetableContent): string {
+  const manual = (content.place_note || '').trim();
+  return manual || autoPlaceNote(content);
 }
 
 /* ───────────── 병합 ───────────── */

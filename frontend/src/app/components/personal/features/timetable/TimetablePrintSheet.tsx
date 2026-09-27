@@ -1,6 +1,6 @@
 import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import type { FeaturePrintProps, TimetableColumn, TimetableContent, TimetableDay } from '../types';
-import { cellOf, covers, fmtT, formatDayLabel, parseRange, spanOf, timeColumn } from './timetableModel';
+import { cellOf, covers, effectivePlaceNote, fmtT, formatDayLabel, parseRange, spanOf, timeColumn } from './timetableModel';
 import { getTodayDateString } from '../../../../utils/dateUtils';
 import './timetable.css';
 
@@ -103,6 +103,7 @@ export function TimetablePrintSheet({ doc }: FeaturePrintProps<TimetableContent>
   const timeKey = content ? timeColumn(content)?.key ?? null : null;
   const mainKey = mainColumnKey(columns);
   const lastKey = columns.length ? columns[columns.length - 1].key : null;
+  const placeNote = content ? effectivePlaceNote(content) : '';
 
   return (
     <div className="tt-paper">
@@ -112,8 +113,7 @@ export function TimetablePrintSheet({ doc }: FeaturePrintProps<TimetableContent>
           <div className="print-title">{doc.title}</div>
         </div>
         <div className="print-meta">
-          {content?.version_label ? <span className="print-pill print-ver">{content.version_label}</span> : null}
-          {content?.place_note ? <span className="print-pill">장소 : {content.place_note}</span> : null}
+          {placeNote ? <span className="print-pill">장소 : {placeNote}</span> : null}
         </div>
       </div>
 
