@@ -475,9 +475,12 @@ table.tt-table td.tt-overlap::before {
   color: var(--tt-p-ink-2);
   font-size: 12.5px;
 }
-/* 병합 셀: 가운데, 알약 테두리 */
+/* 병합 셀: 가운데, 알약 테두리.
+   border-collapse 에서 Chrome 은 rowSpan 셀의 왼쪽 경계를 첫 행에서만 이웃 셀 선으로 그리고
+   다음 행부터는 병합 셀 자신의 (0px) 선을 써서 세로선이 끊긴다 → 병합 셀에 왼쪽 선을 직접 준다 */
 .tt-paper td.tt-p-merged {
   text-align: center;
+  border-left: 1px solid var(--tt-p-line-v);
 }
 .tt-paper .tt-p-pill {
   display: inline-block;
