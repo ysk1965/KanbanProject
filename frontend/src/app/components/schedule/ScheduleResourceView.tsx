@@ -69,7 +69,8 @@ import { useHolidaysForYears, HolidayInfo } from "../../hooks/useHolidays";
 // Constants
 // ========================================
 
-const ZOOM_PRESETS = [32, 44, 60, 80, 100] as const;
+/** 하루 칸 너비(px). 마지막 단계(200)는 일반 데스크톱 폭에서 월~일 한 주가 화면에 꽉 차도록 맞춘 값 */
+const ZOOM_PRESETS = [32, 44, 60, 80, 100, 200] as const;
 const DEFAULT_ZOOM_INDEX = 2;
 const ZOOM_LABEL_KEYS = [
   "schedule.resource.zoomCompact",
@@ -77,6 +78,7 @@ const ZOOM_LABEL_KEYS = [
   "schedule.resource.zoomDefault",
   "schedule.resource.zoomWide",
   "schedule.resource.zoomExtraWide",
+  "schedule.resource.zoomWeek",
 ] as const;
 
 const ROW_HEIGHT = 80;
