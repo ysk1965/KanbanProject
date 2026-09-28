@@ -480,7 +480,7 @@ const TextNode = memo(function TextNode({ id, data, selected }: NodeProps) {
         />
       )}
       {editing ? (
-        <div className="pl-2 flex flex-col gap-1.5">
+        <div className="pl-2 flex flex-col gap-1.5 h-full">
           <input
             autoFocus
             value={draftTitle}
@@ -496,7 +496,7 @@ const TextNode = memo(function TextNode({ id, data, selected }: NodeProps) {
             onChange={(e) => setDraftBody(e.target.value)}
             placeholder="내용"
             rows={3}
-            className="bg-transparent outline-none resize-none text-xs text-slate-300 custom-scrollbar"
+            className="nodrag nowheel flex-1 min-h-0 bg-transparent outline-none resize-none text-xs text-slate-300 custom-scrollbar"
             onBlur={commit}
             onKeyDown={(e) => {
               if (e.key === "Escape") setEditing(false);
@@ -578,7 +578,7 @@ const StickyNode = memo(function StickyNode({ id, data, selected }: NodeProps) {
             onChange={(e) => setDraft(e.target.value)}
             onBlur={commit}
             rows={2}
-            className="bg-transparent outline-none resize-none text-xs font-medium text-center w-full text-foreground"
+            className="nodrag nowheel bg-transparent outline-none resize-none text-xs font-medium text-center w-full h-full custom-scrollbar text-foreground"
             style={{ color }}
             onKeyDown={(e) => {
               if (e.key === "Escape") setEditing(false);
