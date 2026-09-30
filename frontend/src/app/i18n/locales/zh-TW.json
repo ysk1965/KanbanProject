@@ -4078,7 +4078,24 @@
       "7d": "7天",
       "30d": "30天",
       "never": "永久"
-    }
+    },
+    "removeSelected": "移除",
+    "moreSelected": "另外{{count}}張",
+    "failUnsupported": "不支援的格式",
+    "failTooLarge": "超過30MB",
+    "failNetwork": "網路錯誤",
+    "failGeneric": "上傳失敗",
+    "queueUploading": "已上傳{{done}}/{{total}}張",
+    "queueDone": "已上傳{{count}}張照片",
+    "queueKeepsRunning": "關閉視窗後上傳仍會繼續",
+    "queueFailedCount": "{{count}}張失敗",
+    "queueAllDone": "所有照片已上傳到相簿",
+    "retryFailed": "重試失敗的{{count}}張",
+    "showFailures": "詳情",
+    "filesSkipped": "已略過{{count}}個檔案(格式不支援或超過30MB)",
+    "uploadStarted": "已開始上傳{{count}}張照片,關閉視窗也會繼續",
+    "clearAll": "全部清除",
+    "addToQueue": "追加上傳{{count}}張"
   },
   "notes": {
     "moveFailed": "移動筆記失敗",

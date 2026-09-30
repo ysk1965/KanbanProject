@@ -37,6 +37,18 @@ public interface FileUploadService {
         return -1L;
     }
 
+    /**
+     * 객체의 앞 {@code length} 바이트만 읽는다 (매직바이트 검증용). 없거나 실패하면 null.
+     * 기본 구현은 스트림을 열어 앞부분만 읽는다 — S3 구현은 Range GET 으로 대체.
+     */
+    default byte[] readHeadBytes(String key, int length) {
+        try (InputStream is = getAsStream(key)) {
+            return is.readNBytes(length);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /** 지정된 key 경로에 직접 업로드 (temp 단계 없음) */
     String uploadDirect(MultipartFile file, String key);
 

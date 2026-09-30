@@ -5,6 +5,7 @@ import com.kanban.domain.photo.PhotoShareLink;
 import com.kanban.domain.photo.dto.OrgPhotoRequest;
 import com.kanban.domain.photo.dto.OrgPhotoResponse;
 import com.kanban.domain.photo.service.OrgPhotoService;
+import com.kanban.domain.photo.service.PhotoDirectUploadService;
 import com.kanban.domain.photo.service.PhotoShareLinkService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
@@ -33,6 +34,7 @@ public class OrgPhotoController {
 
     private final OrgPhotoService orgPhotoService;
     private final PhotoShareLinkService photoShareLinkService;
+    private final PhotoDirectUploadService photoDirectUploadService;
 
     // ==================== Tab Endpoints ====================
 
@@ -249,6 +251,24 @@ public class OrgPhotoController {
         List<OrgPhotoResponse.PhotoDetail> photos = orgPhotoService.uploadPhotos(
                 orgId, principal.getUserId(), tabId, files);
         return ResponseEntity.status(HttpStatus.CREATED).body(photos);
+    }
+
+    /** 대량 업로드 1단계 — S3 presigned PUT URL 발급 (최대 100개) */
+    @PostMapping("/upload/presign")
+    public ResponseEntity<OrgPhotoResponse.UploadPresignResult> presignUpload(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody OrgPhotoRequest.UploadPresign request) {
+        return ResponseEntity.ok(photoDirectUploadService.presign(orgId, principal.getUserId(), request));
+    }
+
+    /** 대량 업로드 2단계 — S3 에 올라간 파일을 사진으로 등록 (최대 50개, key 단위 멱등) */
+    @PostMapping("/upload/confirm")
+    public ResponseEntity<OrgPhotoResponse.UploadConfirmResult> confirmUpload(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody OrgPhotoRequest.UploadConfirm request) {
+        return ResponseEntity.ok(photoDirectUploadService.confirm(orgId, principal.getUserId(), request));
     }
 
     @PutMapping("/{photoId}")

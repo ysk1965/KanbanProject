@@ -10101,6 +10101,28 @@ export const orgPhotoAPI = {
     return response.json();
   },
 
+  /** S3 직접 업로드용 presigned URL 발급 (≤100개). mode="direct"면 multipart 폴백 */
+  presignPhotoUpload: (
+    orgId: string,
+    tabId: string,
+    files: PhotoPresignFile[],
+  ): Promise<PhotoPresignResponse> =>
+    apiClient.post(`/organizations/${orgId}/photos/upload/presign`, {
+      tab_id: tabId,
+      files,
+    }),
+
+  /** S3 업로드 완료분 등록 (≤50개, s3_key 기준 멱등) */
+  confirmPhotoUpload: (
+    orgId: string,
+    tabId: string,
+    items: PhotoConfirmItem[],
+  ): Promise<PhotoConfirmResponse> =>
+    apiClient.post(`/organizations/${orgId}/photos/upload/confirm`, {
+      tab_id: tabId,
+      items,
+    }),
+
   updatePhoto: (
     orgId: string,
     photoId: string,
@@ -10159,7 +10181,41 @@ export interface ChunkedUploadProgress {
   totalBatches: number;
 }
 
-function splitFilesIntoChunks(files: File[]): File[][] {
+// ─── Presigned Photo Upload (S3 직접 업로드) ───
+
+export interface PhotoPresignFile {
+  client_id: string;
+  filename: string;
+  content_type: string;
+  size: number;
+}
+
+export interface PhotoPresignResponse {
+  mode: "presigned" | "direct";
+  items: {
+    client_id: string;
+    s3_key: string;
+    upload_url: string;
+    thumbnail_upload_url: string | null;
+  }[];
+  rejected: { client_id: string; reason: string }[];
+}
+
+export interface PhotoConfirmItem {
+  s3_key: string;
+  filename: string;
+  content_type: string;
+  width: number | null;
+  height: number | null;
+  has_thumbnail: boolean;
+}
+
+export interface PhotoConfirmResponse {
+  succeeded: { s3_key: string; photo: import("../types").OrgPhoto }[];
+  failed: { s3_key: string; reason: string }[];
+}
+
+export function splitFilesIntoChunks(files: File[]): File[][] {
   const chunks: File[][] = [];
   let currentChunk: File[] = [];
   let currentSize = 0;
@@ -10186,7 +10242,7 @@ function splitFilesIntoChunks(files: File[]): File[][] {
   return chunks;
 }
 
-async function uploadFormData(
+export async function uploadFormData(
   url: string,
   files: File[],
 ): Promise<import("../types").OrgPhoto[]> {
@@ -10210,6 +10266,25 @@ export const publicUploadAPI = {
     uploadToken: string,
   ): Promise<import("../types").UploadAlbumInfo> =>
     apiClient.get(`/public/upload/${uploadToken}`, true),
+
+  presign: (
+    uploadToken: string,
+    files: PhotoPresignFile[],
+  ): Promise<PhotoPresignResponse> =>
+    apiClient.post(`/public/upload/${uploadToken}/presign`, { files }, true),
+
+  confirm: (
+    uploadToken: string,
+    items: PhotoConfirmItem[],
+  ): Promise<PhotoConfirmResponse> =>
+    apiClient.post(`/public/upload/${uploadToken}/confirm`, { items }, true),
+
+  /** multipart 한 묶음 업로드 (presign 미지원 환경 폴백) */
+  uploadChunk: (
+    uploadToken: string,
+    files: File[],
+  ): Promise<import("../types").OrgPhoto[]> =>
+    uploadFormData(`${API_BASE_URL}/public/upload/${uploadToken}`, files),
 
   uploadPhotos: async (
     uploadToken: string,
@@ -10260,6 +10335,39 @@ export const publicGalleryUploadAPI = {
     data: { name: string; description?: string },
   ): Promise<import("../types").SharedAlbumSummary> =>
     apiClient.post(`/public/gallery-upload/${uploadToken}/albums`, data, true),
+
+  presign: (
+    uploadToken: string,
+    albumId: string,
+    files: PhotoPresignFile[],
+  ): Promise<PhotoPresignResponse> =>
+    apiClient.post(
+      `/public/gallery-upload/${uploadToken}/albums/${albumId}/photos/presign`,
+      { files },
+      true,
+    ),
+
+  confirm: (
+    uploadToken: string,
+    albumId: string,
+    items: PhotoConfirmItem[],
+  ): Promise<PhotoConfirmResponse> =>
+    apiClient.post(
+      `/public/gallery-upload/${uploadToken}/albums/${albumId}/photos/confirm`,
+      { items },
+      true,
+    ),
+
+  /** multipart 한 묶음 업로드 (presign 미지원 환경 폴백) */
+  uploadChunk: (
+    uploadToken: string,
+    albumId: string,
+    files: File[],
+  ): Promise<import("../types").OrgPhoto[]> =>
+    uploadFormData(
+      `${API_BASE_URL}/public/gallery-upload/${uploadToken}/albums/${albumId}/photos`,
+      files,
+    ),
 
   deleteAlbum: (uploadToken: string, albumId: string): Promise<void> =>
     apiClient.delete(

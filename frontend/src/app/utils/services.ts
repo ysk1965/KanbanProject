@@ -4280,6 +4280,8 @@ export const orgPhotoService = {
   // Photo CRUD
   getPhotos: orgPhotoAPI.getPhotos,
   uploadPhotos: orgPhotoAPI.uploadPhotos,
+  presignPhotoUpload: orgPhotoAPI.presignPhotoUpload,
+  confirmPhotoUpload: orgPhotoAPI.confirmPhotoUpload,
   updatePhoto: orgPhotoAPI.updatePhoto,
   deletePhotos: orgPhotoAPI.deletePhotos,
 

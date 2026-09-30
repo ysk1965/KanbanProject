@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.TimeZone;
+import java.util.concurrent.ThreadPoolExecutor;
 
 @SpringBootApplication
 @EnableAsync
@@ -59,7 +60,9 @@ public class KanbanApplication {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(2);
         executor.setMaxPoolSize(3);
-        executor.setQueueCapacity(100);
+        executor.setQueueCapacity(500);
+        // 큐가 차면 호출 스레드에서 직접 생성 — 기본 AbortPolicy 는 업로드 요청 자체를 실패시킨다
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         executor.setThreadNamePrefix("thumbnail-");
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(60);

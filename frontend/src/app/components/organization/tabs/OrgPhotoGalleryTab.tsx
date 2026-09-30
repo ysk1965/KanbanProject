@@ -26,6 +26,8 @@ import { PhotoLightbox } from '../photo/PhotoLightbox';
 import { PhotoUploadModal } from '../photo/PhotoUploadModal';
 import { AlbumCreateModal } from '../photo/AlbumCreateModal';
 import { AlbumShareManagerModal } from '../photo/AlbumShareManagerModal';
+import { PhotoUploadProgress } from '../photo/PhotoUploadProgress';
+import { getOrgPhotoUploadQueue, usePhotoUploadConfirmed } from '../../../hooks/usePhotoUploadQueue';
 import type { OrgPhotoTab, OrgPhoto, OrgPhotoPage } from '../../../types';
 
 
@@ -313,6 +315,23 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
     fetchPhotos();
     fetchAlbums();
   }, [fetchPhotos, fetchAlbums]);
+
+  // 백그라운드 업로드 큐 — confirm 묶음(최대 50장)이 들어올 때마다 목록 갱신 (1.5초 디바운스)
+  const uploadQueue = getOrgPhotoUploadQueue(orgId);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  usePhotoUploadConfirmed(uploadQueue, () => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null;
+      handleUploadComplete();
+    }, 1500);
+  });
+  useEffect(
+    () => () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    },
+    [],
+  );
 
   // Album saved handler
   const handleAlbumSaved = useCallback(() => {
@@ -619,6 +638,9 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
         activeAlbumId={activeAlbumId}
         onUploadComplete={handleUploadComplete}
       />
+
+      {/* Background upload progress */}
+      <PhotoUploadProgress queue={uploadQueue} floating />
 
       {/* Album Create/Edit Modal */}
       <AlbumCreateModal

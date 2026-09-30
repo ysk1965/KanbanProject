@@ -3,6 +3,7 @@ package com.kanban.domain.photo.controller;
 import com.kanban.domain.photo.dto.OrgPhotoRequest;
 import com.kanban.domain.photo.dto.OrgPhotoResponse;
 import com.kanban.domain.photo.service.OrgPhotoService;
+import com.kanban.domain.photo.service.PhotoDirectUploadService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,6 +20,7 @@ import java.util.Map;
 public class PublicAlbumController {
 
     private final OrgPhotoService orgPhotoService;
+    private final PhotoDirectUploadService photoDirectUploadService;
 
     // ==================== Gallery-Level (Organization) ====================
 
@@ -69,6 +71,20 @@ public class PublicAlbumController {
                 .body(orgPhotoService.publicUploadPhotos(uploadToken, files));
     }
 
+    @PostMapping("/upload/{uploadToken}/presign")
+    public ResponseEntity<OrgPhotoResponse.UploadPresignResult> publicPresign(
+            @PathVariable String uploadToken,
+            @Valid @RequestBody OrgPhotoRequest.UploadPresign request) {
+        return ResponseEntity.ok(photoDirectUploadService.presignForTabLink(uploadToken, request));
+    }
+
+    @PostMapping("/upload/{uploadToken}/confirm")
+    public ResponseEntity<OrgPhotoResponse.UploadConfirmResult> publicConfirm(
+            @PathVariable String uploadToken,
+            @Valid @RequestBody OrgPhotoRequest.UploadConfirm request) {
+        return ResponseEntity.ok(photoDirectUploadService.confirmForTabLink(uploadToken, request));
+    }
+
     // ==================== Gallery-Level Upload ====================
 
     @GetMapping("/gallery-upload/{uploadToken}")
@@ -109,6 +125,22 @@ public class PublicAlbumController {
             @RequestParam("files") List<MultipartFile> files) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(orgPhotoService.publicGalleryUploadPhotos(uploadToken, albumId, files));
+    }
+
+    @PostMapping("/gallery-upload/{uploadToken}/albums/{albumId}/photos/presign")
+    public ResponseEntity<OrgPhotoResponse.UploadPresignResult> publicGalleryPresign(
+            @PathVariable String uploadToken,
+            @PathVariable String albumId,
+            @Valid @RequestBody OrgPhotoRequest.UploadPresign request) {
+        return ResponseEntity.ok(photoDirectUploadService.presignForGalleryLink(uploadToken, albumId, request));
+    }
+
+    @PostMapping("/gallery-upload/{uploadToken}/albums/{albumId}/photos/confirm")
+    public ResponseEntity<OrgPhotoResponse.UploadConfirmResult> publicGalleryConfirm(
+            @PathVariable String uploadToken,
+            @PathVariable String albumId,
+            @Valid @RequestBody OrgPhotoRequest.UploadConfirm request) {
+        return ResponseEntity.ok(photoDirectUploadService.confirmForGalleryLink(uploadToken, albumId, request));
     }
 
     @DeleteMapping("/gallery-upload/{uploadToken}/albums/{albumId}/photos/{photoId}")

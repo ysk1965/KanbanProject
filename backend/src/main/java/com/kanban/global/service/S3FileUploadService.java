@@ -276,6 +276,21 @@ public class S3FileUploadService implements FileUploadService {
     }
 
     @Override
+    public byte[] readHeadBytes(String key, int length) {
+        try {
+            return s3Client.getObjectAsBytes(GetObjectRequest.builder()
+                    .bucket(bucketName).key(key)
+                    .range("bytes=0-" + (length - 1))
+                    .build()).asByteArray();
+        } catch (NoSuchKeyException e) {
+            return null;
+        } catch (Exception e) {
+            log.warn("Failed to read head bytes: {}", key, e);
+            return null;
+        }
+    }
+
+    @Override
     public long probeObjectSize(String key) {
         try {
             HeadObjectResponse head = s3Client.headObject(HeadObjectRequest.builder()

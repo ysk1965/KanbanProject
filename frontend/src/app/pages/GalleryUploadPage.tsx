@@ -16,11 +16,20 @@ import {
   CheckSquare,
   Square,
 } from "lucide-react";
+import { publicGalleryUploadAPI, resolveFileUrl } from "../utils/api";
 import {
-  publicGalleryUploadAPI,
-  resolveFileUrl,
-  type ChunkedUploadProgress,
-} from "../utils/api";
+  PhotoUploadQueue,
+  PHOTO_ACCEPTED_TYPES,
+  PHOTO_UPLOAD_MAX_FILES,
+  validatePhotoFile,
+  type PhotoUploadTarget,
+} from "../utils/photoUploadQueue";
+import {
+  usePhotoUploadConfirmed,
+  usePhotoUploadQueue,
+} from "../hooks/usePhotoUploadQueue";
+import { PhotoUploadProgress } from "../components/organization/photo/PhotoUploadProgress";
+import { SelectedPhotoGrid } from "../components/organization/photo/SelectedPhotoGrid";
 import { PhotoLightbox } from "../components/organization/photo/PhotoLightbox";
 import { IconButton } from "../components/ui/IconButton";
 import {
@@ -77,12 +86,9 @@ export function GalleryUploadPage() {
 
   // Upload state
   const [files, setFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [uploaded, setUploaded] = useState(false);
-  const [uploadCount, setUploadCount] = useState(0);
-  const [uploadProgress, setUploadProgress] =
-    useState<ChunkedUploadProgress | null>(null);
+  const [uploadQueue] = useState(() => new PhotoUploadQueue());
+  const uploadSnap = usePhotoUploadQueue(uploadQueue);
+  const uploading = uploadSnap.active;
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -257,14 +263,16 @@ export function GalleryUploadPage() {
   }, [uploadToken, t]);
 
   // Fetch photos for active album
+  // 사진 수(photo_count) 변경으로 activeAlbum 객체가 바뀌어도 목록을 리셋하지 않도록 id에만 의존
+  const activeAlbumId = activeAlbum?.id ?? null;
   const fetchPhotos = useCallback(
     async (cursor?: string) => {
-      if (!uploadToken || !activeAlbum) return;
+      if (!uploadToken || !activeAlbumId) return;
       try {
         setPhotosLoading(true);
         const data = await publicGalleryUploadAPI.getAlbumPhotos(
           uploadToken,
-          activeAlbum.id,
+          activeAlbumId,
           { cursor, size: 12 },
         );
         const mapped = data.photos.map(toOrgPhoto);
@@ -281,21 +289,18 @@ export function GalleryUploadPage() {
         setPhotosLoading(false);
       }
     },
-    [uploadToken, activeAlbum],
+    [uploadToken, activeAlbumId],
   );
 
   useEffect(() => {
-    if (activeAlbum) {
+    if (activeAlbumId) {
       setPhotos([]);
       setNextCursor(null);
       setHasNext(false);
       fetchPhotos();
-      // Reset upload state when switching albums
-      setUploaded(false);
-      setUploadCount(0);
       exitSelectMode();
     }
-  }, [activeAlbum, fetchPhotos]);
+  }, [activeAlbumId, fetchPhotos]);
 
   // Infinite scroll
   useEffect(() => {
@@ -319,55 +324,36 @@ export function GalleryUploadPage() {
   }, [hasNext, photosLoading, nextCursor, fetchPhotos]);
 
   // File handling
-  const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30MB
-  const MAX_TOTAL_FILES = 100;
-
   const addFiles = useCallback(
     (newFiles: File[]) => {
-      const imageFiles = newFiles.filter((f) => f.type.startsWith("image/"));
-      const oversized = imageFiles.filter((f) => f.size > MAX_FILE_SIZE);
-      if (oversized.length > 0) {
+      const valid = newFiles.filter((f) => !validatePhotoFile(f));
+      const skipped = newFiles.length - valid.length;
+      if (skipped > 0) {
         setError(
           t(
-            "photoGallery.fileTooLarge",
-            `${oversized.length} file(s) exceed 30MB limit`,
+            "photoGallery.filesSkipped",
+            "{{count}} files skipped (unsupported format or over 30MB)",
+            { count: skipped },
           ),
         );
-        return;
       }
       setFiles((prev) => {
-        const remaining = MAX_TOTAL_FILES - prev.length;
-        if (remaining <= 0) {
+        const remaining = PHOTO_UPLOAD_MAX_FILES - prev.length;
+        if (remaining < valid.length) {
           setError(
-            t(
-              "photoGallery.maxFilesReached",
-              `Maximum ${MAX_TOTAL_FILES} photos per upload`,
-            ),
-          );
-          return prev;
-        }
-        const toAdd = imageFiles.slice(0, remaining);
-        if (toAdd.length < imageFiles.length) {
-          setError(
-            t(
-              "photoGallery.filesLimited",
-              `Only ${toAdd.length} of ${imageFiles.length} photos added (max ${MAX_TOTAL_FILES})`,
-            ),
+            t("photoGallery.maxFiles", "Maximum {{max}} files", {
+              max: PHOTO_UPLOAD_MAX_FILES,
+            }),
           );
         }
-        const objectUrls = toAdd.map((f) => URL.createObjectURL(f));
-        setPreviews((p) => [...p, ...objectUrls]);
-        return [...prev, ...toAdd];
+        if (remaining <= 0) return prev;
+        return [...prev, ...valid.slice(0, remaining)];
       });
     },
     [t],
   );
 
   const removeFile = useCallback((index: number) => {
-    setPreviews((prev) => {
-      if (prev[index]) URL.revokeObjectURL(prev[index]);
-      return prev.filter((_, i) => i !== index);
-    });
     setFiles((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
@@ -380,68 +366,56 @@ export function GalleryUploadPage() {
     [addFiles],
   );
 
-  const handleUpload = useCallback(async () => {
-    if (!uploadToken || !activeAlbum || files.length === 0 || uploading) return;
-    try {
-      setUploading(true);
-      setUploadProgress(null);
-      await publicGalleryUploadAPI.uploadPhotos(
-        uploadToken,
-        activeAlbum.id,
-        files,
-        (progress) => setUploadProgress(progress),
-      );
-      setUploadCount(files.length);
-      setUploaded(true);
-      setUploadProgress(null);
-      setError(null);
-      previews.forEach((u) => URL.revokeObjectURL(u));
-      setFiles([]);
-      setPreviews([]);
-      // Refresh photos and album info
+  const handleUpload = useCallback(() => {
+    if (!uploadToken || !activeAlbum || files.length === 0) return;
+    const albumId = activeAlbum.id;
+    const target: PhotoUploadTarget = {
+      key: albumId,
+      presign: (f) => publicGalleryUploadAPI.presign(uploadToken, albumId, f),
+      confirm: (items) =>
+        publicGalleryUploadAPI.confirm(uploadToken, albumId, items),
+      uploadDirect: (f) =>
+        publicGalleryUploadAPI.uploadChunk(uploadToken, albumId, f),
+    };
+    uploadQueue.enqueue(files, target);
+    setFiles([]);
+    setError(null);
+  }, [uploadToken, activeAlbum, files, uploadQueue]);
+
+  // confirm 묶음이 들어올 때마다 앨범 사진 수 반영 + 보고 있는 앨범이면 목록 갱신 (디바운스)
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeAlbumIdRef = useRef<string | null>(null);
+  activeAlbumIdRef.current = activeAlbumId;
+  usePhotoUploadConfirmed(uploadQueue, (albumId, confirmedPhotos) => {
+    const added = confirmedPhotos.length;
+    setGalleryInfo((prev) =>
+      prev
+        ? {
+            ...prev,
+            albums: prev.albums.map((a) =>
+              a.id === albumId ? { ...a, photo_count: a.photo_count + added } : a,
+            ),
+          }
+        : prev,
+    );
+    setActiveAlbum((prev) =>
+      prev && prev.id === albumId
+        ? { ...prev, photo_count: prev.photo_count + added }
+        : prev,
+    );
+    if (albumId !== activeAlbumIdRef.current) return;
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null;
       fetchPhotos();
-      // Update photo count in gallery info
-      setGalleryInfo((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          albums: prev.albums.map((a) =>
-            a.id === activeAlbum.id
-              ? { ...a, photo_count: a.photo_count + files.length }
-              : a,
-          ),
-        };
-      });
-      setActiveAlbum((prev) =>
-        prev ? { ...prev, photo_count: prev.photo_count + files.length } : prev,
-      );
-    } catch (err: unknown) {
-      setUploadProgress(null);
-      const code = (err as { error?: { code?: string } })?.error?.code;
-      const message =
-        code === "FILE_TOO_LARGE"
-          ? t(
-              "photoGallery.errorFileTooLarge",
-              "File size exceeds the limit (max 30MB)",
-            )
-          : code === "FILE_TYPE_NOT_ALLOWED"
-            ? t("photoGallery.errorFileType", "Unsupported file format")
-            : code === "PHOTO_UPLOAD_LIMIT_EXCEEDED"
-              ? t(
-                  "photoGallery.errorUploadLimit",
-                  "Maximum 20 photos per upload",
-                )
-              : code === "ORGANIZATION_NOT_FOUND"
-                ? t("photoGallery.errorTokenExpired", "Upload link has expired")
-                : t(
-                    "photoGallery.errorUploadFailed",
-                    "Upload failed. Please try again.",
-                  );
-      setError(message);
-    } finally {
-      setUploading(false);
-    }
-  }, [uploadToken, activeAlbum, files, uploading, fetchPhotos]);
+    }, 1500);
+  });
+  useEffect(
+    () => () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    },
+    [],
+  );
 
   // Create album
   const handleCreateAlbum = useCallback(async () => {
@@ -969,7 +943,7 @@ export function GalleryUploadPage() {
             </div>
           )}
 
-          {photos.length === 0 && !photosLoading && !uploaded && (
+          {photos.length === 0 && !photosLoading && uploadSnap.confirmed === 0 && (
             <div className="text-center py-8">
               <Images size={28} className="mx-auto mb-2 text-slate-500/50" />
               <p className="text-sm text-slate-500">
@@ -978,26 +952,8 @@ export function GalleryUploadPage() {
             </div>
           )}
 
-          {/* Upload success message */}
-          {uploaded && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20"
-            >
-              <Check size={16} className="text-emerald-400 shrink-0" />
-              <p className="text-sm text-foreground">
-                {uploadCount} {t("photoGallery.photosUnit", "photos")}{" "}
-                {t("photoGallery.uploadSuccess", "uploaded")}
-              </p>
-              <button
-                onClick={() => setUploaded(false)}
-                className="ml-auto text-slate-500 hover:text-foreground transition-colors"
-              >
-                <X size={14} />
-              </button>
-            </motion.div>
-          )}
+          {/* Upload progress (완료/실패, 실패분만 다시 시도) */}
+          {uploadSnap.total > 0 && <PhotoUploadProgress queue={uploadQueue} />}
 
           {/* Drop zone */}
           <motion.div
@@ -1028,14 +984,18 @@ export function GalleryUploadPage() {
                 )}
               </p>
               <p className="text-xs text-slate-500">
-                {t("photoGallery.uploadHint", "Supports JPG, PNG, GIF, WebP")}
+                {t(
+                  "photoGallery.uploadFormats",
+                  "JPG, PNG, WebP, GIF - max {{max}} files",
+                  { max: PHOTO_UPLOAD_MAX_FILES },
+                )}
               </p>
             </div>
 
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept={PHOTO_ACCEPTED_TYPES.join(",")}
               multiple
               className="hidden"
               onChange={(e) => {
@@ -1055,47 +1015,21 @@ export function GalleryUploadPage() {
                     selected
                   </span>
                   <button
-                    onClick={() => {
-                      previews.forEach((u) => URL.revokeObjectURL(u));
-                      setFiles([]);
-                      setPreviews([]);
-                    }}
+                    onClick={() => setFiles([])}
                     className="text-xs text-slate-500 hover:text-foreground transition-colors"
                   >
                     Clear all
                   </button>
                 </div>
 
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                  {previews.map((preview, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: i * 0.04 }}
-                      className="relative aspect-square rounded-xl overflow-hidden group"
-                    >
-                      <img
-                        src={preview}
-                        alt="업로드 미리보기"
-                        className="w-full h-full object-cover"
-                      />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeFile(i);
-                        }}
-                        className="absolute top-1 right-1 p-1 rounded-lg bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X size={12} />
-                      </button>
-                    </motion.div>
-                  ))}
-                </div>
+                <SelectedPhotoGrid
+                  files={files}
+                  onRemove={removeFile}
+                  className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2"
+                />
 
                 <button
                   onClick={handleUpload}
-                  disabled={uploading}
                   className="w-full py-3 bg-bridge-secondary text-white rounded-xl font-bold hover:bg-bridge-secondary/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {uploading ? (
@@ -1128,50 +1062,6 @@ export function GalleryUploadPage() {
             <Plus size={16} />
             {t("photoGallery.createAlbum", "Add Album")}
           </button>
-        </div>
-      )}
-
-      {/* Upload Progress Modal */}
-      {uploading && uploadProgress && uploadProgress.totalBatches > 1 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-sm mx-4 bg-bridge-obsidian rounded-2xl border border-foreground/10 shadow-2xl overflow-hidden"
-          >
-            <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
-            <div className="px-5 pt-5 pb-6 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-bridge-secondary/15 flex items-center justify-center shrink-0">
-                  <Loader2 className="w-5 h-5 animate-spin text-bridge-secondary" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-foreground">
-                    {t("photoGallery.uploading", "Uploading...")}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {uploadProgress.uploadedFiles} / {uploadProgress.totalFiles}{" "}
-                    {t("photoGallery.photosUnit", "photos")}
-                  </p>
-                </div>
-              </div>
-              {/* Progress bar */}
-              <div className="w-full h-2 bg-foreground/[0.08] rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-bridge-secondary rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{
-                    width: `${(uploadProgress.uploadedFiles / uploadProgress.totalFiles) * 100}%`,
-                  }}
-                  transition={{ duration: 0.3 }}
-                />
-              </div>
-              <p className="text-xs text-slate-600 text-center">
-                Batch {uploadProgress.currentBatch} /{" "}
-                {uploadProgress.totalBatches}
-              </p>
-            </div>
-          </motion.div>
         </div>
       )}
 

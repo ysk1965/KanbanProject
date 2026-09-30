@@ -280,10 +280,9 @@ public class OrgPhotoService {
                     .build();
             orgPhotoRepository.save(photo);
 
-            tab.incrementPhotoCount();
-
             results.add(OrgPhotoResponse.PhotoDetail.from(photo));
         }
+        orgPhotoTabRepository.incrementPhotoCount(tabId, results.size());
 
         log.info("Photos uploaded: orgId={}, tabId={}, count={}, userId={}",
                 orgId, tabId, files.size(), userId);
@@ -485,6 +484,10 @@ public class OrgPhotoService {
                 .filter(t -> t != null)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
 
+        if (files.size() > MAX_UPLOAD_FILES) {
+            throw new BusinessException(ErrorCode.PHOTO_UPLOAD_LIMIT_EXCEEDED);
+        }
+
         Organization org = tab.getOrganization();
         String orgId = org.getId();
         String tabId = tab.getId();
@@ -523,10 +526,9 @@ public class OrgPhotoService {
                     .build();
             orgPhotoRepository.save(photo);
 
-            tab.incrementPhotoCount();
-
             results.add(OrgPhotoResponse.PhotoDetail.from(photo));
         }
+        orgPhotoTabRepository.incrementPhotoCount(tabId, results.size());
 
         log.info("Public photos uploaded: orgId={}, tabId={}, count={}", orgId, tabId, files.size());
         return results;
@@ -856,10 +858,9 @@ public class OrgPhotoService {
                     .build();
             orgPhotoRepository.save(photo);
 
-            tab.incrementPhotoCount();
-
             results.add(OrgPhotoResponse.PhotoDetail.from(photo));
         }
+        orgPhotoTabRepository.incrementPhotoCount(tabId, results.size());
 
         log.info("Public gallery photos uploaded: orgId={}, tabId={}, count={}", orgId, tabId, files.size());
         return results;

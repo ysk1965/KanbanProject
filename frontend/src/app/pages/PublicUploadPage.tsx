@@ -1,31 +1,42 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Upload,
   Loader2,
   Check,
   ImagePlus,
-  X,
   AlertCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { publicUploadAPI, type ChunkedUploadProgress } from "../utils/api";
+import { publicUploadAPI } from "../utils/api";
+import {
+  PhotoUploadQueue,
+  PHOTO_ACCEPTED_TYPES,
+  PHOTO_UPLOAD_MAX_FILES,
+  validatePhotoFile,
+  type PhotoUploadTarget,
+} from "../utils/photoUploadQueue";
+import { usePhotoUploadQueue } from "../hooks/usePhotoUploadQueue";
+import { PhotoUploadProgress } from "../components/organization/photo/PhotoUploadProgress";
+import { SelectedPhotoGrid } from "../components/organization/photo/SelectedPhotoGrid";
 import type { UploadAlbumInfo } from "../types";
 
 export function PublicUploadPage() {
   const { uploadToken } = useParams<{ uploadToken: string }>();
+  const { t } = useTranslation();
   const [albumInfo, setAlbumInfo] = useState<UploadAlbumInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [files, setFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [uploaded, setUploaded] = useState(false);
-  const [uploadCount, setUploadCount] = useState(0);
-  const [uploadProgress, setUploadProgress] =
-    useState<ChunkedUploadProgress | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [queue] = useState(() => new PhotoUploadQueue());
+  const snap = usePhotoUploadQueue(queue);
+  const uploading = snap.active;
+  // 큐가 모두 성공으로 끝나면 완료 화면
+  const uploaded = snap.total > 0 && !snap.active && snap.failed === 0;
 
   useEffect(() => {
     if (!uploadToken) return;
@@ -43,21 +54,37 @@ export function PublicUploadPage() {
     load();
   }, [uploadToken]);
 
-  const addFiles = useCallback((newFiles: File[]) => {
-    const imageFiles = newFiles.filter((f) => f.type.startsWith("image/"));
-    setFiles((prev) => [...prev, ...imageFiles]);
-    imageFiles.forEach((f) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreviews((prev) => [...prev, e.target?.result as string]);
-      };
-      reader.readAsDataURL(f);
-    });
-  }, []);
+  const addFiles = useCallback(
+    (newFiles: File[]) => {
+      const valid = newFiles.filter((f) => !validatePhotoFile(f));
+      const skipped = newFiles.length - valid.length;
+      setNotice(
+        skipped > 0
+          ? t(
+              "photoGallery.filesSkipped",
+              "{{count}} files skipped (unsupported format or over 30MB)",
+              { count: skipped },
+            )
+          : null,
+      );
+      setFiles((prev) => {
+        const remaining = PHOTO_UPLOAD_MAX_FILES - prev.length;
+        if (remaining < valid.length) {
+          setNotice(
+            t("photoGallery.maxFiles", "Maximum {{max}} files", {
+              max: PHOTO_UPLOAD_MAX_FILES,
+            }),
+          );
+        }
+        if (remaining <= 0) return prev;
+        return [...prev, ...valid.slice(0, remaining)];
+      });
+    },
+    [t],
+  );
 
   const removeFile = useCallback((index: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
-    setPreviews((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
   const handleDrop = useCallback(
@@ -70,31 +97,22 @@ export function PublicUploadPage() {
     [addFiles],
   );
 
-  const handleUpload = useCallback(async () => {
-    if (!uploadToken || files.length === 0 || uploading) return;
-    try {
-      setUploading(true);
-      setUploadProgress(null);
-      await publicUploadAPI.uploadPhotos(uploadToken, files, (progress) =>
-        setUploadProgress(progress),
-      );
-      setUploadCount(files.length);
-      setUploaded(true);
-      setUploadProgress(null);
-      setFiles([]);
-      setPreviews([]);
-    } catch {
-      setUploadProgress(null);
-      setError("Upload failed. Please try again.");
-    } finally {
-      setUploading(false);
-    }
-  }, [uploadToken, files, uploading]);
+  const handleUpload = useCallback(() => {
+    if (!uploadToken || files.length === 0) return;
+    const target: PhotoUploadTarget = {
+      key: uploadToken,
+      presign: (f) => publicUploadAPI.presign(uploadToken, f),
+      confirm: (items) => publicUploadAPI.confirm(uploadToken, items),
+      uploadDirect: (f) => publicUploadAPI.uploadChunk(uploadToken, f),
+    };
+    queue.enqueue(files, target);
+    setFiles([]);
+    setNotice(null);
+  }, [uploadToken, files, queue]);
 
   const handleUploadMore = useCallback(() => {
-    setUploaded(false);
-    setUploadCount(0);
-  }, []);
+    queue.clearFinished();
+  }, [queue]);
 
   // Expiry info
   const expiresAt = albumInfo?.expires_at
@@ -158,7 +176,7 @@ export function PublicUploadPage() {
             Upload Complete!
           </h1>
           <p className="text-sm text-slate-400 mb-6">
-            {uploadCount} photo{uploadCount !== 1 ? "s" : ""} uploaded to{" "}
+            {snap.confirmed} photo{snap.confirmed !== 1 ? "s" : ""} uploaded to{" "}
             <span className="text-foreground font-medium">
               {albumInfo.album_name}
             </span>
@@ -232,14 +250,18 @@ export function PublicUploadPage() {
               Drop photos here or click to browse
             </p>
             <p className="text-xs text-slate-500">
-              Supports JPG, PNG, GIF, WebP
+              {t(
+                "photoGallery.uploadFormats",
+                "JPG, PNG, WebP, GIF - max {{max}} files",
+                { max: PHOTO_UPLOAD_MAX_FILES },
+              )}
             </p>
           </div>
 
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept={PHOTO_ACCEPTED_TYPES.join(",")}
             multiple
             className="hidden"
             onChange={(e) => {
@@ -250,6 +272,19 @@ export function PublicUploadPage() {
             }}
           />
 
+          {notice && (
+            <p className="mt-4 text-xs text-amber-600 dark:text-amber-400">
+              {notice}
+            </p>
+          )}
+
+          {/* Upload progress (실패 시 실패분만 다시 시도) */}
+          {snap.total > 0 && (
+            <div className="mt-6">
+              <PhotoUploadProgress queue={queue} />
+            </div>
+          )}
+
           {/* Preview grid */}
           {files.length > 0 && (
             <div className="mt-6 space-y-4">
@@ -258,52 +293,25 @@ export function PublicUploadPage() {
                   {files.length} photo{files.length !== 1 ? "s" : ""} selected
                 </span>
                 <button
-                  onClick={() => {
-                    setFiles([]);
-                    setPreviews([]);
-                  }}
+                  onClick={() => setFiles([])}
                   className="text-xs text-slate-500 hover:text-foreground transition-colors"
                 >
                   Clear all
                 </button>
               </div>
 
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {previews.map((preview, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: i * 0.04 }}
-                    className="relative aspect-square rounded-xl overflow-hidden group"
-                  >
-                    <img
-                      src={preview}
-                      alt="업로드 미리보기"
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeFile(i);
-                      }}
-                      className="absolute top-1 right-1 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-black/60 text-white opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-                    >
-                      <X size={12} />
-                    </button>
-                  </motion.div>
-                ))}
-              </div>
+              <SelectedPhotoGrid files={files} onRemove={removeFile} />
 
               <button
                 onClick={handleUpload}
-                disabled={uploading}
                 className="w-full py-3 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {uploading ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    Uploading...
+                    {t("photoGallery.addToQueue", "Add {{count}} to upload", {
+                      count: files.length,
+                    })}
                   </>
                 ) : (
                   <>
@@ -317,49 +325,6 @@ export function PublicUploadPage() {
         </motion.div>
       </div>
 
-      {/* Upload Progress Modal */}
-      {uploading && uploadProgress && uploadProgress.totalBatches > 1 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-sm mx-4 bg-bridge-obsidian rounded-2xl border border-foreground/10 shadow-2xl overflow-hidden"
-          >
-            <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
-            <div className="px-5 pt-5 pb-6 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-bridge-accent/15 flex items-center justify-center shrink-0">
-                  <Loader2 className="w-5 h-5 animate-spin text-bridge-accent" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-foreground">
-                    Uploading...
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {uploadProgress.uploadedFiles} / {uploadProgress.totalFiles}{" "}
-                    photos
-                  </p>
-                </div>
-              </div>
-              {/* Progress bar */}
-              <div className="w-full h-2 bg-foreground/[0.08] rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-bridge-accent rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{
-                    width: `${(uploadProgress.uploadedFiles / uploadProgress.totalFiles) * 100}%`,
-                  }}
-                  transition={{ duration: 0.3 }}
-                />
-              </div>
-              <p className="text-xs text-slate-600 text-center">
-                Batch {uploadProgress.currentBatch} /{" "}
-                {uploadProgress.totalBatches}
-              </p>
-            </div>
-          </motion.div>
-        </div>
-      )}
     </div>
   );
 }
