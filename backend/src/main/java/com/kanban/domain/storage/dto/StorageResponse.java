@@ -82,16 +82,21 @@ public class StorageResponse {
         }
     }
 
-    /** 문서 PDF 미리보기. status: NONE | PENDING | READY | FAILED | UNAVAILABLE, url 은 READY 일 때만. */
+    /** 문서 PDF 미리보기. status: NONE | PENDING | READY | FAILED | UNAVAILABLE | TOO_LARGE, url 은 READY 일 때만. */
     @Builder
     public record Preview(
             String status,
             String url,
             /** TOO_LARGE 일 때 변환 상한(바이트). 그 외 null. */
-            Long maxSourceBytes
+            Long maxSourceBytes,
+            /** PENDING 일 때 변환 요청 후 흐른 시간(초). 페이지를 떠났다 와도 이어진다. */
+            Long elapsedSeconds,
+            /** PENDING 일 때 변환 대기열에서 앞에 있는 파일 수. */
+            Long queueAhead
     ) {
         public static Preview of(StorageService.PreviewInfo info) {
-            return new Preview(info.status(), info.url(), info.maxSourceBytes());
+            return new Preview(info.status(), info.url(), info.maxSourceBytes(),
+                    info.elapsedSeconds(), info.queueAhead());
         }
     }
 

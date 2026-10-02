@@ -74,9 +74,19 @@ public class StorageService {
      * status 는 PreviewStatus 이름 또는 UNAVAILABLE(형식 미지원/soffice 없음), TOO_LARGE(원본이 상한 초과).
      * maxSourceBytes 는 TOO_LARGE 일 때만 채워져 프론트가 한도를 표시한다.
      */
-    public record PreviewInfo(String status, String url, Long maxSourceBytes) {
+    public record PreviewInfo(String status, String url, Long maxSourceBytes,
+                              Long elapsedSeconds, Long queueAhead) {
         public PreviewInfo(String status, String url) {
-            this(status, url, null);
+            this(status, url, null, null, null);
+        }
+
+        public PreviewInfo(String status, String url, Long maxSourceBytes) {
+            this(status, url, maxSourceBytes, null, null);
+        }
+
+        /** PENDING: 변환 요청 후 흐른 시간과 대기열에서 앞에 있는 개수를 같이 준다. */
+        public static PreviewInfo pending(long elapsedSeconds, long queueAhead) {
+            return new PreviewInfo("PENDING", null, null, elapsedSeconds, queueAhead);
         }
     }
 
@@ -435,9 +445,13 @@ public class StorageService {
         if (file.getPreviewStatus() == StorageFile.PreviewStatus.READY && file.getPreviewKey() != null) {
             return new PreviewInfo("READY", fileUploadService.resolveUrl(file.getPreviewKey()));
         }
-        if (file.getPreviewStatus() == StorageFile.PreviewStatus.PENDING) {
-            return new PreviewInfo("PENDING", null);
+        if (file.getPreviewStatus() == StorageFile.PreviewStatus.PENDING
+                && !documentPreviewService.isStalePending(file)) {
+            return PreviewInfo.pending(
+                    documentPreviewService.elapsedSeconds(file),
+                    documentPreviewService.queueAhead(file));
         }
+        // 여기 오는 PENDING 은 워커가 사라진 고아 → 아래에서 재큐잉
         if (!documentPreviewService.canConvert(file)) {
             // 형식도 서버도 되는데 크기만 넘는 경우를 따로 알려준다 (사용자가 "서버 미지원"으로 오해하지 않게)
             if (DocumentPreviewService.isConvertible(file.getOriginalFilename())
@@ -447,9 +461,9 @@ public class StorageService {
             }
             return new PreviewInfo("UNAVAILABLE", null);
         }
-        // NONE 또는 FAILED → (재)시도
+        // NONE / FAILED / 고아 PENDING → (재)시도. 방금 요청했으니 경과 0초, 앞 대기는 지금 PENDING 인 파일 수.
         maybeQueuePreview(file);
-        return new PreviewInfo("PENDING", null);
+        return PreviewInfo.pending(0, documentPreviewService.queueAhead(file));
     }
 
     /**
@@ -466,11 +480,11 @@ public class StorageService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    documentPreviewService.convertAsync(fileId);
+                    documentPreviewService.enqueue(fileId);
                 }
             });
         } else {
-            documentPreviewService.convertAsync(fileId);
+            documentPreviewService.enqueue(fileId);
         }
     }
 

@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -55,4 +56,19 @@ public interface StorageFileRepository extends JpaRepository<StorageFile, String
      * 같은 (board, s3Key)가 이미 있으면 재생성하지 않는다(사용자가 지운 파일 부활 방지 포함).
      */
     Optional<StorageFile> findByBoardIdAndS3Key(String boardId, String s3Key);
+
+    // ==================== Document preview queue ====================
+
+    /** 주어진 요청 시각보다 먼저 PENDING 된 파일 수 = 변환 대기열에서 내 앞에 있는 개수 (워커가 전역 1개라 스코프 무관). */
+    @Query("SELECT COUNT(f) FROM StorageFile f WHERE f.previewStatus = 'PENDING' " +
+            "AND f.previewRequestedAt IS NOT NULL AND f.previewRequestedAt < :requestedAt")
+    long countPreviewQueuedBefore(@Param("requestedAt") LocalDateTime requestedAt);
+
+    /**
+     * cutoff 이전에 요청됐는데 아직 PENDING 인 파일. 요청 시각이 없는 행(컬럼 도입 전 큐잉분)도 포함한다.
+     * 서버 재시작으로 비동기 워커가 날아가 영원히 PENDING 에 남은 고아를 찾는 데 쓴다.
+     */
+    @Query("SELECT f FROM StorageFile f WHERE f.previewStatus = 'PENDING' " +
+            "AND (f.previewRequestedAt IS NULL OR f.previewRequestedAt < :cutoff)")
+    List<StorageFile> findStalePreviewPending(@Param("cutoff") LocalDateTime cutoff);
 }

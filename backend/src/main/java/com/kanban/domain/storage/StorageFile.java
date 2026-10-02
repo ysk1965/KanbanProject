@@ -63,6 +63,10 @@ public class StorageFile extends BaseTimeEntity {
     @Builder.Default
     private PreviewStatus previewStatus = PreviewStatus.NONE;
 
+    /** PENDING 으로 바뀐 시각(UTC). 대기 순번·경과 시간 계산과 고아 PENDING 복구 기준. */
+    @Column(name = "preview_requested_at")
+    private LocalDateTime previewRequestedAt;
+
     @Column(name = "content_type", length = 100)
     private String contentType;
 
@@ -143,6 +147,13 @@ public class StorageFile extends BaseTimeEntity {
 
     public void markPreviewPending() {
         this.previewStatus = PreviewStatus.PENDING;
+        this.previewRequestedAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    /** 변환 워커가 사라져 고아가 된 PENDING 을 재시도 가능 상태로 되돌린다. */
+    public void resetPreviewToNone() {
+        this.previewStatus = PreviewStatus.NONE;
+        this.previewRequestedAt = null;
     }
 
     public void markPreviewReady(String previewKey) {

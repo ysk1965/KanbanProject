@@ -157,4 +157,68 @@ class DocumentPreviewServiceTest {
         verifyNoInteractions(fileUploadService);
         verify(fileRepository, never()).save(any());
     }
+
+    // ==================== Stale PENDING recovery ====================
+
+    @Test
+    void isStalePending_onlyWhenPendingAndOlderThanThreshold() {
+        // timeoutSeconds=10 → stale 기준 50초
+        StorageFile fresh = docFile("a.pptx", "s/a.pptx");
+        fresh.markPreviewPending();
+        assertFalse(service.isStalePending(fresh), "방금 큐잉한 파일은 고아가 아니다");
+
+        StorageFile old = docFile("b.pptx", "s/b.pptx");
+        old.markPreviewPending();
+        ReflectionTestUtils.setField(old, "previewRequestedAt",
+                java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusSeconds(120));
+        assertTrue(service.isStalePending(old), "기준보다 오래 PENDING 이면 고아");
+
+        StorageFile legacy = docFile("c.pptx", "s/c.pptx");
+        ReflectionTestUtils.setField(legacy, "previewStatus", StorageFile.PreviewStatus.PENDING);
+        assertTrue(service.isStalePending(legacy), "요청 시각이 없는 옛 PENDING 도 고아");
+
+        StorageFile ready = docFile("d.pptx", "s/d.pptx");
+        ready.markPreviewReady("s/d_preview.pdf");
+        assertFalse(service.isStalePending(ready));
+    }
+
+    @Test
+    void resetStalePending_resetsToNone_butSkipsInFlight() throws Exception {
+        StorageFile orphan = docFile("a.pptx", "s/a.pptx");
+        orphan.markPreviewPending();
+        StorageFile mine = StorageFile.builder().id("f2").originalFilename("b.pptx").s3Key("s/b.pptx")
+                .fileSize(10).build();
+        mine.markPreviewPending();
+        when(fileRepository.findStalePreviewPending(any())).thenReturn(java.util.List.of(orphan, mine));
+
+        // f2 는 이 인스턴스가 처리 중인 것으로 등록
+        @SuppressWarnings("unchecked")
+        java.util.Set<String> inFlight = (java.util.Set<String>) ReflectionTestUtils.getField(service, "inFlight");
+        inFlight.add("f2");
+
+        int n = service.resetStalePending(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
+
+        assertEquals(1, n);
+        assertEquals(StorageFile.PreviewStatus.NONE, orphan.getPreviewStatus());
+        assertNull(orphan.getPreviewRequestedAt());
+        assertEquals(StorageFile.PreviewStatus.PENDING, mine.getPreviewStatus());
+        verify(fileRepository, times(1)).save(orphan);
+        verify(fileRepository, never()).save(mine);
+    }
+
+    @Test
+    void elapsedAndQueueAhead_useRequestedAt() {
+        StorageFile file = docFile("a.pptx", "s/a.pptx");
+        assertEquals(0, service.elapsedSeconds(file));
+        assertEquals(0, service.queueAhead(file));
+        verify(fileRepository, never()).countPreviewQueuedBefore(any());
+
+        file.markPreviewPending();
+        ReflectionTestUtils.setField(file, "previewRequestedAt",
+                java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusSeconds(42));
+        when(fileRepository.countPreviewQueuedBefore(any())).thenReturn(3L);
+
+        assertTrue(service.elapsedSeconds(file) >= 42);
+        assertEquals(3, service.queueAhead(file));
+    }
 }

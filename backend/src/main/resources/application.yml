@@ -275,6 +275,9 @@ app:
       # 대형 피치덱(100MB+)도 변환되도록 5분 / 200MB. 초과분은 TOO_LARGE 로 응답해 프론트가 사유를 표시한다.
       timeout-seconds: ${STORAGE_PREVIEW_TIMEOUT:300}
       max-source-bytes: ${STORAGE_PREVIEW_MAX_SOURCE:209715200}   # 200MB
+      # 이보다 오래 PENDING 이면 워커가 사라진 고아로 보고 NONE 으로 되돌린다. 0 = timeout-seconds × 5 (25분).
+      stale-seconds: ${STORAGE_PREVIEW_STALE_SECONDS:0}
+      stale-sweep-ms: ${STORAGE_PREVIEW_STALE_SWEEP_MS:600000}      # 고아 점검 주기 10분
     quota:
       # 사용자 구독 티어별 스토리지 용량 한도 (바이트)
       base-bytes: ${STORAGE_QUOTA_BASE:1073741824}       # 1GB (체험)

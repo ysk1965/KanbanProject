@@ -10557,6 +10557,10 @@ export interface StoragePreviewInfo {
   url: string | null;
   /** TOO_LARGE 일 때 변환 상한(바이트) */
   max_source_bytes?: number | null;
+  /** PENDING 일 때 변환 요청 후 흐른 시간(초). 서버 기준이라 페이지를 떠났다 와도 이어진다 */
+  elapsed_seconds?: number | null;
+  /** PENDING 일 때 변환 대기열에서 앞에 있는 파일 수 */
+  queue_ahead?: number | null;
 }
 
 export interface StorageUsage {
