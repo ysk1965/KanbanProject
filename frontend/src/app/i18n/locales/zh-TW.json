@@ -1516,7 +1516,8 @@
     "aiDecisions": "決策",
     "aiOpenQuestions": "待解決問題",
     "aiActionItems": "待辦事項",
-    "checklist": "檢查清單"
+    "checklist": "檢查清單",
+    "download": "下載"
   },
   "mentionGroup": {
     "create": "建立提及群組",

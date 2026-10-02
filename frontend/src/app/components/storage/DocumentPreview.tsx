@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { FileText, Loader2, RefreshCw } from "lucide-react";
 
 import type { StorageFileItem, StoragePreviewInfo } from "../../utils/api";
+import { formatBytes } from "./storageUtils";
 
-/** PENDING 폴링 간격과 포기 시점. 서버 변환 타임아웃(120s)보다 조금 길게 잡는다. */
+/** PENDING 폴링 간격과 포기 시점. 서버 변환 타임아웃(300s)보다 조금 길게 잡는다. */
 const POLL_INTERVAL_MS = 3000;
-const POLL_GIVE_UP_MS = 150_000;
+const POLL_GIVE_UP_MS = 330_000;
 
 interface DocumentPreviewProps {
   file: StorageFileItem;
@@ -20,6 +21,7 @@ type ViewState =
   | { kind: "ready"; url: string }
   | { kind: "failed" }
   | { kind: "unavailable" }
+  | { kind: "tooLarge"; limitBytes: number | null }
   | { kind: "timeout" };
 
 /**
@@ -61,6 +63,9 @@ export function DocumentPreview({
           return;
         case "FAILED":
           setState({ kind: "failed" });
+          return;
+        case "TOO_LARGE":
+          setState({ kind: "tooLarge", limitBytes: info.max_source_bytes ?? null });
           return;
         default:
           setState({ kind: "unavailable" });
@@ -111,15 +116,20 @@ export function DocumentPreview({
   const message =
     state.kind === "unavailable"
       ? "이 서버에서는 문서 미리보기를 지원하지 않습니다"
-      : state.kind === "timeout"
-        ? "변환이 오래 걸리고 있습니다. 잠시 후 다시 시도해 주세요"
-        : "PDF 변환에 실패했습니다. 다운로드해서 확인해 주세요";
+      : state.kind === "tooLarge"
+        ? `파일이 너무 커서 미리보기를 만들 수 없습니다${
+            state.limitBytes ? ` (최대 ${formatBytes(state.limitBytes)})` : ""
+          }. 다운로드해서 확인해 주세요`
+        : state.kind === "timeout"
+          ? "변환이 오래 걸리고 있습니다. 잠시 후 다시 시도해 주세요"
+          : "PDF 변환에 실패했습니다. 다운로드해서 확인해 주세요";
+  const retryable = state.kind === "failed" || state.kind === "timeout";
 
   return (
     <div className="flex flex-col items-center gap-3 py-16 text-slate-500">
       <FileText className="w-14 h-14" />
-      <span className="text-xs">{message}</span>
-      {state.kind !== "unavailable" && (
+      <span className="text-xs text-center px-4">{message}</span>
+      {retryable && (
         <button
           type="button"
           onClick={() => setAttempt((n) => n + 1)}

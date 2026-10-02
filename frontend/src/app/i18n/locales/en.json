@@ -1976,7 +1976,8 @@
     "aiDecisions": "Decisions",
     "aiOpenQuestions": "Open Questions",
     "aiActionItems": "Action Items",
-    "checklist": "Checklist"
+    "checklist": "Checklist",
+    "download": "Download"
   },
   "mentionGroup": {
     "create": "Create mention group",

@@ -1531,7 +1531,8 @@
     "aiDecisions": "Quyết định",
     "aiOpenQuestions": "Câu hỏi chưa giải quyết",
     "aiActionItems": "Hành động cần làm",
-    "checklist": "Checklist"
+    "checklist": "Checklist",
+    "download": "Tải xuống"
   },
   "mentionGroup": {
     "create": "Tạo nhóm đề cập",

@@ -1531,7 +1531,8 @@
     "aiDecisions": "决策",
     "aiOpenQuestions": "待解决问题",
     "aiActionItems": "待办事项",
-    "checklist": "检查清单"
+    "checklist": "检查清单",
+    "download": "下载"
   },
   "mentionGroup": {
     "create": "创建提及群组",

@@ -1531,7 +1531,8 @@
     "aiDecisions": "การตัดสินใจ",
     "aiOpenQuestions": "คำถามที่ยังไม่ได้ตอบ",
     "aiActionItems": "รายการดำเนินการ",
-    "checklist": "เช็คลิสต์"
+    "checklist": "เช็คลิสต์",
+    "download": "ดาวน์โหลด"
   },
   "mentionGroup": {
     "create": "สร้างกลุ่มการกล่าวถึง",

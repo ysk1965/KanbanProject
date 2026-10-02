@@ -1531,7 +1531,8 @@
     "aiDecisions": "決定事項",
     "aiOpenQuestions": "未解決の質問",
     "aiActionItems": "アクションアイテム",
-    "checklist": "チェックリスト"
+    "checklist": "チェックリスト",
+    "download": "ダウンロード"
   },
   "mentionGroup": {
     "create": "メンショングループ作成",

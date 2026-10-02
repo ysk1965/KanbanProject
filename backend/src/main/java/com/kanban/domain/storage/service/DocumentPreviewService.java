@@ -49,11 +49,11 @@ public class DocumentPreviewService {
     @Value("${app.storage.preview.soffice-path:/usr/bin/soffice}")
     private String sofficePath;
 
-    @Value("${app.storage.preview.timeout-seconds:120}")
+    @Value("${app.storage.preview.timeout-seconds:300}")
     private long timeoutSeconds;
 
     /** 이보다 큰 원본은 변환하지 않는다 (메모리·시간 보호) */
-    @Value("${app.storage.preview.max-source-bytes:52428800}")
+    @Value("${app.storage.preview.max-source-bytes:209715200}")
     private long maxSourceBytes;
 
     /** soffice 는 메모리를 많이 먹어서 동시 실행을 1개로 묶는다 */
@@ -75,7 +75,19 @@ public class DocumentPreviewService {
 
     public boolean canConvert(StorageFile file) {
         return enabled && isConvertible(file.getOriginalFilename())
-                && file.getFileSize() <= maxSourceBytes && isAvailable();
+                && !isTooLarge(file) && isAvailable();
+    }
+
+    /**
+     * 형식·서버는 지원하지만 원본이 상한을 넘어 변환하지 않는 경우.
+     * 호출자는 UNAVAILABLE(서버 미지원) 과 구분해 TOO_LARGE 로 응답한다.
+     */
+    public boolean isTooLarge(StorageFile file) {
+        return file.getFileSize() > maxSourceBytes;
+    }
+
+    public long getMaxSourceBytes() {
+        return maxSourceBytes;
     }
 
     /** soffice 실행 파일 존재 여부. 배포 훅이 best-effort 라 없을 수 있어 매번 확인하지 않고 캐시한다. */

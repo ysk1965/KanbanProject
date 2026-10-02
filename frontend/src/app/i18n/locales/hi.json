@@ -1531,7 +1531,8 @@
     "aiDecisions": "निर्णय",
     "aiOpenQuestions": "अनसुलझे प्रश्न",
     "aiActionItems": "कार्य आइटम",
-    "checklist": "चेकलिस्ट"
+    "checklist": "चेकलिस्ट",
+    "download": "डाउनलोड"
   },
   "mentionGroup": {
     "create": "मेंशन ग्रुप बनाएं",

@@ -69,8 +69,16 @@ public class StorageService {
         public static DownloadLink proxy() { return new DownloadLink(null, "proxy"); }
     }
 
-    /** 문서 PDF 미리보기 조회 결과. status 는 PreviewStatus 이름 또는 UNAVAILABLE(변환 불가/soffice 없음). */
-    public record PreviewInfo(String status, String url) {}
+    /**
+     * 문서 PDF 미리보기 조회 결과.
+     * status 는 PreviewStatus 이름 또는 UNAVAILABLE(형식 미지원/soffice 없음), TOO_LARGE(원본이 상한 초과).
+     * maxSourceBytes 는 TOO_LARGE 일 때만 채워져 프론트가 한도를 표시한다.
+     */
+    public record PreviewInfo(String status, String url, Long maxSourceBytes) {
+        public PreviewInfo(String status, String url) {
+            this(status, url, null);
+        }
+    }
 
     // ==================== Folder ====================
 
@@ -431,6 +439,12 @@ public class StorageService {
             return new PreviewInfo("PENDING", null);
         }
         if (!documentPreviewService.canConvert(file)) {
+            // 형식도 서버도 되는데 크기만 넘는 경우를 따로 알려준다 (사용자가 "서버 미지원"으로 오해하지 않게)
+            if (DocumentPreviewService.isConvertible(file.getOriginalFilename())
+                    && documentPreviewService.isAvailable()
+                    && documentPreviewService.isTooLarge(file)) {
+                return new PreviewInfo("TOO_LARGE", null, documentPreviewService.getMaxSourceBytes());
+            }
             return new PreviewInfo("UNAVAILABLE", null);
         }
         // NONE 또는 FAILED → (재)시도

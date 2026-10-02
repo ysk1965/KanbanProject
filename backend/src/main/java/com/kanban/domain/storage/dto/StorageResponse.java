@@ -86,10 +86,12 @@ public class StorageResponse {
     @Builder
     public record Preview(
             String status,
-            String url
+            String url,
+            /** TOO_LARGE 일 때 변환 상한(바이트). 그 외 null. */
+            Long maxSourceBytes
     ) {
         public static Preview of(StorageService.PreviewInfo info) {
-            return new Preview(info.status(), info.url());
+            return new Preview(info.status(), info.url(), info.maxSourceBytes());
         }
     }
 

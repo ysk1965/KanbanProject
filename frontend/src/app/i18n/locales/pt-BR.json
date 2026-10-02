@@ -1531,7 +1531,8 @@
     "aiDecisions": "Decisões",
     "aiOpenQuestions": "Perguntas Pendentes",
     "aiActionItems": "Itens de Ação",
-    "checklist": "Checklist"
+    "checklist": "Checklist",
+    "download": "Baixar"
   },
   "mentionGroup": {
     "create": "Criar grupo de menção",

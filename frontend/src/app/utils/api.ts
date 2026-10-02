@@ -10552,8 +10552,11 @@ export interface StorageFileItem {
 
 /** 문서(docx/pptx/hwp) PDF 미리보기 상태. url 은 READY 일 때만 채워진다. */
 export interface StoragePreviewInfo {
-  status: "NONE" | "PENDING" | "READY" | "FAILED" | "UNAVAILABLE";
+  /** UNAVAILABLE: 형식 미지원/서버에 변환기 없음, TOO_LARGE: 원본이 변환 상한 초과 */
+  status: "NONE" | "PENDING" | "READY" | "FAILED" | "UNAVAILABLE" | "TOO_LARGE";
   url: string | null;
+  /** TOO_LARGE 일 때 변환 상한(바이트) */
+  max_source_bytes?: number | null;
 }
 
 export interface StorageUsage {

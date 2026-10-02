@@ -1980,7 +1980,8 @@
     "aiDecisions": "결정사항",
     "aiOpenQuestions": "미해결 질문",
     "aiActionItems": "액션 아이템",
-    "checklist": "체크리스트"
+    "checklist": "체크리스트",
+    "download": "다운로드"
   },
   "mentionGroup": {
     "create": "멘션 그룹 만들기",

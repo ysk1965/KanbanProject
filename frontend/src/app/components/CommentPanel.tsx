@@ -55,11 +55,13 @@ import {
   HelpCircle,
   Users,
   Reply,
+  Download,
 } from "lucide-react";
 import { VideoThumbnail } from "./VideoThumbnail";
 import { MentionGroupModal } from "./MentionGroupModal";
 
 import { lazyWithRetry } from "../utils/lazyWithRetry";
+import { downloadPhoto } from "../utils/nativeDownload";
 const VideoLightbox = lazyWithRetry(
   () => import("./VideoLightbox").then((m) => ({ default: m.VideoLightbox })),
   "VideoLightbox",
@@ -1177,6 +1179,7 @@ export function CommentPanel({
       url: string;
       type: "image" | "video";
       attachmentId: string;
+      fileName: string;
     }[] = [];
     for (const c of comments) {
       for (const att of c.attachments || []) {
@@ -1185,6 +1188,7 @@ export function CommentPanel({
           url: resolveFileUrl(att.url),
           type: isVideoAttachment(att) ? "video" : "image",
           attachmentId: att.id,
+          fileName: att.file_name,
         });
       }
     }
@@ -2420,6 +2424,17 @@ export function CommentPanel({
                     <ChevronRight className="h-6 w-6" />
                   </button>
                 )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    downloadPhoto(current.url, current.fileName).catch(() => {});
+                  }}
+                  className="absolute top-4 right-16 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10 pointer-events-auto"
+                  aria-label={t("comment.download", "다운로드")}
+                  title={t("comment.download", "다운로드")}
+                >
+                  <Download className="h-5 w-5" />
+                </button>
                 {total > 1 && (
                   <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-black/50 text-white text-xs z-10 pointer-events-none">
                     {index + 1} / {total}
