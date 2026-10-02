@@ -278,6 +278,8 @@ app:
       # 이보다 오래 PENDING 이면 워커가 사라진 고아로 보고 NONE 으로 되돌린다. 0 = timeout-seconds × 5 (25분).
       stale-seconds: ${STORAGE_PREVIEW_STALE_SECONDS:0}
       stale-sweep-ms: ${STORAGE_PREVIEW_STALE_SWEEP_MS:600000}      # 고아 점검 주기 10분
+      # 변환 작업 디렉터리. EB(AL2023)의 /tmp 는 tmpfs(RAM)라 디스크인 /var/tmp 를 쓴다. 비우면 java.io.tmpdir.
+      work-dir: ${STORAGE_PREVIEW_WORK_DIR:/var/tmp/docpreview}
     quota:
       # 사용자 구독 티어별 스토리지 용량 한도 (바이트)
       base-bytes: ${STORAGE_QUOTA_BASE:1073741824}       # 1GB (체험)

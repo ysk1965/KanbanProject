@@ -196,6 +196,7 @@ public class DocumentPreviewService {
     @EventListener(ApplicationReadyEvent.class)
     public void resetOrphanedPendingOnStartup() {
         if (!enabled) return;
+        cleanupOrphanedWorkDirs();
         int n = resetStalePending(LocalDateTime.now(ZoneOffset.UTC));
         if (n > 0) log.info("Document preview: reset {} orphaned PENDING file(s) on startup", n);
     }
@@ -273,8 +274,44 @@ public class DocumentPreviewService {
         });
     }
 
+    /**
+     * 변환 작업 디렉터리의 부모. Amazon Linux 2023 의 /tmp 는 tmpfs(RAM)라 200MB 원본을 거기 두면
+     * 인스턴스 메모리를 그대로 잡아먹고, 프로세스가 죽으면 잔해가 RAM 에 남아 EB 헬스까지 Degraded 로 만든다.
+     * 그래서 디스크(/var/tmp) 를 기본으로 쓴다. 비어 있으면 JVM 기본 임시 디렉터리.
+     */
+    @Value("${app.storage.preview.work-dir:/var/tmp/docpreview}")
+    private String workDirBase;
+
+    private Path workDirBase() throws IOException {
+        if (workDirBase == null || workDirBase.isBlank()) {
+            return Path.of(System.getProperty("java.io.tmpdir"));
+        }
+        Path base = Path.of(workDirBase);
+        Files.createDirectories(base);
+        return base;
+    }
+
+    /**
+     * 이전 프로세스가 변환 중 죽어(OOM·재배포) finally 가 못 돈 작업 디렉터리를 치운다.
+     * 변환은 비동기라 이 시점엔 아직 아무 작업도 시작되지 않았으므로 하위 전체가 고아다.
+     */
+    void cleanupOrphanedWorkDirs() {
+        if (workDirBase == null || workDirBase.isBlank()) return;
+        Path base = Path.of(workDirBase);
+        if (!Files.isDirectory(base)) return;
+        try (Stream<Path> children = Files.list(base)) {
+            List<Path> orphans = children.filter(p -> p.getFileName().toString().startsWith("docpreview-")).toList();
+            orphans.forEach(DocumentPreviewService::deleteQuietly);
+            if (!orphans.isEmpty()) {
+                log.info("Document preview: removed {} orphaned work dir(s) under {}", orphans.size(), base);
+            }
+        } catch (IOException e) {
+            log.warn("Document preview: failed to scan work dir {}: {}", base, e.getMessage());
+        }
+    }
+
     private byte[] convertToPdf(StorageFile file) throws IOException, InterruptedException {
-        Path workDir = Files.createTempDirectory("docpreview-");
+        Path workDir = Files.createTempDirectory(workDirBase(), "docpreview-");
         try {
             String ext = MediaUtils.getExtension(file.getOriginalFilename());
             Path source = workDir.resolve("source" + ext);
@@ -293,10 +330,12 @@ public class DocumentPreviewService {
                     "--convert-to", "pdf",
                     "--outdir", outDir.toString(),
                     source.toString());
-            Process process = new ProcessBuilder(cmd)
+            ProcessBuilder pb = new ProcessBuilder(cmd)
                     .redirectErrorStream(true)
-                    .redirectOutput(workDir.resolve("soffice.log").toFile())
-                    .start();
+                    .redirectOutput(workDir.resolve("soffice.log").toFile());
+            // soffice 의 lu*.tmp 임시 파일도 tmpfs(/tmp) 가 아니라 작업 디렉터리(디스크)에 두고 같이 지운다
+            pb.environment().put("TMPDIR", workDir.toString());
+            Process process = pb.start();
             if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
                 throw new IOException("soffice timeout after " + timeoutSeconds + "s");

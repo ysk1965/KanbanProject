@@ -42,6 +42,20 @@ class DocumentPreviewServiceTest {
         ReflectionTestUtils.setField(service, "enabled", true);
         ReflectionTestUtils.setField(service, "timeoutSeconds", 10L);
         ReflectionTestUtils.setField(service, "maxSourceBytes", 50L * 1024 * 1024);
+        ReflectionTestUtils.setField(service, "workDirBase", tempDir.resolve("work").toString());
+    }
+
+    @Test
+    void cleanupOrphanedWorkDirs_removesOnlyDocpreviewDirs() throws Exception {
+        Path base = tempDir.resolve("work");
+        Files.createDirectories(base.resolve("docpreview-123").resolve("out"));
+        Files.writeString(base.resolve("docpreview-123").resolve("source.pptx"), "x");
+        Files.createDirectories(base.resolve("other"));
+
+        service.cleanupOrphanedWorkDirs();
+
+        assertFalse(Files.exists(base.resolve("docpreview-123")), "죽은 변환의 작업 디렉터리는 제거");
+        assertTrue(Files.exists(base.resolve("other")), "다른 디렉터리는 손대지 않음");
     }
 
     private Path fakeSoffice(String body) throws Exception {
