@@ -77,6 +77,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
   const [showAlbumModal, setShowAlbumModal] = useState(false);
   const [editingAlbum, setEditingAlbum] = useState<OrgPhotoTab | null>(null);
   const [showDeleteAlbumConfirm, setShowDeleteAlbumConfirm] = useState<OrgPhotoTab | null>(null);
+  const [deletingAlbum, setDeletingAlbum] = useState(false);
   const [showDeletePhotosConfirm, setShowDeletePhotosConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [shareAlbum, setShareAlbum] = useState<OrgPhotoTab | null>(null);
@@ -293,6 +294,8 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
   // Delete album
   const handleDeleteAlbum = useCallback(
     async (album: OrgPhotoTab) => {
+      if (deletingAlbum) return;
+      setDeletingAlbum(true);
       try {
         await orgPhotoService.deleteTab(orgId, album.id);
         toast.success(t('photoGallery.albumDeleted', 'Album deleted'));
@@ -305,9 +308,11 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
       } catch (error) {
         console.warn('Failed to delete album:', error);
         toast.error(t('photoGallery.albumDeleteError', 'Failed to delete album'));
+      } finally {
+        setDeletingAlbum(false);
       }
     },
-    [orgId, activeAlbumId, t, fetchAlbums, fetchPhotos],
+    [orgId, activeAlbumId, deletingAlbum, t, fetchAlbums, fetchPhotos],
   );
 
   // Upload complete handler
@@ -657,7 +662,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
       {/* Delete Album Confirmation */}
       <MotionModal
         open={!!showDeleteAlbumConfirm}
-        onClose={() => setShowDeleteAlbumConfirm(null)}
+        onClose={() => !deletingAlbum && setShowDeleteAlbumConfirm(null)}
         className="sm:max-w-sm"
       >
         <div className="h-1 bg-gradient-to-r from-amber-500 to-red-500 rounded-t-2xl" />
@@ -693,7 +698,8 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
           <div className="flex gap-2">
             <button
               onClick={() => setShowDeleteAlbumConfirm(null)}
-              className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors"
+              disabled={deletingAlbum}
+              className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {t('common.cancel', 'Cancel')}
             </button>
@@ -701,9 +707,13 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
               onClick={() =>
                 showDeleteAlbumConfirm && handleDeleteAlbum(showDeleteAlbumConfirm)
               }
-              className="px-4 py-1.5 rounded-lg text-xs font-bold bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors"
+              disabled={deletingAlbum}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {t('photoGallery.deleteAlbumButton', 'Delete')}
+              {deletingAlbum && <Loader2 className="w-4 h-4 animate-spin" />}
+              {deletingAlbum
+                ? t('photoGallery.deletingAlbum', 'Deleting...')
+                : t('photoGallery.deleteAlbumButton', 'Delete')}
             </button>
           </div>
         </div>

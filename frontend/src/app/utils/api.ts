@@ -10267,6 +10267,27 @@ export const publicUploadAPI = {
   ): Promise<import("../types").UploadAlbumInfo> =>
     apiClient.get(`/public/upload/${uploadToken}`, true),
 
+  getPhotos: (
+    uploadToken: string,
+    params?: { cursor?: string; size?: number },
+  ): Promise<import("../types").SharedPhotoPage> => {
+    const query = new URLSearchParams();
+    if (params?.cursor) query.set("cursor", params.cursor);
+    if (params?.size) query.set("size", String(params.size));
+    const qs = query.toString();
+    return apiClient.get(
+      `/public/upload/${uploadToken}/photos${qs ? `?${qs}` : ""}`,
+      true,
+    );
+  },
+
+  deletePhoto: (uploadToken: string, photoId: string): Promise<void> =>
+    apiClient.delete(
+      `/public/upload/${uploadToken}/photos/${photoId}`,
+      undefined,
+      true,
+    ),
+
   presign: (
     uploadToken: string,
     files: PhotoPresignFile[],

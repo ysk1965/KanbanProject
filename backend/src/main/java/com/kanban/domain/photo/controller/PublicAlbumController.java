@@ -63,6 +63,22 @@ public class PublicAlbumController {
         return ResponseEntity.ok(orgPhotoService.getUploadAlbumInfo(uploadToken));
     }
 
+    @GetMapping("/upload/{uploadToken}/photos")
+    public ResponseEntity<OrgPhotoResponse.SharedPhotoPage> getUploadLinkPhotos(
+            @PathVariable String uploadToken,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "30") int size) {
+        return ResponseEntity.ok(orgPhotoService.getUploadLinkPhotos(uploadToken, cursor, size));
+    }
+
+    @DeleteMapping("/upload/{uploadToken}/photos/{photoId}")
+    public ResponseEntity<Map<String, String>> publicUploadDeletePhoto(
+            @PathVariable String uploadToken,
+            @PathVariable String photoId) {
+        orgPhotoService.publicUploadDeletePhoto(uploadToken, photoId);
+        return ResponseEntity.ok(Map.of("message", "Photo deleted"));
+    }
+
     @PostMapping("/upload/{uploadToken}")
     public ResponseEntity<List<OrgPhotoResponse.PhotoDetail>> publicUpload(
             @PathVariable String uploadToken,

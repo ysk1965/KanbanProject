@@ -26,6 +26,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
@@ -40,6 +42,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
@@ -130,11 +133,9 @@ public class OrgPhotoService {
         organizationService.checkAdminOrAbove(orgId, userId);
         OrgPhotoTab tab = getTabOrThrow(tabId, orgId);
 
-        // Delete all S3 files for photos in this tab
+        // S3 파일은 커밋 후 비동기 일괄 삭제 — 수백 장 앨범을 요청 스레드에서 건별 삭제하면 수 분 걸려 게이트웨이 타임아웃
         List<OrgPhoto> photos = orgPhotoRepository.findByTabId(tabId);
-        for (OrgPhoto photo : photos) {
-            deletePhotoFromS3(photo);
-        }
+        deletePhotosFromS3AfterCommit(photos);
 
         // Clear cover photo reference before deleting photos
         tab.updateCoverPhoto(null);
@@ -314,16 +315,15 @@ public class OrgPhotoService {
     public void deletePhotos(String orgId, String userId, OrgPhotoRequest.BatchDelete request) {
         organizationService.checkAdminOrAbove(orgId, userId);
 
-        List<OrgPhoto> photos = orgPhotoRepository.findAllById(request.getPhotoIds());
+        List<OrgPhoto> photos = orgPhotoRepository.findAllById(request.getPhotoIds()).stream()
+                .filter(photo -> photo.getOrganization().getId().equals(orgId))
+                .toList();
 
         for (OrgPhoto photo : photos) {
-            if (!photo.getOrganization().getId().equals(orgId)) {
-                continue;
-            }
-            deletePhotoFromS3(photo);
             photo.getTab().decrementPhotoCount();
             orgPhotoRepository.delete(photo);
         }
+        deletePhotosFromS3AfterCommit(photos);
 
         log.info("Photos deleted: orgId={}, count={}, userId={}", orgId, photos.size(), userId);
     }
@@ -471,6 +471,32 @@ public class OrgPhotoService {
                 .expiresAt(photoShareLinkService.lookupActive(uploadToken, PhotoShareLink.LinkType.UPLOAD)
                         .map(PhotoShareLink::getExpiresAt).orElse(null))
                 .build();
+    }
+
+    public OrgPhotoResponse.SharedPhotoPage getUploadLinkPhotos(String uploadToken, String cursor, int size) {
+        return toSharedPhotoPage(getUploadLinkTabOrThrow(uploadToken), cursor, size);
+    }
+
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "sharedGallery", allEntries = true),
+            @CacheEvict(value = "sharedPhotos", allEntries = true)
+    })
+    public void publicUploadDeletePhoto(String uploadToken, String photoId) {
+        OrgPhotoTab tab = getUploadLinkTabOrThrow(uploadToken);
+
+        OrgPhoto photo = orgPhotoRepository.findById(photoId)
+                .filter(p -> p.getTab().getId().equals(tab.getId()))
+                .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_NOT_FOUND));
+
+        if (tab.getCoverPhoto() != null && photo.getId().equals(tab.getCoverPhoto().getId())) {
+            tab.updateCoverPhoto(null);
+        }
+        tab.decrementPhotoCount();
+        orgPhotoRepository.delete(photo);
+        deletePhotosFromS3AfterCommit(List.of(photo));
+
+        log.info("Public upload-link photo deleted: photoId={}, tabId={}", photoId, tab.getId());
     }
 
     @Transactional
@@ -735,11 +761,9 @@ public class OrgPhotoService {
         OrgPhotoTab tab = orgPhotoTabRepository.findByIdAndOrganizationId(albumId, org.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
 
-        // Delete all S3 files for photos in this tab
+        // S3 파일은 커밋 후 비동기 일괄 삭제 — 수백 장 앨범을 요청 스레드에서 건별 삭제하면 수 분 걸려 게이트웨이 타임아웃
         List<OrgPhoto> photos = orgPhotoRepository.findByTabId(albumId);
-        for (OrgPhoto photo : photos) {
-            deletePhotoFromS3(photo);
-        }
+        deletePhotosFromS3AfterCommit(photos);
 
         // Clear cover photo reference before deleting photos
         tab.updateCoverPhoto(null);
@@ -767,39 +791,7 @@ public class OrgPhotoService {
         OrgPhotoTab tab = orgPhotoTabRepository.findByIdAndOrganizationId(albumId, org.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
 
-        LocalDateTime cursorDateTime = null;
-        if (cursor != null && !cursor.isEmpty()) {
-            cursorDateTime = LocalDateTime.parse(cursor, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-        }
-
-        Pageable pageable = PageRequest.of(0, size + 1);
-        List<OrgPhoto> photos = cursorDateTime != null
-                ? orgPhotoRepository.findByTabIdAndCreatedAtBefore(tab.getId(), cursorDateTime, pageable)
-                : orgPhotoRepository.findByTabIdOrderByCreatedAtDesc(tab.getId(), pageable);
-
-        boolean hasNext = photos.size() > size;
-        if (hasNext) {
-            photos = photos.subList(0, size);
-        }
-
-        String nextCursor = null;
-        if (hasNext && !photos.isEmpty()) {
-            nextCursor = photos.get(photos.size() - 1).getCreatedAt()
-                    .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-        }
-
-        long totalCount = tab.getPhotoCount();
-
-        List<OrgPhotoResponse.SharedPhotoItem> items = photos.stream()
-                .map(OrgPhotoResponse.SharedPhotoItem::from)
-                .toList();
-
-        return OrgPhotoResponse.SharedPhotoPage.builder()
-                .photos(items)
-                .nextCursor(nextCursor)
-                .hasNext(hasNext)
-                .totalCount(totalCount)
-                .build();
+        return toSharedPhotoPage(tab, cursor, size);
     }
 
     @Transactional
@@ -893,6 +885,50 @@ public class OrgPhotoService {
 
     // ==================== Private Helpers ====================
 
+    private OrgPhotoResponse.SharedPhotoPage toSharedPhotoPage(OrgPhotoTab tab, String cursor, int size) {
+        LocalDateTime cursorDateTime = null;
+        if (cursor != null && !cursor.isEmpty()) {
+            cursorDateTime = LocalDateTime.parse(cursor, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        }
+
+        Pageable pageable = PageRequest.of(0, size + 1);
+        List<OrgPhoto> photos = cursorDateTime != null
+                ? orgPhotoRepository.findByTabIdAndCreatedAtBefore(tab.getId(), cursorDateTime, pageable)
+                : orgPhotoRepository.findByTabIdOrderByCreatedAtDesc(tab.getId(), pageable);
+
+        boolean hasNext = photos.size() > size;
+        if (hasNext) {
+            photos = photos.subList(0, size);
+        }
+
+        String nextCursor = null;
+        if (hasNext && !photos.isEmpty()) {
+            nextCursor = photos.get(photos.size() - 1).getCreatedAt()
+                    .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        }
+
+        long totalCount = tab.getPhotoCount();
+
+        List<OrgPhotoResponse.SharedPhotoItem> items = photos.stream()
+                .map(OrgPhotoResponse.SharedPhotoItem::from)
+                .toList();
+
+        return OrgPhotoResponse.SharedPhotoPage.builder()
+                .photos(items)
+                .nextCursor(nextCursor)
+                .hasNext(hasNext)
+                .totalCount(totalCount)
+                .build();
+    }
+
+    /** 앨범 전용 업로드 링크(tab 지정) → 대상 앨범. 갤러리 업로드 링크(tab=null)는 거부. */
+    private OrgPhotoTab getUploadLinkTabOrThrow(String uploadToken) {
+        return photoShareLinkService.lookupActive(uploadToken, PhotoShareLink.LinkType.UPLOAD)
+                .map(PhotoShareLink::getTab)
+                .filter(t -> t != null)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
+    }
+
     private OrgPhotoTab getTabOrThrow(String tabId, String orgId) {
         return orgPhotoTabRepository.findByIdAndOrganizationId(tabId, orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_TAB_NOT_FOUND));
@@ -909,6 +945,38 @@ public class OrgPhotoService {
     private OrgPhoto getPhotoOrThrow(String photoId) {
         return orgPhotoRepository.findById(photoId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_NOT_FOUND));
+    }
+
+    /**
+     * 트랜잭션 커밋 후 S3 원본·썸네일을 비동기로 일괄 삭제한다.
+     * 롤백되면 S3 는 건드리지 않아 DB 에 남은 사진이 깨지지 않는다.
+     */
+    private void deletePhotosFromS3AfterCommit(List<OrgPhoto> photos) {
+        if (photos.isEmpty()) {
+            return;
+        }
+        List<String> keys = new ArrayList<>(photos.size() * 2);
+        for (OrgPhoto photo : photos) {
+            if (photo.getS3Key() != null) {
+                keys.add(photo.getS3Key());
+                // FileUploadService.delete 와 동일한 파생 썸네일 규칙
+                keys.add(photo.getS3Key().replaceAll("\\.[^.]+$", "_thumb.jpg"));
+            }
+            if (photo.getThumbnailKey() != null) {
+                keys.add(photo.getThumbnailKey());
+            }
+        }
+        Runnable task = () -> fileUploadService.deleteAll(keys);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    CompletableFuture.runAsync(task);
+                }
+            });
+        } else {
+            CompletableFuture.runAsync(task);
+        }
     }
 
     private void deletePhotoFromS3(OrgPhoto photo) {

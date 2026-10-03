@@ -80,6 +80,14 @@ public interface FileUploadService {
     /** 파일 삭제 (영구 경로) */
     void delete(String key);
 
+    /**
+     * 여러 key 일괄 삭제 (파생 _thumb.jpg 는 포함하지 않음 — 호출측이 key 목록에 넣는다).
+     * 기본 구현은 건별 delete. S3 구현은 DeleteObjects(1000개 단위)로 대체.
+     */
+    default void deleteAll(java.util.Collection<String> keys) {
+        keys.forEach(this::delete);
+    }
+
     /** 임시 파일 존재 여부 확인 */
     boolean tempFileExists(String tempKey);
 

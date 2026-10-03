@@ -368,6 +368,31 @@ public class S3FileUploadService implements FileUploadService {
     }
 
     @Override
+    public void deleteAll(java.util.Collection<String> keys) {
+        List<String> distinct = keys.stream().filter(k -> k != null && !k.isBlank()).distinct().toList();
+        int deleted = 0;
+        for (int i = 0; i < distinct.size(); i += 1000) {
+            List<ObjectIdentifier> chunk = distinct.subList(i, Math.min(i + 1000, distinct.size())).stream()
+                    .map(k -> ObjectIdentifier.builder().key(k).build())
+                    .toList();
+            try {
+                DeleteObjectsResponse res = s3Client.deleteObjects(DeleteObjectsRequest.builder()
+                        .bucket(bucketName)
+                        .delete(Delete.builder().objects(chunk).quiet(true).build())
+                        .build());
+                deleted += chunk.size() - res.errors().size();
+                if (res.hasErrors() && !res.errors().isEmpty()) {
+                    log.warn("S3 batch delete partial failure: {} errors (first: {} {})", res.errors().size(),
+                            res.errors().get(0).key(), res.errors().get(0).message());
+                }
+            } catch (Exception e) {
+                log.warn("S3 batch delete failed for chunk starting at {}", i, e);
+            }
+        }
+        log.info("Files batch-deleted from S3: {}/{}", deleted, distinct.size());
+    }
+
+    @Override
     public boolean tempFileExists(String tempKey) {
         try {
             s3Client.headObject(HeadObjectRequest.builder()

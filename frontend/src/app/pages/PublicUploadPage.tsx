@@ -4,12 +4,13 @@ import { useTranslation } from "react-i18next";
 import {
   Upload,
   Loader2,
-  Check,
   ImagePlus,
   AlertCircle,
+  Trash2,
+  Images,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { publicUploadAPI } from "../utils/api";
+import { publicUploadAPI, resolveFileUrl } from "../utils/api";
 import {
   PhotoUploadQueue,
   PHOTO_ACCEPTED_TYPES,
@@ -17,10 +18,15 @@ import {
   validatePhotoFile,
   type PhotoUploadTarget,
 } from "../utils/photoUploadQueue";
-import { usePhotoUploadQueue } from "../hooks/usePhotoUploadQueue";
+import {
+  usePhotoUploadQueue,
+  usePhotoUploadConfirmed,
+} from "../hooks/usePhotoUploadQueue";
 import { PhotoUploadProgress } from "../components/organization/photo/PhotoUploadProgress";
 import { SelectedPhotoGrid } from "../components/organization/photo/SelectedPhotoGrid";
-import type { UploadAlbumInfo } from "../types";
+import type { SharedPhotoItem, UploadAlbumInfo } from "../types";
+
+const PHOTO_PAGE_SIZE = 30;
 
 export function PublicUploadPage() {
   const { uploadToken } = useParams<{ uploadToken: string }>();
@@ -35,8 +41,18 @@ export function PublicUploadPage() {
   const [queue] = useState(() => new PhotoUploadQueue());
   const snap = usePhotoUploadQueue(queue);
   const uploading = snap.active;
-  // 큐가 모두 성공으로 끝나면 완료 화면
-  const uploaded = snap.total > 0 && !snap.active && snap.failed === 0;
+
+  // 앨범에 이미 올라간 사진 (링크 소지자 누구나 보기/삭제)
+  const [photos, setPhotos] = useState<SharedPhotoItem[]>([]);
+  const [photosLoading, setPhotosLoading] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasNext, setHasNext] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
+  // 실수 삭제 방지: 휴지통을 한 번 누르면 확인 상태, 한 번 더 눌러야 삭제
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!uploadToken) return;
@@ -53,6 +69,93 @@ export function PublicUploadPage() {
     };
     load();
   }, [uploadToken]);
+
+  const fetchPhotos = useCallback(
+    async (cursor?: string) => {
+      if (!uploadToken) return;
+      try {
+        setPhotosLoading(true);
+        const data = await publicUploadAPI.getPhotos(uploadToken, {
+          cursor,
+          size: PHOTO_PAGE_SIZE,
+        });
+        setPhotos((prev) => (cursor ? [...prev, ...data.photos] : data.photos));
+        setNextCursor(data.next_cursor);
+        setHasNext(data.has_next);
+        setTotalCount(data.total_count);
+      } catch {
+        console.warn("Failed to fetch upload link photos");
+      } finally {
+        setPhotosLoading(false);
+      }
+    },
+    [uploadToken],
+  );
+
+  useEffect(() => {
+    if (albumInfo) fetchPhotos();
+  }, [albumInfo, fetchPhotos]);
+
+  // Infinite scroll
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasNext && !photosLoading && nextCursor) {
+          fetchPhotos(nextCursor);
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNext, photosLoading, nextCursor, fetchPhotos]);
+
+  // confirm 묶음이 들어올 때마다 목록 갱신 (1.5초 디바운스)
+  usePhotoUploadConfirmed(queue, () => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null;
+      fetchPhotos();
+    }, 1500);
+  });
+
+  useEffect(
+    () => () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    },
+    [],
+  );
+
+  // 확인 상태는 3초 뒤 자동 해제
+  useEffect(() => {
+    if (!pendingDeleteId) return;
+    const timer = setTimeout(() => setPendingDeleteId(null), 3000);
+    return () => clearTimeout(timer);
+  }, [pendingDeleteId]);
+
+  const handleDeletePhoto = useCallback(
+    async (photo: SharedPhotoItem) => {
+      if (!uploadToken || deletingPhotoId) return;
+      if (pendingDeleteId !== photo.id) {
+        setPendingDeleteId(photo.id);
+        return;
+      }
+      setPendingDeleteId(null);
+      try {
+        setDeletingPhotoId(photo.id);
+        await publicUploadAPI.deletePhoto(uploadToken, photo.id);
+        setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
+        setTotalCount((prev) => Math.max(0, prev - 1));
+      } catch {
+        setNotice(t("photoGallery.deleteError", "Failed to delete photo"));
+      } finally {
+        setDeletingPhotoId(null);
+      }
+    },
+    [uploadToken, deletingPhotoId, pendingDeleteId, t],
+  );
 
   const addFiles = useCallback(
     (newFiles: File[]) => {
@@ -110,10 +213,6 @@ export function PublicUploadPage() {
     setNotice(null);
   }, [uploadToken, files, queue]);
 
-  const handleUploadMore = useCallback(() => {
-    queue.clearFinished();
-  }, [queue]);
-
   // Expiry info
   const expiresAt = albumInfo?.expires_at
     ? new Date(albumInfo.expires_at)
@@ -156,37 +255,6 @@ export function PublicUploadPage() {
           <p className="text-sm text-slate-400">
             {error || "This upload link is no longer valid."}
           </p>
-        </motion.div>
-      </div>
-    );
-  }
-
-  if (uploaded) {
-    return (
-      <div className="min-h-screen bg-bridge-dark flex items-center justify-center px-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center max-w-md"
-        >
-          <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 flex items-center justify-center mx-auto mb-4">
-            <Check className="w-8 h-8 text-emerald-400" />
-          </div>
-          <h1 className="text-xl font-bold text-foreground mb-2">
-            Upload Complete!
-          </h1>
-          <p className="text-sm text-slate-400 mb-6">
-            {snap.confirmed} photo{snap.confirmed !== 1 ? "s" : ""} uploaded to{" "}
-            <span className="text-foreground font-medium">
-              {albumInfo.album_name}
-            </span>
-          </p>
-          <button
-            onClick={handleUploadMore}
-            className="px-5 py-2.5 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 transition-all"
-          >
-            Upload More
-          </button>
         </motion.div>
       </div>
     );
@@ -323,8 +391,95 @@ export function PublicUploadPage() {
             </div>
           )}
         </motion.div>
-      </div>
 
+        {/* Album photos */}
+        <section className="mt-10">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              {t("photoGallery.uploadedPhotos", "Photos in this album")}
+            </span>
+            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+              {totalCount}
+            </span>
+          </div>
+
+          {photos.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+              {photos.map((photo, i) => {
+                const isPending = pendingDeleteId === photo.id;
+                const isDeleting = deletingPhotoId === photo.id;
+                return (
+                  <motion.div
+                    key={photo.id}
+                    className="relative aspect-square rounded-xl overflow-hidden bg-bridge-obsidian border border-foreground/[0.08] hover:border-foreground/[0.12] transition-colors group"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: Math.min(i, 12) * 0.04 }}
+                  >
+                    <a
+                      href={resolveFileUrl(photo.url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full h-full"
+                    >
+                      <img
+                        src={resolveFileUrl(photo.thumbnail_url || photo.url)}
+                        alt={photo.caption || photo.original_filename}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </a>
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-end justify-between p-2">
+                      <span className="text-xs text-white/90 truncate flex-1">
+                        {photo.original_filename}
+                      </span>
+                      <button
+                        onClick={() => handleDeletePhoto(photo)}
+                        disabled={isDeleting}
+                        aria-label={
+                          isPending
+                            ? t("photoGallery.confirmDeletePhoto", "Tap again to delete")
+                            : t("photoGallery.deletePhoto", "Delete photo")
+                        }
+                        className={`pointer-events-auto min-w-[44px] min-h-[44px] px-2 flex items-center justify-center gap-1 rounded-md transition-colors shrink-0 ${
+                          isPending ? "bg-red-500 text-white" : "text-white hover:bg-red-500/30"
+                        }`}
+                      >
+                        {isDeleting ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={14} />
+                        )}
+                        {isPending && (
+                          <span className="text-xs font-bold">
+                            {t("photoGallery.confirmDeleteShort", "Delete?")}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+
+          {photosLoading && (
+            <div className="flex justify-center py-6">
+              <Loader2 className="w-5 h-5 animate-spin text-bridge-accent" />
+            </div>
+          )}
+
+          {photos.length === 0 && !photosLoading && (
+            <div className="text-center py-8">
+              <Images size={28} className="mx-auto mb-2 text-slate-500/50" />
+              <p className="text-sm text-slate-500">
+                {t("photoGallery.emptyTitle", "No photos yet")}
+              </p>
+            </div>
+          )}
+          <div ref={sentinelRef} className="h-1" />
+        </section>
+      </div>
     </div>
   );
 }
