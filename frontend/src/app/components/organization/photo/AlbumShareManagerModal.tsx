@@ -161,7 +161,8 @@ export function AlbumShareManagerModal({
   );
 
   const galleryLinks = useMemo(
-    () => links.filter((l) => l.tab_id === null),
+    // 백엔드 Jackson non_null 이라 갤러리 링크는 tab_id 필드 자체가 빠져서 온다 (null 아님)
+    () => links.filter((l) => !l.tab_id),
     [links],
   );
   const tabLinksMap = useMemo(() => {

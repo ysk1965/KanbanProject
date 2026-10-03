@@ -3601,7 +3601,8 @@ export interface PhotoShareLink {
   id: string;
   link_type: PhotoShareLinkType;
   token: string;
-  tab_id: string | null;
+  /** 갤러리 전체 링크는 필드가 생략됨 (Jackson non_null) */
+  tab_id?: string | null;
   tab_name: string | null;
   title: string | null;
   expires_at: string | null;
