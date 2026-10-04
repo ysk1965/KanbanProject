@@ -176,6 +176,12 @@ resource "aws_elastic_beanstalk_environment" "main" {
   application         = aws_elastic_beanstalk_application.main.name
   solution_stack_name = var.solution_stack_name
 
+  # Platform minor/patch versions are bumped by EB managed updates; without this every
+  # apply rolls the platform back to var.solution_stack_name (instance replacement).
+  lifecycle {
+    ignore_changes = [solution_stack_name]
+  }
+
   # VPC Configuration
   setting {
     namespace = "aws:ec2:vpc"

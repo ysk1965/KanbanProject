@@ -26,6 +26,12 @@ variable "startup_cron" {
   default     = "cron(15 23 ? * * *)" # KST 08:15 (warm-up for 08:30 resume)
 }
 
+variable "ensure_rds_cron" {
+  description = "Cron for the RDS safety-net check (EventBridge format, UTC). No-op while EB is scaled to 0."
+  type        = string
+  default     = "cron(0/10 0-14,23 ? * * *)" # every 10 min, KST 08:00~23:50
+}
+
 variable "eb_environment_name" {
   description = "Elastic Beanstalk environment name"
   type        = string

@@ -2,15 +2,19 @@
 BRIDGE Infrastructure Scheduler
 Handles nightly shutdown/startup of EC2 (via EB ASG) and RDS to reduce costs.
 
-KST 23:00 (UTC 14:00): Shutdown — ASG scale to 0, RDS stop
-KST 08:00 (UTC 23:00): Startup  — RDS start, ASG scale to 1
+KST 03:30 (UTC 18:30): Shutdown — ASG scale to 0, RDS stop
+KST 08:15 (UTC 23:15): Startup  — RDS start, ASG scale to 1
+Every 10 min (daytime): ensure_rds — if EB is meant to be up (ASG min > 0) but RDS
+                        is still stopped (e.g. startup hit InsufficientDBInstanceCapacity), start it.
 """
 
 import json
 import logging
 import os
+import time
 
 import boto3
+from botocore.exceptions import ClientError
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -21,6 +25,11 @@ autoscaling_client = boto3.client("autoscaling")
 sns_client = boto3.client("sns")
 
 SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_ARN", "")
+
+# Transient StartDBInstance errors worth retrying (AZ capacity shortage etc.)
+RETRYABLE_RDS_ERRORS = {"InsufficientDBInstanceCapacity", "Throttling", "ThrottlingException"}
+RDS_START_ATTEMPTS = 4
+RDS_START_RETRY_DELAY_SEC = 20
 
 
 def handler(event, context):
@@ -50,6 +59,14 @@ def handler(event, context):
             min_size=resources.get("eb_asg_min", 1),
             max_size=resources.get("eb_asg_max", 2),
         )
+    elif action == "ensure_rds":
+        # Periodic safety net: recover RDS that failed to start at the scheduled startup.
+        results["rds"] = ensure_rds(resources["eb_environment_name"], resources["rds_instance_id"])
+        # Notify only when we actually acted or failed — avoid spamming every 10 min
+        if results["rds"].get("status") in ("noop", "skipped_eb_down"):
+            logger.info("Completed: %s", json.dumps(results, default=str))
+            return {"statusCode": 200, "body": json.dumps(results, default=str)}
+
     else:
         results["error"] = f"Unknown action: {action}"
         logger.error("Unknown action: %s", action)
@@ -92,7 +109,7 @@ def stop_rds(instance_id):
 
 
 def start_rds(instance_id):
-    """Start RDS instance (idempotent)."""
+    """Start RDS instance (idempotent), retrying transient errors like AZ capacity shortage."""
     try:
         status = get_rds_status(instance_id)
         if status == "available":
@@ -104,16 +121,66 @@ def start_rds(instance_id):
         if status != "stopped":
             logger.warning("RDS %s in unexpected state: %s, skipping", instance_id, status)
             return {"status": f"skipped_state_{status}"}
-
-        rds_client.start_db_instance(DBInstanceIdentifier=instance_id)
-        logger.info("RDS %s starting", instance_id)
-        return {"status": "starting"}
     except Exception as e:
-        logger.error("Failed to start RDS %s: %s", instance_id, e)
+        logger.error("Failed to describe RDS %s: %s", instance_id, e)
         return {"status": "error", "message": str(e)}
+
+    last_error = None
+    for attempt in range(1, RDS_START_ATTEMPTS + 1):
+        try:
+            rds_client.start_db_instance(DBInstanceIdentifier=instance_id)
+            logger.info("RDS %s starting (attempt %d)", instance_id, attempt)
+            return {"status": "starting", "attempts": attempt}
+        except ClientError as e:
+            last_error = e
+            code = e.response.get("Error", {}).get("Code", "")
+            if code not in RETRYABLE_RDS_ERRORS or attempt == RDS_START_ATTEMPTS:
+                break
+            logger.warning(
+                "RDS %s start attempt %d/%d failed (%s), retrying in %ds",
+                instance_id, attempt, RDS_START_ATTEMPTS, code, RDS_START_RETRY_DELAY_SEC,
+            )
+            time.sleep(RDS_START_RETRY_DELAY_SEC)
+        except Exception as e:
+            last_error = e
+            break
+
+    logger.error("Failed to start RDS %s: %s", instance_id, last_error)
+    return {"status": "error", "message": str(last_error)}
+
+
+def ensure_rds(eb_env_name, instance_id):
+    """Start RDS if EB is supposed to be running (ASG min > 0) but RDS is stopped."""
+    try:
+        status = get_rds_status(instance_id)
+        if status != "stopped":
+            return {"status": "noop", "rds_state": status}
+
+        asg = get_eb_asg(eb_env_name)
+        if asg is None or asg["MinSize"] == 0:
+            # Nightly shutdown window or intentionally scaled down — leave RDS stopped
+            return {"status": "skipped_eb_down"}
+    except Exception as e:
+        logger.error("ensure_rds check failed for %s: %s", instance_id, e)
+        return {"status": "error", "message": str(e)}
+
+    logger.warning("RDS %s is stopped while EB %s is up — starting", instance_id, eb_env_name)
+    return start_rds(instance_id)
 
 
 # ─── EB ASG Operations ───
+
+
+def get_eb_asg(eb_env_name):
+    """Return the EB environment's ASG description, or None if not found."""
+    eb_resp = eb_client.describe_environment_resources(EnvironmentName=eb_env_name)
+    asg_groups = eb_resp["EnvironmentResources"]["AutoScalingGroups"]
+    if not asg_groups:
+        return None
+    asg_resp = autoscaling_client.describe_auto_scaling_groups(
+        AutoScalingGroupNames=[asg_groups[0]["Name"]]
+    )
+    return asg_resp["AutoScalingGroups"][0]
 
 
 def scale_eb_asg(eb_env_name, min_size, max_size):
@@ -182,7 +249,7 @@ def send_notification(action, env, results):
     has_error = any(
         r.get("status") == "error" for r in results.values() if isinstance(r, dict)
     )
-    icon = "🔴" if action == "shutdown" else "🟢"
+    icon = {"shutdown": "🔴", "startup": "🟢"}.get(action, "🛠️")
     status_icon = "❌" if has_error else "✅"
 
     subject = f"{icon} BRIDGE {env.upper()} {action.upper()} {status_icon}"

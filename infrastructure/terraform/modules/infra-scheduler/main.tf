@@ -106,7 +106,7 @@ resource "aws_lambda_function" "scheduler" {
   role             = aws_iam_role.lambda[0].arn
   handler          = "scheduler.handler"
   runtime          = "python3.12"
-  timeout          = 60
+  timeout          = 120 # start_rds retries transient capacity errors (up to ~60s of sleeps)
   memory_size      = 128
 
   environment {
@@ -229,4 +229,43 @@ resource "aws_lambda_permission" "startup" {
   function_name = aws_lambda_function.scheduler[0].function_name
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.startup[0].arn
+}
+
+# RDS Ensure Rule: every 10 min during the day — recovers RDS left stopped when the
+# startup run hit a transient error (e.g. InsufficientDBInstanceCapacity in the AZ).
+# No-op unless the EB ASG is up (min > 0) and RDS is stopped.
+resource "aws_cloudwatch_event_rule" "ensure_rds" {
+  count               = var.enabled ? 1 : 0
+  name                = "${local.rule_prefix}-ensure-rds"
+  description         = "Start ${var.environment} RDS if it is stopped while EB is running"
+  schedule_expression = var.ensure_rds_cron
+
+  tags = {
+    Name        = "${local.rule_prefix}-ensure-rds"
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_event_target" "ensure_rds" {
+  count = var.enabled ? 1 : 0
+  rule  = aws_cloudwatch_event_rule.ensure_rds[0].name
+  arn   = aws_lambda_function.scheduler[0].arn
+
+  input = jsonencode({
+    action      = "ensure_rds"
+    environment = var.environment
+    resources = {
+      eb_environment_name = var.eb_environment_name
+      rds_instance_id     = var.rds_instance_id
+    }
+  })
+}
+
+resource "aws_lambda_permission" "ensure_rds" {
+  count         = var.enabled ? 1 : 0
+  statement_id  = "AllowEventBridgeEnsureRds"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.scheduler[0].function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.ensure_rds[0].arn
 }
