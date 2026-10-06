@@ -57,13 +57,13 @@ export const reportServerReachable = (): void => {
  * - 인증 헤더를 붙이지 않아 토큰 갱신·강제 로그아웃 경로를 건드리지 않는다.
  * - 타임아웃이 있어 응답 없는 서버에서 로딩 스피너가 영원히 도는 일이 없다.
  * - 실패하면 throw → 호출부가 "서버 다운"으로 판정한다.
+ * - navigator.onLine 은 보지 않는다. VPN·가상 NIC·프록시 환경에서 Chrome 이
+ *   인터넷이 되는데도 false 를 돌려주는 일이 있어, 그 값으로 요청을 막으면
+ *   서버가 멀쩡해도 오프라인 화면에서 영원히 못 빠져나온다. 항상 실제로 찔러본다.
  */
 export const fetchServerStatus = async <T>(
   timeoutMs: number = 8000,
 ): Promise<T> => {
-  if (typeof navigator !== "undefined" && navigator.onLine === false) {
-    throw new Error("offline");
-  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {

@@ -884,6 +884,8 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
         outageRef.current = true;
         setIsNightShutdown(false);
         setMaintenanceStatus(null);
+        // offline 라벨은 "실제 요청도 실패했고 브라우저도 오프라인이라 함"일 때만.
+        // navigator.onLine 은 VPN·가상 NIC 환경에서 오판하므로 문구/아이콘 용도로만 쓴다.
         setOutage((prev) => ({
           offline: typeof navigator !== "undefined" && !navigator.onLine,
           since: prev?.since ?? Date.now(),
@@ -904,19 +906,14 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
     const handleUnavailable = () => {
       void checkMaintenance();
     };
-    const handleOffline = () => {
-      outageRef.current = true;
-      setOutage((prev) => ({
-        offline: true,
-        since: prev?.since ?? Date.now(),
-      }));
-    };
+    // 브라우저의 offline/online 이벤트는 신호로만 취급하고 서버를 직접 확인해 판정한다.
+    // (Chrome 이 VPN·가상 NIC 환경에서 offline 을 잘못 쏘는 사례가 있음)
     window.addEventListener(SERVER_UNAVAILABLE_EVENT, handleUnavailable);
-    window.addEventListener("offline", handleOffline);
+    window.addEventListener("offline", handleUnavailable);
     window.addEventListener("online", handleUnavailable);
     return () => {
       window.removeEventListener(SERVER_UNAVAILABLE_EVENT, handleUnavailable);
-      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("offline", handleUnavailable);
       window.removeEventListener("online", handleUnavailable);
     };
   }, [checkMaintenance]);
