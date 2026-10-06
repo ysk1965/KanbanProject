@@ -116,8 +116,11 @@ module "rds" {
 }
 
 # Infrastructure Scheduler - Off-peak shutdown (KST 03:30~08:30, maintenance window)
-# Saves cost by stopping EC2 (EB) and RDS during the nightly maintenance window.
-# Startup fires at 08:15 (15min early) so RDS+EB are ready by the 08:30 resume time.
+# Saves cost by scaling EC2 (EB) to 0 during the nightly maintenance window.
+# RDS is kept running (stop_rds = false): on 2026-10-04 the morning start failed with
+# InsufficientDBInstanceCapacity (db.t4g.micro, ap-northeast-2b) and dev was down ~7h.
+# Stopping it only saved ~$3-4/month. A 10-min ensure_rds check restarts it if found stopped.
+# Startup fires at 08:15 (15min early) so EB is ready by the 08:30 resume time.
 module "infra_scheduler" {
   source = "../../modules/infra-scheduler"
 
@@ -130,6 +133,7 @@ module "infra_scheduler" {
   eb_min_instances    = 1
   eb_max_instances    = 2
   rds_instance_id     = "${var.project_name}-${var.environment}-db"
+  stop_rds            = false
   notification_email  = var.notification_email
 
   depends_on = [module.elastic_beanstalk, module.rds]

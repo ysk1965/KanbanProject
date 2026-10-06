@@ -1,10 +1,16 @@
 # Infrastructure Scheduler Module
-# Automatically shuts down EC2 (EB) and RDS during off-peak hours to reduce costs.
+# Automatically shuts down EC2 (EB) and, unless stop_rds = false, RDS during off-peak hours to reduce costs.
 # KST 03:30~08:30 (UTC 18:30~23:15) — maintenance window; cost reduction on compute/DB.
 
 locals {
   function_name = "${var.project_name}-${var.environment}-infra-scheduler"
   rule_prefix   = "${var.project_name}-${var.environment}"
+
+  # RDS kept up 24h → check all day; RDS stopped nightly → check only while EB is meant to be up
+  ensure_rds_cron = coalesce(
+    var.ensure_rds_cron,
+    var.stop_rds ? "cron(0/10 0-14,23 ? * * *)" : "cron(0/10 * ? * * *)"
+  )
 }
 
 # ─── IAM Role for Lambda ───
@@ -179,6 +185,7 @@ resource "aws_cloudwatch_event_target" "shutdown" {
     resources = {
       eb_environment_name = var.eb_environment_name
       rds_instance_id     = var.rds_instance_id
+      stop_rds            = var.stop_rds
     }
   })
 }
@@ -231,14 +238,14 @@ resource "aws_lambda_permission" "startup" {
   source_arn    = aws_cloudwatch_event_rule.startup[0].arn
 }
 
-# RDS Ensure Rule: every 10 min during the day — recovers RDS left stopped when the
-# startup run hit a transient error (e.g. InsufficientDBInstanceCapacity in the AZ).
-# No-op unless the EB ASG is up (min > 0) and RDS is stopped.
+# RDS Ensure Rule: every 10 min — starts RDS if it is found stopped (e.g. the startup run hit
+# InsufficientDBInstanceCapacity, or the DB was stopped by hand). When stop_rds = true it only
+# acts while the EB ASG is up (min > 0), so the nightly shutdown window is left alone.
 resource "aws_cloudwatch_event_rule" "ensure_rds" {
   count               = var.enabled ? 1 : 0
   name                = "${local.rule_prefix}-ensure-rds"
   description         = "Start ${var.environment} RDS if it is stopped while EB is running"
-  schedule_expression = var.ensure_rds_cron
+  schedule_expression = local.ensure_rds_cron
 
   tags = {
     Name        = "${local.rule_prefix}-ensure-rds"
@@ -257,6 +264,7 @@ resource "aws_cloudwatch_event_target" "ensure_rds" {
     resources = {
       eb_environment_name = var.eb_environment_name
       rds_instance_id     = var.rds_instance_id
+      require_eb_up       = var.stop_rds
     }
   })
 }

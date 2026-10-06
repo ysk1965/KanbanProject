@@ -2,10 +2,10 @@
 BRIDGE Infrastructure Scheduler
 Handles nightly shutdown/startup of EC2 (via EB ASG) and RDS to reduce costs.
 
-KST 03:30 (UTC 18:30): Shutdown — ASG scale to 0, RDS stop
-KST 08:15 (UTC 23:15): Startup  — RDS start, ASG scale to 1
-Every 10 min (daytime): ensure_rds — if EB is meant to be up (ASG min > 0) but RDS
-                        is still stopped (e.g. startup hit InsufficientDBInstanceCapacity), start it.
+KST 03:30 (UTC 18:30): Shutdown — ASG scale to 0, RDS stop (skipped when resources.stop_rds is false)
+KST 08:15 (UTC 23:15): Startup  — RDS start (no-op if already up), ASG scale to 1
+Every 10 min: ensure_rds — start RDS if it is stopped (e.g. startup hit InsufficientDBInstanceCapacity).
+              With resources.require_eb_up, only while EB is meant to be up (ASG min > 0).
 """
 
 import json
@@ -43,13 +43,16 @@ def handler(event, context):
     results = {}
 
     if action == "shutdown":
-        # Scale down EB first, then stop RDS
+        # Scale down EB first, then stop RDS (unless RDS is configured to stay up)
         results["eb"] = scale_eb_asg(
             resources["eb_environment_name"],
             min_size=0,
             max_size=0,
         )
-        results["rds"] = stop_rds(resources["rds_instance_id"])
+        if resources.get("stop_rds", True):
+            results["rds"] = stop_rds(resources["rds_instance_id"])
+        else:
+            results["rds"] = {"status": "kept_running"}
 
     elif action == "startup":
         # Start RDS first (takes longer), then scale up EB
@@ -61,7 +64,11 @@ def handler(event, context):
         )
     elif action == "ensure_rds":
         # Periodic safety net: recover RDS that failed to start at the scheduled startup.
-        results["rds"] = ensure_rds(resources["eb_environment_name"], resources["rds_instance_id"])
+        results["rds"] = ensure_rds(
+            resources["eb_environment_name"],
+            resources["rds_instance_id"],
+            require_eb_up=resources.get("require_eb_up", True),
+        )
         # Notify only when we actually acted or failed — avoid spamming every 10 min
         if results["rds"].get("status") in ("noop", "skipped_eb_down"):
             logger.info("Completed: %s", json.dumps(results, default=str))
@@ -149,22 +156,23 @@ def start_rds(instance_id):
     return {"status": "error", "message": str(last_error)}
 
 
-def ensure_rds(eb_env_name, instance_id):
-    """Start RDS if EB is supposed to be running (ASG min > 0) but RDS is stopped."""
+def ensure_rds(eb_env_name, instance_id, require_eb_up=True):
+    """Start RDS if it is stopped. With require_eb_up, only while EB is meant to be up (ASG min > 0)."""
     try:
         status = get_rds_status(instance_id)
         if status != "stopped":
             return {"status": "noop", "rds_state": status}
 
-        asg = get_eb_asg(eb_env_name)
-        if asg is None or asg["MinSize"] == 0:
-            # Nightly shutdown window or intentionally scaled down — leave RDS stopped
-            return {"status": "skipped_eb_down"}
+        if require_eb_up:
+            asg = get_eb_asg(eb_env_name)
+            if asg is None or asg["MinSize"] == 0:
+                # Nightly shutdown window or intentionally scaled down — leave RDS stopped
+                return {"status": "skipped_eb_down"}
     except Exception as e:
         logger.error("ensure_rds check failed for %s: %s", instance_id, e)
         return {"status": "error", "message": str(e)}
 
-    logger.warning("RDS %s is stopped while EB %s is up — starting", instance_id, eb_env_name)
+    logger.warning("RDS %s is stopped — starting (eb=%s)", instance_id, eb_env_name)
     return start_rds(instance_id)
 
 
