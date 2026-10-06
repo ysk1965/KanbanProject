@@ -95,6 +95,7 @@ import { ChecklistHistoryModal } from "./ChecklistHistoryModal";
 import { ChecklistDetailModal } from "./ChecklistDetailModal";
 import { TaskHeaderActionsMenu } from "./TaskHeaderActionsMenu";
 import { BlockStatusPicker } from "./BlockStatusPicker";
+import { JiraColumnPicker } from "./JiraColumnPicker";
 import { CommentPanel } from "./CommentPanel";
 import { TagPickerPopover } from "./TagPickerPopover";
 import { getAssigneeClasses, getInitials } from "../utils/assigneeColor";
@@ -1863,9 +1864,22 @@ export function TaskDetailModal({
                       </>
                     );
                   })()}
-                {/* 스프린트 › 진행 컬럼 (마일스톤 하위) — 실사용 축. 스프린트 모드가
+                {/* JIRA 연동 태스크는 스프린트가 아니라 JIRA 보드 컬럼(미러 블록)이 위치 축.
+                    그 외: 스프린트 › 진행 컬럼 (마일스톤 하위) — 실사용 축. 스프린트 모드가
                     아니면(개인 스페이스·마일스톤 없음·모드 off) 기존 블록 피커로 폴백 */}
-                {sprintBoardData?.sprint_enabled ? (
+                {task.jira_issue_key && boardId ? (
+                  <>
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                    <JiraColumnPicker
+                      boardId={boardId}
+                      taskId={task.id}
+                      milestoneId={editedTask.milestone_id}
+                      currentBlockId={task.block_id}
+                      currentBlockName={task.block_name}
+                      canEdit={!!canEdit}
+                    />
+                  </>
+                ) : sprintBoardData?.sprint_enabled ? (
                   (() => {
                     const currentSprint = sprintBoardData.sprints.find(
                       (s) => s.id === currentSprintId,

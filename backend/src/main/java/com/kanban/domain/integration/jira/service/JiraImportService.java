@@ -548,6 +548,9 @@ public class JiraImportService {
      * 나중에 사용자 매핑을 이어 줘도 그 담당자가 JIRA에서 실제로 바뀌기 전까지는 항목이 생기지 않는다.
      * 지워 둔 항목을 되살리지 않으려면 "없음"과 "지웠음"을 구분하지 않는 수밖에 없고, 그렇다면
      * 되살리지 않는 쪽이 사람의 손을 존중한다.
+     *
+     * <p>같은 이유로, 담당 항목이 없더라도 카드에 체크리스트 항목이 하나라도 있으면 새로 만들지 않는다.
+     * 비어 있는 카드만 JIRA 담당자를 자동으로 받는다.
      */
     private void syncAssignee(Task task, Board board, List<BoardMember> members, ParsedJiraIssue issue,
                               JiraIssueLink link) {
@@ -568,6 +571,9 @@ public class JiraImportService {
             // 사람이 담당 항목을 지운 카드는 되살리지 않는다 — 지워도 담당자 변경마다 부활하던 구멍.
             // (접두사 항목을 직접 다시 만들면 findOwned가 입양하면서 이 기록을 걷는다)
             if (link.isAssigneeItemDetached()) return;
+            // 팀이 이미 체크리스트를 직접 꾸린 카드에는 끼워 넣지 않는다. 미배정으로 들어와 담당 항목 없이
+            // 사람이 항목을 나눠 둔 카드에, 나중에 JIRA 담당자가 생겼다고 "담당: OOO"을 덧붙이면 중복이 된다.
+            if (checklistItemRepository.countByTaskId(task.getId()) > 0) return;
             // 해석되지 않는 담당자 하나 때문에 담당자 없는 빈 항목을 만들지는 않는다(생성 경로와 같은 규칙).
             if (resolved != null) createAssigneeChecklist(task, link, resolved, issue.assigneeDisplayName());
             return;
