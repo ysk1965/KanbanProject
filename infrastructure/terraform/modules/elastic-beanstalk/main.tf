@@ -220,6 +220,14 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = var.instance_type
   }
 
+  # EB 는 aws:ec2:instances/InstanceTypes 를 우선하므로 레거시 InstanceType 과 같이 맞춰 둔다.
+  # (이걸 빼면 콘솔에 남아 있던 이전 타입이 그대로 쓰일 수 있다)
+  setting {
+    namespace = "aws:ec2:instances"
+    name      = "InstanceTypes"
+    value     = var.instance_type
+  }
+
   setting {
     namespace = "aws:autoscaling:launchconfiguration"
     name      = "SecurityGroups"

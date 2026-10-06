@@ -202,7 +202,9 @@ module "elastic_beanstalk" {
   alb_security_group_id = module.security_groups.alb_security_group_id
   ec2_security_group_id = module.security_groups.eb_ec2_security_group_id
 
-  instance_type       = "t3.small"
+  # t3.medium(4GB): 2026-10-06 t3.small(2GB) 에서 문서 미리보기(LibreOffice) 변환이 메모리를 바닥내
+  # 인스턴스를 하루 4번 마비시킴. JVM(~1.1GB) 과 soffice 가 공존할 여유를 둔다.
+  instance_type       = "t3.medium"
   min_instances       = 1
   max_instances       = 2
   associate_public_ip = "true" # Public subnet, no NAT
