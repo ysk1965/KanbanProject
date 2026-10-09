@@ -19,6 +19,9 @@ import { usePhotoSaver } from "../hooks/usePhotoSaver";
 import { PhotoSavePanel } from "../components/organization/photo/PhotoSavePanel";
 import type { SharedAlbumInfo, SharedPhotoItem, OrgPhoto } from "../types";
 
+/** Photos per list request — fewer requests when many people share one IP (rate limit) */
+const PHOTO_PAGE_SIZE = 48;
+
 /** Map SharedPhotoItem → OrgPhoto shape so we can reuse PhotoLightbox */
 function toOrgPhoto(item: SharedPhotoItem): OrgPhoto {
   return {
@@ -100,7 +103,7 @@ export function SharedAlbumPage() {
         setPhotosLoading(true);
         const data = await publicAlbumAPI.getSharedAlbumPhotos(shareToken, {
           cursor,
-          size: 12,
+          size: PHOTO_PAGE_SIZE,
         });
         const mapped = data.photos.map(toOrgPhoto);
         if (cursor) {
@@ -277,7 +280,7 @@ export function SharedAlbumPage() {
                 className="relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-bridge-obsidian border border-foreground/[0.08] hover:border-foreground/[0.12] transition-all group"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.02 }}
+                transition={{ delay: Math.min(i % PHOTO_PAGE_SIZE, 12) * 0.02 }}
                 onClick={() => setLightboxPhoto(photo)}
               >
                 <img

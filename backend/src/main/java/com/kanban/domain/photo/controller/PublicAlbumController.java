@@ -22,6 +22,13 @@ public class PublicAlbumController {
     private final OrgPhotoService orgPhotoService;
     private final PhotoDirectUploadService photoDirectUploadService;
 
+    /** 공개 목록 한 번에 최대 100장 — 무제한 size 로 큰 조회를 유발하지 못하게 막는다 */
+    private static final int MAX_PAGE_SIZE = 100;
+
+    private static int clampPageSize(int size) {
+        return Math.max(1, Math.min(size, MAX_PAGE_SIZE));
+    }
+
     // ==================== Gallery-Level (Organization) ====================
 
     @GetMapping("/gallery/{shareToken}")
@@ -36,7 +43,7 @@ public class PublicAlbumController {
             @PathVariable String albumId,
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "30") int size) {
-        return ResponseEntity.ok(orgPhotoService.getSharedGalleryPhotos(shareToken, albumId, cursor, size));
+        return ResponseEntity.ok(orgPhotoService.getSharedGalleryPhotos(shareToken, albumId, cursor, clampPageSize(size)));
     }
 
     // ==================== Per-Album (Legacy) ====================
@@ -52,7 +59,7 @@ public class PublicAlbumController {
             @PathVariable String shareToken,
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "30") int size) {
-        return ResponseEntity.ok(orgPhotoService.getSharedAlbumPhotos(shareToken, cursor, size));
+        return ResponseEntity.ok(orgPhotoService.getSharedAlbumPhotos(shareToken, cursor, clampPageSize(size)));
     }
 
     // ==================== Public Upload ====================
@@ -68,7 +75,7 @@ public class PublicAlbumController {
             @PathVariable String uploadToken,
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "30") int size) {
-        return ResponseEntity.ok(orgPhotoService.getUploadLinkPhotos(uploadToken, cursor, size));
+        return ResponseEntity.ok(orgPhotoService.getUploadLinkPhotos(uploadToken, cursor, clampPageSize(size)));
     }
 
     @DeleteMapping("/upload/{uploadToken}/photos/{photoId}")
@@ -131,7 +138,7 @@ public class PublicAlbumController {
             @PathVariable String albumId,
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "30") int size) {
-        return ResponseEntity.ok(orgPhotoService.getGalleryUploadPhotos(uploadToken, albumId, cursor, size));
+        return ResponseEntity.ok(orgPhotoService.getGalleryUploadPhotos(uploadToken, albumId, cursor, clampPageSize(size)));
     }
 
     @PostMapping("/gallery-upload/{uploadToken}/albums/{albumId}/photos")

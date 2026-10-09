@@ -35,6 +35,9 @@ import type {
   OrgPhoto,
 } from "../types";
 
+/** Photos per list request — fewer requests when many people share one IP (rate limit) */
+const PHOTO_PAGE_SIZE = 48;
+
 /** Map SharedPhotoItem → OrgPhoto shape so we can reuse PhotoLightbox */
 function toOrgPhoto(item: SharedPhotoItem): OrgPhoto {
   return {
@@ -140,7 +143,7 @@ export function SharedGalleryPage() {
         const data = await publicGalleryAPI.getSharedGalleryPhotos(
           shareToken,
           activeAlbum.id,
-          { cursor, size: 12 },
+          { cursor, size: PHOTO_PAGE_SIZE },
         );
         const mapped = data.photos.map(toOrgPhoto);
         if (cursor) {
@@ -447,7 +450,7 @@ export function SharedGalleryPage() {
                 }`}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.02 }}
+                transition={{ delay: Math.min(i % PHOTO_PAGE_SIZE, 12) * 0.02 }}
                 onClick={() =>
                   selectMode
                     ? handleToggleSelect(photo.id)
