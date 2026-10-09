@@ -5487,5 +5487,37 @@
     "placementTitle": "To place",
     "splitWorkloadQueue": "Resize workload and to-place panes",
     "splitQueueBacklog": "Resize backlog column width"
+  },
+  "inAppBrowser": {
+    "bannerText": "Photos can't be saved inside {{app}}. Open this page in Safari or Chrome.",
+    "openButton": "Open in browser",
+    "howButton": "How to open",
+    "guideTitle": "Open in your browser",
+    "guideBody": "Photos can't be saved inside {{app}}. Open this page in Safari or Chrome to save them.",
+    "manualSteps": "Tap the ··· or share menu at the top or bottom of the screen, then choose 'Open in Safari' (Open in external browser).",
+    "copyHint": "If there's no such menu, copy the link and paste it into Safari's address bar.",
+    "copyHintAuto": "If the browser doesn't open, copy the link and paste it into Safari or Chrome.",
+    "copyLink": "Copy link",
+    "copied": "Copied",
+    "apps": {
+      "kakaotalk": "KakaoTalk",
+      "line": "LINE",
+      "naver": "the NAVER app",
+      "instagram": "Instagram",
+      "facebook": "Facebook",
+      "band": "BAND",
+      "daum": "the Daum app",
+      "webview": "this app"
+    }
+  },
+  "photoSave": {
+    "preparing": "Preparing photos {{current}}/{{total}}",
+    "ready": "{{count}} ready to save",
+    "saveButton": "Save to Photos",
+    "hint": "Tap 'Save Image' in the share sheet to save to Photos.",
+    "done": "Saved {{count}}",
+    "cancelled": "Saving cancelled",
+    "chunk": "Batch {{current}}/{{total}}",
+    "failed": "Couldn't load {{count}}"
   }
 }

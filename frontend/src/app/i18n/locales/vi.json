@@ -4864,5 +4864,37 @@
     "deletedBanner": "Mục này đã bị xóa · chỉ đọc",
     "chip": "Danh sách · {{title}}",
     "unknownItem": "Mục đã xóa"
+  },
+  "inAppBrowser": {
+    "bannerText": "Không thể lưu ảnh trong {{app}}. Hãy mở trang này bằng Safari hoặc Chrome.",
+    "openButton": "Mở bằng trình duyệt",
+    "howButton": "Cách mở",
+    "guideTitle": "Hãy mở bằng trình duyệt bên ngoài",
+    "guideBody": "Không thể lưu ảnh trong {{app}}. Mở trang này bằng Safari hoặc Chrome để lưu ảnh.",
+    "manualSteps": "Nhấn menu ··· hoặc chia sẻ ở trên hoặc dưới màn hình, rồi chọn 'Mở bằng Safari' (Mở bằng trình duyệt bên ngoài).",
+    "copyHint": "Nếu không có menu đó, hãy sao chép liên kết và dán vào thanh địa chỉ Safari.",
+    "copyHintAuto": "Nếu trình duyệt không mở, hãy sao chép liên kết và dán vào Safari hoặc Chrome.",
+    "copyLink": "Sao chép liên kết",
+    "copied": "Đã sao chép",
+    "apps": {
+      "kakaotalk": "KakaoTalk",
+      "line": "LINE",
+      "naver": "ứng dụng NAVER",
+      "instagram": "Instagram",
+      "facebook": "Facebook",
+      "band": "BAND",
+      "daum": "ứng dụng Daum",
+      "webview": "ứng dụng này"
+    }
+  },
+  "photoSave": {
+    "preparing": "Đang chuẩn bị ảnh {{current}}/{{total}}",
+    "ready": "Đã sẵn sàng {{count}} ảnh",
+    "saveButton": "Lưu vào Ảnh",
+    "hint": "Nhấn 'Lưu hình ảnh' trong bảng chia sẻ để lưu vào ứng dụng Ảnh.",
+    "done": "Đã lưu {{count}} ảnh",
+    "cancelled": "Đã hủy lưu",
+    "chunk": "Nhóm {{current}}/{{total}}",
+    "failed": "Không tải được {{count}} ảnh"
   }
 }

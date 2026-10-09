@@ -44,8 +44,12 @@ function brandFor(host) {
 }
 
 // 링크 미리보기를 크롤링하는 봇 User-Agent (카카오톡·슬랙·라인 등 국내외 포함)
+// ⚠️ 앱 이름만으로 매칭하지 말 것: 카카오톡 인앱 브라우저 UA에도 "KAKAOTALK"가,
+//   네이버/다음 앱 UA에도 "NAVER(inapp"/"DaumApps"가 들어 있어 사람이 봇 HTML을 받고
+//   빈 화면(제목 링크만)에 갇힌다. 각 서비스의 크롤러 전용 토큰만 쓴다.
+//   카카오 스크래퍼: kakaotalk-scrap / 네이버: Yeti, NaverBot / 다음: Daumoa
 const BOT_UA =
-  /(slackbot|facebookexternalhit|twitterbot|linkedinbot|kakaotalk|line-poker|telegrambot|discordbot|whatsapp|pinterest|googlebot|bingbot|embedly|redditbot|skypeuripreview|applebot|naver|yeti|daum)/i;
+  /(slackbot|facebookexternalhit|twitterbot|linkedinbot|kakaotalk-scrap|line-poker|telegrambot|discordbot|whatsapp|pinterest|googlebot|bingbot|embedly|redditbot|skypeuripreview|applebot|yeti|naverbot|daumoa)/i;
 
 // 경로 → OG 종류 매핑 (더 구체적인 패턴을 먼저 둔다: gallery-upload > gallery, org-invite > invite)
 const ROUTES = [

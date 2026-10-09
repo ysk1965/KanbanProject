@@ -24,6 +24,10 @@ import {
 import type { BatchDownloadProgress } from "../utils/nativeDownload";
 import { isNative } from "../utils/platform";
 import { IconButton } from "../components/ui/IconButton";
+import { InAppBrowserNotice } from "../components/organization/photo/InAppBrowserNotice";
+import { useInAppBrowserGate } from "../hooks/useInAppBrowserGate";
+import { usePhotoSaver } from "../hooks/usePhotoSaver";
+import { PhotoSavePanel } from "../components/organization/photo/PhotoSavePanel";
 import type {
   SharedGalleryInfo,
   SharedAlbumSummary,
@@ -84,8 +88,22 @@ export function SharedGalleryPage() {
     useState<BatchDownloadProgress | null>(null);
   const batchAbortRef = useRef<AbortController | null>(null);
 
+  // In-app browsers (KakaoTalk…) ignore downloads → route to Safari/Chrome
+  const inAppGate = useInAppBrowserGate();
+
   // Download history
   const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
+
+  // iOS web: fetch first, then save from a second tap (share sheet needs a fresh tap)
+  const handleSaved = useCallback((ids: string[]) => {
+    setDownloadedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+  }, []);
+  const photoSaver = usePhotoSaver(handleSaved);
+  const startPhotoSave = photoSaver.start;
   useEffect(() => {
     if (photos.length > 0) {
       setDownloadedIds(getDownloadedIds(photos.map((p) => p.id)));
@@ -198,11 +216,25 @@ export function SharedGalleryPage() {
   // Batch download
   const handleBatchDownload = useCallback(async () => {
     if (selectedIds.size === 0) return;
+    if (inAppGate.block()) return;
+    const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
+    if (
+      startPhotoSave(
+        selectedPhotos.map((p) => ({
+          id: p.id,
+          url: p.url,
+          filename: p.original_filename,
+          size: p.file_size,
+        })),
+      )
+    ) {
+      return;
+    }
+
     const abortController = new AbortController();
     batchAbortRef.current = abortController;
 
     try {
-      const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
       const batchItems = selectedPhotos.map((p) => ({
         url: p.url,
         filename: p.original_filename,
@@ -227,17 +259,30 @@ export function SharedGalleryPage() {
       setTimeout(() => setBatchProgress(null), 1500);
       batchAbortRef.current = null;
     }
-  }, [selectedIds, photos]);
+  }, [selectedIds, photos, inAppGate, startPhotoSave]);
 
   // Download single photo
   const handleDownload = useCallback(async (photo: OrgPhoto) => {
+    if (inAppGate.block()) return;
+    if (
+      startPhotoSave([
+        {
+          id: photo.id,
+          url: photo.url,
+          filename: photo.original_filename,
+          size: photo.file_size,
+        },
+      ])
+    ) {
+      return;
+    }
     try {
       await downloadPhoto(photo.url, photo.original_filename, photo.id);
       setDownloadedIds((prev) => new Set(prev).add(photo.id));
     } catch (error) {
       console.warn("Download failed:", error);
     }
-  }, []);
+  }, [inAppGate, startPhotoSave]);
 
   // Loading
   if (loading) {
@@ -284,6 +329,8 @@ export function SharedGalleryPage() {
 
   return (
     <div className="min-h-screen bg-bridge-dark">
+      <InAppBrowserNotice gate={inAppGate} />
+
       {/* Sticky header wrapper */}
       <div className="sticky top-0 z-30 bg-bridge-dark">
         {/* Top bar */}
@@ -326,7 +373,10 @@ export function SharedGalleryPage() {
             </span>
             {photos.length > 0 && (
               <button
-                onClick={() => setSelectMode((prev) => !prev)}
+                onClick={() => {
+                  if (!selectMode && inAppGate.block()) return;
+                  setSelectMode((prev) => !prev);
+                }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                   selectMode
                     ? "bg-bridge-accent/15 text-bridge-accent border border-bridge-accent/30"
@@ -498,6 +548,12 @@ export function SharedGalleryPage() {
         onNavigate={setLightboxPhoto}
         onDownload={handleDownload}
         onDelete={() => {}}
+      />
+
+      <PhotoSavePanel
+        state={photoSaver.state}
+        onSave={photoSaver.saveNow}
+        onCancel={photoSaver.cancel}
       />
 
       {/* Batch download progress bar */}

@@ -5516,5 +5516,37 @@
     "untimeblockedNotice": "「{{title}}」 타임블록에서 빠짐 · 되돌리면 날짜만 돌아옵니다",
     "placementTitle": "배치 대기",
     "splitQueueBacklog": "백로그 열 폭 조절"
+  },
+  "inAppBrowser": {
+    "bannerText": "{{app}} 안에서는 사진이 저장되지 않아요. Safari나 Chrome에서 열어 주세요.",
+    "openButton": "브라우저로 열기",
+    "howButton": "여는 방법",
+    "guideTitle": "외부 브라우저에서 열어 주세요",
+    "guideBody": "{{app}} 안에서는 사진을 저장할 수 없어요. Safari나 Chrome에서 이 페이지를 열면 저장할 수 있어요.",
+    "manualSteps": "화면 위나 아래의 ··· 또는 공유 메뉴에서 'Safari로 열기'(외부 브라우저로 열기)를 눌러 주세요.",
+    "copyHint": "메뉴가 없다면 링크를 복사해 Safari 주소창에 붙여 넣어 주세요.",
+    "copyHintAuto": "브라우저가 열리지 않으면 링크를 복사해 Safari나 Chrome 주소창에 붙여 넣어 주세요.",
+    "copyLink": "링크 복사",
+    "copied": "복사했어요",
+    "apps": {
+      "kakaotalk": "카카오톡",
+      "line": "LINE",
+      "naver": "네이버 앱",
+      "instagram": "인스타그램",
+      "facebook": "페이스북",
+      "band": "밴드",
+      "daum": "다음 앱",
+      "webview": "이 앱"
+    }
+  },
+  "photoSave": {
+    "preparing": "사진 준비 중 {{current}}/{{total}}",
+    "ready": "{{count}}장 준비됐어요",
+    "saveButton": "사진에 저장",
+    "hint": "공유 창에서 '이미지 저장'을 누르면 사진 앱에 저장돼요.",
+    "done": "{{count}}장 저장했어요",
+    "cancelled": "저장을 취소했어요",
+    "chunk": "{{current}}/{{total}} 묶음",
+    "failed": "{{count}}장은 불러오지 못했어요"
   }
 }

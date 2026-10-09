@@ -1,4 +1,4 @@
-import { isNative, isIOS, isKakaoTalk, isMobileWeb, isChromeiOS } from './platform';
+import { isNative, isIOS, isIOSWeb, isKakaoTalk, isChromeiOS } from './platform';
 import { resolveFileUrl } from './api';
 
 /**
@@ -235,12 +235,25 @@ function getMimeType(filename: string): string {
   return mimeMap[ext] || 'application/octet-stream';
 }
 
+/**
+ * Share sheet ("Save Image") is the only way to reach the Photos app from iOS web.
+ * Android saves downloads where the gallery app already sees them, and its share sheet
+ * often has no "save" target — so Android uses plain downloads.
+ */
 function canWebShare(): boolean {
-  return isMobileWeb() && !!navigator.share && !!navigator.canShare;
+  return isIOSWeb() && !!navigator.share && !!navigator.canShare;
 }
 
-async function fetchAsFile(url: string, filename: string): Promise<File> {
-  const response = await fetch(url);
+/**
+ * iOS web: the share sheet only opens within a few seconds of a tap, so large photos must be
+ * fetched first and shared from a second tap (see usePhotoSaver).
+ */
+export function needsTapToSave(): boolean {
+  return canWebShare();
+}
+
+export async function fetchAsFile(url: string, filename: string, signal?: AbortSignal): Promise<File> {
+  const response = await fetch(url, { signal });
   if (!response.ok) throw new Error('Download failed');
   const blob = await response.blob();
   return new File([blob], filename, { type: getMimeType(filename) });
@@ -263,7 +276,26 @@ async function tryWebShare(files: File[]): Promise<boolean> {
   }
 }
 
-function anchorDownload(blob: Blob, filename: string): void {
+export type ShareOutcome = 'shared' | 'cancelled' | 'failed';
+
+/**
+ * Open the share sheet with already-fetched files.
+ * Must be called synchronously from a tap handler — no await before it.
+ */
+export function shareFiles(files: File[]): Promise<ShareOutcome> {
+  try {
+    if (!navigator.canShare?.({ files })) return Promise.resolve('failed');
+    return navigator.share({ files }).then(
+      () => 'shared' as const,
+      (error: unknown) =>
+        error instanceof Error && error.name === 'AbortError' ? 'cancelled' : 'failed',
+    );
+  } catch {
+    return Promise.resolve('failed');
+  }
+}
+
+export function anchorDownload(blob: Blob, filename: string): void {
   const blobUrl = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = blobUrl;

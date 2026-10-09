@@ -4864,5 +4864,37 @@
     "deletedBanner": "รายการนี้ถูกลบแล้ว · อ่านได้อย่างเดียว",
     "chip": "เช็คลิสต์ · {{title}}",
     "unknownItem": "รายการที่ถูกลบ"
+  },
+  "inAppBrowser": {
+    "bannerText": "ไม่สามารถบันทึกรูปภาพใน {{app}} ได้ กรุณาเปิดใน Safari หรือ Chrome",
+    "openButton": "เปิดในเบราว์เซอร์",
+    "howButton": "วิธีเปิด",
+    "guideTitle": "กรุณาเปิดในเบราว์เซอร์ภายนอก",
+    "guideBody": "ไม่สามารถบันทึกรูปภาพใน {{app}} ได้ เปิดหน้านี้ใน Safari หรือ Chrome เพื่อบันทึก",
+    "manualSteps": "แตะเมนู ··· หรือเมนูแชร์ที่ด้านบนหรือด้านล่างของหน้าจอ แล้วเลือก 'เปิดใน Safari' (เปิดในเบราว์เซอร์ภายนอก)",
+    "copyHint": "หากไม่มีเมนูดังกล่าว ให้คัดลอกลิงก์แล้ววางในแถบที่อยู่ของ Safari",
+    "copyHintAuto": "หากเบราว์เซอร์ไม่เปิด ให้คัดลอกลิงก์แล้ววางใน Safari หรือ Chrome",
+    "copyLink": "คัดลอกลิงก์",
+    "copied": "คัดลอกแล้ว",
+    "apps": {
+      "kakaotalk": "KakaoTalk",
+      "line": "LINE",
+      "naver": "แอป NAVER",
+      "instagram": "Instagram",
+      "facebook": "Facebook",
+      "band": "BAND",
+      "daum": "แอป Daum",
+      "webview": "แอปนี้"
+    }
+  },
+  "photoSave": {
+    "preparing": "กำลังเตรียมรูปภาพ {{current}}/{{total}}",
+    "ready": "พร้อมบันทึก {{count}} รูป",
+    "saveButton": "บันทึกลงรูปภาพ",
+    "hint": "แตะ 'บันทึกภาพ' ในหน้าแชร์เพื่อบันทึกลงแอปรูปภาพ",
+    "done": "บันทึกแล้ว {{count}} รูป",
+    "cancelled": "ยกเลิกการบันทึกแล้ว",
+    "chunk": "ชุด {{current}}/{{total}}",
+    "failed": "โหลดไม่ได้ {{count}} รูป"
   }
 }

@@ -4373,5 +4373,37 @@
     "deletedBanner": "削除された項目です · 閲覧のみ可能です",
     "chip": "チェックリスト · {{title}}",
     "unknownItem": "削除された項目"
+  },
+  "inAppBrowser": {
+    "bannerText": "{{app}}内では写真を保存できません。SafariまたはChromeで開いてください。",
+    "openButton": "ブラウザで開く",
+    "howButton": "開き方",
+    "guideTitle": "外部ブラウザで開いてください",
+    "guideBody": "{{app}}内では写真を保存できません。SafariまたはChromeでこのページを開くと保存できます。",
+    "manualSteps": "画面上部または下部の「···」または共有メニューから「Safariで開く」（外部ブラウザで開く）をタップしてください。",
+    "copyHint": "メニューがない場合は、リンクをコピーしてSafariのアドレスバーに貼り付けてください。",
+    "copyHintAuto": "ブラウザが開かない場合は、リンクをコピーしてSafariまたはChromeに貼り付けてください。",
+    "copyLink": "リンクをコピー",
+    "copied": "コピーしました",
+    "apps": {
+      "kakaotalk": "カカオトーク",
+      "line": "LINE",
+      "naver": "NAVERアプリ",
+      "instagram": "Instagram",
+      "facebook": "Facebook",
+      "band": "BAND",
+      "daum": "Daumアプリ",
+      "webview": "このアプリ"
+    }
+  },
+  "photoSave": {
+    "preparing": "写真を準備中 {{current}}/{{total}}",
+    "ready": "{{count}}枚の準備ができました",
+    "saveButton": "写真に保存",
+    "hint": "共有シートで「画像を保存」をタップすると写真アプリに保存されます。",
+    "done": "{{count}}枚を保存しました",
+    "cancelled": "保存をキャンセルしました",
+    "chunk": "{{current}}/{{total}} グループ",
+    "failed": "{{count}}枚を読み込めませんでした"
   }
 }

@@ -4864,5 +4864,37 @@
     "deletedBanner": "Elemento eliminado · solo lectura",
     "chip": "Lista · {{title}}",
     "unknownItem": "Elemento eliminado"
+  },
+  "inAppBrowser": {
+    "bannerText": "No se pueden guardar fotos dentro de {{app}}. Abre esta página en Safari o Chrome.",
+    "openButton": "Abrir en el navegador",
+    "howButton": "Cómo abrir",
+    "guideTitle": "Ábrelo en tu navegador",
+    "guideBody": "No se pueden guardar fotos dentro de {{app}}. Abre esta página en Safari o Chrome para guardarlas.",
+    "manualSteps": "Toca el menú ··· o de compartir en la parte superior o inferior de la pantalla y elige 'Abrir en Safari' (Abrir en navegador externo).",
+    "copyHint": "Si no hay ese menú, copia el enlace y pégalo en la barra de direcciones de Safari.",
+    "copyHintAuto": "Si el navegador no se abre, copia el enlace y pégalo en Safari o Chrome.",
+    "copyLink": "Copiar enlace",
+    "copied": "Copiado",
+    "apps": {
+      "kakaotalk": "KakaoTalk",
+      "line": "LINE",
+      "naver": "la app de NAVER",
+      "instagram": "Instagram",
+      "facebook": "Facebook",
+      "band": "BAND",
+      "daum": "la app de Daum",
+      "webview": "esta app"
+    }
+  },
+  "photoSave": {
+    "preparing": "Preparando fotos {{current}}/{{total}}",
+    "ready": "{{count}} listas para guardar",
+    "saveButton": "Guardar en Fotos",
+    "hint": "Toca 'Guardar imagen' en el menú de compartir para guardarlas en Fotos.",
+    "done": "{{count}} guardadas",
+    "cancelled": "Guardado cancelado",
+    "chunk": "Lote {{current}}/{{total}}",
+    "failed": "No se pudieron cargar {{count}}"
   }
 }

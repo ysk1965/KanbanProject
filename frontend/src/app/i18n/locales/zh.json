@@ -4373,5 +4373,37 @@
     "deletedBanner": "该条目已删除 · 仅可查看",
     "chip": "清单 · {{title}}",
     "unknownItem": "已删除的条目"
+  },
+  "inAppBrowser": {
+    "bannerText": "在{{app}}内无法保存照片。请在 Safari 或 Chrome 中打开。",
+    "openButton": "在浏览器中打开",
+    "howButton": "打开方法",
+    "guideTitle": "请在外部浏览器中打开",
+    "guideBody": "在{{app}}内无法保存照片。在 Safari 或 Chrome 中打开此页面即可保存。",
+    "manualSteps": "请点击屏幕上方或下方的 ··· 或分享菜单，选择“在 Safari 中打开”（在外部浏览器中打开）。",
+    "copyHint": "如果没有该菜单，请复制链接并粘贴到 Safari 地址栏。",
+    "copyHintAuto": "如果浏览器没有打开，请复制链接并粘贴到 Safari 或 Chrome。",
+    "copyLink": "复制链接",
+    "copied": "已复制",
+    "apps": {
+      "kakaotalk": "KakaoTalk",
+      "line": "LINE",
+      "naver": "NAVER 应用",
+      "instagram": "Instagram",
+      "facebook": "Facebook",
+      "band": "BAND",
+      "daum": "Daum 应用",
+      "webview": "此应用"
+    }
+  },
+  "photoSave": {
+    "preparing": "正在准备照片 {{current}}/{{total}}",
+    "ready": "已准备好 {{count}} 张",
+    "saveButton": "存储到照片",
+    "hint": "在分享面板中点击“存储图像”即可保存到照片。",
+    "done": "已保存 {{count}} 张",
+    "cancelled": "已取消保存",
+    "chunk": "第 {{current}}/{{total}} 组",
+    "failed": "{{count}} 张无法加载"
   }
 }

@@ -4373,5 +4373,37 @@
     "deletedBanner": "यह आइटम हटा दिया गया · केवल पढ़ें",
     "chip": "चेकलिस्ट · {{title}}",
     "unknownItem": "हटाया गया आइटम"
+  },
+  "inAppBrowser": {
+    "bannerText": "{{app}} के अंदर फ़ोटो सेव नहीं हो सकतीं। यह पेज Safari या Chrome में खोलें।",
+    "openButton": "ब्राउज़र में खोलें",
+    "howButton": "कैसे खोलें",
+    "guideTitle": "बाहरी ब्राउज़र में खोलें",
+    "guideBody": "{{app}} के अंदर फ़ोटो सेव नहीं हो सकतीं। सेव करने के लिए यह पेज Safari या Chrome में खोलें।",
+    "manualSteps": "स्क्रीन के ऊपर या नीचे ··· या शेयर मेन्यू पर टैप करें, फिर 'Safari में खोलें' (बाहरी ब्राउज़र में खोलें) चुनें।",
+    "copyHint": "अगर ऐसा मेन्यू नहीं है, तो लिंक कॉपी करके Safari के एड्रेस बार में पेस्ट करें।",
+    "copyHintAuto": "अगर ब्राउज़र नहीं खुलता, तो लिंक कॉपी करके Safari या Chrome में पेस्ट करें।",
+    "copyLink": "लिंक कॉपी करें",
+    "copied": "कॉपी हो गया",
+    "apps": {
+      "kakaotalk": "KakaoTalk",
+      "line": "LINE",
+      "naver": "NAVER ऐप",
+      "instagram": "Instagram",
+      "facebook": "Facebook",
+      "band": "BAND",
+      "daum": "Daum ऐप",
+      "webview": "इस ऐप"
+    }
+  },
+  "photoSave": {
+    "preparing": "फ़ोटो तैयार हो रही हैं {{current}}/{{total}}",
+    "ready": "{{count}} फ़ोटो सेव करने के लिए तैयार",
+    "saveButton": "फ़ोटो में सेव करें",
+    "hint": "शेयर शीट में 'इमेज सेव करें' पर टैप करके फ़ोटो ऐप में सेव करें।",
+    "done": "{{count}} फ़ोटो सेव हुईं",
+    "cancelled": "सेव करना रद्द किया गया",
+    "chunk": "बैच {{current}}/{{total}}",
+    "failed": "{{count}} फ़ोटो लोड नहीं हो सकीं"
   }
 }

@@ -13,6 +13,10 @@ import {
 import { publicAlbumAPI, resolveFileUrl } from "../utils/api";
 import { PhotoLightbox } from "../components/organization/photo/PhotoLightbox";
 import { downloadPhoto, getDownloadedIds } from "../utils/nativeDownload";
+import { InAppBrowserNotice } from "../components/organization/photo/InAppBrowserNotice";
+import { useInAppBrowserGate } from "../hooks/useInAppBrowserGate";
+import { usePhotoSaver } from "../hooks/usePhotoSaver";
+import { PhotoSavePanel } from "../components/organization/photo/PhotoSavePanel";
 import type { SharedAlbumInfo, SharedPhotoItem, OrgPhoto } from "../types";
 
 /** Map SharedPhotoItem → OrgPhoto shape so we can reuse PhotoLightbox */
@@ -48,8 +52,22 @@ export function SharedAlbumPage() {
   const [lightboxPhoto, setLightboxPhoto] = useState<OrgPhoto | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
+  // In-app browsers (KakaoTalk…) ignore downloads → route to Safari/Chrome
+  const inAppGate = useInAppBrowserGate();
+
   // Download history
   const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
+
+  // iOS web: fetch first, then save from a second tap (share sheet needs a fresh tap)
+  const handleSaved = useCallback((ids: string[]) => {
+    setDownloadedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+  }, []);
+  const photoSaver = usePhotoSaver(handleSaved);
+  const startPhotoSave = photoSaver.start;
   useEffect(() => {
     if (photos.length > 0) {
       setDownloadedIds(getDownloadedIds(photos.map((p) => p.id)));
@@ -128,13 +146,26 @@ export function SharedAlbumPage() {
 
   // Download single photo
   const handleDownload = useCallback(async (photo: OrgPhoto) => {
+    if (inAppGate.block()) return;
+    if (
+      startPhotoSave([
+        {
+          id: photo.id,
+          url: photo.url,
+          filename: photo.original_filename,
+          size: photo.file_size,
+        },
+      ])
+    ) {
+      return;
+    }
     try {
       await downloadPhoto(photo.url, photo.original_filename, photo.id);
       setDownloadedIds((prev) => new Set(prev).add(photo.id));
     } catch (error) {
       console.warn("Download failed:", error);
     }
-  }, []);
+  }, [inAppGate, startPhotoSave]);
 
   // Loading
   if (loading) {
@@ -181,6 +212,8 @@ export function SharedAlbumPage() {
 
   return (
     <div className="min-h-screen bg-bridge-dark">
+      <InAppBrowserNotice gate={inAppGate} />
+
       {/* Top bar */}
       <header className="border-b border-foreground/5 bg-bridge-obsidian">
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
@@ -306,6 +339,12 @@ export function SharedAlbumPage() {
         onNavigate={setLightboxPhoto}
         onDownload={handleDownload}
         onDelete={() => {}}
+      />
+
+      <PhotoSavePanel
+        state={photoSaver.state}
+        onSave={photoSaver.saveNow}
+        onCancel={photoSaver.cancel}
       />
 
       {/* Footer */}
