@@ -10065,6 +10065,35 @@ export const orgPhotoAPI = {
   revokeShareLink: (orgId: string, linkId: string): Promise<void> =>
     apiClient.delete(`/organizations/${orgId}/photos/share-links/${linkId}`),
 
+  // 링크 미리보기(OG) 이미지 — 카카오/슬랙 카드 썸네일
+  uploadShareLinkOgImage: async (
+    orgId: string,
+    linkId: string,
+    file: File,
+  ): Promise<import("../types").PhotoShareLink> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/organizations/${orgId}/photos/share-links/${linkId}/og-image`,
+      { method: "POST", body: formData },
+    );
+    if (!response.ok) {
+      const err = await response
+        .json()
+        .catch(() => ({ message: "Upload failed" }));
+      throw err;
+    }
+    return response.json();
+  },
+
+  deleteShareLinkOgImage: (
+    orgId: string,
+    linkId: string,
+  ): Promise<import("../types").PhotoShareLink> =>
+    apiClient.delete(
+      `/organizations/${orgId}/photos/share-links/${linkId}/og-image`,
+    ),
+
   // Photo CRUD
   getPhotos: (
     orgId: string,

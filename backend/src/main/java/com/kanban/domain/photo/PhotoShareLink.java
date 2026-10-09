@@ -49,6 +49,10 @@ public class PhotoShareLink extends BaseTimeEntity {
     @Column(name = "title", length = 100)
     private String title;
 
+    /** 링크 미리보기(OG) 카드 이미지. NULL 이면 조직 로고 등 기본 폴백을 쓴다. */
+    @Column(name = "og_image_url", length = 500)
+    private String ogImageUrl;
+
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 
@@ -106,5 +110,9 @@ public class PhotoShareLink extends BaseTimeEntity {
 
     public void updateTitle(String title) {
         this.title = title;
+    }
+
+    public void updateOgImageUrl(String ogImageUrl) {
+        this.ogImageUrl = ogImageUrl;
     }
 }

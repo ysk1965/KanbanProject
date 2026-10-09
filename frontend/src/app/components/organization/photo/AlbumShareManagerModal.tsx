@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Share2,
@@ -11,6 +11,8 @@ import {
   Upload,
   ExternalLink,
   Clock,
+  Image as ImageIcon,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { MotionModal } from '../../ui/MotionModal';
@@ -69,6 +71,7 @@ export function AlbumShareManagerModal({
   const [issuingKey, setIssuingKey] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [ogBusyId, setOgBusyId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     if (!open) return;
@@ -160,6 +163,65 @@ export function AlbumShareManagerModal({
     [t],
   );
 
+  const handleOgImageUpload = useCallback(
+    async (linkId: string, file: File) => {
+      if (!file.type.startsWith('image/')) {
+        toast.error(
+          t('photoGallery.ogImageOnlyImage', '이미지 파일만 업로드할 수 있습니다'),
+        );
+        return;
+      }
+      try {
+        setOgBusyId(linkId);
+        const updated = await orgPhotoService.uploadShareLinkOgImage(
+          orgId,
+          linkId,
+          file,
+        );
+        setLinks((prev) => prev.map((l) => (l.id === linkId ? updated : l)));
+        toast.success(
+          t('photoGallery.ogImageUpdated', '미리보기 이미지가 변경되었습니다'),
+          {
+            description: t(
+              'photoGallery.ogImageCacheNote',
+              '이미 공유된 대화방에는 메신저 캐시 때문에 반영까지 시간이 걸릴 수 있습니다',
+            ),
+          },
+        );
+      } catch {
+        toast.error(
+          t('photoGallery.ogImageError', '미리보기 이미지 변경에 실패했습니다'),
+        );
+      } finally {
+        setOgBusyId(null);
+      }
+    },
+    [orgId, t],
+  );
+
+  const handleOgImageRemove = useCallback(
+    async (linkId: string) => {
+      try {
+        setOgBusyId(linkId);
+        const updated = await orgPhotoService.deleteShareLinkOgImage(
+          orgId,
+          linkId,
+        );
+        setLinks((prev) => prev.map((l) => (l.id === linkId ? updated : l)));
+        toast.success(
+          t('photoGallery.ogImageRemoved', '미리보기 이미지가 제거되었습니다'),
+        );
+      } catch {
+        toast.error(
+          t('photoGallery.ogImageError', '미리보기 이미지 변경에 실패했습니다'),
+        );
+      } finally {
+        setOgBusyId(null);
+      }
+    },
+    [orgId, t],
+  );
+
   const galleryLinks = useMemo(
     // 백엔드 Jackson non_null 이라 갤러리 링크는 tab_id 필드 자체가 빠져서 온다 (null 아님)
     () => links.filter((l) => !l.tab_id),
@@ -217,9 +279,12 @@ export function AlbumShareManagerModal({
             issuingKey={issuingKey}
             revokingId={revokingId}
             copiedId={copiedId}
+            ogBusyId={ogBusyId}
             onIssue={handleIssue}
             onRevoke={handleRevoke}
             onCopy={handleCopy}
+            onOgImageUpload={handleOgImageUpload}
+            onOgImageRemove={handleOgImageRemove}
           />
 
           {sortedAlbums.map((album) => (
@@ -231,9 +296,12 @@ export function AlbumShareManagerModal({
               issuingKey={issuingKey}
               revokingId={revokingId}
               copiedId={copiedId}
+              ogBusyId={ogBusyId}
               onIssue={handleIssue}
               onRevoke={handleRevoke}
               onCopy={handleCopy}
+              onOgImageUpload={handleOgImageUpload}
+              onOgImageRemove={handleOgImageRemove}
               defaultExpanded={album.id === focusTabId}
             />
           ))}
@@ -262,6 +330,7 @@ interface ShareLinkSectionProps {
   issuingKey: string | null;
   revokingId: string | null;
   copiedId: string | null;
+  ogBusyId: string | null;
   onIssue: (
     tabId: string | null,
     type: PhotoShareLinkType,
@@ -270,6 +339,8 @@ interface ShareLinkSectionProps {
   ) => void;
   onRevoke: (linkId: string) => void;
   onCopy: (link: PhotoShareLink) => void;
+  onOgImageUpload: (linkId: string, file: File) => void;
+  onOgImageRemove: (linkId: string) => void;
   defaultExpanded?: boolean;
 }
 
@@ -280,9 +351,12 @@ function ShareLinkSection({
   issuingKey,
   revokingId,
   copiedId,
+  ogBusyId,
   onIssue,
   onRevoke,
   onCopy,
+  onOgImageUpload,
+  onOgImageRemove,
   defaultExpanded,
 }: ShareLinkSectionProps) {
   const { t } = useTranslation();
@@ -400,8 +474,11 @@ function ShareLinkSection({
               link={link}
               isRevoking={revokingId === link.id}
               isCopied={copiedId === link.id}
+              isOgBusy={ogBusyId === link.id}
               onRevoke={() => onRevoke(link.id)}
               onCopy={() => onCopy(link)}
+              onOgImageUpload={(file) => onOgImageUpload(link.id, file)}
+              onOgImageRemove={() => onOgImageRemove(link.id)}
             />
           ))}
         </div>
@@ -414,19 +491,27 @@ interface ShareLinkRowProps {
   link: PhotoShareLink;
   isRevoking: boolean;
   isCopied: boolean;
+  isOgBusy: boolean;
   onRevoke: () => void;
   onCopy: () => void;
+  onOgImageUpload: (file: File) => void;
+  onOgImageRemove: () => void;
 }
 
 function ShareLinkRow({
   link,
   isRevoking,
   isCopied,
+  isOgBusy,
   onRevoke,
   onCopy,
+  onOgImageUpload,
+  onOgImageRemove,
 }: ShareLinkRowProps) {
   const { t } = useTranslation();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const url = buildShareUrl(link);
+  const ogImageUrl = link.og_image_url || null;
   const isUpload = link.link_type === 'UPLOAD';
   const typeColor = isUpload
     ? 'bg-bridge-secondary/15 text-bridge-secondary'
@@ -510,6 +595,64 @@ function ShareLinkRow({
       </div>
       <div className="mt-1.5 px-2 py-1 bg-foreground/[0.03] rounded-md">
         <span className="text-xs text-slate-500 truncate block">{url}</span>
+      </div>
+      <div className="mt-1.5 flex items-center gap-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onOgImageUpload(file);
+            e.target.value = '';
+          }}
+        />
+        {ogImageUrl ? (
+          <img
+            src={ogImageUrl}
+            alt={t('photoGallery.ogImage', '미리보기 이미지')}
+            className="w-16 h-8 object-cover rounded-md border border-foreground/[0.08] shrink-0"
+          />
+        ) : (
+          <div className="w-16 h-8 rounded-md border border-dashed border-foreground/10 flex items-center justify-center text-slate-500 shrink-0">
+            <ImageIcon size={12} />
+          </div>
+        )}
+        <span
+          className="text-xs text-slate-500 truncate flex-1"
+          title={t(
+            'photoGallery.ogImageHint',
+            '카카오톡·슬랙 등에 링크를 보낼 때 표시되는 카드 이미지 (권장 1200×630)',
+          )}
+        >
+          {t('photoGallery.ogImage', '미리보기 이미지')}
+        </span>
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isOgBusy}
+          className="text-xs font-bold px-2 py-1 rounded-lg bg-foreground/5 text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-colors flex items-center gap-1 shrink-0 disabled:opacity-50"
+        >
+          {isOgBusy ? (
+            <Loader2 size={12} className="animate-spin" />
+          ) : (
+            <ImageIcon size={12} />
+          )}
+          {ogImageUrl
+            ? t('photoGallery.ogImageChange', '이미지 변경')
+            : t('photoGallery.ogImageSet', '이미지 지정')}
+        </button>
+        {ogImageUrl && (
+          <button
+            onClick={onOgImageRemove}
+            disabled={isOgBusy}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0 disabled:opacity-50"
+            aria-label={t('photoGallery.ogImageRemove', '이미지 제거')}
+            title={t('photoGallery.ogImageRemove', '이미지 제거')}
+          >
+            <X size={14} />
+          </button>
+        )}
       </div>
       <div className="mt-1 flex items-center gap-2 text-xs text-slate-500 flex-wrap">
         {link.access_count > 0 && (

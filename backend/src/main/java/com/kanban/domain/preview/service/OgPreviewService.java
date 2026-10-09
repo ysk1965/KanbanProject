@@ -5,6 +5,7 @@ import com.kanban.domain.note.dto.NoteResponse;
 import com.kanban.domain.note.service.NoteService;
 import com.kanban.domain.organization.service.OrgInviteService;
 import com.kanban.domain.photo.service.OrgPhotoService;
+import com.kanban.domain.photo.service.PhotoShareLinkService;
 import com.kanban.domain.preview.OgPreviewType;
 import com.kanban.domain.preview.dto.OgPreviewResponse;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class OgPreviewService {
 
     private final NoteService noteService;
     private final OrgPhotoService orgPhotoService;
+    private final PhotoShareLinkService photoShareLinkService;
     private final InviteService inviteService;
     private final OrgInviteService orgInviteService;
 
@@ -73,7 +75,7 @@ public class OgPreviewService {
         String description = firstNonBlank(
                 info.getAlbumDescription(),
                 orgAnd(info.getOrganizationName(), "사진 " + info.getPhotoCount() + "장"));
-        String image = firstNonBlank(info.getCoverPhotoUrl(), info.getOrganizationLogoUrl());
+        String image = firstNonBlank(linkOgImage(rawToken), info.getCoverPhotoUrl(), info.getOrganizationLogoUrl());
         return build(OgPreviewType.ALBUM, info.getAlbumName(), description, image, rawToken);
     }
 
@@ -81,7 +83,7 @@ public class OgPreviewService {
         var info = orgPhotoService.getSharedGallery(extractUuidToken(rawToken));
         String title = firstNonBlank(info.getGalleryTitle(), info.getOrganizationName(), "공유 갤러리");
         String description = orgAnd(info.getOrganizationName(), "사진 " + info.getTotalPhotoCount() + "장");
-        String image = info.getOrganizationLogoUrl();
+        String image = firstNonBlank(linkOgImage(rawToken), info.getOrganizationLogoUrl());
         if (isBlank(image) && info.getAlbums() != null && !info.getAlbums().isEmpty()) {
             image = info.getAlbums().get(0).getCoverPhotoUrl();
         }
@@ -91,13 +93,15 @@ public class OgPreviewService {
     private OgPreviewResponse uploadPreview(String rawToken) {
         var info = orgPhotoService.getUploadAlbumInfo(extractUuidToken(rawToken));
         String description = orgAnd(info.getOrganizationName(), "사진 업로드");
-        return build(OgPreviewType.UPLOAD, info.getAlbumName(), description, info.getOrganizationLogoUrl(), rawToken);
+        String image = firstNonBlank(linkOgImage(rawToken), info.getOrganizationLogoUrl());
+        return build(OgPreviewType.UPLOAD, info.getAlbumName(), description, image, rawToken);
     }
 
     private OgPreviewResponse galleryUploadPreview(String rawToken) {
         var info = orgPhotoService.getGalleryUploadInfo(extractUuidToken(rawToken));
         String title = firstNonBlank(info.getOrganizationName(), "사진 업로드");
-        return build(OgPreviewType.GALLERY_UPLOAD, title, "사진 업로드", info.getOrganizationLogoUrl(), rawToken);
+        String image = firstNonBlank(linkOgImage(rawToken), info.getOrganizationLogoUrl());
+        return build(OgPreviewType.GALLERY_UPLOAD, title, "사진 업로드", image, rawToken);
     }
 
     private OgPreviewResponse invitePreview(String rawCode) {
@@ -114,6 +118,11 @@ public class OgPreviewService {
         String description = "구성원 " + info.getMemberCount() + "명 · 조직에 초대되었습니다";
         return build(OgPreviewType.ORG_INVITE, firstNonBlank(info.getOrganizationName(), "조직 초대"),
                 description, info.getLogoUrl(), rawCode);
+    }
+
+    /** 공유 링크에 관리자가 직접 지정한 OG 이미지(없으면 null → 호출측 폴백). */
+    private String linkOgImage(String rawToken) {
+        return photoShareLinkService.findOgImageUrl(extractUuidToken(rawToken)).orElse(null);
     }
 
     // ===== 공통 =====

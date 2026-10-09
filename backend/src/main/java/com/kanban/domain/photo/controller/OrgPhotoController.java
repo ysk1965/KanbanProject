@@ -212,6 +212,26 @@ public class OrgPhotoController {
         return ResponseEntity.noContent().build();
     }
 
+    /** 링크 미리보기(OG) 이미지 교체 — 카카오/슬랙 카드 썸네일. */
+    @PostMapping(value = "/share-links/{linkId}/og-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<OrgPhotoResponse.ShareLinkInfo> uploadShareLinkOgImage(
+            @PathVariable String orgId,
+            @PathVariable String linkId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam("file") MultipartFile file) {
+        PhotoShareLink link = photoShareLinkService.updateOgImage(orgId, principal.getUserId(), linkId, file);
+        return ResponseEntity.ok(OrgPhotoResponse.ShareLinkInfo.from(link));
+    }
+
+    @DeleteMapping("/share-links/{linkId}/og-image")
+    public ResponseEntity<OrgPhotoResponse.ShareLinkInfo> deleteShareLinkOgImage(
+            @PathVariable String orgId,
+            @PathVariable String linkId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        PhotoShareLink link = photoShareLinkService.clearOgImage(orgId, principal.getUserId(), linkId);
+        return ResponseEntity.ok(OrgPhotoResponse.ShareLinkInfo.from(link));
+    }
+
     // ==================== Upload Link Endpoints ====================
 
     @PostMapping("/tabs/{tabId}/upload-link")

@@ -11,6 +11,8 @@ public interface PhotoShareLinkRepository extends JpaRepository<PhotoShareLink, 
 
     Optional<PhotoShareLink> findByTokenAndRevokedAtIsNull(String token);
 
+    Optional<PhotoShareLink> findByToken(String token);
+
     @Query("""
             SELECT psl FROM PhotoShareLink psl
             JOIN FETCH psl.organization

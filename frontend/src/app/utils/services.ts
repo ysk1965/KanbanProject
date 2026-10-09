@@ -4276,6 +4276,8 @@ export const orgPhotoService = {
   listShareLinks: orgPhotoAPI.listShareLinks,
   issueShareLink: orgPhotoAPI.issueShareLink,
   revokeShareLink: orgPhotoAPI.revokeShareLink,
+  uploadShareLinkOgImage: orgPhotoAPI.uploadShareLinkOgImage,
+  deleteShareLinkOgImage: orgPhotoAPI.deleteShareLinkOgImage,
 
   // Photo CRUD
   getPhotos: orgPhotoAPI.getPhotos,

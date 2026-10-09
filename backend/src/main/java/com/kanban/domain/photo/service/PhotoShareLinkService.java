@@ -11,17 +11,21 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.service.FileUploadService;
+import com.kanban.global.util.MediaUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -36,6 +40,7 @@ public class PhotoShareLinkService {
     private final OrganizationRepository organizationRepository;
     private final OrganizationService organizationService;
     private final UserRepository userRepository;
+    private final FileUploadService fileUploadService;
 
     @Transactional
     @Caching(evict = {
@@ -144,6 +149,54 @@ public class PhotoShareLinkService {
             link.revoke(user);
         }
         syncLegacyCanonical(org, null, type);
+    }
+
+    /**
+     * 링크 미리보기(OG) 이미지 교체. 이미지 파일만 허용하며, 만료/회수된 링크도 교체 가능(재발급 없이 카드만 바꾸는 용도).
+     * OG 조회(OgPreviewService)는 캐시를 타지 않으므로 별도 evict 없이 즉시 반영된다(봇 측 캐시는 제외).
+     */
+    @Transactional
+    public PhotoShareLink updateOgImage(String orgId, String userId, String linkId, MultipartFile file) {
+        organizationService.checkAdminOrAbove(orgId, userId);
+        PhotoShareLink link = getOwnedLink(orgId, linkId);
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        if (!MediaUtils.isImageType(file.getContentType())) {
+            throw new BusinessException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
+        }
+        String extension = MediaUtils.getExtension(file.getOriginalFilename());
+        String key = "organizations/" + orgId + "/share-links/" + link.getId() + "/og/"
+                + UUID.randomUUID() + extension;
+        String url = fileUploadService.uploadDirect(file, key);
+        link.updateOgImageUrl(url);
+        log.info("Photo share link OG image updated: orgId={}, linkId={}, by={}", orgId, linkId, userId);
+        return link;
+    }
+
+    @Transactional
+    public PhotoShareLink clearOgImage(String orgId, String userId, String linkId) {
+        organizationService.checkAdminOrAbove(orgId, userId);
+        PhotoShareLink link = getOwnedLink(orgId, linkId);
+        link.updateOgImageUrl(null);
+        log.info("Photo share link OG image cleared: orgId={}, linkId={}, by={}", orgId, linkId, userId);
+        return link;
+    }
+
+    /** 토큰으로 링크를 찾아 지정된 OG 이미지를 돌려준다(상태 무관). 미리보기 조립 전용. */
+    public Optional<String> findOgImageUrl(String token) {
+        return linkRepository.findByToken(token)
+                .map(PhotoShareLink::getOgImageUrl)
+                .filter(url -> url != null && !url.isBlank());
+    }
+
+    private PhotoShareLink getOwnedLink(String orgId, String linkId) {
+        PhotoShareLink link = linkRepository.findById(linkId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_SHARE_LINK_NOT_FOUND));
+        if (!link.getOrganization().getId().equals(orgId)) {
+            throw new BusinessException(ErrorCode.PHOTO_SHARE_LINK_NOT_FOUND);
+        }
+        return link;
     }
 
     public List<PhotoShareLink> list(String orgId, String userId, String tabId) {

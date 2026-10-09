@@ -3605,6 +3605,8 @@ export interface PhotoShareLink {
   tab_id?: string | null;
   tab_name: string | null;
   title: string | null;
+  /** 링크 미리보기(OG) 카드 이미지. 미지정 시 필드 생략됨 (Jackson non_null) */
+  og_image_url?: string | null;
   expires_at: string | null;
   revoked_at: string | null;
   last_accessed_at: string | null;

@@ -216,6 +216,7 @@ public class OrgPhotoResponse {
         private String tabId;
         private String tabName;
         private String title;
+        private String ogImageUrl;
         private LocalDateTime expiresAt;
         private LocalDateTime revokedAt;
         private LocalDateTime lastAccessedAt;
@@ -240,6 +241,7 @@ public class OrgPhotoResponse {
                     .tabId(link.getTab() != null ? link.getTab().getId() : null)
                     .tabName(link.getTab() != null ? link.getTab().getName() : null)
                     .title(link.getTitle())
+                    .ogImageUrl(link.getOgImageUrl())
                     .expiresAt(link.getExpiresAt())
                     .revokedAt(link.getRevokedAt())
                     .lastAccessedAt(link.getLastAccessedAt())
