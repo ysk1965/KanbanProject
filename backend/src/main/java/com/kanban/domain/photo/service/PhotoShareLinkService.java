@@ -7,6 +7,7 @@ import com.kanban.domain.photo.OrgPhotoTab;
 import com.kanban.domain.photo.OrgPhotoTabRepository;
 import com.kanban.domain.photo.PhotoShareLink;
 import com.kanban.domain.photo.PhotoShareLinkRepository;
+import com.kanban.domain.photo.dto.OrgPhotoResponse;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
@@ -154,9 +155,10 @@ public class PhotoShareLinkService {
     /**
      * 링크 미리보기(OG) 이미지 교체. 이미지 파일만 허용하며, 만료/회수된 링크도 교체 가능(재발급 없이 카드만 바꾸는 용도).
      * OG 조회(OgPreviewService)는 캐시를 타지 않으므로 별도 evict 없이 즉시 반영된다(봇 측 캐시는 제외).
+     * tab/createdBy 가 LAZY 라 DTO 변환은 트랜잭션 안에서 끝낸다.
      */
     @Transactional
-    public PhotoShareLink updateOgImage(String orgId, String userId, String linkId, MultipartFile file) {
+    public OrgPhotoResponse.ShareLinkInfo updateOgImage(String orgId, String userId, String linkId, MultipartFile file) {
         organizationService.checkAdminOrAbove(orgId, userId);
         PhotoShareLink link = getOwnedLink(orgId, linkId);
         if (file == null || file.isEmpty()) {
@@ -171,16 +173,16 @@ public class PhotoShareLinkService {
         String url = fileUploadService.uploadDirect(file, key);
         link.updateOgImageUrl(url);
         log.info("Photo share link OG image updated: orgId={}, linkId={}, by={}", orgId, linkId, userId);
-        return link;
+        return OrgPhotoResponse.ShareLinkInfo.from(link);
     }
 
     @Transactional
-    public PhotoShareLink clearOgImage(String orgId, String userId, String linkId) {
+    public OrgPhotoResponse.ShareLinkInfo clearOgImage(String orgId, String userId, String linkId) {
         organizationService.checkAdminOrAbove(orgId, userId);
         PhotoShareLink link = getOwnedLink(orgId, linkId);
         link.updateOgImageUrl(null);
         log.info("Photo share link OG image cleared: orgId={}, linkId={}, by={}", orgId, linkId, userId);
-        return link;
+        return OrgPhotoResponse.ShareLinkInfo.from(link);
     }
 
     /** 토큰으로 링크를 찾아 지정된 OG 이미지를 돌려준다(상태 무관). 미리보기 조립 전용. */

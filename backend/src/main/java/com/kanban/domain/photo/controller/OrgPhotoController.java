@@ -219,8 +219,8 @@ public class OrgPhotoController {
             @PathVariable String linkId,
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam("file") MultipartFile file) {
-        PhotoShareLink link = photoShareLinkService.updateOgImage(orgId, principal.getUserId(), linkId, file);
-        return ResponseEntity.ok(OrgPhotoResponse.ShareLinkInfo.from(link));
+        return ResponseEntity.ok(
+                photoShareLinkService.updateOgImage(orgId, principal.getUserId(), linkId, file));
     }
 
     @DeleteMapping("/share-links/{linkId}/og-image")
@@ -228,8 +228,8 @@ public class OrgPhotoController {
             @PathVariable String orgId,
             @PathVariable String linkId,
             @AuthenticationPrincipal UserPrincipal principal) {
-        PhotoShareLink link = photoShareLinkService.clearOgImage(orgId, principal.getUserId(), linkId);
-        return ResponseEntity.ok(OrgPhotoResponse.ShareLinkInfo.from(link));
+        return ResponseEntity.ok(
+                photoShareLinkService.clearOgImage(orgId, principal.getUserId(), linkId));
     }
 
     // ==================== Upload Link Endpoints ====================
