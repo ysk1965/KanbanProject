@@ -348,6 +348,9 @@ locals {
 module "s3_cloudfront" {
   source = "../../modules/s3-cloudfront"
 
+  # 한국 공개 서비스 — 한국·일본 엣지 포함 (모듈 dev 기본값 PriceClass_100은 한국 사용자를 SFO로 보냄)
+  price_class = "PriceClass_200"
+
   # og-preview Lambda@Edge는 us-east-1에 생성해야 하므로 전용 provider를 전달한다.
   providers = {
     aws           = aws
@@ -620,7 +623,7 @@ resource "aws_cloudfront_response_headers_policy" "attachments_cors" {
 resource "aws_cloudfront_distribution" "attachments" {
   enabled         = true
   is_ipv6_enabled = true
-  price_class     = "PriceClass_100"
+  price_class     = "PriceClass_200" # 한국 공개 서비스 — 한국·일본 엣지 포함 (100은 한국 사용자를 SFO로 보냄)
   comment         = "${var.project_name} ${var.environment} attachments CDN"
 
   origin {
