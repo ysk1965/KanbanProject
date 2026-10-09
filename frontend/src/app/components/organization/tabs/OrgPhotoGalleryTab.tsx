@@ -28,6 +28,8 @@ import { AlbumCreateModal } from '../photo/AlbumCreateModal';
 import { AlbumShareManagerModal } from '../photo/AlbumShareManagerModal';
 import { PhotoUploadProgress } from '../photo/PhotoUploadProgress';
 import { getOrgPhotoUploadQueue, usePhotoUploadConfirmed } from '../../../hooks/usePhotoUploadQueue';
+import { usePhotoSaver } from '../../../hooks/usePhotoSaver';
+import { PhotoSavePanel } from '../photo/PhotoSavePanel';
 import type { OrgPhotoTab, OrgPhoto, OrgPhotoPage } from '../../../types';
 
 
@@ -173,9 +175,27 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
     });
   }, []);
 
+  // iOS web: fetch first, then save from a second tap (share sheet needs a fresh tap)
+  const handleSaved = useCallback((ids: string[]) => {
+    setDownloadedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+  }, []);
+  const photoSaver = usePhotoSaver(handleSaved);
+  const startPhotoSave = photoSaver.start;
+
   // Download single photo
   const handleDownloadSingle = useCallback(
     async (photo: OrgPhoto) => {
+      if (
+        startPhotoSave([
+          { id: photo.id, url: photo.url, filename: photo.original_filename, size: photo.file_size },
+        ])
+      ) {
+        return;
+      }
       try {
         await downloadPhoto(photo.url, photo.original_filename, photo.id);
         setDownloadedIds((prev) => new Set(prev).add(photo.id));
@@ -187,7 +207,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
         toast.error(t('photoGallery.downloadError', 'Failed to download'));
       }
     },
-    [t],
+    [t, startPhotoSave],
   );
 
   // Cancel batch download
@@ -199,11 +219,19 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
   // Batch download (Web Share on mobile, individual on desktop/native)
   const handleBatchDownload = useCallback(async () => {
     if (selectedIds.size === 0) return;
+    const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
+    if (
+      startPhotoSave(
+        selectedPhotos.map((p) => ({ id: p.id, url: p.url, filename: p.original_filename, size: p.file_size })),
+      )
+    ) {
+      return;
+    }
+
     const abortController = new AbortController();
     batchAbortRef.current = abortController;
 
     try {
-      const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
       const batchItems = selectedPhotos.map((p) => ({
         url: p.url,
         filename: p.original_filename,
@@ -248,7 +276,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
       setTimeout(() => setBatchProgress(null), 1500);
       batchAbortRef.current = null;
     }
-  }, [selectedIds, photos, t]);
+  }, [selectedIds, photos, t, startPhotoSave]);
 
   // Delete selected photos
   const handleDeleteSelected = useCallback(async () => {
@@ -515,6 +543,12 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
         onNavigate={setLightboxPhoto}
         onDownload={handleDownloadSingle}
         onDelete={handleDeleteFromLightbox}
+      />
+
+      <PhotoSavePanel
+        state={photoSaver.state}
+        onSave={photoSaver.saveNow}
+        onCancel={photoSaver.cancel}
       />
 
       {/* Batch download progress bar */}
