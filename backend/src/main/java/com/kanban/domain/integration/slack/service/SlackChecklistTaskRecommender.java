@@ -7,12 +7,12 @@ import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.global.config.AIProvider;
 import com.kanban.global.config.AIResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -32,7 +32,6 @@ import java.util.Set;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class SlackChecklistTaskRecommender {
 
     /** 추천 버튼 action_id 접두어 — 한 블록 안에서 action_id가 겹치면 안 되므로 뒤에 순번을 붙인다 */
@@ -51,6 +50,27 @@ public class SlackChecklistTaskRecommender {
     private final AIProvider aiProvider;
     private final ObjectMapper objectMapper;
     private final SlackApiClient slackApiClient;
+    private final TransactionTemplate readOnlyTransactionTemplate;
+
+    public SlackChecklistTaskRecommender(TaskRepository taskRepository,
+                                         AIProvider aiProvider,
+                                         ObjectMapper objectMapper,
+                                         SlackApiClient slackApiClient,
+                                         @Qualifier("readOnlyTransactionTemplate") TransactionTemplate readOnlyTransactionTemplate) {
+        this.taskRepository = taskRepository;
+        this.aiProvider = aiProvider;
+        this.objectMapper = objectMapper;
+        this.slackApiClient = slackApiClient;
+        this.readOnlyTransactionTemplate = readOnlyTransactionTemplate;
+    }
+
+    /** 추천 결과 한 건 — 트랜잭션 밖으로 들고 나가는 건 엔티티가 아니라 이 순수 값이다 */
+    record Pick(String id, String title) {
+    }
+
+    /** 트랜잭션 안에서 만든 AI 입력: 후보 목록(번호 순)과 프롬프트에 넣을 카탈로그 문자열 */
+    private record Catalog(List<Pick> candidates, String text) {
+    }
 
     @Value("${ai.provider:claude}")
     private String provider;
@@ -66,13 +86,15 @@ public class SlackChecklistTaskRecommender {
      *
      * @param baseBlocks 이미 게시된 프롬프트 블록 (첫 블록이 안내 섹션, 그 뒤가 액션 블록)
      * @param metadata   프롬프트 metadata — chat.update 시 그대로 다시 실어 인터랙션 복원을 보장한다
+     *
+     * <p>메서드 전체에 트랜잭션을 걸지 않는다 — DB 읽기는 {@link #recommend} 안에서 읽기 전용 트랜잭션으로
+     * 짧게 끝내고, AI 호출(최대 60초)과 Slack API 호출은 커넥션 없이 진행한다.
      */
     @Async
-    @Transactional(readOnly = true)
     public void recommendAndAttach(String botToken, String channelId, String ts, String boardId, String title,
                                    List<Map<String, Object>> baseBlocks, Map<String, Object> metadata) {
         try {
-            List<Task> picks = recommend(boardId, title);
+            List<Pick> picks = recommend(boardId, title);
             if (picks.isEmpty()) {
                 return;
             }
@@ -84,12 +106,12 @@ public class SlackChecklistTaskRecommender {
 
             List<Map<String, Object>> buttons = new ArrayList<>();
             for (int i = 0; i < picks.size(); i++) {
-                Task task = picks.get(i);
+                Pick task = picks.get(i);
                 buttons.add(Map.of("type", "button",
                         "action_id", ACTION_PICK_TASK_PREFIX + i,
                         "text", Map.of("type", "plain_text", "text",
-                                truncate(task.getTitle(), BUTTON_TEXT_MAX_LENGTH)),
-                        "value", task.getId()));
+                                truncate(task.title(), BUTTON_TEXT_MAX_LENGTH)),
+                        "value", task.id()));
             }
 
             List<Map<String, Object>> blocks = new ArrayList<>(baseBlocks.size() + 2);
@@ -112,7 +134,38 @@ public class SlackChecklistTaskRecommender {
      * 보드의 열린 태스크(미분류·완료 제외) 중 항목이 들어가기 알맞은 순으로 최대 3개를 고른다.
      * AI에는 ID 대신 번호를 보여 주고 번호로 돌려받아 존재하지 않는 ID를 지어내는 것을 막는다.
      */
-    List<Task> recommend(String boardId, String title) {
+    List<Pick> recommend(String boardId, String title) {
+        // DB 읽기만 읽기 전용 트랜잭션으로 — 카탈로그 문자열까지 여기서 만들어 엔티티를 밖으로 내보내지 않는다
+        Catalog catalog = readOnlyTransactionTemplate.execute(status -> buildCatalog(boardId));
+        if (catalog == null || catalog.candidates().isEmpty()) {
+            return List.of();
+        }
+
+        String systemPrompt = """
+                You match a new checklist item to the most suitable existing task on a kanban board.
+                Each task is listed as "N. [feature] title (column) — description".
+                Pick up to 3 tasks, best match first, whose scope the checklist item most plausibly belongs to
+                (same feature, same subject, same component). Prefer precision over quantity: return fewer
+                numbers when only one or two tasks are clearly relevant, and return an empty list when nothing fits.
+                Respond with JSON only, no prose: {"picks":[N, N, N]}
+                """;
+        String userPrompt = "Checklist item:\n" + title + "\n\nTasks:\n" + catalog.text();
+
+        // AI 호출 — 트랜잭션 없음
+        String model = "openai".equals(provider) ? openaiModel : claudeModel;
+        AIResponse response = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, MAX_TOKENS, 0.0);
+
+        Set<Integer> picked = parsePicks(response.content(), catalog.candidates().size());
+        List<Pick> result = new ArrayList<>();
+        for (Integer index : picked) {
+            if (result.size() >= MAX_RECOMMENDATIONS) break;
+            result.add(catalog.candidates().get(index - 1));
+        }
+        return result;
+    }
+
+    /** 보드의 열린 태스크(미분류·완료 제외)를 최근 수정 순으로 추려 번호 카탈로그를 만든다. 트랜잭션 안에서 호출. */
+    private Catalog buildCatalog(String boardId) {
         List<Task> candidates = taskRepository.findByBoardIdWithFetch(boardId).stream()
                 .filter(t -> !Boolean.TRUE.equals(t.getIsCompleted()))
                 .filter(t -> t.getFeature() == null || !InboxFeatureService.INBOX_TITLE.equals(t.getFeature().getTitle()))
@@ -123,12 +176,14 @@ public class SlackChecklistTaskRecommender {
                 .limit(MAX_CANDIDATES)
                 .toList();
         if (candidates.isEmpty()) {
-            return List.of();
+            return new Catalog(List.of(), "");
         }
 
         StringBuilder catalog = new StringBuilder();
+        List<Pick> picks = new ArrayList<>(candidates.size());
         for (int i = 0; i < candidates.size(); i++) {
             Task t = candidates.get(i);
+            picks.add(new Pick(t.getId(), t.getTitle()));
             catalog.append(i + 1).append(". ");
             if (t.getFeature() != null) {
                 catalog.append('[').append(t.getFeature().getTitle()).append("] ");
@@ -143,27 +198,7 @@ public class SlackChecklistTaskRecommender {
             }
             catalog.append('\n');
         }
-
-        String systemPrompt = """
-                You match a new checklist item to the most suitable existing task on a kanban board.
-                Each task is listed as "N. [feature] title (column) — description".
-                Pick up to 3 tasks, best match first, whose scope the checklist item most plausibly belongs to
-                (same feature, same subject, same component). Prefer precision over quantity: return fewer
-                numbers when only one or two tasks are clearly relevant, and return an empty list when nothing fits.
-                Respond with JSON only, no prose: {"picks":[N, N, N]}
-                """;
-        String userPrompt = "Checklist item:\n" + title + "\n\nTasks:\n" + catalog;
-
-        String model = "openai".equals(provider) ? openaiModel : claudeModel;
-        AIResponse response = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, MAX_TOKENS, 0.0);
-
-        Set<Integer> picked = parsePicks(response.content(), candidates.size());
-        List<Task> result = new ArrayList<>();
-        for (Integer index : picked) {
-            if (result.size() >= MAX_RECOMMENDATIONS) break;
-            result.add(candidates.get(index - 1));
-        }
-        return result;
+        return new Catalog(picks, catalog.toString());
     }
 
     /**

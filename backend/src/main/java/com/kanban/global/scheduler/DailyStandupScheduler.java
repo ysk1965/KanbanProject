@@ -18,7 +18,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.*;
@@ -36,100 +36,127 @@ public class DailyStandupScheduler {
     private final MemberSlackWebhookRepository webhookRepository;
     private final BoardMemberRepository boardMemberRepository;
     private final RestTemplate restTemplate;
+    private final TransactionTemplate transactionTemplate;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
+    /**
+     * 매분 실행. 메서드 전체에 트랜잭션을 걸지 않는다 — 예전에는 모든 보드의 AI 호출·Slack 발송이 하나의
+     * 트랜잭션 안에서 돌아 보드 수 × LLM 왕복 동안 커넥션을 쥐고 있었다. 지금은 보드마다
+     * 읽기(tx) → AI·Slack(트랜잭션 없음) → 발송 표시(tx)로 나눈다.
+     */
     @Scheduled(cron = "0 * * * * *")
     @SchedulerLock(name = "DailyStandupScheduler.processStandups", lockAtMostFor = "50s", lockAtLeastFor = "20s")
-    @Transactional
     public void processStandups() {
         LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
         int currentHour = nowUtc.getHour();
         int currentMinute = nowUtc.getMinute();
 
-        List<DailyStandupConfig> configs =
-                configRepository.findEnabledByUtcTime(currentHour, currentMinute);
+        List<String> configIds = transactionTemplate.execute(status ->
+                configRepository.findEnabledByUtcTime(currentHour, currentMinute).stream()
+                        .map(DailyStandupConfig::getId)
+                        .toList());
 
-        if (configs.isEmpty()) {
+        if (configIds == null || configIds.isEmpty()) {
             return;
         }
 
         log.info("Daily standup: processing {} board(s) at {:02d}:{:02d} UTC",
-                configs.size(), currentHour, currentMinute);
+                configIds.size(), currentHour, currentMinute);
 
-        for (DailyStandupConfig config : configs) {
+        for (String configId : configIds) {
             try {
-                processOneBoard(config, nowUtc);
+                processOneBoard(configId, nowUtc);
             } catch (Exception e) {
-                log.error("Failed to process standup for board {}: {}",
-                        config.getBoard().getId(), e.getMessage(), e);
+                log.error("Failed to process standup for config {}: {}", configId, e.getMessage(), e);
             }
         }
     }
 
-    private void processOneBoard(DailyStandupConfig config, LocalDateTime nowUtc) {
-        Board board = config.getBoard();
+    /** 트랜잭션 안에서 읽어 둔 값 — AI·Slack 단계는 이 순수 값만 쓴다 */
+    private record StandupInput(String boardId, String language, String timezone,
+                                String dataJson, List<String> webhookUrls) {
+    }
 
-        // Premium 상태 확인
-        board.checkAndUpdateTierIfTrialExpired();
-        if (!board.canAccessSlack()) {
-            log.info("Skipping standup for board {} - not premium", board.getId());
+    private void processOneBoard(String configId, LocalDateTime nowUtc) {
+        // 1. 보드 상태 확인 + 데이터 수집 (tx) — 트라이얼 만료 티어 갱신은 더티체킹으로 여기서 커밋된다
+        StandupInput input = transactionTemplate.execute(status -> {
+            DailyStandupConfig config = configRepository.findById(configId).orElse(null);
+            if (config == null) {
+                return null;
+            }
+            Board board = config.getBoard();
+
+            // Premium 상태 확인
+            board.checkAndUpdateTierIfTrialExpired();
+            if (!board.canAccessSlack()) {
+                log.info("Skipping standup for board {} - not premium", board.getId());
+                return null;
+            }
+
+            // 중복 발송 방지 (2분 이내)
+            if (config.getLastSentAt() != null) {
+                Duration sinceLastSent = Duration.between(config.getLastSentAt(), nowUtc);
+                if (sinceLastSent.toMinutes() < 2) {
+                    return null;
+                }
+            }
+
+            // 데이터 수집
+            String dataJson = standupService.gatherBoardWideStandupData(config);
+
+            // 발송 대상 웹훅 (BoardMember.user는 LAZY — 여기서 URL 문자열로 뽑아둔다)
+            List<BoardMember> members = boardMemberRepository.findByBoardId(board.getId());
+            List<String> memberUserIds = members.stream()
+                    .map(m -> m.getUser().getId())
+                    .toList();
+            List<String> webhookUrls = webhookRepository
+                    .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), memberUserIds).stream()
+                    .map(MemberSlackWebhook::getWebhookUrl)
+                    .toList();
+
+            return new StandupInput(board.getId(), config.getLanguage(), config.getTimezone(), dataJson, webhookUrls);
+        });
+        if (input == null) {
             return;
         }
 
-        // 중복 발송 방지 (2분 이내)
-        if (config.getLastSentAt() != null) {
-            Duration sinceLastSent = Duration.between(config.getLastSentAt(), nowUtc);
-            if (sinceLastSent.toMinutes() < 2) {
-                return;
-            }
-        }
-
-        // 1. 데이터 수집
-        String dataJson = standupService.gatherBoardWideStandupData(config);
-
-        ZoneId boardZone = ZoneId.of(config.getTimezone());
+        String boardId = input.boardId();
+        ZoneId boardZone = ZoneId.of(input.timezone());
         LocalDate yesterday = ZonedDateTime.now(boardZone).toLocalDate().minusDays(1);
 
         // 2. 활동 없으면 AI 호출 생략, 간단 메시지 발송
         Map<String, Object> payload;
-        if (dataJson == null) {
-            log.info("No activity yesterday for board {} - sending empty notice", board.getId());
-            boolean isKo = config.getLanguage() == null || config.getLanguage().startsWith("ko");
+        if (input.dataJson() == null) {
+            log.info("No activity yesterday for board {} - sending empty notice", boardId);
+            boolean isKo = input.language() == null || input.language().startsWith("ko");
             String noActivityMsg = isKo
                     ? "어제는 기록된 활동이 없습니다."
                     : "No activity was recorded yesterday.";
-            payload = buildSlackPayload(board, noActivityMsg, yesterday, config.getLanguage());
+            payload = buildSlackPayload(boardId, noActivityMsg, yesterday, input.language());
         } else {
-            // 3. AI 요약 생성 (크레딧 차감 포함)
-            String summary = reportAIService.generateStandupSummary(dataJson, config.getLanguage(), board.getId(), null);
-            payload = buildSlackPayload(board, summary, yesterday, config.getLanguage());
+            // 3. AI 요약 생성 (크레딧 차감 포함) — 트랜잭션 없음
+            String summary = reportAIService.generateStandupSummary(input.dataJson(), input.language(), boardId, null);
+            payload = buildSlackPayload(boardId, summary, yesterday, input.language());
         }
 
-        // 4. Slack 발송 (활성화된 모든 멤버)
-        List<BoardMember> members = boardMemberRepository.findByBoardId(board.getId());
-        List<String> memberUserIds = members.stream()
-                .map(m -> m.getUser().getId())
-                .toList();
-
-        List<MemberSlackWebhook> webhooks = webhookRepository
-                .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), memberUserIds);
-
-        if (webhooks.isEmpty()) {
-            log.info("No active Slack webhooks for board {} - skipping delivery", board.getId());
+        // 4. Slack 발송 (활성화된 모든 멤버) — 트랜잭션 없음
+        if (input.webhookUrls().isEmpty()) {
+            log.info("No active Slack webhooks for board {} - skipping delivery", boardId);
         } else {
-            sendToWebhooks(webhooks, payload, board.getId());
-            log.info("Daily standup sent to {} webhook(s) for board {}", webhooks.size(), board.getId());
+            sendToWebhooks(input.webhookUrls(), payload, boardId);
+            log.info("Daily standup sent to {} webhook(s) for board {}", input.webhookUrls().size(), boardId);
         }
 
-        // 5. 발송 완료 표시
-        config.markSent();
+        // 5. 발송 완료 표시 (tx)
+        transactionTemplate.executeWithoutResult(status ->
+                configRepository.findById(configId).ifPresent(DailyStandupConfig::markSent));
     }
 
-    private Map<String, Object> buildSlackPayload(Board board, String summary,
+    private Map<String, Object> buildSlackPayload(String boardId, String summary,
                                                     LocalDate date, String language) {
-        String boardUrl = frontendUrl + "/boards/" + board.getId();
+        String boardUrl = frontendUrl + "/boards/" + boardId;
         String dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE);
         boolean isKo = language == null || language.startsWith("ko");
 
@@ -177,14 +204,14 @@ public class DailyStandupScheduler {
         return Map.of("blocks", blocks);
     }
 
-    private void sendToWebhooks(List<MemberSlackWebhook> webhooks,
+    private void sendToWebhooks(List<String> webhookUrls,
                                  Map<String, Object> payload, String boardId) {
-        for (MemberSlackWebhook webhook : webhooks) {
+        for (String webhookUrl : webhookUrls) {
             try {
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
                 HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
-                restTemplate.postForEntity(webhook.getWebhookUrl(), entity, String.class);
+                restTemplate.postForEntity(webhookUrl, entity, String.class);
             } catch (Exception e) {
                 log.warn("Failed to send standup to webhook for board {}: {}",
                         boardId, e.getMessage());

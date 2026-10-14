@@ -24,11 +24,8 @@ import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
-import com.kanban.domain.monitoring.entity.AiUsageLog;
-import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
-import com.kanban.domain.subscription.service.AiCreditService;
-import com.kanban.global.config.AIProvider;
-import com.kanban.global.config.AIResponse;
+import com.kanban.global.ai.AiInvocationRequest;
+import com.kanban.global.ai.AiInvocationTemplate;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.websocket.WebSocketEventService;
@@ -39,6 +36,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -48,7 +46,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MeetingAIService {
 
-    private final AIProvider aiProvider;
+    private final AiInvocationTemplate aiInvocationTemplate;
+    private final TransactionTemplate transactionTemplate;
     private final ObjectMapper objectMapper;
     private final MeetingRepository meetingRepository;
     private final FeatureRepository featureRepository;
@@ -59,8 +58,6 @@ public class MeetingAIService {
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final ActivityService activityService;
-    private final AiUsageLogRepository aiUsageLogRepository;
-    private final AiCreditService aiCreditService;
     private final WebSocketEventService webSocketEventService;
 
     @Value("${ai.provider:claude}")
@@ -78,79 +75,81 @@ public class MeetingAIService {
         return "openai".equals(provider) ? openaiMeetingModel : claudeMeetingModel;
     }
 
-    @Transactional
+    /**
+     * 트랜잭션 밖에서 실행된다 — 입력 읽기와 결과 저장은 {@code transactionTemplate}으로 각각 짧게 묶고,
+     * LLM 호출은 {@link AiInvocationTemplate}이 트랜잭션 없이 수행한다(크레딧 차감·사용량 로그는 각자 짧은 트랜잭션).
+     */
     public MeetingAIResponse.Suggestions generateSuggestions(String boardId, String meetingId, String userId, String language) {
-        // Consume AI credit before processing
-        aiCreditService.consumeCredit(boardId, userId, "MEETING_AI", 1);
+        // 1. 입력 읽기 (tx) — Meeting.board는 LAZY, 보드 컨텍스트 JSON도 여기서 문자열로 만든다
+        PromptInput input = transactionTemplate.execute(status -> {
+            boardService.checkMemberOrAbove(boardId, userId);
 
-        boardService.checkMemberOrAbove(boardId, userId);
+            Meeting meeting = meetingRepository.findById(meetingId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
 
-        Meeting meeting = meetingRepository.findById(meetingId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
+            if (!meeting.getBoard().getId().equals(boardId)) {
+                throw new BusinessException(ErrorCode.MEETING_NOT_FOUND);
+            }
 
-        if (!meeting.getBoard().getId().equals(boardId)) {
-            throw new BusinessException(ErrorCode.MEETING_NOT_FOUND);
-        }
+            String memo = meeting.getMemo();
+            String transcript = meeting.getTranscript();
 
-        String memo = meeting.getMemo();
-        String transcript = meeting.getTranscript();
+            String combinedContent = "";
+            if (memo != null && !memo.isBlank()) {
+                combinedContent += memo;
+            }
+            if (transcript != null && !transcript.isBlank()) {
+                if (!combinedContent.isEmpty()) combinedContent += "\n\n---\n\n";
+                combinedContent += "[Transcript]\n" + transcript;
+            }
+            if (combinedContent.isBlank()) {
+                throw new BusinessException(ErrorCode.AI_MEETING_MEMO_EMPTY);
+            }
 
-        String combinedContent = "";
-        if (memo != null && !memo.isBlank()) {
-            combinedContent += memo;
-        }
-        if (transcript != null && !transcript.isBlank()) {
-            if (!combinedContent.isEmpty()) combinedContent += "\n\n---\n\n";
-            combinedContent += "[Transcript]\n" + transcript;
-        }
-        if (combinedContent.isBlank()) {
-            throw new BusinessException(ErrorCode.AI_MEETING_MEMO_EMPTY);
-        }
+            List<Feature> existingFeatures = featureRepository.findByBoardIdOrderByPositionAsc(boardId);
+            Map<String, List<Task>> featureTasksMap = new LinkedHashMap<>();
+            for (Feature f : existingFeatures) {
+                List<Task> tasks = taskRepository.findByFeatureIdOrderByPositionAsc(f.getId());
+                featureTasksMap.put(f.getId(), tasks);
+            }
 
-        List<Feature> existingFeatures = featureRepository.findByBoardIdOrderByPositionAsc(boardId);
-        Map<String, List<Task>> featureTasksMap = new LinkedHashMap<>();
-        for (Feature f : existingFeatures) {
-            List<Task> tasks = taskRepository.findByFeatureIdOrderByPositionAsc(f.getId());
-            featureTasksMap.put(f.getId(), tasks);
-        }
+            String boardContext = buildBoardContextJson(existingFeatures, featureTasksMap);
+            return new PromptInput(meeting.getTitle(),
+                    buildSystemPrompt(language),
+                    buildUserPrompt(meeting.getTitle(), combinedContent, boardContext));
+        });
 
-        String boardContext = buildBoardContextJson(existingFeatures, featureTasksMap);
-        String systemPrompt = buildSystemPrompt(language);
-        String userPrompt = buildUserPrompt(meeting.getTitle(), combinedContent, boardContext);
-
+        // 2. 크레딧 차감 → AI 호출 → 사용량 로그 → 파싱 (트랜잭션 없음)
         log.info("Generating AI suggestions for meeting: {} in board: {}", meetingId, boardId);
-        String model = getMeetingModel();
-        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, MAX_TOKENS_MEETING);
+        AiInvocationRequest request = AiInvocationRequest.builder()
+                .boardId(boardId).userId(userId)
+                .featureType("MEETING").creditCost(1)
+                .systemPrompt(input.systemPrompt()).userPrompt(input.userPrompt())
+                .model(getMeetingModel()).maxTokens(MAX_TOKENS_MEETING)
+                .build();
+        MeetingAIResponse.Suggestions suggestions = aiInvocationTemplate.invoke(request,
+                content -> parseAIResponse(content, meetingId, input.meetingTitle()));
 
-        try {
-            aiUsageLogRepository.save(AiUsageLog.builder()
-                    .boardId(boardId).userId(userId)
-                    .featureType("MEETING").provider(provider.toUpperCase())
-                    .model(model)
-                    .inputTokens(aiResult.inputTokens())
-                    .outputTokens(aiResult.outputTokens())
-                    .estimatedCostUsd(AiUsageLog.calculateCost(model, aiResult.inputTokens(), aiResult.outputTokens()))
-                    .build());
-        } catch (Exception e) {
-            log.debug("Failed to save AI usage log: {}", e.getMessage());
-        }
+        // 3. 결과 저장 (tx) — 미팅에 AI 제안을 남겨 다시 열어도 보이게 한다
+        String userName = transactionTemplate.execute(status -> {
+            meetingRepository.findById(meetingId).ifPresent(meeting -> {
+                try {
+                    meeting.updateAiSuggestions(objectMapper.writeValueAsString(suggestions));
+                } catch (JsonProcessingException e) {
+                    log.warn("Failed to serialize AI suggestions for meeting: {}", meetingId, e);
+                }
+            });
+            return userRepository.findById(userId).map(User::getName).orElse(null);
+        });
 
-        MeetingAIResponse.Suggestions suggestions = parseAIResponse(aiResult.content(), meetingId, meeting.getTitle());
-
-        // Save AI suggestions to meeting for persistence
-        try {
-            String suggestionsJson = objectMapper.writeValueAsString(suggestions);
-            meeting.updateAiSuggestions(suggestionsJson);
-        } catch (JsonProcessingException e) {
-            log.warn("Failed to serialize AI suggestions for meeting: {}", meetingId, e);
-        }
-
-        // Broadcast WebSocket event so other users see the AI summary in real-time
-        User user = userRepository.findById(userId).orElse(null);
+        // 4. Broadcast WebSocket event so other users see the AI summary in real-time
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEETING_UPDATED,
-                userId, user != null ? user.getName() : null, Map.of("meetingId", meetingId));
+                userId, userName, Map.of("meetingId", meetingId));
 
         return suggestions;
+    }
+
+    private record PromptInput(String meetingTitle, String systemPrompt, String userPrompt) {
     }
 
     @Transactional
@@ -439,8 +438,7 @@ public class MeetingAIService {
 
     private MeetingAIResponse.Suggestions parseAIResponse(String aiResponse, String meetingId, String meetingTitle) {
         try {
-            String json = extractJson(aiResponse);
-            JsonNode root = objectMapper.readTree(json);
+            JsonNode root = aiInvocationTemplate.readJsonTree(aiResponse);
 
             // Parse key_points
             List<String> keyPoints = new ArrayList<>();
@@ -525,84 +523,6 @@ public class MeetingAIService {
             log.error("Failed to parse AI response for meeting: {}", meetingId, e);
             throw new BusinessException(ErrorCode.AI_MEETING_PARSE_FAILED);
         }
-    }
-
-    private String extractJson(String response) {
-        if (response == null) return "{}";
-        String trimmed = response.trim();
-
-        // Strip markdown code fences if present
-        if (trimmed.startsWith("```")) {
-            int firstNewline = trimmed.indexOf('\n');
-            int lastFence = trimmed.lastIndexOf("```");
-            if (firstNewline > 0 && lastFence > firstNewline) {
-                trimmed = trimmed.substring(firstNewline + 1, lastFence).trim();
-            }
-        }
-
-        // Find first { and last }
-        int start = trimmed.indexOf('{');
-        int end = trimmed.lastIndexOf('}');
-        if (start >= 0 && end > start) {
-            return trimmed.substring(start, end + 1);
-        }
-
-        // Truncated JSON recovery: close unclosed brackets/braces
-        if (start >= 0) {
-            String partial = trimmed.substring(start);
-            log.warn("Attempting truncated JSON recovery ({} chars)", partial.length());
-            partial = repairTruncatedJson(partial);
-            return partial;
-        }
-
-        return trimmed;
-    }
-
-    /**
-     * 토큰 제한으로 잘린 JSON을 복구: 열린 괄호/배열을 닫아줌
-     */
-    private String repairTruncatedJson(String json) {
-        // Remove trailing incomplete string/value (cut at last complete token)
-        int lastComplete = -1;
-        for (int i = json.length() - 1; i >= 0; i--) {
-            char c = json.charAt(i);
-            if (c == ',' || c == '{' || c == '[' || c == ':' || c == '"'
-                    || c == '}' || c == ']') {
-                lastComplete = i;
-                break;
-            }
-        }
-        if (lastComplete > 0) {
-            char lastChar = json.charAt(lastComplete);
-            // Trim trailing comma or colon (incomplete entry)
-            if (lastChar == ',' || lastChar == ':') {
-                json = json.substring(0, lastComplete);
-            } else if (lastChar == '"') {
-                // Check if inside an unclosed string — close it
-                json = json.substring(0, lastComplete + 1);
-            } else {
-                json = json.substring(0, lastComplete + 1);
-            }
-        }
-
-        // Count open brackets and close them
-        int braces = 0, brackets = 0;
-        boolean inString = false;
-        for (int i = 0; i < json.length(); i++) {
-            char c = json.charAt(i);
-            if (c == '\\' && inString) { i++; continue; }
-            if (c == '"') { inString = !inString; continue; }
-            if (inString) continue;
-            if (c == '{') braces++;
-            else if (c == '}') braces--;
-            else if (c == '[') brackets++;
-            else if (c == ']') brackets--;
-        }
-
-        StringBuilder sb = new StringBuilder(json);
-        while (brackets > 0) { sb.append(']'); brackets--; }
-        while (braces > 0) { sb.append('}'); braces--; }
-        return sb.toString();
     }
 
     private List<String> parseStringArray(JsonNode node, String field) {

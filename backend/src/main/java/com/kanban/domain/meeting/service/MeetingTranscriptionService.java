@@ -10,6 +10,7 @@ import com.kanban.domain.meeting.dto.MeetingResponse;
 import com.kanban.domain.monitoring.entity.AiUsageLog;
 import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
 import com.kanban.domain.subscription.service.AiCreditService;
+import com.kanban.global.ai.AiInvocationTemplate;
 import com.kanban.global.config.AIProvider;
 import com.kanban.global.config.AIResponse;
 import com.kanban.global.config.AiApiKeyResolver;
@@ -300,24 +301,7 @@ public class MeetingTranscriptionService {
     }
 
     private String extractJson(String response) {
-        if (response == null) return "{}";
-        String trimmed = response.trim();
-
-        if (trimmed.startsWith("```")) {
-            int firstNewline = trimmed.indexOf('\n');
-            int lastFence = trimmed.lastIndexOf("```");
-            if (firstNewline > 0 && lastFence > firstNewline) {
-                trimmed = trimmed.substring(firstNewline + 1, lastFence).trim();
-            }
-        }
-
-        int start = trimmed.indexOf('{');
-        int end = trimmed.lastIndexOf('}');
-        if (start >= 0 && end > start) {
-            return trimmed.substring(start, end + 1);
-        }
-
-        return trimmed;
+        return AiInvocationTemplate.extractJson(response);
     }
 
     private List<WhisperSegment> splitAndTranscribe(byte[] audioBytes, String originalFilename,

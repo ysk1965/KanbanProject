@@ -5,7 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.monitoring.entity.AiUsageLog;
 import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
 import com.kanban.domain.report.ReportType;
-import com.kanban.domain.subscription.service.AiCreditService;
+import com.kanban.global.ai.AiInvocationRequest;
+import com.kanban.global.ai.AiInvocationTemplate;
 import com.kanban.global.config.AIProvider;
 import com.kanban.global.config.AIResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -39,7 +40,7 @@ public class ReportAIService {
 
     private final AIProvider aiProvider;
     private final AiUsageLogRepository aiUsageLogRepository;
-    private final AiCreditService aiCreditService;
+    private final AiInvocationTemplate aiInvocationTemplate;
     private final ObjectMapper objectMapper;
     private final ReportModelCatalog modelCatalog;
 
@@ -87,11 +88,11 @@ public class ReportAIService {
     private static final int MAX_TOKENS_AUTO_WEEKLY = 4096;
 
     public ReportAIService(AIProvider aiProvider, AiUsageLogRepository aiUsageLogRepository,
-                           AiCreditService aiCreditService, ObjectMapper objectMapper,
+                           AiInvocationTemplate aiInvocationTemplate, ObjectMapper objectMapper,
                            ReportModelCatalog modelCatalog) {
         this.aiProvider = aiProvider;
         this.aiUsageLogRepository = aiUsageLogRepository;
-        this.aiCreditService = aiCreditService;
+        this.aiInvocationTemplate = aiInvocationTemplate;
         this.objectMapper = objectMapper;
         this.modelCatalog = modelCatalog;
     }
@@ -477,13 +478,16 @@ public class ReportAIService {
         return generateReport(reportType, dataJson, language, null, null);
     }
 
+    /**
+     * 사용자 주도 보고서 생성. {@link AiInvocationTemplate}을 거치므로 <b>활성 트랜잭션 없이</b> 불러야 한다 —
+     * 크레딧 차감·사용량 로그는 각자 짧은 트랜잭션으로 커밋되고, LLM 호출 자체는 트랜잭션 밖에서 돈다.
+     * 호출이 실패하면 차감한 크레딧은 돌려준다.
+     */
     public String generateReport(ReportType reportType, String dataJson, String language, String boardId, String userId) {
         String featureType = reportType == ReportType.TEAM ? "REPORT_TEAM" : "REPORT_PERSONAL";
 
-        // Consume AI credit before processing (only for user-initiated calls with boardId)
-        if (boardId != null && userId != null) {
-            aiCreditService.consumeCredit(boardId, userId, featureType, 1);
-        }
+        // Consume AI credit (only for user-initiated calls with boardId)
+        boolean consumeCredit = boardId != null && userId != null;
 
         String systemPrompt = buildSystemPrompt(reportType, language);
         String userPrompt = buildUserPrompt(reportType, dataJson, language);
@@ -491,22 +495,26 @@ public class ReportAIService {
         String model = reportType == ReportType.TEAM ? getTeamModel() : getPersonalModel();
 
         log.info("Generating {} report via AI provider (language: {})", reportType, language);
-        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, maxTokens, REPORT_TEMPERATURE);
-
-        logAiUsage(featureType, model, boardId, userId, aiResult);
-        return aiResult.content();
+        AiInvocationRequest request = AiInvocationRequest.builder()
+                .boardId(boardId).userId(userId)
+                .featureType(featureType)
+                .creditScope(consumeCredit ? AiInvocationRequest.CreditScope.BOARD : AiInvocationRequest.CreditScope.NONE)
+                .creditCost(1)
+                .systemPrompt(systemPrompt).userPrompt(userPrompt)
+                .model(model).maxTokens(maxTokens).temperature(REPORT_TEMPERATURE)
+                .build();
+        return aiInvocationTemplate.chat(request).content();
     }
 
     public String generateStandupSummary(String dataJson, String language) {
         return generateStandupSummary(dataJson, language, null, null);
     }
 
+    /**
+     * 데일리 스탠드업 요약. {@link AiInvocationTemplate}을 거치므로 <b>활성 트랜잭션 없이</b> 불러야 한다.
+     * boardId가 있으면 크레딧 1을 차감하고(userId는 스케줄러 호출이면 null), 실패 시 돌려준다.
+     */
     public String generateStandupSummary(String dataJson, String language, String boardId, String userId) {
-        // Consume AI credit before processing (boardId required, userId nullable for scheduled calls)
-        if (boardId != null) {
-            aiCreditService.consumeCredit(boardId, userId, "STANDUP", 1);
-        }
-
         String lang = language != null ? language : "ko";
         String systemPrompt = buildStandupSystemPrompt(lang);
         String userPrompt = "ko".equals(lang)
@@ -515,10 +523,15 @@ public class ReportAIService {
 
         String model = getStandupModel();
         log.info("Generating standup summary via AI provider (language: {})", lang);
-        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, MAX_TOKENS_STANDUP, REPORT_TEMPERATURE);
-
-        logAiUsage("STANDUP", model, boardId, userId, aiResult);
-        return aiResult.content();
+        AiInvocationRequest request = AiInvocationRequest.builder()
+                .boardId(boardId).userId(userId)
+                .featureType("STANDUP")
+                .creditScope(boardId != null ? AiInvocationRequest.CreditScope.BOARD : AiInvocationRequest.CreditScope.NONE)
+                .creditCost(1)
+                .systemPrompt(systemPrompt).userPrompt(userPrompt)
+                .model(model).maxTokens(MAX_TOKENS_STANDUP).temperature(REPORT_TEMPERATURE)
+                .build();
+        return aiInvocationTemplate.chat(request).content();
     }
 
     /**

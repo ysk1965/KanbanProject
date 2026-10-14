@@ -2,25 +2,21 @@ package com.kanban.domain.comment.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.comment.Comment;
 import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.comment.dto.CommentAIResponse;
-import com.kanban.domain.monitoring.entity.AiUsageLog;
-import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
-import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
-import com.kanban.global.config.AIProvider;
-import com.kanban.global.config.AIResponse;
+import com.kanban.global.ai.AiInvocationRequest;
+import com.kanban.global.ai.AiInvocationTemplate;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -32,13 +28,11 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CommentAIService {
 
-    private final AIProvider aiProvider;
-    private final ObjectMapper objectMapper;
+    private final AiInvocationTemplate aiInvocationTemplate;
+    private final TransactionTemplate transactionTemplate;
     private final CommentRepository commentRepository;
     private final TaskRepository taskRepository;
     private final BoardService boardService;
-    private final AiUsageLogRepository aiUsageLogRepository;
-    private final AiCreditService aiCreditService;
 
     @Value("${ai.provider:claude}")
     private String provider;
@@ -70,49 +64,49 @@ public class CommentAIService {
             Map.entry("pt-BR", "Portuguese (Brazil)")
     );
 
-    @Transactional
+    /**
+     * 트랜잭션 밖에서 실행된다 — 댓글 읽기는 {@code transactionTemplate}으로 짧게 묶고, LLM 호출은
+     * {@link AiInvocationTemplate}이 트랜잭션 없이 수행한다(크레딧 차감·사용량 로그는 각자 짧은 트랜잭션).
+     */
     public CommentAIResponse.Summary summarizeComments(
             String boardId, String taskId, String userId, String language) {
 
-        aiCreditService.consumeCredit(boardId, userId, "COMMENT_SUMMARY", 1);
-        boardService.checkMemberOrAbove(boardId, userId);
+        // 1. 입력 읽기 (tx) — Comment.author는 LAZY라 본문 텍스트까지 여기서 만든다
+        PromptInput input = transactionTemplate.execute(status -> {
+            boardService.checkMemberOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+            Task task = taskRepository.findById(taskId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
-        List<Comment> comments = commentRepository.findByTaskIdWithAuthor(taskId);
-        if (comments.size() < MIN_COMMENTS) {
-            throw new BusinessException(ErrorCode.AI_COMMENT_INSUFFICIENT);
-        }
+            List<Comment> comments = commentRepository.findByTaskIdWithAuthor(taskId);
+            if (comments.size() < MIN_COMMENTS) {
+                throw new BusinessException(ErrorCode.AI_COMMENT_INSUFFICIENT);
+            }
 
-        // Limit to most recent comments
-        if (comments.size() > MAX_COMMENTS) {
-            comments = comments.subList(comments.size() - MAX_COMMENTS, comments.size());
-        }
+            // Limit to most recent comments
+            if (comments.size() > MAX_COMMENTS) {
+                comments = comments.subList(comments.size() - MAX_COMMENTS, comments.size());
+            }
 
-        String commentsText = buildCommentsText(comments);
-        String systemPrompt = buildSystemPrompt(language);
-        String userPrompt = buildUserPrompt(task.getTitle(), commentsText);
+            String commentsText = buildCommentsText(comments);
+            return new PromptInput(comments.size(),
+                    buildSystemPrompt(language),
+                    buildUserPrompt(task.getTitle(), commentsText));
+        });
 
+        // 2. 크레딧 차감 → AI 호출 → 사용량 로그 → 파싱 (트랜잭션 없음)
         log.info("Generating AI comment summary for task: {} in board: {} ({} comments)",
-                taskId, boardId, comments.size());
-        String model = getModel();
-        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, MAX_TOKENS);
+                taskId, boardId, input.commentCount());
+        AiInvocationRequest request = AiInvocationRequest.builder()
+                .boardId(boardId).userId(userId)
+                .featureType("COMMENT_SUMMARY").creditCost(1)
+                .systemPrompt(input.systemPrompt()).userPrompt(input.userPrompt())
+                .model(getModel()).maxTokens(MAX_TOKENS)
+                .build();
+        return aiInvocationTemplate.invoke(request, content -> parseAIResponse(content, taskId));
+    }
 
-        try {
-            aiUsageLogRepository.save(AiUsageLog.builder()
-                    .boardId(boardId).userId(userId)
-                    .featureType("COMMENT_SUMMARY").provider(provider.toUpperCase())
-                    .model(model)
-                    .inputTokens(aiResult.inputTokens())
-                    .outputTokens(aiResult.outputTokens())
-                    .estimatedCostUsd(AiUsageLog.calculateCost(model, aiResult.inputTokens(), aiResult.outputTokens()))
-                    .build());
-        } catch (Exception e) {
-            log.debug("Failed to save AI usage log: {}", e.getMessage());
-        }
-
-        return parseAIResponse(aiResult.content(), taskId);
+    private record PromptInput(int commentCount, String systemPrompt, String userPrompt) {
     }
 
     private String buildSystemPrompt(String language) {
@@ -196,8 +190,7 @@ public class CommentAIService {
 
     private CommentAIResponse.Summary parseAIResponse(String aiResponse, String taskId) {
         try {
-            String json = extractJson(aiResponse);
-            JsonNode root = objectMapper.readTree(json);
+            JsonNode root = aiInvocationTemplate.readJsonTree(aiResponse);
 
             String summary = getTextOrNull(root, "summary");
             List<String> decisions = parseStringArray(root, "decisions");
@@ -226,27 +219,6 @@ public class CommentAIService {
             log.error("Failed to parse AI response for task comments: {}", taskId, e);
             throw new BusinessException(ErrorCode.AI_COMMENT_SUMMARY_FAILED);
         }
-    }
-
-    private String extractJson(String response) {
-        if (response == null) return "{}";
-        String trimmed = response.trim();
-
-        if (trimmed.startsWith("```")) {
-            int firstNewline = trimmed.indexOf('\n');
-            int lastFence = trimmed.lastIndexOf("```");
-            if (firstNewline > 0 && lastFence > firstNewline) {
-                trimmed = trimmed.substring(firstNewline + 1, lastFence).trim();
-            }
-        }
-
-        int start = trimmed.indexOf('{');
-        int end = trimmed.lastIndexOf('}');
-        if (start >= 0 && end > start) {
-            return trimmed.substring(start, end + 1);
-        }
-
-        return trimmed;
     }
 
     private List<String> parseStringArray(JsonNode node, String field) {
