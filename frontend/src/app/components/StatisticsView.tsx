@@ -1523,7 +1523,7 @@ function TeamProductivityView({
           icon={Target}
           label={t("statistics.avgTaskPerMember")}
           value={t("statistics.countTasks", {
-            count: teamStats.avgTasksPerMember.toFixed(1),
+            count: Number(teamStats.avgTasksPerMember.toFixed(1)),
           })}
           subValue={t("statistics.perMemberAllocation")}
           accentColor="violet-500"

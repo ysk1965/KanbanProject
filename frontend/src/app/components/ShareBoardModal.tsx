@@ -13,8 +13,8 @@ import {
 import { Badge } from './ui/badge';
 import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Loader2, Pipette, Users, Settings, GripVertical, Sparkles, Building2, Search, ArrowRightLeft, Briefcase } from 'lucide-react';
 import { ColorPickerPopover } from './ui/ColorPickerPopover';
-import { InviteLink, slackWebhookAPI, SlackWebhookMemberStatus, discordAPI, DiscordMemberStatus, githubAPI, GithubUserCheck } from '../utils/api';
-import { AiCredits, JobRole, JobRoleInfo, OrgBoardCandidate } from '../types';
+import { slackWebhookAPI, SlackWebhookMemberStatus, discordAPI, DiscordMemberStatus, githubAPI, GithubUserCheck } from '../utils/api';
+import { AiCredits, InviteLink, JobRole, JobRoleInfo, OrgBoardCandidate } from '../types';
 import { FEATURE_COLORS } from '../constants';
 import { ASSIGNEE_COLOR_NAMES, getAssigneeClasses, getAssigneeHex, getInitials } from '../utils/assigneeColor';
 import { memberService } from '../utils/services';

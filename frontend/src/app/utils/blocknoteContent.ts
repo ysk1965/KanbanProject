@@ -101,7 +101,7 @@ function dataUriToFile(dataUri: string, fallbackName: string): File | null {
     const mime = match[1] || "image/png";
     const isBase64 = !!match[2];
     const data = match[3];
-    let bytes: Uint8Array;
+    let bytes: Uint8Array<ArrayBuffer>;
     if (isBase64) {
       const bin = atob(data);
       bytes = new Uint8Array(bin.length);

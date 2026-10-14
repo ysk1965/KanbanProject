@@ -57,7 +57,7 @@ export function useBoardModals() {
   // Tier & Limits 모달 상태
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [upgradeTrigger, setUpgradeTrigger] =
-    useState<UpgradeTrigger>("task_limit");
+    useState<UpgradeTrigger>("trial_ending");
   const [seatPurchaseModal, setSeatPurchaseModal] =
     useState<SeatPurchaseModalState | null>(null);
   const [orgSeatLimitModal, setOrgSeatLimitModal] =

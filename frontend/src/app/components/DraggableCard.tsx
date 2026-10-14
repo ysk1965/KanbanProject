@@ -207,9 +207,15 @@ export const DraggableCard = memo(function DraggableCard({
         title: item.title,
         completed: item.completed,
         position: item.position,
+        start_date: item.start_date,
         due_date: item.due_date,
+        done_date: item.done_date,
         assignee: item.assignee
-          ? { id: item.assignee.id, name: item.assignee.name }
+          ? {
+              id: item.assignee.id,
+              name: item.assignee.name,
+              profile_image: item.assignee.profile_image,
+            }
           : null,
       }));
       setLocalChecklistItems(items);

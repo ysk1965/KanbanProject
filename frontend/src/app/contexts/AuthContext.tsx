@@ -20,6 +20,7 @@ interface User {
   theme?: "dark" | "light";
   provider?: "email" | "google";
   system_role?: "USER" | "TESTER" | "ADMIN";
+  personal_space_enabled?: boolean;
 }
 
 interface AuthContextType {

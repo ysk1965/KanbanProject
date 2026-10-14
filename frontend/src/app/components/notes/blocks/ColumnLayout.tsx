@@ -81,7 +81,8 @@ export const ColumnLayout = createReactBlockSpec(
     parse: (el) => {
       if (el.getAttribute("data-block-type") === "columnLayout") {
         const cols = parseInt(el.getAttribute("data-columns") || "2", 10);
-        return { columns: cols === 3 ? 3 : 2 };
+        const columns: 2 | 3 = cols === 3 ? 3 : 2;
+        return { columns };
       }
       return undefined;
     },

@@ -184,7 +184,7 @@ export function CelebrationModal({
         <span className="text-xs text-slate-500">Esc {t('common.close', 'Close')}</span>
         {messages.length > 0 && (
           <span className="text-xs text-muted-foreground">
-            {t('organization.anniversary.messageCount', '{{count}} messages', { count: String(messages.length) })}
+            {t('organization.anniversary.messageCount', '{{count}} messages', { count: messages.length })}
           </span>
         )}
       </div>

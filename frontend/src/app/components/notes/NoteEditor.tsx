@@ -305,13 +305,14 @@ function NoteStatusControl({
 
 /** True when the editor holds only a single empty paragraph (a pristine doc). */
 function isEditorEmpty(editor: {
-  document: Array<{ type: string; content?: unknown[] }>;
+  document: Array<{ type: string; content?: unknown }>;
 }): boolean {
   const doc = editor.document;
+  const content = doc[0]?.content;
   return (
     doc.length === 1 &&
     doc[0].type === "paragraph" &&
-    (!doc[0].content || doc[0].content.length === 0)
+    (!Array.isArray(content) || content.length === 0)
   );
 }
 
@@ -677,7 +678,12 @@ function CollabNoteEditor({
   const memoPluginRef = useRef(createNoteMemoPlugin());
 
   // Create BlockNote editor with Yjs collaboration
-  const editor = useCreateBlockNote(
+  // 옵션 객체가 `as any` 로 캐스팅돼 있어 제네릭을 명시해야 커스텀 블록/인라인 타입이 살아난다
+  const editor = useCreateBlockNote<
+    typeof schema.blockSchema,
+    typeof schema.inlineContentSchema,
+    typeof schema.styleSchema
+  >(
     {
       schema,
       _extensions: {
@@ -812,7 +818,11 @@ function CollabNoteEditor({
   // renders blank — even though the same JSON loads fine in EDIT mode. Mirror
   // the editor's `tables` config (and trailingBlock/defaultStyles/dictionary)
   // here; only collaboration + uploadFile are edit-only and intentionally omitted.
-  const viewConverter = useCreateBlockNote({
+  const viewConverter = useCreateBlockNote<
+    typeof schema.blockSchema,
+    typeof schema.inlineContentSchema,
+    typeof schema.styleSchema
+  >({
     schema,
     dictionary,
     trailingBlock: true,
@@ -1036,7 +1046,7 @@ function CollabNoteEditor({
         subtext: "Side-by-side layout",
         onItemClick: () =>
           insertOrUpdateBlock(editor, {
-            type: "columnLayout" as any,
+            type: "columnLayout",
             props: { columns: 2 },
             children: [
               { type: "column" as any, children: [{ type: "paragraph" }] },
@@ -1058,7 +1068,7 @@ function CollabNoteEditor({
         subtext: "Three-column layout",
         onItemClick: () =>
           insertOrUpdateBlock(editor, {
-            type: "columnLayout" as any,
+            type: "columnLayout",
             props: { columns: 3 },
             children: [
               { type: "column" as any, children: [{ type: "paragraph" }] },
@@ -1116,7 +1126,7 @@ function CollabNoteEditor({
         title: m.name,
         onItemClick: () => {
           editor.insertInlineContent([
-            { type: "mention" as any, props: { user: m.name } },
+            { type: "mention", props: { user: m.name } },
             " ",
           ]);
         },

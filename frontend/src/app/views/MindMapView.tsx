@@ -1170,7 +1170,7 @@ function MindMapCanvas({
   useEffect(() => {
     if (!filterOpen) return;
     const handler = (e: MouseEvent) => {
-      if (filterRef.current && !filterRef.current.contains(e.target as Node))
+      if (filterRef.current && !filterRef.current.contains(e.target as globalThis.Node))
         setFilterOpen(false);
     };
     document.addEventListener("mousedown", handler);
@@ -1196,7 +1196,7 @@ function MindMapCanvas({
   useEffect(() => {
     if (!msPanelOpen) return;
     const handler = (e: MouseEvent) => {
-      if (msPanelRef.current && !msPanelRef.current.contains(e.target as Node))
+      if (msPanelRef.current && !msPanelRef.current.contains(e.target as globalThis.Node))
         setMsPanelOpen(false);
     };
     document.addEventListener("mousedown", handler);

@@ -239,7 +239,8 @@ export interface BoardTierInfo {
   trial_ends_at: string | null;
   can_access_schedule: boolean;
   can_access_milestone: boolean;
-  can_access_statistics: boolean;
+  /** 백엔드 TierInfo 에는 없는 필드 — 미지정이면 접근 가능으로 본다 */
+  can_access_statistics?: boolean;
   can_access_slack: boolean;
 }
 
@@ -2123,6 +2124,8 @@ export type BoardEventType =
   | "BLOCK_UPDATED"
   | "BLOCK_DELETED"
   | "BLOCKS_REORDERED"
+  | "BLOCK_VISIBILITY_CHANGED"
+  | "JOB_ROLE_UPDATED"
   | "COMMENT_CREATED"
   | "COMMENT_UPDATED"
   | "COMMENT_DELETED"

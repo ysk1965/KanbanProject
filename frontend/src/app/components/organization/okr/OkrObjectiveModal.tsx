@@ -11,6 +11,7 @@ import {
   Edit3,
   Loader2,
   BarChart3,
+  type LucideIcon,
 } from "lucide-react";
 import { MotionModal } from "../../ui/MotionModal";
 import { okrService } from "../../../utils/services";
@@ -31,10 +32,7 @@ interface OkrObjectiveModalProps {
   isAdmin: boolean;
 }
 
-const levelIcons: Record<
-  string,
-  React.ComponentType<{ size?: number; className?: string }>
-> = {
+const levelIcons: Record<string, LucideIcon> = {
   COMPANY: Building2,
   DEPARTMENT: Layers,
   INDIVIDUAL: User,

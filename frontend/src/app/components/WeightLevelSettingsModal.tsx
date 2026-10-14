@@ -12,7 +12,7 @@ interface WeightLevel {
   weight: number;
   color: string;
   position: number;
-  is_default: boolean;
+  is_default?: boolean;
 }
 
 interface WeightLevelSettingsModalProps {

@@ -1,7 +1,7 @@
-import { BarChart3, CheckCircle, Hash, DollarSign, Flag, PlusCircle } from "lucide-react";
+import { BarChart3, CheckCircle, Hash, DollarSign, Flag, PlusCircle, type LucideIcon } from "lucide-react";
 import type { OkrKeyResult } from "../../../types";
 
-const metricIcons: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+const metricIcons: Record<string, LucideIcon> = {
   PERCENTAGE: BarChart3,
   NUMBER: Hash,
   CURRENCY: DollarSign,

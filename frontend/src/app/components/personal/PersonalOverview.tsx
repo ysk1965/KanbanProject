@@ -15,13 +15,13 @@ import { personalEventService } from '../../utils/services';
 import { personalTaskAPI, personalHabitAPI, personalDashboardAPI } from '../../utils/api';
 import { getTodayDateString } from '../../utils/dateUtils';
 import { PersonalEvent, PersonalTask, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix, PersonalTaskPriority, PersonalDashboardToday, PersonalOverviewData } from '../../types';
-import { CheckInConfirmModal, TaskCompleteConfirmModal, HabitFormModal, DeleteConfirmModal } from './PersonalHabits';
+import { CheckInConfirmModal, TaskCompleteConfirmModal, HabitFormModal, DeleteConfirmModal, type HabitFormData } from './PersonalHabits';
 import { TaskDetailModal } from './PersonalTaskBoard';
 import { BoardTasksWidget } from './BoardTasksWidget';
 import { CelebrationsWidget } from './CelebrationsWidget';
 import { useAuth } from '../../contexts/AuthContext';
 
-type TabType = 'overview' | 'tasks' | 'schedule' | 'habits' | 'calendar';
+type TabType = 'overview' | 'tasks' | 'schedule' | 'calendar';
 
 interface PersonalOverviewProps {
   onNavigateTab: (tab: TabType) => void;
@@ -1040,7 +1040,7 @@ function HabitsTodayWidget({
   const completedCount = todayHabits.filter(h => h.is_completed).length;
   const totalCount = todayHabits.length;
 
-  const handleUpdateHabit = async (habitId: string, data: Record<string, unknown>) => {
+  const handleUpdateHabit = async (habitId: string, data: HabitFormData) => {
     try {
       await personalHabitAPI.update(habitId, data);
       setEditHabit(null);
@@ -2090,7 +2090,7 @@ function OverviewCreateHabitModal({
                           ? 'ring-2 scale-110'
                           : 'bg-foreground/5 hover:bg-foreground/10 hover:scale-105'
                       }`}
-                      style={icon === emoji ? { backgroundColor: `${color}33`, ringColor: color } : undefined}
+                      style={icon === emoji ? ({ backgroundColor: `${color}33`, '--tw-ring-color': color } as React.CSSProperties) : undefined}
                     >
                       {emoji}
                     </button>

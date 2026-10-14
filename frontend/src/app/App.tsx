@@ -484,7 +484,7 @@ function BoardsRoute() {
     const newStarredStatus = !board.is_starred;
 
     try {
-      await boardService.toggleStar(boardId, newStarredStatus);
+      await boardService.toggleStar(boardId);
       setBoards(
         boards.map((b) =>
           b.id === boardId ? { ...b, is_starred: newStarredStatus } : b,

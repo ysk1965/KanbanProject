@@ -179,7 +179,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
         <AlertCircle className="w-12 h-12 text-red-400" />
         <p className="text-slate-400">{error || t('management.noData')}</p>
         <button
-          onClick={loadData}
+          onClick={() => loadData(true)}
           className="px-4 py-2 bg-bridge-accent text-white rounded-lg hover:bg-bridge-accent/90 transition-colors"
         >
           {t('common.retry')}
@@ -223,7 +223,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
               <Settings className="w-5 h-5" />
             </button>
             <button
-              onClick={loadData}
+              onClick={() => loadData(true)}
               className="p-2 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
               title={t('management.refreshTooltip')}
             >

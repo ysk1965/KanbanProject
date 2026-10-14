@@ -624,7 +624,7 @@ function AnniversaryCard({
           <span>
             {localMessageCount > 0
               ? t("organization.feed.commentCount", "{{count}}개의 댓글", {
-                  count: String(localMessageCount),
+                  count: localMessageCount,
                 })
               : t("organization.feed.addComment", "댓글 작성")}
           </span>
@@ -985,7 +985,7 @@ function AnnouncementCard({
           <span>
             {commentCount > 0
               ? t("organization.feed.commentCount", "{{count}}개의 댓글", {
-                  count: String(commentCount),
+                  count: commentCount,
                 })
               : t("organization.feed.addComment", "댓글 작성")}
           </span>

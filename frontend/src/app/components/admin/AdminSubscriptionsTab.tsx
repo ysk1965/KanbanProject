@@ -188,7 +188,7 @@ export function AdminSubscriptionsTab() {
           {subscriptions.subscriptions.length > 0 && (
             <div className="flex items-center justify-between">
               <p className="text-slate-400 text-sm">
-                {t('admin.common.totalItems', { count: subscriptions.total.toLocaleString() })}
+                {t('admin.common.totalItems', { count: subscriptions.total })}
               </p>
               <div className="flex items-center gap-2">
                 <button

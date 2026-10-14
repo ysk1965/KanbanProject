@@ -657,6 +657,8 @@ export interface BlockResponse {
   show_progress_bar?: boolean;
   milestone_id?: string | null;
   milestone_title?: string | null;
+  /** JIRA 미러 컬럼이면 대응 JIRA 상태 id (메인 보드에서는 숨김) */
+  jira_status_id?: string | null;
 }
 
 export interface TagResponse {
@@ -960,7 +962,8 @@ export interface InviteLinkInfoResponse {
   board_id: string;
   board_name: string;
   role: string;
-  is_valid: boolean;
+  /** 백엔드 Lombok boolean isValid → JSON 키는 'valid' */
+  valid: boolean;
   message: string;
 }
 
@@ -1026,6 +1029,7 @@ export interface BoardTierResponse {
   trial_ends_at: string | null;
   can_access_schedule: boolean;
   can_access_milestone: boolean;
+  can_access_slack: boolean;
 }
 
 export interface BoardLimitsResponse {
@@ -1061,6 +1065,13 @@ export interface BoardFullResponse {
   ui_options?: string | null;
   created_at: string;
   updated_at: string;
+
+  // 조직 정보
+  organization_id?: string | null;
+  organization_name?: string | null;
+  // 조직 멤버 뷰어 (보드 멤버가 아닌 조직 구성원)
+  is_org_member_viewer?: boolean;
+  has_pending_join_request?: boolean;
 
   // 통합 데이터
   blocks: BlockResponse[];
@@ -2200,6 +2211,8 @@ export interface CommentDetailResponse {
   mentions: string[];
   attachments: CommentAttachmentResponse[];
   reactions: CommentReactionResponse[];
+  parent_id: string | null;
+  parent_author_name: string | null;
   /** 이 댓글이 달린 체크리스트 항목. null이면 태스크에 직접 단 댓글 */
   checklist_item_id?: string | null;
   checklist_item_title?: string | null;
@@ -2573,13 +2586,19 @@ export const customEmojiAPI = {
     const formData = new FormData();
     formData.append("name", name);
     formData.append("file", file);
-    return apiClient.post<CustomEmojiDetail>(
-      `/boards/${boardId}/custom-emojis`,
-      formData,
-      {
-        headers: { "Content-Type": "multipart/form-data" },
-      },
+    // multipart 업로드는 apiClient(JSON 전용)가 아니라 authenticatedFetch 로 보낸다
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/boards/${boardId}/custom-emojis`,
+      { method: "POST", body: formData },
     );
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({
+        code: "UNKNOWN",
+        message: response.statusText,
+      }));
+      throw errData;
+    }
+    return (await response.json()) as CustomEmojiDetail;
   },
 
   deleteEmoji: async (boardId: string, emojiId: string) => {
@@ -5378,7 +5397,7 @@ export const adminAPI = {
   // 보드 티어 변경
   updateBoardTier: async (
     boardId: string,
-    tier: "FREE" | "STANDARD" | "PREMIUM" | "ENTERPRISE",
+    tier: AdminBoardSummary["tier"],
   ) => {
     return apiClient.patch<AdminBoardSummary>(`/admin/boards/${boardId}/tier`, {
       tier,

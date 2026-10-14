@@ -271,7 +271,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
           title: row.title,
           icon: row.icon,
           is_completed: day.is_completed,
-          count: day.count,
+          count: day.completed_count,
         });
       });
     });
@@ -757,7 +757,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
     // Also include currently loaded weekly events
     events.forEach((e) => set.add(e.event_date));
     // Also include habit dates
-    habitRows.forEach((row) => row.days.forEach((d) => { if (d.is_completed || d.count > 0) set.add(d.date); }));
+    habitRows.forEach((row) => row.days.forEach((d) => { if (d.is_completed || d.completed_count > 0) set.add(d.date); }));
     // Also include task due dates
     tasks.forEach((t) => { if (t.due_date) set.add(t.due_date); });
     return set;
@@ -3173,7 +3173,7 @@ function CreateHabitModal({
                           ? 'ring-2 scale-110'
                           : 'bg-foreground/5 hover:bg-foreground/10 hover:scale-105'
                       }`}
-                      style={icon === emoji ? { backgroundColor: `${color}33`, ringColor: color } : undefined}
+                      style={icon === emoji ? ({ backgroundColor: `${color}33`, '--tw-ring-color': color } as React.CSSProperties) : undefined}
                     >
                       {emoji}
                     </button>

@@ -89,7 +89,7 @@ export function OrgInviteAcceptPage() {
         ) : (
           <>
             {inviteInfo?.logo_url ? (
-              <img src={inviteInfo.logo_url} alt={inviteInfo.org_name || '조직 로고'} className="w-16 h-16 rounded-2xl mx-auto mb-4 object-cover" />
+              <img src={inviteInfo.logo_url} alt={inviteInfo.organization_name || '조직 로고'} className="w-16 h-16 rounded-2xl mx-auto mb-4 object-cover" />
             ) : (
               <div className="w-16 h-16 rounded-2xl bg-bridge-accent/20 flex items-center justify-center mx-auto mb-4">
                 <Building2 size={28} className="text-bridge-accent" />

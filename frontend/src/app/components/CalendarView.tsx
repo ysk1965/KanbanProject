@@ -514,7 +514,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                                 {isFeatureDueDay && (
                                   <span className="ml-auto text-xs px-1 py-px rounded bg-foreground/10 text-zinc-400 shrink-0">D-Day</span>
                                 )}
-                                {isEnd && span.feature.status === 'DONE' && (
+                                {isEnd && span.feature.status === 'COMPLETED' && (
                                   <CheckCircle2 size={10} className="ml-auto shrink-0 text-emerald-400" />
                                 )}
                               </button>
@@ -582,7 +582,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                                 {isFeatureDueDay && (
                                   <span className="ml-auto text-xs px-1 py-px rounded bg-foreground/10 text-zinc-400 shrink-0">D-Day</span>
                                 )}
-                                {f.status === 'DONE' && (
+                                {f.status === 'COMPLETED' && (
                                   <CheckCircle2 size={11} className="ml-auto shrink-0 text-emerald-400" />
                                 )}
                               </button>
@@ -706,7 +706,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                       {isFeatureDueDay && (
                         <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-foreground/10 text-zinc-400 shrink-0 font-medium">D-Day</span>
                       )}
-                      {f.status === 'DONE' && (
+                      {f.status === 'COMPLETED' && (
                         <CheckCircle2 size={14} className="ml-auto shrink-0 text-emerald-400" />
                       )}
                     </button>

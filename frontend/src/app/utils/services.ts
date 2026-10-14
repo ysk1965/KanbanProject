@@ -278,6 +278,7 @@ export const boardService = {
           can_access_schedule: true,
           can_access_milestone: true,
           can_access_statistics: true,
+          can_access_slack: true,
         };
       }
       throw error;
@@ -730,9 +731,10 @@ export const taskService = {
           block_id: taskBlock?.id || "task-block",
           title: data.title,
           description: data.description,
-          assignee: null,
           start_date: data.start_date || null,
           due_date: data.due_date || null,
+          baseline_start_date: null,
+          baseline_due_date: null,
           estimated_minutes: data.estimated_minutes || null,
           completed: false,
           position: tasks.filter((t: Task) => t.feature_id === featureId)
@@ -1817,8 +1819,8 @@ export const subscriptionService = {
       billing_cycle: data.billing_cycle,
       seat_count: data.seat_count,
     });
-    // Redirect to Polar checkout
-    window.location.href = response.data.checkout_url;
+    // Redirect to Polar checkout (apiClient 는 응답 본문을 그대로 돌려준다)
+    window.location.href = response.checkout_url;
   },
 
   // 추가 시트 구매 (Polar Checkout 리다이렉트)
@@ -1830,8 +1832,8 @@ export const subscriptionService = {
       board_id: boardId,
       additional_seats: additionalSeats,
     });
-    // Redirect to Polar checkout
-    window.location.href = response.data.checkout_url;
+    // Redirect to Polar checkout (apiClient 는 응답 본문을 그대로 돌려준다)
+    window.location.href = response.checkout_url;
   },
 
   // AI 크레딧 구매 (Polar Checkout 리다이렉트)
@@ -1843,8 +1845,8 @@ export const subscriptionService = {
       board_id: boardId,
       credit_amount: creditAmount,
     });
-    // Redirect to Polar checkout
-    window.location.href = response.data.checkout_url;
+    // Redirect to Polar checkout (apiClient 는 응답 본문을 그대로 돌려준다)
+    window.location.href = response.checkout_url;
   },
 };
 
@@ -2325,7 +2327,7 @@ export const statisticsService = {
   updateWeightLevels: async (
     boardId: string,
     data: {
-      levels: Omit<WeightLevel, "id" | "is_default"> & { id?: string }[];
+      levels: (Omit<WeightLevel, "id" | "is_default"> & { id?: string })[];
       default_level_id?: string;
     },
   ): Promise<BoardWeightSettings> => {
@@ -2629,7 +2631,7 @@ export const adminService = {
   // 보드 티어 변경
   updateBoardTier: async (
     boardId: string,
-    tier: "FREE" | "STANDARD" | "PREMIUM" | "ENTERPRISE",
+    tier: AdminBoardSummary["tier"],
   ): Promise<AdminBoardSummary> => {
     const response = await adminAPI.updateBoardTier(boardId, tier);
     return response;
@@ -3605,51 +3607,50 @@ export const myNoteCommentService = {
 // ========================================
 
 export const monitoringService = {
-  getDashboard: async () => {
-    const response = await apiClient.get("/admin/monitoring/dashboard");
-    return response.data || response;
+  getDashboard: async (): Promise<MonitoringDashboard> => {
+    return apiClient.get<MonitoringDashboard>("/admin/monitoring/dashboard");
   },
 
-  getApiMetricHistory: async (hours: number = 24) => {
-    const response = await apiClient.get(
-      `/admin/monitoring/api-metrics/history?hours=${hours}`,
+  getApiMetricHistory: async (
+    hours: number = 24,
+  ): Promise<MonitoringApiMetricSnapshot[]> => {
+    const response = await apiClient.get<{
+      snapshots?: MonitoringApiMetricSnapshot[];
+    }>(`/admin/monitoring/api-metrics/history?hours=${hours}`);
+    return response.snapshots || [];
+  },
+
+  getAlertConfig: async (): Promise<MonitoringAlertConfig> => {
+    return apiClient.get<MonitoringAlertConfig>(
+      "/admin/monitoring/alert-config",
     );
-    return (response.data || response).snapshots || [];
-  },
-
-  getAlertConfig: async () => {
-    const response = await apiClient.get("/admin/monitoring/alert-config");
-    return response.data || response;
   },
 
   updateAlertConfig: async (config: {
     slack_webhook_url: string;
     enabled: boolean;
     alert_email_recipients?: string[];
-  }) => {
-    const response = await apiClient.put(
+  }): Promise<MonitoringAlertConfig> => {
+    return apiClient.put<MonitoringAlertConfig>(
       "/admin/monitoring/alert-config",
       config,
     );
-    return response.data || response;
   },
 
   sendTestAlert: async () => {
     await apiClient.post("/admin/monitoring/alert-test");
   },
 
-  getAiUsage: async (days: number = 30) => {
-    const response = await apiClient.get(
+  getAiUsage: async (days: number = 30): Promise<MonitoringAiUsageMetrics> => {
+    return apiClient.get<MonitoringAiUsageMetrics>(
       `/admin/monitoring/ai-usage?days=${days}`,
     );
-    return response.data || response;
   },
 
-  getOpenAIBilling: async (days: number = 30) => {
-    const response = await apiClient.get(
+  getOpenAIBilling: async (days: number = 30): Promise<OpenAIBilling> => {
+    return apiClient.get<OpenAIBilling>(
       `/admin/monitoring/openai-billing?days=${days}`,
     );
-    return response.data || response;
   },
 };
 
@@ -3663,13 +3664,17 @@ import type {
   AiCreditPurchaseResult,
   AiCreditPurchaseHistory,
   AiCreditUsageHistory,
+  MonitoringDashboard,
+  MonitoringAlertConfig,
+  MonitoringApiMetricSnapshot,
+  MonitoringAiUsageMetrics,
+  OpenAIBilling,
 } from "../types";
 
 export const aiCreditService = {
   // 크레딧 조회
   getCredits: async (boardId: string): Promise<AiCredits> => {
-    const response = await apiClient.get(`/boards/${boardId}/ai-credits`);
-    return response.data || response;
+    return apiClient.get<AiCredits>(`/boards/${boardId}/ai-credits`);
   },
 
   // 크레딧 구매
@@ -3677,19 +3682,17 @@ export const aiCreditService = {
     boardId: string,
     data: AiCreditPurchaseRequest,
   ): Promise<AiCreditPurchaseResult> => {
-    const response = await apiClient.post(
+    return apiClient.post<AiCreditPurchaseResult>(
       `/boards/${boardId}/ai-credits/purchase`,
       data,
     );
-    return response.data || response;
   },
 
-  // 구매 이력 조회
+  // 구매 이력 조회 (백엔드는 List<PurchaseHistory> 를 그대로 반환)
   getPurchases: async (boardId: string): Promise<AiCreditPurchaseHistory[]> => {
-    const response = await apiClient.get(
+    return apiClient.get<AiCreditPurchaseHistory[]>(
       `/boards/${boardId}/ai-credits/purchases`,
     );
-    return (response.data || response).purchases || response.data || response;
   },
 
   // AI 사용 내역 조회
@@ -3697,10 +3700,9 @@ export const aiCreditService = {
     boardId: string,
     days: number = 30,
   ): Promise<AiCreditUsageHistory[]> => {
-    const response = await apiClient.get(
+    return apiClient.get<AiCreditUsageHistory[]>(
       `/boards/${boardId}/ai-credits/usage?days=${days}`,
     );
-    return response.data || response;
   },
 };
 

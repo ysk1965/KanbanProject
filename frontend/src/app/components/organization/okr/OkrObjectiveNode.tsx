@@ -6,13 +6,14 @@ import {
   User,
   ChevronDown,
   Plus,
+  type LucideIcon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { OkrObjective } from "../../../types";
 import { OkrConfidenceBadge } from "./OkrConfidenceBadge";
 import { OkrKeyResultRow } from "./OkrKeyResultRow";
 
-const levelIcons: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+const levelIcons: Record<string, LucideIcon> = {
   COMPANY: Building2,
   DEPARTMENT: Layers,
   INDIVIDUAL: User,

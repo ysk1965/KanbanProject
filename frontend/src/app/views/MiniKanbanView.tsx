@@ -21,6 +21,7 @@ import {
   type Edge,
   type NodeProps,
   type NodeChange,
+  type OnNodeDrag,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
@@ -805,16 +806,16 @@ function MiniKanbanCanvas({
     [hubBlocks, positions, tasksById],
   );
 
-  const onNodeDragStart = useCallback(
-    (_e: React.MouseEvent, node: Node) => {
+  const onNodeDragStart = useCallback<OnNodeDrag<Node>>(
+    (_e, node) => {
       if (!canEdit || !node.id.startsWith("task__")) return;
       dragStartRef.current = { x: node.position.x, y: node.position.y };
     },
     [canEdit],
   );
 
-  const onNodeDrag = useCallback(
-    (_e: React.MouseEvent, node: Node) => {
+  const onNodeDrag = useCallback<OnNodeDrag<Node>>(
+    (_e, node) => {
       if (!canEdit || !node.id.startsWith("task__")) return;
       const target = computeDropTarget(node);
       setDropTargetBlockId((prev) => (prev === target ? prev : target));
@@ -823,8 +824,8 @@ function MiniKanbanCanvas({
   );
 
   // 태스크 노드를 다른 블록 레인으로 옮기면 실제 이동
-  const onNodeDragStop = useCallback(
-    (_e: React.MouseEvent, node: Node) => {
+  const onNodeDragStop = useCallback<OnNodeDrag<Node>>(
+    (_e, node) => {
       if (!canEdit || !node.id.startsWith("task__")) {
         dragStartRef.current = null;
         setDropTargetBlockId(null);

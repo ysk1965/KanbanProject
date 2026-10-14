@@ -1050,8 +1050,7 @@ export function ScheduleResourceView({
                   assignee: {
                     id: drop.rowId,
                     name: "",
-                    email: "",
-                    avatar: null,
+                    profile_image: null,
                   },
                   items: [optimisticItem],
                 },
@@ -1079,8 +1078,7 @@ export function ScheduleResourceView({
                     assignee: {
                       id: drop.rowId,
                       name: "",
-                      email: "",
-                      avatar: null,
+                      profile_image: null,
                     },
                     items: [optimisticItem],
                   },

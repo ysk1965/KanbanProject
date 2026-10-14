@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
   Plus,
   MessageSquare,
@@ -494,7 +495,7 @@ function MeetingCard({
   onToggleAction: (id: string) => void;
   onEdit: () => void;
   onDelete: () => void;
-  t: (key: string, fallback?: string) => string;
+  t: TFunction;
 }) {
   const [expanded, setExpanded] = useState(index === 0);
   const [confirmDelete, setConfirmDelete] = useState(false);

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import {
   Plus,
   Briefcase,
@@ -41,10 +42,7 @@ function formatHistoryDate(dateStr: string): string {
   return `${y}.${m.padStart(2, '0')}`;
 }
 
-function formatDuration(
-  months: number | null,
-  t: (key: string, opts?: Record<string, unknown>) => string,
-): string {
+function formatDuration(months: number | null, t: TFunction): string {
   if (months === null || months === undefined) return '';
   if (months < 1) {
     return t('organization.members.detail.history.durationLessThanMonth', '1개월 미만');

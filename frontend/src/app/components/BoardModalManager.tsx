@@ -243,22 +243,20 @@ interface BoardModalManagerProps {
   onUpdateMemberColor: (memberId: string, color: string | null) => void;
   onReorderMembers: (memberIds: string[]) => void;
   currentUserId: string;
-  onlineUsers: string[];
+  onlineUsers: Set<string>;
   inviteLinks: InviteLink[];
   onCreateInviteLink: (
     role: string,
     maxUses: number,
     expiresIn: string,
   ) => Promise<InviteLink>;
-  onDeleteInviteLink: (linkId: string) => void;
+  onDeleteInviteLink: (linkId: string) => Promise<void>;
   seatInfo?: { seatCount: number; usedSeats: number };
   onOpenSeatManagement?: () => void;
   aiCredits: AiCredits | null;
   onOpenAiCreditPurchase?: () => void;
-  isOrgBoard?: boolean;
   organizationName?: string | null;
   pendingJoinRequestCount?: number;
-  isAdminOrOwner?: boolean;
   onJoinRequestHandled?: () => void;
   boardName?: string;
   onTransferOwnership?: (newOwnerUserId: string) => Promise<void>;
@@ -277,9 +275,9 @@ interface BoardModalManagerProps {
   onCloseSubscription: () => void;
   subscription: Subscription | null;
   currentBillableMembers: number;
-  onChangeBillingCycle: (cycle: "MONTHLY" | "YEARLY") => void;
-  onPurchaseSeats: (seats: number) => void;
-  onCancelSubscription: () => void;
+  onChangeBillingCycle: (cycle: "MONTHLY" | "YEARLY") => Promise<void>;
+  onPurchaseSeats: (seats: number) => Promise<void>;
+  onCancelSubscription: () => Promise<void>;
   onUndoCancellation?: () => Promise<void>;
   // Inquiry Modal
   isInquiryModalOpen: boolean;
@@ -291,8 +289,14 @@ interface BoardModalManagerProps {
   allFeatures: Feature[];
   featureMilestoneCountMap: Record<string, number>;
   featurePrimaryMilestoneMap: Record<string, string>;
-  onSaveMilestone: (data: any) => void;
-  onDeleteMilestone: (id: string) => void;
+  onSaveMilestone: (data: {
+    title: string;
+    description?: string;
+    start_date: string;
+    end_date: string;
+    feature_ids?: string[];
+  }) => Promise<void>;
+  onDeleteMilestone: (id: string) => Promise<void>;
   onSelectMilestone: (milestone: Milestone | null) => void;
   /** 마일스톤 콘솔에서 체크리스트 카드 클릭 → 태스크 상세 */
   onOpenChecklistItem?: (taskId: string, checklistItemId?: string) => void;
@@ -307,7 +311,7 @@ interface BoardModalManagerProps {
   onSeatUpgrade: (
     billingCycle: "MONTHLY" | "YEARLY",
     seatCount: number,
-  ) => void;
+  ) => Promise<void>;
   // Premium Benefits Modal
   isPremiumBenefitsModalOpen: boolean;
   onClosePremiumBenefits: () => void;
@@ -322,7 +326,7 @@ interface BoardModalManagerProps {
   } | null;
   onCloseSeatPurchase: () => void;
   billingCycle: "MONTHLY" | "YEARLY";
-  onPurchaseSeatsAndRetry: (seats: number) => void;
+  onPurchaseSeatsAndRetry: (seats: number) => Promise<void>;
   // Org Seat Limit Modal
   orgSeatLimitModal: {
     open: boolean;

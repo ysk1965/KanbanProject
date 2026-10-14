@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, ArrowRight, Copy, Loader2 } from 'lucide-react';
 import { MotionModal } from './ui/MotionModal';
-import { boardService, boardAPI } from '../utils/api';
+import { boardAPI } from '../utils/api';
 import type { Block } from '../types';
 
 interface BoardItem {

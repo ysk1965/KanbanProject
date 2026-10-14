@@ -206,7 +206,7 @@ export function AdminUsersTab() {
           {/* Pagination */}
           <div className="flex items-center justify-between">
             <p className="text-slate-400 text-sm">
-              {t('admin.common.totalPeople', { count: users.total.toLocaleString() })}
+              {t('admin.common.totalPeople', { count: users.total })}
             </p>
             <div className="flex items-center gap-2">
               <button

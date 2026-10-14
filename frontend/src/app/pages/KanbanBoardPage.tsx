@@ -2370,7 +2370,6 @@ export function KanbanBoardPage() {
       const updatedTask = await taskService.updateTask(boardId, taskId, {
         title: base.title,
         description: base.description,
-        assignee_id: updates.assignee?.id ?? null,
         start_date: base.start_date ?? null,
         due_date: base.due_date ?? null,
         estimated_minutes: base.estimated_minutes ?? null,
@@ -3072,7 +3071,7 @@ export function KanbanBoardPage() {
     setTasks((prev) =>
       prev.map((t) => ({
         ...t,
-        tags: (t.tags || []).filter((id) => id !== tagId),
+        tags: (t.tags || []).filter((tag) => tag.id !== tagId),
       })),
     );
     setFeatures((prev) =>
@@ -3134,20 +3133,19 @@ export function KanbanBoardPage() {
           kanbanSelectedMilestoneId={kanbanSelectedMilestoneId}
           onMilestoneSelect={handleKanbanMilestoneSelect}
           onOpenMilestoneWithCheck={handleOpenMilestoneWithCheck}
-          onSetMilestoneOnboardingOpen={() =>
+          onOpenMilestoneOnboarding={() =>
             setIsMilestoneOnboardingOpen(true)
           }
           subscription={subscription}
           tierInfo={tierInfo}
           unreadNotificationCount={unreadNotificationCount}
           activities={activities}
-          hasMoreActivity={hasMoreActivity}
-          onLoadMoreActivity={handleLoadMoreActivity}
+          hasMoreActivities={hasMoreActivity}
+          onLoadMoreActivities={handleLoadMoreActivity}
           onNotificationClick={handleNotificationClick}
           onActivityNavigate={handleActivityNavigate}
           onUnreadCountChange={setUnreadNotificationCount}
           canAccessSlack={canAccessSlack}
-          onSlackUpgrade={() => openUpgradeModal("slack")}
           unreadInquiryCount={unreadInquiryCount}
           onOpenInquiry={() => setIsInquiryModalOpen(true)}
           onOpenShareBoard={() => setIsShareBoardModalOpen(true)}

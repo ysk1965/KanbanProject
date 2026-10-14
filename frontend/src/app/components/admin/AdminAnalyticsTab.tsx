@@ -189,7 +189,7 @@ export function AdminAnalyticsTab() {
               <TrendingUp className="h-5 w-5 text-bridge-accent" />
               <h3 className="text-lg font-bold text-foreground">{t('admin.analytics.signupTrend')}</h3>
               <span className="text-sm text-slate-400 ml-2">
-                {t('admin.analytics.totalCount', { count: signupTrend.total.toLocaleString() })}
+                {t('admin.analytics.totalCount', { count: signupTrend.total })}
               </span>
             </div>
             <PeriodSelector value={signupDays} onChange={setSignupDays} options={periodOptions} />

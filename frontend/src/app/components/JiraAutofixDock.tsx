@@ -674,7 +674,9 @@ export function JiraAutofixDock({
   useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty("--autofix-dock-h", expanded ? DOCK_HEIGHT : "0px");
-    return () => root.style.removeProperty("--autofix-dock-h");
+    return () => {
+      root.style.removeProperty("--autofix-dock-h");
+    };
   }, [expanded]);
 
   const run = async (key: string, fn: () => Promise<void>) => {

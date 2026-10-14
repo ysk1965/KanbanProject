@@ -417,7 +417,7 @@ export function AdminBoardsTab() {
           {boards.boards.length > 0 && (
             <div className="flex items-center justify-between">
               <p className="text-slate-400 text-sm">
-                {t('admin.common.totalItems', { count: boards.total.toLocaleString() })}
+                {t('admin.common.totalItems', { count: boards.total })}
               </p>
               <div className="flex items-center gap-2">
                 <button

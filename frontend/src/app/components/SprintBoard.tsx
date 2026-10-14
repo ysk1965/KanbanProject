@@ -4077,8 +4077,8 @@ export function SprintBoard({
         key={card.taskId}
         draggable={canDrag}
         onDragStart={(e) => canDrag && onDragStartJiraTask(e, card)}
-        onDragEnd={(e) => {
-          onDragEndItem(e);
+        onDragEnd={() => {
+          onDragEndItem();
           onDragEndJiraTask();
         }}
         onClick={() => openTask(card.taskId)}
@@ -4691,7 +4691,7 @@ export function SprintBoard({
                       자르는, 서로 교환 가능한 절단면이다. JIRA는 스코프도 축도 달라
                       여기가 아니라 화면 선택 줄(스프린트 | 블록 보드 | JIRA)에 있다. */}
                 {!uiFeatures.has("members") && memberGhost}
-                {groupBy !== "jira" && uiFeatures.has("members") && (
+                {uiFeatures.has("members") && (
                   <div
                     className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/[0.06] border border-foreground/10 shrink-0"
                     role="tablist"

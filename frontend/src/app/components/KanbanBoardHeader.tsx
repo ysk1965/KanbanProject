@@ -85,14 +85,13 @@ interface KanbanBoardHeaderProps {
   // Members
   boardMembersData: ShareBoardMember[];
   memberColorMap: Record<string, string | null>;
-  onlineUsers: string[];
   // Notifications
   unreadNotificationCount: number;
   onUnreadCountChange: (count: number) => void;
   unreadInquiryCount: number;
   activities: any[];
   hasMoreActivities: boolean;
-  onLoadMoreActivities: () => void;
+  onLoadMoreActivities: () => Promise<void>;
   onNotificationClick: (notification: any) => void;
   onActivityNavigate?: (target: any) => void;
   // Permissions
@@ -101,7 +100,6 @@ interface KanbanBoardHeaderProps {
   canAccessMilestone: boolean;
   canAccessStatistics: boolean;
   canAccessSlack: boolean;
-  canViewStatistics: boolean;
   isAdminOrOwner: boolean;
   isViewer: boolean;
   hideBilling: boolean;
@@ -125,6 +123,7 @@ interface KanbanBoardHeaderProps {
     name: string;
     email: string;
     role?: string;
+    profile_image?: string | null;
   } | null;
   onLogout: () => void;
   isTester: boolean;
@@ -132,7 +131,14 @@ interface KanbanBoardHeaderProps {
   contractors?: BoardContractor[];
   onOpenContractorManager?: () => void;
   // Sub mode helpers
-  getBoardSubMode: () => "kanban" | "gantt" | "calendar" | "list" | "milestone";
+  getBoardSubMode: () =>
+    | "kanban"
+    | "gantt"
+    | "calendar"
+    | "list"
+    | "milestone"
+    | "mindmap"
+    | "minikanban";
   getScheduleSubMode: () => "schedule";
   getAISubMode: () => "statistics" | "ai_report";
 }
@@ -150,7 +156,6 @@ export function KanbanBoardHeader({
   onOpenMilestoneOnboarding,
   boardMembersData,
   memberColorMap,
-  onlineUsers,
   unreadNotificationCount,
   onUnreadCountChange,
   unreadInquiryCount,
@@ -164,7 +169,6 @@ export function KanbanBoardHeader({
   canAccessMilestone,
   canAccessStatistics,
   canAccessSlack,
-  canViewStatistics,
   isAdminOrOwner,
   isViewer,
   hideBilling,
