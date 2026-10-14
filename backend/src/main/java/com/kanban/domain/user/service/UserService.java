@@ -4,16 +4,17 @@ import com.kanban.domain.activity.ActivityLogRepository;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRole;
 import com.kanban.domain.board.UserBoardStarRepository;
+import com.kanban.domain.board.service.BoardAccessCacheEvictor;
+import com.kanban.domain.calendar.CalendarEventRepository;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.invite.InviteLinkRepository;
-import com.kanban.domain.organization.repository.OrganizationRepository;
 import com.kanban.domain.milestone.MilestoneAllocationRepository;
-import com.kanban.domain.calendar.CalendarEventRepository;
 import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.notification.NotificationRepository;
+import com.kanban.domain.organization.repository.OrganizationRepository;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.EmailVerificationTokenRepository;
@@ -27,6 +28,8 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.service.FileUploadService;
 import com.kanban.global.util.MediaUtils;
+import java.net.URI;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -34,15 +37,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.net.URI;
-import java.util.UUID;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class UserService {
 
+    private final BoardAccessCacheEvictor boardAccessCacheEvictor;
     private final UserRepository userRepository;
     private final BoardMemberRepository boardMemberRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -66,8 +67,7 @@ public class UserService {
     private final OrganizationRepository organizationRepository;
 
     public User getUser(String userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        return userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
     }
 
     @Transactional
@@ -206,6 +206,7 @@ public class UserService {
 
         // 4. 보드 멤버십 삭제 (Owner가 아닌 것은 이미 확인됨)
         boardMemberRepository.deleteByUserId(userId);
+        boardAccessCacheEvictor.evictUser(userId);
 
         // 5. 사용자 삭제
         userRepository.delete(user);

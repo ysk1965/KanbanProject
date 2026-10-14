@@ -7,6 +7,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
@@ -16,9 +17,6 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
-
-import java.io.IOException;
-import java.util.Collections;
 
 @Slf4j
 @Component
@@ -31,9 +29,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final PatService patService;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
 
         String token = resolveToken(request);
 
@@ -41,14 +38,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             UserPrincipal principal = resolvePrincipal(token);
             if (principal != null) {
                 UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(principal, null, Collections.emptyList());
+                        new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } else {
                 // 거절 사유를 EntryPoint(401 JSON)에 전달 — 만료(A004)면 FE가 갱신을 시도한다
-                ErrorCode reason = jwtProvider.isTokenExpired(token)
-                        ? ErrorCode.EXPIRED_TOKEN
-                        : ErrorCode.INVALID_TOKEN;
+                ErrorCode reason =
+                        jwtProvider.isTokenExpired(token) ? ErrorCode.EXPIRED_TOKEN : ErrorCode.INVALID_TOKEN;
                 request.setAttribute(JwtAuthenticationEntryPoint.AUTH_ERROR_ATTR, reason);
             }
         }

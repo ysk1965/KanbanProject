@@ -3,6 +3,7 @@ package com.kanban.domain.board.service;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -20,6 +21,7 @@ import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -29,13 +31,20 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
- * 보드 권한 체크 매트릭스. BoardService 는 생성자 인자가 40개가 넘지만 권한 검사는 네 개의
- * 저장소만 쓴다 — 나머지는 Mockito 생성자 주입이 null 로 채운다(권한 경로에서는 안 건드린다).
+ * 보드 권한 체크 매트릭스 — BoardService 의 {@code @Deprecated} 위임 메서드가 BoardPermissionService(캐시)를 통해
+ * 종전과 같은 결과를 내는지 고정한다. 순수 매트릭스는 {@link BoardPermissionServiceTest} 가 더 넓게 다룬다.
+ *
+ * <p>BoardService 는 생성자 인자가 40개가 넘어 Mockito 생성자 주입이 모르는 타입은 null 로 채운다. 권한 서비스는
+ * 실제 객체(mock 저장소 + ConcurrentMap 캐시)로 만들어 리플렉션으로 꽂는다.
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("BoardService 권한 체크")
+@DisplayName("BoardService 권한 체크 (BoardPermissionService 위임)")
 class BoardServicePermissionTest {
 
     private static final String BOARD = "board-1";
@@ -56,6 +65,19 @@ class BoardServicePermissionTest {
 
     @InjectMocks
     BoardService boardService;
+
+    @BeforeEach
+    @SuppressWarnings("unchecked")
+    void wirePermissionService() {
+        ObjectProvider<RedisConnectionFactory> noRedis = mock(ObjectProvider.class);
+        BoardAccessCache cache = new BoardAccessCache(new ConcurrentMapCacheManager(), noRedis);
+        BoardAccessResolver resolver = new BoardAccessResolver(
+                cache, boardMemberRepository, userRepository, boardRepository, orgMemberRepository);
+        ReflectionTestUtils.setField(
+                boardService,
+                "boardPermissionService",
+                new BoardPermissionService(resolver, boardRepository, boardMemberRepository));
+    }
 
     private void membership(BoardRole role) {
         BoardMember member = BoardMember.builder().role(role).build();
@@ -188,7 +210,6 @@ class BoardServicePermissionTest {
                             Board.builder().id(BOARD).organization(org).build()));
 
             assertDenied(() -> boardService.checkMemberOrAbove(BOARD, USER));
-            verify(orgMemberRepository, never()).existsByOrganizationIdAndUserId(any(), any());
         }
 
         @Test
@@ -213,7 +234,7 @@ class BoardServicePermissionTest {
         @Test
         @DisplayName("멤버십이 있으면 역할과 무관하게 허용 (VIEWER 포함)")
         void anyMemberAllowed() {
-            when(boardMemberRepository.existsByBoardIdAndUserId(BOARD, USER)).thenReturn(true);
+            membership(BoardRole.VIEWER);
             assertThatCode(() -> boardService.checkViewerOrAbove(BOARD, USER)).doesNotThrowAnyException();
             verify(userRepository, never()).findById(any());
         }
@@ -221,7 +242,7 @@ class BoardServicePermissionTest {
         @Test
         @DisplayName("시스템 ADMIN 은 멤버십 없이도 열람 가능")
         void systemAdminAllowed() {
-            when(boardMemberRepository.existsByBoardIdAndUserId(BOARD, USER)).thenReturn(false);
+            noMembership();
             when(userRepository.findById(USER))
                     .thenReturn(Optional.of(User.builder()
                             .id(USER)
@@ -231,13 +252,12 @@ class BoardServicePermissionTest {
                             .build()));
 
             assertThatCode(() -> boardService.checkViewerOrAbove(BOARD, USER)).doesNotThrowAnyException();
-            verify(boardRepository, never()).findById(any());
         }
 
         @Test
         @DisplayName("조직 보드는 조직원이면 열람 가능 (auto access 설정과 무관)")
         void orgMemberCanViewOrgBoard() {
-            when(boardMemberRepository.existsByBoardIdAndUserId(BOARD, USER)).thenReturn(false);
+            noMembership();
             when(userRepository.findById(USER))
                     .thenReturn(Optional.of(User.builder()
                             .id(USER)
@@ -258,7 +278,7 @@ class BoardServicePermissionTest {
         @Test
         @DisplayName("비멤버 + 일반 사용자 + 일반 보드 → 거부")
         void outsiderDenied() {
-            when(boardMemberRepository.existsByBoardIdAndUserId(BOARD, USER)).thenReturn(false);
+            noMembership();
             when(userRepository.findById(USER))
                     .thenReturn(Optional.of(
                             User.builder().id(USER).email("u@x").name("U").build()));
@@ -271,7 +291,7 @@ class BoardServicePermissionTest {
         @Test
         @DisplayName("사용자/보드 레코드가 없어도 NPE 없이 거부")
         void missingUserAndBoardDenied() {
-            when(boardMemberRepository.existsByBoardIdAndUserId(BOARD, USER)).thenReturn(false);
+            noMembership();
             when(userRepository.findById(USER)).thenReturn(Optional.empty());
             when(boardRepository.findById(BOARD)).thenReturn(Optional.empty());
 

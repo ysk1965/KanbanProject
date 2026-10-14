@@ -7,39 +7,40 @@ import com.kanban.domain.block.FixedBlockType;
 import com.kanban.domain.board.*;
 import com.kanban.domain.board.dto.BoardRequest;
 import com.kanban.domain.board.dto.BoardResponse;
+import com.kanban.domain.calendar.CalendarEventRepository;
 import com.kanban.domain.checklist.ChecklistItemRepository;
+import com.kanban.domain.comment.CommentAttachment;
 import com.kanban.domain.comment.CommentAttachmentRepository;
 import com.kanban.domain.comment.CommentReactionRepository;
 import com.kanban.domain.comment.CommentRepository;
-import com.kanban.domain.integration.slack.MemberSlackWebhookRepository;
-import com.kanban.domain.standup.DailyStandupConfigRepository;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.feature.FeatureRepository;
+import com.kanban.domain.integration.slack.MemberSlackWebhookRepository;
+import com.kanban.domain.invite.InviteLinkRepository;
 import com.kanban.domain.meeting.MeetingRepository;
+import com.kanban.domain.milestone.Milestone;
+import com.kanban.domain.milestone.MilestoneAllocationRepository;
+import com.kanban.domain.milestone.MilestoneFeatureRepository;
+import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.note.NoteCommentReactionRepository;
 import com.kanban.domain.note.NoteCommentRepository;
 import com.kanban.domain.note.NoteRepository;
 import com.kanban.domain.note.NoteTagMappingRepository;
 import com.kanban.domain.note.NoteTagRepository;
 import com.kanban.domain.note.NoteVersionRepository;
-import com.kanban.domain.invite.InviteLinkRepository;
-import com.kanban.domain.milestone.MilestoneAllocationRepository;
-import com.kanban.domain.milestone.MilestoneFeatureRepository;
-import com.kanban.domain.calendar.CalendarEventRepository;
-import com.kanban.domain.milestone.Milestone;
-import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.notification.NotificationPreferenceRepository;
 import com.kanban.domain.notification.NotificationRepository;
+import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.report.ReportRepository;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
-import com.kanban.domain.comment.CommentAttachment;
+import com.kanban.domain.standup.DailyStandupConfigRepository;
 import com.kanban.domain.subscription.PaymentHistoryRepository;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionRepository;
+import com.kanban.domain.system.MonetizationService;
 import com.kanban.domain.tag.FeatureTagRepository;
 import com.kanban.domain.tag.TagRepository;
 import com.kanban.domain.tag.TaskTagRepository;
-import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.task.TaskDependencyRepository;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.SystemRole;
@@ -49,14 +50,7 @@ import com.kanban.domain.weight.TaskWeightRepository;
 import com.kanban.domain.weight.WeightLevelRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
-import com.kanban.domain.system.MonetizationService;
 import com.kanban.global.service.FileUploadService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -67,6 +61,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -78,6 +77,8 @@ public class BoardService {
 
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
+    private final BoardPermissionService boardPermissionService;
+    private final BoardAccessCacheEvictor boardAccessCacheEvictor;
     private final UserBoardStarRepository userBoardStarRepository;
     private final BlockRepository blockRepository;
     private final SubscriptionRepository subscriptionRepository;
@@ -123,11 +124,9 @@ public class BoardService {
 
     @Transactional
     public BoardResponse.Detail createBoard(String userId, BoardRequest.Create request) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        boolean skipBilling = user.getSystemRole() == SystemRole.TESTER
-                || !monetizationService.isMonetizationEnabled();
+        boolean skipBilling = user.getSystemRole() == SystemRole.TESTER || !monetizationService.isMonetizationEnabled();
 
         // 보드 생성 (TESTER는 PREMIUM 티어)
         Board board = Board.builder()
@@ -154,9 +153,7 @@ public class BoardService {
         createDefaultMilestone(board, user);
 
         // 구독 생성 (TESTER는 PREMIUM, 일반 사용자/ADMIN은 Trial)
-        Subscription subscription = skipBilling
-                ? Subscription.createPremium(board)
-                : Subscription.createTrial(board);
+        Subscription subscription = skipBilling ? Subscription.createPremium(board) : Subscription.createTrial(board);
         subscriptionRepository.save(subscription);
 
         log.info("Board created: {} by user: {}", board.getId(), userId);
@@ -222,8 +219,7 @@ public class BoardService {
      */
     private void createDefaultMilestone(Board board, User user) {
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
-        Milestone defaultMilestone = Milestone.createDefault(
-                board, board.getName(), today, today.plusDays(60), user);
+        Milestone defaultMilestone = Milestone.createDefault(board, board.getName(), today, today.plusDays(60), user);
         milestoneRepository.save(defaultMilestone);
     }
 
@@ -231,7 +227,8 @@ public class BoardService {
         // 1) 대상 보드와 역할을 먼저 모은다 (멤버 보드 → auto_board_access 조직 보드 순서 유지).
         List<Board> boards = boardRepository.findByMemberId(userId);
         List<String> memberBoardIds = boards.stream().map(Board::getId).toList();
-        Map<String, BoardMember> membershipMap = memberBoardIds.isEmpty() ? Map.of()
+        Map<String, BoardMember> membershipMap = memberBoardIds.isEmpty()
+                ? Map.of()
                 : boardMemberRepository.findByUserIdAndBoardIdIn(userId, memberBoardIds).stream()
                         .collect(Collectors.toMap(bm -> bm.getBoard().getId(), Function.identity(), (a, b) -> a));
 
@@ -279,8 +276,7 @@ public class BoardService {
 
         Map<String, int[]> taskCountMap = new HashMap<>();
         for (Object[] row : taskRepository.countTotalAndCompletedGroupedByBoardId(boardIds)) {
-            taskCountMap.put((String) row[0], new int[]{
-                    ((Number) row[1]).intValue(), ((Number) row[2]).intValue()});
+            taskCountMap.put((String) row[0], new int[] {((Number) row[1]).intValue(), ((Number) row[2]).intValue()});
         }
 
         Map<String, List<BoardResponse.MemberPreview>> memberPreviewMap = new HashMap<>();
@@ -296,7 +292,7 @@ public class BoardService {
         List<BoardResponse.Simple> result = new ArrayList<>(targetBoards.size());
         for (Board board : targetBoards) {
             String boardId = board.getId();
-            int[] taskCounts = taskCountMap.getOrDefault(boardId, new int[]{0, 0});
+            int[] taskCounts = taskCountMap.getOrDefault(boardId, new int[] {0, 0});
             result.add(BoardResponse.Simple.of(
                     board,
                     roleByBoardId.get(boardId),
@@ -312,25 +308,28 @@ public class BoardService {
     }
 
     public BoardResponse.Detail getBoard(String boardId, String userId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        BoardMember membership = boardMemberRepository.findByBoardIdAndUserId(boardId, userId)
+        BoardMember membership = boardMemberRepository
+                .findByBoardIdAndUserId(boardId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_ACCESS_DENIED));
 
         boolean isStarred = userBoardStarRepository.existsByUserIdAndBoardId(userId, boardId);
         int memberCount = boardMemberRepository.countBillableMembers(boardId);
-        Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
+        Subscription subscription =
+                subscriptionRepository.findByBoardId(boardId).orElse(null);
 
         return BoardResponse.Detail.of(board, membership.getRole(), isStarred, memberCount, subscription);
     }
 
     @Transactional
     public BoardResponse.Detail updateBoard(String boardId, String userId, BoardRequest.Update request) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        BoardMember membership = boardMemberRepository.findByBoardIdAndUserId(boardId, userId)
+        BoardMember membership = boardMemberRepository
+                .findByBoardIdAndUserId(boardId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_ACCESS_DENIED));
 
         if (!membership.isAdminOrAbove()) {
@@ -344,7 +343,8 @@ public class BoardService {
 
         boolean isStarred = userBoardStarRepository.existsByUserIdAndBoardId(userId, boardId);
         int memberCount = boardMemberRepository.countBillableMembers(boardId);
-        Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
+        Subscription subscription =
+                subscriptionRepository.findByBoardId(boardId).orElse(null);
 
         log.info("Board updated: {} by user: {}", boardId, userId);
 
@@ -356,8 +356,8 @@ public class BoardService {
      */
     @Transactional
     public void deleteBoard(String boardId, String userId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         if (!board.isOwner(userId)) {
             throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
@@ -376,8 +376,8 @@ public class BoardService {
      */
     @Transactional
     public void deleteBoardByAdmin(String boardId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         if (board.isDeleted()) {
             throw new BusinessException(ErrorCode.BOARD_ALREADY_DELETED);
@@ -392,8 +392,8 @@ public class BoardService {
      */
     @Transactional
     public void restoreBoard(String boardId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         if (!board.isDeleted()) {
             throw new BusinessException(ErrorCode.BOARD_NOT_DELETED);
@@ -408,8 +408,8 @@ public class BoardService {
      */
     @Transactional
     public void permanentlyDeleteBoard(String boardId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         // 관련 데이터 삭제 (FK 의존성 순서: leaf → parent)
         milestoneAllocationRepository.deleteAllByBoardId(boardId);
@@ -459,26 +459,29 @@ public class BoardService {
 
         paymentHistoryRepository.deleteByBoardId(boardId);
         userBoardStarRepository.deleteByBoardId(boardId);
-        boardMemberRepository.deleteByBoardId(boardId);
+        boardMemberRepository.deleteByBoardId(boardId); // @Modifying JPQL — 엔티티 콜백을 타지 않는다
         subscriptionRepository.deleteByBoardId(boardId);
 
         boardRepository.delete(board);
+        boardAccessCacheEvictor.evictBoard(boardId);
         log.info("Board permanently deleted: {}", boardId);
     }
 
     @Transactional
     public BoardResponse.Detail updateSelectedMilestone(String boardId, String userId, String milestoneId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        BoardMember membership = boardMemberRepository.findByBoardIdAndUserId(boardId, userId)
+        BoardMember membership = boardMemberRepository
+                .findByBoardIdAndUserId(boardId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_ACCESS_DENIED));
 
         board.updateSelectedMilestone(milestoneId);
 
         boolean isStarred = userBoardStarRepository.existsByUserIdAndBoardId(userId, boardId);
         int memberCount = boardMemberRepository.countBillableMembers(boardId);
-        Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
+        Subscription subscription =
+                subscriptionRepository.findByBoardId(boardId).orElse(null);
 
         log.info("Board selected milestone updated: {} to {} by user: {}", boardId, milestoneId, userId);
 
@@ -494,36 +497,41 @@ public class BoardService {
      */
     @Transactional
     public BoardResponse.Detail updateUiConfig(String boardId, String userId, Integer uiLevel, String uiOptions) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        BoardMember membership = boardMemberRepository.findByBoardIdAndUserId(boardId, userId)
+        BoardMember membership = boardMemberRepository
+                .findByBoardIdAndUserId(boardId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_ACCESS_DENIED));
 
         board.updateUiConfig(uiLevel, uiOptions);
 
         boolean isStarred = userBoardStarRepository.existsByUserIdAndBoardId(userId, boardId);
         int memberCount = boardMemberRepository.countBillableMembers(boardId);
-        Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
+        Subscription subscription =
+                subscriptionRepository.findByBoardId(boardId).orElse(null);
 
-        log.info("Board ui config updated: {} level={} options={} by user: {}",
-                boardId, board.getUiLevel(), board.getUiOptions(), userId);
+        log.info(
+                "Board ui config updated: {} level={} options={} by user: {}",
+                boardId,
+                board.getUiLevel(),
+                board.getUiOptions(),
+                userId);
 
         return BoardResponse.Detail.of(board, membership.getRole(), isStarred, memberCount, subscription);
     }
 
     @Transactional
     public BoardResponse.StarToggle toggleStar(String boardId, String userId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         // 멤버 확인
         if (!boardMemberRepository.existsByBoardIdAndUserId(boardId, userId)) {
             throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
         }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         boolean isCurrentlyStarred = userBoardStarRepository.existsByUserIdAndBoardId(userId, boardId);
 
@@ -546,68 +554,43 @@ public class BoardService {
     }
 
     /**
-     * Personal Board에서 팀 전용 기능 접근 시 차단
+     * @deprecated {@link BoardPermissionService#checkTeamBoardOnly(String)} 로 이동. 호출 지점 마이그레이션까지 위임만 한다.
      */
+    @Deprecated
     public void checkTeamBoardOnly(String boardId) {
-        boardRepository.findById(boardId).ifPresent(board -> {
-            if (board.isPersonal()) {
-                throw new BusinessException(ErrorCode.PERSONAL_BOARD_NO_INVITE);
-            }
-        });
+        boardPermissionService.checkTeamBoardOnly(boardId);
     }
 
-    // 권한 확인 헬퍼 메서드
+    // ── 권한 확인 헬퍼: 전부 BoardPermissionService(캐시) 위임. 새 코드는 BoardPermissionService 를 직접 쓴다. ──
+
+    /** @deprecated {@link BoardPermissionService#membershipOrThrow(String, String)} */
+    @Deprecated
     public BoardMember getMembershipOrThrow(String boardId, String userId) {
-        return boardMemberRepository.findByBoardIdAndUserId(boardId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_ACCESS_DENIED));
+        return boardPermissionService.membershipOrThrow(boardId, userId);
     }
 
+    /** @deprecated {@link BoardPermissionService#checkViewerOrAbove(String, String)} */
+    @Deprecated
     public void checkViewerOrAbove(String boardId, String userId) {
-        if (boardMemberRepository.existsByBoardIdAndUserId(boardId, userId)) return;
-        // System ADMIN can view any board without membership
-        User user = userRepository.findById(userId).orElse(null);
-        if (user != null && user.getSystemRole() == SystemRole.ADMIN) return;
-        // Org member can view org boards as viewer
-        Board board = boardRepository.findById(boardId).orElse(null);
-        if (board != null && board.isOrganizationBoard()) {
-            if (orgMemberRepository.existsByOrganizationIdAndUserId(
-                    board.getOrganization().getId(), userId)) return;
-        }
-        throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
     }
 
+    /** @deprecated {@link BoardPermissionService#checkMemberOrAbove(String, String)} */
+    @Deprecated
     public void checkMemberOrAbove(String boardId, String userId) {
-        java.util.Optional<BoardMember> membershipOpt = boardMemberRepository.findByBoardIdAndUserId(boardId, userId);
-        if (membershipOpt.isPresent()) {
-            if (!membershipOpt.get().isMemberOrAbove()) {
-                throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
-            }
-            return;
-        }
-        // Org auto-access fallback
-        Board board = boardRepository.findById(boardId).orElse(null);
-        if (board != null && board.isOrganizationBoard()) {
-            com.kanban.domain.organization.Organization org = board.getOrganization();
-            if (Boolean.TRUE.equals(org.getAutoBoardAccessEnabled())
-                    && orgMemberRepository.existsByOrganizationIdAndUserId(org.getId(), userId)) {
-                return; // Virtual MEMBER
-            }
-        }
-        throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
     }
 
+    /** @deprecated {@link BoardPermissionService#checkAdminOrAbove(String, String)} */
+    @Deprecated
     public void checkAdminOrAbove(String boardId, String userId) {
-        BoardMember membership = getMembershipOrThrow(boardId, userId);
-        if (!membership.isAdminOrAbove()) {
-            throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
-        }
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
     }
 
+    /** @deprecated {@link BoardPermissionService#checkOwner(String, String)} */
+    @Deprecated
     public void checkOwner(String boardId, String userId) {
-        BoardMember membership = getMembershipOrThrow(boardId, userId);
-        if (!membership.isOwner()) {
-            throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
-        }
+        boardPermissionService.checkOwner(boardId, userId);
     }
 
     /**
@@ -633,8 +616,8 @@ public class BoardService {
      */
     @Transactional
     public BoardResponse.TierInfo getBoardTier(String boardId, String userId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         // 멤버 확인
         checkViewerOrAbove(boardId, userId);
@@ -653,8 +636,8 @@ public class BoardService {
      * 보드 제한 정보 조회 (Task 개수 등)
      */
     public BoardResponse.Limits getBoardLimits(String boardId, String userId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         // 멤버 확인
         checkViewerOrAbove(boardId, userId);

@@ -1,17 +1,17 @@
 package com.kanban.domain.organization;
 
+import com.kanban.domain.board.event.BoardAccessEntityListener;
 import com.kanban.domain.subscription.OrgPlan;
 import com.kanban.domain.subscription.OrgSubscription;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.UUID;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.UUID;
 
 @Entity
 @Table(name = "organizations")
@@ -19,7 +19,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@EntityListeners(AuditingEntityListener.class)
+@EntityListeners({AuditingEntityListener.class, BoardAccessEntityListener.class})
 public class Organization {
 
     @Id
@@ -98,6 +98,21 @@ public class Organization {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    /** 로드 시점의 autoBoardAccessEnabled 스냅샷 — BoardAccessEntityListener 가 이 설정 변경만 골라내는 데 쓴다. */
+    @Transient
+    private Boolean loadedAutoBoardAccessEnabled;
+
+    @PostLoad
+    @PostPersist
+    @PostUpdate
+    void snapshotAccessState() {
+        this.loadedAutoBoardAccessEnabled = this.autoBoardAccessEnabled;
+    }
+
+    public boolean autoBoardAccessChangedSinceLoad() {
+        return !java.util.Objects.equals(this.loadedAutoBoardAccessEnabled, this.autoBoardAccessEnabled);
+    }
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -146,8 +161,12 @@ public class Organization {
         this.owner = newOwner;
     }
 
-    public void updateStructureSettings(Boolean departmentsEnabled, Boolean jobGroupsEnabled,
-                                         Boolean positionsEnabled, Boolean titlesEnabled, Boolean gradesEnabled) {
+    public void updateStructureSettings(
+            Boolean departmentsEnabled,
+            Boolean jobGroupsEnabled,
+            Boolean positionsEnabled,
+            Boolean titlesEnabled,
+            Boolean gradesEnabled) {
         if (departmentsEnabled != null) this.departmentsEnabled = departmentsEnabled;
         if (jobGroupsEnabled != null) this.jobGroupsEnabled = jobGroupsEnabled;
         if (positionsEnabled != null) this.positionsEnabled = positionsEnabled;

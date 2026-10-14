@@ -1,25 +1,26 @@
 package com.kanban.domain.organization;
 
+import com.kanban.domain.board.event.BoardAccessEntityListener;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.UUID;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.UUID;
-
 @Entity
-@Table(name = "organization_members",
-       uniqueConstraints = @UniqueConstraint(columnNames = {"organization_id", "user_id"}))
+@Table(
+        name = "organization_members",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"organization_id", "user_id"}))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@EntityListeners(AuditingEntityListener.class)
+@EntityListeners({AuditingEntityListener.class, BoardAccessEntityListener.class})
 public class OrganizationMember {
 
     @Id
@@ -163,8 +164,15 @@ public class OrganizationMember {
         this.grade = grade;
     }
 
-    public void updateInfo(String jobTitle, ContractType contractType, WorkStatus workStatus,
-                           String employeeId, String phone, LocalDate birthDate, LocalDate hireDate, String bio) {
+    public void updateInfo(
+            String jobTitle,
+            ContractType contractType,
+            WorkStatus workStatus,
+            String employeeId,
+            String phone,
+            LocalDate birthDate,
+            LocalDate hireDate,
+            String bio) {
         if (jobTitle != null) this.jobTitle = jobTitle;
         if (contractType != null) this.contractType = contractType;
         if (workStatus != null) this.workStatus = workStatus;

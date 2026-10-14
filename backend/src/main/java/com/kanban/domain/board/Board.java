@@ -1,15 +1,15 @@
 package com.kanban.domain.board;
 
+import com.kanban.domain.board.event.BoardAccessEntityListener;
 import com.kanban.domain.common.BaseTimeEntity;
 import com.kanban.domain.organization.Organization;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
-import lombok.*;
-
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import lombok.*;
 
 @Entity
 @Table(name = "boards")
@@ -17,6 +17,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+@EntityListeners(BoardAccessEntityListener.class)
 public class Board extends BaseTimeEntity {
 
     @Id
@@ -106,6 +107,25 @@ public class Board extends BaseTimeEntity {
     public static final int MIN_UI_LEVEL = 1;
     public static final int MAX_UI_LEVEL = 3;
 
+    /** 로드 시점의 organization_id 스냅샷 — BoardAccessEntityListener 가 소속 조직 변경만 골라내는 데 쓴다. */
+    @Transient
+    private String loadedOrganizationId;
+
+    @PostLoad
+    @PostPersist
+    @PostUpdate
+    void snapshotAccessState() {
+        this.loadedOrganizationId = currentOrganizationId();
+    }
+
+    public boolean organizationChangedSinceLoad() {
+        return !java.util.Objects.equals(this.loadedOrganizationId, currentOrganizationId());
+    }
+
+    private String currentOrganizationId() {
+        return this.organization != null ? this.organization.getId() : null;
+    }
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -166,8 +186,12 @@ public class Board extends BaseTimeEntity {
         return this.owner.getId().equals(userId);
     }
 
-    public void updateScheduleSettings(Integer workHoursPerDay, LocalTime workStartTime,
-            String scheduleDisplayMode, LocalTime breakStartTime, LocalTime breakEndTime) {
+    public void updateScheduleSettings(
+            Integer workHoursPerDay,
+            LocalTime workStartTime,
+            String scheduleDisplayMode,
+            LocalTime breakStartTime,
+            LocalTime breakEndTime) {
         if (workHoursPerDay != null) {
             this.workHoursPerDay = workHoursPerDay;
         }
@@ -214,8 +238,7 @@ public class Board extends BaseTimeEntity {
         if (this.tier == BoardTier.ORG_MANAGED) return true;
         if (this.tier == BoardTier.PREMIUM) return true;
         if (this.tier == BoardTier.TRIAL) {
-            return this.trialEndsAt != null &&
-                   LocalDateTime.now(ZoneOffset.UTC).isBefore(this.trialEndsAt);
+            return this.trialEndsAt != null && LocalDateTime.now(ZoneOffset.UTC).isBefore(this.trialEndsAt);
         }
         return false;
     }
@@ -319,9 +342,9 @@ public class Board extends BaseTimeEntity {
      * @return true if tier was changed
      */
     public boolean checkAndUpdateTierIfTrialExpired() {
-        if (this.tier == BoardTier.TRIAL &&
-            this.trialEndsAt != null &&
-            LocalDateTime.now(ZoneOffset.UTC).isAfter(this.trialEndsAt)) {
+        if (this.tier == BoardTier.TRIAL
+                && this.trialEndsAt != null
+                && LocalDateTime.now(ZoneOffset.UTC).isAfter(this.trialEndsAt)) {
             this.tier = BoardTier.STANDARD;
             return true;
         }

@@ -1,12 +1,12 @@
 package com.kanban.domain.user;
 
+import com.kanban.domain.board.event.BoardAccessEntityListener;
 import com.kanban.domain.common.BaseTimeEntity;
 import jakarta.persistence.*;
-import lombok.*;
-
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import lombok.*;
 
 @Entity
 @Table(name = "users")
@@ -14,6 +14,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+@EntityListeners(BoardAccessEntityListener.class)
 public class User extends BaseTimeEntity {
 
     @Id
@@ -67,6 +68,21 @@ public class User extends BaseTimeEntity {
 
     @Column(name = "deactivated_at")
     private LocalDateTime deactivatedAt;
+
+    /** 로드 시점의 systemRole 스냅샷 — BoardAccessEntityListener 가 "실제로 바뀐 업데이트"만 골라내는 데 쓴다. */
+    @Transient
+    private SystemRole loadedSystemRole;
+
+    /** @PostLoad 는 엔티티당 하나만 허용되므로 로드 시점 스냅샷은 {@code initPersonalCreditDefaults()} 가 함께 호출한다. */
+    @PostPersist
+    @PostUpdate
+    void snapshotAccessState() {
+        this.loadedSystemRole = this.systemRole;
+    }
+
+    public boolean systemRoleChangedSinceLoad() {
+        return this.loadedSystemRole != this.systemRole;
+    }
 
     @Column(name = "deactivated_reason", length = 500)
     private String deactivatedReason;
@@ -180,6 +196,7 @@ public class User extends BaseTimeEntity {
 
     @PostLoad
     private void initPersonalCreditDefaults() {
+        snapshotAccessState();
         if (this.personalAiCredits == null) this.personalAiCredits = 30;
         if (this.personalCreditsUsed == null) this.personalCreditsUsed = 0;
         if (this.personalPurchasedCredits == null) this.personalPurchasedCredits = 0;
@@ -208,7 +225,8 @@ public class User extends BaseTimeEntity {
     }
 
     public void addPersonalPurchasedCredits(int amount) {
-        this.personalPurchasedCredits = (this.personalPurchasedCredits != null ? this.personalPurchasedCredits : 0) + amount;
+        this.personalPurchasedCredits =
+                (this.personalPurchasedCredits != null ? this.personalPurchasedCredits : 0) + amount;
     }
 
     public void resetPersonalCredits() {

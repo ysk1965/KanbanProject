@@ -2,6 +2,7 @@ package com.kanban.global.exception;
 
 import com.kanban.domain.monitoring.service.MonitoringAlertService;
 import com.kanban.global.filter.RequestIdFilter;
+import com.kanban.global.security.AdminPaths;
 import com.kanban.global.security.UserPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.FieldError;
@@ -69,6 +71,25 @@ public class GlobalExceptionHandler {
         log.warn("Business exception: {}", e.getMessage());
         ErrorCode errorCode = e.getErrorCode();
 
+        return ResponseEntity.status(errorCode.getStatus()).body(ErrorResponse.of(errorCode));
+    }
+
+    /**
+     * 메서드 시큐리티({@code @PreAuthorize}) 거부. 필터 단계의 거부는 {@code JwtAccessDeniedHandler} 가 처리하지만
+     * 컨트롤러 프록시에서 난 {@code AuthorizationDeniedException} 은 여기까지 올라온다 — 잡지 않으면 500 + 장애 알림.
+     * 관리자 전용 경로는 종전 {@code verifyAdminAccess} 와 같은 {@code AD001}, 그 외는 {@code C003}.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException e, HttpServletRequest request) {
+        ErrorCode errorCode = AdminPaths.isAdminOnly(request.getRequestURI())
+                ? ErrorCode.ADMIN_ACCESS_DENIED
+                : ErrorCode.ACCESS_DENIED;
+        log.warn(
+                "Access denied: {} {} by {} ({})",
+                request.getMethod(),
+                request.getRequestURI(),
+                extractUserInfo(),
+                e.getMessage());
         return ResponseEntity.status(errorCode.getStatus()).body(ErrorResponse.of(errorCode));
     }
 

@@ -1,22 +1,23 @@
 package com.kanban.domain.board;
 
+import com.kanban.domain.board.event.BoardAccessEntityListener;
 import com.kanban.domain.jobrole.entity.JobRole;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
-import lombok.*;
-
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import lombok.*;
 
 @Entity
-@Table(name = "board_members", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"board_id", "user_id"})
-})
+@Table(
+        name = "board_members",
+        uniqueConstraints = {@UniqueConstraint(columnNames = {"board_id", "user_id"})})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+@EntityListeners(BoardAccessEntityListener.class)
 public class BoardMember {
 
     @Id

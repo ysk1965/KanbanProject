@@ -1,6 +1,5 @@
 package com.kanban.domain.board.service;
 
-import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.dto.TodayResponse;
 import com.kanban.domain.dailychecklist.dto.DailyChecklistResponse;
@@ -11,14 +10,13 @@ import com.kanban.domain.task.dto.TaskResponse;
 import com.kanban.domain.task.service.TaskService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
-import java.time.ZoneOffset;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -29,14 +27,14 @@ public class BoardTodayService {
     private final BoardRepository boardRepository;
     private final PersonalEventRepository personalEventRepository;
     private final DailyChecklistResolver dailyChecklistResolver;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final TaskService taskService;
 
     public TodayResponse getToday(String boardId, String userId) {
-        boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
 
@@ -49,16 +47,14 @@ public class BoardTodayService {
                 .toList();
 
         // 진행중 Task (미완료)
-        List<TaskResponse.Simple> inProgressTasks = allTasks.getTasks().stream()
-                .filter(t -> !t.isCompleted())
-                .toList();
+        List<TaskResponse.Simple> inProgressTasks =
+                allTasks.getTasks().stream().filter(t -> !t.isCompleted()).toList();
 
         // 오늘 PersonalEvent (user_id 기준)
-        List<PersonalEventResponse.Detail> personalEvents = personalEventRepository
-                .findByUserIdAndDate(userId, today)
-                .stream()
-                .map(PersonalEventResponse.Detail::of)
-                .toList();
+        List<PersonalEventResponse.Detail> personalEvents =
+                personalEventRepository.findByUserIdAndDate(userId, today).stream()
+                        .map(PersonalEventResponse.Detail::of)
+                        .toList();
 
         // 오늘의 체크리스트 (항목 기간에서 파생 + 핀 - 제외)
         List<DailyChecklistResponse.ItemResponse> dailyChecklistResponses =
@@ -68,7 +64,9 @@ public class BoardTodayService {
 
         // 완료율
         long totalTasks = allTasks.getTasks().size();
-        long completedTasks = allTasks.getTasks().stream().filter(TaskResponse.Simple::isCompleted).count();
+        long completedTasks = allTasks.getTasks().stream()
+                .filter(TaskResponse.Simple::isCompleted)
+                .count();
         double completionRate = totalTasks > 0 ? (double) completedTasks / totalTasks : 0.0;
 
         return TodayResponse.builder()

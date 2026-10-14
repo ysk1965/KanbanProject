@@ -1,28 +1,24 @@
 package com.kanban.global.config;
 
+import com.kanban.global.security.AdminPaths;
 import com.kanban.global.security.JwtAccessDeniedHandler;
 import com.kanban.global.security.JwtAuthenticationEntryPoint;
 import com.kanban.global.security.JwtAuthenticationFilter;
 import com.kanban.global.security.RateLimitingFilter;
-import com.kanban.global.security.UserPrincipal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authorization.AuthorizationDecision;
-import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -133,7 +129,11 @@ public class SecurityConfig {
                         .permitAll()
                         // 그 외 actuator(metrics, hikaricp 등)는 시스템 ADMIN 만 — 내부 지표를 밖에 흘리지 않는다
                         .requestMatchers("/actuator/**")
-                        .access(systemAdminOnly())
+                        .hasRole("ADMIN")
+                        // 시스템 관리자 전용 API — 컨트롤러의 @PreAuthorize("hasRole('ADMIN')") 와 이중 방어.
+                        // 권한은 JwtAuthenticationFilter 가 systemRole 로 만든 ROLE_* (UserPrincipal#getAuthorities)
+                        .requestMatchers(AdminPaths.PATTERNS)
+                        .hasRole("ADMIN")
                         // All other requests require authentication
                         .anyRequest()
                         .authenticated())
@@ -144,20 +144,6 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, RateLimitingFilter.class);
 
         return http.build();
-    }
-
-    /**
-     * 인증 토큰에 권한(authority)을 싣지 않으므로 {@link UserPrincipal#isAdmin()} 으로 직접 판정한다.
-     */
-    private static AuthorizationManager<RequestAuthorizationContext> systemAdminOnly() {
-        return (authentication, context) -> {
-            Authentication auth = authentication.get();
-            boolean admin = auth != null
-                    && auth.isAuthenticated()
-                    && auth.getPrincipal() instanceof UserPrincipal principal
-                    && principal.isAdmin();
-            return new AuthorizationDecision(admin);
-        };
     }
 
     @Bean

@@ -5,14 +5,13 @@ import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.exception.GlobalExceptionHandler.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 
 /**
  * 인증은 됐지만 권한이 없는 요청을 403 + 표준 에러 JSON으로 응답한다.
@@ -25,11 +24,16 @@ public class JwtAccessDeniedHandler implements AccessDeniedHandler {
     private final ObjectMapper objectMapper;
 
     @Override
-    public void handle(HttpServletRequest request, HttpServletResponse response,
-                       AccessDeniedException accessDeniedException) throws IOException {
+    public void handle(
+            HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException)
+            throws IOException {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        objectMapper.writeValue(response.getWriter(), ErrorResponse.of(ErrorCode.ACCESS_DENIED));
+        // 관리자 전용 경로는 종전 verifyAdminAccess 와 같은 AD001 을 유지한다 (FE 호환)
+        ErrorCode code = AdminPaths.isAdminOnly(request.getRequestURI())
+                ? ErrorCode.ADMIN_ACCESS_DENIED
+                : ErrorCode.ACCESS_DENIED;
+        objectMapper.writeValue(response.getWriter(), ErrorResponse.of(code));
     }
 }

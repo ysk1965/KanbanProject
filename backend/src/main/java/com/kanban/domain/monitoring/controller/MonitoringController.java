@@ -4,18 +4,15 @@ import com.kanban.domain.monitoring.dto.MonitoringResponse;
 import com.kanban.domain.monitoring.service.MonitoringAlertService;
 import com.kanban.domain.monitoring.service.MonitoringService;
 import com.kanban.domain.monitoring.service.OpenAIBillingService;
-import com.kanban.global.exception.BusinessException;
-import com.kanban.global.exception.ErrorCode;
-import com.kanban.global.security.UserPrincipal;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
+@PreAuthorize("hasRole('ADMIN')")
 @RequestMapping("/api/v1/admin/monitoring")
 @RequiredArgsConstructor
 public class MonitoringController {
@@ -25,22 +22,11 @@ public class MonitoringController {
     private final OpenAIBillingService openAIBillingService;
 
     /**
-     * Admin 권한 검증
-     */
-    private void verifyAdminAccess(UserPrincipal principal) {
-        if (principal == null || !principal.isAdmin()) {
-            throw new BusinessException(ErrorCode.ADMIN_ACCESS_DENIED);
-        }
-    }
-
-    /**
      * GET /api/v1/admin/monitoring/dashboard
      * Returns the unified monitoring dashboard with JVM, HikariCP, API, and CloudWatch metrics.
      */
     @GetMapping("/dashboard")
-    public ResponseEntity<MonitoringResponse.Dashboard> getDashboard(
-            @AuthenticationPrincipal UserPrincipal principal) {
-        verifyAdminAccess(principal);
+    public ResponseEntity<MonitoringResponse.Dashboard> getDashboard() {
         return ResponseEntity.ok(monitoringService.getDashboard());
     }
 
@@ -50,9 +36,7 @@ public class MonitoringController {
      */
     @GetMapping("/api-metrics/history")
     public ResponseEntity<MonitoringResponse.ApiMetricHistory> getApiMetricHistory(
-            @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(defaultValue = "24") int hours) {
-        verifyAdminAccess(principal);
         return ResponseEntity.ok(monitoringService.getApiMetricHistory(hours));
     }
 
@@ -61,9 +45,7 @@ public class MonitoringController {
      * Returns CloudWatch metrics for EC2 and RDS.
      */
     @GetMapping("/cloudwatch")
-    public ResponseEntity<MonitoringResponse.CloudWatchMetrics> getCloudWatchMetrics(
-            @AuthenticationPrincipal UserPrincipal principal) {
-        verifyAdminAccess(principal);
+    public ResponseEntity<MonitoringResponse.CloudWatchMetrics> getCloudWatchMetrics() {
         return ResponseEntity.ok(monitoringService.getCloudWatchMetrics());
     }
 
@@ -72,9 +54,7 @@ public class MonitoringController {
      * Returns the current alert configuration.
      */
     @GetMapping("/alert-config")
-    public ResponseEntity<MonitoringResponse.AlertConfig> getAlertConfig(
-            @AuthenticationPrincipal UserPrincipal principal) {
-        verifyAdminAccess(principal);
+    public ResponseEntity<MonitoringResponse.AlertConfig> getAlertConfig() {
         return ResponseEntity.ok(monitoringService.getAlertConfig());
     }
 
@@ -83,10 +63,7 @@ public class MonitoringController {
      * Updates the alert configuration.
      */
     @PutMapping("/alert-config")
-    public ResponseEntity<MonitoringResponse.AlertConfig> updateAlertConfig(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody Map<String, Object> request) {
-        verifyAdminAccess(principal);
+    public ResponseEntity<MonitoringResponse.AlertConfig> updateAlertConfig(@RequestBody Map<String, Object> request) {
         String webhookUrl = (String) request.get("slack_webhook_url");
         boolean enabled = Boolean.TRUE.equals(request.get("enabled"));
         @SuppressWarnings("unchecked")
@@ -99,9 +76,7 @@ public class MonitoringController {
      * Sends a test alert to the configured Slack webhook.
      */
     @PostMapping("/alert-test")
-    public ResponseEntity<Map<String, String>> sendTestAlert(
-            @AuthenticationPrincipal UserPrincipal principal) {
-        verifyAdminAccess(principal);
+    public ResponseEntity<Map<String, String>> sendTestAlert() {
         monitoringAlertService.sendTestAlert();
         return ResponseEntity.ok(Map.of("message", "테스트 알림이 발송되었습니다"));
     }
@@ -112,9 +87,7 @@ public class MonitoringController {
      */
     @GetMapping("/ai-usage")
     public ResponseEntity<MonitoringResponse.AiUsageMetrics> getAiUsageMetrics(
-            @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(defaultValue = "30") int days) {
-        verifyAdminAccess(principal);
         return ResponseEntity.ok(monitoringService.getAiUsageMetrics(days));
     }
 
@@ -124,9 +97,7 @@ public class MonitoringController {
      */
     @GetMapping("/openai-billing")
     public ResponseEntity<MonitoringResponse.OpenAIBilling> getOpenAIBilling(
-            @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(defaultValue = "30") int days) {
-        verifyAdminAccess(principal);
         return ResponseEntity.ok(openAIBillingService.getBilling(days));
     }
 }

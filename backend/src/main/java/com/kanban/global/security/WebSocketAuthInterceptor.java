@@ -4,6 +4,11 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.user.SystemRole;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;
@@ -16,13 +21,6 @@ import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Slf4j
 @Component
@@ -72,7 +70,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             UserPrincipal principal = new UserPrincipal(userId, email, systemRole);
 
             UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(principal, null, Collections.emptyList());
+                    new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
 
             accessor.setUser(authentication);
 
@@ -132,9 +130,8 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
         if (cached != null && !cached.isExpired()) {
             return cached.isStandard();
         }
-        boolean isStandard = boardRepository.findById(boardId)
-                .map(Board::isStandard)
-                .orElse(false);
+        boolean isStandard =
+                boardRepository.findById(boardId).map(Board::isStandard).orElse(false);
         tierCache.put(boardId, new TierCacheEntry(isStandard, System.currentTimeMillis()));
         return isStandard;
     }

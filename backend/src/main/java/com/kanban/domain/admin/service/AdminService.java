@@ -1,25 +1,25 @@
 package com.kanban.domain.admin.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kanban.domain.activity.ActivityLog;
+import com.kanban.domain.activity.ActivityLogRepository;
 import com.kanban.domain.admin.dto.AdminRequest;
 import com.kanban.domain.admin.dto.AdminResponse;
 import com.kanban.domain.announcement.Announcement;
 import com.kanban.domain.announcement.AnnouncementRepository;
 import com.kanban.domain.announcement.AnnouncementType;
 import com.kanban.domain.auth.service.AuthService;
-import com.kanban.domain.activity.ActivityLog;
-import com.kanban.domain.activity.ActivityLogRepository;
 import com.kanban.domain.board.*;
+import com.kanban.domain.board.service.BoardAccessCacheEvictor;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.organization.Organization;
 import com.kanban.domain.organization.OrganizationMember;
-import com.kanban.domain.organization.repository.OrganizationRepository;
 import com.kanban.domain.organization.repository.OrgMemberRepository;
+import com.kanban.domain.organization.repository.OrganizationRepository;
 import com.kanban.domain.subscription.BillingCycle;
 import com.kanban.domain.subscription.OrgPlan;
 import com.kanban.domain.subscription.OrgSubscription;
 import com.kanban.domain.subscription.OrgSubscriptionRepository;
-import com.kanban.domain.user.service.UserService;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionRepository;
 import com.kanban.domain.subscription.SubscriptionStatus;
@@ -29,21 +29,11 @@ import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.SystemRole;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
+import com.kanban.domain.user.service.UserService;
 import com.kanban.global.exception.BusinessException;
-import com.kanban.global.filter.MaintenanceFilter;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.filter.MaintenanceFilter;
 import com.kanban.global.security.WebSocketAuthInterceptor;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -53,6 +43,16 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 @Service
@@ -60,6 +60,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class AdminService {
 
+    private final BoardAccessCacheEvictor boardAccessCacheEvictor;
     private final UserRepository userRepository;
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
@@ -85,8 +86,8 @@ public class AdminService {
 
         Page<User> userPage;
         if (search != null && !search.isBlank()) {
-            userPage = userRepository.findByNameContainingIgnoreCaseOrEmailContainingIgnoreCase(
-                    search, search, pageable);
+            userPage =
+                    userRepository.findByNameContainingIgnoreCaseOrEmailContainingIgnoreCase(search, search, pageable);
         } else {
             userPage = userRepository.findAll(pageable);
         }
@@ -94,15 +95,10 @@ public class AdminService {
         // Batch load: 유저별 보드 수 (N+1 방지)
         List<String> userIds = userPage.getContent().stream().map(User::getId).collect(Collectors.toList());
         Map<String, Integer> boardCountMap = boardRepository.countByUserInvolvementBatch(userIds).stream()
-                .collect(Collectors.toMap(
-                        row -> (String) row[0],
-                        row -> ((Number) row[1]).intValue()
-                ));
+                .collect(Collectors.toMap(row -> (String) row[0], row -> ((Number) row[1]).intValue()));
 
         List<AdminResponse.UserSummary> users = userPage.getContent().stream()
-                .map(user -> AdminResponse.UserSummary.of(
-                        user,
-                        boardCountMap.getOrDefault(user.getId(), 0)))
+                .map(user -> AdminResponse.UserSummary.of(user, boardCountMap.getOrDefault(user.getId(), 0)))
                 .collect(Collectors.toList());
 
         return AdminResponse.UserList.builder()
@@ -114,8 +110,7 @@ public class AdminService {
     }
 
     public AdminResponse.UserDetail getUser(String userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         List<Board> boards = boardRepository.findByUserInvolvement(userId);
         int boardCount = boards.size();
@@ -127,11 +122,11 @@ public class AdminService {
 
     @Transactional
     public AdminResponse.UserSummary updateUser(String userId, AdminRequest.UpdateUser request, String adminId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // 자기 자신의 Admin 역할 변경 방지
-        if (userId.equals(adminId) && user.getSystemRole() == SystemRole.ADMIN
+        if (userId.equals(adminId)
+                && user.getSystemRole() == SystemRole.ADMIN
                 && request.getSystemRole() != SystemRole.ADMIN) {
             throw new BusinessException(ErrorCode.CANNOT_DEMOTE_SELF);
         }
@@ -145,15 +140,18 @@ public class AdminService {
         }
 
         user.updateSystemRole(request.getSystemRole());
-        log.info("User role updated by admin: userId={}, newRole={}, adminId={}", userId, request.getSystemRole(), adminId);
+        log.info(
+                "User role updated by admin: userId={}, newRole={}, adminId={}",
+                userId,
+                request.getSystemRole(),
+                adminId);
 
         int boardCount = boardRepository.countByUserInvolvement(user.getId());
         return AdminResponse.UserSummary.of(user, boardCount);
     }
 
     public AdminResponse.BoardList getUserBoards(String userId) {
-        userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         List<Board> boards = boardRepository.findByUserInvolvement(userId);
 
@@ -171,8 +169,7 @@ public class AdminService {
 
     @Transactional
     public AdminResponse.UserSummary deactivateUser(String userId, AdminRequest.DeactivateUser request) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // 관리자 계정은 비활성화 불가
         if (user.getSystemRole() == SystemRole.ADMIN) {
@@ -185,7 +182,10 @@ public class AdminService {
         }
 
         user.deactivate(request != null ? request.getReason() : null);
-        log.info("User deactivated by admin: userId={}, reason={}", userId, request != null ? request.getReason() : "N/A");
+        log.info(
+                "User deactivated by admin: userId={}, reason={}",
+                userId,
+                request != null ? request.getReason() : "N/A");
 
         int boardCount = boardRepository.countByUserInvolvement(user.getId());
         return AdminResponse.UserSummary.of(user, boardCount);
@@ -193,8 +193,7 @@ public class AdminService {
 
     @Transactional
     public AdminResponse.UserSummary activateUser(String userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // 이미 활성화된 경우
         if (user.getIsActive()) {
@@ -210,8 +209,7 @@ public class AdminService {
 
     @Transactional
     public AdminResponse.UserSummary verifyUserEmailByAdmin(String userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         if (user.getEmailVerified()) {
             throw new BusinessException(ErrorCode.ALREADY_VERIFIED);
@@ -226,8 +224,7 @@ public class AdminService {
 
     @Transactional
     public void sendPasswordResetEmailByAdmin(String userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // Google 계정은 비밀번호 리셋 불가
         if ("GOOGLE".equalsIgnoreCase(user.getAuthProvider())) {
@@ -240,8 +237,7 @@ public class AdminService {
 
     @Transactional
     public void deleteUserByAdmin(String userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // 관리자 계정은 삭제 불가
         if (user.getSystemRole() == SystemRole.ADMIN) {
@@ -265,10 +261,10 @@ public class AdminService {
 
     @Transactional
     public void removeUserFromBoard(String userId, String boardId) {
-        userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        BoardMember member = boardMemberRepository.findByBoardIdAndUserId(boardId, userId)
+        BoardMember member = boardMemberRepository
+                .findByBoardIdAndUserId(boardId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         // Owner는 내보낼 수 없음
@@ -298,17 +294,17 @@ public class AdminService {
     }
 
     public AdminResponse.BoardDetail getBoard(String boardId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         int memberCount = (int) boardMemberRepository.countByBoardId(boardId);
         int taskCount = taskRepository.countByBoardId(boardId);
-        Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
+        Subscription subscription =
+                subscriptionRepository.findByBoardId(boardId).orElse(null);
 
         List<BoardMember> boardMembers = boardMemberRepository.findByBoardId(boardId);
-        List<AdminResponse.MemberInfo> members = boardMembers.stream()
-                .map(AdminResponse.MemberInfo::of)
-                .collect(Collectors.toList());
+        List<AdminResponse.MemberInfo> members =
+                boardMembers.stream().map(AdminResponse.MemberInfo::of).collect(Collectors.toList());
 
         return AdminResponse.BoardDetail.of(board, memberCount, taskCount, subscription, members);
     }
@@ -345,12 +341,13 @@ public class AdminService {
 
     @Transactional
     public AdminResponse.BoardSummary updateBoardTier(String boardId, AdminRequest.UpdateBoardTier request) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         // Tier 업데이트 로직
         BoardTier newTier = request.getTier();
-        Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
+        Subscription subscription =
+                subscriptionRepository.findByBoardId(boardId).orElse(null);
 
         if (newTier == BoardTier.PREMIUM) {
             board.upgradeToPremium();
@@ -373,10 +370,11 @@ public class AdminService {
 
     @Transactional
     public AdminResponse.BoardDetail transferBoardOwnership(String boardId, AdminRequest.TransferOwnership request) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        User newOwner = userRepository.findById(request.getNewOwnerId())
+        User newOwner = userRepository
+                .findById(request.getNewOwnerId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         User oldOwner = board.getOwner();
@@ -404,30 +402,33 @@ public class AdminService {
         }
 
         // 2. 기존 Owner를 ADMIN으로 변경
-        boardMemberRepository.findByBoardIdAndUserId(boardId, oldOwner.getId())
+        boardMemberRepository
+                .findByBoardIdAndUserId(boardId, oldOwner.getId())
                 .ifPresent(member -> member.updateRole(BoardRole.ADMIN));
 
         // 3. Board의 owner 필드 업데이트
         board.updateOwner(newOwner);
 
-        log.info("Board ownership transferred by admin: boardId={}, oldOwner={}, newOwner={}",
-                boardId, oldOwner.getId(), newOwner.getId());
+        log.info(
+                "Board ownership transferred by admin: boardId={}, oldOwner={}, newOwner={}",
+                boardId,
+                oldOwner.getId(),
+                newOwner.getId());
 
         return getBoard(boardId);
     }
 
     @Transactional
     public AdminResponse.BoardSummary extendTrial(String boardId, AdminRequest.ExtendTrial request) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         LocalDateTime newTrialEndsAt;
         if (request.getNewTrialEndsAt() != null) {
             newTrialEndsAt = request.getNewTrialEndsAt();
         } else if (request.getExtendDays() != null && request.getExtendDays() > 0) {
-            LocalDateTime current = board.getTrialEndsAt() != null
-                    ? board.getTrialEndsAt()
-                    : LocalDateTime.now(ZoneOffset.UTC);
+            LocalDateTime current =
+                    board.getTrialEndsAt() != null ? board.getTrialEndsAt() : LocalDateTime.now(ZoneOffset.UTC);
             newTrialEndsAt = current.plusDays(request.getExtendDays());
         } else {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
@@ -439,15 +440,16 @@ public class AdminService {
 
         int memberCount = (int) boardMemberRepository.countByBoardId(boardId);
         int taskCount = taskRepository.countByBoardId(boardId);
-        Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
+        Subscription subscription =
+                subscriptionRepository.findByBoardId(boardId).orElse(null);
 
         return AdminResponse.BoardSummary.of(board, memberCount, taskCount, subscription);
     }
 
     @Transactional
     public AdminResponse.BoardDetail updateBoardName(String boardId, AdminRequest.UpdateBoardName request) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         board.updateInfo(request.getName(), null);
 
@@ -458,10 +460,11 @@ public class AdminService {
 
     @Transactional
     public AdminResponse.BoardDetail updateSeatCount(String boardId, AdminRequest.UpdateSeatCount request) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        Subscription subscription = subscriptionRepository.findByBoardId(boardId)
+        Subscription subscription = subscriptionRepository
+                .findByBoardId(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
 
         subscription.updateSeatCount(request.getSeatCount());
@@ -473,17 +476,16 @@ public class AdminService {
 
     @Transactional
     public void createPersonalBoard(String userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         boardService.createPersonalBoard(user);
         log.info("Personal board created by admin for user: {}", userId);
     }
 
     @Transactional
-    public AdminResponse.UserDetail adjustPersonalAiCredits(String userId, AdminRequest.AdjustPersonalAiCredits request) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    public AdminResponse.UserDetail adjustPersonalAiCredits(
+            String userId, AdminRequest.AdjustPersonalAiCredits request) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         if (request.getPersonalAiCredits() != null) {
             user.setPersonalAiCredits(request.getPersonalAiCredits());
@@ -493,18 +495,21 @@ public class AdminService {
             user.addPersonalBonusCredits(request.getAddBonusCredits());
         }
 
-        log.info("Personal AI credits adjusted by admin: userId={}, personalAiCredits={}, addBonusCredits={}",
-                userId, request.getPersonalAiCredits(), request.getAddBonusCredits());
+        log.info(
+                "Personal AI credits adjusted by admin: userId={}, personalAiCredits={}, addBonusCredits={}",
+                userId,
+                request.getPersonalAiCredits(),
+                request.getAddBonusCredits());
 
         return getUser(userId);
     }
 
     @Transactional
     public AdminResponse.BoardDetail adjustAiCredits(String boardId, AdminRequest.AdjustAiCredits request) {
-        boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        Subscription subscription = subscriptionRepository.findByBoardId(boardId)
+        Subscription subscription = subscriptionRepository
+                .findByBoardId(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
 
         if (request.getMonthlyAiCredits() != null) {
@@ -515,18 +520,22 @@ public class AdminService {
             subscription.addPurchasedCredits(request.getAddPurchasedCredits());
         }
 
-        log.info("AI credits adjusted by admin: boardId={}, monthlyAiCredits={}, addPurchasedCredits={}",
-                boardId, request.getMonthlyAiCredits(), request.getAddPurchasedCredits());
+        log.info(
+                "AI credits adjusted by admin: boardId={}, monthlyAiCredits={}, addPurchasedCredits={}",
+                boardId,
+                request.getMonthlyAiCredits(),
+                request.getAddPurchasedCredits());
 
         return getBoard(boardId);
     }
 
     @Transactional
-    public AdminResponse.BoardDetail updateMemberRole(String boardId, String memberId, AdminRequest.UpdateMemberRole request) {
-        boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+    public AdminResponse.BoardDetail updateMemberRole(
+            String boardId, String memberId, AdminRequest.UpdateMemberRole request) {
+        boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        BoardMember boardMember = boardMemberRepository.findByBoardIdAndUserId(boardId, memberId)
+        BoardMember boardMember = boardMemberRepository
+                .findByBoardIdAndUserId(boardId, memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         // OWNER 역할은 transferOwnership을 통해서만 변경 가능
@@ -541,8 +550,11 @@ public class AdminService {
 
         boardMember.updateRole(request.getRole());
 
-        log.info("Board member role updated by admin: boardId={}, memberId={}, newRole={}",
-                boardId, memberId, request.getRole());
+        log.info(
+                "Board member role updated by admin: boardId={}, memberId={}, newRole={}",
+                boardId,
+                memberId,
+                request.getRole());
 
         return getBoard(boardId);
     }
@@ -553,7 +565,8 @@ public class AdminService {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<Organization> orgPage = organizationRepository.findAllForAdmin(search, pageable);
 
-        List<String> orgIds = orgPage.getContent().stream().map(Organization::getId).collect(Collectors.toList());
+        List<String> orgIds =
+                orgPage.getContent().stream().map(Organization::getId).collect(Collectors.toList());
 
         Map<String, Integer> memberCountMap = Collections.emptyMap();
         Map<String, Integer> boardCountMap = Collections.emptyMap();
@@ -583,7 +596,8 @@ public class AdminService {
     }
 
     public AdminResponse.OrgDetail getOrganization(String orgId) {
-        Organization org = organizationRepository.findByIdForAdmin(orgId)
+        Organization org = organizationRepository
+                .findByIdForAdmin(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
 
         OrgSubscription sub = org.getSubscription();
@@ -591,9 +605,8 @@ public class AdminService {
         int boardCount = boardRepository.countByOrganizationId(orgId);
 
         List<OrganizationMember> orgMembers = orgMemberRepository.findByOrganizationId(orgId);
-        List<AdminResponse.OrgMemberInfo> members = orgMembers.stream()
-                .map(AdminResponse.OrgMemberInfo::of)
-                .collect(Collectors.toList());
+        List<AdminResponse.OrgMemberInfo> members =
+                orgMembers.stream().map(AdminResponse.OrgMemberInfo::of).collect(Collectors.toList());
 
         List<Board> orgBoards = boardRepository.findByOrganizationId(orgId);
         List<AdminResponse.BoardSummary> boards = toBoardSummaries(orgBoards);
@@ -603,7 +616,8 @@ public class AdminService {
 
     @Transactional
     public AdminResponse.OrgDetail updateOrganization(String orgId, AdminRequest.UpdateOrganization request) {
-        Organization org = organizationRepository.findByIdForAdmin(orgId)
+        Organization org = organizationRepository
+                .findByIdForAdmin(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
 
         org.updateInfo(request.getName(), request.getDescription());
@@ -614,7 +628,8 @@ public class AdminService {
 
     @Transactional
     public void deleteOrganization(String orgId) {
-        Organization org = organizationRepository.findByIdForAdmin(orgId)
+        Organization org = organizationRepository
+                .findByIdForAdmin(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
 
         if (org.isDeleted()) {
@@ -627,7 +642,8 @@ public class AdminService {
 
     @Transactional
     public void restoreOrganization(String orgId) {
-        Organization org = organizationRepository.findByIdForAdmin(orgId)
+        Organization org = organizationRepository
+                .findByIdForAdmin(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
 
         if (!org.isDeleted()) {
@@ -640,22 +656,25 @@ public class AdminService {
 
     @Transactional
     public void permanentlyDeleteOrganization(String orgId) {
-        Organization org = organizationRepository.findByIdForAdmin(orgId)
+        Organization org = organizationRepository
+                .findByIdForAdmin(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
 
+        boardAccessCacheEvictor.evictOrganization(orgId); // 보드 목록은 조직 보드가 아직 연결돼 있는 지금 조회
         orgMemberRepository.deleteByOrganizationId(orgId);
-        orgSubscriptionRepository.findByOrganizationId(orgId)
-                .ifPresent(orgSubscriptionRepository::delete);
+        orgSubscriptionRepository.findByOrganizationId(orgId).ifPresent(orgSubscriptionRepository::delete);
         organizationRepository.delete(org);
         log.info("Organization permanently deleted by admin: orgId={}", orgId);
     }
 
     @Transactional
     public AdminResponse.OrgDetail transferOrgOwnership(String orgId, AdminRequest.TransferOrgOwnership request) {
-        Organization org = organizationRepository.findByIdForAdmin(orgId)
+        Organization org = organizationRepository
+                .findByIdForAdmin(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
 
-        OrganizationMember newOwnerMember = orgMemberRepository.findByIdWithDetails(request.getNewOwnerMemberId())
+        OrganizationMember newOwnerMember = orgMemberRepository
+                .findByIdWithDetails(request.getNewOwnerMemberId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         if (org.getOwner().getId().equals(newOwnerMember.getUser().getId())) {
@@ -663,7 +682,8 @@ public class AdminService {
         }
 
         // Update old owner's role to ADMIN
-        orgMemberRepository.findByOrganizationIdAndUserId(orgId, org.getOwner().getId())
+        orgMemberRepository
+                .findByOrganizationIdAndUserId(orgId, org.getOwner().getId())
                 .ifPresent(member -> member.updateRole(com.kanban.domain.organization.OrgRole.ADMIN));
 
         // Update new owner's role to OWNER
@@ -672,18 +692,22 @@ public class AdminService {
         // Transfer ownership on entity
         org.transferOwnership(newOwnerMember.getUser());
 
-        log.info("Organization ownership transferred by admin: orgId={}, newOwnerId={}",
-                orgId, newOwnerMember.getUser().getId());
+        log.info(
+                "Organization ownership transferred by admin: orgId={}, newOwnerId={}",
+                orgId,
+                newOwnerMember.getUser().getId());
 
         return getOrganization(orgId);
     }
 
     @Transactional
     public AdminResponse.OrgDetail updateOrgSubscription(String orgId, AdminRequest.UpdateOrgSubscription request) {
-        organizationRepository.findByIdForAdmin(orgId)
+        organizationRepository
+                .findByIdForAdmin(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
 
-        OrgSubscription sub = orgSubscriptionRepository.findByOrganizationId(orgId)
+        OrgSubscription sub = orgSubscriptionRepository
+                .findByOrganizationId(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
 
         if (request.getPlan() != null) {
@@ -698,11 +722,11 @@ public class AdminService {
                     sub.initializeCredits(OrgSubscription.ORG_MONTHLY_CREDITS);
                 }
                 if (sub.getPricePerSeat() == 0) {
-                    BillingCycle cycle = sub.getBillingCycle() != null
-                            ? sub.getBillingCycle() : BillingCycle.MONTHLY;
-                    sub.setPricePerSeat(cycle == BillingCycle.YEARLY
-                            ? OrgSubscription.YEARLY_PRICE_PER_SEAT
-                            : OrgSubscription.MONTHLY_PRICE_PER_SEAT);
+                    BillingCycle cycle = sub.getBillingCycle() != null ? sub.getBillingCycle() : BillingCycle.MONTHLY;
+                    sub.setPricePerSeat(
+                            cycle == BillingCycle.YEARLY
+                                    ? OrgSubscription.YEARLY_PRICE_PER_SEAT
+                                    : OrgSubscription.MONTHLY_PRICE_PER_SEAT);
                 }
             }
             // TEAM → FREE 전환 시 정리
@@ -727,15 +751,15 @@ public class AdminService {
 
     @Transactional
     public AdminResponse.OrgDetail extendOrgTrial(String orgId, AdminRequest.ExtendOrgTrial request) {
-        organizationRepository.findByIdForAdmin(orgId)
+        organizationRepository
+                .findByIdForAdmin(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
 
-        OrgSubscription sub = orgSubscriptionRepository.findByOrganizationId(orgId)
+        OrgSubscription sub = orgSubscriptionRepository
+                .findByOrganizationId(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
 
-        LocalDateTime current = sub.getTrialEndsAt() != null
-                ? sub.getTrialEndsAt()
-                : LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime current = sub.getTrialEndsAt() != null ? sub.getTrialEndsAt() : LocalDateTime.now(ZoneOffset.UTC);
         sub.setTrialEndsAt(current.plusDays(request.getExtendDays()));
 
         if (sub.getStatus() != SubscriptionStatus.TRIAL) {
@@ -750,10 +774,12 @@ public class AdminService {
 
     @Transactional
     public AdminResponse.OrgDetail adjustOrgAiCredits(String orgId, AdminRequest.AdjustOrgAiCredits request) {
-        organizationRepository.findByIdForAdmin(orgId)
+        organizationRepository
+                .findByIdForAdmin(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
 
-        OrgSubscription sub = orgSubscriptionRepository.findByOrganizationId(orgId)
+        OrgSubscription sub = orgSubscriptionRepository
+                .findByOrganizationId(orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
 
         if (request.getMonthlyAiCredits() != null) {
@@ -768,8 +794,12 @@ public class AdminService {
             sub.setMonthlyAiCredits(sub.getMonthlyAiCredits() + request.getAddBonusCredits());
         }
 
-        log.info("Organization AI credits adjusted by admin: orgId={}, monthlyAiCredits={}, resetUsed={}, addBonus={}",
-                orgId, request.getMonthlyAiCredits(), request.getResetUsedCredits(), request.getAddBonusCredits());
+        log.info(
+                "Organization AI credits adjusted by admin: orgId={}, monthlyAiCredits={}, resetUsed={}, addBonus={}",
+                orgId,
+                request.getMonthlyAiCredits(),
+                request.getResetUsedCredits(),
+                request.getAddBonusCredits());
 
         return getOrganization(orgId);
     }
@@ -778,7 +808,8 @@ public class AdminService {
         Pageable pageable = PageRequest.of(page, size, Sort.by("deletedAt").descending());
         Page<Organization> orgPage = organizationRepository.findDeletedForAdmin(search, pageable);
 
-        List<String> orgIds = orgPage.getContent().stream().map(Organization::getId).collect(Collectors.toList());
+        List<String> orgIds =
+                orgPage.getContent().stream().map(Organization::getId).collect(Collectors.toList());
 
         Map<String, Integer> memberCountMap = Collections.emptyMap();
         Map<String, Integer> boardCountMap = Collections.emptyMap();
@@ -871,9 +902,7 @@ public class AdminService {
         for (BoardTier tier : BoardTier.values()) {
             tierCounts.put(tier, 0L);
         }
-        boardRepository.countGroupedByTier().forEach(row ->
-                tierCounts.put((BoardTier) row[0], (Long) row[1])
-        );
+        boardRepository.countGroupedByTier().forEach(row -> tierCounts.put((BoardTier) row[0], (Long) row[1]));
 
         long activeSubscriptions = subscriptionRepository.countByStatus(SubscriptionStatus.ACTIVE);
 
@@ -910,10 +939,7 @@ public class AdminService {
                     .build());
         }
 
-        return AdminResponse.SignupTrend.builder()
-                .data(data)
-                .total(total)
-                .build();
+        return AdminResponse.SignupTrend.builder().data(data).total(total).build();
     }
 
     public AdminResponse.ActiveUserStats getActiveUserStats(int days) {
@@ -948,9 +974,7 @@ public class AdminService {
         long totalConverted = subscriptionRepository.countByStatus(SubscriptionStatus.ACTIVE);
         long trialInProgress = subscriptionRepository.countByStatus(SubscriptionStatus.TRIAL);
         long trialExpiredNotConverted = subscriptionRepository.countTrialExpiredNotConverted(now);
-        double conversionRate = totalTrialStarted > 0
-                ? (double) totalConverted / totalTrialStarted * 100
-                : 0.0;
+        double conversionRate = totalTrialStarted > 0 ? (double) totalConverted / totalTrialStarted * 100 : 0.0;
 
         List<Object[]> trialRows = subscriptionRepository.getMonthlyTrialStarted(startDate);
         List<Object[]> convertedRows = subscriptionRepository.getMonthlyConverted(startDate);
@@ -996,9 +1020,8 @@ public class AdminService {
 
         long personalOnly = boardRepository.countPersonalOnlyUsers(BoardType.PERSONAL, BoardType.TEAM);
         long both = boardRepository.countPersonalAndTeamUsers(BoardType.PERSONAL, BoardType.TEAM);
-        double conversionRate = (personalOnly + both) > 0
-                ? Math.round((double) both / (personalOnly + both) * 1000.0) / 10.0
-                : 0.0;
+        double conversionRate =
+                (personalOnly + both) > 0 ? Math.round((double) both / (personalOnly + both) * 1000.0) / 10.0 : 0.0;
 
         List<Object[]> rows = boardRepository.getPersonalToTeamConversionTrend(startDate);
         List<AdminResponse.PersonalConversionStats.DailyCount> trend = new java.util.ArrayList<>();
@@ -1051,9 +1074,7 @@ public class AdminService {
         List<Announcement> active = announcementRepository.findActiveAnnouncements(now);
         log.debug("📢 [Announcements] Active count: {}", active.size());
 
-        return active.stream()
-                .map(AdminResponse.AnnouncementDetail::of)
-                .collect(Collectors.toList());
+        return active.stream().map(AdminResponse.AnnouncementDetail::of).collect(Collectors.toList());
     }
 
     @Transactional
@@ -1075,7 +1096,8 @@ public class AdminService {
 
     @Transactional
     public AdminResponse.AnnouncementDetail updateAnnouncement(String id, AdminRequest.CreateAnnouncement request) {
-        Announcement announcement = announcementRepository.findById(id)
+        Announcement announcement = announcementRepository
+                .findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ANNOUNCEMENT_NOT_FOUND));
 
         announcement.update(
@@ -1086,8 +1108,7 @@ public class AdminService {
                 request.getStartAt(),
                 normalizeEndAt(request.getEndAt()),
                 request.getPriority() != null ? request.getPriority() : announcement.getPriority(),
-                request.getTargetRole()
-        );
+                request.getTargetRole());
 
         return AdminResponse.AnnouncementDetail.of(announcement);
     }
@@ -1105,7 +1126,8 @@ public class AdminService {
 
     @Transactional
     public void deleteAnnouncement(String id) {
-        Announcement announcement = announcementRepository.findById(id)
+        Announcement announcement = announcementRepository
+                .findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ANNOUNCEMENT_NOT_FOUND));
         announcementRepository.delete(announcement);
     }
@@ -1117,9 +1139,7 @@ public class AdminService {
     public AdminResponse.MaintenanceStatus getMaintenanceStatus() {
         Optional<SystemConfig> config = systemConfigRepository.findById(MAINTENANCE_KEY);
         if (config.isEmpty() || config.get().getValue() == null) {
-            return AdminResponse.MaintenanceStatus.builder()
-                    .enabled(false)
-                    .build();
+            return AdminResponse.MaintenanceStatus.builder().enabled(false).build();
         }
 
         try {
@@ -1132,9 +1152,7 @@ public class AdminService {
                     .build();
         } catch (Exception e) {
             log.error("Failed to parse maintenance config", e);
-            return AdminResponse.MaintenanceStatus.builder()
-                    .enabled(false)
-                    .build();
+            return AdminResponse.MaintenanceStatus.builder().enabled(false).build();
         }
     }
 
@@ -1146,7 +1164,8 @@ public class AdminService {
         Optional<SystemConfig> existingConfig = systemConfigRepository.findById(MAINTENANCE_KEY);
         if (existingConfig.isPresent() && existingConfig.get().getValue() != null) {
             try {
-                MaintenanceData existingData = objectMapper.readValue(existingConfig.get().getValue(), MaintenanceData.class);
+                MaintenanceData existingData =
+                        objectMapper.readValue(existingConfig.get().getValue(), MaintenanceData.class);
                 existingStartedAt = existingData.startedAt;
                 wasEnabled = existingData.enabled;
             } catch (Exception e) {
@@ -1174,10 +1193,8 @@ public class AdminService {
         try {
             String json = objectMapper.writeValueAsString(data);
 
-            SystemConfig config = existingConfig
-                    .orElse(SystemConfig.builder()
-                            .key(MAINTENANCE_KEY)
-                            .build());
+            SystemConfig config = existingConfig.orElse(
+                    SystemConfig.builder().key(MAINTENANCE_KEY).build());
             config.updateValue(json);
             systemConfigRepository.save(config);
             // 필터는 10초 캐시를 쓰므로 이 인스턴스에서는 커밋 직후 즉시 반영시킨다 (다른 인스턴스는 TTL 뒤 반영).
@@ -1245,13 +1262,11 @@ public class AdminService {
                 LocalDate weekEnd = weekTarget.plusWeeks(1);
 
                 long activeCount = cohortUsers.stream()
-                        .filter(u -> u.getLastActiveAt() != null &&
-                                !u.getLastActiveAt().toLocalDate().isBefore(weekTarget))
+                        .filter(u -> u.getLastActiveAt() != null
+                                && !u.getLastActiveAt().toLocalDate().isBefore(weekTarget))
                         .count();
 
-                double rate = signupCount > 0
-                        ? Math.round((double) activeCount / signupCount * 1000.0) / 10.0
-                        : 0.0;
+                double rate = signupCount > 0 ? Math.round((double) activeCount / signupCount * 1000.0) / 10.0 : 0.0;
                 retention.add(rate);
             }
 
@@ -1263,16 +1278,16 @@ public class AdminService {
         }
 
         // Calculate average retention across all cohorts
-        int maxRetentionLen = cohorts.stream()
-                .mapToInt(c -> c.getRetention().size())
-                .max().orElse(0);
+        int maxRetentionLen =
+                cohorts.stream().mapToInt(c -> c.getRetention().size()).max().orElse(0);
         List<Double> averageRetention = new ArrayList<>();
         for (int w = 0; w < maxRetentionLen; w++) {
             final int week = w;
             double avg = cohorts.stream()
                     .filter(c -> c.getRetention().size() > week)
                     .mapToDouble(c -> c.getRetention().get(week))
-                    .average().orElse(0.0);
+                    .average()
+                    .orElse(0.0);
             averageRetention.add(Math.round(avg * 10.0) / 10.0);
         }
 
@@ -1294,10 +1309,8 @@ public class AdminService {
         Map<String, Integer> boardCountMap = new HashMap<>();
         if (!userIds.isEmpty()) {
             boardCountMap = boardRepository.countByUserInvolvementBatch(userIds).stream()
-                    .collect(Collectors.toMap(
-                            row -> (String) row[0],
-                            row -> ((Number) row[1]).intValue(),
-                            (a, b) -> a));
+                    .collect(
+                            Collectors.toMap(row -> (String) row[0], row -> ((Number) row[1]).intValue(), (a, b) -> a));
         }
 
         // Batch load: last action per user

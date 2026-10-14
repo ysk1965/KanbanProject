@@ -10,11 +10,6 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -25,6 +20,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -35,49 +34,47 @@ public class BoardResourceService {
     private final BoardResourceRepository boardResourceRepository;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
-    private final BoardService boardService;
 
+    private final BoardPermissionService boardPermissionService;
     private static final int MAX_RESOURCES_PER_BOARD = 20;
     private static final int FAVICON_CONNECT_TIMEOUT_MS = 3000;
     private static final int FAVICON_READ_TIMEOUT_MS = 3000;
     private static final int FAVICON_MAX_READ_BYTES = 32768;
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; BridgeBot/1.0)";
 
-    private static final Pattern LINK_TAG_PATTERN = Pattern.compile(
-            "<link\\b([^>]*)>", Pattern.CASE_INSENSITIVE);
-    private static final Pattern REL_PATTERN = Pattern.compile(
-            "rel=[\"']([^\"']*)[\"']", Pattern.CASE_INSENSITIVE);
-    private static final Pattern HREF_PATTERN = Pattern.compile(
-            "href=[\"']([^\"']*)[\"']", Pattern.CASE_INSENSITIVE);
-    private static final Pattern SIZES_PATTERN = Pattern.compile(
-            "sizes=[\"']([^\"']*)[\"']", Pattern.CASE_INSENSITIVE);
+    private static final Pattern LINK_TAG_PATTERN = Pattern.compile("<link\\b([^>]*)>", Pattern.CASE_INSENSITIVE);
+    private static final Pattern REL_PATTERN = Pattern.compile("rel=[\"']([^\"']*)[\"']", Pattern.CASE_INSENSITIVE);
+    private static final Pattern HREF_PATTERN = Pattern.compile("href=[\"']([^\"']*)[\"']", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SIZES_PATTERN = Pattern.compile("sizes=[\"']([^\"']*)[\"']", Pattern.CASE_INSENSITIVE);
 
     public BoardResourceResponse.ListResponse getResources(String boardId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         List<BoardResource> resources = boardResourceRepository.findByBoardIdOrderByDisplayOrderAsc(boardId);
         return BoardResourceResponse.ListResponse.of(resources);
     }
 
     @Transactional
-    public BoardResourceResponse.Detail createResource(String boardId, String userId,
-                                                        BoardResourceRequest.Create request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public BoardResourceResponse.Detail createResource(
+            String boardId, String userId, BoardResourceRequest.Create request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         long currentCount = boardResourceRepository.countByBoardId(boardId);
         if (currentCount >= MAX_RESOURCES_PER_BOARD) {
             throw new BusinessException(ErrorCode.BOARD_RESOURCE_LIMIT_EXCEEDED);
         }
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         BoardResource resource = BoardResource.builder()
                 .board(board)
                 .title(request.getTitle().trim())
                 .url(request.getUrl().trim())
-                .description(request.getDescription() != null ? request.getDescription().trim() : null)
+                .description(
+                        request.getDescription() != null
+                                ? request.getDescription().trim()
+                                : null)
                 .faviconUrl(deriveFaviconUrl(request.getUrl()))
                 .displayOrder((int) currentCount)
                 .createdBy(user)
@@ -90,18 +87,21 @@ public class BoardResourceService {
     }
 
     @Transactional
-    public BoardResourceResponse.Detail updateResource(String boardId, String resourceId, String userId,
-                                                        BoardResourceRequest.Update request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public BoardResourceResponse.Detail updateResource(
+            String boardId, String resourceId, String userId, BoardResourceRequest.Update request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        BoardResource resource = boardResourceRepository.findById(resourceId)
+        BoardResource resource = boardResourceRepository
+                .findById(resourceId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_RESOURCE_NOT_FOUND));
 
         if (!resource.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.BOARD_RESOURCE_NOT_FOUND);
         }
 
-        resource.update(request.getTitle().trim(), request.getUrl().trim(),
+        resource.update(
+                request.getTitle().trim(),
+                request.getUrl().trim(),
                 request.getDescription() != null ? request.getDescription().trim() : null);
         resource.updateFaviconUrl(deriveFaviconUrl(request.getUrl()));
 
@@ -111,9 +111,10 @@ public class BoardResourceService {
 
     @Transactional
     public void deleteResource(String boardId, String resourceId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        BoardResource resource = boardResourceRepository.findById(resourceId)
+        BoardResource resource = boardResourceRepository
+                .findById(resourceId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_RESOURCE_NOT_FOUND));
 
         if (!resource.getBoard().getId().equals(boardId)) {
@@ -125,9 +126,9 @@ public class BoardResourceService {
     }
 
     @Transactional
-    public BoardResourceResponse.ListResponse reorderResources(String boardId, String userId,
-                                                                 BoardResourceRequest.Reorder request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public BoardResourceResponse.ListResponse reorderResources(
+            String boardId, String userId, BoardResourceRequest.Reorder request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         List<BoardResource> resources = boardResourceRepository.findByBoardIdOrderByDisplayOrderAsc(boardId);
 
@@ -146,7 +147,7 @@ public class BoardResourceService {
 
     @Transactional
     public BoardResourceResponse.ListResponse refreshFavicons(String boardId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         List<BoardResource> resources = boardResourceRepository.findByBoardIdOrderByDisplayOrderAsc(boardId);
         for (BoardResource resource : resources) {
@@ -192,8 +193,8 @@ public class BoardResourceService {
             if (status < 200 || status >= 400) return null;
 
             StringBuilder html = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+            try (BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
                 char[] buf = new char[4096];
                 int totalRead = 0;
                 int n;
@@ -246,7 +247,8 @@ public class BoardResourceService {
                 String sizeStr = sizesMatcher.group(1);
                 try {
                     size = Integer.parseInt(sizeStr.split("x")[0]);
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException ignored) {
+                }
             }
 
             candidates.add(new FaviconCandidate(href, priority, size));
@@ -282,8 +284,7 @@ public class BoardResourceService {
             conn.setRequestMethod("HEAD");
             int status = conn.getResponseCode();
             String contentType = conn.getContentType();
-            return status >= 200 && status < 400
-                    && contentType != null && contentType.startsWith("image");
+            return status >= 200 && status < 400 && contentType != null && contentType.startsWith("image");
         } catch (Exception e) {
             return false;
         } finally {
