@@ -1,17 +1,16 @@
 package com.kanban.domain.milestone;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.task.TaskRepository;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
-
-import java.time.LocalDate;
-import java.time.ZoneOffset;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 마일스톤 진행률 집계 {@code @Query} JPQL이 실제로 파싱되는지 확인한다.
@@ -22,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 여기서 한 번 실행해 SQL 생성까지 검증한다. 단언은 느슨하다 — 값어치는 파싱 자체에 있다.</p>
  */
 @DataJpaTest
-@ActiveProfiles("local")
+@ActiveProfiles("test")
 @DisplayName("마일스톤 진행률 집계 JPQL 파싱")
 class MilestoneProgressRepositoryQueryTest {
 
@@ -38,7 +37,8 @@ class MilestoneProgressRepositoryQueryTest {
     @DisplayName("체크리스트 (마일스톤, 피처) 집계 쿼리가 파싱된다")
     void checklistCountsByMilestoneFeatureParses() {
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
-        assertThat(checklistItemRepository.countByMilestoneAndFeature(BOARD_ID, today)).isEmpty();
+        assertThat(checklistItemRepository.countByMilestoneAndFeature(BOARD_ID, today))
+                .isEmpty();
     }
 
     @Test

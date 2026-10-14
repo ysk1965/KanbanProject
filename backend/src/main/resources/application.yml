@@ -102,6 +102,13 @@ management:
     mail:
       enabled: false
 
+# Sentry (백엔드 에러 리포팅) — DSN 이 비어 있으면 SDK 가 비활성(no-op)이다. DSN 은 환경변수로만 주입한다.
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SPRING_PROFILES_ACTIVE:local}
+  traces-sample-rate: 0.1
+  send-default-pii: false
+
 # Multipart
 spring.servlet.multipart:
   max-file-size: 110MB
