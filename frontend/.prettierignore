@@ -1,0 +1,8 @@
+dist
+android
+ios
+public
+node_modules
+package-lock.json
+tsconfig.tsbuildinfo
+src/app/i18n/locales/**/*.json

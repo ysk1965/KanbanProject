@@ -51,7 +51,7 @@ export const Embed = createReactBlockSpec(
     content: 'none',
   },
   {
-    render: (props) => {
+    render: function EmbedView(props) {
       const url = (props.block.props as { url: string }).url;
       const caption = (props.block.props as { caption: string }).caption;
       const [inputValue, setInputValue] = useState('');

@@ -44,7 +44,7 @@ export const TableOfContents = createReactBlockSpec(
     content: 'none',
   },
   {
-    render: ({ editor }) => {
+    render: function TableOfContentsView({ editor }) {
       const [headings, setHeadings] = useState<HeadingItem[]>([]);
 
       useEffect(() => {

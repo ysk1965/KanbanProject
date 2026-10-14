@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Trophy } from "lucide-react";
 import { Button } from "../ui/button";
 import { useEscClose } from "../../hooks/useEscClose";

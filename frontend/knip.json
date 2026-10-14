@@ -1,0 +1,7 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": ["src/main.tsx", "index.html", "capacitor.config.ts"],
+  "project": ["src/**/*.{ts,tsx}"],
+  "ignore": ["android/**", "ios/**", "dist/**"],
+  "ignoreDependencies": ["@capacitor/.*", "@capacitor-community/.*", "tw-animate-css", "tailwindcss"]
+}

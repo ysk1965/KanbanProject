@@ -18,7 +18,7 @@ export const Toggle = createReactBlockSpec(
     content: "inline",
   },
   {
-    render: (props) => {
+    render: function ToggleView(props) {
       const [isOpen, setIsOpen] = useState(true);
 
       return (

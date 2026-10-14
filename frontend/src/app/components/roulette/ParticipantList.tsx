@@ -1,9 +1,24 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { X, UserPlus, GripVertical, Shuffle } from 'lucide-react';
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
 import { useRouletteLanguage } from './rouletteI18n';
 
 interface ParticipantListProps {
@@ -14,69 +29,32 @@ interface ParticipantListProps {
   isSpinning?: boolean;
 }
 
-interface DragItem {
-  index: number;
-  type: string;
-}
-
 interface DraggableItemProps {
+  id: string;
   participant: string;
   index: number;
-  moveItem: (dragIndex: number, hoverIndex: number) => void;
   onRemove: (index: number) => void;
   disabled?: boolean;
 }
 
-function DraggableItem({ participant, index, moveItem, onRemove, disabled }: DraggableItemProps) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  const [{ isDragging }, drag, preview] = useDrag({
-    type: 'PARTICIPANT',
-    item: { index, type: 'PARTICIPANT' },
-    canDrag: !disabled,
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
-
-  const [, drop] = useDrop<DragItem>({
-    accept: 'PARTICIPANT',
-    canDrop: () => !disabled,
-    hover: (item, monitor) => {
-      if (!ref.current || disabled) return;
-
-      const dragIndex = item.index;
-      const hoverIndex = index;
-
-      if (dragIndex === hoverIndex) return;
-
-      const hoverBoundingRect = ref.current.getBoundingClientRect();
-      const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
-      const clientOffset = monitor.getClientOffset();
-      if (!clientOffset) return;
-
-      const hoverClientY = clientOffset.y - hoverBoundingRect.top;
-
-      if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) return;
-      if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) return;
-
-      moveItem(dragIndex, hoverIndex);
-      item.index = hoverIndex;
-    },
-  });
-
-  preview(drop(ref));
+function DraggableItem({ id, participant, index, onRemove, disabled }: DraggableItemProps) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
+    useSortable({ id, disabled });
+  const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
     <div
-      ref={ref}
+      ref={setNodeRef}
+      style={style}
       className={`flex items-center justify-between bg-gray-50 dark:bg-gray-700 rounded-lg px-2 sm:px-3 py-2 sm:py-3 border border-gray-200 dark:border-gray-600 transition-all ${
         isDragging ? 'opacity-50 scale-95' : 'opacity-100'
       } ${disabled ? 'opacity-60' : ''}`}
     >
       <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
         <div
-          ref={drag}
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
           className={`text-gray-400 dark:text-gray-500 touch-none ${
             disabled ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing hover:text-gray-600 dark:hover:text-gray-300'
           }`}
@@ -115,11 +93,20 @@ export function ParticipantList({ participants, onAdd, onRemove, onReorder, isSp
     }
   };
 
-  const moveItem = (dragIndex: number, hoverIndex: number) => {
-    const newParticipants = [...participants];
-    const [draggedItem] = newParticipants.splice(dragIndex, 1);
-    newParticipants.splice(hoverIndex, 0, draggedItem);
-    onReorder(newParticipants);
+  // 같은 이름이 여러 번 들어올 수 있어 이름+순번으로 정렬 id 를 만든다
+  const itemIds = participants.map((participant, index) => `${participant}-${index}`);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const from = itemIds.indexOf(String(active.id));
+    const to = itemIds.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    onReorder(arrayMove(participants, from, to));
   };
 
   const shuffleParticipants = () => {
@@ -132,7 +119,7 @@ export function ParticipantList({ participants, onAdd, onRemove, onReorder, isSp
   };
 
   return (
-    <DndProvider backend={HTML5Backend}>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <div className="w-full">
         <form onSubmit={handleSubmit} className="flex gap-2 mb-4">
           <Input
@@ -170,16 +157,18 @@ export function ParticipantList({ participants, onAdd, onRemove, onReorder, isSp
               {t('noParticipants')}
             </p>
           ) : (
-            participants.map((participant, index) => (
-              <DraggableItem
-                key={`${participant}-${index}`}
-                participant={participant}
-                index={index}
-                moveItem={moveItem}
-                onRemove={onRemove}
-                disabled={isSpinning}
-              />
-            ))
+            <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
+              {participants.map((participant, index) => (
+                <DraggableItem
+                  key={itemIds[index]}
+                  id={itemIds[index]}
+                  participant={participant}
+                  index={index}
+                  onRemove={onRemove}
+                  disabled={isSpinning}
+                />
+              ))}
+            </SortableContext>
           )}
         </div>
 
@@ -189,6 +178,6 @@ export function ParticipantList({ participants, onAdd, onRemove, onReorder, isSp
           </p>
         )}
       </div>
-    </DndProvider>
+    </DndContext>
   );
 }
