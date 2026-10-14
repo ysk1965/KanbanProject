@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
@@ -27,8 +28,29 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class MaintenanceFilter extends OncePerRequestFilter {
 
+    /**
+     * 점검 모드 캐시 TTL. 매 요청마다 system_config 를 읽던 것을 10초 단위로 묶는다.
+     * 같은 인스턴스에서 토글하면 {@link #invalidate()} 로 즉시 반영되고, 다른 인스턴스(prod 2대)는
+     * 최대 10초 뒤에 따라온다 — 점검 모드 전환에 10초 지연은 허용 범위.
+     */
+    private static final long CACHE_TTL_NANOS = TimeUnit.SECONDS.toNanos(10);
+
     private final SystemConfigRepository systemConfigRepository;
     private final ObjectMapper objectMapper = createMapper();
+
+    /** (읽은 시각, 파싱 결과) 스냅샷. null 이면 아직 읽지 않았거나 무효화된 상태. */
+    private volatile CachedInfo cached;
+
+    private record CachedInfo(long readAtNanos, MaintenanceInfo info) {
+        boolean isFresh(long nowNanos) {
+            return nowNanos - readAtNanos < CACHE_TTL_NANOS;
+        }
+    }
+
+    /** 점검 모드 토글 직후 호출 — 다음 요청이 DB 값을 다시 읽게 한다. */
+    public void invalidate() {
+        cached = null;
+    }
 
     private static ObjectMapper createMapper() {
         ObjectMapper mapper = new ObjectMapper();
@@ -74,31 +96,42 @@ public class MaintenanceFilter extends OncePerRequestFilter {
     }
 
     private boolean isMaintenanceMode() {
-        try {
-            Optional<SystemConfig> config = systemConfigRepository.findById("maintenance_mode");
-            if (config.isEmpty() || config.get().getValue() == null) {
-                return false;
-            }
-            MaintenanceInfo info = objectMapper.readValue(config.get().getValue(), MaintenanceInfo.class);
-            return info.enabled;
-        } catch (Exception e) {
-            log.error("Failed to check maintenance mode", e);
-            return false;
-        }
+        MaintenanceInfo info = loadInfo();
+        return info != null && info.enabled;
     }
 
     private MaintenanceInfo getMaintenanceInfo() {
+        MaintenanceInfo info = loadInfo();
+        if (info != null) {
+            return info;
+        }
+        MaintenanceInfo fallback = new MaintenanceInfo();
+        fallback.message = "시스템 점검 중입니다";
+        return fallback;
+    }
+
+    /**
+     * 캐시가 신선하면 그대로, 아니면 DB 에서 한 번 읽어 갱신한다.
+     * 설정이 없으면 null (= 점검 아님). 읽기 실패 시에도 null 로 두고 캐시하지 않아 다음 요청이 재시도한다.
+     */
+    private MaintenanceInfo loadInfo() {
+        long now = System.nanoTime();
+        CachedInfo snapshot = cached;
+        if (snapshot != null && snapshot.isFresh(now)) {
+            return snapshot.info();
+        }
         try {
             Optional<SystemConfig> config = systemConfigRepository.findById("maintenance_mode");
+            MaintenanceInfo info = null;
             if (config.isPresent() && config.get().getValue() != null) {
-                return objectMapper.readValue(config.get().getValue(), MaintenanceInfo.class);
+                info = objectMapper.readValue(config.get().getValue(), MaintenanceInfo.class);
             }
+            cached = new CachedInfo(now, info);
+            return info;
         } catch (Exception e) {
             log.error("Failed to read maintenance info", e);
+            return null;
         }
-        MaintenanceInfo info = new MaintenanceInfo();
-        info.message = "시스템 점검 중입니다";
-        return info;
     }
 
     private static class MaintenanceInfo {

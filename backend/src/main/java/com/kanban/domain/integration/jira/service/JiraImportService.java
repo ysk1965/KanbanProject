@@ -110,7 +110,19 @@ public class JiraImportService {
 
     @Transactional
     public JiraResponse.ImportResult importIssues(String boardId, String userId, JiraRequest.Import request) {
-        return doImport(boardId, userId, request, null);
+        return doImport(boardId, userId, request, null, null);
+    }
+
+    /**
+     * 폴링 전용 증분 pull — 최근 {@code sinceMinutes}분 안에 갱신된 이슈만 조회한다 (null 이면 전체 import 와 동일).
+     *
+     * <p>JQL 상대시각({@code updated >= "-Nm"})을 써서 JIRA 사용자 타임존과 무관하게 동작한다.
+     * 부분 결과로는 "결과에 없음 = 삭제" 판정을 할 수 없으므로 삭제 재조정은 건너뛴다 — 주기적 전체 pull
+     * ({@link com.kanban.domain.integration.jira.service.JiraSyncScheduler})이 대신 처리한다.
+     */
+    @Transactional
+    public JiraResponse.ImportResult pullIssues(String boardId, String userId, Integer sinceMinutes) {
+        return doImport(boardId, userId, new JiraRequest.Import(null, false), null, sinceMinutes);
     }
 
     /**
@@ -119,20 +131,34 @@ public class JiraImportService {
      */
     @Transactional
     public JiraResponse.ImportResult importScopeIssues(String boardId, String userId, String milestoneId) {
+        return pullScopeIssues(boardId, userId, milestoneId, null);
+    }
+
+    /** 스코프 폴링 전용 증분 pull — {@link #pullIssues} 와 같은 규칙. */
+    @Transactional
+    public JiraResponse.ImportResult pullScopeIssues(String boardId, String userId, String milestoneId,
+                                                     Integer sinceMinutes) {
         JiraMilestoneScope scope = scopeRepository.findActiveByMilestoneId(milestoneId)
             .filter(s -> s.getBoard().getId().equals(boardId) && s.hasOwnProject())
             .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
-        return doImport(boardId, userId, new JiraRequest.Import(null, false), scope);
+        return doImport(boardId, userId, new JiraRequest.Import(null, false), scope, sinceMinutes);
     }
 
+    /**
+     * @param sinceMinutes null 이면 전체 조회(수동/최초 import), 아니면 최근 N분 갱신분만(폴링 증분).
+     *                     HTTP 조회(fetchAll)가 트랜잭션 안에 남아 있는 것은 의도적 — 이후 reconcile/첨부/반려사유
+     *                     조회도 같은 ctx 로 JIRA 를 호출하므로 앞단만 떼어내도 실익이 없다.
+     */
     private JiraResponse.ImportResult doImport(String boardId, String userId, JiraRequest.Import request,
-                                               JiraMilestoneScope scope) {
+                                               JiraMilestoneScope scope, Integer sinceMinutes) {
         boardService.checkMemberOrAbove(boardId, userId);
         JiraIntegrationConfig config = configRepository.findActiveByBoardId(boardId)
             .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
         String token = oauthService.resolveToken(config);
         JiraAuthContext ctx = JiraAuthContext.of(config, token);
-        String jql = scope != null ? resolveScopeJql(scope) : resolveJql(request, config);
+        String baseJql = scope != null ? resolveScopeJql(scope) : resolveJql(request, config);
+        boolean incremental = sinceMinutes != null;
+        String jql = incremental ? withUpdatedSince(baseJql, sinceMinutes) : baseJql;
 
         List<ParsedJiraIssue> issues;
         try {
@@ -306,7 +332,8 @@ public class JiraImportService {
                 if (scope.getId().equals(e.getValue().getScopeId())) reconcileMap.put(e.getKey(), e.getValue());
             }
         }
-        int deleted = reconcileDeletedInJira(boardId, ctx, reconcileMap, importable);
+        // 증분 조회는 결과가 부분집합이라 "없음 = 삭제" 판정이 성립하지 않는다 → 전체 pull 때만 수행.
+        int deleted = incremental ? 0 : reconcileDeletedInJira(boardId, ctx, reconcileMap, importable);
 
         // 댓글 대조 (웹훅 유실 백업). 링크 원장이 에코를 막으므로 몇 번을 돌려도 중복 생성되지 않는다.
         reconcileComments(boardId, commentReconcileKeys);
@@ -1128,6 +1155,21 @@ public class JiraImportService {
         if (request != null && request.getJql() != null && !request.getJql().isBlank()) return request.getJql();
         if (config.getJql() != null && !config.getJql().isBlank()) return config.getJql();
         return "project = " + config.getProjectKey();
+    }
+
+    /**
+     * 기본 JQL 에 최근 N분 갱신 조건을 덧붙인다. {@code ORDER BY} 절이 있으면 떼어 두었다가 뒤에 다시 붙인다
+     * (괄호 안에 ORDER BY 가 들어가면 JQL 문법 오류).
+     */
+    static String withUpdatedSince(String baseJql, int sinceMinutes) {
+        String where = baseJql.trim();
+        String orderBy = "";
+        int idx = where.toLowerCase(Locale.ROOT).indexOf(" order by ");
+        if (idx >= 0) {
+            orderBy = where.substring(idx);
+            where = where.substring(0, idx).trim();
+        }
+        return "(" + where + ") AND updated >= \"-" + Math.max(1, sinceMinutes) + "m\"" + orderBy;
     }
 
     /** 전용 프로젝트 스코프의 조회 JQL — 지정 JQL이 있으면 그것, 없으면 스코프 프로젝트 전체. */

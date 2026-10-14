@@ -12,8 +12,10 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.cache.BatchStrategies;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
@@ -92,7 +94,11 @@ public class CacheConfig {
         // 백로그 승격 AI 추천: 24시간 (같은 항목을 다시 열어도 크레딧이 또 빠지지 않게 한다)
         cacheConfigurations.put("promoteSuggestions", defaultConfig.entryTtl(Duration.ofHours(24)));
 
-        return RedisCacheManager.builder(connectionFactory)
+        // allEntries=true 비우기가 기본 KEYS 패턴 스캔이라 Redis 를 블로킹했다 → SCAN(1000) 으로 교체.
+        RedisCacheWriter cacheWriter = RedisCacheWriter.nonLockingRedisCacheWriter(
+                connectionFactory, BatchStrategies.scan(1000));
+
+        return RedisCacheManager.builder(cacheWriter)
                 .cacheDefaults(defaultConfig)
                 .withInitialCacheConfigurations(cacheConfigurations)
                 .transactionAware()

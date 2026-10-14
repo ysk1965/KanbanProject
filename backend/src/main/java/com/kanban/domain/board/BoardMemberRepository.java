@@ -37,6 +37,24 @@ public interface BoardMemberRepository extends JpaRepository<BoardMember, String
     List<Object[]> countGroupedByBoardId(@Param("boardIds") List<String> boardIds);
 
     /**
+     * 여러 보드의 과금 대상(VIEWER 제외) 멤버 수 일괄 조회 — getMyBoards N+1 방지
+     */
+    @Query("SELECT bm.board.id, COUNT(bm) FROM BoardMember bm WHERE bm.board.id IN :boardIds AND bm.role != 'VIEWER' GROUP BY bm.board.id")
+    List<Object[]> countBillableGroupedByBoardId(@Param("boardIds") List<String> boardIds);
+
+    /**
+     * 한 사용자의 여러 보드 멤버십 일괄 조회 — getMyBoards N+1 방지
+     */
+    @Query("SELECT bm FROM BoardMember bm WHERE bm.user.id = :userId AND bm.board.id IN :boardIds")
+    List<BoardMember> findByUserIdAndBoardIdIn(@Param("userId") String userId, @Param("boardIds") List<String> boardIds);
+
+    /**
+     * 여러 보드의 멤버를 가입일 순으로 일괄 조회 (미리보기용, 보드별 상한은 호출 측에서 자른다)
+     */
+    @Query("SELECT bm FROM BoardMember bm JOIN FETCH bm.user WHERE bm.board.id IN :boardIds ORDER BY bm.board.id ASC, bm.joinedAt ASC")
+    List<BoardMember> findByBoardIdInOrderByJoinedAt(@Param("boardIds") List<String> boardIds);
+
+    /**
      * 해당 사용자가 OWNER인 보드가 있는지 확인 (계정 탈퇴 시 사용)
      */
     boolean existsByUserIdAndRole(String userId, BoardRole role);

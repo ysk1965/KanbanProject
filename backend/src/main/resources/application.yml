@@ -14,14 +14,25 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: update
-    show-sql: true
+    # SQL 로그는 local 프로파일에서만 켠다 (dev 가 base 를 상속해 운영 로그가 쿼리로 넘치던 문제).
+    show-sql: false
     defer-datasource-initialization: true
     properties:
       hibernate:
-        format_sql: true
         default_batch_fetch_size: 100
         jdbc:
           time_zone: UTC
+          # 같은 엔티티 INSERT/UPDATE 를 50개씩 묶어 왕복 횟수를 줄인다 (order_* 가 있어야 묶인다).
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+
+  # @Scheduled 스레드 풀 — 기본 1개라 긴 작업(모니터링/JIRA 폴링)이 다른 스케줄을 밀어냈다.
+  task:
+    scheduling:
+      pool:
+        size: 6
+      thread-name-prefix: sched-
 
   sql:
     init:
@@ -306,8 +317,10 @@ spring:
 
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: true
     properties:
       hibernate:
+        format_sql: true
         # 로컬 전용: 트랜잭션당 쿼리 수/세션 통계 로깅 (성능 측정용)
         generate_statistics: true
 

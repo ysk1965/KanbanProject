@@ -152,6 +152,14 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     int countByBoardIdAndIsCompletedTrue(String boardId);
 
     /**
+     * 여러 보드의 (전체 태스크 수, 완료 태스크 수) 일괄 집계 — getMyBoards N+1 방지.
+     * 행: [board_id, COUNT(*), SUM(is_completed)]. 삭제 태스크는 @SQLRestriction 으로 자동 제외.
+     */
+    @Query("SELECT t.board.id, COUNT(t), COALESCE(SUM(CASE WHEN t.isCompleted = true THEN 1 ELSE 0 END), 0) " +
+           "FROM Task t WHERE t.board.id IN :boardIds GROUP BY t.board.id")
+    List<Object[]> countTotalAndCompletedGroupedByBoardId(@Param("boardIds") List<String> boardIds);
+
+    /**
      * 여러 보드의 Task 수 일괄 조회 (N+1 방지)
      */
     @Query("SELECT t.board.id, COUNT(t) FROM Task t WHERE t.board.id IN :boardIds GROUP BY t.board.id")

@@ -30,6 +30,9 @@ import com.kanban.domain.user.SystemRole;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
+import com.kanban.global.filter.MaintenanceFilter;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.security.WebSocketAuthInterceptor;
 import lombok.RequiredArgsConstructor;
@@ -67,6 +70,7 @@ public class AdminService {
     private final UserService userService;
     private final AnnouncementRepository announcementRepository;
     private final SystemConfigRepository systemConfigRepository;
+    private final MaintenanceFilter maintenanceFilter;
     private final ActivityLogRepository activityLogRepository;
     private final ObjectMapper objectMapper;
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
@@ -1176,6 +1180,18 @@ public class AdminService {
                             .build());
             config.updateValue(json);
             systemConfigRepository.save(config);
+            // 필터는 10초 캐시를 쓰므로 이 인스턴스에서는 커밋 직후 즉시 반영시킨다 (다른 인스턴스는 TTL 뒤 반영).
+            // 커밋 전에 비우면 그 사이 요청이 옛 값을 다시 캐시할 수 있어 afterCommit 에 건다.
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        maintenanceFilter.invalidate();
+                    }
+                });
+            } else {
+                maintenanceFilter.invalidate();
+            }
         } catch (Exception e) {
             log.error("Failed to save maintenance config", e);
         }
