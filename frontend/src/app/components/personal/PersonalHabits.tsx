@@ -1359,7 +1359,7 @@ export function CheckInConfirmModal({
 }: {
   open: boolean;
   habitName: string;
-  habitIcon?: string;
+  habitIcon?: string | null;
   streakCount?: number;
   isUndo?: boolean;
   isNonToday?: boolean;

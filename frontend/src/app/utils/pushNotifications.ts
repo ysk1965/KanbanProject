@@ -1,6 +1,5 @@
 import { isNative, isIOS } from './platform';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+import { API_BASE_URL } from '../config/env';
 
 export async function initPushNotifications(): Promise<void> {
   if (!isNative()) return;
@@ -20,7 +19,7 @@ export async function initPushNotifications(): Promise<void> {
     const platform = isIOS() ? 'IOS' : 'ANDROID';
 
     try {
-      await fetch(`${API_BASE}/device-tokens`, {
+      await fetch(`${API_BASE_URL}/device-tokens`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -4,7 +4,7 @@ interface LibraryViewProps {
   boardId?: string;
   orgId?: string;
   personal?: boolean;
-  currentUserRole: string;
+  currentUserRole?: string;
 }
 
 /**

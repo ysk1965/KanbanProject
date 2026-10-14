@@ -103,7 +103,7 @@ interface NotesViewProps {
   orgId?: string;
   /** 마이 스페이스 개인 노트 스코프. board/org 대신 현재 사용자 소유 노트를 사용. */
   personal?: boolean;
-  currentUserRole: string;
+  currentUserRole?: string;
   /**
    * 자료실 모드. 스토리지 파일을 같은 트리에 얹고 업로드·용량·통합 휴지통을 켠다.
    * 끄면 기존 노트 탭과 동일하게 동작한다.

@@ -759,7 +759,7 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
   commentId: string;
   activeCommentId: string | null;
   position: { top: number; left: number } | null;
-  pickerRef: React.RefObject<HTMLDivElement | null>;
+  pickerRef: React.RefObject<HTMLDivElement>;
   onToggleReaction: (commentId: string, emoji: string) => void;
   customEmojis: BoardCustomEmoji[];
   isAdminOrOwner: boolean;
@@ -772,8 +772,8 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
   isUploadingEmoji: boolean;
   onUploadCustomEmoji: () => void;
   onDeleteCustomEmoji: (emojiId: string) => void;
-  emojiFileInputRef: React.RefObject<HTMLInputElement | null>;
-  emojiNameInputRef: React.RefObject<HTMLInputElement | null>;
+  emojiFileInputRef: React.RefObject<HTMLInputElement>;
+  emojiNameInputRef: React.RefObject<HTMLInputElement>;
 }) {
   const { t } = useTranslation();
   if (activeCommentId !== commentId || !position) return null;

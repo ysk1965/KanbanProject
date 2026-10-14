@@ -72,7 +72,7 @@ export function AddDailyChecklistModal({
   // 마일스톤 필터 상태
   const [milestones, setMilestones] = useState<MilestoneSimpleResponse[]>([]);
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<
-    string | undefined
+    string | null | undefined
   >(undefined); // undefined=초기, null=전체
 
   // Task별 인라인 체크리스트 추가 상태
@@ -178,7 +178,7 @@ export function AddDailyChecklistModal({
 
   // 이미 추가된 항목 ID 수집 헬퍼
   const extractAddedIds = (dailyChecklistResponse: {
-    columns: { items: { checklist_item_id?: string }[] }[];
+    columns: { items: { checklist_item_id?: string | null }[] }[];
   }): Set<string> => {
     const addedIds = new Set<string>();
     dailyChecklistResponse.columns.forEach((column) => {

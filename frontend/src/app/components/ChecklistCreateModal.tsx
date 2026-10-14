@@ -689,9 +689,11 @@ export function ChecklistCreateModal({
                           }
                           dueDate={item.due_date}
                           pinned={item.source === "PINNED"}
-                          onClick={() =>
-                            onSelectExisting(item.checklist_item_id)
-                          }
+                          onClick={() => {
+                            if (item.checklist_item_id) {
+                              onSelectExisting(item.checklist_item_id);
+                            }
+                          }}
                         />
                       ))}
                     </div>
@@ -718,9 +720,11 @@ export function ChecklistCreateModal({
                             ).hex
                           }
                           dueDate={item.due_date}
-                          onClick={() =>
-                            onSelectExisting(item.checklist_item_id)
-                          }
+                          onClick={() => {
+                            if (item.checklist_item_id) {
+                              onSelectExisting(item.checklist_item_id);
+                            }
+                          }}
                         />
                       ))}
                     </div>

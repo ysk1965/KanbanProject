@@ -43,7 +43,7 @@ export interface PersistentSplitOptions {
    * 크기를 잴 컨테이너를 밖에서 들고 있을 때. 안 넘기면 훅이 만들어 돌려준다.
    * (그리드처럼 컨테이너와 크기를 적는 노드가 같은 경우 하나로 합치기 위한 것)
    */
-  containerRef?: React.RefObject<HTMLDivElement | null>;
+  containerRef?: React.RefObject<HTMLDivElement>;
 }
 
 /** 키보드 조작 단위 (Shift는 3배) */
@@ -73,7 +73,7 @@ export function usePersistentSplit({
   containerRef: externalContainerRef,
 }: PersistentSplitOptions) {
   /** 두 칸을 담는 영역 — 여기 크기가 곧 나눠 가질 수 있는 전부다 */
-  const ownContainerRef = useRef<HTMLDivElement | null>(null);
+  const ownContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = externalContainerRef ?? ownContainerRef;
   /** 앞 칸 — 드래그 중에는 state 대신 이 노드의 style을 직접 쓴다 */
   const paneRef = useRef<HTMLElement | null>(null);

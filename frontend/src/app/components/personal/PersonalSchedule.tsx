@@ -139,7 +139,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
   // Habit create modal
   const [isCreateHabitOpen, setIsCreateHabitOpen] = useState(false);
   // Habit confirm modal
-  const [habitConfirm, setHabitConfirm] = useState<{ habitId: string; date: string; isUndo: boolean; title: string; icon?: string } | null>(null);
+  const [habitConfirm, setHabitConfirm] = useState<{ habitId: string; date: string; isUndo: boolean; title: string; icon?: string | null } | null>(null);
 
   // Mobile sidebar
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
@@ -263,7 +263,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
 
   // Group habit completions by date
   const habitsByDate = useMemo(() => {
-    const grouped: Record<string, { habit_id: string; title: string; icon?: string; is_completed: boolean; count: number }[]> = {};
+    const grouped: Record<string, { habit_id: string; title: string; icon?: string | null; is_completed: boolean; count: number }[]> = {};
     habitRows.forEach((row) => {
       row.days.forEach((day) => {
         (grouped[day.date] ??= []).push({

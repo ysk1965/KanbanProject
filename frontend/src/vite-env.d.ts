@@ -5,8 +5,10 @@ interface ImportMetaEnv {
   // Google OAuth
   readonly VITE_GOOGLE_CLIENT_ID: string;
 
-  // API
+  // API (파생 상수는 src/app/config/env.ts)
   readonly VITE_API_BASE_URL: string;
+  /** S3 직접 URL 을 리라이트할 CloudFront 도메인(호스트만). 선택 */
+  readonly VITE_CLOUDFRONT_DOMAIN?: string;
 
   // Firebase Configuration
   readonly VITE_FIREBASE_API_KEY: string;

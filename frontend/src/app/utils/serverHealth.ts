@@ -11,9 +11,8 @@
  * 구독자가 공개 엔드포인트(/system/status)를 한 번 더 찔러 확인한 뒤 내린다.
  */
 
-// api.ts 를 import 하면 순환 참조가 되므로 base URL 은 여기서 직접 읽는다.
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1";
+// api.ts 를 import 하면 순환 참조가 되므로 base URL 은 의존성 없는 config/env 에서 가져온다.
+import { API_BASE_URL } from "../config/env";
 
 /** 서버가 응답하지 않는 것으로 의심될 때 발행되는 이벤트 */
 export const SERVER_UNAVAILABLE_EVENT = "server-unavailable";

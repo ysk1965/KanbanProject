@@ -28,7 +28,7 @@ import { StorageFileCard } from "./StorageFileCard";
 import { StoragePreviewModal } from "./StoragePreviewModal";
 import { StorageTrashModal } from "./StorageTrashModal";
 import { StorageUsageDetailModal } from "./StorageUsageDetailModal";
-import { formatBytes, folderPath } from "./storageUtils";
+import { formatBytes, folderPath, publicFileLink } from "./storageUtils";
 
 interface StorageViewProps {
   /** 개인 스코프 (마이스페이스) */
@@ -37,14 +37,6 @@ interface StorageViewProps {
   boardId?: string;
   /** 조직 스코프 */
   orgId?: string;
-}
-
-const API_ORIGIN = (
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1"
-).replace(/\/$/, "");
-
-function publicFileLink(shareCode: string): string {
-  return `${API_ORIGIN}/public/storage/files/${shareCode}/download`;
 }
 
 export function StorageView({ boardId, orgId }: StorageViewProps) {

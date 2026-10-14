@@ -5,6 +5,8 @@
  * 한 번에 복사 가능한 구조화된 진단 리포트를 만든다.
  */
 
+import { API_BASE_URL } from "../config/env";
+
 // vite.config.ts의 define으로 주입되는 빌드 메타데이터
 declare const __FE_COMMIT_HASH__: string;
 declare const __FE_BUILD_TIME__: string;
@@ -129,9 +131,6 @@ export function buildErrorReport(input: ErrorReportInput): string {
   return lines.join("\n");
 }
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1";
-
 /**
  * Sentry가 없는 환경용 폴백: 자체 백엔드(POST /public/client-errors)로 에러를 전송한다.
  * fire-and-forget이며 실패는 무시한다. Sentry가 켜져 있으면 호출하지 않는다(중복 방지).
@@ -152,7 +151,7 @@ export function sendClientErrorReport(input: ErrorReportInput): void {
       component_stack: input.componentStack?.slice(0, 8000),
     });
     // keepalive: 크래시/언로드 상황에서도 전송이 끊기지 않도록
-    void fetch(`${API_BASE}/public/client-errors`, {
+    void fetch(`${API_BASE_URL}/public/client-errors`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body,

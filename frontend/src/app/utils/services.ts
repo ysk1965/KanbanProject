@@ -495,7 +495,9 @@ export const featureService = {
       console.warn("API failed, using mock data for feature", error);
       if (canUseMock(error)) {
         const features = loadFromLocalStorage("kanban_features", mockFeatures);
-        return features.find((f: Feature) => f.id === featureId);
+        const found = features.find((f: Feature) => f.id === featureId);
+        if (!found) throw new Error(`Feature not found in mock data: ${featureId}`);
+        return found;
       }
       throw error;
     }
@@ -685,7 +687,9 @@ export const taskService = {
       console.warn("API failed, using mock data for task", error);
       if (canUseMock(error)) {
         const tasks = loadFromLocalStorage("kanban_tasks", mockTasks);
-        return tasks.find((t: Task) => t.id === taskId);
+        const found = tasks.find((t: Task) => t.id === taskId);
+        if (!found) throw new Error(`Task not found in mock data: ${taskId}`);
+        return found;
       }
       throw error;
     }

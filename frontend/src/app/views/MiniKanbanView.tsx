@@ -34,7 +34,12 @@ import {
   Loader2,
   MousePointer2,
 } from "lucide-react";
-import type { Block, ChecklistItem, Task } from "../types";
+import type {
+  Block,
+  ChecklistItem,
+  MiniKanbanNode,
+  Task,
+} from "../types";
 import { miniKanbanAPI } from "../utils/api";
 import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
 import { getTodayDateString } from "../utils/dateUtils";
@@ -497,7 +502,7 @@ function serialize(
   blockIds: Set<string>,
   taskIds: Set<string>,
 ) {
-  const nodes = [];
+  const nodes: MiniKanbanNode[] = [];
   for (const [id, pos] of Object.entries(positions)) {
     if (id.startsWith("block__")) {
       const bid = id.slice(7);

@@ -74,7 +74,7 @@ export const BACKLOG_WIDTH_VAR = "--dash-backlog-w";
  * 참조하지 않아도 배분이 어긋나지 않는다.
  */
 export function useBacklogColumnSplit() {
-  const rightRef = useRef<HTMLDivElement | null>(null);
+  const rightRef = useRef<HTMLDivElement>(null);
 
   const applyDragSize = useCallback((px: number) => {
     rightRef.current?.style.setProperty(BACKLOG_WIDTH_VAR, `${px}px`);
@@ -116,7 +116,7 @@ export const TIMEBLOCK_WIDTH_VAR = "--dash-timeblock-w";
  * xl 미만에서는 열들이 한 줄로 접히므로 손잡이는 숨기고 이 값은 쓰이지 않는다.
  */
 export function useTimeblockColumnSplit() {
-  const gridRef = useRef<HTMLDivElement | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const applyDragSize = useCallback((px: number) => {
     gridRef.current?.style.setProperty(TIMEBLOCK_WIDTH_VAR, `${px}px`);

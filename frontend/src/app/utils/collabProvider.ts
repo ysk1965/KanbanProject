@@ -1,5 +1,6 @@
 import * as Y from 'yjs';
 import * as awarenessProtocol from 'y-protocols/awareness';
+import { collabWsUrl } from '../config/env';
 
 const MSG_SYNC_FULL = 0;
 const MSG_SYNC_UPDATE = 1;
@@ -58,13 +59,8 @@ export class CollabProvider {
     this.awareness = new awarenessProtocol.Awareness(doc);
     this.awareness.setLocalStateField('user', user);
 
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
-    const wsBase = baseUrl
-      .replace('/api/v1', '')
-      .replace('https://', 'wss://')
-      .replace('http://', 'ws://');
     const token = localStorage.getItem('access_token');
-    this.wsUrl = `${wsBase}/ws-collab/${noteId}?token=${token}`;
+    this.wsUrl = `${collabWsUrl(noteId)}?token=${token}`;
 
     this.doc.on('update', this.handleDocUpdate);
     this.awareness.on('update', this.handleAwarenessUpdate);

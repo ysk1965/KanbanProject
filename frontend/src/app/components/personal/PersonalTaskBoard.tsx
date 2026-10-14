@@ -145,7 +145,7 @@ const DAY_LABELS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DAY_LABELS_TWO = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const DAY_DISPLAY_ORDER = [0, 1, 2, 3, 4, 5, 6]; // Sun → Sat
 
-function getScheduledDays(frequencyType: HabitFrequency, frequencyDays?: string): Set<number> {
+function getScheduledDays(frequencyType: HabitFrequency, frequencyDays?: string | null): Set<number> {
   switch (frequencyType) {
     case 'DAILY': return new Set([0, 1, 2, 3, 4, 5, 6]);
     case 'WEEKDAY': return new Set([1, 2, 3, 4, 5]);

@@ -235,6 +235,7 @@ import {
   milestoneBlockAPI,
   trashAPI,
 } from "../utils/api";
+import { API_ORIGIN } from "../config/env";
 import { toast } from "sonner";
 
 import { useTranslation } from "react-i18next";
@@ -336,16 +337,7 @@ export function KanbanBoardPage() {
   // 버전 정보
   const [beCommit, setBeCommit] = useState<string>("");
   useEffect(() => {
-    const apiBase =
-      import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1";
-    const origin = (() => {
-      try {
-        return new URL(apiBase).origin;
-      } catch {
-        return "http://localhost:8080";
-      }
-    })();
-    fetch(`${origin}/health`)
+    fetch(`${API_ORIGIN}/health`)
       .then((r) => r.json())
       .then((d) => setBeCommit(d.commit || ""))
       .catch(() => {});
@@ -3180,7 +3172,7 @@ export function KanbanBoardPage() {
           onSaveBoardName={async (name: string) => {
             if (!board || !boardId || name === board.name) return;
             try {
-              await boardService.updateBoard(boardId, name, board.description);
+              await boardService.updateBoard(boardId, name, board.description ?? undefined);
               setBoard((prev) => (prev ? { ...prev, name } : prev));
             } catch (e) {
               console.error("Failed to update board name", e);
@@ -3304,7 +3296,7 @@ export function KanbanBoardPage() {
           <Suspense fallback={VIEW_FALLBACK}>
           <DashboardView
             boardId={boardId || ""}
-            organizationId={board?.organization_id}
+            organizationId={board?.organization_id ?? undefined}
             userId={currentUser?.id}
             milestones={milestones}
             selectedMilestoneId={kanbanSelectedMilestoneId}
@@ -3417,7 +3409,7 @@ export function KanbanBoardPage() {
           <ScheduleView
             boardId={boardId || ""}
             scheduleSubTab={scheduleSubTab}
-            organizationId={board?.organization_id}
+            organizationId={board?.organization_id ?? undefined}
             boardMembersData={boardMembersData}
             memberColorMap={memberColorMap}
             jobRoles={jobRoles}
@@ -3964,7 +3956,7 @@ export function KanbanBoardPage() {
           onCreateInviteLink={handleCreateInviteLink}
           onDeleteInviteLink={handleDeleteInviteLink}
           seatInfo={
-            !hideBillingForUser && subscription
+            !hideBillingForUser && subscription && subscription.seat_count != null
               ? {
                   seatCount: subscription.seat_count,
                   usedSeats:
@@ -3981,7 +3973,7 @@ export function KanbanBoardPage() {
                 }
               : undefined
           }
-          aiCredits={!hideBillingForUser ? aiCredits : undefined}
+          aiCredits={!hideBillingForUser ? aiCredits : null}
           onOpenAiCreditPurchase={
             !hideBillingForUser
               ? () => {

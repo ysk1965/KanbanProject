@@ -3,24 +3,13 @@ import { domainBrandName } from "./domain";
 import { addBreadcrumb } from "../../lib/sentry";
 import { reportServerReachable, reportServerUnreachable } from "./serverHealth";
 import { CLIENT_ID } from "./clientId";
-
-// API Base URL - BE 서버
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1";
+import { API_BASE_URL, API_ORIGIN, CLOUDFRONT_DOMAIN } from "../config/env";
 
 // 백엔드 Origin (파일 URL 해석용 · MCP 연결 명령의 BRIDGE_API_URL)
 // 현재 FE가 붙어있는 백엔드 주소 → 환경별로 자동(로컬/milkyway/bridgespots).
-export const BACKEND_ORIGIN = (() => {
-  try {
-    return new URL(API_BASE_URL).origin;
-  } catch {
-    return "http://localhost:8080";
-  }
-})();
+export const BACKEND_ORIGIN = API_ORIGIN;
 
-// S3 직접 URL → CloudFront 리라이트
-const CLOUDFRONT_DOMAIN = import.meta.env.VITE_CLOUDFRONT_DOMAIN as
-  string | undefined;
+// S3 직접 URL → CloudFront 리라이트 (도메인은 config/env 의 VITE_CLOUDFRONT_DOMAIN)
 const S3_DIRECT_URL_RE = /^https:\/\/[\w.-]+\.s3\.[\w.-]+\.amazonaws\.com\//;
 
 /**
@@ -806,8 +795,9 @@ export interface ChecklistItemResponse {
   /**
    * 이 항목에 달린 댓글 수. 목록 조회에만 실려 오고, 단건 응답(생성·수정·토글)에는 없다.
    * 없을 때는 기존 값을 유지해야 한다 — 0으로 덮으면 토글 한 번에 뱃지가 사라진다.
+   * (백엔드 Integer + non_null 직렬화라 null 로는 오지 않고 키가 빠진다)
    */
-  comment_count?: number | null;
+  comment_count?: number;
 }
 
 export interface ChecklistResponse {

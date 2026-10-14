@@ -10,6 +10,7 @@ import {
   UserCheck,
   ArrowRightLeft,
   Loader2,
+  type LucideIcon,
 } from 'lucide-react';
 import {
   LineChart,
@@ -495,7 +496,7 @@ function ConversionMetric({
   highlight?: boolean;
 }) {
   let valueColor = 'text-foreground';
-  let Icon = null;
+  let Icon: LucideIcon | null = null;
   if (positive) {
     valueColor = 'text-emerald-400';
     Icon = ArrowUpRight;

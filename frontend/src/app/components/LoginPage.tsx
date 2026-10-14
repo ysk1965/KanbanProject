@@ -18,6 +18,7 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { isGoogleOnlyLogin, isWhiteLabelDomain } from "../utils/domain";
 import { isNative } from "../utils/platform";
 import { nativeGoogleLogin } from "../utils/nativeAuth";
+import { API_ORIGIN } from "../config/env";
 
 declare const __FE_COMMIT_HASH__: string;
 declare const __FE_BUILD_TIME__: string;
@@ -155,16 +156,7 @@ export function LoginPage({
 
   const [beCommit, setBeCommit] = useState<string>("");
   useEffect(() => {
-    const apiBase =
-      import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1";
-    const origin = (() => {
-      try {
-        return new URL(apiBase).origin;
-      } catch {
-        return "http://localhost:8080";
-      }
-    })();
-    fetch(`${origin}/health`)
+    fetch(`${API_ORIGIN}/health`)
       .then((r) => r.json())
       .then((d) => setBeCommit(d.commit || ""))
       .catch(() => {});

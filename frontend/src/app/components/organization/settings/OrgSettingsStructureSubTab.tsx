@@ -411,8 +411,8 @@ export function OrgSettingsStructureSubTab({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {sections.map((s) => (
-        <CrudSection key={s.key} {...s} />
+      {sections.map(({ key, ...s }) => (
+        <CrudSection key={key} {...s} />
       ))}
     </div>
   );

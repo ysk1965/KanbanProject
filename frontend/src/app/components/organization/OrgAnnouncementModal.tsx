@@ -55,7 +55,7 @@ export function OrgAnnouncementModal({ open, onClose, orgId, editing, onSaved }:
     }
     setUploading(true);
     try {
-      const newFiles = [];
+      const newFiles: typeof uploadedFiles = [];
       for (const file of Array.from(files)) {
         if (!file.type.startsWith('image/')) continue;
         const result = await fileAPI.smartUpload(file);
