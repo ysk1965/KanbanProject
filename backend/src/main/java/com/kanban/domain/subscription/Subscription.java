@@ -2,11 +2,10 @@ package com.kanban.domain.subscription;
 
 import com.kanban.domain.board.Board;
 import jakarta.persistence.*;
-import lombok.*;
-
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import lombok.*;
 
 @Entity
 @Table(name = "subscriptions")
@@ -17,8 +16,8 @@ import java.util.UUID;
 public class Subscription {
 
     // Seat 기반 가격 상수 (USD 센트 단위)
-    public static final int MONTHLY_PRICE_PER_SEAT = 500;  // $5.00
-    public static final int YEARLY_PRICE_PER_SEAT = 5000;  // $50.00 (17% 할인)
+    public static final int MONTHLY_PRICE_PER_SEAT = 500; // $5.00
+    public static final int YEARLY_PRICE_PER_SEAT = 5000; // $50.00 (17% 할인)
 
     @Id
     @Column(name = "id", length = 36)
@@ -204,9 +203,7 @@ public class Subscription {
         this.plan = "PREMIUM";
         this.billingCycle = billingCycle;
         this.seatCount = seatCount;
-        this.pricePerSeat = billingCycle == BillingCycle.YEARLY
-                ? YEARLY_PRICE_PER_SEAT
-                : MONTHLY_PRICE_PER_SEAT;
+        this.pricePerSeat = billingCycle == BillingCycle.YEARLY ? YEARLY_PRICE_PER_SEAT : MONTHLY_PRICE_PER_SEAT;
         this.price = calculateTotalPrice();
         this.paymentMethodId = paymentMethodId;
         this.currentPeriodStart = LocalDateTime.now(ZoneOffset.UTC);
@@ -306,25 +303,43 @@ public class Subscription {
     }
 
     /**
-     * 크레딧 차감 (월간 → 구매 순서)
+     * 크레딧 차감 (월간 → 구매 순서). 어디서 얼마나 빠졌는지 돌려준다 — 환불은 그 기록을 거꾸로 적용한다.
      */
-    public void consumeCredits(int amount) {
-        int monthlyRemaining = Math.max(0, monthlyAiCredits - monthlyCreditsUsed);
-        if (monthlyRemaining >= amount) {
-            this.monthlyCreditsUsed += amount;
-        } else {
-            // 월간 잔여 먼저 소진, 나머지는 구매 크레딧에서
-            this.monthlyCreditsUsed = this.monthlyAiCredits;
-            int fromPurchased = amount - monthlyRemaining;
-            this.purchasedCredits = Math.max(0, this.purchasedCredits - fromPurchased);
-        }
+    public CreditConsumption consumeCredits(int amount) {
+        int monthly = monthlyAiCredits != null ? monthlyAiCredits : 0;
+        int used = monthlyCreditsUsed != null ? monthlyCreditsUsed : 0;
+        int purchased = purchasedCredits != null ? purchasedCredits : 0;
+
+        int monthlyRemaining = Math.max(0, monthly - used);
+        int fromMonthly = Math.min(amount, monthlyRemaining);
+        // 월간 잔여 먼저 소진, 나머지는 구매 크레딧에서 (hasEnoughCredits 가 선행되므로 보통 모자라지 않는다)
+        int fromPurchased = Math.min(amount - fromMonthly, Math.max(0, purchased));
+
+        this.monthlyCreditsUsed = used + fromMonthly;
+        this.purchasedCredits = purchased - fromPurchased;
+        return new CreditConsumption(fromMonthly, fromPurchased);
     }
 
     /**
-     * 크레딧 환불 (월간 크레딧으로 복원)
+     * 크레딧 환불 — {@link #consumeCredits(int)} 가 돌려준 기록을 그대로 되돌린다.
+     * 월간 사용량은 0 아래로 내려가지 않고, 구매분은 실제로 빠진 만큼만 돌아온다.
      */
+    public void refundCredits(CreditConsumption consumption) {
+        if (consumption == null) return;
+        int used = monthlyCreditsUsed != null ? monthlyCreditsUsed : 0;
+        int purchased = purchasedCredits != null ? purchasedCredits : 0;
+        this.monthlyCreditsUsed = Math.max(0, used - consumption.monthlyUsed());
+        this.purchasedCredits = purchased + consumption.purchasedUsed();
+    }
+
+    /**
+     * 크레딧 환불 (월간 카운터만 복원).
+     *
+     * @deprecated 구매분에서 빠진 크레딧을 돌려주지 못한다. {@link #refundCredits(CreditConsumption)} 를 쓸 것.
+     */
+    @Deprecated
     public void refundCredits(int amount) {
-        this.monthlyCreditsUsed = Math.max(0, this.monthlyCreditsUsed - amount);
+        refundCredits(CreditConsumption.monthly(amount));
     }
 
     /**

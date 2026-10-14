@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -16,6 +17,7 @@ import com.kanban.domain.board.BoardTier;
 import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
 import com.kanban.domain.organization.Organization;
 import com.kanban.domain.subscription.AiCreditPurchaseRepository;
+import com.kanban.domain.subscription.CreditConsumption;
 import com.kanban.domain.subscription.OrgSubscription;
 import com.kanban.domain.subscription.OrgSubscriptionRepository;
 import com.kanban.domain.subscription.Subscription;
@@ -98,8 +100,10 @@ class AiCreditServiceTest {
             Subscription sub = subscription(10, 0, 5);
             when(subscriptionRepository.findByBoardIdForUpdate(BOARD)).thenReturn(Optional.of(sub));
 
-            service.consumeCredit(BOARD, USER, FEATURE, 4);
+            CreditConsumption consumed = service.consumeCredit(BOARD, USER, FEATURE, 4);
 
+            assertThat(consumed).isEqualTo(new CreditConsumption(4, 0));
+            assertThat(consumed.source()).isEqualTo("MONTHLY");
             assertThat(sub.getMonthlyCreditsUsed()).isEqualTo(4);
             assertThat(sub.getPurchasedCredits()).isEqualTo(5);
             assertThat(sub.getTotalAvailableCredits()).isEqualTo(11);
@@ -112,8 +116,10 @@ class AiCreditServiceTest {
             when(subscriptionRepository.findByBoardIdForUpdate(BOARD)).thenReturn(Optional.of(sub));
             assertThat(sub.getCreditSource(4)).isEqualTo("MIXED");
 
-            service.consumeCredit(BOARD, USER, FEATURE, 4);
+            CreditConsumption consumed = service.consumeCredit(BOARD, USER, FEATURE, 4);
 
+            assertThat(consumed).isEqualTo(new CreditConsumption(2, 2));
+            assertThat(consumed.source()).isEqualTo("MIXED");
             assertThat(sub.getMonthlyCreditsUsed()).isEqualTo(10);
             assertThat(sub.getPurchasedCredits()).isEqualTo(3);
         }
@@ -125,8 +131,10 @@ class AiCreditServiceTest {
             when(subscriptionRepository.findByBoardIdForUpdate(BOARD)).thenReturn(Optional.of(sub));
             assertThat(sub.getCreditSource(3)).isEqualTo("PURCHASED");
 
-            service.consumeCredit(BOARD, USER, FEATURE, 3);
+            CreditConsumption consumed = service.consumeCredit(BOARD, USER, FEATURE, 3);
 
+            assertThat(consumed).isEqualTo(new CreditConsumption(0, 3));
+            assertThat(consumed.source()).isEqualTo("PURCHASED");
             assertThat(sub.getMonthlyCreditsUsed()).isEqualTo(10);
             assertThat(sub.getPurchasedCredits()).isEqualTo(2);
         }
@@ -178,7 +186,7 @@ class AiCreditServiceTest {
     void monetizationDisabledIsNoop() {
         when(monetizationService.isMonetizationEnabled()).thenReturn(false);
 
-        assertThatCode(() -> service.consumeCredit(BOARD, USER, FEATURE, 100)).doesNotThrowAnyException();
+        assertThat(service.consumeCredit(BOARD, USER, FEATURE, 100)).isEqualTo(CreditConsumption.NONE);
 
         verifyNoInteractions(boardRepository, subscriptionRepository, orgSubscriptionRepository);
     }
@@ -196,11 +204,40 @@ class AiCreditServiceTest {
                         .build()));
         OrgSubscription orgSub = mock(OrgSubscription.class);
         when(orgSub.hasEnoughCredits(5)).thenReturn(true);
+        when(orgSub.consumeCredits(5)).thenReturn(CreditConsumption.monthly(5));
         when(orgSubscriptionRepository.findByOrganizationIdForUpdate("org-1")).thenReturn(Optional.of(orgSub));
 
-        service.consumeCredit(BOARD, USER, FEATURE, 5);
+        CreditConsumption consumed = service.consumeCredit(BOARD, USER, FEATURE, 5);
 
+        assertThat(consumed).isEqualTo(CreditConsumption.monthly(5));
         verify(orgSub).consumeCredits(5);
+        verify(subscriptionRepository, never()).findByBoardIdForUpdate(any());
+    }
+
+    @Test
+    @DisplayName("조직 풀은 월간 카운터 하나뿐 — 실제 엔티티로 차감 → 환불이 정확히 원복된다")
+    void orgPoolConsumeThenRefundRoundTrip() {
+        when(monetizationService.isMonetizationEnabled()).thenReturn(true);
+        Organization org = Organization.builder().id("org-1").build();
+        when(boardRepository.findById(BOARD))
+                .thenReturn(Optional.of(Board.builder()
+                        .id(BOARD)
+                        .tier(BoardTier.ORG_MANAGED)
+                        .organization(org)
+                        .build()));
+        OrgSubscription orgSub = OrgSubscription.builder()
+                .id("org-sub-1")
+                .monthlyAiCredits(200)
+                .monthlyCreditsUsed(190)
+                .build();
+        when(orgSubscriptionRepository.findByOrganizationIdForUpdate("org-1")).thenReturn(Optional.of(orgSub));
+
+        CreditConsumption consumed = service.consumeCredit(BOARD, USER, FEATURE, 7);
+        assertThat(consumed).isEqualTo(new CreditConsumption(7, 0));
+        assertThat(orgSub.getMonthlyCreditsUsed()).isEqualTo(197);
+
+        service.refundCredit(BOARD, USER, FEATURE, consumed);
+        assertThat(orgSub.getMonthlyCreditsUsed()).isEqualTo(190);
         verify(subscriptionRepository, never()).findByBoardIdForUpdate(any());
     }
 
@@ -227,47 +264,107 @@ class AiCreditServiceTest {
     }
 
     @Nested
-    @DisplayName("refundCredit")
+    @DisplayName("refundCredit — 차감된 풀로 그대로 되돌린다")
     class Refund {
 
-        @Test
-        @DisplayName("월간 사용량을 되돌린다")
-        void refundRestoresMonthlyUsage() {
-            when(boardRepository.findById(BOARD))
+        @BeforeEach
+        void plainBoard() {
+            // NONE 환불 케이스는 보드 조회조차 하지 않으므로 lenient
+            lenient()
+                    .when(boardRepository.findById(BOARD))
                     .thenReturn(Optional.of(Board.builder().id(BOARD).build()));
+        }
+
+        @Test
+        @DisplayName("월간에서만 빠진 건 월간 사용량으로 돌아온다")
+        void refundRestoresMonthlyUsage() {
             Subscription sub = subscription(10, 4, 0);
             when(subscriptionRepository.findByBoardIdForUpdate(BOARD)).thenReturn(Optional.of(sub));
 
-            service.refundCredit(BOARD, USER, FEATURE, 3);
+            service.refundCredit(BOARD, USER, FEATURE, CreditConsumption.monthly(3));
 
             assertThat(sub.getMonthlyCreditsUsed()).isEqualTo(1);
+            assertThat(sub.getPurchasedCredits()).isZero();
         }
 
         @Test
         @DisplayName("사용량보다 많이 환불해도 0 아래로 내려가지 않는다")
         void refundFloorsAtZero() {
-            when(boardRepository.findById(BOARD))
-                    .thenReturn(Optional.of(Board.builder().id(BOARD).build()));
             Subscription sub = subscription(10, 2, 0);
             when(subscriptionRepository.findByBoardIdForUpdate(BOARD)).thenReturn(Optional.of(sub));
 
-            service.refundCredit(BOARD, USER, FEATURE, 5);
+            service.refundCredit(BOARD, USER, FEATURE, CreditConsumption.monthly(5));
 
             assertThat(sub.getMonthlyCreditsUsed()).isZero();
         }
 
         @Test
-        @DisplayName("현재 구현은 구매분에서 차감된 크레딧을 구매분으로 되돌리지 않는다 (월간 카운터만 조정)")
-        void refundDoesNotRestorePurchasedCredits() {
-            when(boardRepository.findById(BOARD))
-                    .thenReturn(Optional.of(Board.builder().id(BOARD).build()));
+        @DisplayName("구매분에서 빠진 건 구매분으로 돌아오고 월간 카운터는 건드리지 않는다 (PURCHASED)")
+        void refundRestoresPurchasedCredits() {
             Subscription sub = subscription(10, 10, 2);
             when(subscriptionRepository.findByBoardIdForUpdate(BOARD)).thenReturn(Optional.of(sub));
 
-            service.refundCredit(BOARD, USER, FEATURE, 3);
+            service.refundCredit(BOARD, USER, FEATURE, new CreditConsumption(0, 3));
+
+            assertThat(sub.getPurchasedCredits()).isEqualTo(5);
+            assertThat(sub.getMonthlyCreditsUsed()).isEqualTo(10);
+        }
+
+        @Test
+        @DisplayName("MIXED 차감은 두 풀로 나눠서 돌아온다")
+        void mixedRefundRestoresBothPools() {
+            Subscription sub = subscription(10, 10, 3);
+            when(subscriptionRepository.findByBoardIdForUpdate(BOARD)).thenReturn(Optional.of(sub));
+
+            service.refundCredit(BOARD, USER, FEATURE, new CreditConsumption(2, 4));
+
+            assertThat(sub.getMonthlyCreditsUsed()).isEqualTo(8);
+            assertThat(sub.getPurchasedCredits()).isEqualTo(7);
+        }
+
+        @Test
+        @DisplayName("MIXED: consumeCredit 반환값을 그대로 refundCredit 에 넘기면 원래 잔액으로 정확히 돌아온다")
+        void mixedConsumeThenRefundRoundTrip() {
+            when(monetizationService.isMonetizationEnabled()).thenReturn(true);
+            Subscription sub = subscription(10, 8, 5);
+            when(subscriptionRepository.findByBoardIdForUpdate(BOARD)).thenReturn(Optional.of(sub));
+
+            CreditConsumption consumed = service.consumeCredit(BOARD, USER, FEATURE, 4);
+            assertThat(consumed).isEqualTo(new CreditConsumption(2, 2));
+            assertThat(sub.getMonthlyCreditsUsed()).isEqualTo(10);
+            assertThat(sub.getPurchasedCredits()).isEqualTo(3);
+
+            service.refundCredit(BOARD, USER, FEATURE, consumed);
+
+            assertThat(sub.getMonthlyCreditsUsed()).isEqualTo(8);
+            assertThat(sub.getPurchasedCredits()).isEqualTo(5);
+            assertThat(sub.getTotalAvailableCredits()).isEqualTo(7);
+        }
+
+        @Test
+        @DisplayName("구매분 환불은 실제로 빠진 양만큼만 — 기록 이상으로 불어나지 않는다")
+        void purchasedRefundNeverExceedsWhatWasConsumed() {
+            when(monetizationService.isMonetizationEnabled()).thenReturn(true);
+            Subscription sub = subscription(10, 10, 2);
+            when(subscriptionRepository.findByBoardIdForUpdate(BOARD)).thenReturn(Optional.of(sub));
+
+            CreditConsumption consumed = service.consumeCredit(BOARD, USER, FEATURE, 2);
+            assertThat(consumed).isEqualTo(new CreditConsumption(0, 2));
+            assertThat(sub.getPurchasedCredits()).isZero();
+
+            service.refundCredit(BOARD, USER, FEATURE, consumed);
+            service.refundCredit(BOARD, USER, FEATURE, CreditConsumption.NONE);
 
             assertThat(sub.getPurchasedCredits()).isEqualTo(2);
-            assertThat(sub.getMonthlyCreditsUsed()).isEqualTo(7);
+        }
+
+        @Test
+        @DisplayName("빈 차감 기록(NONE)은 아무 저장소도 건드리지 않는다 — 수익화 off 경로")
+        void emptyConsumptionIsNoop() {
+            service.refundCredit(BOARD, USER, FEATURE, CreditConsumption.NONE);
+            service.refundCredit(BOARD, USER, FEATURE, (CreditConsumption) null);
+
+            verifyNoInteractions(boardRepository, subscriptionRepository, orgSubscriptionRepository);
         }
 
         @Test
@@ -276,7 +373,8 @@ class AiCreditServiceTest {
             when(boardRepository.findById(BOARD)).thenReturn(Optional.empty());
             when(subscriptionRepository.findByBoardIdForUpdate(BOARD)).thenReturn(Optional.empty());
 
-            assertThatCode(() -> service.refundCredit(BOARD, USER, FEATURE, 3)).doesNotThrowAnyException();
+            assertThatCode(() -> service.refundCredit(BOARD, USER, FEATURE, new CreditConsumption(1, 2)))
+                    .doesNotThrowAnyException();
         }
 
         @Test
@@ -293,10 +391,23 @@ class AiCreditServiceTest {
             when(orgSubscriptionRepository.findByOrganizationIdForUpdate("org-1"))
                     .thenReturn(Optional.of(orgSub));
 
-            service.refundCredit(BOARD, USER, FEATURE, 4);
+            service.refundCredit(BOARD, USER, FEATURE, CreditConsumption.monthly(4));
 
-            verify(orgSub).refundCredits(4);
+            verify(orgSub).refundCredits(CreditConsumption.monthly(4));
             verify(subscriptionRepository, never()).findByBoardIdForUpdate(any());
+        }
+
+        @Test
+        @DisplayName("구 int 오버로드는 월간만 되돌린다 — deprecated, 호출부는 CreditConsumption 을 넘겨야 한다")
+        @SuppressWarnings("deprecation")
+        void legacyIntRefundRestoresMonthlyOnly() {
+            Subscription sub = subscription(10, 10, 2);
+            when(subscriptionRepository.findByBoardIdForUpdate(BOARD)).thenReturn(Optional.of(sub));
+
+            service.refundCredit(BOARD, USER, FEATURE, 3);
+
+            assertThat(sub.getMonthlyCreditsUsed()).isEqualTo(7);
+            assertThat(sub.getPurchasedCredits()).isEqualTo(2);
         }
     }
 

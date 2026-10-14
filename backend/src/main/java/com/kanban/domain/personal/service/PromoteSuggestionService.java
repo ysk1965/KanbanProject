@@ -10,6 +10,7 @@ import com.kanban.domain.personal.PersonalTaskPromotionType;
 import com.kanban.domain.personal.PersonalTaskRepository;
 import com.kanban.domain.personal.dto.PersonalTaskRequest;
 import com.kanban.domain.personal.dto.PersonalTaskResponse;
+import com.kanban.domain.subscription.CreditConsumption;
 import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.domain.task.dto.TaskResponse;
 import com.kanban.domain.task.service.TaskService;
@@ -17,14 +18,6 @@ import com.kanban.global.ai.AiInvocationRequest;
 import com.kanban.global.ai.AiInvocationTemplate;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionTemplate;
-
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -34,6 +27,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * "이 백로그 항목, 어디에 붙일까" — 붙일 곳 후보 추천.
@@ -57,6 +57,7 @@ public class PromoteSuggestionService {
     private static final int PRESCORE_LIMIT = 25;
     /** 사용자에게 보여줄 추천 수. 4개부터는 "고르는 일"이 또 생긴다. */
     private static final int SUGGEST_LIMIT = 3;
+
     private static final int MAX_TOKENS = 512;
     private static final int MAX_TITLE_CHARS = 120;
     private static final String FEATURE_TYPE = "PROMOTE_SUGGEST";
@@ -72,8 +73,7 @@ public class PromoteSuggestionService {
             Map.entry("th", "Thai"),
             Map.entry("hi", "Hindi"),
             Map.entry("es", "Spanish"),
-            Map.entry("pt-BR", "Portuguese (Brazil)")
-    );
+            Map.entry("pt-BR", "Portuguese (Brazil)"));
 
     private final PersonalTaskRepository personalTaskRepository;
     private final BoardService boardService;
@@ -106,7 +106,8 @@ public class PromoteSuggestionService {
 
         // 1. 후보 수집 + 규칙 점수 (tx) — PersonalTask.user는 LAZY
         Prepared prepared = transactionTemplate.execute(status -> {
-            PersonalTask backlog = personalTaskRepository.findById(backlogId)
+            PersonalTask backlog = personalTaskRepository
+                    .findById(backlogId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.PERSONAL_TASK_NOT_FOUND));
             if (!backlog.getUser().getId().equals(userId)) {
                 throw new BusinessException(ErrorCode.PERSONAL_ACCESS_DENIED);
@@ -133,8 +134,8 @@ public class PromoteSuggestionService {
                 return new Prepared(boardId, backlog.getTitle(), featureMode, titles, List.of(), true);
             }
 
-            Set<String> recentIds = request.getRecentRefIds() == null
-                    ? Set.of() : new LinkedHashSet<>(request.getRecentRefIds());
+            Set<String> recentIds =
+                    request.getRecentRefIds() == null ? Set.of() : new LinkedHashSet<>(request.getRecentRefIds());
             PromoteCandidateScorer.Context context = new PromoteCandidateScorer.Context(
                     userId,
                     normalizeMilestoneId(request.getMilestoneId()),
@@ -148,7 +149,9 @@ public class PromoteSuggestionService {
 
         if (prepared.noCandidates()) {
             return PersonalTaskResponse.PromoteSuggestions.builder()
-                    .source("RULE").creditsUsed(0).creditsExhausted(false)
+                    .source("RULE")
+                    .creditsUsed(0)
+                    .creditsExhausted(false)
                     .suggestions(List.of())
                     .build();
         }
@@ -171,15 +174,18 @@ public class PromoteSuggestionService {
             // 캐시가 가리키던 태스크가 그새 지워졌을 수 있다 — 하나도 안 남으면 규칙으로 되돌린다
             if (!parsed.isEmpty()) {
                 return PersonalTaskResponse.PromoteSuggestions.builder()
-                        .source("AI").creditsUsed(0).creditsExhausted(false)
+                        .source("AI")
+                        .creditsUsed(0)
+                        .creditsExhausted(false)
                         .suggestions(parsed)
                         .build();
             }
         }
 
         // 2. 크레딧 차감 — AiCreditService의 자체 트랜잭션으로 짧게 커밋 (여기엔 활성 트랜잭션이 없다)
+        CreditConsumption consumed;
         try {
-            aiCreditService.consumeCredit(boardId, userId, FEATURE_TYPE, 1);
+            consumed = aiCreditService.consumeCredit(boardId, userId, FEATURE_TYPE, 1);
         } catch (BusinessException e) {
             if (e.getErrorCode() == ErrorCode.AI_CREDITS_EXHAUSTED
                     || e.getErrorCode() == ErrorCode.PERSONAL_AI_CREDITS_EXHAUSTED) {
@@ -191,45 +197,56 @@ public class PromoteSuggestionService {
 
         // 3. AI 호출 → 사용량 로그 → 파싱 (트랜잭션 없음)
         try {
-            String json = callAi(boardId, userId, prepared.backlogTitle(), prescored, featureMode, request.getLanguage());
+            String json =
+                    callAi(boardId, userId, prepared.backlogTitle(), prescored, featureMode, request.getLanguage());
             List<PersonalTaskResponse.PromoteSuggestion> picked = parseAiJson(json, titles, refType);
             if (picked.isEmpty()) throw new IllegalStateException("AI가 고른 후보가 하나도 유효하지 않다");
             writeCache(cacheKey, json);
             return PersonalTaskResponse.PromoteSuggestions.builder()
-                    .source("AI").creditsUsed(1).creditsExhausted(false)
+                    .source("AI")
+                    .creditsUsed(1)
+                    .creditsExhausted(false)
                     .suggestions(picked)
                     .build();
         } catch (Exception e) {
-            log.warn("Promote suggestion AI failed - board: {}, backlog: {}, error: {}",
-                    boardId, backlogId, e.getMessage());
-            // 쓰지 못한 크레딧은 돌려준다. 결과는 규칙 추천으로 대신한다.
-            aiCreditService.refundCredit(boardId, userId, FEATURE_TYPE, 1);
+            log.warn(
+                    "Promote suggestion AI failed - board: {}, backlog: {}, error: {}",
+                    boardId,
+                    backlogId,
+                    e.getMessage());
+            // 쓰지 못한 크레딧은 차감된 그대로(월간/구매) 돌려준다. 결과는 규칙 추천으로 대신한다.
+            aiCreditService.refundCredit(boardId, userId, FEATURE_TYPE, consumed);
             return ruleResult(prescored, refType, 0, false);
         }
     }
 
     /** 트랜잭션 안에서 읽어 둔 값들 — AI 단계는 이 안의 순수 값만 쓴다 */
-    private record Prepared(String boardId, String backlogTitle, boolean featureMode,
-                            Map<String, String> titles, List<PromoteCandidateScorer.Scored> prescored,
-                            boolean noCandidates) {
-    }
+    private record Prepared(
+            String boardId,
+            String backlogTitle,
+            boolean featureMode,
+            Map<String, String> titles,
+            List<PromoteCandidateScorer.Scored> prescored,
+            boolean noCandidates) {}
 
     // ─── 후보 모으기 ───
 
     private List<PromoteCandidateScorer.Candidate> taskCandidates(
             String boardId, PersonalTaskRequest.Suggest request, Map<String, String> titles) {
 
-        List<TaskResponse.Simple> tasks =
-                taskService.getTasksInternal(boardId, null, null, request.getMilestoneId()).getTasks();
+        List<TaskResponse.Simple> tasks = taskService
+                .getTasksInternal(boardId, null, null, request.getMilestoneId())
+                .getTasks();
 
         List<PromoteCandidateScorer.Candidate> candidates = new ArrayList<>();
         for (TaskResponse.Simple task : tasks) {
             if (task.isCompleted() && !request.isIncludeDone()) continue;
             titles.put(task.getId(), task.getTitle());
-            Set<String> assigneeIds = task.getAssignees() == null ? Set.of()
+            Set<String> assigneeIds = task.getAssignees() == null
+                    ? Set.of()
                     : task.getAssignees().stream()
-                    .map(TaskResponse.AssigneeInfo::getId)
-                    .collect(Collectors.toCollection(LinkedHashSet::new));
+                            .map(TaskResponse.AssigneeInfo::getId)
+                            .collect(Collectors.toCollection(LinkedHashSet::new));
             candidates.add(new PromoteCandidateScorer.Candidate(
                     task.getId(),
                     task.getTitle(),
@@ -245,16 +262,19 @@ public class PromoteSuggestionService {
     private List<PromoteCandidateScorer.Candidate> featureCandidates(
             String boardId, PersonalTaskRequest.Suggest request, Map<String, String> titles) {
 
-        List<FeatureResponse.Simple> features =
-                featureService.getFeaturesInternal(boardId, request.getMilestoneId()).getFeatures();
+        List<FeatureResponse.Simple> features = featureService
+                .getFeaturesInternal(boardId, request.getMilestoneId())
+                .getFeatures();
 
         List<PromoteCandidateScorer.Candidate> candidates = new ArrayList<>();
         for (FeatureResponse.Simple feature : features) {
-            boolean completed = feature.getStatus() != null && "COMPLETED".equals(feature.getStatus().name());
+            boolean completed = feature.getStatus() != null
+                    && "COMPLETED".equals(feature.getStatus().name());
             if (completed && !request.isIncludeDone()) continue;
             titles.put(feature.getId(), feature.getTitle());
             Set<String> assigneeIds = feature.getAssignee() == null
-                    ? Set.of() : Set.of(feature.getAssignee().getId());
+                    ? Set.of()
+                    : Set.of(feature.getAssignee().getId());
             candidates.add(new PromoteCandidateScorer.Candidate(
                     feature.getId(),
                     feature.getTitle(),
@@ -271,8 +291,7 @@ public class PromoteSuggestionService {
     // ─── 결과 만들기 ───
 
     private PersonalTaskResponse.PromoteSuggestions ruleResult(
-            List<PromoteCandidateScorer.Scored> prescored, String refType,
-            int creditsUsed, boolean creditsExhausted) {
+            List<PromoteCandidateScorer.Scored> prescored, String refType, int creditsUsed, boolean creditsExhausted) {
 
         List<PersonalTaskResponse.PromoteSuggestion> suggestions = prescored.stream()
                 .limit(SUGGEST_LIMIT)
@@ -324,17 +343,26 @@ public class PromoteSuggestionService {
     // ─── AI 호출 ───
 
     /** 크레딧은 호출부가 이미 차감했으므로 NONE — 템플릿은 호출·사용량 로그(creditsUsed=1)만 맡는다 */
-    private String callAi(String boardId, String userId, String backlogTitle,
-                          List<PromoteCandidateScorer.Scored> prescored, boolean featureMode, String language) {
+    private String callAi(
+            String boardId,
+            String userId,
+            String backlogTitle,
+            List<PromoteCandidateScorer.Scored> prescored,
+            boolean featureMode,
+            String language) {
 
         String model = "openai".equals(provider) ? openaiModel : claudeModel;
         AiInvocationRequest request = AiInvocationRequest.builder()
-                .boardId(boardId).userId(userId)
+                .boardId(boardId)
+                .userId(userId)
                 .featureType(FEATURE_TYPE)
-                .creditScope(AiInvocationRequest.CreditScope.NONE).creditCost(1)
+                .creditScope(AiInvocationRequest.CreditScope.NONE)
+                .creditCost(1)
                 .systemPrompt(buildSystemPrompt(featureMode, language))
                 .userPrompt(buildUserPrompt(backlogTitle, prescored, featureMode))
-                .model(model).maxTokens(MAX_TOKENS).temperature(0.0)
+                .model(model)
+                .maxTokens(MAX_TOKENS)
+                .temperature(0.0)
                 .build();
         return aiInvocationTemplate.invoke(request, AiInvocationTemplate::extractJson);
     }
@@ -369,15 +397,19 @@ public class PromoteSuggestionService {
                 """, kind, langName, langName);
     }
 
-    private String buildUserPrompt(String backlogTitle, List<PromoteCandidateScorer.Scored> prescored,
-                                   boolean featureMode) {
+    private String buildUserPrompt(
+            String backlogTitle, List<PromoteCandidateScorer.Scored> prescored, boolean featureMode) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Backlog note: ").append(truncate(backlogTitle, MAX_TITLE_CHARS)).append("\n\n");
+        sb.append("Backlog note: ")
+                .append(truncate(backlogTitle, MAX_TITLE_CHARS))
+                .append("\n\n");
         sb.append(featureMode ? "Candidate features:\n" : "Candidate tasks:\n");
         for (PromoteCandidateScorer.Scored scored : prescored) {
             PromoteCandidateScorer.Candidate candidate = scored.candidate();
-            sb.append("- id=").append(candidate.id())
-                    .append(" | title=").append(truncate(candidate.title(), MAX_TITLE_CHARS));
+            sb.append("- id=")
+                    .append(candidate.id())
+                    .append(" | title=")
+                    .append(truncate(candidate.title(), MAX_TITLE_CHARS));
             if (candidate.contextTitle() != null && !candidate.contextTitle().isBlank()) {
                 sb.append(" | feature=").append(truncate(candidate.contextTitle(), 40));
             }
@@ -397,7 +429,11 @@ public class PromoteSuggestionService {
      * includeDone은 후보 풀을 바꾸므로 키에 들어간다.
      */
     private String cacheKey(String userId, String backlogId, PersonalTaskRequest.Suggest request) {
-        return String.join(":", userId, backlogId, request.getTarget().name(),
+        return String.join(
+                ":",
+                userId,
+                backlogId,
+                request.getTarget().name(),
                 request.getMilestoneId() == null ? "all" : request.getMilestoneId(),
                 request.isIncludeDone() ? "done" : "open");
     }

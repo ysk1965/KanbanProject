@@ -5,10 +5,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.monitoring.entity.AiUsageLog;
 import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
+import com.kanban.domain.subscription.CreditConsumption;
 import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.domain.system.MonetizationService;
 import com.kanban.global.config.AIProvider;
 import com.kanban.global.config.AIResponse;
+import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -16,8 +18,6 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
-
-import java.util.function.Function;
 
 /**
  * LLM 호출의 공통 뼈대 — <b>트랜잭션 밖에서</b> 프로바이더를 부른다.
@@ -52,13 +52,14 @@ public class AiInvocationTemplate {
     private final TransactionTemplate usageLogTransaction;
     private final String provider;
 
-    public AiInvocationTemplate(AIProvider aiProvider,
-                                AiCreditService aiCreditService,
-                                MonetizationService monetizationService,
-                                AiUsageLogRepository aiUsageLogRepository,
-                                ObjectMapper objectMapper,
-                                PlatformTransactionManager transactionManager,
-                                @Value("${ai.provider:claude}") String provider) {
+    public AiInvocationTemplate(
+            AIProvider aiProvider,
+            AiCreditService aiCreditService,
+            MonetizationService monetizationService,
+            AiUsageLogRepository aiUsageLogRepository,
+            ObjectMapper objectMapper,
+            PlatformTransactionManager transactionManager,
+            @Value("${ai.provider:claude}") String provider) {
         this.aiProvider = aiProvider;
         this.aiCreditService = aiCreditService;
         this.monetizationService = monetizationService;
@@ -76,11 +77,11 @@ public class AiInvocationTemplate {
      *              DB를 건드리지 말 것 — 트랜잭션 밖에서 실행된다.
      */
     public <T> T invoke(AiInvocationRequest request, Function<String, T> parse) {
-        AIResponse response = chat(request);
+        Invocation invocation = execute(request);
         try {
-            return parse.apply(response.content());
+            return parse.apply(invocation.response().content());
         } catch (RuntimeException e) {
-            refundIfConsumed(request, "parse failed: " + e.getMessage());
+            refundIfConsumed(request, invocation.consumed(), "parse failed: " + e.getMessage());
             throw e;
         }
     }
@@ -89,36 +90,50 @@ public class AiInvocationTemplate {
      * 크레딧 차감 → AI 호출 → 사용량 로그. 파싱 없이 원본 응답이 필요할 때 쓴다.
      */
     public AIResponse chat(AiInvocationRequest request) {
+        return execute(request).response();
+    }
+
+    /** 응답과 함께 "이번 호출이 실제로 어디서 얼마나 차감했는지"를 들고 다닌다 — 환불은 그 기록대로 되돌린다. */
+    private record Invocation(AIResponse response, CreditConsumption consumed) {}
+
+    private Invocation execute(AiInvocationRequest request) {
         warnIfTransactionActive(request);
 
         // 1. 크레딧 — AiCreditService의 @Transactional이 자체 트랜잭션을 연다(활성 트랜잭션이 없으므로 REQUIRED = 새로 시작).
         //    부족하면 여기서 AI_CREDITS_EXHAUSTED 등이 나가고 AI는 호출되지 않는다.
+        CreditConsumption consumed = CreditConsumption.NONE;
         if (request.consumesCredit()) {
-            aiCreditService.consumeCredit(request.boardId(), request.userId(), request.featureType(), request.creditCost());
+            consumed = aiCreditService.consumeCredit(
+                    request.boardId(), request.userId(), request.featureType(), request.creditCost());
         }
 
         // 2. 프로바이더 — 트랜잭션 없음
         AIResponse response;
         try {
             response = aiProvider.chatWithUsage(
-                    request.systemPrompt(), request.userPrompt(),
-                    request.model(), request.maxTokens(), request.temperature());
+                    request.systemPrompt(),
+                    request.userPrompt(),
+                    request.model(),
+                    request.maxTokens(),
+                    request.temperature());
         } catch (RuntimeException e) {
-            refundIfConsumed(request, "provider call failed: " + e.getMessage());
+            refundIfConsumed(request, consumed, "provider call failed: " + e.getMessage());
             throw e;
         }
 
         // 3. 사용량 로그 — 토큰은 이미 썼으니 파싱 성패와 무관하게 남긴다
         recordUsage(request, response);
-        return response;
+        return new Invocation(response, consumed);
     }
 
     private void recordUsage(AiInvocationRequest request, AIResponse response) {
         String model = response.model() != null ? response.model() : request.model();
         try {
             usageLogTransaction.executeWithoutResult(status -> aiUsageLogRepository.save(AiUsageLog.builder()
-                    .boardId(request.boardId()).userId(request.userId())
-                    .featureType(request.featureType()).provider(provider.toUpperCase())
+                    .boardId(request.boardId())
+                    .userId(request.userId())
+                    .featureType(request.featureType())
+                    .provider(provider.toUpperCase())
                     .model(model)
                     .inputTokens(response.inputTokens())
                     .outputTokens(response.outputTokens())
@@ -130,31 +145,41 @@ public class AiInvocationTemplate {
         }
     }
 
-    private void refundIfConsumed(AiInvocationRequest request, String reason) {
+    private void refundIfConsumed(AiInvocationRequest request, CreditConsumption consumed, String reason) {
         if (!request.consumesCredit() || request.keepCreditOnFailure()) {
             return;
         }
-        // 수익화 off면 consumeCredit이 아무것도 차감하지 않았다 — 돌려줄 것도 없다 (refundCredit은 이 검사를 하지 않는다)
-        if (!monetizationService.isMonetizationEnabled()) {
+        // 수익화 off면 consumeCredit이 아무것도 차감하지 않았다(NONE) — 돌려줄 것도 없다
+        if (!monetizationService.isMonetizationEnabled() || consumed == null || consumed.isEmpty()) {
             return;
         }
         try {
-            aiCreditService.refundCredit(request.boardId(), request.userId(), request.featureType(), request.creditCost());
-            log.info("AI credit refunded after failure - board: {}, feature: {}, reason: {}",
-                    request.boardId(), request.featureType(), reason);
+            aiCreditService.refundCredit(request.boardId(), request.userId(), request.featureType(), consumed);
+            log.info(
+                    "AI credit refunded after failure - board: {}, feature: {}, monthly: {}, purchased: {}, reason: {}",
+                    request.boardId(),
+                    request.featureType(),
+                    consumed.monthlyUsed(),
+                    consumed.purchasedUsed(),
+                    reason);
         } catch (Exception e) {
             // 원래 예외를 가리지 않는다 — 환불 실패는 기록만
-            log.warn("AI credit refund failed - board: {}, feature: {}, error: {}",
-                    request.boardId(), request.featureType(), e.getMessage());
+            log.warn(
+                    "AI credit refund failed - board: {}, feature: {}, error: {}",
+                    request.boardId(),
+                    request.featureType(),
+                    e.getMessage());
         }
     }
 
     private void warnIfTransactionActive(AiInvocationRequest request) {
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             // 설계 위반이지만 동작은 시킨다 — 발견하는 즉시 호출부를 고칠 것
-            log.warn("AiInvocationTemplate called inside an active transaction - feature: {}, board: {}. "
+            log.warn(
+                    "AiInvocationTemplate called inside an active transaction - feature: {}, board: {}. "
                             + "The DB connection will be held for the whole LLM round-trip.",
-                    request.featureType(), request.boardId());
+                    request.featureType(),
+                    request.boardId());
         }
     }
 
@@ -214,8 +239,7 @@ public class AiInvocationTemplate {
         int lastComplete = -1;
         for (int i = json.length() - 1; i >= 0; i--) {
             char c = json.charAt(i);
-            if (c == ',' || c == '{' || c == '[' || c == ':' || c == '"'
-                    || c == '}' || c == ']') {
+            if (c == ',' || c == '{' || c == '[' || c == ':' || c == '"' || c == '}' || c == ']') {
                 lastComplete = i;
                 break;
             }
@@ -233,8 +257,14 @@ public class AiInvocationTemplate {
         boolean inString = false;
         for (int i = 0; i < json.length(); i++) {
             char c = json.charAt(i);
-            if (c == '\\' && inString) { i++; continue; }
-            if (c == '"') { inString = !inString; continue; }
+            if (c == '\\' && inString) {
+                i++;
+                continue;
+            }
+            if (c == '"') {
+                inString = !inString;
+                continue;
+            }
             if (inString) continue;
             if (c == '{') braces++;
             else if (c == '}') braces--;
@@ -243,8 +273,14 @@ public class AiInvocationTemplate {
         }
 
         StringBuilder sb = new StringBuilder(json);
-        while (brackets > 0) { sb.append(']'); brackets--; }
-        while (braces > 0) { sb.append('}'); braces--; }
+        while (brackets > 0) {
+            sb.append(']');
+            brackets--;
+        }
+        while (braces > 0) {
+            sb.append('}');
+            braces--;
+        }
         return sb.toString();
     }
 }

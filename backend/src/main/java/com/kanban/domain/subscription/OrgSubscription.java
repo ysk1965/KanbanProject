@@ -2,11 +2,10 @@ package com.kanban.domain.subscription;
 
 import com.kanban.domain.organization.Organization;
 import jakarta.persistence.*;
-import lombok.*;
-
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import lombok.*;
 
 @Entity
 @Table(name = "org_subscriptions")
@@ -18,8 +17,8 @@ import java.util.UUID;
 public class OrgSubscription {
 
     // Seat 기반 가격 상수 (USD cents)
-    public static final int MONTHLY_PRICE_PER_SEAT = 1500;   // $15.00
-    public static final int YEARLY_PRICE_PER_SEAT = 15000;   // $150.00
+    public static final int MONTHLY_PRICE_PER_SEAT = 1500; // $15.00
+    public static final int YEARLY_PRICE_PER_SEAT = 15000; // $150.00
     public static final int TRIAL_DAYS = 7;
 
     @Id
@@ -172,9 +171,7 @@ public class OrgSubscription {
         this.pastDueSince = null;
         this.billingCycle = cycle;
         this.seatCount = seats;
-        this.pricePerSeat = cycle == BillingCycle.YEARLY
-                ? YEARLY_PRICE_PER_SEAT
-                : MONTHLY_PRICE_PER_SEAT;
+        this.pricePerSeat = cycle == BillingCycle.YEARLY ? YEARLY_PRICE_PER_SEAT : MONTHLY_PRICE_PER_SEAT;
         this.totalPrice = this.pricePerSeat * seats;
         this.paymentMethodId = paymentMethodId;
         this.boardLimit = -1;
@@ -223,7 +220,7 @@ public class OrgSubscription {
     }
 
     public int getAvailableSeats() {
-        if (plan == OrgPlan.FREE) return -1;  // FREE는 unlimited
+        if (plan == OrgPlan.FREE) return -1; // FREE는 unlimited
         return Math.max(0, seatCount - activeMemberCount);
     }
 
@@ -280,13 +277,13 @@ public class OrgSubscription {
     // ── Limit Methods ──
 
     public int getMemberLimit() {
-        return -1;  // Org는 항상 unlimited members
+        return -1; // Org는 항상 unlimited members
     }
 
     public int getBoardLimit() {
         if (plan != OrgPlan.TEAM) return 0;
         if (!isActive() && !isTrialActive()) return 0;
-        return -1;  // TEAM 플랜은 unlimited boards
+        return -1; // TEAM 플랜은 unlimited boards
     }
 
     // ── AI Credit Methods ──
@@ -301,12 +298,20 @@ public class OrgSubscription {
         return getTotalAvailableCredits() >= required;
     }
 
-    public void consumeCredits(int amount) {
+    /** 조직 풀은 월간 카운터만 있다 — 차감 기록도 항상 월간분이다. */
+    public CreditConsumption consumeCredits(int amount) {
         this.monthlyCreditsUsed = safeCredits(this.monthlyCreditsUsed) + amount;
+        return CreditConsumption.monthly(amount);
     }
 
     public void refundCredits(int amount) {
         this.monthlyCreditsUsed = Math.max(0, safeCredits(this.monthlyCreditsUsed) - amount);
+    }
+
+    /** {@link #consumeCredits(int)} 가 돌려준 기록을 되돌린다 (풀이 하나라 합계를 월간으로 복원). */
+    public void refundCredits(CreditConsumption consumption) {
+        if (consumption == null) return;
+        refundCredits(consumption.total());
     }
 
     public void resetMonthlyCredits() {
@@ -337,9 +342,7 @@ public class OrgSubscription {
     private void initializePeriod() {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         this.currentPeriodStart = now;
-        this.currentPeriodEnd = billingCycle == BillingCycle.YEARLY
-                ? now.plusYears(1)
-                : now.plusMonths(1);
+        this.currentPeriodEnd = billingCycle == BillingCycle.YEARLY ? now.plusYears(1) : now.plusMonths(1);
         this.nextPaymentAt = this.currentPeriodEnd;
     }
 }

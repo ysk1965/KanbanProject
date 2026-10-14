@@ -9,6 +9,7 @@ import com.kanban.domain.meeting.MeetingRepository;
 import com.kanban.domain.meeting.dto.MeetingResponse;
 import com.kanban.domain.monitoring.entity.AiUsageLog;
 import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
+import com.kanban.domain.subscription.CreditConsumption;
 import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.global.ai.AiInvocationTemplate;
 import com.kanban.global.config.AIProvider;
@@ -19,7 +20,12 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
-import lombok.RequiredArgsConstructor;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -31,13 +37,6 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -143,8 +142,8 @@ public class MeetingTranscriptionService {
      * Synchronous entry point: validates, consumes credit, copies file bytes, then kicks off async processing.
      * Returns immediately so the HTTP response (202) is sent before the long-running transcription.
      */
-    public void startTranscription(String boardId, String meetingId, String userId,
-                                   MultipartFile audioFile) throws IOException {
+    public void startTranscription(String boardId, String meetingId, String userId, MultipartFile audioFile)
+            throws IOException {
         // --- Validation (synchronous, within HTTP request) ---
         boardService.checkMemberOrAbove(boardId, userId);
 
@@ -158,21 +157,23 @@ public class MeetingTranscriptionService {
             throw new BusinessException(ErrorCode.TRANSCRIPTION_FILE_TOO_LARGE);
         }
 
-        Meeting meeting = meetingRepository.findById(meetingId)
+        Meeting meeting = meetingRepository
+                .findById(meetingId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
         if (!meeting.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.MEETING_NOT_FOUND);
         }
 
-        // Consume 1 AI credit for Whisper transcription (synchronous — 402 returned immediately if exhausted)
-        aiCreditService.consumeCredit(boardId, userId, "MEETING_TRANSCRIBE", 1);
+        // Consume 1 AI credit for Whisper transcription (synchronous — 402 returned immediately if exhausted).
+        // The split (monthly/purchased) travels with the async job so a failure refunds exactly what was taken.
+        CreditConsumption consumed = aiCreditService.consumeCredit(boardId, userId, "MEETING_TRANSCRIBE", 1);
 
         // Copy file bytes before HTTP request ends (MultipartFile is tied to the request lifecycle)
         byte[] audioBytes = audioFile.getBytes();
         String originalFilename = audioFile.getOriginalFilename();
 
         // Kick off async processing via separate bean (Spring AOP proxy requirement)
-        asyncService.processTranscriptionAsync(boardId, meetingId, userId, audioBytes, originalFilename);
+        asyncService.processTranscriptionAsync(boardId, meetingId, userId, audioBytes, originalFilename, consumed);
     }
 
     // ==================== Methods called by MeetingTranscriptionAsyncService ====================
@@ -180,17 +181,25 @@ public class MeetingTranscriptionService {
     /**
      * Run Whisper transcription. No transaction needed (external HTTP calls only).
      */
-    public List<WhisperSegmentDto> transcribe(byte[] audioBytes, String originalFilename,
-                                              String boardId, String userId, String userName, String meetingId) {
+    public List<WhisperSegmentDto> transcribe(
+            byte[] audioBytes,
+            String originalFilename,
+            String boardId,
+            String userId,
+            String userName,
+            String meetingId) {
         List<WhisperSegmentDto> segments;
         if (audioBytes.length <= WHISPER_CHUNK_SIZE) {
-            segments = callWhisperAPIWithBytes(audioBytes,
-                    originalFilename != null ? originalFilename : "recording.webm")
-                    .stream().map(s -> new WhisperSegmentDto(s.start(), s.end(), s.text())).toList();
+            segments =
+                    callWhisperAPIWithBytes(audioBytes, originalFilename != null ? originalFilename : "recording.webm")
+                            .stream()
+                            .map(s -> new WhisperSegmentDto(s.start(), s.end(), s.text()))
+                            .toList();
             sendProgress(boardId, userId, userName, meetingId, "TRANSCRIBING", 1, 1, 65);
         } else {
-            segments = splitAndTranscribe(audioBytes, originalFilename, boardId, userId, userName, meetingId)
-                    .stream().map(s -> new WhisperSegmentDto(s.start(), s.end(), s.text())).toList();
+            segments = splitAndTranscribe(audioBytes, originalFilename, boardId, userId, userName, meetingId).stream()
+                    .map(s -> new WhisperSegmentDto(s.start(), s.end(), s.text()))
+                    .toList();
         }
         return segments;
     }
@@ -198,17 +207,17 @@ public class MeetingTranscriptionService {
     /**
      * AI-based speaker diarization. No transaction needed (external API call).
      */
-    public MeetingResponse.DiarizedTranscript identifySpeakers(String boardId, String userId, List<WhisperSegmentDto> segments) {
+    public MeetingResponse.DiarizedTranscript identifySpeakers(
+            String boardId, String userId, List<WhisperSegmentDto> segments) {
         List<WhisperSegment> internalSegments = segments.stream()
-                .map(s -> new WhisperSegment(s.start(), s.end(), s.text())).toList();
+                .map(s -> new WhisperSegment(s.start(), s.end(), s.text()))
+                .toList();
 
         String inputText = formatSegmentsForDiarization(internalSegments);
         if (inputText.length() > MAX_DIARIZE_INPUT_CHARS) {
             String sub = inputText.substring(0, MAX_DIARIZE_INPUT_CHARS);
             int lastNewline = sub.lastIndexOf('\n');
-            inputText = lastNewline > MAX_DIARIZE_INPUT_CHARS / 2
-                    ? sub.substring(0, lastNewline)
-                    : sub;
+            inputText = lastNewline > MAX_DIARIZE_INPUT_CHARS / 2 ? sub.substring(0, lastNewline) : sub;
             log.info("Diarization input truncated: {} segments -> {} chars", segments.size(), inputText.length());
         }
 
@@ -220,8 +229,10 @@ public class MeetingTranscriptionService {
         // Log AI usage
         try {
             aiUsageLogRepository.save(AiUsageLog.builder()
-                    .boardId(boardId).userId(userId)
-                    .featureType("MEETING_DIARIZE").provider(provider.toUpperCase())
+                    .boardId(boardId)
+                    .userId(userId)
+                    .featureType("MEETING_DIARIZE")
+                    .provider(provider.toUpperCase())
                     .model(model)
                     .inputTokens(aiResult.inputTokens())
                     .outputTokens(aiResult.outputTokens())
@@ -237,8 +248,15 @@ public class MeetingTranscriptionService {
     /**
      * Send transcription progress event to requesting user via WebSocket.
      */
-    public void sendProgress(String boardId, String userId, String userName,
-                              String meetingId, String stage, int current, int total, int percent) {
+    public void sendProgress(
+            String boardId,
+            String userId,
+            String userName,
+            String meetingId,
+            String stage,
+            int current,
+            int total,
+            int percent) {
         try {
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("meeting_id", meetingId);
@@ -246,8 +264,8 @@ public class MeetingTranscriptionService {
             data.put("current", current);
             data.put("total", total);
             data.put("percent", percent);
-            webSocketEventService.sendBoardEvent(boardId, BoardEventType.TRANSCRIPTION_PROGRESS,
-                    userId, userName, data);
+            webSocketEventService.sendBoardEvent(
+                    boardId, BoardEventType.TRANSCRIPTION_PROGRESS, userId, userName, data);
         } catch (Exception e) {
             log.debug("Failed to send transcription progress: {}", e.getMessage());
         }
@@ -266,7 +284,8 @@ public class MeetingTranscriptionService {
             JsonNode segmentsNode = root.get("segments");
             if (segmentsNode != null && segmentsNode.isArray()) {
                 for (JsonNode segNode : segmentsNode) {
-                    String speaker = segNode.has("speaker") ? segNode.get("speaker").asText() : "화자 ?";
+                    String speaker =
+                            segNode.has("speaker") ? segNode.get("speaker").asText() : "화자 ?";
                     String text = segNode.has("text") ? segNode.get("text").asText() : "";
                     int order = segNode.has("order") ? segNode.get("order").asInt() : segments.size();
 
@@ -284,7 +303,8 @@ public class MeetingTranscriptionService {
                 Iterator<Map.Entry<String, JsonNode>> fields = mappingNode.fields();
                 while (fields.hasNext()) {
                     Map.Entry<String, JsonNode> entry = fields.next();
-                    speakerMapping.put(entry.getKey(),
+                    speakerMapping.put(
+                            entry.getKey(),
                             entry.getValue().isNull() ? null : entry.getValue().asText());
                 }
             }
@@ -304,8 +324,13 @@ public class MeetingTranscriptionService {
         return AiInvocationTemplate.extractJson(response);
     }
 
-    private List<WhisperSegment> splitAndTranscribe(byte[] audioBytes, String originalFilename,
-                                      String boardId, String userId, String userName, String meetingId) {
+    private List<WhisperSegment> splitAndTranscribe(
+            byte[] audioBytes,
+            String originalFilename,
+            String boardId,
+            String userId,
+            String userName,
+            String meetingId) {
         if (isFFmpegAvailable()) {
             try {
                 return splitAndTranscribeWithFFmpeg(audioBytes, originalFilename, boardId, userId, userName, meetingId);
@@ -321,7 +346,8 @@ public class MeetingTranscriptionService {
     private boolean isFFmpegAvailable() {
         try {
             Process process = new ProcessBuilder(ffmpegPath, "-version")
-                    .redirectErrorStream(true).start();
+                    .redirectErrorStream(true)
+                    .start();
             process.getInputStream().readAllBytes();
             boolean completed = process.waitFor(10, TimeUnit.SECONDS);
             if (!completed) {
@@ -334,8 +360,13 @@ public class MeetingTranscriptionService {
         }
     }
 
-    private List<WhisperSegment> splitAndTranscribeWithFFmpeg(byte[] audioBytes, String originalFilename,
-                                                String boardId, String userId, String userName, String meetingId) {
+    private List<WhisperSegment> splitAndTranscribeWithFFmpeg(
+            byte[] audioBytes,
+            String originalFilename,
+            String boardId,
+            String userId,
+            String userName,
+            String meetingId) {
         Path tempDir = null;
         try {
             tempDir = Files.createTempDirectory("audio_split_");
@@ -348,10 +379,17 @@ public class MeetingTranscriptionService {
 
             String chunkPattern = tempDir.resolve("chunk_%03d" + extension).toString();
             ProcessBuilder pb = new ProcessBuilder(
-                    ffmpegPath, "-i", tempInput.toString(),
-                    "-f", "segment", "-segment_time", String.valueOf(CHUNK_DURATION_SECONDS),
-                    "-c", "copy", "-y", chunkPattern
-            );
+                    ffmpegPath,
+                    "-i",
+                    tempInput.toString(),
+                    "-f",
+                    "segment",
+                    "-segment_time",
+                    String.valueOf(CHUNK_DURATION_SECONDS),
+                    "-c",
+                    "copy",
+                    "-y",
+                    chunkPattern);
             pb.redirectErrorStream(true);
             Process process = pb.start();
             String ffmpegOutput = new String(process.getInputStream().readAllBytes());
@@ -390,8 +428,13 @@ public class MeetingTranscriptionService {
         }
     }
 
-    private List<WhisperSegment> splitAndTranscribeByBytes(byte[] audioBytes, String originalFilename,
-                                             String boardId, String userId, String userName, String meetingId) {
+    private List<WhisperSegment> splitAndTranscribeByBytes(
+            byte[] audioBytes,
+            String originalFilename,
+            String boardId,
+            String userId,
+            String userName,
+            String meetingId) {
         try {
             String extension = ".webm";
             if (originalFilename != null && originalFilename.contains(".")) {
@@ -420,8 +463,12 @@ public class MeetingTranscriptionService {
                     timeOffset += chunkSegments.getLast().end();
                 }
 
-                log.info("Byte chunk {}/{} transcribed ({} bytes, {} segments)",
-                        i + 1, totalChunks, length, chunkSegments.size());
+                log.info(
+                        "Byte chunk {}/{} transcribed ({} bytes, {} segments)",
+                        i + 1,
+                        totalChunks,
+                        length,
+                        chunkSegments.size());
 
                 int chunkPercent = 5 + (int) ((60.0 * (i + 1)) / totalChunks);
                 sendProgress(boardId, userId, userName, meetingId, "TRANSCRIBING", i + 1, totalChunks, chunkPercent);
@@ -437,8 +484,9 @@ public class MeetingTranscriptionService {
         }
     }
 
-    private List<WhisperSegment> transcribeChunks(List<Path> chunks, String extension,
-                                    String boardId, String userId, String userName, String meetingId) throws IOException {
+    private List<WhisperSegment> transcribeChunks(
+            List<Path> chunks, String extension, String boardId, String userId, String userName, String meetingId)
+            throws IOException {
         List<WhisperSegment> allSegments = new ArrayList<>();
         for (int i = 0; i < chunks.size(); i++) {
             Path chunk = chunks.get(i);
@@ -461,11 +509,12 @@ public class MeetingTranscriptionService {
     private void cleanupTempFiles(Path tempDir) {
         if (tempDir == null) return;
         try {
-            Files.walk(tempDir)
-                    .sorted((a, b) -> b.compareTo(a))
-                    .forEach(path -> {
-                        try { Files.deleteIfExists(path); } catch (IOException ignored) {}
-                    });
+            Files.walk(tempDir).sorted((a, b) -> b.compareTo(a)).forEach(path -> {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException ignored) {
+                }
+            });
         } catch (IOException e) {
             log.warn("Failed to cleanup temp files: {}", e.getMessage());
         }
@@ -499,8 +548,7 @@ public class MeetingTranscriptionService {
                         .readTimeout(Duration.ofSeconds(300))
                         .build();
 
-                ResponseEntity<Map> response = whisperRestTemplate.postForEntity(
-                        WHISPER_API_URL, entity, Map.class);
+                ResponseEntity<Map> response = whisperRestTemplate.postForEntity(WHISPER_API_URL, entity, Map.class);
 
                 if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                     Map<String, Object> responseBody = response.getBody();
@@ -512,7 +560,9 @@ public class MeetingTranscriptionService {
                             if (segObj instanceof Map<?, ?> seg) {
                                 double start = toDouble(seg.get("start"));
                                 double end = toDouble(seg.get("end"));
-                                String text = seg.get("text") != null ? seg.get("text").toString().trim() : "";
+                                String text = seg.get("text") != null
+                                        ? seg.get("text").toString().trim()
+                                        : "";
                                 if (!text.isEmpty()) {
                                     result.add(new WhisperSegment(start, end, text));
                                 }
@@ -525,7 +575,8 @@ public class MeetingTranscriptionService {
 
                     Object text = responseBody.get("text");
                     if (text != null && !text.toString().isBlank()) {
-                        return List.of(new WhisperSegment(0.0, 0.0, text.toString().trim()));
+                        return List.of(
+                                new WhisperSegment(0.0, 0.0, text.toString().trim()));
                     }
                 }
 
@@ -554,7 +605,11 @@ public class MeetingTranscriptionService {
     private static double toDouble(Object value) {
         if (value instanceof Number n) return n.doubleValue();
         if (value instanceof String s) {
-            try { return Double.parseDouble(s); } catch (NumberFormatException e) { return 0.0; }
+            try {
+                return Double.parseDouble(s);
+            } catch (NumberFormatException e) {
+                return 0.0;
+            }
         }
         return 0.0;
     }
@@ -563,8 +618,8 @@ public class MeetingTranscriptionService {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < segments.size(); i++) {
             WhisperSegment seg = segments.get(i);
-            sb.append(String.format("[%s - %s] %s",
-                    formatTimestamp(seg.start()), formatTimestamp(seg.end()), seg.text()));
+            sb.append(String.format(
+                    "[%s - %s] %s", formatTimestamp(seg.start()), formatTimestamp(seg.end()), seg.text()));
             sb.append('\n');
 
             if (i < segments.size() - 1) {
