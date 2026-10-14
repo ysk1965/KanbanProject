@@ -406,7 +406,8 @@ spring:
 
 app:
   websocket:
-    broker-type: simple
+    # prod는 최대 2 인스턴스 → Redis 브릿지 필수 (simple이면 다른 인스턴스 이벤트 유실)
+    broker-type: ${WS_BROKER_TYPE:redis}
   file:
     s3-enabled: true
     s3-bucket: ${S3_BUCKET}

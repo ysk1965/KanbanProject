@@ -11,6 +11,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -204,6 +205,7 @@ public class DocumentPreviewService {
     /** 주기 점검: stale 기준을 넘긴 PENDING 을 NONE 으로 되돌려 다음 조회 때 재시도되게 한다. */
     @Scheduled(fixedDelayString = "${app.storage.preview.stale-sweep-ms:600000}",
                initialDelayString = "${app.storage.preview.stale-sweep-ms:600000}")
+    @SchedulerLock(name = "DocumentPreviewService.sweepStalePending", lockAtMostFor = "9m", lockAtLeastFor = "30s")
     public void sweepStalePending() {
         if (!enabled) return;
         int n = resetStalePending(LocalDateTime.now(ZoneOffset.UTC).minusSeconds(staleSeconds()));

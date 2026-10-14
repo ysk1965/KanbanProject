@@ -112,3 +112,8 @@ frontend/android/build/
 # ===== Deployment =====
 backend/deploy/
 backend/deploy.zip
+
+# Signing material — never commit (CI decodes the keystore from a secret)
+*.keystore
+*.jks
+keystore-base64.txt
