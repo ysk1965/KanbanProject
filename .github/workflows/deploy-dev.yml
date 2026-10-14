@@ -13,17 +13,22 @@ env:
   AWS_REGION: ap-northeast-2
   EB_APPLICATION_NAME: kanban-dev
   EB_ENVIRONMENT_NAME: kanban-dev-env
-  S3_BUCKET_DEV: kanban-dev-frontend-259151461692
+  # 저장소 변수 S3_BUCKET_DEV 가 있으면 그 값을, 없으면 현재 버킷을 그대로 쓴다.
+  S3_BUCKET_DEV: ${{ vars.S3_BUCKET_DEV || 'kanban-dev-frontend-259151461692' }}
   # milkyway.pe.kr is served from the SAME bucket + CloudFront as bridgespots.com
   # (single distribution, Host-based spa_router). No separate testprod bucket/CF.
-  JAVA_VERSION: '21'
-  NODE_VERSION: '20'
+
+# 배포는 한 번에 하나만. 진행 중인 배포를 취소하면 EB 가 Updating 상태로 남으므로 대기시킨다.
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
 
 jobs:
   # Detect which paths changed to skip unnecessary deploys
   detect-changes:
     name: Detect Changes
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     outputs:
       backend: ${{ steps.changes.outputs.backend }}
@@ -74,6 +79,7 @@ jobs:
   deploy-backend:
     name: Deploy Backend
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     needs: detect-changes
     if: needs.detect-changes.outputs.backend == 'true'
 
@@ -88,15 +94,7 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha || 'develop' }}
 
       - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-          cache: 'gradle'
-
-      - name: Grant execute permission for gradlew
-        working-directory: backend
-        run: chmod +x gradlew
+        uses: ./.github/actions/setup-backend
 
       - name: Build JAR
         working-directory: backend
@@ -308,6 +306,7 @@ jobs:
   deploy-frontend:
     name: Deploy Frontend
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: detect-changes
     if: needs.detect-changes.outputs.frontend == 'true'
 
@@ -322,15 +321,7 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha || 'develop' }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm ci
+        uses: ./.github/actions/setup-frontend
 
       - name: Build
         working-directory: frontend
@@ -338,7 +329,16 @@ jobs:
         env:
           VITE_API_BASE_URL: ${{ vars.DEV_API_URL }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          VITE_CLOUDFRONT_DOMAIN: ${{ vars.DEV_CLOUDFRONT_ATTACHMENTS_DOMAIN }}
+          # DEV_CLOUDFRONT_ATTACHMENTS_DOMAIN 은 현재 저장소 "secret" 으로만 등록돼 있어 vars 만 보면 빈 값이 된다.
+          VITE_CLOUDFRONT_DOMAIN: ${{ vars.DEV_CLOUDFRONT_ATTACHMENTS_DOMAIN || secrets.DEV_CLOUDFRONT_ATTACHMENTS_DOMAIN }}
+          # FCM 푸시 (deploy-mobile.yml 과 같은 secret 이름). 미설정 시 빈 값 → 푸시만 비활성.
+          VITE_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.FIREBASE_MEASUREMENT_ID }}
           # Sentry 런타임: DSN 있어야 에러가 실제로 수집되고 Error ID가 발급됨
           VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           VITE_SENTRY_ENVIRONMENT: development
@@ -380,6 +380,7 @@ jobs:
   notify:
     name: Notify
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [detect-changes, deploy-backend, deploy-frontend]
     if: always() && !cancelled()
 

@@ -7,96 +7,76 @@ on:
   push:
     branches: [develop]
 
-env:
-  JAVA_VERSION: '21'
-  NODE_VERSION: '20'
+permissions:
+  contents: read
+
+# 같은 브랜치에 새 푸시가 오면 진행 중인 CI는 취소한다 (가장 최신 커밋만 검증).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # Backend Tests
   test-backend:
     name: Test Backend
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: kanban_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-          cache: 'gradle'
+        uses: ./.github/actions/setup-backend
 
-      - name: Grant execute permission for gradlew
-        working-directory: backend
-        run: chmod +x gradlew
-
+      # `build` 가 `test` 를 포함한다.
       - name: Build and Test
         working-directory: backend
-        run: ./gradlew build test --no-daemon
+        run: ./gradlew build --no-daemon
         env:
-          SPRING_PROFILES_ACTIVE: dev
-          DATABASE_URL: jdbc:postgresql://localhost:5432/kanban_test
-          DB_USERNAME: test
-          DB_PASSWORD: test
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          JWT_SECRET: test-jwt-secret-for-ci-minimum-32-characters
+          # test 프로파일(backend/src/test/resources/application-test.yml)은 H2 in-memory + simple cache 로
+          # 자급자족한다 → PostgreSQL/Redis 서비스 컨테이너와 DB 접속 env 가 필요 없다.
+          SPRING_PROFILES_ACTIVE: test
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
-        if: always()
+        if: failure()
         with:
           name: backend-test-results
           path: backend/build/reports/tests/
+          if-no-files-found: ignore
+          retention-days: 7
 
   # Frontend Tests
   test-frontend:
     name: Test Frontend
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+        uses: ./.github/actions/setup-frontend
 
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm ci
-
+      # `npm run build` 는 vite build 만 실행해 타입 오류를 잡지 못한다 → tsc 를 직접 돌린다.
+      # TODO: remove continue-on-error once tsc is at 0 (2026-10-14 기준 133건 남아 있어 아직 blocking 불가).
       - name: Type Check
+        working-directory: frontend
+        run: npm run typecheck
+        continue-on-error: true
+
+      # lint/test 스크립트는 package.json 에 있을 때만 실행 (--if-present).
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint --if-present
+
+      - name: Test
+        working-directory: frontend
+        run: npm run test --if-present
+
+      - name: Build
         working-directory: frontend
         run: npm run build
         env:
@@ -107,3 +87,4 @@ jobs:
         with:
           name: frontend-build
           path: frontend/dist/
+          retention-days: 7

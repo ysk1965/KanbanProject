@@ -209,20 +209,20 @@ module "elastic_beanstalk" {
   max_instances       = 2
   associate_public_ip = "true" # Public subnet, no NAT
 
-  spring_profile        = "dev"
-  database_url          = module.rds.jdbc_url
-  db_username           = "kanban_admin"
-  db_password           = local.secret.db_password
-  redis_host            = ""
-  redis_port            = ""
-  jwt_secret            = local.secret.jwt_secret
-  claude_api_key        = local.secret.claude_api_key
-  openai_api_key        = local.secret.openai_api_key
-  openai_admin_key      = local.secret.openai_admin_key
-  mail_username         = local.secret.mail_username
-  mail_password         = local.secret.mail_password
-  google_client_id      = var.google_client_id
-  google_client_secret  = local.secret.google_client_secret
+  spring_profile       = "dev"
+  database_url         = module.rds.jdbc_url
+  db_username          = "kanban_admin"
+  db_password          = local.secret.db_password
+  redis_host           = ""
+  redis_port           = ""
+  jwt_secret           = local.secret.jwt_secret
+  claude_api_key       = local.secret.claude_api_key
+  openai_api_key       = local.secret.openai_api_key
+  openai_admin_key     = local.secret.openai_admin_key
+  mail_username        = local.secret.mail_username
+  mail_password        = local.secret.mail_password
+  google_client_id     = var.google_client_id
+  google_client_secret = local.secret.google_client_secret
   # domain_name(bridgespots.com)은 인증서/DNS/CloudFront alias 용도로 유지하고,
   # 백엔드가 생성하는 프론트 링크(리포트 /r/, 이메일, 슬랙·디스코드 알림, OAuth 리다이렉트 등)는
   # milkyway.pe.kr로 통일한다. 두 도메인 모두 같은 CloudFront/S3에서 서빙되므로 링크는 정상 동작한다.

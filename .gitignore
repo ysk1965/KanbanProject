@@ -85,7 +85,9 @@ bridge-plugin/mcp-server/dist/*
 *.tfstate.*
 *.tfstate.backup
 .terraform/
-.terraform.lock.hcl
+# .terraform.lock.hcl 은 커밋한다 (plan/apply 가 같은 provider 버전을 쓰도록 고정)
+# archive_file 이 plan 때마다 생성하는 람다 번들
+infrastructure/terraform/modules/infra-scheduler/lambda/scheduler.zip
 *.tfvars
 !*.tfvars.example
 *.tfplan
