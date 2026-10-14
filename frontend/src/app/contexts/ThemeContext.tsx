@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 
 export type Theme = 'dark' | 'light';
 
@@ -56,20 +56,24 @@ export function ThemeProvider({ children, defaultTheme = 'dark' }: ThemeProvider
     }
   }, [defaultTheme]);
 
-  const setTheme = (newTheme: Theme) => {
+  const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
-  };
+  }, []);
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     setThemeState((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  };
+  }, []);
 
-  const value: ThemeContextType = {
-    theme,
-    setTheme,
-    toggleTheme,
-    isDark: theme === 'dark',
-  };
+  // value 참조가 매 렌더 바뀌면 useTheme 소비자 전체가 다시 그려진다.
+  const value = useMemo<ThemeContextType>(
+    () => ({
+      theme,
+      setTheme,
+      toggleTheme,
+      isDark: theme === 'dark',
+    }),
+    [theme, setTheme, toggleTheme],
+  );
 
   return (
     <ThemeContext.Provider value={value}>

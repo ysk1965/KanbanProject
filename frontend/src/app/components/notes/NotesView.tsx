@@ -1,4 +1,5 @@
 import {
+  Suspense,
   useState,
   useEffect,
   useCallback,
@@ -35,7 +36,12 @@ import {
 } from "../ui/dropdown-menu";
 import { NOTE_TEMPLATES, type NoteTemplate } from "../../utils/noteTemplates";
 import { NoteTreeSidebar } from "./NoteTreeSidebar";
-import { NoteEditor } from "./NoteEditor";
+import { lazyWithRetry } from "../../utils/lazyWithRetry";
+// BlockNote/ProseMirror/Yjs 를 끌고 오는 에디터는 노트를 실제로 열 때만 청크를 내려받는다.
+const NoteEditor = lazyWithRetry(
+  () => import("./NoteEditor").then((m) => ({ default: m.NoteEditor })),
+  "NoteEditor",
+);
 import { NoteListView } from "./NoteListView";
 import { NoteTrashModal } from "./NoteTrashModal";
 import { LibraryFilePane } from "../library/LibraryFilePane";
@@ -1428,6 +1434,13 @@ export function NotesView({
                 {selectedNote.title}
               </span>
             </div>
+            <Suspense
+              fallback={
+                <div className="flex-1 flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+                </div>
+              }
+            >
             <NoteEditor
               boardId={
                 selectedNoteScope?.type === "board"
@@ -1462,6 +1475,7 @@ export function NotesView({
               breadcrumbs={breadcrumbs}
               onBreadcrumbClick={handleSelectNote}
             />
+            </Suspense>
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-500">

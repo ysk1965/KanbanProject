@@ -9,6 +9,7 @@ import {
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { setTag } from "../../lib/sentry";
 import {
+  Loader2,
   Plus,
   GripVertical,
   Flag,
@@ -106,10 +107,7 @@ import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { KanbanBlock } from "../components/KanbanBlock";
 import { MilestoneTabBar } from "../components/MilestoneTabBar";
 import { ScheduleSubTabBar } from "../components/ScheduleSubTabBar";
-import { GanttView } from "../views/GanttView";
 import { KanbanView } from "../views/KanbanView";
-import { DashboardView } from "../views/DashboardView";
-import { ScheduleView } from "../views/ScheduleView";
 import { FeatureCard } from "../components/FeatureCard";
 import { FeatureChipSelector } from "../components/FeatureChipSelector";
 import { TrialBanner } from "../components/TrialBanner";
@@ -123,11 +121,41 @@ import {
   type ActivityNavTarget,
 } from "../components/NotificationDropdown";
 import { UpgradeTrigger } from "../components/UpgradeModal";
-import { MeetingCalendarView } from "../components/MeetingCalendarView";
-import { WeeklyScheduleView } from "../components/WeeklyScheduleView";
-import { CalendarView } from "../components/CalendarView";
 import { ContractorManageModal } from "../components/ContractorManageModal";
 import { lazyWithRetry } from "../utils/lazyWithRetry";
+// 보드 진입 시 기본 뷰(칸반) 외 뷰들은 실제로 탭을 열 때 청크를 내려받는다.
+const GanttView = lazyWithRetry(
+  () => import("../views/GanttView").then((m) => ({ default: m.GanttView })),
+  "GanttView",
+);
+const DashboardView = lazyWithRetry(
+  () =>
+    import("../views/DashboardView").then((m) => ({
+      default: m.DashboardView,
+    })),
+  "DashboardView",
+);
+const ScheduleView = lazyWithRetry(
+  () =>
+    import("../views/ScheduleView").then((m) => ({
+      default: m.ScheduleView,
+    })),
+  "ScheduleView",
+);
+const MeetingCalendarView = lazyWithRetry(
+  () =>
+    import("../components/MeetingCalendarView").then((m) => ({
+      default: m.MeetingCalendarView,
+    })),
+  "MeetingCalendarView",
+);
+const CalendarView = lazyWithRetry(
+  () =>
+    import("../components/CalendarView").then((m) => ({
+      default: m.CalendarView,
+    })),
+  "CalendarView",
+);
 const StatisticsView = lazyWithRetry(
   () =>
     import("../components/StatisticsView").then((m) => ({
@@ -239,6 +267,13 @@ declare const __FE_COMMIT_HASH__: string;
 
 // memo된 자식에 빈 배열을 안정 참조로 전달 (매 렌더 새 [] 생성 방지)
 const EMPTY_FEATURE_IDS: string[] = [];
+
+// 지연 로드 뷰 청크 공통 폴백
+const VIEW_FALLBACK = (
+  <div className="flex-1 flex items-center justify-center">
+    <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+  </div>
+);
 
 export function KanbanBoardPage() {
   const { boardId } = useParams<{ boardId: string }>();
@@ -612,6 +647,32 @@ export function KanbanBoardPage() {
     boardId,
     uiConfig,
     isAdminOrOwner,
+  );
+
+  // memo(KanbanView) 에 넘기는 유령 슬롯 엘리먼트 — 매 렌더 새 JSX 를 만들면 memo 가 무력화된다.
+  const memberGhost = useMemo(
+    () => (
+      <FeatureGhost
+        ghost="members"
+        visible={featureGhosts}
+        uiConfig={uiConfig}
+        onMute={muteFeatureGhost}
+        alignRight
+      />
+    ),
+    [featureGhosts, uiConfig, muteFeatureGhost],
+  );
+  const reviewGhost = useMemo(
+    () => (
+      <FeatureGhost
+        ghost="review"
+        visible={featureGhosts}
+        uiConfig={uiConfig}
+        onMute={muteFeatureGhost}
+        variant="column"
+      />
+    ),
+    [featureGhosts, uiConfig, muteFeatureGhost],
   );
 
   // 참가 요청 (Admin/Owner만)
@@ -1707,26 +1768,27 @@ export function KanbanBoardPage() {
     }
   };
 
-  const handleToggleBlockProgressBar = async (
-    blockId: string,
-    enabled: boolean,
-  ) => {
-    if (!boardId) return;
-    const previousBlocks = blocks;
-    setBlocks((prev) =>
-      prev.map((b) =>
-        b.id === blockId ? { ...b, show_progress_bar: enabled } : b,
-      ),
-    );
-    try {
-      await blockService.updateBlock(boardId, blockId, {
-        show_progress_bar: enabled,
-      });
-    } catch (error) {
-      console.error("Failed to toggle progress bar:", error);
-      setBlocks(previousBlocks);
-    }
-  };
+  // 모든 KanbanBlock 에 내려가는 콜백 — 참조가 매 렌더 바뀌면 블록 전체가 다시 그려진다.
+  const handleToggleBlockProgressBar = useCallback(
+    async (blockId: string, enabled: boolean) => {
+      if (!boardId) return;
+      const previousBlocks = blocks;
+      setBlocks((prev) =>
+        prev.map((b) =>
+          b.id === blockId ? { ...b, show_progress_bar: enabled } : b,
+        ),
+      );
+      try {
+        await blockService.updateBlock(boardId, blockId, {
+          show_progress_bar: enabled,
+        });
+      } catch (error) {
+        console.error("Failed to toggle progress bar:", error);
+        setBlocks(previousBlocks);
+      }
+    },
+    [boardId, blocks],
+  );
 
   const handleDeleteBlock = useCallback(
     async (blockId: string) => {
@@ -3241,6 +3303,7 @@ export function KanbanBoardPage() {
 
         {/* 뷰 모드에 따른 컨텐츠 렌더링 */}
         {viewMode === "dashboard" ? (
+          <Suspense fallback={VIEW_FALLBACK}>
           <DashboardView
             boardId={boardId || ""}
             organizationId={board?.organization_id}
@@ -3278,7 +3341,9 @@ export function KanbanBoardPage() {
               setScheduleRefreshPanel((k) => k + 1);
             }}
           />
+          </Suspense>
         ) : viewMode === "gantt" ? (
+          <Suspense fallback={VIEW_FALLBACK}>
           <GanttView
             boardId={boardId || ""}
             searchInputRef={searchInputRef}
@@ -3297,6 +3362,7 @@ export function KanbanBoardPage() {
             onFeatureClick={handleFeatureClick}
             onTaskClick={handleTaskClick}
           />
+          </Suspense>
         ) : viewMode === "kanban" ? (
           <KanbanView
             boardId={boardId || ""}
@@ -3314,24 +3380,8 @@ export function KanbanBoardPage() {
             checklistDataMap={checklistDataMap}
             memberColorMap={memberColorMap}
             boardFeatures={boardFeatures}
-            memberGhost={
-              <FeatureGhost
-                ghost="members"
-                visible={featureGhosts}
-                uiConfig={uiConfig}
-                onMute={muteFeatureGhost}
-                alignRight
-              />
-            }
-            reviewGhost={
-              <FeatureGhost
-                ghost="review"
-                visible={featureGhosts}
-                uiConfig={uiConfig}
-                onMute={muteFeatureGhost}
-                variant="column"
-              />
-            }
+            memberGhost={memberGhost}
+            reviewGhost={reviewGhost}
             expandedChecklistTaskIds={expandedChecklistTaskIds}
             scheduledTaskIds={scheduledTaskIds}
             recentlyCompletedTaskIds={recentlyCompletedTaskIds}
@@ -3365,6 +3415,7 @@ export function KanbanBoardPage() {
             onJoinRequestSent={handleJoinRequestSent}
           />
         ) : viewMode === "schedule" ? (
+          <Suspense fallback={VIEW_FALLBACK}>
           <ScheduleView
             boardId={boardId || ""}
             scheduleSubTab={scheduleSubTab}
@@ -3393,6 +3444,7 @@ export function KanbanBoardPage() {
               canEdit ? handleUpdateMilestoneDates : undefined
             }
           />
+          </Suspense>
         ) : viewMode === "calendar" ? (
           <main className="flex-1 flex flex-col overflow-hidden">
             <KanbanFilterToolbar
@@ -3406,6 +3458,7 @@ export function KanbanBoardPage() {
               boardId={boardId || ""}
               canEdit={canEdit}
             />
+            <Suspense fallback={VIEW_FALLBACK}>
             <CalendarView
               boardId={boardId || ""}
               features={filteredFeatures}
@@ -3422,9 +3475,11 @@ export function KanbanBoardPage() {
                 if (task) handleTaskClick(task);
               }}
             />
+            </Suspense>
           </main>
         ) : viewMode === "meeting" ? (
           <main className="flex-1 overflow-hidden">
+            <Suspense fallback={VIEW_FALLBACK}>
             <MeetingCalendarView
               boardId={boardId || ""}
               boardMembers={boardMembersData}
@@ -3432,6 +3487,7 @@ export function KanbanBoardPage() {
               refreshTrigger={meetingRefreshKey}
               navigateToDate={meetingNavigateDate}
             />
+            </Suspense>
           </main>
         ) : viewMode === "library" ? (
           <main className="flex-1 overflow-hidden">

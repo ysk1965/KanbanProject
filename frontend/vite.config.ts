@@ -60,7 +60,9 @@ function generateBrandedIndex(): Plugin {
         )
         // OG image
         .replace(/og-image-milkyway\.png/g, "og-image-bridgespots.png")
-        // Favicon
+        // Favicon (축소본 — 원본 PNG 2.4MB 를 아이콘으로 내려받지 않게 한다)
+        .replace(/href="\/favicon-32\.png"/g, 'href="/favicon-32-bridgespots.png"')
+        .replace(/href="\/apple-touch-icon\.png"/g, 'href="/apple-touch-icon-bridgespots.png"')
         .replace(/href="\/MilkyWay\.png"/g, 'href="/BridgeSpotsIcon.png"')
         // PWA manifest → BRIDGE SPOTS 버전
         .replace(/manifest\.webmanifest/g, "manifest-bridgespots.webmanifest")
@@ -103,13 +105,151 @@ function generateBrandedIndex(): Plugin {
   };
 }
 
+
+// ---------------------------------------------------------------------------
+// vendor 청크 배정
+// ---------------------------------------------------------------------------
+type ModuleInfoLike = { importers: readonly string[] } | null;
+type GetModuleInfo = (id: string) => ModuleInfoLike;
+
+/** 첫 화면에서 항상 로드되는 그룹 — 공용 모듈이 이들 중 하나라도 쓰이면 eager 공용 청크로 간다. */
+const EAGER_GROUPS = new Set([
+  "app",
+  "vendor-react",
+  "vendor-radix",
+  "vendor-motion",
+  "vendor-dnd",
+  "vendor-i18n",
+  "vendor-lucide",
+  "vendor-datefns",
+]);
+
+/** 패키지 이름 → 그룹. 서브 의존성은 여기 없어도 importer 를 따라 같은 그룹으로 들어간다. */
+function namedGroup(id: string): string | undefined {
+  const pkg = (...names: string[]) =>
+    names.some((n) => id.includes(`/node_modules/${n}/`));
+  const scope = (s: string) => id.includes(`/node_modules/${s}/`);
+  if (pkg("react", "react-dom", "react-router", "react-router-dom", "scheduler")) return "vendor-react";
+  if (scope("@radix-ui")) return "vendor-radix";
+  if (pkg("framer-motion", "motion")) return "vendor-motion";
+  if (scope("@dnd-kit")) return "vendor-dnd";
+  if (pkg("i18next", "react-i18next", "i18next-browser-languagedetector")) return "vendor-i18n";
+  if (pkg("lucide-react")) return "vendor-lucide";
+  if (pkg("date-fns")) return "vendor-datefns";
+  if (pkg("recharts")) return "vendor-recharts";
+  if (
+    scope("@blocknote") ||
+    scope("@tiptap") ||
+    id.includes("/node_modules/prosemirror-") ||
+    pkg("yjs", "y-prosemirror", "y-protocols", "lib0")
+  ) return "vendor-editor";
+  if (pkg("three") || scope("@react-three")) return "vendor-three";
+  if (scope("@excalidraw")) return "vendor-excalidraw";
+  if (scope("@xyflow")) return "vendor-xyflow";
+  if (pkg("xlsx")) return "vendor-xlsx";
+  return undefined;
+}
+
+/** node_modules 모듈과 Rollup/Vite 가상 모듈(\0commonjsHelpers, \0vite/preload-helper …) */
+const isVendorish = (id: string) => id.includes("node_modules") || id.startsWith("\0");
+
+/**
+ * 이 모듈을 (정적으로, 전이적으로) import 하는 루트 그룹 집합.
+ * 루트 = 이름 있는 vendor 그룹 또는 "app"(프로젝트 소스). 동적 import 만 받는 모듈은 빈 집합.
+ * 패키지 내부 순환(d3-transition 등)에서도 결과가 완전하도록 재귀 대신 BFS 로 조상을 모두 훑는다.
+ */
+function rootGroups(
+  id: string,
+  getModuleInfo: GetModuleInfo,
+  memo: Map<string, Set<string>>,
+): Set<string> {
+  const cached = memo.get(id);
+  if (cached) return cached;
+  const result = new Set<string>();
+  const seen = new Set<string>([id]);
+  const queue = [id];
+  for (let i = 0; i < queue.length; i++) {
+    for (const importer of getModuleInfo(queue[i])?.importers ?? []) {
+      if (seen.has(importer)) continue;
+      seen.add(importer);
+      if (!isVendorish(importer)) {
+        result.add("app");
+        continue;
+      }
+      const g = namedGroup(importer);
+      if (g) result.add(g);
+      else queue.push(importer); // 이름 없는 서브 의존성 — 그 위의 importer 를 계속 따라간다
+    }
+  }
+  memo.set(id, result);
+  return result;
+}
+
+/** 모듈이 (정적·전이적으로) 이름 있는 그룹의 모듈을 import 하는지 — 순수 유틸리티 판별용 */
+function importsAnyGroup(
+  id: string,
+  getModuleInfo: (id: string) => { importedIds: readonly string[] } | null,
+  memo: Map<string, boolean>,
+): boolean {
+  const cached = memo.get(id);
+  if (cached !== undefined) return cached;
+  let found = false;
+  const seen = new Set<string>([id]);
+  const queue = [id];
+  for (let i = 0; i < queue.length && !found; i++) {
+    for (const dep of getModuleInfo(queue[i])?.importedIds ?? []) {
+      if (seen.has(dep)) continue;
+      seen.add(dep);
+      if (namedGroup(dep)) {
+        found = true;
+        break;
+      }
+      queue.push(dep);
+    }
+  }
+  memo.set(id, found);
+  return found;
+}
+
+const rootMemo = new Map<string, Set<string>>();
+const importsMemo = new Map<string, boolean>();
+
+function vendorChunk(
+  id: string,
+  { getModuleInfo }: { getModuleInfo: (id: string) => any },
+): string | undefined {
+  if (!isVendorish(id)) return undefined;
+  const named = namedGroup(id);
+  if (named) return named;
+
+  const roots = rootGroups(id, getModuleInfo, rootMemo);
+  if (roots.size === 0) return undefined; // 동적 import 전용(mermaid 등) — Rollup 기본 분할
+  if (roots.size === 1) {
+    const [only] = roots;
+    return only === "app" ? undefined : only; // 한 라이브러리 전용 서브 의존성은 그 라이브러리와 함께
+  }
+  // 여러 그룹이 함께 쓰는 공용 모듈. 그룹 모듈을 import 하는 것(floating-ui 등)과
+  // 순수 유틸(commonjs 헬퍼, lodash 등)을 나눠 청크 간 순환을 막는다.
+  const eager = [...roots].some((r) => EAGER_GROUPS.has(r));
+  const usesGroup = importsAnyGroup(id, getModuleInfo, importsMemo);
+  if (usesGroup) return eager ? "vendor-shared" : "vendor-shared-lazy";
+  return eager ? "vendor-utils" : "vendor-utils-lazy";
+}
+
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["MilkyWay.png", "BridgeSpotsIcon.png", "banner.png"],
+      includeAssets: [
+        "favicon-32.png",
+        "apple-touch-icon.png",
+        "favicon-32-bridgespots.png",
+        "apple-touch-icon-bridgespots.png",
+        "BridgeSpotsIcon.png",
+        "banner.png",
+      ],
       manifest: {
         name: "Milkyway - Smart Project Management",
         short_name: "Milkyway",
@@ -209,6 +349,18 @@ export default defineConfig({
     sourcemap: uploadSourceMaps ? "hidden" : false,
     rollupOptions: {
       external: ["@ebarooni/capacitor-calendar"],
+      output: {
+        // 큰 서드파티를 이름 있는 vendor 청크로 분리한다 — 앱 코드만 바뀐 배포에서
+        // 라이브러리 청크 해시가 유지돼 브라우저/CDN 캐시가 살아남는다.
+        //
+        // 기본 동작(onlyExplicitManualChunks=false)은 manual 청크 모듈의 정적 의존성을
+        // "먼저 처리된 청크"에 통째로 흡수해, commonjs 헬퍼·floating-ui 같은 공용 모듈이
+        // vendor-excalidraw(4MB) 에 들어가고 첫 화면이 그 청크를 preload 하는 사고가 난다.
+        // 그래서 명시한 모듈만 넣고, 서브 의존성은 아래 vendorChunk() 가 importer 그래프를 따라
+        // "어느 그룹이 쓰는지"를 계산해 직접 배정한다.
+        onlyExplicitManualChunks: true,
+        manualChunks: vendorChunk,
+      },
     },
   },
   esbuild: {

@@ -73,7 +73,6 @@ import {
   getFormattingToolbarItems,
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
-import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
 import { NoteTagManager } from "./NoteTagManager";
 import { NoteVersionHistory } from "./NoteVersionHistory";

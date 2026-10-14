@@ -2,7 +2,7 @@
  * Analytics Context
  * Firebase Analytics 이벤트 추적을 위한 전역 Context
  */
-import { createContext, useContext, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useCallback, useMemo, ReactNode } from 'react';
 import { addBreadcrumb } from '../../lib/sentry';
 
 // ============================================
@@ -103,8 +103,10 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const value = useMemo<AnalyticsContextType>(() => ({ track }), [track]);
+
   return (
-    <AnalyticsContext.Provider value={{ track }}>
+    <AnalyticsContext.Provider value={value}>
       {children}
     </AnalyticsContext.Provider>
   );

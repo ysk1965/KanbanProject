@@ -1,4 +1,5 @@
 import {
+  Suspense,
   memo,
   useState,
   useMemo,
@@ -9,7 +10,7 @@ import {
   RefObject,
 } from "react";
 import { motion } from "framer-motion";
-import { Eye, Plus, GripVertical, Diamond } from "lucide-react";
+import { Eye, Plus, GripVertical, Diamond, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   DndContext,
@@ -32,7 +33,15 @@ import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { Feature, Task, Tag, Block, ChecklistItem } from "../types";
 import type { BoardFeatures } from "../hooks/useBoardFeatures";
 import { KanbanBlock } from "../components/KanbanBlock";
-import { SprintBoard } from "../components/SprintBoard";
+import { lazyWithRetry } from "../utils/lazyWithRetry";
+// 스프린트/JIRA 보드(6,600줄)는 블록 보드 모드에서는 쓰이지 않으므로 전환 시에만 내려받는다.
+const SprintBoard = lazyWithRetry(
+  () =>
+    import("../components/SprintBoard").then((m) => ({
+      default: m.SprintBoard,
+    })),
+  "SprintBoard",
+);
 import { KanbanFilterToolbar } from "../components/KanbanFilterToolbar";
 import { EmptyBoardGuide } from "../components/EmptyBoardGuide";
 import JoinRequestBanner from "../components/JoinRequestBanner";
@@ -496,6 +505,13 @@ export const KanbanView = memo(function KanbanView({
 
           {effectiveBoardMode !== "blocks" ? (
             <div className="flex-1 min-h-0">
+              <Suspense
+                fallback={
+                  <div className="h-full flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+                  </div>
+                }
+              >
               <SprintBoard
                 boardId={boardId}
                 milestones={milestones}
@@ -524,6 +540,7 @@ export const KanbanView = memo(function KanbanView({
                 memberGhost={memberGhost}
                 reviewGhost={reviewGhost}
               />
+              </Suspense>
             </div>
           ) : (
             /* 칸반 보드 */

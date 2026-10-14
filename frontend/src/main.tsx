@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { createRoot } from "react-dom/client";
+import { Loader2 } from "lucide-react";
 import { BrowserRouter } from "react-router-dom";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { Capacitor } from "@capacitor/core";
@@ -52,10 +54,20 @@ if (isNativePlatform) {
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
+// ko/en 외 언어는 i18n 리소스를 청크로 내려받는 동안 useTranslation 이 suspend 한다 (react-i18next useSuspense).
+// 최상단 Suspense 가 없으면 React 18 은 그 suspend 를 에러로 처리하므로 여기서 받아 준다.
 const AppWithRouter = (
-  <BrowserRouter>
-    <App />
-  </BrowserRouter>
+  <Suspense
+    fallback={
+      <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+      </div>
+    }
+  >
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </Suspense>
 );
 
 // Web: wrap with GoogleOAuthProvider; Native: skip (uses native SDK)

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { boardAPI } from "../utils/api";
 import type { Board } from "../types";
@@ -42,6 +42,9 @@ export function useBoardUiConfig(
 ): BoardUiConfig {
   const features = useBoardFeatures(board);
   const [pending, setPending] = useState<string | null>(null);
+  // 호출부가 인라인 화살표를 넘겨도 setLevel 참조가 흔들리지 않도록 최신 콜백을 ref 로 들고 있는다.
+  const onLevelRaisedRef = useRef(onLevelRaised);
+  onLevelRaisedRef.current = onLevelRaised;
 
   const apply = useCallback(
     async (
@@ -75,10 +78,10 @@ export function useBoardUiConfig(
       if (level === features.level) return;
       const raising = level > features.level;
       void apply({ ui_level: level }, `level-${level}`).then(() => {
-        if (raising) onLevelRaised?.(level);
+        if (raising) onLevelRaisedRef.current?.(level);
       });
     },
-    [apply, features.level, onLevelRaised],
+    [apply, features.level],
   );
 
   const writeOptions = useCallback(
@@ -106,5 +109,9 @@ export function useBoardUiConfig(
     [features, writeOptions],
   );
 
-  return { features, pending, setLevel, toggleOption, enableOption };
+  // 이 객체는 memo 된 자식(KanbanView 등)의 prop/useMemo 의존성으로 쓰이므로 참조를 고정한다.
+  return useMemo(
+    () => ({ features, pending, setLevel, toggleOption, enableOption }),
+    [features, pending, setLevel, toggleOption, enableOption],
+  );
 }

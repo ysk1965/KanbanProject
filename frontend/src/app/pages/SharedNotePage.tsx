@@ -24,7 +24,6 @@ const FlowReadOnlyLazy = React.lazy(async () => {
   return { default: mod.FlowReadOnly };
 });
 import { useCreateBlockNote } from "@blocknote/react";
-import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
 import { publicNoteAPI, resolveFileUrl } from "../utils/api";
 import type { SharedNote } from "../utils/api";

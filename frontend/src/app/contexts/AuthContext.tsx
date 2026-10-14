@@ -3,6 +3,8 @@ import {
   useContext,
   useState,
   useEffect,
+  useCallback,
+  useMemo,
   ReactNode,
 } from "react";
 import { authService, getMonetizationStatus } from "../utils/services";
@@ -157,56 +159,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isAuthenticated]);
 
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     const response = await authService.login(email, password);
     setIsAuthenticated(true);
     setCurrentUser(response.user);
     syncAnalyticsUser(response.user);
-  };
+  }, []);
 
-  const signup = async (email: string, password: string, name: string) => {
-    const response = await authService.signup(email, password, name);
-    setIsAuthenticated(true);
-    setCurrentUser(response.user);
-    syncAnalyticsUser(response.user);
-  };
+  const signup = useCallback(
+    async (email: string, password: string, name: string) => {
+      const response = await authService.signup(email, password, name);
+      setIsAuthenticated(true);
+      setCurrentUser(response.user);
+      syncAnalyticsUser(response.user);
+    },
+    [],
+  );
 
-  const googleLogin = async (code: string) => {
+  const googleLogin = useCallback(async (code: string) => {
     const response = await authService.googleLogin(code);
     setIsAuthenticated(true);
     setCurrentUser(response.user);
     syncAnalyticsUser(response.user);
-  };
+  }, []);
 
-  const googleLoginWithIdToken = async (idToken: string) => {
+  const googleLoginWithIdToken = useCallback(async (idToken: string) => {
     const response = await authService.googleLoginWithIdToken(idToken);
     setIsAuthenticated(true);
     setCurrentUser(response.user);
     syncAnalyticsUser(response.user);
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     await authService.logout();
     setIsAuthenticated(false);
     setCurrentUser(null);
     syncAnalyticsUser(null);
-  };
+  }, []);
 
-  const resendVerificationEmail = async () => {
+  const resendVerificationEmail = useCallback(async () => {
     if (!currentUser?.email) {
       throw new Error("사용자 이메일을 찾을 수 없습니다");
     }
     await authService.resendVerificationEmail(currentUser.email);
-  };
+  }, [currentUser?.email]);
 
-  const updateCurrentUser = (updates: Partial<User>) => {
+  const updateCurrentUser = useCallback((updates: Partial<User>) => {
     setCurrentUser((prev) => {
       if (!prev) return prev;
       const updated = { ...prev, ...updates };
       localStorage.setItem("user", JSON.stringify(updated));
       return updated;
     });
-  };
+  }, []);
 
   const isEmailVerified = currentUser?.email_verified ?? false;
   const isAdmin = currentUser?.system_role === "ADMIN";
@@ -215,27 +220,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isTester = currentUser?.system_role === "TESTER" || isRestricted;
   const hideBilling = !monetizationEnabled || isTester || isAdmin || isRestricted;
 
+  // value 참조가 매 렌더 바뀌면 useAuth 소비자(거의 모든 화면)가 함께 다시 그려진다.
+  const value = useMemo<AuthContextType>(
+    () => ({
+      isAuthenticated,
+      isEmailVerified,
+      isAdmin,
+      isTester,
+      hideBilling,
+      isRestricted,
+      monetizationEnabled,
+      currentUser,
+      isLoading,
+      login,
+      signup,
+      googleLogin,
+      googleLoginWithIdToken,
+      logout,
+      resendVerificationEmail,
+      updateCurrentUser,
+    }),
+    [
+      isAuthenticated,
+      isEmailVerified,
+      isAdmin,
+      isTester,
+      hideBilling,
+      isRestricted,
+      monetizationEnabled,
+      currentUser,
+      isLoading,
+      login,
+      signup,
+      googleLogin,
+      googleLoginWithIdToken,
+      logout,
+      resendVerificationEmail,
+      updateCurrentUser,
+    ],
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        isAuthenticated,
-        isEmailVerified,
-        isAdmin,
-        isTester,
-        hideBilling,
-        isRestricted,
-        monetizationEnabled,
-        currentUser,
-        isLoading,
-        login,
-        signup,
-        googleLogin,
-        googleLoginWithIdToken,
-        logout,
-        resendVerificationEmail,
-        updateCurrentUser,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

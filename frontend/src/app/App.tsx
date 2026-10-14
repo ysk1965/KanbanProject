@@ -10,54 +10,19 @@ import { useTranslation } from "react-i18next";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { AnalyticsProvider } from "./contexts/AnalyticsContext";
-import { LoginPage } from "./components/LoginPage";
-import { Dashboard } from "./components/dashboard";
-import { InviteLandingPage } from "./components/InviteLandingPage";
-import { LandingPage } from "./components/landing/LandingPage";
-import { ComparisonPage } from "./components/landing/ComparisonPage";
-import { KanbanBoardPage } from "./pages/KanbanBoardPage";
-import { PersonalBoardPage } from "./pages/PersonalBoardPage";
-import { TaskKeyRedirect } from "./pages/TaskKeyRedirect";
-import { EmailVerificationPendingPage } from "./components/EmailVerificationPendingPage";
-import { EmailVerificationResultPage } from "./components/EmailVerificationResultPage";
-import { ForgotPasswordPage } from "./components/ForgotPasswordPage";
-import { ResetPasswordPage } from "./components/ResetPasswordPage";
-import { TermsPage } from "./components/TermsPage";
-import { PrivacyPage } from "./components/PrivacyPage";
-import { SettingsPage } from "./components/SettingsPage";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { AdminRoute } from "./components/AdminRoute";
-import { AdminPage } from "./pages/AdminPage";
-import { PaymentSuccessPage } from "./pages/PaymentSuccessPage";
-import { PaymentFailPage } from "./pages/PaymentFailPage";
-import { AnnouncementsPage } from "./pages/AnnouncementsPage";
-import { SharedNotePage } from "./pages/SharedNotePage";
-import { SharedMindMapPage } from "./pages/SharedMindMapPage";
-import AutoReportPage from "./pages/AutoReportPage";
-import GithubSetupPage from "./pages/GithubSetupPage";
-import { SharedAlbumPage } from "./pages/SharedAlbumPage";
-import { ImageVotePage } from "./pages/ImageVotePage";
-import { ImageVoteResultsPage } from "./pages/ImageVoteResultsPage";
-import { SharedGalleryPage } from "./pages/SharedGalleryPage";
-import { PublicUploadPage } from "./pages/PublicUploadPage";
-import { GalleryUploadPage } from "./pages/GalleryUploadPage";
-import BibleTranscriptionPage from "./pages/BibleTranscriptionPage";
-import RoulettePage from "./pages/RoulettePage";
-import { CustomIconPage } from "./pages/CustomIconPage";
-import { OrganizationPage } from "./pages/OrganizationPage";
-import { OrganizationDetailPage } from "./pages/OrganizationDetailPage";
-import { OrgInviteAcceptPage } from "./pages/OrgInviteAcceptPage";
-import { SlackOAuthCallback } from "./components/slack/SlackOAuthCallback";
-import { AnnouncementDisplay } from "./components/AnnouncementDisplay";
 import { MaintenancePage } from "./components/MaintenancePage";
 import { NightShutdownPage } from "./components/NightShutdownPage";
 import { ServerDownPage } from "./components/ServerDownPage";
+import { lazyWithRetry } from "./utils/lazyWithRetry";
+import { Loader2 } from "lucide-react";
 import {
   boardService,
   inviteLinkService,
   organizationService,
 } from "./utils/services";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { Board } from "./types";
 import { boardAPI } from "./utils/api";
 import type { MaintenanceStatus } from "./utils/api";
@@ -75,6 +40,132 @@ import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { Toaster } from "./components/ui/sonner";
 import { MobileBottomNav } from "./components/ui/MobileBottomNav";
 
+// 라우트 단위 코드 분할 — 페이지 컴포넌트는 첫 진입 시에만 청크를 내려받는다.
+// 배포 직후 청크 해시가 바뀌어 로드에 실패하면 lazyWithRetry가 SW 캐시를 비우고 리로드한다.
+const LoginPage = lazyWithRetry(
+  () => import("./components/LoginPage").then((m) => ({ default: m.LoginPage })),
+  "LoginPage",
+);
+const Dashboard = lazyWithRetry(
+  () => import("./components/dashboard/Dashboard").then((m) => ({ default: m.Dashboard })),
+  "Dashboard",
+);
+const InviteLandingPage = lazyWithRetry(
+  () => import("./components/InviteLandingPage").then((m) => ({ default: m.InviteLandingPage })),
+  "InviteLandingPage",
+);
+const LandingPage = lazyWithRetry(() => import("./components/landing/LandingPage"), "LandingPage");
+const ComparisonPage = lazyWithRetry(() => import("./components/landing/ComparisonPage"), "ComparisonPage");
+const KanbanBoardPage = lazyWithRetry(
+  () => import("./pages/KanbanBoardPage").then((m) => ({ default: m.KanbanBoardPage })),
+  "KanbanBoardPage",
+);
+const PersonalBoardPage = lazyWithRetry(
+  () => import("./pages/PersonalBoardPage").then((m) => ({ default: m.PersonalBoardPage })),
+  "PersonalBoardPage",
+);
+const TaskKeyRedirect = lazyWithRetry(
+  () => import("./pages/TaskKeyRedirect").then((m) => ({ default: m.TaskKeyRedirect })),
+  "TaskKeyRedirect",
+);
+const EmailVerificationPendingPage = lazyWithRetry(
+  () => import("./components/EmailVerificationPendingPage").then((m) => ({ default: m.EmailVerificationPendingPage })),
+  "EmailVerificationPendingPage",
+);
+const EmailVerificationResultPage = lazyWithRetry(
+  () => import("./components/EmailVerificationResultPage").then((m) => ({ default: m.EmailVerificationResultPage })),
+  "EmailVerificationResultPage",
+);
+const ForgotPasswordPage = lazyWithRetry(
+  () => import("./components/ForgotPasswordPage").then((m) => ({ default: m.ForgotPasswordPage })),
+  "ForgotPasswordPage",
+);
+const ResetPasswordPage = lazyWithRetry(
+  () => import("./components/ResetPasswordPage").then((m) => ({ default: m.ResetPasswordPage })),
+  "ResetPasswordPage",
+);
+const TermsPage = lazyWithRetry(
+  () => import("./components/TermsPage").then((m) => ({ default: m.TermsPage })),
+  "TermsPage",
+);
+const PrivacyPage = lazyWithRetry(
+  () => import("./components/PrivacyPage").then((m) => ({ default: m.PrivacyPage })),
+  "PrivacyPage",
+);
+const SettingsPage = lazyWithRetry(
+  () => import("./components/SettingsPage").then((m) => ({ default: m.SettingsPage })),
+  "SettingsPage",
+);
+const AdminPage = lazyWithRetry(
+  () => import("./pages/AdminPage").then((m) => ({ default: m.AdminPage })),
+  "AdminPage",
+);
+const PaymentSuccessPage = lazyWithRetry(
+  () => import("./pages/PaymentSuccessPage").then((m) => ({ default: m.PaymentSuccessPage })),
+  "PaymentSuccessPage",
+);
+const PaymentFailPage = lazyWithRetry(
+  () => import("./pages/PaymentFailPage").then((m) => ({ default: m.PaymentFailPage })),
+  "PaymentFailPage",
+);
+const AnnouncementsPage = lazyWithRetry(
+  () => import("./pages/AnnouncementsPage").then((m) => ({ default: m.AnnouncementsPage })),
+  "AnnouncementsPage",
+);
+const SharedNotePage = lazyWithRetry(
+  () => import("./pages/SharedNotePage").then((m) => ({ default: m.SharedNotePage })),
+  "SharedNotePage",
+);
+const SharedMindMapPage = lazyWithRetry(
+  () => import("./pages/SharedMindMapPage").then((m) => ({ default: m.SharedMindMapPage })),
+  "SharedMindMapPage",
+);
+const AutoReportPage = lazyWithRetry(() => import("./pages/AutoReportPage"), "AutoReportPage");
+const GithubSetupPage = lazyWithRetry(() => import("./pages/GithubSetupPage"), "GithubSetupPage");
+const SharedAlbumPage = lazyWithRetry(
+  () => import("./pages/SharedAlbumPage").then((m) => ({ default: m.SharedAlbumPage })),
+  "SharedAlbumPage",
+);
+const ImageVotePage = lazyWithRetry(
+  () => import("./pages/ImageVotePage").then((m) => ({ default: m.ImageVotePage })),
+  "ImageVotePage",
+);
+const ImageVoteResultsPage = lazyWithRetry(
+  () => import("./pages/ImageVoteResultsPage").then((m) => ({ default: m.ImageVoteResultsPage })),
+  "ImageVoteResultsPage",
+);
+const SharedGalleryPage = lazyWithRetry(
+  () => import("./pages/SharedGalleryPage").then((m) => ({ default: m.SharedGalleryPage })),
+  "SharedGalleryPage",
+);
+const PublicUploadPage = lazyWithRetry(
+  () => import("./pages/PublicUploadPage").then((m) => ({ default: m.PublicUploadPage })),
+  "PublicUploadPage",
+);
+const GalleryUploadPage = lazyWithRetry(
+  () => import("./pages/GalleryUploadPage").then((m) => ({ default: m.GalleryUploadPage })),
+  "GalleryUploadPage",
+);
+const BibleTranscriptionPage = lazyWithRetry(() => import("./pages/BibleTranscriptionPage"), "BibleTranscriptionPage");
+const RoulettePage = lazyWithRetry(() => import("./pages/RoulettePage"), "RoulettePage");
+const CustomIconPage = lazyWithRetry(() => import("./pages/CustomIconPage"), "CustomIconPage");
+const OrganizationPage = lazyWithRetry(
+  () => import("./pages/OrganizationPage").then((m) => ({ default: m.OrganizationPage })),
+  "OrganizationPage",
+);
+const OrganizationDetailPage = lazyWithRetry(
+  () => import("./pages/OrganizationDetailPage").then((m) => ({ default: m.OrganizationDetailPage })),
+  "OrganizationDetailPage",
+);
+const OrgInviteAcceptPage = lazyWithRetry(
+  () => import("./pages/OrgInviteAcceptPage").then((m) => ({ default: m.OrgInviteAcceptPage })),
+  "OrgInviteAcceptPage",
+);
+const SlackOAuthCallback = lazyWithRetry(
+  () => import("./components/slack/SlackOAuthCallback").then((m) => ({ default: m.SlackOAuthCallback })),
+  "SlackOAuthCallback",
+);
+
 /**
  * 로그인 후 돌아갈 경로. 외부 사이트로 튕기지 않도록 <b>같은 출처의 절대 경로</b>만 허용한다
  * ("//evil.com"은 프로토콜 상대 URL이라 반드시 막아야 한다).
@@ -83,6 +174,15 @@ export function safeReturnTo(raw: string | null): string | null {
   if (!raw) return null;
   if (!raw.startsWith("/") || raw.startsWith("//")) return null;
   return raw;
+}
+
+// 지연 로드 중인 라우트 청크의 공통 폴백
+function RouteFallback() {
+  return (
+    <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
+      <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+    </div>
+  );
 }
 
 // 인증이 필요한 라우트 래퍼
@@ -577,6 +677,7 @@ function AppRoutes() {
       {/* 라우트 단위 경계: 한 화면 크래시가 앱 전체를 블랭크시키지 않도록 격리하고,
           경로 변경/뒤로가기 시 리로드 없이 자동 복구한다. App 최상단 ErrorBoundary는 최후 방어. */}
       <ErrorBoundary resetKeys={[location.pathname]}>
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
         {/* 루트: 로그인 상태면 /boards, 아니면 /login */}
         <Route path="/" element={<HomeRoute />} />
@@ -799,6 +900,7 @@ function AppRoutes() {
         {/* 404 - 존재하지 않는 경로 */}
         <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </ErrorBoundary>
     </>
   );
