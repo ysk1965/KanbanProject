@@ -1,27 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { RefObject } from "react";
-import { useTranslation } from "react-i18next";
-import { MessageSquarePlus, Copy, Check, X } from "lucide-react";
-import { toast } from "sonner";
-import { NoteCommentInput } from "./NoteCommentInput";
-import { memberAPI, mentionGroupAPI } from "../../utils/api";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { RefObject } from 'react';
+import { useTranslation } from 'react-i18next';
+import { MessageSquarePlus, Copy, Check, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { NoteCommentInput } from './NoteCommentInput';
+import { memberAPI, mentionGroupAPI } from '../../utils/api';
 import type {
   MemberResponse,
   MentionGroupDetail,
   NoteCommentDetail,
   NoteCommentUpdateAnchorData,
-} from "../../utils/api";
+} from '../../utils/api';
 import {
   anchorFromRange,
   resolveAnchor,
   wrapRangeWithMarks,
   unwrapMarks,
   MEMO_MARK_CLASS,
-} from "../../utils/noteAnchor";
-import type { AnchorDraft } from "../../utils/noteAnchor";
+} from '../../utils/noteAnchor';
+import type { AnchorDraft } from '../../utils/noteAnchor';
 
-const VIEW_SELECTOR = ".note-view-render";
-const PENDING_ATTR = "data-pending";
+const VIEW_SELECTOR = '.note-view-render';
+const PENDING_ATTR = 'data-pending';
 
 /** Composer opened from outside the layer (BlockNote's formatting toolbar). */
 export interface MemoComposerRequest {
@@ -40,7 +40,7 @@ interface NoteInlineMemoLayerProps {
    * "edit" — composer only: BlockNote's toolbar raises it and ProseMirror
    *          decorations draw the highlights (see noteMemoPm.ts).
    */
-  mode: "view" | "edit";
+  mode: 'view' | 'edit';
   /** Inline memos are available at all (read mode renders, edit mode composes). */
   enabled: boolean;
   /** Changes whenever the view HTML is re-rendered → marks must be re-applied. */
@@ -52,17 +52,10 @@ interface NoteInlineMemoLayerProps {
   activeCommentId: string | null;
   /** Bumped by the parent to scroll the active memo's highlight into view. */
   jumpNonce: number;
-  onCreate: (
-    draft: AnchorDraft,
-    content: string,
-    mentions: string[],
-  ) => Promise<void>;
+  onCreate: (draft: AnchorDraft, content: string, mentions: string[]) => Promise<void>;
   onOpenThread: (commentId: string) => void;
   /** Re-anchoring result that differs from what the server holds. */
-  onAnchorChanged: (
-    commentId: string,
-    update: NoteCommentUpdateAnchorData,
-  ) => void;
+  onAnchorChanged: (commentId: string, update: NoteCommentUpdateAnchorData) => void;
   /** Edit mode: composer requested by the formatting toolbar. */
   request?: MemoComposerRequest | null;
   /** Edit mode: the composer closed (clear the provisional highlight). */
@@ -99,7 +92,7 @@ export function NoteInlineMemoLayer({
   onRequestClosed,
 }: NoteInlineMemoLayerProps) {
   const { t } = useTranslation();
-  const isView = mode === "view";
+  const isView = mode === 'view';
   const [toolbarPos, setToolbarPos] = useState<Pos | null>(null);
   const [composerPos, setComposerPos] = useState<Pos | null>(null);
   const [draft, setDraft] = useState<AnchorDraft | null>(null);
@@ -118,9 +111,7 @@ export function NoteInlineMemoLayer({
   onRequestClosedRef.current = onRequestClosed;
 
   const getView = useCallback(
-    () =>
-      (containerRef.current?.querySelector(VIEW_SELECTOR) as HTMLElement | null) ??
-      null,
+    () => (containerRef.current?.querySelector(VIEW_SELECTOR) as HTMLElement | null) ?? null,
     [containerRef],
   );
 
@@ -193,7 +184,7 @@ export function NoteInlineMemoLayer({
     };
     const onUp = () => setTimeout(check, 0);
     const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         closeAll();
         return;
       }
@@ -204,17 +195,17 @@ export function NoteInlineMemoLayer({
       if (toolbarRef.current?.contains(tgt) || composerRef.current?.contains(tgt)) return;
       setToolbarPos(null);
     };
-    document.addEventListener("mouseup", onUp);
-    document.addEventListener("touchend", onUp);
-    document.addEventListener("keyup", onKeyUp);
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("touchstart", onDown);
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchend', onUp);
+    document.addEventListener('keyup', onKeyUp);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('touchstart', onDown);
     return () => {
-      document.removeEventListener("mouseup", onUp);
-      document.removeEventListener("touchend", onUp);
-      document.removeEventListener("keyup", onKeyUp);
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("touchstart", onDown);
+      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('touchend', onUp);
+      document.removeEventListener('keyup', onKeyUp);
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('touchstart', onDown);
     };
   }, [enabled, canComment, isView, composerPos, getView, relPos, closeAll]);
 
@@ -233,10 +224,10 @@ export function NoteInlineMemoLayer({
   useEffect(() => {
     if (isView || !composerPos) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeAll();
+      if (e.key === 'Escape') closeAll();
     };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   }, [isView, composerPos, closeAll]);
 
   // leaving view mode drops any in-progress memo
@@ -254,30 +245,30 @@ export function NoteInlineMemoLayer({
       if (!th.anchor || th.parent_id) continue;
       const res = resolveAnchor(view, th.block_id, th.anchor);
       if (!res) {
-        if (th.anchor_status !== "ORPHANED") {
+        if (th.anchor_status !== 'ORPHANED') {
           const key = `${th.id}:orphan`;
           if (!reportedRef.current.has(key)) {
             reportedRef.current.add(key);
-            onAnchorChanged(th.id, { status: "ORPHANED" });
+            onAnchorChanged(th.id, { status: 'ORPHANED' });
           }
         }
         continue;
       }
       wrapRangeWithMarks(res.range, {
-        "data-comment-id": th.id,
-        "data-resolved": th.is_resolved ? "true" : "false",
+        'data-comment-id': th.id,
+        'data-resolved': th.is_resolved ? 'true' : 'false',
       });
-      if (res.moved || th.anchor_status === "ORPHANED") {
+      if (res.moved || th.anchor_status === 'ORPHANED') {
         const key = `${th.id}:${res.blockId}:${res.start}:${res.end}`;
         if (!reportedRef.current.has(key)) {
           reportedRef.current.add(key);
           onAnchorChanged(th.id, {
-            status: "ATTACHED",
+            status: 'ATTACHED',
             block_id: res.blockId,
             anchor: {
               text: th.anchor.text,
-              prefix: th.anchor.prefix ?? "",
-              suffix: th.anchor.suffix ?? "",
+              prefix: th.anchor.prefix ?? '',
+              suffix: th.anchor.suffix ?? '',
               start: res.start,
               end: res.end,
             },
@@ -289,7 +280,7 @@ export function NoteInlineMemoLayer({
     if (pendingRangeRef.current && composerPos) {
       try {
         pendingMarksRef.current = wrapRangeWithMarks(pendingRangeRef.current, {
-          [PENDING_ATTR]: "true",
+          [PENDING_ATTR]: 'true',
         });
       } catch {
         /* range detached by re-render — composer keeps the quote */
@@ -303,7 +294,7 @@ export function NoteInlineMemoLayer({
     const view = getView();
     if (!view) return;
     view.querySelectorAll<HTMLElement>(`mark.${MEMO_MARK_CLASS}`).forEach((m) => {
-      m.classList.toggle("is-active", !!activeCommentId && m.dataset.commentId === activeCommentId);
+      m.classList.toggle('is-active', !!activeCommentId && m.dataset.commentId === activeCommentId);
     });
   }, [activeCommentId, threads, viewKey, getView]);
 
@@ -314,12 +305,14 @@ export function NoteInlineMemoLayer({
       `mark.${MEMO_MARK_CLASS}[data-comment-id="${CSS.escape(activeCommentId)}"]`,
     );
     if (mark) {
-      mark.scrollIntoView({ behavior: "smooth", block: "center" });
-      mark.classList.add("is-flash");
-      const timer = setTimeout(() => mark.classList.remove("is-flash"), 1400);
+      mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      mark.classList.add('is-flash');
+      const timer = setTimeout(() => mark.classList.remove('is-flash'), 1400);
       return () => clearTimeout(timer);
     }
-    toast.info(t("notes.inlineMemo.orphanToast", "원문 위치를 찾을 수 없어요. 본문이 바뀌었을 수 있습니다."));
+    toast.info(
+      t('notes.inlineMemo.orphanToast', '원문 위치를 찾을 수 없어요. 본문이 바뀌었을 수 있습니다.'),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jumpNonce]);
 
@@ -335,8 +328,8 @@ export function NoteInlineMemoLayer({
       const id = mark.dataset.commentId;
       if (id) onOpenThread(id);
     };
-    view.addEventListener("click", onClick);
-    return () => view.removeEventListener("click", onClick);
+    view.addEventListener('click', onClick);
+    return () => view.removeEventListener('click', onClick);
   }, [viewKey, getView, onOpenThread]);
 
   // ── toolbar actions ────────────────────────────────────────────
@@ -367,7 +360,7 @@ export function NoteInlineMemoLayer({
     clearPending();
     pendingRangeRef.current = range;
     try {
-      pendingMarksRef.current = wrapRangeWithMarks(range, { [PENDING_ATTR]: "true" });
+      pendingMarksRef.current = wrapRangeWithMarks(range, { [PENDING_ATTR]: 'true' });
     } catch {
       pendingMarksRef.current = [];
     }
@@ -380,13 +373,13 @@ export function NoteInlineMemoLayer({
   }, [draft, clearPending, relPos, ensureMembers]);
 
   const handleCopy = useCallback(async () => {
-    const text = pendingRangeRef.current?.toString() ?? draft?.text ?? "";
+    const text = pendingRangeRef.current?.toString() ?? draft?.text ?? '';
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
     } catch {
-      toast.error(t("notes.inlineMemo.copyFailed", "복사하지 못했습니다"));
+      toast.error(t('notes.inlineMemo.copyFailed', '복사하지 못했습니다'));
     }
   }, [draft, t]);
 
@@ -407,7 +400,7 @@ export function NoteInlineMemoLayer({
         <div
           ref={toolbarRef}
           role="toolbar"
-          aria-label={t("notes.inlineMemo.toolbar", "선택한 문장")}
+          aria-label={t('notes.inlineMemo.toolbar', '선택한 문장')}
           className="absolute z-20 flex items-center gap-0.5 p-1 rounded-xl bg-bridge-obsidian border border-foreground/10 shadow-2xl -translate-x-1/2 -translate-y-full"
           style={{ top: toolbarPos.top, left: toolbarPos.left }}
           onMouseDown={(e) => e.preventDefault()}
@@ -418,7 +411,7 @@ export function NoteInlineMemoLayer({
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-colors"
           >
             <MessageSquarePlus className="w-3.5 h-3.5" />
-            {t("notes.inlineMemo.add", "메모 남기기")}
+            {t('notes.inlineMemo.add', '메모 남기기')}
           </button>
           <button
             type="button"
@@ -426,7 +419,7 @@ export function NoteInlineMemoLayer({
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
           >
             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-            {copied ? t("notes.copied", "복사됨") : t("common.copy", "복사")}
+            {copied ? t('notes.copied', '복사됨') : t('common.copy', '복사')}
           </button>
         </div>
       )}
@@ -435,7 +428,7 @@ export function NoteInlineMemoLayer({
         <div
           ref={composerRef}
           role="dialog"
-          aria-label={t("notes.inlineMemo.composer", "인라인 메모 작성")}
+          aria-label={t('notes.inlineMemo.composer', '인라인 메모 작성')}
           className="absolute z-30 w-[360px] max-w-[calc(100%-16px)] rounded-2xl bg-bridge-obsidian border border-foreground/10 shadow-2xl overflow-hidden"
           style={{ top: composerPos.top, left: composerPos.left }}
         >
@@ -448,7 +441,7 @@ export function NoteInlineMemoLayer({
               type="button"
               onClick={closeAll}
               className="p-1 -mr-1 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors"
-              aria-label={t("common.close", "닫기")}
+              aria-label={t('common.close', '닫기')}
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -459,7 +452,7 @@ export function NoteInlineMemoLayer({
               members={members}
               mentionGroups={mentionGroups}
               autoFocus
-              placeholder={t("notes.inlineMemo.placeholder", "이 문장에 대한 메모… @로 멘션")}
+              placeholder={t('notes.inlineMemo.placeholder', '이 문장에 대한 메모… @로 멘션')}
               onSubmit={handleSubmit}
               onCancel={closeAll}
             />

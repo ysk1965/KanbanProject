@@ -1,23 +1,7 @@
-import {
-  useCallback,
-  useRef,
-  Dispatch,
-  MutableRefObject,
-  SetStateAction,
-} from "react";
-import {
-  Feature,
-  Task,
-  Block,
-  ChecklistItem,
-  JobRole,
-  BoardWebSocketEvent,
-} from "../types";
-import {
-  BoardMember as ShareBoardMember,
-  MemberRole,
-} from "../components/ShareBoardModal";
-import { jobRoleService, memberService } from "../utils/services";
+import { useCallback, useRef, Dispatch, MutableRefObject, SetStateAction } from 'react';
+import { Feature, Task, Block, ChecklistItem, JobRole, BoardWebSocketEvent } from '../types';
+import { BoardMember as ShareBoardMember, MemberRole } from '../components/ShareBoardModal';
+import { jobRoleService, memberService } from '../utils/services';
 
 interface UseBoardWebSocketHandlersDeps {
   boardId: string | undefined;
@@ -25,9 +9,7 @@ interface UseBoardWebSocketHandlersDeps {
   setAllFeatures: Dispatch<SetStateAction<Feature[]>>;
   setTasks: Dispatch<SetStateAction<Task[]>>;
   setBlocks: Dispatch<SetStateAction<Block[]>>;
-  setChecklistDataMap: Dispatch<
-    SetStateAction<{ [taskId: string]: ChecklistItem[] }>
-  >;
+  setChecklistDataMap: Dispatch<SetStateAction<{ [taskId: string]: ChecklistItem[] }>>;
   setBoardMembersData: Dispatch<SetStateAction<ShareBoardMember[]>>;
   setJobRoles: Dispatch<SetStateAction<JobRole[]>>;
   setUnreadNotificationCount: Dispatch<SetStateAction<number>>;
@@ -81,29 +63,23 @@ export function useBoardWebSocketHandlers(
 
     switch (type) {
       // Feature events
-      case "FEATURE_CREATED": {
+      case 'FEATURE_CREATED': {
         const feature = data as Feature;
-        setFeatures((prev) =>
-          prev.some((f) => f.id === feature.id) ? prev : [...prev, feature],
-        );
+        setFeatures((prev) => (prev.some((f) => f.id === feature.id) ? prev : [...prev, feature]));
         setAllFeatures((prev) =>
           prev.some((f) => f.id === feature.id) ? prev : [...prev, feature],
         );
         notifyScheduleRefresh();
         break;
       }
-      case "FEATURE_UPDATED": {
+      case 'FEATURE_UPDATED': {
         const feature = data as Feature;
-        setFeatures((prev) =>
-          prev.map((f) => (f.id === feature.id ? feature : f)),
-        );
-        setAllFeatures((prev) =>
-          prev.map((f) => (f.id === feature.id ? feature : f)),
-        );
+        setFeatures((prev) => prev.map((f) => (f.id === feature.id ? feature : f)));
+        setAllFeatures((prev) => prev.map((f) => (f.id === feature.id ? feature : f)));
         notifyScheduleRefresh();
         break;
       }
-      case "FEATURE_DELETED": {
+      case 'FEATURE_DELETED': {
         const { id, migrated_tasks } = data as {
           id: string;
           migrated_tasks?: Array<{
@@ -114,9 +90,7 @@ export function useBoardWebSocketHandlers(
         setFeatures((prev) => prev.filter((f) => f.id !== id));
         setAllFeatures((prev) => prev.filter((f) => f.id !== id));
         if (migrated_tasks && migrated_tasks.length > 0) {
-          const migrationMap = new Map(
-            migrated_tasks.map((m) => [m.task_id, m.target_feature_id]),
-          );
+          const migrationMap = new Map(migrated_tasks.map((m) => [m.task_id, m.target_feature_id]));
           setTasks(
             (prev) =>
               prev
@@ -135,7 +109,7 @@ export function useBoardWebSocketHandlers(
         notifyScheduleRefresh();
         break;
       }
-      case "FEATURES_REORDERED": {
+      case 'FEATURES_REORDERED': {
         const { features } = data as { features: Feature[] };
         if (Array.isArray(features)) {
           setFeatures(features);
@@ -145,7 +119,7 @@ export function useBoardWebSocketHandlers(
       }
 
       // Task events
-      case "TASK_CREATED": {
+      case 'TASK_CREATED': {
         const { task, feature } = data as {
           task: Task;
           feature: {
@@ -155,24 +129,18 @@ export function useBoardWebSocketHandlers(
             progress_percentage: number;
           };
         };
-        setTasks((prev) =>
-          prev.some((t) => t.id === task.id) ? prev : [...prev, task],
-        );
-        setFeatures((prev) =>
-          prev.map((f) => (f.id === feature.id ? { ...f, ...feature } : f)),
-        );
+        setTasks((prev) => (prev.some((t) => t.id === task.id) ? prev : [...prev, task]));
+        setFeatures((prev) => prev.map((f) => (f.id === feature.id ? { ...f, ...feature } : f)));
         notifyScheduleRefresh();
         break;
       }
-      case "TASK_UPDATED": {
+      case 'TASK_UPDATED': {
         const task = data as Task;
-        setTasks((prev) =>
-          prev.map((t) => (t.id === task.id ? { ...t, ...task } : t)),
-        );
+        setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, ...task } : t)));
         notifyScheduleRefresh();
         break;
       }
-      case "TASK_DELETED": {
+      case 'TASK_DELETED': {
         const { id, feature } = data as {
           id: string;
           feature: {
@@ -183,13 +151,11 @@ export function useBoardWebSocketHandlers(
           };
         };
         setTasks((prev) => prev.filter((t) => t.id !== id));
-        setFeatures((prev) =>
-          prev.map((f) => (f.id === feature.id ? { ...f, ...feature } : f)),
-        );
+        setFeatures((prev) => prev.map((f) => (f.id === feature.id ? { ...f, ...feature } : f)));
         notifyScheduleRefresh();
         break;
       }
-      case "TASKS_REORDERED": {
+      case 'TASKS_REORDERED': {
         const { task_ids } = data as {
           feature_id: string;
           task_ids: string[];
@@ -198,15 +164,13 @@ export function useBoardWebSocketHandlers(
           const orderMap = new Map(task_ids.map((id, index) => [id, index]));
           setTasks((prev) =>
             prev.map((t) =>
-              orderMap.has(t.id)
-                ? { ...t, feature_position: orderMap.get(t.id)! }
-                : t,
+              orderMap.has(t.id) ? { ...t, feature_position: orderMap.get(t.id)! } : t,
             ),
           );
         }
         break;
       }
-      case "TASK_MOVED": {
+      case 'TASK_MOVED': {
         const { task, feature } = data as {
           task: Task;
           feature: {
@@ -216,25 +180,21 @@ export function useBoardWebSocketHandlers(
             progress_percentage: number;
           };
         };
-        setTasks((prev) =>
-          prev.map((t) => (t.id === task.id ? { ...t, ...task } : t)),
-        );
-        setFeatures((prev) =>
-          prev.map((f) => (f.id === feature.id ? { ...f, ...feature } : f)),
-        );
+        setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, ...task } : t)));
+        setFeatures((prev) => prev.map((f) => (f.id === feature.id ? { ...f, ...feature } : f)));
         notifyScheduleRefresh();
         break;
       }
 
       // Block events
-      case "BLOCK_CREATED": {
+      case 'BLOCK_CREATED': {
         const block = data as Block;
         setBlocks((prev) => {
           if (prev.some((b) => b.id === block.id)) return prev;
           // Done 블록 position을 새 블록 뒤로 밀어서 순서 보장
           return [
             ...prev.map((b) =>
-              b.fixed_type === "DONE" && b.position <= block.position
+              b.fixed_type === 'DONE' && b.position <= block.position
                 ? { ...b, position: block.position + 1 }
                 : b,
             ),
@@ -243,23 +203,19 @@ export function useBoardWebSocketHandlers(
         });
         break;
       }
-      case "BLOCK_UPDATED": {
+      case 'BLOCK_UPDATED': {
         const block = data as Block;
         setBlocks((prev) => prev.map((b) => (b.id === block.id ? block : b)));
         break;
       }
-      case "BLOCK_DELETED": {
+      case 'BLOCK_DELETED': {
         const { id } = data as { id: string };
         setBlocks((prev) => prev.filter((b) => b.id !== id));
         break;
       }
-      case "BLOCKS_REORDERED": {
+      case 'BLOCKS_REORDERED': {
         const currentMilestone = milestoneIdRef.current;
-        if (
-          currentMilestone &&
-          currentMilestone !== "all" &&
-          currentMilestone !== "none"
-        ) {
+        if (currentMilestone && currentMilestone !== 'all' && currentMilestone !== 'none') {
           reloadBlocksForMilestone(currentMilestone);
         } else {
           const { blocks: reorderedBlocks } = data as { blocks: Block[] };
@@ -270,14 +226,14 @@ export function useBoardWebSocketHandlers(
         break;
       }
 
-      case "BLOCK_VISIBILITY_CHANGED": {
+      case 'BLOCK_VISIBILITY_CHANGED': {
         // 다른 사용자가 블록 숨김/표시를 변경한 경우 블록 재로드
         reloadBlocksForMilestone(milestoneIdRef.current);
         break;
       }
 
       // Checklist events
-      case "CHECKLIST_CREATED": {
+      case 'CHECKLIST_CREATED': {
         const { item: createdItem, task_id: createTaskId } = data as {
           item: ChecklistItem;
           task_id: string;
@@ -300,7 +256,7 @@ export function useBoardWebSocketHandlers(
         notifyScheduleRefresh();
         break;
       }
-      case "CHECKLIST_UPDATED": {
+      case 'CHECKLIST_UPDATED': {
         const { item: updatedItem, task_id: updateTaskId } = data as {
           item: ChecklistItem;
           task_id: string;
@@ -315,15 +271,13 @@ export function useBoardWebSocketHandlers(
         notifyScheduleRefresh();
         break;
       }
-      case "CHECKLIST_DELETED": {
+      case 'CHECKLIST_DELETED': {
         const { id: deletedId, task_id: deleteTaskId } = data as {
           id: string;
           task_id: string;
         };
         setChecklistDataMap((prev) => {
-          const items = (prev[deleteTaskId] || []).filter(
-            (ci) => ci.id !== deletedId,
-          );
+          const items = (prev[deleteTaskId] || []).filter((ci) => ci.id !== deletedId);
           return { ...prev, [deleteTaskId]: items };
         });
         setTasks((prev) =>
@@ -340,7 +294,7 @@ export function useBoardWebSocketHandlers(
         notifyScheduleRefresh();
         break;
       }
-      case "CHECKLIST_MOVED": {
+      case 'CHECKLIST_MOVED': {
         const {
           item: movedItem,
           source_task_id: moveSourceTaskId,
@@ -351,13 +305,9 @@ export function useBoardWebSocketHandlers(
           target_task_id: string;
         };
         setChecklistDataMap((prev) => {
-          const sourceItems = (prev[moveSourceTaskId] || []).filter(
-            (ci) => ci.id !== movedItem.id,
-          );
+          const sourceItems = (prev[moveSourceTaskId] || []).filter((ci) => ci.id !== movedItem.id);
           const targetItems = [
-            ...(prev[moveTargetTaskId] || []).filter(
-              (ci) => ci.id !== movedItem.id,
-            ),
+            ...(prev[moveTargetTaskId] || []).filter((ci) => ci.id !== movedItem.id),
             movedItem,
           ];
           return {
@@ -373,10 +323,7 @@ export function useBoardWebSocketHandlers(
               return {
                 ...t,
                 checklist_total: Math.max(0, (t.checklist_total || 0) - 1),
-                checklist_completed: Math.max(
-                  0,
-                  (t.checklist_completed || 0) - moveDelta,
-                ),
+                checklist_completed: Math.max(0, (t.checklist_completed || 0) - moveDelta),
               };
             }
             if (t.id === moveTargetTaskId) {
@@ -393,7 +340,7 @@ export function useBoardWebSocketHandlers(
         notifyScheduleRefresh();
         break;
       }
-      case "CHECKLIST_TOGGLED": {
+      case 'CHECKLIST_TOGGLED': {
         const { item: toggledItem, task_id: toggleTaskId } = data as {
           item: ChecklistItem;
           task_id: string;
@@ -410,10 +357,7 @@ export function useBoardWebSocketHandlers(
             t.id === toggleTaskId
               ? {
                   ...t,
-                  checklist_completed: Math.max(
-                    0,
-                    (t.checklist_completed || 0) + delta,
-                  ),
+                  checklist_completed: Math.max(0, (t.checklist_completed || 0) + delta),
                 }
               : t,
           ),
@@ -431,29 +375,29 @@ export function useBoardWebSocketHandlers(
       }
 
       // Comment events
-      case "COMMENT_CREATED":
-      case "COMMENT_UPDATED":
-      case "COMMENT_DELETED":
-      case "COMMENT_REACTION_TOGGLED":
+      case 'COMMENT_CREATED':
+      case 'COMMENT_UPDATED':
+      case 'COMMENT_DELETED':
+      case 'COMMENT_REACTION_TOGGLED':
         setWsCommentEvent(event);
         break;
 
       // Schedule events
-      case "SCHEDULE_CREATED":
-      case "SCHEDULE_UPDATED":
-      case "SCHEDULE_DELETED":
+      case 'SCHEDULE_CREATED':
+      case 'SCHEDULE_UPDATED':
+      case 'SCHEDULE_DELETED':
         setScheduleRefreshKey((prev) => prev + 1);
         break;
 
       // Meeting events
-      case "MEETING_CREATED":
-      case "MEETING_UPDATED":
-      case "MEETING_DELETED":
+      case 'MEETING_CREATED':
+      case 'MEETING_UPDATED':
+      case 'MEETING_DELETED':
         setMeetingRefreshKey((prev) => prev + 1);
         break;
 
       // Member events
-      case "MEMBER_UPDATED": {
+      case 'MEMBER_UPDATED': {
         const memberData = data as {
           id?: string;
           user?: { id?: string };
@@ -478,12 +422,8 @@ export function useBoardWebSocketHandlers(
                       memberData.github_login !== undefined
                         ? memberData.github_login
                         : m.githubLogin,
-                    role:
-                      (memberData.role?.toLowerCase() as MemberRole) || m.role,
-                    jobRole:
-                      memberData.job_role !== undefined
-                        ? memberData.job_role
-                        : m.jobRole,
+                    role: (memberData.role?.toLowerCase() as MemberRole) || m.role,
+                    jobRole: memberData.job_role !== undefined ? memberData.job_role : m.jobRole,
                   }
                 : m,
             ),
@@ -493,7 +433,7 @@ export function useBoardWebSocketHandlers(
       }
 
       // Job Role events — 직군 정의 변경 시 목록 + 멤버 매핑 새로고침
-      case "JOB_ROLE_UPDATED": {
+      case 'JOB_ROLE_UPDATED': {
         if (boardId) {
           jobRoleService
             .list(boardId)
@@ -521,16 +461,16 @@ export function useBoardWebSocketHandlers(
       }
 
       // Notification events
-      case "NOTIFICATION_CREATED":
+      case 'NOTIFICATION_CREATED':
         setUnreadNotificationCount((prev) => prev + 1);
         break;
 
       // Trash restore events — refetch features/tasks/checklists from server
-      case "FEATURE_RESTORED":
-      case "TASK_RESTORED":
-      case "CHECKLIST_RESTORED": {
+      case 'FEATURE_RESTORED':
+      case 'TASK_RESTORED':
+      case 'CHECKLIST_RESTORED': {
         const mid =
-          milestoneIdRef.current && milestoneIdRef.current !== "all"
+          milestoneIdRef.current && milestoneIdRef.current !== 'all'
             ? milestoneIdRef.current
             : undefined;
         reloadFeaturesAndTasks(mid).catch(() => {});

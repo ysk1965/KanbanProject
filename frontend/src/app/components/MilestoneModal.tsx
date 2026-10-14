@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { useTranslation } from "react-i18next";
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   X,
   Flag,
@@ -14,45 +14,45 @@ import {
   ExternalLink,
   Loader2,
   AlertTriangle,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { toast } from "sonner";
-import { Input } from "./ui/input";
-import { Textarea } from "./ui/textarea";
-import { Calendar } from "./ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { MotionModal } from "./ui/MotionModal";
-import { IconButton } from "./ui/IconButton";
-import { useReducedMotion } from "../hooks/useReducedMotion";
-import { format } from "date-fns";
-import { ko } from "date-fns/locale";
-import type { Milestone, Feature, MilestoneFeatureInfo } from "../types";
-import { getTodayDateString } from "../utils/dateUtils";
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { Calendar } from './ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { MotionModal } from './ui/MotionModal';
+import { IconButton } from './ui/IconButton';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import type { Milestone, Feature, MilestoneFeatureInfo } from '../types';
+import { getTodayDateString } from '../utils/dateUtils';
 
 // ────────────────────────────────────────────────────────────
 // 상태 파생 — 완료 / 진행 / 지연 / 예정
 // ────────────────────────────────────────────────────────────
-type MilestoneStatus = "done" | "current" | "risk" | "todo";
+type MilestoneStatus = 'done' | 'current' | 'risk' | 'todo';
 
 // 상태별 링 색 (완료=emerald, 현재=bridge-accent, 지연=amber, 예정=slate)
 const RING_COLOR: Record<MilestoneStatus, string> = {
-  done: "#34d399",
-  current: "#6366f1",
-  risk: "#fbbf24",
-  todo: "#64748b",
+  done: '#34d399',
+  current: '#6366f1',
+  risk: '#fbbf24',
+  todo: '#64748b',
 };
 
 // 상태 pill 클래스 — 뱃지 BG는 /15 통일, 텍스트만 dark: 분기
 const PILL_CLASS: Record<MilestoneStatus, string> = {
-  done: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  current: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
-  risk: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  todo: "bg-slate-500/15 text-slate-500 dark:text-slate-400",
+  done: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+  current: 'bg-rose-500/15 text-rose-600 dark:text-rose-400',
+  risk: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  todo: 'bg-slate-500/15 text-slate-500 dark:text-slate-400',
 };
 
 // yyyy-MM-dd → 타임존 무관 day 정수 (UTC 자정 기준)
 function dateToNum(s: string): number {
-  const [y, m, d] = s.split("-").map(Number);
+  const [y, m, d] = s.split('-').map(Number);
   return Date.UTC(y, m - 1, d);
 }
 
@@ -65,17 +65,14 @@ function deriveMilestoneStatus(
   m: { start_date: string; end_date: string; progress_percentage: number },
   today: string,
 ): MilestoneStatus {
-  if (m.progress_percentage >= 100) return "done";
-  if (m.start_date > today) return "todo"; // 아직 시작 전
-  if (m.end_date < today) return "risk"; // 기간 지났는데 미완료
-  return "current"; // 오늘이 기간 내부 = 진행 중
+  if (m.progress_percentage >= 100) return 'done';
+  if (m.start_date > today) return 'todo'; // 아직 시작 전
+  if (m.end_date < today) return 'risk'; // 기간 지났는데 미완료
+  return 'current'; // 오늘이 기간 내부 = 진행 중
 }
 
 // 현재 마일스톤: 기간의 경과 비율(%)
-function timeElapsedPercent(
-  m: { start_date: string; end_date: string },
-  today: string,
-): number {
+function timeElapsedPercent(m: { start_date: string; end_date: string }, today: string): number {
   const s = dateToNum(m.start_date);
   const e = dateToNum(m.end_date);
   const t = dateToNum(today);
@@ -87,7 +84,7 @@ function timeElapsedPercent(
 function dDayLabel(m: { end_date: string }, today: string): string {
   const days = daysBetween(today, m.end_date);
   if (days > 0) return `D-${days}`;
-  if (days === 0) return "D-DAY";
+  if (days === 0) return 'D-DAY';
   return `D+${-days}`;
 }
 
@@ -97,8 +94,8 @@ function periodLabel(start: string, end: string): string {
   const e = new Date(end);
   const sameYear = s.getFullYear() === e.getFullYear();
   return sameYear
-    ? `${format(s, "M/d")}~${format(e, "M/d")}`
-    : `${format(s, "M/d")}~'${format(e, "yy")} ${format(e, "M/d")}`;
+    ? `${format(s, 'M/d')}~${format(e, 'M/d')}`
+    : `${format(s, 'M/d')}~'${format(e, 'yy')} ${format(e, 'M/d')}`;
 }
 
 // 마일스톤 체크리스트 집계 — 응답에 없으면 피처 합산으로 폴백
@@ -136,27 +133,15 @@ function MilestoneRingNode({
   const c = size / 2;
   const pct = Math.max(0, Math.min(100, percent));
   const color = RING_COLOR[status];
-  const isDone = status === "done";
+  const isDone = status === 'done';
   return (
     <span
       className="relative grid place-items-center rounded-full bg-bridge-dark"
       style={{ width: size, height: size }}
       aria-hidden
     >
-      <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        className="-rotate-90"
-      >
-        <circle
-          cx={c}
-          cy={c}
-          r={R}
-          fill="none"
-          stroke="rgba(148,163,184,0.22)"
-          strokeWidth={sw}
-        />
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+        <circle cx={c} cy={c} r={R} fill="none" stroke="rgba(148,163,184,0.22)" strokeWidth={sw} />
         {pct > 0 && (
           <circle
             cx={c}
@@ -171,18 +156,9 @@ function MilestoneRingNode({
           />
         )}
       </svg>
-      {isDone && (
-        <Check
-          className="absolute h-3 w-3"
-          style={{ color }}
-          strokeWidth={3.5}
-        />
-      )}
+      {isDone && <Check className="absolute h-3 w-3" style={{ color }} strokeWidth={3.5} />}
       {selected && !isDone && (
-        <span
-          className="absolute h-1.5 w-1.5 rounded-full"
-          style={{ background: color }}
-        />
+        <span className="absolute h-1.5 w-1.5 rounded-full" style={{ background: color }} />
       )}
     </span>
   );
@@ -191,10 +167,7 @@ function MilestoneRingNode({
 // 필수 입력 필드의 충족 여부 아이콘 (생성 모드)
 function FieldStatusIcon({ filled }: { filled: boolean }) {
   return filled ? (
-    <span
-      className="grid h-5 w-5 place-items-center rounded-full bg-emerald-500"
-      aria-hidden
-    >
+    <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-500" aria-hidden>
       <Check className="h-3 w-3 text-white" strokeWidth={3} />
     </span>
   ) : (
@@ -209,16 +182,14 @@ function FieldStatusIcon({ filled }: { filled: boolean }) {
 function DualBar({
   work,
   elapsed,
-  height = "h-1",
+  height = 'h-1',
 }: {
   work: number;
   elapsed: number;
   height?: string;
 }) {
   return (
-    <span
-      className={`relative block ${height} overflow-hidden rounded-full bg-foreground/10`}
-    >
+    <span className={`relative block ${height} overflow-hidden rounded-full bg-foreground/10`}>
       <span
         className="absolute inset-y-0 left-0 rounded-full bg-rose-400/30"
         style={{ width: `${elapsed}%` }}
@@ -256,11 +227,7 @@ function GhostRailNode({
   const dated = !!(startDate && endDate);
   const hasTitle = !!title.trim();
   const ready = hasTitle && dated;
-  const badgeText = ready
-    ? readyLabel
-    : !hasTitle
-      ? needTitleLabel
-      : needPeriodLabel;
+  const badgeText = ready ? readyLabel : !hasTitle ? needTitleLabel : needPeriodLabel;
   return (
     <div
       className="relative grid grid-cols-[22px_1fr] items-center gap-2 rounded-lg border border-dashed border-bridge-accent bg-bridge-accent/10 py-2 pl-1.5 pr-2"
@@ -276,16 +243,14 @@ function GhostRailNode({
           </span>
           <span
             className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-bold text-white ${
-              ready ? "bg-emerald-500" : "bg-bridge-accent"
+              ready ? 'bg-emerald-500' : 'bg-bridge-accent'
             }`}
           >
             {badgeText}
           </span>
         </span>
         <span className="mt-0.5 block truncate text-xs text-slate-400 tabular-nums">
-          {dated
-            ? `${format(startDate!, "M/d")}~${format(endDate!, "M/d")}`
-            : undatedSubLabel}
+          {dated ? `${format(startDate!, 'M/d')}~${format(endDate!, 'M/d')}` : undatedSubLabel}
         </span>
       </span>
     </div>
@@ -295,7 +260,7 @@ function GhostRailNode({
 // ────────────────────────────────────────────────────────────
 // 담긴 작업 필터
 // ────────────────────────────────────────────────────────────
-type WorkFilter = "all" | "overdue" | "unassigned";
+type WorkFilter = 'all' | 'overdue' | 'unassigned';
 
 interface MilestoneModalProps {
   isOpen: boolean;
@@ -334,8 +299,8 @@ export function MilestoneModal({
 }: MilestoneModalProps) {
   const { t } = useTranslation();
   const reducedMotion = useReducedMotion();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [isSaving, setIsSaving] = useState(false);
@@ -344,7 +309,7 @@ export function MilestoneModal({
   const [descOpen, setDescOpen] = useState(false); // 설명 인라인 펼침
   const [descExpanded, setDescExpanded] = useState(false); // 설명 큰 팝업
   const [periodOpen, setPeriodOpen] = useState(false);
-  const [workFilter, setWorkFilter] = useState<WorkFilter>("all");
+  const [workFilter, setWorkFilter] = useState<WorkFilter>('all');
   const [pendingSelect, setPendingSelect] = useState<{
     target: Milestone | null;
   } | null>(null);
@@ -362,12 +327,12 @@ export function MilestoneModal({
   useEffect(() => {
     if (milestone) {
       setTitle(milestone.title);
-      setDescription(milestone.description || "");
+      setDescription(milestone.description || '');
       setStartDate(new Date(milestone.start_date));
       setEndDate(new Date(milestone.end_date));
     } else {
-      setTitle("");
-      setDescription("");
+      setTitle('');
+      setDescription('');
       setStartDate(undefined);
       setEndDate(undefined);
     }
@@ -375,7 +340,7 @@ export function MilestoneModal({
     setDescOpen(false);
     setDescExpanded(false);
     setPeriodOpen(false);
-    setWorkFilter("all");
+    setWorkFilter('all');
     setPendingSelect(null);
     setMenuFor(null);
     setDeleteTarget(null);
@@ -395,42 +360,34 @@ export function MilestoneModal({
   );
 
   // 생성 모드에서 미리보기용 고스트의 시작일 키 (yyyy-MM-dd) — 없으면 맨 끝
-  const ghostStart =
-    isCreating && startDate ? format(startDate, "yyyy-MM-dd") : null;
+  const ghostStart = isCreating && startDate ? format(startDate, 'yyyy-MM-dd') : null;
   type RailEntry =
-    | { kind: "today" }
-    | { kind: "ghost" }
-    | { kind: "milestone"; m: Milestone; status: MilestoneStatus };
+    | { kind: 'today' }
+    | { kind: 'ghost' }
+    | { kind: 'milestone'; m: Milestone; status: MilestoneStatus };
   const railItems = useMemo<RailEntry[]>(() => {
-    const hasCurrent = sorted.some(
-      (m) => m.start_date <= today && today <= m.end_date,
-    );
+    const hasCurrent = sorted.some((m) => m.start_date <= today && today <= m.end_date);
     const items: RailEntry[] = [];
     let dividerInserted = false;
     let ghostInserted = false;
     for (const m of sorted) {
-      if (
-        isCreating &&
-        !ghostInserted &&
-        ghostStart &&
-        m.start_date > ghostStart
-      ) {
-        items.push({ kind: "ghost" });
+      if (isCreating && !ghostInserted && ghostStart && m.start_date > ghostStart) {
+        items.push({ kind: 'ghost' });
         ghostInserted = true;
       }
       // 현재 마일스톤이 없을 때만, 오늘보다 늦게 시작하는 첫 항목 앞에 TODAY 구분선
       if (!hasCurrent && !dividerInserted && m.start_date > today) {
-        items.push({ kind: "today" });
+        items.push({ kind: 'today' });
         dividerInserted = true;
       }
       items.push({
-        kind: "milestone",
+        kind: 'milestone',
         m,
         status: deriveMilestoneStatus(m, today),
       });
     }
-    if (!hasCurrent && !dividerInserted) items.push({ kind: "today" });
-    if (isCreating && !ghostInserted) items.push({ kind: "ghost" });
+    if (!hasCurrent && !dividerInserted) items.push({ kind: 'today' });
+    if (isCreating && !ghostInserted) items.push({ kind: 'ghost' });
     return items;
   }, [sorted, today, isCreating, ghostStart]);
 
@@ -442,10 +399,7 @@ export function MilestoneModal({
     sorted.forEach((m, i) => {
       orderMap[m.id] = i + 1;
     });
-    const map: Record<
-      string,
-      Array<{ id: string; order: number; title: string }>
-    > = {};
+    const map: Record<string, Array<{ id: string; order: number; title: string }>> = {};
     for (const m of sorted) {
       if (!m.features) continue;
       for (const f of m.features) {
@@ -468,7 +422,7 @@ export function MilestoneModal({
       const s = milestoneItemTotals(m);
       total += s.totalItems;
       done += s.completedItems;
-      if (deriveMilestoneStatus(m, today) === "risk" && !m.is_default) risk++;
+      if (deriveMilestoneStatus(m, today) === 'risk' && !m.is_default) risk++;
     }
     return {
       count: milestones.length,
@@ -483,15 +437,9 @@ export function MilestoneModal({
     const status = deriveMilestoneStatus(milestone, today);
     const totals = milestoneItemTotals(milestone);
     const feats = milestone.features ?? [];
-    const spanning = feats.filter(
-      (f) => (featureMilestoneCountMap[f.id] || 0) > 1,
-    ).length;
+    const spanning = feats.filter((f) => (featureMilestoneCountMap[f.id] || 0) > 1).length;
     const elapsed =
-      status === "current"
-        ? timeElapsedPercent(milestone, today)
-        : status === "todo"
-          ? 0
-          : 100;
+      status === 'current' ? timeElapsedPercent(milestone, today) : status === 'todo' ? 0 : 100;
     const work = milestone.progress_percentage || 0;
     const days = daysBetween(milestone.start_date, milestone.end_date) + 1;
     return {
@@ -510,8 +458,8 @@ export function MilestoneModal({
   const workRows = useMemo(() => {
     const feats = milestone?.features ?? [];
     const filtered = feats.filter((f) => {
-      if (workFilter === "overdue") return (f.overdue_items ?? 0) > 0;
-      if (workFilter === "unassigned") return (f.unassigned_items ?? 0) > 0;
+      if (workFilter === 'overdue') return (f.overdue_items ?? 0) > 0;
+      if (workFilter === 'unassigned') return (f.unassigned_items ?? 0) > 0;
       return true;
     });
     return [...filtered].sort((a, b) => {
@@ -525,28 +473,28 @@ export function MilestoneModal({
   // 기간 이웃 검사 — 겹침 / 공백 힌트 (편집 중인 자신은 제외)
   const neighborHint = useMemo(() => {
     if (!startDate || !endDate) return null;
-    const s = format(startDate, "yyyy-MM-dd");
-    const e = format(endDate, "yyyy-MM-dd");
+    const s = format(startDate, 'yyyy-MM-dd');
+    const e = format(endDate, 'yyyy-MM-dd');
     const others = sorted.filter((m) => m.id !== milestone?.id);
     const prev = [...others].reverse().find((m) => m.start_date < s);
     const next = others.find((m) => m.start_date > s);
-    const hints: Array<{ kind: "overlap" | "gap"; text: string }> = [];
+    const hints: Array<{ kind: 'overlap' | 'gap'; text: string }> = [];
     if (prev) {
       const d = daysBetween(prev.end_date, s);
       if (d <= 0) {
         hints.push({
-          kind: "overlap",
-          text: t("milestone.overlapWith", {
-            defaultValue: "{{title}}과(와) {{days}}일 겹침",
+          kind: 'overlap',
+          text: t('milestone.overlapWith', {
+            defaultValue: '{{title}}과(와) {{days}}일 겹침',
             title: prev.title,
             days: 1 - d,
           }),
         });
       } else if (d > 1) {
         hints.push({
-          kind: "gap",
-          text: t("milestone.gapWith", {
-            defaultValue: "{{title}}과(와) {{days}}일 공백",
+          kind: 'gap',
+          text: t('milestone.gapWith', {
+            defaultValue: '{{title}}과(와) {{days}}일 공백',
             title: prev.title,
             days: d - 1,
           }),
@@ -557,18 +505,18 @@ export function MilestoneModal({
       const d = daysBetween(e, next.start_date);
       if (d <= 0) {
         hints.push({
-          kind: "overlap",
-          text: t("milestone.overlapWith", {
-            defaultValue: "{{title}}과(와) {{days}}일 겹침",
+          kind: 'overlap',
+          text: t('milestone.overlapWith', {
+            defaultValue: '{{title}}과(와) {{days}}일 겹침',
             title: next.title,
             days: 1 - d,
           }),
         });
       } else if (d > 1) {
         hints.push({
-          kind: "gap",
-          text: t("milestone.gapWith", {
-            defaultValue: "{{title}}과(와) {{days}}일 공백",
+          kind: 'gap',
+          text: t('milestone.gapWith', {
+            defaultValue: '{{title}}과(와) {{days}}일 공백',
             title: next.title,
             days: d - 1,
           }),
@@ -608,13 +556,13 @@ export function MilestoneModal({
       await onSave({
         title: title.trim(),
         description: description.trim() || undefined,
-        start_date: format(startDate, "yyyy-MM-dd"),
-        end_date: format(endDate, "yyyy-MM-dd"),
+        start_date: format(startDate, 'yyyy-MM-dd'),
+        end_date: format(endDate, 'yyyy-MM-dd'),
       });
       return true;
     } catch (error) {
-      console.error("Failed to save milestone:", error);
-      toast.error(t("milestone.saveFailed"));
+      console.error('Failed to save milestone:', error);
+      toast.error(t('milestone.saveFailed'));
       return false;
     } finally {
       setIsSaving(false);
@@ -623,21 +571,16 @@ export function MilestoneModal({
 
   // 변경된 필드 목록 (푸터 표시 + dirty 판정)
   const changedFields = useMemo(() => {
-    const baseTitle = milestone?.title ?? "";
-    const baseDesc = milestone?.description ?? "";
-    const baseStart = milestone
-      ? format(new Date(milestone.start_date), "yyyy-MM-dd")
-      : "";
-    const baseEnd = milestone
-      ? format(new Date(milestone.end_date), "yyyy-MM-dd")
-      : "";
-    const curStart = startDate ? format(startDate, "yyyy-MM-dd") : "";
-    const curEnd = endDate ? format(endDate, "yyyy-MM-dd") : "";
+    const baseTitle = milestone?.title ?? '';
+    const baseDesc = milestone?.description ?? '';
+    const baseStart = milestone ? format(new Date(milestone.start_date), 'yyyy-MM-dd') : '';
+    const baseEnd = milestone ? format(new Date(milestone.end_date), 'yyyy-MM-dd') : '';
+    const curStart = startDate ? format(startDate, 'yyyy-MM-dd') : '';
+    const curEnd = endDate ? format(endDate, 'yyyy-MM-dd') : '';
     const out: string[] = [];
-    if (title !== baseTitle) out.push(t("milestone.titleLabel"));
-    if (description !== baseDesc) out.push(t("milestone.descriptionLabel"));
-    if (curStart !== baseStart || curEnd !== baseEnd)
-      out.push(t("milestone.periodLabel"));
+    if (title !== baseTitle) out.push(t('milestone.titleLabel'));
+    if (description !== baseDesc) out.push(t('milestone.descriptionLabel'));
+    if (curStart !== baseStart || curEnd !== baseEnd) out.push(t('milestone.periodLabel'));
     return out;
   }, [milestone, title, description, startDate, endDate, t]);
   const isDirty = changedFields.length > 0;
@@ -645,7 +588,7 @@ export function MilestoneModal({
   const revert = () => {
     if (!milestone) return;
     setTitle(milestone.title);
-    setDescription(milestone.description || "");
+    setDescription(milestone.description || '');
     setStartDate(new Date(milestone.start_date));
     setEndDate(new Date(milestone.end_date));
     setTitleEditing(false);
@@ -655,20 +598,19 @@ export function MilestoneModal({
   const hasTitle = title.trim().length > 0;
   const hasPeriod = !!startDate && !!endDate;
   const canCreate = hasTitle && hasPeriod;
-  const canSubmit =
-    !isSaving && hasTitle && hasPeriod && (isEditMode ? isDirty : true);
+  const canSubmit = !isSaving && hasTitle && hasPeriod && (isEditMode ? isDirty : true);
 
   // ⌘S / Ctrl+S 저장
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         if (canSubmit) void handleSave();
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [isOpen, canSubmit, handleSave]);
 
   // 다른 마일스톤(또는 새 마일스톤)으로 전환 — 변경사항 있으면 확인 후
@@ -698,14 +640,12 @@ export function MilestoneModal({
 
   // 레일 ↑↓ 키보드 이동
   const handleRailKey = (e: React.KeyboardEvent) => {
-    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     e.preventDefault();
     if (sorted.length === 0) return;
     const idx = sorted.findIndex((m) => m.id === milestone?.id);
     const next =
-      e.key === "ArrowDown"
-        ? Math.min(sorted.length - 1, idx + 1)
-        : Math.max(0, idx - 1);
+      e.key === 'ArrowDown' ? Math.min(sorted.length - 1, idx + 1) : Math.max(0, idx - 1);
     if (next !== idx) requestSelect(sorted[next]);
   };
 
@@ -720,8 +660,8 @@ export function MilestoneModal({
       // 선택 중이던 마일스톤을 지웠으면 생성 모드로
       if (milestone?.id === deletedId) onSelectMilestone(null);
     } catch (error) {
-      console.error("Failed to delete milestone:", error);
-      toast.error(t("milestone.deleteFailed"));
+      console.error('Failed to delete milestone:', error);
+      toast.error(t('milestone.deleteFailed'));
     } finally {
       setIsDeleting(false);
     }
@@ -735,23 +675,23 @@ export function MilestoneModal({
 
   // ── 공용 조각 ──────────────────────────────────────────────
   const statusPill = (m: Milestone, status: MilestoneStatus) => {
-    if (m.is_default && status === "risk") {
+    if (m.is_default && status === 'risk') {
       return (
         <span
           className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-bold ${PILL_CLASS.todo}`}
         >
-          {t("milestone.statusDefault", { defaultValue: "기본" })}
+          {t('milestone.statusDefault', { defaultValue: '기본' })}
         </span>
       );
     }
     const text =
-      status === "done"
-        ? t("milestone.statusCompleted", { defaultValue: "완료" })
-        : status === "current"
+      status === 'done'
+        ? t('milestone.statusCompleted', { defaultValue: '완료' })
+        : status === 'current'
           ? dDayLabel(m, today)
-          : status === "risk"
-            ? `${t("milestone.statusOverdue", { defaultValue: "지연" })} ${m.progress_percentage || 0}%`
-            : t("milestone.statusTodo", { defaultValue: "예정" });
+          : status === 'risk'
+            ? `${t('milestone.statusOverdue', { defaultValue: '지연' })} ${m.progress_percentage || 0}%`
+            : t('milestone.statusTodo', { defaultValue: '예정' });
     return (
       <span
         className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-bold tabular-nums ${PILL_CLASS[status]}`}
@@ -763,13 +703,13 @@ export function MilestoneModal({
 
   const ringAria = (m: Milestone, status: MilestoneStatus) =>
     `${m.title}, ${m.progress_percentage || 0}%, ${
-      status === "done"
-        ? t("milestone.statusCompleted", { defaultValue: "완료" })
-        : status === "current"
-          ? t("milestone.statusInProgress", { defaultValue: "진행 중" })
-          : status === "risk"
-            ? t("milestone.statusOverdue", { defaultValue: "지연" })
-            : t("milestone.statusTodo", { defaultValue: "예정" })
+      status === 'done'
+        ? t('milestone.statusCompleted', { defaultValue: '완료' })
+        : status === 'current'
+          ? t('milestone.statusInProgress', { defaultValue: '진행 중' })
+          : status === 'risk'
+            ? t('milestone.statusOverdue', { defaultValue: '지연' })
+            : t('milestone.statusTodo', { defaultValue: '예정' })
     }`;
 
   const periodTrigger = (
@@ -779,40 +719,33 @@ export function MilestoneModal({
           type="button"
           className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium tabular-nums transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
             startDate && endDate
-              ? "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:text-foreground hover:border-foreground/20"
-              : "border-dashed border-bridge-accent/60 text-bridge-accent"
+              ? 'border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:text-foreground hover:border-foreground/20'
+              : 'border-dashed border-bridge-accent/60 text-bridge-accent'
           }`}
         >
           <CalendarIcon className="h-3.5 w-3.5" />
           {startDate && endDate ? (
             <>
-              {format(startDate, "yyyy.MM.dd")} ~ {format(endDate, "MM.dd")}
+              {format(startDate, 'yyyy.MM.dd')} ~ {format(endDate, 'MM.dd')}
               <span className="text-slate-500">
-                ·{" "}
-                {daysBetween(
-                  format(startDate, "yyyy-MM-dd"),
-                  format(endDate, "yyyy-MM-dd"),
-                ) + 1}
-                {t("milestone.daysUnit", { defaultValue: "일" })}
+                · {daysBetween(format(startDate, 'yyyy-MM-dd'), format(endDate, 'yyyy-MM-dd')) + 1}
+                {t('milestone.daysUnit', { defaultValue: '일' })}
               </span>
             </>
           ) : (
-            t("milestone.selectPeriod")
+            t('milestone.selectPeriod')
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent
-        className="w-auto p-0 bg-bridge-surface border-bridge-border"
-        align="start"
-      >
+      <PopoverContent className="w-auto p-0 bg-bridge-surface border-bridge-border" align="start">
         <div className="flex flex-wrap items-center gap-1.5 border-b border-foreground/[0.08] px-3 py-2">
           <button
             type="button"
             onClick={() => applyPreset()}
             className="rounded-full border border-foreground/10 px-2.5 py-1 text-xs font-medium text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
           >
-            {t("milestone.presetAfterLast", {
-              defaultValue: "마지막 마일스톤 직후",
+            {t('milestone.presetAfterLast', {
+              defaultValue: '마지막 마일스톤 직후',
             })}
           </button>
           {[2, 4, 6].map((w) => (
@@ -822,8 +755,8 @@ export function MilestoneModal({
               onClick={() => applyPreset(w)}
               className="rounded-full border border-foreground/10 px-2.5 py-1 text-xs font-medium text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
             >
-              {t("milestone.presetWeeks", {
-                defaultValue: "{{n}}주",
+              {t('milestone.presetWeeks', {
+                defaultValue: '{{n}}주',
                 n: w,
               })}
             </button>
@@ -846,9 +779,7 @@ export function MilestoneModal({
               <span
                 key={i}
                 className={`flex items-center gap-1.5 text-xs ${
-                  h.kind === "overlap"
-                    ? "text-amber-600 dark:text-amber-400"
-                    : "text-slate-400"
+                  h.kind === 'overlap' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'
                 }`}
               >
                 <AlertTriangle className="h-3 w-3" />
@@ -873,11 +804,9 @@ export function MilestoneModal({
             e.stopPropagation();
             setMenuFor(open ? null : key);
           }}
-          aria-label={t("common.more", { defaultValue: "더보기" })}
-          className={`${compact ? "!h-8 !w-8 !min-h-0 !min-w-0" : ""} rounded-lg text-slate-400 transition-opacity hover:text-foreground hover:bg-foreground/10 ${
-            open
-              ? "opacity-100 bg-foreground/10"
-              : "opacity-40 hover:opacity-100 focus:opacity-100"
+          aria-label={t('common.more', { defaultValue: '더보기' })}
+          className={`${compact ? '!h-8 !w-8 !min-h-0 !min-w-0' : ''} rounded-lg text-slate-400 transition-opacity hover:text-foreground hover:bg-foreground/10 ${
+            open ? 'opacity-100 bg-foreground/10' : 'opacity-40 hover:opacity-100 focus:opacity-100'
           }`}
         >
           <MoreHorizontal className="h-4 w-4" />
@@ -894,7 +823,7 @@ export function MilestoneModal({
               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-red-500 transition-colors hover:bg-red-500/10"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              {t("common.delete")}
+              {t('common.delete')}
             </button>
           </div>
         )}
@@ -905,7 +834,7 @@ export function MilestoneModal({
   // 레일 행 (데스크톱)
   const renderRailRow = (m: Milestone, status: MilestoneStatus) => {
     const isSel = milestone?.id === m.id;
-    const isCurrent = status === "current";
+    const isCurrent = status === 'current';
     const work = m.progress_percentage || 0;
     const elapsed = isCurrent ? timeElapsedPercent(m, today) : 0;
     return (
@@ -913,12 +842,12 @@ export function MilestoneModal({
         <button
           type="button"
           onClick={() => requestSelect(m)}
-          aria-current={isSel ? "true" : undefined}
+          aria-current={isSel ? 'true' : undefined}
           aria-label={ringAria(m, status)}
           className={`relative grid w-full grid-cols-[22px_1fr] items-center gap-2 rounded-lg py-2 pl-1.5 pr-9 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-accent/50 ${
             isSel
-              ? "bg-bridge-accent/15 border border-bridge-accent/30"
-              : "border border-transparent hover:bg-foreground/5"
+              ? 'bg-bridge-accent/15 border border-bridge-accent/30'
+              : 'border border-transparent hover:bg-foreground/5'
           }`}
         >
           {isCurrent && (
@@ -928,17 +857,13 @@ export function MilestoneModal({
             />
           )}
           <span className="justify-self-center">
-            <MilestoneRingNode
-              percent={work}
-              status={status}
-              selected={isSel}
-            />
+            <MilestoneRingNode percent={work} status={status} selected={isSel} />
           </span>
           <span className="min-w-0">
             <span className="flex items-center gap-1.5">
               <span
                 className={`min-w-0 flex-1 truncate text-sm font-medium ${
-                  isSel ? "text-bridge-accent" : "text-foreground"
+                  isSel ? 'text-bridge-accent' : 'text-foreground'
                 }`}
               >
                 {m.title}
@@ -951,49 +876,44 @@ export function MilestoneModal({
               </span>
             )}
             <span className="mt-1 flex items-center justify-between gap-2 text-xs text-slate-500 tabular-nums">
-              <span className="truncate">
-                {periodLabel(m.start_date, m.end_date)}
-              </span>
+              <span className="truncate">{periodLabel(m.start_date, m.end_date)}</span>
               {isCurrent ? (
                 <span className="shrink-0">
                   <span className="text-bridge-accent">
-                    {t("milestone.workShort", { defaultValue: "작업" })} {work}%
+                    {t('milestone.workShort', { defaultValue: '작업' })} {work}%
                   </span>
                   <span className="text-slate-600"> · </span>
                   <span className="text-rose-500 dark:text-rose-400">
-                    {t("milestone.elapsedShort", { defaultValue: "기간" })}{" "}
-                    {elapsed}%
+                    {t('milestone.elapsedShort', { defaultValue: '기간' })} {elapsed}%
                   </span>
                 </span>
-              ) : status === "risk" && !m.is_default ? (
+              ) : status === 'risk' && !m.is_default ? (
                 <span className="shrink-0">{dDayLabel(m, today)}</span>
               ) : null}
             </span>
           </span>
         </button>
-        <div className="absolute right-1 top-1 z-20">
-          {overflowMenu(m, m.id, true)}
-        </div>
+        <div className="absolute right-1 top-1 z-20">{overflowMenu(m, m.id, true)}</div>
       </div>
     );
   };
 
   const legendItems: Array<{ status: MilestoneStatus; label: string }> = [
     {
-      status: "done",
-      label: t("milestone.statusCompleted", { defaultValue: "완료" }),
+      status: 'done',
+      label: t('milestone.statusCompleted', { defaultValue: '완료' }),
     },
     {
-      status: "current",
-      label: t("milestone.statusInProgress", { defaultValue: "진행" }),
+      status: 'current',
+      label: t('milestone.statusInProgress', { defaultValue: '진행' }),
     },
     {
-      status: "risk",
-      label: t("milestone.statusOverdue", { defaultValue: "지연" }),
+      status: 'risk',
+      label: t('milestone.statusOverdue', { defaultValue: '지연' }),
     },
     {
-      status: "todo",
-      label: t("milestone.statusTodo", { defaultValue: "예정" }),
+      status: 'todo',
+      label: t('milestone.statusTodo', { defaultValue: '예정' }),
     },
   ];
 
@@ -1002,28 +922,27 @@ export function MilestoneModal({
       <MotionModal
         open={isOpen}
         onClose={onClose}
-        aria-label={t("milestone.manageTitle", "마일스톤 관리")}
+        aria-label={t('milestone.manageTitle', '마일스톤 관리')}
         className="sm:max-w-5xl bg-bridge-dark p-0 overflow-hidden flex flex-col max-h-[90dvh]"
       >
         {/* 헤더 */}
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
           <Flag className="h-5 w-5 text-bridge-accent" />
           <h2 className="text-sm md:text-lg font-bold text-foreground tracking-tight">
-            {t("milestone.manageTitle", "마일스톤 관리")}
+            {t('milestone.manageTitle', '마일스톤 관리')}
           </h2>
           {milestones.length > 0 && (
             <span className="hidden sm:inline text-xs text-slate-500 tabular-nums">
-              {t("milestone.headerSummary", {
-                defaultValue: "{{count}}개 · 체크리스트 {{pct}}%",
+              {t('milestone.headerSummary', {
+                defaultValue: '{{count}}개 · 체크리스트 {{pct}}%',
                 count: boardSummary.count,
                 pct: boardSummary.pct,
               })}
               {boardSummary.risk > 0 && (
                 <>
-                  {" · "}
+                  {' · '}
                   <span className="text-amber-600 dark:text-amber-400">
-                    {t("milestone.statusOverdue", { defaultValue: "지연" })}{" "}
-                    {boardSummary.risk}
+                    {t('milestone.statusOverdue', { defaultValue: '지연' })} {boardSummary.risk}
                   </span>
                 </>
               )}
@@ -1031,7 +950,7 @@ export function MilestoneModal({
           )}
           <IconButton
             onClick={onClose}
-            aria-label={t("common.close", { defaultValue: "닫기" })}
+            aria-label={t('common.close', { defaultValue: '닫기' })}
             className="ml-auto text-slate-400 hover:text-foreground"
           >
             <X className="h-5 w-5" />
@@ -1040,11 +959,7 @@ export function MilestoneModal({
 
         {/* 메뉴 열림 시 바깥 클릭 닫기용 백드롭 */}
         {menuFor && (
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setMenuFor(null)}
-            aria-hidden
-          />
+          <div className="fixed inset-0 z-10" onClick={() => setMenuFor(null)} aria-hidden />
         )}
 
         {/* 모바일: 가로 칩 스트립 */}
@@ -1059,8 +974,8 @@ export function MilestoneModal({
                 onClick={() => requestSelect(m)}
                 className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors ${
                   isSel
-                    ? "border-bridge-accent/40 bg-bridge-accent/15 text-bridge-accent"
-                    : "border-foreground/10 text-slate-400"
+                    ? 'border-bridge-accent/40 bg-bridge-accent/15 text-bridge-accent'
+                    : 'border-foreground/10 text-slate-400'
                 }`}
               >
                 <span
@@ -1069,7 +984,7 @@ export function MilestoneModal({
                   aria-hidden
                 />
                 {m.title}
-                {status === "current" && (
+                {status === 'current' && (
                   <span className="text-rose-500 dark:text-rose-400 tabular-nums">
                     {dDayLabel(m, today)}
                   </span>
@@ -1082,12 +997,12 @@ export function MilestoneModal({
             onClick={() => requestSelect(null)}
             className={`inline-flex shrink-0 items-center gap-1 rounded-full border border-dashed px-2.5 py-1 text-xs font-medium ${
               isCreating
-                ? "border-bridge-accent text-bridge-accent"
-                : "border-foreground/20 text-slate-400"
+                ? 'border-bridge-accent text-bridge-accent'
+                : 'border-foreground/20 text-slate-400'
             }`}
           >
             <Plus className="h-3 w-3" />
-            {t("milestone.new", "새 마일스톤")}
+            {t('milestone.new', '새 마일스톤')}
           </button>
         </div>
 
@@ -1112,8 +1027,8 @@ export function MilestoneModal({
               tabIndex={0}
               onKeyDown={handleRailKey}
               className="flex-1 overflow-y-auto px-2 py-2 custom-scrollbar focus:outline-none"
-              aria-label={t("milestone.railAria", {
-                defaultValue: "마일스톤 목록. 위아래 화살표로 이동",
+              aria-label={t('milestone.railAria', {
+                defaultValue: '마일스톤 목록. 위아래 화살표로 이동',
               })}
             >
               <div className="relative flex flex-col gap-0.5">
@@ -1124,12 +1039,9 @@ export function MilestoneModal({
                   aria-hidden
                 />
                 {railItems.map((it) => {
-                  if (it.kind === "today") {
+                  if (it.kind === 'today') {
                     return (
-                      <div
-                        key="__today__"
-                        className="relative flex items-center gap-2 py-1 pl-1.5"
-                      >
+                      <div key="__today__" className="relative flex items-center gap-2 py-1 pl-1.5">
                         <span className="grid w-[22px] place-items-center">
                           <span className="h-0.5 w-3 rounded-full bg-rose-400 ring-2 ring-bridge-dark" />
                         </span>
@@ -1139,25 +1051,25 @@ export function MilestoneModal({
                       </div>
                     );
                   }
-                  if (it.kind === "ghost") {
+                  if (it.kind === 'ghost') {
                     return (
                       <GhostRailNode
                         key="__ghost__"
                         title={title}
                         startDate={startDate}
                         endDate={endDate}
-                        newLabel={t("milestone.new", "새 마일스톤")}
-                        readyLabel={t("milestone.ghostReady", {
-                          defaultValue: "생성 가능",
+                        newLabel={t('milestone.new', '새 마일스톤')}
+                        readyLabel={t('milestone.ghostReady', {
+                          defaultValue: '생성 가능',
                         })}
-                        needTitleLabel={t("milestone.ghostNeedTitle", {
-                          defaultValue: "제목 필요",
+                        needTitleLabel={t('milestone.ghostNeedTitle', {
+                          defaultValue: '제목 필요',
                         })}
-                        needPeriodLabel={t("milestone.ghostNeedPeriod", {
-                          defaultValue: "기간 필요",
+                        needPeriodLabel={t('milestone.ghostNeedPeriod', {
+                          defaultValue: '기간 필요',
                         })}
-                        undatedSubLabel={t("milestone.ghostUndated", {
-                          defaultValue: "기간 미정 · 맨 끝",
+                        undatedSubLabel={t('milestone.ghostUndated', {
+                          defaultValue: '기간 미정 · 맨 끝',
                         })}
                       />
                     );
@@ -1176,7 +1088,7 @@ export function MilestoneModal({
                       <Plus size={13} />
                     </span>
                     <span className="text-sm font-medium">
-                      {t("milestone.addNew", { defaultValue: "새 마일스톤" })}
+                      {t('milestone.addNew', { defaultValue: '새 마일스톤' })}
                     </span>
                   </button>
                 )}
@@ -1198,20 +1110,20 @@ export function MilestoneModal({
                         onChange={(e) => setTitle(e.target.value)}
                         onBlur={() => setTitleEditing(false)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === "Escape") {
-                            if (e.key === "Escape") setTitle(milestone.title);
+                          if (e.key === 'Enter' || e.key === 'Escape') {
+                            if (e.key === 'Escape') setTitle(milestone.title);
                             setTitleEditing(false);
                           }
                         }}
-                        placeholder={t("milestone.titlePlaceholder")}
+                        placeholder={t('milestone.titlePlaceholder')}
                         className="h-9 w-full max-w-sm bg-foreground/[0.03] border-foreground/10 text-foreground text-base font-bold placeholder-slate-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                       />
                     ) : (
                       <button
                         type="button"
                         onClick={() => setTitleEditing(true)}
-                        title={t("milestone.clickToEdit", {
-                          defaultValue: "클릭해서 편집",
+                        title={t('milestone.clickToEdit', {
+                          defaultValue: '클릭해서 편집',
                         })}
                         className="min-w-0 max-w-full truncate rounded-lg px-1 -mx-1 text-base md:text-lg font-bold text-foreground tracking-tight border-b border-dashed border-transparent hover:border-foreground/30 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-accent/50"
                       >
@@ -1226,13 +1138,13 @@ export function MilestoneModal({
                           onClick={() => onOpenConsole(milestone.id)}
                           className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-foreground/10 bg-foreground/5 px-3 text-xs font-bold text-foreground hover:bg-foreground/10 transition-colors"
                         >
-                          {t("milestone.openConsole", {
-                            defaultValue: "콘솔 열기",
+                          {t('milestone.openConsole', {
+                            defaultValue: '콘솔 열기',
                           })}
                           <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
                         </button>
                       )}
-                      {overflowMenu(milestone, "__board__")}
+                      {overflowMenu(milestone, '__board__')}
                     </div>
                   </div>
 
@@ -1240,92 +1152,86 @@ export function MilestoneModal({
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
                       {
-                        key: "dday",
-                        label: t("milestone.kpiDday", {
-                          defaultValue: "D-day",
+                        key: 'dday',
+                        label: t('milestone.kpiDday', {
+                          defaultValue: 'D-day',
                         }),
                         value:
-                          selected.status === "done"
-                            ? t("milestone.statusCompleted", {
-                                defaultValue: "완료",
+                          selected.status === 'done'
+                            ? t('milestone.statusCompleted', {
+                                defaultValue: '완료',
                               })
                             : selected.dday,
                         sub: null as string | null,
-                        tone:
-                          selected.status === "risk" && !milestone.is_default
-                            ? "bad"
-                            : "",
+                        tone: selected.status === 'risk' && !milestone.is_default ? 'bad' : '',
                         onClick: undefined as (() => void) | undefined,
                       },
                       {
-                        key: "features",
-                        label: t("milestone.kpiFeatures", {
-                          defaultValue: "피처",
+                        key: 'features',
+                        label: t('milestone.kpiFeatures', {
+                          defaultValue: '피처',
                         }),
                         value: String(selected.featureCount),
                         sub:
                           selected.spanning > 0
-                            ? t("milestone.kpiSpanning", {
-                                defaultValue: "걸침 {{n}}",
+                            ? t('milestone.kpiSpanning', {
+                                defaultValue: '걸침 {{n}}',
                                 n: selected.spanning,
                               })
                             : null,
-                        tone: "",
+                        tone: '',
                         onClick: undefined,
                       },
                       {
-                        key: "items",
-                        label: t("milestone.kpiChecklist", {
-                          defaultValue: "체크리스트",
+                        key: 'items',
+                        label: t('milestone.kpiChecklist', {
+                          defaultValue: '체크리스트',
                         }),
                         value: String(selected.completedItems),
                         sub: `/ ${selected.totalItems}`,
-                        tone: "",
+                        tone: '',
                         onClick: undefined,
                       },
                       {
-                        key: "overdue",
-                        label: t("milestone.kpiOverdue", {
-                          defaultValue: "지연 항목",
+                        key: 'overdue',
+                        label: t('milestone.kpiOverdue', {
+                          defaultValue: '지연 항목',
                         }),
                         value: String(selected.overdueItems),
                         sub:
                           selected.unassignedItems > 0
-                            ? t("milestone.kpiUnassignedSub", {
-                                defaultValue: "미배정 {{n}}",
+                            ? t('milestone.kpiUnassignedSub', {
+                                defaultValue: '미배정 {{n}}',
                                 n: selected.unassignedItems,
                               })
                             : null,
-                        tone: selected.overdueItems > 0 ? "bad" : "",
+                        tone: selected.overdueItems > 0 ? 'bad' : '',
                         onClick:
                           selected.overdueItems > 0
-                            ? () =>
-                                setWorkFilter((f) =>
-                                  f === "overdue" ? "all" : "overdue",
-                                )
+                            ? () => setWorkFilter((f) => (f === 'overdue' ? 'all' : 'overdue'))
                             : undefined,
                       },
                     ].map((k) => {
-                      const Tag = k.onClick ? "button" : "div";
+                      const Tag = k.onClick ? 'button' : 'div';
                       return (
                         <Tag
                           key={k.key}
-                          type={k.onClick ? "button" : undefined}
+                          type={k.onClick ? 'button' : undefined}
                           onClick={k.onClick}
                           className={`rounded-xl border border-foreground/[0.06] bg-foreground/[0.03] px-3 py-2 text-left ${
                             k.onClick
-                              ? "hover:border-foreground/[0.12] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-accent/50"
-                              : ""
-                          } ${workFilter === "overdue" && k.key === "overdue" ? "ring-2 ring-bridge-accent/50" : ""}`}
+                              ? 'hover:border-foreground/[0.12] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-accent/50'
+                              : ''
+                          } ${workFilter === 'overdue' && k.key === 'overdue' ? 'ring-2 ring-bridge-accent/50' : ''}`}
                         >
                           <div className="text-xs font-bold uppercase tracking-widest text-slate-500">
                             {k.label}
                           </div>
                           <div
                             className={`mt-0.5 text-lg font-bold leading-tight tabular-nums ${
-                              k.tone === "bad"
-                                ? "text-rose-600 dark:text-rose-400"
-                                : "text-foreground"
+                              k.tone === 'bad'
+                                ? 'text-rose-600 dark:text-rose-400'
+                                : 'text-foreground'
                             }`}
                           >
                             {k.value}
@@ -1342,29 +1248,25 @@ export function MilestoneModal({
 
                   {/* 작업 vs 기간 이중 바 */}
                   <div className="space-y-1">
-                    <DualBar
-                      work={selected.work}
-                      elapsed={selected.elapsed}
-                      height="h-1.5"
-                    />
+                    <DualBar work={selected.work} elapsed={selected.elapsed} height="h-1.5" />
                     <div className="flex items-center justify-between text-xs tabular-nums">
                       <span className="text-bridge-accent font-medium">
-                        {t("milestone.workProgress", {
-                          defaultValue: "체크리스트 진행 {{pct}}%",
+                        {t('milestone.workProgress', {
+                          defaultValue: '체크리스트 진행 {{pct}}%',
                           pct: selected.work,
                         })}
                       </span>
                       <span className="text-rose-500 dark:text-rose-400 font-medium">
-                        {t("milestone.elapsedProgress", {
-                          defaultValue: "기간 경과 {{pct}}%",
+                        {t('milestone.elapsedProgress', {
+                          defaultValue: '기간 경과 {{pct}}%',
                           pct: selected.elapsed,
                         })}
-                        {selected.status === "current" &&
+                        {selected.status === 'current' &&
                           selected.elapsed - selected.work >= 10 && (
                             <span className="text-slate-500">
-                              {" · "}
-                              {t("milestone.behindBy", {
-                                defaultValue: "{{n}}%p 뒤처짐",
+                              {' · '}
+                              {t('milestone.behindBy', {
+                                defaultValue: '{{n}}%p 뒤처짐',
                                 n: selected.elapsed - selected.work,
                               })}
                             </span>
@@ -1383,12 +1285,12 @@ export function MilestoneModal({
                           className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-foreground"
                         >
                           <ChevronDown className="h-3 w-3" />
-                          {t("milestone.descriptionLabel")}
+                          {t('milestone.descriptionLabel')}
                         </button>
                         <IconButton
                           onClick={() => setDescExpanded(true)}
-                          aria-label={t("milestone.descriptionExpand", {
-                            defaultValue: "크게 보기",
+                          aria-label={t('milestone.descriptionExpand', {
+                            defaultValue: '크게 보기',
                           })}
                           className="!h-8 !w-8 !min-h-0 !min-w-0 text-slate-400 hover:text-foreground"
                         >
@@ -1399,7 +1301,7 @@ export function MilestoneModal({
                         autoFocus
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
-                        placeholder={t("milestone.descriptionPlaceholder")}
+                        placeholder={t('milestone.descriptionPlaceholder')}
                         rows={3}
                         className="w-full bg-foreground/[0.03] border-foreground/10 rounded-xl p-3 text-sm text-foreground placeholder-slate-500 resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                       />
@@ -1413,12 +1315,12 @@ export function MilestoneModal({
                       <ChevronRight className="h-3 w-3 shrink-0 text-slate-500" />
                       {description.trim() ? (
                         <span className="min-w-0 truncate text-slate-400">
-                          {description.trim().split("\n")[0]}
+                          {description.trim().split('\n')[0]}
                         </span>
                       ) : (
                         <span className="text-slate-500">
-                          {t("milestone.addDescription", {
-                            defaultValue: "설명 추가",
+                          {t('milestone.addDescription', {
+                            defaultValue: '설명 추가',
                           })}
                         </span>
                       )}
@@ -1430,36 +1332,35 @@ export function MilestoneModal({
                 <div className="flex-1 overflow-y-auto px-5 py-3 custom-scrollbar">
                   <div className="flex flex-wrap items-center gap-2 mb-2">
                     <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                      {t("milestone.containedWork", {
-                        defaultValue: "담긴 작업",
+                      {t('milestone.containedWork', {
+                        defaultValue: '담긴 작업',
                       })}
                     </span>
                     <span className="text-xs text-slate-500">
-                      {t("milestone.derivedHint", {
-                        defaultValue: "태스크에서 자동 파생",
+                      {t('milestone.derivedHint', {
+                        defaultValue: '태스크에서 자동 파생',
                       })}
                     </span>
-                    {(selected.overdueItems > 0 ||
-                      selected.unassignedItems > 0) && (
+                    {(selected.overdueItems > 0 || selected.unassignedItems > 0) && (
                       <div className="ml-auto flex items-center gap-1">
                         {(
                           [
                             {
-                              key: "all",
-                              label: t("common.all", { defaultValue: "전체" }),
+                              key: 'all',
+                              label: t('common.all', { defaultValue: '전체' }),
                               n: selected.featureCount,
                             },
                             {
-                              key: "overdue",
-                              label: t("milestone.statusOverdue", {
-                                defaultValue: "지연",
+                              key: 'overdue',
+                              label: t('milestone.statusOverdue', {
+                                defaultValue: '지연',
                               }),
                               n: selected.overdueItems,
                             },
                             {
-                              key: "unassigned",
-                              label: t("milestone.unassigned", {
-                                defaultValue: "미배정",
+                              key: 'unassigned',
+                              label: t('milestone.unassigned', {
+                                defaultValue: '미배정',
                               }),
                               n: selected.unassignedItems,
                             },
@@ -1469,7 +1370,7 @@ export function MilestoneModal({
                             n: number;
                           }>
                         )
-                          .filter((f) => f.key === "all" || f.n > 0)
+                          .filter((f) => f.key === 'all' || f.n > 0)
                           .map((f) => (
                             <button
                               key={f.key}
@@ -1477,8 +1378,8 @@ export function MilestoneModal({
                               onClick={() => setWorkFilter(f.key)}
                               className={`rounded-full px-2.5 py-0.5 text-xs font-medium tabular-nums transition-colors ${
                                 workFilter === f.key
-                                  ? "bg-bridge-accent/15 text-bridge-accent"
-                                  : "border border-foreground/10 text-slate-400 hover:text-foreground"
+                                  ? 'bg-bridge-accent/15 text-bridge-accent'
+                                  : 'border border-foreground/10 text-slate-400 hover:text-foreground'
                               }`}
                             >
                               {f.label} {f.n}
@@ -1497,21 +1398,21 @@ export function MilestoneModal({
                         const unassigned = feature.unassigned_items ?? 0;
                         const totalItems = feature.total_items;
                         const completedItems = feature.completed_items;
-                        const hasItems = typeof totalItems === "number";
+                        const hasItems = typeof totalItems === 'number';
                         const subParts: string[] = [];
                         if (overdue > 0)
                           subParts.push(
-                            `${t("milestone.statusOverdue", { defaultValue: "지연" })} ${overdue}`,
+                            `${t('milestone.statusOverdue', { defaultValue: '지연' })} ${overdue}`,
                           );
                         if (unassigned > 0)
                           subParts.push(
-                            `${t("milestone.unassigned", { defaultValue: "미배정" })} ${unassigned}`,
+                            `${t('milestone.unassigned', { defaultValue: '미배정' })} ${unassigned}`,
                           );
                         if (spanning)
                           subParts.push(
-                            t("milestone.spanningHint", {
-                              defaultValue: "마일스톤 {{list}}에 걸침",
-                              list: spans.map((s) => s.order).join("·"),
+                            t('milestone.spanningHint', {
+                              defaultValue: '마일스톤 {{list}}에 걸침',
+                              list: spans.map((s) => s.order).join('·'),
                             }),
                           );
                         const clickable = !!onOpenFeature;
@@ -1519,21 +1420,15 @@ export function MilestoneModal({
                         return (
                           <Row
                             key={feature.id}
-                            type={clickable ? "button" : undefined}
-                            onClick={
-                              clickable
-                                ? () => openFeature(feature.id)
-                                : undefined
-                            }
-                            initial={
-                              reducedMotion ? false : { opacity: 0, y: 8 }
-                            }
+                            type={clickable ? 'button' : undefined}
+                            onClick={clickable ? () => openFeature(feature.id) : undefined}
+                            initial={reducedMotion ? false : { opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: idx * 0.04 }}
                             className={`grid w-full grid-cols-[10px_1fr_auto_auto_56px_16px] items-center gap-2.5 rounded-lg px-2 py-2 text-left ${
                               clickable
-                                ? "hover:bg-foreground/5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-accent/50"
-                                : ""
+                                ? 'hover:bg-foreground/5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-accent/50'
+                                : ''
                             }`}
                           >
                             <span
@@ -1549,11 +1444,11 @@ export function MilestoneModal({
                                 <span
                                   className={`block truncate text-xs ${
                                     overdue > 0
-                                      ? "text-amber-600 dark:text-amber-400"
-                                      : "text-slate-500"
+                                      ? 'text-amber-600 dark:text-amber-400'
+                                      : 'text-slate-500'
                                   }`}
                                 >
-                                  {subParts.join(" · ")}
+                                  {subParts.join(' · ')}
                                 </span>
                               )}
                             </span>
@@ -1567,8 +1462,8 @@ export function MilestoneModal({
                                       title={ms.title}
                                       className={`inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-md border px-1 text-xs font-bold tabular-nums ${
                                         isHere
-                                          ? "border-bridge-accent/50 bg-bridge-accent/15 text-bridge-accent"
-                                          : "border-foreground/10 bg-foreground/5 text-slate-400"
+                                          ? 'border-bridge-accent/50 bg-bridge-accent/15 text-bridge-accent'
+                                          : 'border-foreground/10 bg-foreground/5 text-slate-400'
                                       }`}
                                     >
                                       {ms.order}
@@ -1590,9 +1485,7 @@ export function MilestoneModal({
                               />
                             </span>
                             <span className="text-slate-500">
-                              {clickable && (
-                                <ChevronRight className="h-4 w-4" />
-                              )}
+                              {clickable && <ChevronRight className="h-4 w-4" />}
                             </span>
                           </Row>
                         );
@@ -1600,13 +1493,13 @@ export function MilestoneModal({
                     </div>
                   ) : (
                     <p className="rounded-xl border border-foreground/[0.08] bg-foreground/[0.02] px-4 py-6 text-center text-sm text-slate-400">
-                      {workFilter !== "all"
-                        ? t("milestone.noFilteredWork", {
-                            defaultValue: "조건에 맞는 피처가 없습니다.",
+                      {workFilter !== 'all'
+                        ? t('milestone.noFilteredWork', {
+                            defaultValue: '조건에 맞는 피처가 없습니다.',
                           })
-                        : t("milestone.noContainedWork", {
+                        : t('milestone.noContainedWork', {
                             defaultValue:
-                              "배정된 태스크가 없습니다. 마일스톤 보드·태스크에서 배정하세요.",
+                              '배정된 태스크가 없습니다. 마일스톤 보드·태스크에서 배정하세요.',
                           })}
                     </p>
                   )}
@@ -1617,14 +1510,14 @@ export function MilestoneModal({
               <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar">
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block">
-                    {t("milestone.titleLabel")} *
+                    {t('milestone.titleLabel')} *
                   </label>
                   <div className="relative">
                     <Input
                       autoFocus
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder={t("milestone.titlePlaceholder")}
+                      placeholder={t('milestone.titlePlaceholder')}
                       className="w-full bg-foreground/[0.03] border-foreground/10 rounded-xl py-3 px-4 pr-11 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                     />
                     <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
@@ -1635,7 +1528,7 @@ export function MilestoneModal({
 
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block">
-                    {t("milestone.periodLabel")} *
+                    {t('milestone.periodLabel')} *
                   </label>
                   <div className="flex items-center gap-3">
                     {periodTrigger}
@@ -1647,9 +1540,9 @@ export function MilestoneModal({
                         <span
                           key={i}
                           className={`flex items-center gap-1.5 text-xs ${
-                            h.kind === "overlap"
-                              ? "text-amber-600 dark:text-amber-400"
-                              : "text-slate-400"
+                            h.kind === 'overlap'
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-slate-400'
                           }`}
                         >
                           <AlertTriangle className="h-3 w-3" />
@@ -1663,12 +1556,12 @@ export function MilestoneModal({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold uppercase tracking-widest text-slate-400 block">
-                      {t("milestone.descriptionLabel")}
+                      {t('milestone.descriptionLabel')}
                     </label>
                     <IconButton
                       onClick={() => setDescExpanded(true)}
-                      aria-label={t("milestone.descriptionExpand", {
-                        defaultValue: "크게 보기",
+                      aria-label={t('milestone.descriptionExpand', {
+                        defaultValue: '크게 보기',
                       })}
                       className="!h-8 !w-8 !min-h-0 !min-w-0 text-slate-400 hover:text-foreground"
                     >
@@ -1678,7 +1571,7 @@ export function MilestoneModal({
                   <Textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder={t("milestone.descriptionPlaceholder")}
+                    placeholder={t('milestone.descriptionPlaceholder')}
                     rows={3}
                     className="w-full bg-foreground/[0.03] border-foreground/10 rounded-xl p-3 text-sm text-foreground placeholder-slate-500 resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                   />
@@ -1696,7 +1589,7 @@ export function MilestoneModal({
                   exit={reducedMotion ? undefined : { opacity: 0, y: 8 }}
                   transition={{ duration: 0.18 }}
                   className={`flex items-center gap-3 px-5 py-3 border-t border-foreground/[0.08] ${
-                    isDirty ? "bg-bridge-accent/[0.06]" : ""
+                    isDirty ? 'bg-bridge-accent/[0.06]' : ''
                   }`}
                 >
                   <span className="flex min-w-0 items-center gap-2 text-xs text-slate-400">
@@ -1705,22 +1598,22 @@ export function MilestoneModal({
                         <>
                           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-bridge-accent" />
                           <span className="truncate">
-                            {t("milestone.requiredHint", {
-                              defaultValue: "입력 필요",
+                            {t('milestone.requiredHint', {
+                              defaultValue: '입력 필요',
                             })}
-                            {": "}
+                            {': '}
                             {[
-                              !hasTitle && t("milestone.titleLabel"),
-                              !hasPeriod && t("milestone.periodLabel"),
+                              !hasTitle && t('milestone.titleLabel'),
+                              !hasPeriod && t('milestone.periodLabel'),
                             ]
                               .filter(Boolean)
-                              .join(" · ")}
+                              .join(' · ')}
                           </span>
                         </>
                       ) : (
                         <span className="text-slate-500">
-                          {t("milestone.ghostReady", {
-                            defaultValue: "생성 가능",
+                          {t('milestone.ghostReady', {
+                            defaultValue: '생성 가능',
                           })}
                         </span>
                       )
@@ -1728,13 +1621,13 @@ export function MilestoneModal({
                       <>
                         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-bridge-accent" />
                         <span className="truncate text-bridge-accent font-medium">
-                          {t("milestone.changedFields", {
-                            defaultValue: "변경 {{n}}",
+                          {t('milestone.changedFields', {
+                            defaultValue: '변경 {{n}}',
                             n: changedFields.length,
                           })}
                           <span className="text-slate-400 font-normal">
-                            {" · "}
-                            {changedFields.join(", ")}
+                            {' · '}
+                            {changedFields.join(', ')}
                           </span>
                         </span>
                       </>
@@ -1750,7 +1643,7 @@ export function MilestoneModal({
                         onClick={onClose}
                         className="px-3 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                       >
-                        {t("common.cancel")}
+                        {t('common.cancel')}
                       </button>
                     ) : (
                       <button
@@ -1758,7 +1651,7 @@ export function MilestoneModal({
                         onClick={revert}
                         className="px-3 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                       >
-                        {t("milestone.revert", { defaultValue: "되돌리기" })}
+                        {t('milestone.revert', { defaultValue: '되돌리기' })}
                       </button>
                     )}
                     <button
@@ -1767,16 +1660,14 @@ export function MilestoneModal({
                       disabled={!canSubmit}
                       className="inline-flex items-center gap-2 px-4 py-2 bg-bridge-accent text-white rounded-xl text-xs font-bold hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
                     >
-                      {isSaving && (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      )}
+                      {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                       {isSaving
-                        ? t("milestone.saving")
+                        ? t('milestone.saving')
                         : isEditMode
-                          ? t("milestone.saveChanges", {
-                              defaultValue: "변경 저장",
+                          ? t('milestone.saveChanges', {
+                              defaultValue: '변경 저장',
                             })
-                          : t("common.create")}
+                          : t('common.create')}
                     </button>
                   </div>
                 </motion.div>
@@ -1790,16 +1681,16 @@ export function MilestoneModal({
       <MotionModal
         open={descExpanded}
         onClose={() => setDescExpanded(false)}
-        aria-label={t("milestone.descriptionLabel")}
+        aria-label={t('milestone.descriptionLabel')}
         className="sm:max-w-3xl bg-bridge-dark p-0 overflow-hidden flex flex-col max-h-[85dvh]"
       >
         <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
           <span className="text-sm font-bold text-foreground">
-            {t("milestone.descriptionLabel")}
+            {t('milestone.descriptionLabel')}
           </span>
           <IconButton
             onClick={() => setDescExpanded(false)}
-            aria-label={t("common.close", { defaultValue: "닫기" })}
+            aria-label={t('common.close', { defaultValue: '닫기' })}
             className="text-slate-400 hover:text-foreground"
           >
             <X className="h-4 w-4" />
@@ -1810,7 +1701,7 @@ export function MilestoneModal({
             autoFocus
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder={t("milestone.descriptionPlaceholder")}
+            placeholder={t('milestone.descriptionPlaceholder')}
             className="w-full h-[60vh] bg-foreground/[0.03] border-foreground/10 rounded-xl p-3 text-sm text-foreground placeholder-slate-500 resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
           />
         </div>
@@ -1820,21 +1711,21 @@ export function MilestoneModal({
       <MotionModal
         open={!!pendingSelect}
         onClose={() => setPendingSelect(null)}
-        aria-label={t("milestone.unsavedTitle", {
-          defaultValue: "저장하지 않은 변경사항",
+        aria-label={t('milestone.unsavedTitle', {
+          defaultValue: '저장하지 않은 변경사항',
         })}
         className="sm:max-w-sm bg-bridge-obsidian p-0 overflow-hidden flex flex-col"
       >
         <div className="px-5 pt-5 pb-4">
           <h3 className="text-sm font-bold text-foreground">
-            {t("milestone.unsavedTitle", {
-              defaultValue: "저장하지 않은 변경사항",
+            {t('milestone.unsavedTitle', {
+              defaultValue: '저장하지 않은 변경사항',
             })}
           </h3>
           <p className="mt-2 text-xs text-slate-400 leading-relaxed">
-            {t("milestone.unsavedDesc", {
+            {t('milestone.unsavedDesc', {
               defaultValue:
-                "이 마일스톤의 변경사항을 저장할까요? 저장하지 않으면 변경 내용이 사라집니다.",
+                '이 마일스톤의 변경사항을 저장할까요? 저장하지 않으면 변경 내용이 사라집니다.',
             })}
           </p>
         </div>
@@ -1844,14 +1735,14 @@ export function MilestoneModal({
             onClick={() => setPendingSelect(null)}
             className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
           >
-            {t("common.cancel", { defaultValue: "취소" })}
+            {t('common.cancel', { defaultValue: '취소' })}
           </button>
           <button
             type="button"
             onClick={discardAndSelect}
             className="px-3 py-1.5 rounded-lg text-xs font-medium bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10 transition-colors"
           >
-            {t("milestone.discardAndMove", { defaultValue: "버리고 이동" })}
+            {t('milestone.discardAndMove', { defaultValue: '버리고 이동' })}
           </button>
           <button
             type="button"
@@ -1859,7 +1750,7 @@ export function MilestoneModal({
             disabled={isSaving}
             className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-colors disabled:opacity-50"
           >
-            {t("common.save", { defaultValue: "저장" })}
+            {t('common.save', { defaultValue: '저장' })}
           </button>
         </div>
       </MotionModal>
@@ -1868,26 +1759,24 @@ export function MilestoneModal({
       <MotionModal
         open={!!deleteTarget}
         onClose={() => (isDeleting ? undefined : setDeleteTarget(null))}
-        aria-label={t("common.delete")}
+        aria-label={t('common.delete')}
         className="sm:max-w-sm bg-bridge-obsidian p-0 overflow-hidden flex flex-col"
       >
         <div className="px-5 pt-5 pb-4">
           <h3 className="text-sm font-bold text-foreground">
-            {t("milestone.deleteTitle", {
-              defaultValue: "마일스톤을 삭제할까요?",
+            {t('milestone.deleteTitle', {
+              defaultValue: '마일스톤을 삭제할까요?',
             })}
           </h3>
           <p className="mt-2 text-xs text-slate-400 leading-relaxed">
-            <span className="font-medium text-foreground">
-              {deleteTarget?.title}
-            </span>
-            {" — "}
-            {t("milestone.deleteConfirm")}
+            <span className="font-medium text-foreground">{deleteTarget?.title}</span>
+            {' — '}
+            {t('milestone.deleteConfirm')}
             {(deleteTarget?.features?.length ?? 0) > 0 && (
               <>
-                {" "}
-                {t("milestone.deleteFeaturesHint", {
-                  defaultValue: "피처 {{n}}개의 마일스톤 배정이 해제됩니다.",
+                {' '}
+                {t('milestone.deleteFeaturesHint', {
+                  defaultValue: '피처 {{n}}개의 마일스톤 배정이 해제됩니다.',
                   n: deleteTarget?.features?.length ?? 0,
                 })}
               </>
@@ -1901,7 +1790,7 @@ export function MilestoneModal({
             disabled={isDeleting}
             className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
           >
-            {t("common.cancel", { defaultValue: "취소" })}
+            {t('common.cancel', { defaultValue: '취소' })}
           </button>
           <button
             type="button"
@@ -1910,7 +1799,7 @@ export function MilestoneModal({
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-red-500 hover:bg-red-500/90 transition-colors disabled:opacity-50"
           >
             {isDeleting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            {t("common.delete")}
+            {t('common.delete')}
           </button>
         </div>
       </MotionModal>

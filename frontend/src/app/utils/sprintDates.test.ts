@@ -20,7 +20,9 @@ describe('sprintDates', () => {
     it('parses yyyy-MM-dd as local midnight (no UTC shift)', () => {
       const d = parseDay('2026-09-02');
       expect(d).not.toBeNull();
-      expect([d!.getFullYear(), d!.getMonth(), d!.getDate(), d!.getHours()]).toEqual([2026, 8, 2, 0]);
+      expect([d!.getFullYear(), d!.getMonth(), d!.getDate(), d!.getHours()]).toEqual([
+        2026, 8, 2, 0,
+      ]);
     });
 
     it('uses only the first 10 characters of an ISO string', () => {

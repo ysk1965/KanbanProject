@@ -6,14 +6,7 @@ export const isAndroid = (): boolean => Capacitor.getPlatform() === 'android';
 export const isWeb = (): boolean => Capacitor.getPlatform() === 'web';
 
 export type InAppBrowserKind =
-  | 'kakaotalk'
-  | 'line'
-  | 'naver'
-  | 'instagram'
-  | 'facebook'
-  | 'band'
-  | 'daum'
-  | 'webview';
+  'kakaotalk' | 'line' | 'naver' | 'instagram' | 'facebook' | 'band' | 'daum' | 'webview';
 
 /**
  * Detect the in-app browser of a messenger/SNS app.
@@ -103,6 +96,11 @@ export const isChromeMobile = (): boolean => {
   // iOS Chrome
   if (/CriOS/i.test(ua)) return true;
   // Android Chrome (exclude in-app browsers)
-  if (/Android/i.test(ua) && /Chrome/i.test(ua) && !/KAKAOTALK|FBAN|FBAV|Instagram|Line\/|NAVER|Whale/i.test(ua)) return true;
+  if (
+    /Android/i.test(ua) &&
+    /Chrome/i.test(ua) &&
+    !/KAKAOTALK|FBAN|FBAV|Instagram|Line\/|NAVER|Whale/i.test(ua)
+  )
+    return true;
   return false;
 };

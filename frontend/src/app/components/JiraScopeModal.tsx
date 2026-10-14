@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from 'react';
 import {
   Loader2,
   Diamond,
@@ -8,15 +8,10 @@ import {
   Filter,
   FolderGit2,
   Copy,
-} from "lucide-react";
-import { MotionModal } from "./ui/MotionModal";
-import {
-  jiraAPI,
-  JiraMilestoneScope,
-  JiraAgileBoard,
-  JiraNameRef,
-} from "../utils/api";
-import { formatDateTime } from "../utils/dateUtils";
+} from 'lucide-react';
+import { MotionModal } from './ui/MotionModal';
+import { jiraAPI, JiraMilestoneScope, JiraAgileBoard, JiraNameRef } from '../utils/api';
+import { formatDateTime } from '../utils/dateUtils';
 
 interface JiraScopeModalProps {
   open: boolean;
@@ -32,8 +27,8 @@ interface JiraScopeModalProps {
   onSaved: () => void;
 }
 
-type Method = "jql" | "project";
-type Step = "method" | "target" | "done";
+type Method = 'jql' | 'project';
+type Step = 'method' | 'target' | 'done';
 
 /**
  * 마일스톤 JIRA 스코프 위저드.
@@ -54,19 +49,17 @@ export function JiraScopeModal({
   projectKey,
   onSaved,
 }: JiraScopeModalProps) {
-  const [step, setStep] = useState<Step>("method");
-  const [method, setMethod] = useState<Method>("jql");
+  const [step, setStep] = useState<Step>('method');
+  const [method, setMethod] = useState<Method>('jql');
 
   // 대상 입력값
-  const [jql, setJql] = useState("");
-  const [scopeProject, setScopeProject] = useState("");
-  const [agileBoardId, setAgileBoardId] = useState("");
-  const [writeBackStatusId, setWriteBackStatusId] = useState("");
+  const [jql, setJql] = useState('');
+  const [scopeProject, setScopeProject] = useState('');
+  const [agileBoardId, setAgileBoardId] = useState('');
+  const [writeBackStatusId, setWriteBackStatusId] = useState('');
 
   // 원격 데이터
-  const [currentScope, setCurrentScope] = useState<JiraMilestoneScope | null>(
-    null,
-  );
+  const [currentScope, setCurrentScope] = useState<JiraMilestoneScope | null>(null);
   const [allScopes, setAllScopes] = useState<JiraMilestoneScope[]>([]);
   const [agileBoards, setAgileBoards] = useState<JiraAgileBoard[] | null>(null);
   const [statuses, setStatuses] = useState<JiraNameRef[] | null>(null);
@@ -75,14 +68,12 @@ export function JiraScopeModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [savedResult, setSavedResult] = useState<JiraMilestoneScope | null>(
-    null,
-  );
+  const [savedResult, setSavedResult] = useState<JiraMilestoneScope | null>(null);
 
   // 모달을 열 때마다 스코프 목록을 불러와 현재 값으로 초기화한다.
   useEffect(() => {
     if (!open) return;
-    setStep("method");
+    setStep('method');
     setError(null);
     setSavedResult(null);
     setAgileBoards(null);
@@ -93,15 +84,15 @@ export function JiraScopeModal({
         setAllScopes(scopes);
         const mine = scopes.find((s) => s.milestone_id === milestoneId) ?? null;
         setCurrentScope(mine);
-        setJql(mine?.jql ?? "");
-        setScopeProject(mine?.project_key ?? "");
-        setAgileBoardId(mine?.agile_board_id ?? "");
-        setWriteBackStatusId(mine?.write_back_target_status_id ?? "");
+        setJql(mine?.jql ?? '');
+        setScopeProject(mine?.project_key ?? '');
+        setAgileBoardId(mine?.agile_board_id ?? '');
+        setWriteBackStatusId(mine?.write_back_target_status_id ?? '');
         if (mine) {
-          setMethod(mine.project_key ? "project" : "jql");
-          setStep("target"); // 편집은 대상 단계부터
+          setMethod(mine.project_key ? 'project' : 'jql');
+          setStep('target'); // 편집은 대상 단계부터
         } else {
-          setMethod("jql");
+          setMethod('jql');
         }
       })
       .catch(() => {
@@ -129,9 +120,7 @@ export function JiraScopeModal({
       } catch {
         setAgileBoards([]);
         setStatuses([]);
-        setError(
-          "프로젝트 정보를 불러오지 못했습니다. 프로젝트 키와 접근 권한을 확인해주세요",
-        );
+        setError('프로젝트 정보를 불러오지 못했습니다. 프로젝트 키와 접근 권한을 확인해주세요');
       } finally {
         setIsLoadingProject(false);
       }
@@ -141,17 +130,16 @@ export function JiraScopeModal({
 
   // 다른 마일스톤 스코프 복사 — 값을 채우고 대상 단계로
   const copyFrom = (src: JiraMilestoneScope) => {
-    setJql(src.jql ?? "");
-    setScopeProject(src.project_key ?? "");
-    setAgileBoardId(src.agile_board_id ?? "");
-    setWriteBackStatusId(src.write_back_target_status_id ?? "");
-    setMethod(src.project_key ? "project" : "jql");
-    setStep("target");
+    setJql(src.jql ?? '');
+    setScopeProject(src.project_key ?? '');
+    setAgileBoardId(src.agile_board_id ?? '');
+    setWriteBackStatusId(src.write_back_target_status_id ?? '');
+    setMethod(src.project_key ? 'project' : 'jql');
+    setStep('target');
     if (src.project_key) void loadProjectMeta(src.project_key);
   };
 
-  const canSave =
-    method === "jql" ? !!jql.trim() : !!scopeProject.trim();
+  const canSave = method === 'jql' ? !!jql.trim() : !!scopeProject.trim();
 
   const handleSave = async () => {
     if (!canSave || isSaving) return;
@@ -160,19 +148,18 @@ export function JiraScopeModal({
     try {
       const result = await jiraAPI.saveScope(boardId, milestoneId, {
         jql: jql.trim() || null,
-        projectKey: method === "project" ? scopeProject.trim() : null,
-        agileBoardId: method === "project" ? agileBoardId || null : null,
-        writeBackTargetStatusId:
-          method === "project" ? writeBackStatusId || null : null,
+        projectKey: method === 'project' ? scopeProject.trim() : null,
+        agileBoardId: method === 'project' ? agileBoardId || null : null,
+        writeBackTargetStatusId: method === 'project' ? writeBackStatusId || null : null,
       });
       setSavedResult(result);
-      setStep("done");
+      setStep('done');
       onSaved();
     } catch (e: unknown) {
       setError(
         e instanceof Error && e.message
           ? e.message
-          : "스코프 저장에 실패했습니다. 입력값을 확인해주세요",
+          : '스코프 저장에 실패했습니다. 입력값을 확인해주세요',
       );
     } finally {
       setIsSaving(false);
@@ -188,21 +175,14 @@ export function JiraScopeModal({
       onSaved();
       onClose();
     } catch (e: unknown) {
-      setError(
-        e instanceof Error && e.message
-          ? e.message
-          : "스코프 해제에 실패했습니다",
-      );
+      setError(e instanceof Error && e.message ? e.message : '스코프 해제에 실패했습니다');
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const copyCandidates = allScopes.filter(
-    (s) => s.milestone_id !== milestoneId,
-  );
-  const milestoneName = (id: string) =>
-    milestones.find((m) => m.id === id)?.title ?? id;
+  const copyCandidates = allScopes.filter((s) => s.milestone_id !== milestoneId);
+  const milestoneName = (id: string) => milestones.find((m) => m.id === id)?.title ?? id;
 
   const suggestions = [
     milestoneTitle ? `fixVersion = "${milestoneTitle}"` : null,
@@ -210,7 +190,7 @@ export function JiraScopeModal({
   ].filter((s): s is string => !!s);
 
   const inputCls =
-    "w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all";
+    'w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all';
 
   return (
     <MotionModal
@@ -226,22 +206,19 @@ export function JiraScopeModal({
           <Diamond className="w-4 h-4" />
         </span>
         <div className="min-w-0">
-          <h4
-            id="jira-scope-title"
-            className="text-sm font-bold text-foreground"
-          >
+          <h4 id="jira-scope-title" className="text-sm font-bold text-foreground">
             마일스톤 JIRA 스코프
           </h4>
           <p className="text-xs text-slate-500 truncate">
             {milestoneTitle
               ? `${milestoneTitle}의 JIRA 뷰가 비출 범위를 정합니다`
-              : "이 마일스톤의 JIRA 뷰가 비출 범위를 정합니다"}
+              : '이 마일스톤의 JIRA 뷰가 비출 범위를 정합니다'}
           </p>
         </div>
-        {step === "target" && !currentScope && (
+        {step === 'target' && !currentScope && (
           <button
             type="button"
-            onClick={() => setStep("method")}
+            onClick={() => setStep('method')}
             className="ml-auto inline-flex items-center gap-1 text-xs text-slate-400 hover:text-foreground transition-colors shrink-0"
           >
             <ChevronLeft className="w-3 h-3" />
@@ -252,20 +229,20 @@ export function JiraScopeModal({
 
       {/* Body */}
       <div className="px-5 pb-5 pt-4">
-        {step === "method" && (
+        {step === 'method' && (
           <div className="flex flex-col gap-2">
             <button
               type="button"
               onClick={() => {
-                setMethod("jql");
-                setStep("target");
+                setMethod('jql');
+                setStep('target');
               }}
               className="flex items-start gap-3 text-left p-3.5 rounded-xl bg-foreground/[0.03] border border-foreground/10 hover:border-bridge-accent/50 transition-colors"
             >
               <Filter className="w-4 h-4 text-bridge-secondary mt-0.5 shrink-0" />
               <span className="min-w-0">
                 <span className="block text-sm font-bold text-foreground">
-                  {projectKey ?? "보드 프로젝트"}에서 JQL로 좁히기
+                  {projectKey ?? '보드 프로젝트'}에서 JQL로 좁히기
                 </span>
                 <span className="block text-xs text-slate-500 mt-0.5">
                   같은 프로젝트를 마일스톤별로 나눠 봅니다 (예: fixVersion)
@@ -275,8 +252,8 @@ export function JiraScopeModal({
             <button
               type="button"
               onClick={() => {
-                setMethod("project");
-                setStep("target");
+                setMethod('project');
+                setStep('target');
               }}
               className="flex items-start gap-3 text-left p-3.5 rounded-xl bg-foreground/[0.03] border border-foreground/10 hover:border-bridge-accent/50 transition-colors"
             >
@@ -308,9 +285,9 @@ export function JiraScopeModal({
                         {milestoneName(s.milestone_id)}
                       </span>
                       <span className="text-xs text-slate-500 truncate">
-                        {s.project_key ? `◇ ${s.project_key}` : ""}
-                        {s.project_key && s.jql ? " · " : ""}
-                        {s.jql ?? ""}
+                        {s.project_key ? `◇ ${s.project_key}` : ''}
+                        {s.project_key && s.jql ? ' · ' : ''}
+                        {s.jql ?? ''}
                       </span>
                     </button>
                   ))}
@@ -320,7 +297,7 @@ export function JiraScopeModal({
           </div>
         )}
 
-        {step === "target" && method === "jql" && (
+        {step === 'target' && method === 'jql' && (
           <div>
             <label
               htmlFor="jira-scope-jql"
@@ -356,13 +333,13 @@ export function JiraScopeModal({
               </div>
             )}
             <p className="text-xs text-slate-600 mt-3">
-              연결된 {projectKey ?? "보드"} 프로젝트 안에서 좁힙니다. 저장 즉시
-              적용되며, JQL 오타는 저장 단계에서 바로 드러납니다.
+              연결된 {projectKey ?? '보드'} 프로젝트 안에서 좁힙니다. 저장 즉시 적용되며, JQL 오타는
+              저장 단계에서 바로 드러납니다.
             </p>
           </div>
         )}
 
-        {step === "target" && method === "project" && (
+        {step === 'target' && method === 'project' && (
           <div className="flex flex-col gap-3">
             <div>
               <label
@@ -386,11 +363,7 @@ export function JiraScopeModal({
                   disabled={!scopeProject.trim() || isLoadingProject}
                   className="shrink-0 px-3 rounded-xl text-xs font-bold bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10 transition-all disabled:opacity-50"
                 >
-                  {isLoadingProject ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    "불러오기"
-                  )}
+                  {isLoadingProject ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '불러오기'}
                 </button>
               </div>
               <p className="text-xs text-slate-600 mt-1">
@@ -459,43 +432,40 @@ export function JiraScopeModal({
                   ))}
                 </select>
                 <p className="text-xs text-slate-600 mt-1">
-                  BRIDGE에서 완료된 카드가 이 상태로 역동기화됩니다 (보드
-                  설정에서 완료 역동기화가 켜져 있어야 동작)
+                  BRIDGE에서 완료된 카드가 이 상태로 역동기화됩니다 (보드 설정에서 완료 역동기화가
+                  켜져 있어야 동작)
                 </p>
               </div>
             )}
           </div>
         )}
 
-        {step === "done" && savedResult && (
+        {step === 'done' && savedResult && (
           <div className="text-center py-4">
             <span className="w-12 h-12 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 grid place-items-center mx-auto mb-3">
               <Check className="w-6 h-6" />
             </span>
-            <p className="text-sm font-bold text-foreground mb-1">
-              스코프가 적용되었습니다
-            </p>
+            <p className="text-sm font-bold text-foreground mb-1">스코프가 적용되었습니다</p>
             <p className="text-xs text-slate-500">
-              {savedResult.project_key ? `◇ ${savedResult.project_key} · ` : ""}
+              {savedResult.project_key ? `◇ ${savedResult.project_key} · ` : ''}
               {savedResult.claimed_count}건 연결
-              {savedResult.mirror_ready ? " · 전용 미러 컬럼 준비됨" : ""}
+              {savedResult.mirror_ready ? ' · 전용 미러 컬럼 준비됨' : ''}
             </p>
             {savedResult.project_key && (
               <p className="text-xs text-amber-600 dark:text-amber-400 mt-3">
-                ⚠ 실시간 반영을 받으려면 {savedResult.project_key} 프로젝트에도
-                웹훅(Automation)을 등록하세요. 등록 전까지는 2분 폴링으로
-                동기화됩니다.
+                ⚠ 실시간 반영을 받으려면 {savedResult.project_key} 프로젝트에도 웹훅(Automation)을
+                등록하세요. 등록 전까지는 2분 폴링으로 동기화됩니다.
               </p>
             )}
           </div>
         )}
 
-        {currentScope && step === "target" && (
+        {currentScope && step === 'target' && (
           <p className="text-xs text-slate-600 mt-3 tabular-nums">
             현재 {currentScope.claimed_count}건 적용 중
             {currentScope.last_claimed_at
               ? ` · 마지막 동기화 ${formatDateTime(currentScope.last_claimed_at)}`
-              : ""}
+              : ''}
           </p>
         )}
 
@@ -510,7 +480,7 @@ export function JiraScopeModal({
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
         <div className="flex items-center gap-3">
           <span className="text-xs text-slate-600">Esc 닫기</span>
-          {currentScope && step !== "done" && (
+          {currentScope && step !== 'done' && (
             <button
               type="button"
               onClick={handleDelete}
@@ -526,7 +496,7 @@ export function JiraScopeModal({
             </button>
           )}
         </div>
-        {step === "target" && (
+        {step === 'target' && (
           <button
             type="button"
             onClick={handleSave}
@@ -535,13 +505,13 @@ export function JiraScopeModal({
           >
             {isSaving && <Loader2 className="w-3 h-3 animate-spin" />}
             {isSaving
-              ? method === "project"
-                ? "미러 셋업·가져오는 중…"
-                : "적용 중…"
-              : "저장 후 적용"}
+              ? method === 'project'
+                ? '미러 셋업·가져오는 중…'
+                : '적용 중…'
+              : '저장 후 적용'}
           </button>
         )}
-        {step === "done" && (
+        {step === 'done' && (
           <button
             type="button"
             onClick={onClose}

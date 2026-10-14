@@ -8,8 +8,8 @@
  */
 
 /** 로컬 개발 기본값 (VITE_API_BASE_URL 미설정 시) */
-const DEFAULT_API_BASE_URL = "http://localhost:8080/api/v1";
-const DEFAULT_API_ORIGIN = "http://localhost:8080";
+const DEFAULT_API_BASE_URL = 'http://localhost:8080/api/v1';
+const DEFAULT_API_ORIGIN = 'http://localhost:8080';
 
 /**
  * REST API 베이스 URL — `/api/v1` 로 끝나고 뒤 슬래시는 없다.
@@ -17,7 +17,7 @@ const DEFAULT_API_ORIGIN = "http://localhost:8080";
  */
 export const API_BASE_URL: string = (
   import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
-).replace(/\/$/, "");
+).replace(/\/$/, '');
 
 /**
  * 백엔드 origin(scheme + host[:port]) — 파일 상대 경로 해석, `/health` 조회,
@@ -36,16 +36,15 @@ export const API_ORIGIN: string = (() => {
  * WebSocket 베이스 — API_BASE_URL 에서 `/api/v1` 을 떼고 `http(s)://` → `ws(s)://`.
  * (의도적으로 문자열 치환이다: 상대 경로 설정이면 "" 가 되어 같은 origin 을 가리킨다)
  */
-export const WS_BASE_URL: string = API_BASE_URL.replace("/api/v1", "")
-  .replace("https://", "wss://")
-  .replace("http://", "ws://");
+export const WS_BASE_URL: string = API_BASE_URL.replace('/api/v1', '')
+  .replace('https://', 'wss://')
+  .replace('http://', 'ws://');
 
 /** 보드 실시간 동기화 STOMP 엔드포인트 */
 export const WS_URL = `${WS_BASE_URL}/ws`;
 
 /** 노트 실시간 협업(Yjs) WebSocket 엔드포인트 */
-export const collabWsUrl = (noteId: string): string =>
-  `${WS_BASE_URL}/ws-collab/${noteId}`;
+export const collabWsUrl = (noteId: string): string => `${WS_BASE_URL}/ws-collab/${noteId}`;
 
 /**
  * S3 직접 URL 을 리라이트할 CloudFront 도메인(호스트만, scheme 없음).

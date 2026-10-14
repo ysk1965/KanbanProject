@@ -1,20 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import {
-  Search,
-  ArrowRightLeft,
-  Check,
-  Loader2,
-  Filter,
-  ChevronDown,
-  X,
-} from "lucide-react";
-import { motion } from "framer-motion";
-import { toast } from "sonner";
-import { MotionModal } from "../ui/MotionModal";
-import { checklistAPI, taskAPI, type TaskResponse } from "../../utils/api";
-import type { Feature, Milestone } from "../../types";
-import { getTodayDateString } from "../../utils/dateUtils";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Search, ArrowRightLeft, Check, Loader2, Filter, ChevronDown, X } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { toast } from 'sonner';
+import { MotionModal } from '../ui/MotionModal';
+import { checklistAPI, taskAPI, type TaskResponse } from '../../utils/api';
+import type { Feature, Milestone } from '../../types';
+import { getTodayDateString } from '../../utils/dateUtils';
 
 interface MoveToTaskModalProps {
   open: boolean;
@@ -47,16 +39,14 @@ export function MoveToTaskModal({
   onMoved,
 }: MoveToTaskModalProps) {
   const { t } = useTranslation();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const [groups, setGroups] = useState<FeatureTaskGroup[]>([]);
   const [loading, setLoading] = useState(false);
   const [moving, setMoving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // ── Milestone filter (narrows visible features to those in selected milestone) ──
-  const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(
-    null,
-  );
+  const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
   const [showMilestoneDropdown, setShowMilestoneDropdown] = useState(false);
   const milestoneDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -76,11 +66,7 @@ export function MoveToTaskModal({
     }
     const today = getTodayDateString();
     const current = milestoneOptions.find(
-      (m) =>
-        m.start_date &&
-        m.end_date &&
-        m.start_date <= today &&
-        today <= m.end_date,
+      (m) => m.start_date && m.end_date && m.start_date <= today && today <= m.end_date,
     );
     setSelectedMilestoneId(current?.id ?? null);
   }, [open, milestoneOptions]);
@@ -104,8 +90,8 @@ export function MoveToTaskModal({
         setShowMilestoneDropdown(false);
       }
     };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, [showMilestoneDropdown]);
 
   // Fetch tasks for all features on mount
@@ -148,7 +134,7 @@ export function MoveToTaskModal({
 
   // Reset query when modal opens
   useEffect(() => {
-    if (open) setQuery("");
+    if (open) setQuery('');
   }, [open]);
 
   // Auto-focus search input
@@ -163,9 +149,7 @@ export function MoveToTaskModal({
     // 1) Narrow by selected milestone (if any).
     let result = groups;
     if (selectedMilestoneFeatureIds) {
-      result = result.filter((group) =>
-        selectedMilestoneFeatureIds.has(group.feature.id),
-      );
+      result = result.filter((group) => selectedMilestoneFeatureIds.has(group.feature.id));
     }
 
     // 2) Narrow by search query.
@@ -177,8 +161,7 @@ export function MoveToTaskModal({
         ...group,
         tasks: group.tasks.filter(
           (task) =>
-            task.title.toLowerCase().includes(q) ||
-            group.feature.title.toLowerCase().includes(q),
+            task.title.toLowerCase().includes(q) || group.feature.title.toLowerCase().includes(q),
         ),
       }))
       .filter((group) => group.tasks.length > 0);
@@ -192,11 +175,11 @@ export function MoveToTaskModal({
         await checklistAPI.moveToTask(boardId, item.taskId, item.id, {
           target_task_id: targetTaskId,
         });
-        toast.success(t("schedule.moveToTask.success", "이동 완료"));
+        toast.success(t('schedule.moveToTask.success', '이동 완료'));
         onMoved();
         onClose();
       } catch {
-        toast.error(t("common.error", "오류가 발생했습니다"));
+        toast.error(t('common.error', '오류가 발생했습니다'));
       } finally {
         setMoving(false);
       }
@@ -209,14 +192,14 @@ export function MoveToTaskModal({
       open={open}
       onClose={onClose}
       accentColor
-      aria-label={t("schedule.moveToTask.title", "태스크 이동")}
+      aria-label={t('schedule.moveToTask.title', '태스크 이동')}
     >
       {/* Header */}
       <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
         <ArrowRightLeft className="w-4 h-4 text-bridge-accent shrink-0" />
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-bold text-foreground">
-            {t("schedule.moveToTask.title", "태스크 이동")}
+            {t('schedule.moveToTask.title', '태스크 이동')}
           </h3>
           <p className="text-xs text-slate-500 truncate mt-0.5">{item.title}</p>
         </div>
@@ -231,10 +214,7 @@ export function MoveToTaskModal({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={t(
-              "schedule.moveToTask.searchPlaceholder",
-              "태스크 검색...",
-            )}
+            placeholder={t('schedule.moveToTask.searchPlaceholder', '태스크 검색...')}
             className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 pl-9 pr-3
               text-sm text-foreground placeholder-slate-500
               focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
@@ -254,9 +234,7 @@ export function MoveToTaskModal({
                 hover:bg-bridge-accent/15 transition-colors"
             >
               {(() => {
-                const ms = milestoneOptions.find(
-                  (m) => m.id === selectedMilestoneId,
-                );
+                const ms = milestoneOptions.find((m) => m.id === selectedMilestoneId);
                 return ms ? <span className="truncate">{ms.title}</span> : null;
               })()}
               <X size={12} className="shrink-0 ml-0.5" />
@@ -270,12 +248,10 @@ export function MoveToTaskModal({
                   text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
                 <Filter size={12} />
-                <span>
-                  {t("schedule.panel.filterMilestone", "마일스톤별 필터")}
-                </span>
+                <span>{t('schedule.panel.filterMilestone', '마일스톤별 필터')}</span>
                 <ChevronDown
                   size={10}
-                  className={`transition-transform ${showMilestoneDropdown ? "rotate-180" : ""}`}
+                  className={`transition-transform ${showMilestoneDropdown ? 'rotate-180' : ''}`}
                 />
               </button>
 
@@ -317,7 +293,7 @@ export function MoveToTaskModal({
           </div>
         ) : filteredGroups.length === 0 ? (
           <p className="text-xs text-slate-500 text-center py-12">
-            {t("schedule.moveToTask.noTasks", "태스크가 없습니다")}
+            {t('schedule.moveToTask.noTasks', '태스크가 없습니다')}
           </p>
         ) : (
           filteredGroups.map((group, gIdx) => (
@@ -335,9 +311,7 @@ export function MoveToTaskModal({
                   style={{ backgroundColor: group.feature.color }}
                 />
                 <span className="text-xs font-bold text-slate-400 truncate">
-                  {group.feature.inbox
-                    ? t("common.uncategorized", "미분류")
-                    : group.feature.title}
+                  {group.feature.inbox ? t('common.uncategorized', '미분류') : group.feature.title}
                 </span>
               </div>
 
@@ -353,8 +327,8 @@ export function MoveToTaskModal({
                     className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors
                       ${
                         isCurrent
-                          ? "bg-bridge-accent/10 text-bridge-accent cursor-default"
-                          : "text-foreground hover:bg-foreground/5 disabled:opacity-50"
+                          ? 'bg-bridge-accent/10 text-bridge-accent cursor-default'
+                          : 'text-foreground hover:bg-foreground/5 disabled:opacity-50'
                       }`}
                   >
                     <span className="flex-1 truncate">{task.title}</span>
@@ -362,7 +336,7 @@ export function MoveToTaskModal({
                       <span className="flex items-center gap-1 text-bridge-accent shrink-0">
                         <Check className="w-3.5 h-3.5" />
                         <span className="text-xs font-medium">
-                          {t("schedule.moveToTask.currentTask", "현재 태스크")}
+                          {t('schedule.moveToTask.currentTask', '현재 태스크')}
                         </span>
                       </span>
                     )}
@@ -376,15 +350,11 @@ export function MoveToTaskModal({
 
       {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-xs text-slate-500">
-          Esc {t("common.close", "닫기")}
-        </span>
-        {moving && (
-          <Loader2 className="w-4 h-4 animate-spin text-bridge-accent" />
-        )}
+        <span className="text-xs text-slate-500">Esc {t('common.close', '닫기')}</span>
+        {moving && <Loader2 className="w-4 h-4 animate-spin text-bridge-accent" />}
       </div>
     </MotionModal>
   );
 }
 
-MoveToTaskModal.displayName = "MoveToTaskModal";
+MoveToTaskModal.displayName = 'MoveToTaskModal';

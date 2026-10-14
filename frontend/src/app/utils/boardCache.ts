@@ -1,9 +1,7 @@
-import { Block, ChecklistItem } from "../types";
-import { boardService } from "./services";
+import { Block, ChecklistItem } from '../types';
+import { boardService } from './services';
 
-export type BoardFullData = Awaited<
-  ReturnType<typeof boardService.getBoardFull>
->;
+export type BoardFullData = Awaited<ReturnType<typeof boardService.getBoardFull>>;
 
 export interface BoardCacheEntry {
   fullData: BoardFullData;
@@ -29,7 +27,7 @@ export const boardCache = {
     }
     return entry;
   },
-  set(boardId: string, entry: Omit<BoardCacheEntry, "cachedAt">) {
+  set(boardId: string, entry: Omit<BoardCacheEntry, 'cachedAt'>) {
     cache.set(boardId, { ...entry, cachedAt: Date.now() });
   },
   clear(boardId: string) {

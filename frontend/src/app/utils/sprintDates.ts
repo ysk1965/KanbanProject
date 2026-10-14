@@ -7,7 +7,7 @@
  * toISOString()이 아니라 로컬 필드를 그대로 조립한다 — 같은 이유다.
  */
 
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'] as const;
 
 /** yyyy-MM-dd 또는 ISO 문자열의 앞 10자리 → 로컬 자정 Date. 파싱 불가면 null. */
 export function parseDay(value: string | null | undefined): Date | null {
@@ -20,8 +20,8 @@ export function parseDay(value: string | null | undefined): Date | null {
 
 /** 로컬 Date → yyyy-MM-dd (서버로 보내는 달력 날짜 표현) */
 export function toDayString(date: Date): string {
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
   return `${date.getFullYear()}-${mm}-${dd}`;
 }
 
@@ -39,10 +39,7 @@ export function diffDays(from: Date, to: Date): number {
 }
 
 /** 시작·끝을 포함한 기간 일수. 잘못된 순서면 0. */
-export function inclusiveDays(
-  start: Date | null,
-  end: Date | null,
-): number {
+export function inclusiveDays(start: Date | null, end: Date | null): number {
   if (!start || !end) return 0;
   const n = diffDays(start, end) + 1;
   return n > 0 ? n : 0;

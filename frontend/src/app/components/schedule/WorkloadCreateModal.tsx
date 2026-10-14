@@ -1,30 +1,19 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useTranslation } from "react-i18next";
-import { X, Loader2, Plus } from "lucide-react";
-import { calendarEventAPI } from "../../utils/api";
-import { Feature, Milestone } from "../../types";
-import { MotionModal } from "../ui/MotionModal";
-import { ChecklistCreatePanel } from "./ChecklistCreatePanel";
-import { expandDateRange } from "../../utils/workloadBar";
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { X, Loader2, Plus } from 'lucide-react';
+import { calendarEventAPI } from '../../utils/api';
+import { Feature, Milestone } from '../../types';
+import { MotionModal } from '../ui/MotionModal';
+import { ChecklistCreatePanel } from './ChecklistCreatePanel';
+import { expandDateRange } from '../../utils/workloadBar';
 
 // 빠른 선택 프리셋 — 이모지를 뗀 라벨이 그대로 내용에 들어간다
-const ABSENCE_PRESETS = [
-  "🏠 재택",
-  "🌴 휴가",
-  "⏰ 오전 반차",
-  "⏰ 오후 반차",
-  "✈️ 출장",
-];
-const HOLIDAY_WORK_PRESETS = [
-  "🛠 휴일근무",
-  "⏰ 오전만",
-  "⏰ 오후만",
-  "🏠 휴일 재택",
-];
+const ABSENCE_PRESETS = ['🏠 재택', '🌴 휴가', '⏰ 오전 반차', '⏰ 오후 반차', '✈️ 출장'];
+const HOLIDAY_WORK_PRESETS = ['🛠 휴일근무', '⏰ 오전만', '⏰ 오후만', '🏠 휴일 재택'];
 
 /** 개인 일정 탭 — 부재(근무일인데 없음) / 휴일근무(비근무일인데 있음) */
-type MemberTab = "absence" | "holidayWork";
-type Tab = "task" | MemberTab;
+type MemberTab = 'absence' | 'holidayWork';
+type Tab = 'task' | MemberTab;
 
 /** 탭별 문구·프리셋·색. 휴일근무는 보드 근무일과 같은 초록으로 "근무" 의미를 통일 */
 const MEMBER_TAB_META: Record<
@@ -49,47 +38,44 @@ const MEMBER_TAB_META: Record<
   }
 > = {
   absence: {
-    eventType: "ABSENCE",
-    icon: "🚶",
-    label: "부재",
-    subtitle: "부재 내용과 기간을 입력하세요",
+    eventType: 'ABSENCE',
+    icon: '🚶',
+    label: '부재',
+    subtitle: '부재 내용과 기간을 입력하세요',
     presets: ABSENCE_PRESETS,
-    placeholder: "예: 부산 출장 · 오전 반차 · 재택",
-    summaryLabel: "부재 표시",
-    summaryUnit: "일간 부재",
-    tabActive:
-      "border-bridge-secondary/60 bg-bridge-secondary/15 text-foreground",
-    chipActive:
-      "border-bridge-secondary/60 bg-bridge-secondary/15 text-bridge-secondary",
-    ring: "focus:ring-bridge-secondary/50",
-    badge: "bg-bridge-secondary/15 text-bridge-secondary",
-    summaryBox: "border-bridge-secondary/30 bg-bridge-secondary/[0.06]",
-    summaryStrong: "text-bridge-secondary",
-    submit: "bg-bridge-secondary hover:bg-bridge-secondary/90",
+    placeholder: '예: 부산 출장 · 오전 반차 · 재택',
+    summaryLabel: '부재 표시',
+    summaryUnit: '일간 부재',
+    tabActive: 'border-bridge-secondary/60 bg-bridge-secondary/15 text-foreground',
+    chipActive: 'border-bridge-secondary/60 bg-bridge-secondary/15 text-bridge-secondary',
+    ring: 'focus:ring-bridge-secondary/50',
+    badge: 'bg-bridge-secondary/15 text-bridge-secondary',
+    summaryBox: 'border-bridge-secondary/30 bg-bridge-secondary/[0.06]',
+    summaryStrong: 'text-bridge-secondary',
+    submit: 'bg-bridge-secondary hover:bg-bridge-secondary/90',
   },
   holidayWork: {
-    eventType: "HOLIDAY_WORK",
-    icon: "🛠",
-    label: "휴일근무",
-    subtitle: "주말·휴일에 이 멤버만 근무하는 날을 등록합니다",
+    eventType: 'HOLIDAY_WORK',
+    icon: '🛠',
+    label: '휴일근무',
+    subtitle: '주말·휴일에 이 멤버만 근무하는 날을 등록합니다',
     presets: HOLIDAY_WORK_PRESETS,
-    placeholder: "예: 빌드 대응 · 오전만 · 휴일 재택",
-    summaryLabel: "근무 표시",
-    summaryUnit: "일간 휴일근무",
-    tabActive: "border-emerald-500/60 bg-emerald-500/15 text-foreground",
-    chipActive:
-      "border-emerald-500/60 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-    ring: "focus:ring-emerald-500/50",
-    badge: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-    summaryBox: "border-emerald-500/30 bg-emerald-500/[0.06]",
-    summaryStrong: "text-emerald-600 dark:text-emerald-400",
-    submit: "bg-emerald-500 hover:bg-emerald-500/90",
+    placeholder: '예: 빌드 대응 · 오전만 · 휴일 재택',
+    summaryLabel: '근무 표시',
+    summaryUnit: '일간 휴일근무',
+    tabActive: 'border-emerald-500/60 bg-emerald-500/15 text-foreground',
+    chipActive: 'border-emerald-500/60 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+    ring: 'focus:ring-emerald-500/50',
+    badge: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+    summaryBox: 'border-emerald-500/30 bg-emerald-500/[0.06]',
+    summaryStrong: 'text-emerald-600 dark:text-emerald-400',
+    submit: 'bg-emerald-500 hover:bg-emerald-500/90',
   },
 };
 
 // "MM.DD" 축약
 function fmtShort(date: string): string {
-  return date.slice(5).replace("-", ".");
+  return date.slice(5).replace('-', '.');
 }
 
 // ─── Props ──────────────────────────────────────────────────────────────────
@@ -135,10 +121,10 @@ export function WorkloadCreateModal({
   const { t } = useTranslation();
 
   // 업무 / 부재 / 휴일근무 탭 (개인 일정은 멤버 행에서만 — assigneeId 있을 때)
-  const [tab, setTab] = useState<Tab>("task");
+  const [tab, setTab] = useState<Tab>('task');
 
   // ── 개인 일정 탭 상태 (부재·휴일근무 공용) ──
-  const [absTitle, setAbsTitle] = useState("");
+  const [absTitle, setAbsTitle] = useState('');
   const [absStart, setAbsStart] = useState(startDate);
   const [absEnd, setAbsEnd] = useState(dueDate);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -165,30 +151,29 @@ export function WorkloadCreateModal({
   // ── On open: reset. 드래그 범위가 전부 비근무일이면 휴일근무 탭을 먼저 연다 ──
   useEffect(() => {
     if (!open) return;
-    let initialTab: Tab = "task";
+    let initialTab: Tab = 'task';
     if (assigneeId && isOffDay && startDate && dueDate) {
       const days = expandDateRange(startDate, dueDate);
       if (days.length > 0 && days.every((ds) => isOffDay(ds))) {
-        initialTab = "holidayWork";
+        initialTab = 'holidayWork';
       }
     }
     setTab(initialTab);
-    setAbsTitle(initialTab === "holidayWork" ? "휴일근무" : "");
+    setAbsTitle(initialTab === 'holidayWork' ? '휴일근무' : '');
     setAbsStart(startDate);
     setAbsEnd(dueDate);
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const memberTab: MemberTab | null =
-    tab === "absence" || tab === "holidayWork" ? tab : null;
+  const memberTab: MemberTab | null = tab === 'absence' || tab === 'holidayWork' ? tab : null;
   const tabMeta = memberTab ? MEMBER_TAB_META[memberTab] : null;
 
   const switchMemberTab = (next: MemberTab) => {
     setTab(next);
     setError(null);
     // 프리셋 라벨은 탭 간 의미가 달라 비우고, 휴일근무는 기본 내용을 채워 둔다
-    setAbsTitle(next === "holidayWork" ? "휴일근무" : "");
+    setAbsTitle(next === 'holidayWork' ? '휴일근무' : '');
     setTimeout(() => absTitleInputRef.current?.focus(), 50);
   };
 
@@ -199,7 +184,7 @@ export function WorkloadCreateModal({
     const trimmed = absTitle.trim();
     if (!trimmed || !assigneeId || isSubmitting || !tabMeta) return;
     if (absEnd < absStart) {
-      setError(t("common.error", "An error occurred"));
+      setError(t('common.error', 'An error occurred'));
       return;
     }
     setIsSubmitting(true);
@@ -215,12 +200,12 @@ export function WorkloadCreateModal({
       onCreated();
       onClose();
     } catch (err) {
-      console.error("Failed to create member calendar event:", err);
+      console.error('Failed to create member calendar event:', err);
       const code = (err as { code?: string } | null)?.code;
       setError(
-        code === "CE002"
-          ? "같은 기간에 이미 부재 또는 휴일근무가 등록되어 있어요"
-          : t("common.error", "An error occurred"),
+        code === 'CE002'
+          ? '같은 기간에 이미 부재 또는 휴일근무가 등록되어 있어요'
+          : t('common.error', 'An error occurred'),
       );
     } finally {
       setIsSubmitting(false);
@@ -239,7 +224,7 @@ export function WorkloadCreateModal({
   ]);
 
   const handleAbsKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
       e.preventDefault();
       if (canSubmitMember) handleSubmitMember();
     }
@@ -254,63 +239,50 @@ export function WorkloadCreateModal({
   // 기간 성격 안내 — 휴일근무에 평일이 섞였거나, 부재가 전부 비근무일인 경우
   const rangeHint = (() => {
     if (!memberTab || !isOffDay || absDays <= 0) return null;
-    if (memberTab === "holidayWork" && weekdayCount > 0) {
+    if (memberTab === 'holidayWork' && weekdayCount > 0) {
       return {
-        tone: "warn" as const,
+        tone: 'warn' as const,
         text: `평일 ${weekdayCount}일이 포함되어 있어요. 휴일근무는 주말·휴일에만 표시됩니다.`,
       };
     }
-    if (memberTab === "absence" && offCount === absDays) {
+    if (memberTab === 'absence' && offCount === absDays) {
       return {
-        tone: "info" as const,
-        text: "주말·휴일만 포함된 기간이에요. 휴일근무를 등록하려던 게 아닌가요?",
+        tone: 'info' as const,
+        text: '주말·휴일만 포함된 기간이에요. 휴일근무를 등록하려던 게 아닌가요?',
       };
     }
     return null;
   })();
 
   return (
-    <MotionModal
-      open={open}
-      onClose={onClose}
-      className="w-full sm:max-w-[840px]"
-      accentColor
-    >
+    <MotionModal open={open} onClose={onClose} className="w-full sm:max-w-[840px]" accentColor>
       {/* Header */}
       <div className="flex items-start gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
-        <Plus
-          className="w-5 h-5 text-bridge-accent shrink-0 mt-0.5"
-          aria-hidden="true"
-        />
+        <Plus className="w-5 h-5 text-bridge-accent shrink-0 mt-0.5" aria-hidden="true" />
         <div className="flex-1 min-w-0">
           <h2 className="text-sm font-bold text-foreground">
-            {tabMeta
-              ? `${tabMeta.label} 추가`
-              : t("schedule.workloadCreate.title", "새 업무 추가")}
+            {tabMeta ? `${tabMeta.label} 추가` : t('schedule.workloadCreate.title', '새 업무 추가')}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             {tabMeta
               ? tabMeta.subtitle
-              : t(
-                  "schedule.workloadCreate.subtitle",
-                  "추가할 위치를 선택하세요",
-                )}
+              : t('schedule.workloadCreate.subtitle', '추가할 위치를 선택하세요')}
           </p>
         </div>
         {assigneeId && (
           <div className="flex gap-1.5 shrink-0">
             <button
               type="button"
-              onClick={() => setTab("task")}
+              onClick={() => setTab('task')}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                tab === "task"
-                  ? "border-bridge-accent/60 bg-bridge-accent/15 text-foreground"
-                  : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5"
+                tab === 'task'
+                  ? 'border-bridge-accent/60 bg-bridge-accent/15 text-foreground'
+                  : 'border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5'
               }`}
             >
               <Plus size={12} /> 업무
             </button>
-            {(["absence", "holidayWork"] as MemberTab[]).map((key) => {
+            {(['absence', 'holidayWork'] as MemberTab[]).map((key) => {
               const m = MEMBER_TAB_META[key];
               return (
                 <button
@@ -320,7 +292,7 @@ export function WorkloadCreateModal({
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
                     tab === key
                       ? m.tabActive
-                      : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5"
+                      : 'border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5'
                   }`}
                 >
                   {m.icon} {m.label}
@@ -331,7 +303,7 @@ export function WorkloadCreateModal({
         )}
         <button
           onClick={onClose}
-          aria-label={t("common.close", "Close")}
+          aria-label={t('common.close', 'Close')}
           className="p-1 rounded-lg text-slate-500 hover:text-foreground
             hover:bg-foreground/5 transition-colors"
         >
@@ -356,10 +328,10 @@ export function WorkloadCreateModal({
                   <span
                     className={`w-8 h-8 rounded-full shrink-0 text-xs font-bold flex items-center justify-center ${tabMeta.badge}`}
                   >
-                    {(assigneeName || "?").slice(0, 1)}
+                    {(assigneeName || '?').slice(0, 1)}
                   </span>
                   <span className="text-xs font-bold text-foreground truncate">
-                    {assigneeName || "이 멤버"}
+                    {assigneeName || '이 멤버'}
                   </span>
                 </div>
               </div>
@@ -395,15 +367,15 @@ export function WorkloadCreateModal({
                   <span
                     className={`shrink-0 text-xs font-bold px-2 py-1 rounded-full ${tabMeta.badge}`}
                   >
-                    {absDays > 0 ? `${absDays}일` : "—"}
+                    {absDays > 0 ? `${absDays}일` : '—'}
                   </span>
                 </div>
                 {rangeHint && (
                   <p
                     className={`text-xs mt-1.5 ${
-                      rangeHint.tone === "warn"
-                        ? "text-amber-600 dark:text-amber-400"
-                        : "text-slate-500"
+                      rangeHint.tone === 'warn'
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-slate-500'
                     }`}
                   >
                     {rangeHint.text}
@@ -419,7 +391,7 @@ export function WorkloadCreateModal({
               </label>
               <div className="flex flex-wrap gap-2">
                 {tabMeta.presets.map((preset) => {
-                  const label = preset.replace(/^\S+\s/, "");
+                  const label = preset.replace(/^\S+\s/, '');
                   const active = absTitle.trim() === label;
                   return (
                     <button
@@ -429,7 +401,7 @@ export function WorkloadCreateModal({
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors ${
                         active
                           ? tabMeta.chipActive
-                          : "border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5 hover:text-foreground"
+                          : 'border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:bg-foreground/5 hover:text-foreground'
                       }`}
                     >
                       {preset}
@@ -455,9 +427,7 @@ export function WorkloadCreateModal({
                   py-3 px-4 text-foreground placeholder-slate-500
                   focus:outline-none focus:ring-2 ${tabMeta.ring} transition-all`}
               />
-              <p className="text-xs text-slate-500 mt-1.5">
-                워크로드 바에 이 텍스트가 표시됩니다
-              </p>
+              <p className="text-xs text-slate-500 mt-1.5">워크로드 바에 이 텍스트가 표시됩니다</p>
             </div>
 
             <div className="flex-1" />
@@ -471,16 +441,16 @@ export function WorkloadCreateModal({
               </span>
               <span className="inline-flex items-center gap-1.5 max-w-[170px] text-xs font-bold text-foreground">
                 <span className="truncate">
-                  {tabMeta.icon} {assigneeName || "이 멤버"}
+                  {tabMeta.icon} {assigneeName || '이 멤버'}
                 </span>
               </span>
               {crumbSep}
               <span
                 className={`text-xs font-bold truncate max-w-[170px] ${
-                  absTitle.trim() ? "text-foreground" : "text-slate-500"
+                  absTitle.trim() ? 'text-foreground' : 'text-slate-500'
                 }`}
               >
-                {absTitle.trim() || "내용 입력"}
+                {absTitle.trim() || '내용 입력'}
               </span>
               {crumbSep}
               <span className="text-xs font-bold text-foreground">
@@ -489,7 +459,7 @@ export function WorkloadCreateModal({
               <span className="text-xs text-slate-500">
                 {absDays > 0 ? (
                   <>
-                    —{" "}
+                    —{' '}
                     <span className={`font-bold ${tabMeta.summaryStrong}`}>
                       {absDays}
                       {tabMeta.summaryUnit}
@@ -497,7 +467,7 @@ export function WorkloadCreateModal({
                     로 표시됩니다
                   </>
                 ) : (
-                  "— 종료일이 시작일보다 빠릅니다"
+                  '— 종료일이 시작일보다 빠릅니다'
                 )}
               </span>
             </div>
@@ -508,14 +478,14 @@ export function WorkloadCreateModal({
           {/* 개인 일정 Footer */}
           <div className="flex items-center gap-2.5 px-5 py-3 border-t border-foreground/[0.08]">
             <span className="text-xs text-slate-500 flex-1">
-              Esc {t("schedule.workloadCreate.cancel", "취소")}
+              Esc {t('schedule.workloadCreate.cancel', '취소')}
             </span>
             <button
               onClick={onClose}
               className="px-4 py-2 rounded-xl text-xs font-bold text-foreground
                 bg-foreground/5 border border-foreground/10 hover:bg-foreground/10 transition-all"
             >
-              {t("schedule.workloadCreate.cancel", "취소")}
+              {t('schedule.workloadCreate.cancel', '취소')}
             </button>
             <button
               onClick={handleSubmitMember}
@@ -526,7 +496,7 @@ export function WorkloadCreateModal({
               {isSubmitting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                t("schedule.workloadCreate.submit", "추가")
+                t('schedule.workloadCreate.submit', '추가')
               )}
             </button>
           </div>
@@ -534,7 +504,7 @@ export function WorkloadCreateModal({
       ) : (
         /* ── 업무 pane: 공용 생성 패널 ── */
         <ChecklistCreatePanel
-          open={open && tab === "task"}
+          open={open && tab === 'task'}
           boardId={boardId}
           features={features}
           milestones={milestones}

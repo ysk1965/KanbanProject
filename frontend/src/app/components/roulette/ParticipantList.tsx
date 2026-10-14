@@ -38,8 +38,15 @@ interface DraggableItemProps {
 }
 
 function DraggableItem({ id, participant, index, onRemove, disabled }: DraggableItemProps) {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
-    useSortable({ id, disabled });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id, disabled });
   const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
@@ -56,7 +63,9 @@ function DraggableItem({ id, participant, index, onRemove, disabled }: Draggable
           {...attributes}
           {...listeners}
           className={`text-gray-400 dark:text-gray-500 touch-none ${
-            disabled ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing hover:text-gray-600 dark:hover:text-gray-300'
+            disabled
+              ? 'cursor-not-allowed'
+              : 'cursor-grab active:cursor-grabbing hover:text-gray-600 dark:hover:text-gray-300'
           }`}
         >
           <GripVertical className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -81,7 +90,13 @@ function DraggableItem({ id, participant, index, onRemove, disabled }: Draggable
   );
 }
 
-export function ParticipantList({ participants, onAdd, onRemove, onReorder, isSpinning = false }: ParticipantListProps) {
+export function ParticipantList({
+  participants,
+  onAdd,
+  onRemove,
+  onReorder,
+  isSpinning = false,
+}: ParticipantListProps) {
   const [inputValue, setInputValue] = useState('');
   const { t } = useRouletteLanguage();
 
@@ -174,7 +189,8 @@ export function ParticipantList({ participants, onAdd, onRemove, onReorder, isSp
 
         {participants.length > 0 && (
           <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-4 text-center">
-            {participants.length}{t('participants')}
+            {participants.length}
+            {t('participants')}
           </p>
         )}
       </div>

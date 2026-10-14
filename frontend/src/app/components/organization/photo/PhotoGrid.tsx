@@ -149,9 +149,7 @@ export function PhotoGrid({
                         : 'border-white/60 bg-black/20'
                     }`}
                   >
-                    {selectedIds.has(photo.id) && (
-                      <Check size={12} className="text-white" />
-                    )}
+                    {selectedIds.has(photo.id) && <Check size={12} className="text-white" />}
                   </div>
                 </div>
               )}
@@ -178,10 +176,7 @@ export function PhotoGrid({
       {loading && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 mt-2">
           {Array.from({ length: 10 }).map((_, i) => (
-            <div
-              key={i}
-              className="aspect-square rounded-xl bg-foreground/5 animate-pulse"
-            />
+            <div key={i} className="aspect-square rounded-xl bg-foreground/5 animate-pulse" />
           ))}
         </div>
       )}

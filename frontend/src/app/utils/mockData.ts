@@ -54,9 +54,23 @@ export const mockBoards: Board[] = [
 // ========================================
 
 export const mockBlocks: Block[] = [
-  { id: 'feature', name: 'Feature', type: 'FIXED', fixed_type: 'FEATURE', color: null, position: 0 },
+  {
+    id: 'feature',
+    name: 'Feature',
+    type: 'FIXED',
+    fixed_type: 'FEATURE',
+    color: null,
+    position: 0,
+  },
   { id: 'task', name: 'Task', type: 'FIXED', fixed_type: 'TASK', color: null, position: 1 },
-  { id: 'in-progress', name: 'In Progress', type: 'CUSTOM', fixed_type: null, color: '#3B82F6', position: 2 },
+  {
+    id: 'in-progress',
+    name: 'In Progress',
+    type: 'CUSTOM',
+    fixed_type: null,
+    color: '#3B82F6',
+    position: 2,
+  },
   { id: 'done', name: 'Done', type: 'FIXED', fixed_type: 'DONE', color: null, position: 999 },
 ];
 

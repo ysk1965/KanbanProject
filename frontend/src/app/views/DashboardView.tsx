@@ -1,33 +1,22 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type CSSProperties,
-} from "react";
-import { useTranslation } from "react-i18next";
-import { useSearchParams } from "react-router-dom";
-import type {
-  BoardWebSocketEvent,
-  Feature,
-  JobRole,
-  Milestone,
-} from "../types";
-import type { BoardMember as ShareBoardMember } from "../components/ShareBoardModal";
-import { buildMilestoneColorMap } from "../utils/milestoneColor";
-import { useAxisRefresh } from "../utils/axisTransfer";
-import { DashboardScopeRow } from "../components/boarddashboard/DashboardScopeRow";
-import { MyWorkloadWidget } from "../components/boarddashboard/MyWorkloadWidget";
-import { TodayTimeblockWidget } from "../components/boarddashboard/TodayTimeblockWidget";
-import { SplitHandle } from "../components/boarddashboard/SplitHandle";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
+import type { BoardWebSocketEvent, Feature, JobRole, Milestone } from '../types';
+import type { BoardMember as ShareBoardMember } from '../components/ShareBoardModal';
+import { buildMilestoneColorMap } from '../utils/milestoneColor';
+import { useAxisRefresh } from '../utils/axisTransfer';
+import { DashboardScopeRow } from '../components/boarddashboard/DashboardScopeRow';
+import { MyWorkloadWidget } from '../components/boarddashboard/MyWorkloadWidget';
+import { TodayTimeblockWidget } from '../components/boarddashboard/TodayTimeblockWidget';
+import { SplitHandle } from '../components/boarddashboard/SplitHandle';
 import {
   MIN_TIMEBLOCK_WIDTH,
   TIMEBLOCK_WIDTH_VAR,
   useTimeblockColumnSplit,
-} from "../components/boarddashboard/dashboardSplit";
+} from '../components/boarddashboard/dashboardSplit';
 
 /** 대시보드 스코프 딥링크 파라미터 (?member= 는 칸반 담당자 필터가 이미 쓰고 있다) */
-const SCOPE_PARAM = "scope";
+const SCOPE_PARAM = 'scope';
 
 interface DashboardViewProps {
   boardId: string;
@@ -133,14 +122,11 @@ export function DashboardView({
   useAxisRefresh(useCallback(() => setAxisRefreshTick((v) => v + 1), []));
 
   // 마일스톤 id → 색 (일정 탭과 같은 규칙으로 만들어 색 일관성 유지)
-  const milestoneColorMap = useMemo(
-    () => buildMilestoneColorMap(milestones),
-    [milestones],
-  );
+  const milestoneColorMap = useMemo(() => buildMilestoneColorMap(milestones), [milestones]);
 
   // 뷰어는 타임블록·워크로드에 열이 생기지 않으므로 선택 대상에서 뺀다
   const selectableMembers = useMemo(
-    () => boardMembersData.filter((m) => m.role !== "viewer"),
+    () => boardMembersData.filter((m) => m.role !== 'viewer'),
     [boardMembersData],
   );
 
@@ -152,8 +138,7 @@ export function DashboardView({
   // 멤버 목록이 늦게 도착하므로, 도착한 뒤 유효하지 않은 스코프는 나로 되돌린다
   useEffect(() => {
     if (!selectableMembers.length) return;
-    const valid =
-      scopeUserId && selectableMembers.some((m) => m.userId === scopeUserId);
+    const valid = scopeUserId && selectableMembers.some((m) => m.userId === scopeUserId);
     if (!valid && scopeUserId !== userId) setScopeUserId(userId);
   }, [selectableMembers, scopeUserId, userId]);
 
@@ -176,7 +161,7 @@ export function DashboardView({
   );
 
   // 남의 대시보드는 읽기 전용 — 기존 뷰어 게이팅을 그대로 재사용한다
-  const effectiveRole = isOtherScope ? "viewer" : currentUserRole;
+  const effectiveRole = isOtherScope ? 'viewer' : currentUserRole;
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-bridge-dark">
@@ -206,7 +191,7 @@ export function DashboardView({
         {/* 스코프 행이 없을 때는 원래대로 위 여백을 준다 */}
         <div
           className={`xl:h-full px-3 md:px-5 pb-3 md:pb-5 ${
-            selectableMembers.length > 1 ? "" : "pt-3 md:pt-5"
+            selectableMembers.length > 1 ? '' : 'pt-3 md:pt-5'
           }`}
         >
           {/* 오늘 │ (워크로드 + 배치 대기) │ 백로그 */}
@@ -216,9 +201,7 @@ export function DashboardView({
           */}
           <div
             ref={gridRef}
-            style={
-              { [TIMEBLOCK_WIDTH_VAR]: `${timeblockWidth}px` } as CSSProperties
-            }
+            style={{ [TIMEBLOCK_WIDTH_VAR]: `${timeblockWidth}px` } as CSSProperties}
             /* 변수명은 리터럴로 적는다 — Tailwind 스캐너가 문자열을 그대로 읽는다 */
             className="grid grid-cols-1 gap-3 xl:h-full xl:min-h-0 xl:gap-0
               xl:grid-cols-[var(--dash-timeblock-w)_auto_minmax(0,1fr)]"
@@ -248,7 +231,7 @@ export function DashboardView({
               value={timeblockWidth}
               min={MIN_TIMEBLOCK_WIDTH}
               max={maxTimeblockWidth}
-              label={t("boardDashboard.splitColumns", "타임블록 열 폭 조절")}
+              label={t('boardDashboard.splitColumns', '타임블록 열 폭 조절')}
               onPointerDown={onColumnPointerDown}
               onKeyDown={onColumnKeyDown}
               onReset={resetColumnSplit}
@@ -271,9 +254,7 @@ export function DashboardView({
                 currentUserRole={effectiveRole}
                 onViewTask={onViewTaskWithChecklist}
                 onMilestoneClick={onMilestoneClick}
-                onUpdateMilestoneDates={
-                  isOtherScope ? undefined : onUpdateMilestoneDates
-                }
+                onUpdateMilestoneDates={isOtherScope ? undefined : onUpdateMilestoneDates}
                 onOpenContractorManager={onOpenContractorManager}
                 onOpenResourceView={onOpenResourceView}
                 onOpenKanban={onOpenKanban}

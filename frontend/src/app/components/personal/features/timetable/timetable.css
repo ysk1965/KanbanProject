@@ -188,12 +188,30 @@ table.tt-table tr.tt-drop-after td:not(.tt-rowctl)::after {
 .tt-cell[contenteditable='true']:focus {
   box-shadow: inset 0 0 0 2px rgba(99, 102, 241, 0.5);
 }
-.tt-cell.c-red { color: var(--tt-red); font-weight: 700; }
-.tt-cell.c-orange { color: var(--tt-orange); font-weight: 700; }
-.tt-cell.c-purple { color: var(--tt-purple); font-weight: 700; }
-.tt-cell.c-yellow { color: var(--tt-yellow); font-weight: 700; }
-.tt-cell.c-green { color: var(--tt-green); font-weight: 700; }
-.tt-cell.c-blue { color: var(--tt-blue); font-weight: 700; }
+.tt-cell.c-red {
+  color: var(--tt-red);
+  font-weight: 700;
+}
+.tt-cell.c-orange {
+  color: var(--tt-orange);
+  font-weight: 700;
+}
+.tt-cell.c-purple {
+  color: var(--tt-purple);
+  font-weight: 700;
+}
+.tt-cell.c-yellow {
+  color: var(--tt-yellow);
+  font-weight: 700;
+}
+.tt-cell.c-green {
+  color: var(--tt-green);
+  font-weight: 700;
+}
+.tt-cell.c-blue {
+  color: var(--tt-blue);
+  font-weight: 700;
+}
 
 /* 병합된 대표 셀 */
 table.tt-table td.tt-merged {
@@ -298,12 +316,24 @@ table.tt-table td.tt-overlap::before {
   background: var(--tt-line-strong);
   flex: none;
 }
-.tt-sugg-dot.c-red { background: var(--tt-red); }
-.tt-sugg-dot.c-orange { background: var(--tt-orange); }
-.tt-sugg-dot.c-purple { background: var(--tt-purple); }
-.tt-sugg-dot.c-yellow { background: var(--tt-yellow); }
-.tt-sugg-dot.c-green { background: var(--tt-green); }
-.tt-sugg-dot.c-blue { background: var(--tt-blue); }
+.tt-sugg-dot.c-red {
+  background: var(--tt-red);
+}
+.tt-sugg-dot.c-orange {
+  background: var(--tt-orange);
+}
+.tt-sugg-dot.c-purple {
+  background: var(--tt-purple);
+}
+.tt-sugg-dot.c-yellow {
+  background: var(--tt-yellow);
+}
+.tt-sugg-dot.c-green {
+  background: var(--tt-green);
+}
+.tt-sugg-dot.c-blue {
+  background: var(--tt-blue);
+}
 
 /* ─────────────────────────────────────────────────────────────
    종이 (PDF) — TimetablePrintSheet
@@ -320,7 +350,13 @@ table.tt-table td.tt-overlap::before {
   --tt-mono: ui-monospace, 'SF Mono', Menlo, 'D2Coding', monospace;
   background: #fff;
   color: var(--tt-p-ink);
-  font-family: 'Pretendard', 'Noto Sans KR', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  font-family:
+    'Pretendard',
+    'Noto Sans KR',
+    -apple-system,
+    'Apple SD Gothic Neo',
+    'Malgun Gothic',
+    sans-serif;
   padding: 0;
   font-variant-numeric: tabular-nums;
 }
@@ -500,12 +536,30 @@ table.tt-table td.tt-overlap::before {
   background: repeating-linear-gradient(45deg, #fafafa 0 6px, #f0f0f0 6px 12px);
 }
 /* 셀 색: 색이 있으면 굵게 (흑백 복사에서도 구분되도록) */
-.tt-paper td.c-red { color: #e60012; font-weight: 700; }
-.tt-paper td.c-orange { color: #f0801a; font-weight: 700; }
-.tt-paper td.c-purple { color: #c026d3; font-weight: 700; }
-.tt-paper td.c-yellow { color: #d19d00; font-weight: 700; }
-.tt-paper td.c-green { color: #16a34a; font-weight: 700; }
-.tt-paper td.c-blue { color: #2563eb; font-weight: 700; }
+.tt-paper td.c-red {
+  color: #e60012;
+  font-weight: 700;
+}
+.tt-paper td.c-orange {
+  color: #f0801a;
+  font-weight: 700;
+}
+.tt-paper td.c-purple {
+  color: #c026d3;
+  font-weight: 700;
+}
+.tt-paper td.c-yellow {
+  color: #d19d00;
+  font-weight: 700;
+}
+.tt-paper td.c-green {
+  color: #16a34a;
+  font-weight: 700;
+}
+.tt-paper td.c-blue {
+  color: #2563eb;
+  font-weight: 700;
+}
 
 @page {
   size: A4 landscape;

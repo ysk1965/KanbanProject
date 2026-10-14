@@ -1,4 +1,4 @@
-import { getTodayDateString } from "./dateUtils";
+import { getTodayDateString } from './dateUtils';
 
 /**
  * 새 문서 템플릿 — BlockNote PartialBlock[] JSON 문자열을 만든다.
@@ -14,7 +14,7 @@ import { getTodayDateString } from "./dateUtils";
 type Translate = (key: string, defaultValue: string) => string;
 
 export interface NoteTemplate {
-  id: "meeting" | "retro" | "spec" | "weekly";
+  id: 'meeting' | 'retro' | 'spec' | 'weekly';
   labelKey: string;
   defaultLabel: string;
   descriptionKey: string;
@@ -23,7 +23,7 @@ export interface NoteTemplate {
   build: (t: Translate) => { title: string; content: string };
 }
 
-type Inline = string | { type: "text"; text: string; styles: Record<string, boolean> };
+type Inline = string | { type: 'text'; text: string; styles: Record<string, boolean> };
 
 interface PartialBlock {
   type: string;
@@ -33,55 +33,55 @@ interface PartialBlock {
 }
 
 interface TableContent {
-  type: "tableContent";
+  type: 'tableContent';
   rows: { cells: Inline[][] }[];
 }
 
 const heading = (text: string, level: 1 | 2 | 3 = 2): PartialBlock => ({
-  type: "heading",
+  type: 'heading',
   props: { level },
   content: text,
 });
 
-const paragraph = (text = ""): PartialBlock => ({
-  type: "paragraph",
+const paragraph = (text = ''): PartialBlock => ({
+  type: 'paragraph',
   content: text,
 });
 
-const bullet = (text = ""): PartialBlock => ({
-  type: "bulletListItem",
+const bullet = (text = ''): PartialBlock => ({
+  type: 'bulletListItem',
   content: text,
 });
 
-const check = (text = ""): PartialBlock => ({
-  type: "checkListItem",
+const check = (text = ''): PartialBlock => ({
+  type: 'checkListItem',
   props: { checked: false },
   content: text,
 });
 
 const callout = (
   text: string,
-  type: "info" | "warning" | "success" | "error" = "info",
+  type: 'info' | 'warning' | 'success' | 'error' = 'info',
 ): PartialBlock => ({
-  type: "callout",
+  type: 'callout',
   props: { type },
   content: text,
 });
 
 const bold = (text: string): Inline => ({
-  type: "text",
+  type: 'text',
   text,
   styles: { bold: true },
 });
 
 const table = (headers: string[], bodyRows = 2): PartialBlock => ({
-  type: "table",
+  type: 'table',
   content: {
-    type: "tableContent",
+    type: 'tableContent',
     rows: [
       { cells: headers.map((h) => [bold(h)]) },
       ...Array.from({ length: bodyRows }, () => ({
-        cells: headers.map(() => [""] as Inline[]),
+        cells: headers.map(() => [''] as Inline[]),
       })),
     ],
   },
@@ -91,25 +91,25 @@ const serialize = (blocks: PartialBlock[]) => JSON.stringify(blocks);
 
 export const NOTE_TEMPLATES: NoteTemplate[] = [
   {
-    id: "meeting",
-    labelKey: "notes.templates.meeting",
-    defaultLabel: "회의록",
-    descriptionKey: "notes.templates.meetingDesc",
-    defaultDescription: "안건 · 결정 사항 · 액션 아이템",
+    id: 'meeting',
+    labelKey: 'notes.templates.meeting',
+    defaultLabel: '회의록',
+    descriptionKey: 'notes.templates.meetingDesc',
+    defaultDescription: '안건 · 결정 사항 · 액션 아이템',
     build: (t) => {
       const today = getTodayDateString();
       return {
-        title: `${t("notes.templates.meeting", "회의록")} ${today}`,
+        title: `${t('notes.templates.meeting', '회의록')} ${today}`,
         content: serialize([
-          heading(t("notes.templates.meeting", "회의록"), 1),
-          paragraph(`${t("notes.templates.date", "날짜")}: ${today}`),
-          paragraph(`${t("notes.templates.attendees", "참석자")}: `),
-          heading(t("notes.templates.agenda", "안건")),
+          heading(t('notes.templates.meeting', '회의록'), 1),
+          paragraph(`${t('notes.templates.date', '날짜')}: ${today}`),
+          paragraph(`${t('notes.templates.attendees', '참석자')}: `),
+          heading(t('notes.templates.agenda', '안건')),
           bullet(),
           bullet(),
-          heading(t("notes.templates.decisions", "결정 사항")),
+          heading(t('notes.templates.decisions', '결정 사항')),
           bullet(),
-          heading(t("notes.templates.actionItems", "액션 아이템")),
+          heading(t('notes.templates.actionItems', '액션 아이템')),
           check(),
           check(),
           paragraph(),
@@ -118,21 +118,21 @@ export const NOTE_TEMPLATES: NoteTemplate[] = [
     },
   },
   {
-    id: "retro",
-    labelKey: "notes.templates.retro",
-    defaultLabel: "스프린트 회고",
-    descriptionKey: "notes.templates.retroDesc",
-    defaultDescription: "잘한 점 · 아쉬운 점 · 시도할 것",
+    id: 'retro',
+    labelKey: 'notes.templates.retro',
+    defaultLabel: '스프린트 회고',
+    descriptionKey: 'notes.templates.retroDesc',
+    defaultDescription: '잘한 점 · 아쉬운 점 · 시도할 것',
     build: (t) => {
-      const good = t("notes.templates.wentWell", "잘한 점");
-      const bad = t("notes.templates.toImprove", "아쉬운 점");
-      const next = t("notes.templates.toTry", "시도할 것");
+      const good = t('notes.templates.wentWell', '잘한 점');
+      const bad = t('notes.templates.toImprove', '아쉬운 점');
+      const next = t('notes.templates.toTry', '시도할 것');
       return {
-        title: t("notes.templates.retro", "스프린트 회고"),
+        title: t('notes.templates.retro', '스프린트 회고'),
         content: serialize([
-          heading(t("notes.templates.retro", "스프린트 회고"), 1),
+          heading(t('notes.templates.retro', '스프린트 회고'), 1),
           paragraph(
-            `${t("notes.templates.sprint", "스프린트")}: · ${t("notes.templates.date", "날짜")}: ${getTodayDateString()}`,
+            `${t('notes.templates.sprint', '스프린트')}: · ${t('notes.templates.date', '날짜')}: ${getTodayDateString()}`,
           ),
           heading(good),
           bullet(),
@@ -140,7 +140,7 @@ export const NOTE_TEMPLATES: NoteTemplate[] = [
           bullet(),
           heading(next),
           bullet(),
-          heading(t("notes.templates.summaryTable", "한눈에 보기")),
+          heading(t('notes.templates.summaryTable', '한눈에 보기')),
           table([good, bad, next]),
           paragraph(),
         ]),
@@ -148,53 +148,56 @@ export const NOTE_TEMPLATES: NoteTemplate[] = [
     },
   },
   {
-    id: "spec",
-    labelKey: "notes.templates.spec",
-    defaultLabel: "기획서",
-    descriptionKey: "notes.templates.specDesc",
-    defaultDescription: "배경 · 목표 · 범위 · 일정 · 리스크",
+    id: 'spec',
+    labelKey: 'notes.templates.spec',
+    defaultLabel: '기획서',
+    descriptionKey: 'notes.templates.specDesc',
+    defaultDescription: '배경 · 목표 · 범위 · 일정 · 리스크',
     build: (t) => ({
-      title: t("notes.templates.spec", "기획서"),
+      title: t('notes.templates.spec', '기획서'),
       content: serialize([
-        heading(t("notes.templates.spec", "기획서"), 1),
-        heading(t("notes.templates.background", "배경")),
+        heading(t('notes.templates.spec', '기획서'), 1),
+        heading(t('notes.templates.background', '배경')),
         paragraph(),
-        heading(t("notes.templates.goal", "목표")),
+        heading(t('notes.templates.goal', '목표')),
         callout(
-          t("notes.templates.goalHint", "이 기획으로 달성하려는 핵심 목표를 한 문장으로 적어주세요."),
-          "info",
+          t(
+            'notes.templates.goalHint',
+            '이 기획으로 달성하려는 핵심 목표를 한 문장으로 적어주세요.',
+          ),
+          'info',
         ),
         paragraph(),
-        heading(t("notes.templates.scope", "범위")),
-        bullet(`${t("notes.templates.inScope", "포함")}: `),
-        bullet(`${t("notes.templates.outOfScope", "제외")}: `),
-        heading(t("notes.templates.schedule", "일정")),
+        heading(t('notes.templates.scope', '범위')),
+        bullet(`${t('notes.templates.inScope', '포함')}: `),
+        bullet(`${t('notes.templates.outOfScope', '제외')}: `),
+        heading(t('notes.templates.schedule', '일정')),
         paragraph(),
-        heading(t("notes.templates.risks", "리스크")),
+        heading(t('notes.templates.risks', '리스크')),
         bullet(),
         paragraph(),
       ]),
     }),
   },
   {
-    id: "weekly",
-    labelKey: "notes.templates.weekly",
-    defaultLabel: "주간 보고",
-    descriptionKey: "notes.templates.weeklyDesc",
-    defaultDescription: "이번 주 진행 · 다음 주 계획 · 이슈",
+    id: 'weekly',
+    labelKey: 'notes.templates.weekly',
+    defaultLabel: '주간 보고',
+    descriptionKey: 'notes.templates.weeklyDesc',
+    defaultDescription: '이번 주 진행 · 다음 주 계획 · 이슈',
     build: (t) => {
       const today = getTodayDateString();
       return {
-        title: `${t("notes.templates.weekly", "주간 보고")} ${today}`,
+        title: `${t('notes.templates.weekly', '주간 보고')} ${today}`,
         content: serialize([
-          heading(t("notes.templates.weekly", "주간 보고"), 1),
-          paragraph(`${t("notes.templates.date", "날짜")}: ${today}`),
-          heading(t("notes.templates.thisWeek", "이번 주 진행")),
+          heading(t('notes.templates.weekly', '주간 보고'), 1),
+          paragraph(`${t('notes.templates.date', '날짜')}: ${today}`),
+          heading(t('notes.templates.thisWeek', '이번 주 진행')),
           bullet(),
           bullet(),
-          heading(t("notes.templates.nextWeek", "다음 주 계획")),
+          heading(t('notes.templates.nextWeek', '다음 주 계획')),
           bullet(),
-          heading(t("notes.templates.issues", "이슈")),
+          heading(t('notes.templates.issues', '이슈')),
           bullet(),
           paragraph(),
         ]),

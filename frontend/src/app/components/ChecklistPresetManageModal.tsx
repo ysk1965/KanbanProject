@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { GripVertical, ListChecks, Loader2, Plus, Trash2 } from "lucide-react";
+import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { GripVertical, ListChecks, Loader2, Plus, Trash2 } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -9,25 +9,22 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  restrictToParentElement,
-  restrictToVerticalAxis,
-} from "@dnd-kit/modifiers";
+} from '@dnd-kit/core';
+import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import type { ChecklistPreset } from "../types";
-import { checklistPresetService } from "../utils/services";
-import { MotionModal } from "./ui/MotionModal";
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import type { ChecklistPreset } from '../types';
+import { checklistPresetService } from '../utils/services';
+import { MotionModal } from './ui/MotionModal';
 
 /** 새 프리셋 드래프트를 뜻하는 선택 키 (서버 id와 충돌하지 않는 값) */
-const NEW_KEY = "__new__";
+const NEW_KEY = '__new__';
 
 interface DraftItem {
   /** 리스트 렌더 키 — 기존 항목은 서버 id, 새 항목은 로컬 발급 */
@@ -59,7 +56,7 @@ const toDraft = (preset: ChecklistPreset | undefined): Draft =>
             assigneeId: i.assignee_id ?? null,
           })),
       }
-    : { name: "", items: [] };
+    : { name: '', items: [] };
 
 /**
  * 체크리스트 프리셋 관리 모달 — 좌측 목록에서 고르고 우측에서
@@ -85,8 +82,8 @@ export function ChecklistPresetManageModal({
   const { t } = useTranslation();
   /** 선택 중인 프리셋 id, NEW_KEY = 새 프리셋 드래프트 */
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Draft>({ name: "", items: [] });
-  const [newItemTitle, setNewItemTitle] = useState("");
+  const [draft, setDraft] = useState<Draft>({ name: '', items: [] });
+  const [newItemTitle, setNewItemTitle] = useState('');
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -96,7 +93,7 @@ export function ChecklistPresetManageModal({
     const key = presets[0]?.id ?? NEW_KEY;
     setSelectedKey(key);
     setDraft(toDraft(presets[0]));
-    setNewItemTitle("");
+    setNewItemTitle('');
     setConfirmingDelete(false);
     // presets 갱신마다 선택을 되돌리면 편집 중 드래프트가 날아간다 — open 전이만 감지
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -106,11 +103,9 @@ export function ChecklistPresetManageModal({
     (key: string) => {
       setSelectedKey(key);
       setDraft(
-        key === NEW_KEY
-          ? { name: "", items: [] }
-          : toDraft(presets.find((p) => p.id === key)),
+        key === NEW_KEY ? { name: '', items: [] } : toDraft(presets.find((p) => p.id === key)),
       );
-      setNewItemTitle("");
+      setNewItemTitle('');
       setConfirmingDelete(false);
     },
     [presets],
@@ -153,13 +148,10 @@ export function ChecklistPresetManageModal({
       ...d,
       items: [...d.items, { key: nextKey(), title, assigneeId: null }],
     }));
-    setNewItemTitle("");
+    setNewItemTitle('');
   };
 
-  const canSave =
-    !!draft.name.trim() &&
-    draft.items.some((i) => i.title.trim()) &&
-    !saving;
+  const canSave = !!draft.name.trim() && draft.items.some((i) => i.title.trim()) && !saving;
 
   const handleSave = async () => {
     if (!canSave || !selectedKey) return;
@@ -172,19 +164,12 @@ export function ChecklistPresetManageModal({
     setSaving(true);
     try {
       if (selectedKey === NEW_KEY) {
-        const created = await checklistPresetService.createPreset(
-          boardId,
-          body,
-        );
+        const created = await checklistPresetService.createPreset(boardId, body);
         onPresetsChange([...presets, created]);
         setSelectedKey(created.id);
         setDraft(toDraft(created));
       } else {
-        const updated = await checklistPresetService.updatePreset(
-          boardId,
-          selectedKey,
-          body,
-        );
+        const updated = await checklistPresetService.updatePreset(boardId, selectedKey, body);
         onPresetsChange(presets.map((p) => (p.id === updated.id ? updated : p)));
         setDraft(toDraft(updated));
       }
@@ -230,8 +215,8 @@ export function ChecklistPresetManageModal({
           id="checklist-preset-manage-title"
           className="text-xs md:text-sm font-bold text-foreground"
         >
-          {t("milestone.preset.manageTitle", {
-            defaultValue: "체크리스트 프리셋 관리",
+          {t('milestone.preset.manageTitle', {
+            defaultValue: '체크리스트 프리셋 관리',
           })}
         </h2>
       </div>
@@ -246,15 +231,15 @@ export function ChecklistPresetManageModal({
               onClick={() => select(p.id)}
               className={`w-full px-2.5 py-1.5 text-left text-xs rounded-lg transition-colors ${
                 selectedKey === p.id
-                  ? "text-bridge-accent font-bold bg-bridge-accent/10"
-                  : "text-foreground hover:bg-foreground/5"
+                  ? 'text-bridge-accent font-bold bg-bridge-accent/10'
+                  : 'text-foreground hover:bg-foreground/5'
               }`}
             >
               <span className="block truncate">{p.name}</span>
               <span className="block text-slate-500 tabular-nums">
-                {t("milestone.preset.itemCount", {
+                {t('milestone.preset.itemCount', {
                   count: p.item_count,
-                  defaultValue: "{{count}}개 항목",
+                  defaultValue: '{{count}}개 항목',
                 })}
               </span>
             </button>
@@ -263,12 +248,12 @@ export function ChecklistPresetManageModal({
             onClick={() => select(NEW_KEY)}
             className={`w-full flex items-center gap-1 px-2.5 py-1.5 text-left text-xs rounded-lg transition-colors ${
               isNew
-                ? "text-bridge-accent font-bold bg-bridge-accent/10"
-                : "text-slate-500 hover:text-foreground hover:bg-foreground/5"
+                ? 'text-bridge-accent font-bold bg-bridge-accent/10'
+                : 'text-slate-500 hover:text-foreground hover:bg-foreground/5'
             }`}
           >
             <Plus className="h-3 w-3" />
-            {t("milestone.preset.newPreset", { defaultValue: "새 프리셋" })}
+            {t('milestone.preset.newPreset', { defaultValue: '새 프리셋' })}
           </button>
         </div>
 
@@ -276,15 +261,13 @@ export function ChecklistPresetManageModal({
         <div className="flex-1 min-w-0 flex flex-col gap-3 min-h-0">
           <label className="block">
             <span className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">
-              {t("milestone.preset.nameLabel", { defaultValue: "이름" })}
+              {t('milestone.preset.nameLabel', { defaultValue: '이름' })}
             </span>
             <input
               value={draft.name}
-              onChange={(e) =>
-                setDraft((d) => ({ ...d, name: e.target.value }))
-              }
-              placeholder={t("milestone.preset.namePlaceholder", {
-                defaultValue: "프리셋 이름",
+              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+              placeholder={t('milestone.preset.namePlaceholder', {
+                defaultValue: '프리셋 이름',
               })}
               className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl px-3 py-2 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
             />
@@ -292,7 +275,7 @@ export function ChecklistPresetManageModal({
 
           <div className="flex-1 min-h-0 flex flex-col">
             <span className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">
-              {t("milestone.preset.itemsLabel", { defaultValue: "항목" })}
+              {t('milestone.preset.itemsLabel', { defaultValue: '항목' })}
             </span>
             <div className="flex-1 min-h-0 space-y-1 overflow-y-auto custom-scrollbar">
               <DndContext
@@ -322,10 +305,10 @@ export function ChecklistPresetManageModal({
                 onChange={(e) => setNewItemTitle(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.nativeEvent.isComposing) return;
-                  if (e.key === "Enter") addItem();
+                  if (e.key === 'Enter') addItem();
                 }}
-                placeholder={t("milestone.preset.addItemPlaceholder", {
-                  defaultValue: "항목 입력 후 Enter",
+                placeholder={t('milestone.preset.addItemPlaceholder', {
+                  defaultValue: '항목 입력 후 Enter',
                 })}
                 className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg px-2.5 py-1 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               />
@@ -338,8 +321,8 @@ export function ChecklistPresetManageModal({
               {confirmingDelete ? (
                 <span className="flex items-center gap-2 text-xs">
                   <span className="text-slate-400">
-                    {t("milestone.preset.deleteConfirm", {
-                      defaultValue: "이 프리셋을 삭제할까요?",
+                    {t('milestone.preset.deleteConfirm', {
+                      defaultValue: '이 프리셋을 삭제할까요?',
                     })}
                   </span>
                   <button
@@ -347,13 +330,13 @@ export function ChecklistPresetManageModal({
                     disabled={saving}
                     className="font-bold text-red-500 hover:underline disabled:opacity-50"
                   >
-                    {t("common.delete", { defaultValue: "삭제" })}
+                    {t('common.delete', { defaultValue: '삭제' })}
                   </button>
                   <button
                     onClick={() => setConfirmingDelete(false)}
                     className="text-slate-500 hover:text-foreground transition-colors"
                   >
-                    {t("common.cancel", { defaultValue: "취소" })}
+                    {t('common.cancel', { defaultValue: '취소' })}
                   </button>
                 </span>
               ) : (
@@ -362,8 +345,8 @@ export function ChecklistPresetManageModal({
                   className="flex items-center gap-1 text-xs text-slate-500 hover:text-red-500 transition-colors"
                 >
                   <Trash2 className="h-3 w-3" />
-                  {t("milestone.preset.deletePreset", {
-                    defaultValue: "프리셋 삭제",
+                  {t('milestone.preset.deletePreset', {
+                    defaultValue: '프리셋 삭제',
                   })}
                 </button>
               )}
@@ -375,7 +358,7 @@ export function ChecklistPresetManageModal({
       {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
         <span className="text-xs text-slate-600">
-          {t("milestone.preset.escClose", { defaultValue: "Esc 닫기" })}
+          {t('milestone.preset.escClose', { defaultValue: 'Esc 닫기' })}
         </span>
         <button
           onClick={() => void handleSave()}
@@ -383,7 +366,7 @@ export function ChecklistPresetManageModal({
           className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-all disabled:opacity-50 disabled:pointer-events-none"
         >
           {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-          {t("common.save", { defaultValue: "저장" })}
+          {t('common.save', { defaultValue: '저장' })}
         </button>
       </div>
     </MotionModal>
@@ -430,8 +413,8 @@ function SortableDraftItemRow({
         ref={setActivatorNodeRef}
         {...attributes}
         {...listeners}
-        aria-label={t("milestone.preset.dragToReorder", {
-          defaultValue: "드래그하여 순서 변경",
+        aria-label={t('milestone.preset.dragToReorder', {
+          defaultValue: '드래그하여 순서 변경',
         })}
         className="p-1 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 cursor-grab active:cursor-grabbing touch-none transition-colors"
       >
@@ -449,8 +432,8 @@ function SortableDraftItemRow({
       />
       <button
         onClick={onRemove}
-        aria-label={t("milestone.preset.removeItem", {
-          defaultValue: "항목 삭제",
+        aria-label={t('milestone.preset.removeItem', {
+          defaultValue: '항목 삭제',
         })}
         className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-foreground/5 transition-colors"
       >
@@ -473,12 +456,10 @@ function ItemAssigneePicker({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
-  const unassignedLabel = t("milestone.detail.unassigned", {
-    defaultValue: "미배정",
+  const unassignedLabel = t('milestone.detail.unassigned', {
+    defaultValue: '미배정',
   });
-  const assignee = assigneeId
-    ? members.find((m) => m.id === assigneeId)
-    : undefined;
+  const assignee = assigneeId ? members.find((m) => m.id === assigneeId) : undefined;
 
   return (
     <div className="relative flex-shrink-0">
@@ -486,7 +467,7 @@ function ItemAssigneePicker({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         className={`max-w-20 truncate text-xs cursor-pointer hover:text-foreground hover:underline transition-colors ${
-          assignee ? "text-slate-500" : "text-amber-600 dark:text-amber-400"
+          assignee ? 'text-slate-500' : 'text-amber-600 dark:text-amber-400'
         }`}
       >
         {/* 저장 시점 이후 보드에서 빠진 멤버는 이름을 못 찾는다 — 미배정으로 표기 */}
@@ -503,8 +484,8 @@ function ItemAssigneePicker({
               }}
               className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
                 !assignee
-                  ? "text-bridge-accent font-bold bg-bridge-accent/10"
-                  : "text-slate-400 hover:bg-foreground/5"
+                  ? 'text-bridge-accent font-bold bg-bridge-accent/10'
+                  : 'text-slate-400 hover:bg-foreground/5'
               }`}
             >
               {unassignedLabel}
@@ -518,8 +499,8 @@ function ItemAssigneePicker({
                 }}
                 className={`w-full px-3 py-1.5 text-left text-xs truncate transition-colors ${
                   assignee?.id === m.id
-                    ? "text-bridge-accent font-bold bg-bridge-accent/10"
-                    : "text-foreground hover:bg-foreground/5"
+                    ? 'text-bridge-accent font-bold bg-bridge-accent/10'
+                    : 'text-foreground hover:bg-foreground/5'
                 }`}
               >
                 {m.name}

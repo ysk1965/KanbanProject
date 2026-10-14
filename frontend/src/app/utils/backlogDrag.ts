@@ -6,7 +6,7 @@
  */
 
 /** dataTransfer MIME — PLACEMENT_DRAG_TYPE(배치 레일)과 같은 방식이다 */
-export const BACKLOG_DRAG_TYPE = "application/personal-backlog";
+export const BACKLOG_DRAG_TYPE = 'application/personal-backlog';
 
 /**
  * 드롭 지점이 백로그 레일에게 "이 항목을 이 날짜로 승격시켜라"고 알리는 이벤트.
@@ -15,7 +15,7 @@ export const BACKLOG_DRAG_TYPE = "application/personal-backlog";
  * 드롭을 받는 뷰(ScheduleResourceView)는 일정 탭에서도 쓰이고 그쪽엔 백로그가 없다.
  * 듣는 쪽이 없으면 아무 일도 일어나지 않는 게 맞다.
  */
-export const BACKLOG_DROP_EVENT = "bridge:backlog-drop";
+export const BACKLOG_DROP_EVENT = 'bridge:backlog-drop';
 
 export interface BacklogDragPayload {
   id: string;

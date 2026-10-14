@@ -117,7 +117,12 @@ export function MotionModal({
       };
 
   const contentMotion = reduced
-    ? { initial: { opacity: 1 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0 } }
+    ? {
+        initial: { opacity: 1 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+        transition: { duration: 0 },
+      }
     : {
         initial: { opacity: 0, y: 24, scale: 0.97 },
         animate: { opacity: 1, y: 0, scale: 1 },
@@ -136,14 +141,20 @@ export function MotionModal({
           animate={overlayMotion.animate}
           exit={overlayMotion.exit}
           transition={overlayMotion.transition}
-          onMouseDown={() => { mouseDownOnOverlayRef.current = true; }}
-          onClick={overlayClose ? () => {
-            // Only close if mousedown also started on the overlay (not from drag or inside content)
-            if (mouseDownOnOverlayRef.current) {
-              onCloseRef.current();
-            }
-            mouseDownOnOverlayRef.current = false;
-          } : undefined}
+          onMouseDown={() => {
+            mouseDownOnOverlayRef.current = true;
+          }}
+          onClick={
+            overlayClose
+              ? () => {
+                  // Only close if mousedown also started on the overlay (not from drag or inside content)
+                  if (mouseDownOnOverlayRef.current) {
+                    onCloseRef.current();
+                  }
+                  mouseDownOnOverlayRef.current = false;
+                }
+              : undefined
+          }
         >
           <motion.div
             ref={contentRef}
@@ -169,7 +180,10 @@ export function MotionModal({
               className,
             )}
             style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-            onMouseDown={(e) => { e.stopPropagation(); mouseDownOnOverlayRef.current = false; }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              mouseDownOnOverlayRef.current = false;
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Top shimmer line */}

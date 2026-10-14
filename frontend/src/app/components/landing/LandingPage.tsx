@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef, Suspense } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { useTheme } from "../../contexts/ThemeContext";
-import { LanguageSwitcher } from "../LanguageSwitcher";
-import { lazyWithRetry } from "../../utils/lazyWithRetry";
+import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { useTheme } from '../../contexts/ThemeContext';
+import { LanguageSwitcher } from '../LanguageSwitcher';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
 const HeroScene = lazyWithRetry(
-  () => import("./BridgeScene").then((m) => ({ default: m.HeroScene })),
-  "HeroScene",
+  () => import('./BridgeScene').then((m) => ({ default: m.HeroScene })),
+  'HeroScene',
 );
 import {
   KanbanDiagram,
@@ -20,9 +20,9 @@ import {
   MySpaceOverviewDiagram,
   EisenhowerDiagram,
   HabitTrackerDiagram,
-} from "./Diagrams";
-import { PricingSection } from "./PricingSection";
-import { motion, Variants, AnimatePresence } from "framer-motion";
+} from './Diagrams';
+import { PricingSection } from './PricingSection';
+import { motion, Variants, AnimatePresence } from 'framer-motion';
 import {
   ArrowRight,
   Menu,
@@ -45,7 +45,7 @@ import {
   Flame,
   CalendarDays,
   LayoutGrid,
-} from "lucide-react";
+} from 'lucide-react';
 
 const FeatureCard = ({
   icon: Icon,
@@ -71,8 +71,8 @@ const FeatureCard = ({
     }}
     className={`flex flex-col p-10 rounded-[3rem] border transition-all duration-700 group relative overflow-hidden ${
       highlight
-        ? "bg-bridge-accent/10 border-bridge-accent/30 shadow-[0_0_80px_rgba(99,102,241,0.1)]"
-        : "bg-white/5 border-white/20 hover:bg-white/10 hover:border-white/20 shadow-2xl"
+        ? 'bg-bridge-accent/10 border-bridge-accent/30 shadow-[0_0_80px_rgba(99,102,241,0.1)]'
+        : 'bg-white/5 border-white/20 hover:bg-white/10 hover:border-white/20 shadow-2xl'
     }`}
   >
     {highlight && (
@@ -83,8 +83,8 @@ const FeatureCard = ({
     <div
       className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-10 border transition-all duration-700 ${
         highlight
-          ? "bg-bridge-accent text-white border-bridge-accent shadow-xl scale-110"
-          : "bg-white/5 text-bridge-secondary border-white/20 shadow-inner"
+          ? 'bg-bridge-accent text-white border-bridge-accent shadow-xl scale-110'
+          : 'bg-white/5 text-bridge-secondary border-white/20 shadow-inner'
       }`}
     >
       <Icon size={28} />
@@ -112,23 +112,23 @@ const AnimatedTitle = ({ text }: { text: string }) => {
     visible: {
       opacity: 1,
       y: 0,
-      filter: "blur(0px)",
-      transition: { type: "spring", damping: 15, stiffness: 100 },
+      filter: 'blur(0px)',
+      transition: { type: 'spring', damping: 15, stiffness: 100 },
     },
     hidden: {
       opacity: 0,
       y: 40,
-      filter: "blur(12px)",
-      transition: { type: "spring", damping: 15, stiffness: 100 },
+      filter: 'blur(12px)',
+      transition: { type: 'spring', damping: 15, stiffness: 100 },
     },
   };
   return (
     <motion.h1
       style={{
-        overflow: "hidden",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "baseline",
+        overflow: 'hidden',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'baseline',
       }}
       variants={container}
       initial="hidden"
@@ -142,7 +142,7 @@ const AnimatedTitle = ({ text }: { text: string }) => {
           <motion.span
             key={index}
             variants={child}
-            className={`inline-block ${isSpots ? "text-outline text-glow-cyan" : "text-shimmer text-glow-indigo"}`}
+            className={`inline-block ${isSpots ? 'text-outline text-glow-cyan' : 'text-shimmer text-glow-indigo'}`}
           >
             {letter}
           </motion.span>
@@ -159,12 +159,8 @@ const AnimatedTitle = ({ text }: { text: string }) => {
 export const LandingPage: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [dailyTab, setDailyTab] = useState<"timeblock" | "checklist">(
-    "timeblock",
-  );
-  const [mySpaceTab, setMySpaceTab] = useState<
-    "overview" | "matrix" | "habits"
-  >("overview");
+  const [dailyTab, setDailyTab] = useState<'timeblock' | 'checklist'>('timeblock');
+  const [mySpaceTab, setMySpaceTab] = useState<'overview' | 'matrix' | 'habits'>('overview');
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { theme, setTheme } = useTheme();
@@ -173,11 +169,11 @@ export const LandingPage: React.FC = () => {
   // 랜딩 페이지는 항상 다크 모드로 표시
   useEffect(() => {
     prevThemeRef.current = theme;
-    if (theme !== "dark") {
-      setTheme("dark");
+    if (theme !== 'dark') {
+      setTheme('dark');
     }
     return () => {
-      if (prevThemeRef.current !== "dark") {
+      if (prevThemeRef.current !== 'dark') {
         setTheme(prevThemeRef.current);
       }
     };
@@ -185,8 +181,8 @@ export const LandingPage: React.FC = () => {
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const scrollToSection = (id: string) => (e: React.MouseEvent) => {
@@ -196,26 +192,25 @@ export const LandingPage: React.FC = () => {
     if (element) {
       const headerOffset = 80;
       const elementPosition = element.getBoundingClientRect().top;
-      const offsetPosition =
-        elementPosition + window.pageYOffset - headerOffset;
-      window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+      window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
     }
   };
 
   const handleGetStarted = () => {
-    navigate("/login", { state: { from: "landing" } });
+    navigate('/login', { state: { from: 'landing' } });
   };
 
   return (
     <div className="min-h-screen bg-bridge-dark text-slate-200 selection:bg-bridge-accent selection:text-white font-inter overflow-x-hidden">
       {/* Navigation */}
       <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 safe-top ${scrolled ? "glass border-b border-white/15 py-4" : "bg-transparent py-8"}`}
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 safe-top ${scrolled ? 'glass border-b border-white/15 py-4' : 'bg-transparent py-8'}`}
       >
         <div className="container mx-auto px-8 flex justify-between items-center">
           <div
             className="flex items-center gap-3 cursor-pointer group"
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           >
             <img
               src="/BridgeSpotsIcon.png"
@@ -232,51 +227,48 @@ export const LandingPage: React.FC = () => {
           <div className="hidden md:flex items-center gap-12 text-[11px] font-bold tracking-[0.4em] text-slate-400 uppercase font-jakarta">
             <a
               href="#core"
-              onClick={scrollToSection("core")}
+              onClick={scrollToSection('core')}
               className="hover:text-white transition-all duration-300"
             >
-              {t("landing.nav.features")}
+              {t('landing.nav.features')}
             </a>
             <a
               href="#workflow"
-              onClick={scrollToSection("workflow")}
+              onClick={scrollToSection('workflow')}
               className="hover:text-white transition-all duration-300"
             >
-              {t("landing.nav.workflow")}
+              {t('landing.nav.workflow')}
             </a>
             <a
               href="#pricing"
-              onClick={scrollToSection("pricing")}
+              onClick={scrollToSection('pricing')}
               className="hover:text-white transition-all duration-300"
             >
-              {t("landing.nav.pricing")}
+              {t('landing.nav.pricing')}
             </a>
             <a
               href="#myspace"
-              onClick={scrollToSection("myspace")}
+              onClick={scrollToSection('myspace')}
               className="hover:text-white transition-all duration-300"
             >
-              {t("landing.nav.myspace")}
+              {t('landing.nav.myspace')}
             </a>
             <a
               href="#ai"
-              onClick={scrollToSection("ai")}
+              onClick={scrollToSection('ai')}
               className="hover:text-white transition-all duration-300"
             >
-              {t("landing.nav.ai")}
+              {t('landing.nav.ai')}
             </a>
-            <Link
-              to="/compare"
-              className="hover:text-bridge-secondary transition-all duration-300"
-            >
-              {t("landing.nav.compare")}
+            <Link to="/compare" className="hover:text-bridge-secondary transition-all duration-300">
+              {t('landing.nav.compare')}
             </Link>
             <LanguageSwitcher variant="compact" />
             <button
               onClick={handleGetStarted}
               className="px-10 py-3.5 bg-white text-bridge-dark rounded-full hover:bg-bridge-secondary hover:shadow-[0_0_30px_rgba(45,212,191,0.5)] transition-all duration-500 font-extrabold tracking-widest text-[11px]"
             >
-              {t("landing.nav.joinNow")}
+              {t('landing.nav.joinNow')}
             </button>
           </div>
 
@@ -298,59 +290,54 @@ export const LandingPage: React.FC = () => {
         >
           <a
             href="#core"
-            onClick={scrollToSection("core")}
+            onClick={scrollToSection('core')}
             className="uppercase font-bold tracking-[0.25em] text-slate-400"
           >
-            {t("landing.nav.features")}
+            {t('landing.nav.features')}
           </a>
           <a
             href="#workflow"
-            onClick={scrollToSection("workflow")}
+            onClick={scrollToSection('workflow')}
             className="uppercase font-bold tracking-[0.25em] text-slate-400"
           >
-            {t("landing.nav.workflow")}
+            {t('landing.nav.workflow')}
           </a>
           <a
             href="#pricing"
-            onClick={scrollToSection("pricing")}
+            onClick={scrollToSection('pricing')}
             className="uppercase font-bold tracking-[0.25em] text-slate-400"
           >
-            {t("landing.nav.pricing")}
+            {t('landing.nav.pricing')}
           </a>
           <a
             href="#myspace"
-            onClick={scrollToSection("myspace")}
+            onClick={scrollToSection('myspace')}
             className="uppercase font-bold tracking-[0.25em] text-slate-400"
           >
-            {t("landing.nav.myspace")}
+            {t('landing.nav.myspace')}
           </a>
           <a
             href="#ai"
-            onClick={scrollToSection("ai")}
+            onClick={scrollToSection('ai')}
             className="uppercase font-bold tracking-[0.25em] text-slate-400"
           >
-            {t("landing.nav.ai")}
+            {t('landing.nav.ai')}
           </a>
-          <Link
-            to="/compare"
-            className="uppercase font-bold tracking-[0.25em] text-slate-400"
-          >
-            {t("landing.nav.compare")}
+          <Link to="/compare" className="uppercase font-bold tracking-[0.25em] text-slate-400">
+            {t('landing.nav.compare')}
           </Link>
           <button
             onClick={handleGetStarted}
             className="px-10 py-5 bg-bridge-accent text-white rounded-full shadow-2xl uppercase font-bold tracking-widest text-sm"
           >
-            {t("landing.nav.startForFree")}
+            {t('landing.nav.startForFree')}
           </button>
         </motion.div>
       )}
 
       {/* Hero Section */}
       <header className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
-        <Suspense
-          fallback={<div className="absolute inset-0 bg-bridge-dark" />}
-        >
+        <Suspense fallback={<div className="absolute inset-0 bg-bridge-dark" />}>
           <HeroScene />
         </Suspense>
         <div className="absolute inset-0 z-0 pointer-events-none bg-[radial-gradient(circle_at_center,rgba(10,14,23,0)_0%,rgba(10,14,23,0.3)_60%,#0A0E17_100%)]" />
@@ -362,7 +349,7 @@ export const LandingPage: React.FC = () => {
             transition={{ delay: 0.3, duration: 1 }}
             className="inline-block mb-10 px-8 py-3 border border-bridge-secondary/20 text-bridge-secondary text-[11px] font-bold tracking-[0.5em] uppercase rounded-full bg-bridge-secondary/5 backdrop-blur-xl shadow-2xl font-jakarta"
           >
-            {t("landing.hero.badge")}
+            {t('landing.hero.badge')}
           </motion.div>
 
           <AnimatedTitle text="BridgeSpots" />
@@ -373,12 +360,12 @@ export const LandingPage: React.FC = () => {
             transition={{ delay: 1.3, duration: 1.2 }}
             className="max-w-4xl mx-auto text-xl md:text-3xl text-slate-300 font-normal leading-relaxed mb-16 px-4 font-inter opacity-90"
           >
-            {t("landing.hero.subtitleText1")}{" "}
+            {t('landing.hero.subtitleText1')}{' '}
             <span className="text-bridge-secondary font-semibold">
-              {t("landing.hero.subtitleFlow")}
+              {t('landing.hero.subtitleFlow')}
             </span>
             .<br />
-            {t("landing.hero.subtitleText2")}
+            {t('landing.hero.subtitleText2')}
           </motion.p>
 
           <motion.div
@@ -391,13 +378,13 @@ export const LandingPage: React.FC = () => {
               onClick={handleGetStarted}
               className="px-16 py-7 bg-bridge-accent text-white rounded-full font-bold uppercase tracking-widest text-[12px] shadow-[0_0_60px_rgba(99,102,241,0.5)] hover:bg-white hover:text-bridge-dark transition-all transform hover:-translate-y-2 duration-500 flex items-center gap-3 mx-auto md:mx-0 font-jakarta"
             >
-              {t("landing.hero.tryFree")} <ArrowRight size={20} />
+              {t('landing.hero.tryFree')} <ArrowRight size={20} />
             </button>
             <button
               onClick={handleGetStarted}
               className="px-16 py-7 bg-white/5 border border-white/20 text-white rounded-full font-bold uppercase tracking-widest text-[12px] shadow-xl backdrop-blur-md hover:bg-white/10 transition-all transform hover:-translate-y-1 duration-500 mx-auto md:mx-0 font-jakarta"
             >
-              {t("landing.hero.basicFree")}
+              {t('landing.hero.basicFree')}
             </button>
           </motion.div>
         </div>
@@ -413,12 +400,12 @@ export const LandingPage: React.FC = () => {
           <div className="container mx-auto px-8">
             <div className="max-w-5xl mb-32">
               <div className="inline-block mb-10 text-[11px] font-bold tracking-[0.6em] text-bridge-secondary uppercase font-jakarta">
-                {t("landing.core.label")}
+                {t('landing.core.label')}
               </div>
               <h2 className="font-jakarta text-4xl sm:text-6xl md:text-9xl mb-12 leading-none text-white tracking-tighter font-extrabold">
-                {t("landing.core.titleLine1")}
+                {t('landing.core.titleLine1')}
                 <br />
-                {t("landing.core.titleLine2")}
+                {t('landing.core.titleLine2')}
                 <span className="spot-dot scale-150" />
               </h2>
             </div>
@@ -426,27 +413,27 @@ export const LandingPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
               <FeatureCard
                 icon={Layers}
-                title={t("landing.core.kanban.title")}
-                desc={t("landing.core.kanban.desc")}
+                title={t('landing.core.kanban.title')}
+                desc={t('landing.core.kanban.desc')}
                 delay="0.1"
                 highlight
               />
               <FeatureCard
                 icon={RefreshCcw}
-                title={t("landing.core.gantt.title")}
-                desc={t("landing.core.gantt.desc")}
+                title={t('landing.core.gantt.title')}
+                desc={t('landing.core.gantt.desc')}
                 delay="0.2"
               />
               <FeatureCard
                 icon={BarChart3}
-                title={t("landing.core.dashboard.title")}
-                desc={t("landing.core.dashboard.desc")}
+                title={t('landing.core.dashboard.title')}
+                desc={t('landing.core.dashboard.desc')}
                 delay="0.3"
               />
               <FeatureCard
                 icon={Heart}
-                title={t("landing.core.personal.title")}
-                desc={t("landing.core.personal.desc")}
+                title={t('landing.core.personal.title')}
+                desc={t('landing.core.personal.desc')}
                 delay="0.4"
               />
             </div>
@@ -458,11 +445,11 @@ export const LandingPage: React.FC = () => {
           <div className="container mx-auto px-8">
             <div className="max-w-4xl mx-auto text-center mb-32">
               <h2 className="font-jakarta text-4xl md:text-8xl mb-10 text-white tracking-tighter font-extrabold">
-                {t("landing.workflow.title")}
+                {t('landing.workflow.title')}
                 <span className="spot-dot scale-150 ml-4" />
               </h2>
               <p className="text-xl text-slate-400 leading-relaxed font-light font-inter">
-                {t("landing.workflow.subtitle")}
+                {t('landing.workflow.subtitle')}
               </p>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
@@ -473,19 +460,19 @@ export const LandingPage: React.FC = () => {
               <div className="order-1 lg:order-2 space-y-16">
                 {[
                   {
-                    num: "01",
-                    title: t("landing.workflow.step1.title"),
-                    text: t("landing.workflow.step1.text"),
+                    num: '01',
+                    title: t('landing.workflow.step1.title'),
+                    text: t('landing.workflow.step1.text'),
                   },
                   {
-                    num: "02",
-                    title: t("landing.workflow.step2.title"),
-                    text: t("landing.workflow.step2.text"),
+                    num: '02',
+                    title: t('landing.workflow.step2.title'),
+                    text: t('landing.workflow.step2.text'),
                   },
                   {
-                    num: "03",
-                    title: t("landing.workflow.step3.title"),
-                    text: t("landing.workflow.step3.text"),
+                    num: '03',
+                    title: t('landing.workflow.step3.title'),
+                    text: t('landing.workflow.step3.text'),
                   },
                 ].map((item, i) => (
                   <motion.div
@@ -512,23 +499,20 @@ export const LandingPage: React.FC = () => {
         </section>
 
         {/* Scheduling Section */}
-        <section
-          id="scheduling"
-          className="py-48 bg-bridge-obsidian border-y border-white/15"
-        >
+        <section id="scheduling" className="py-48 bg-bridge-obsidian border-y border-white/15">
           <div className="container mx-auto px-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-28 items-center">
               <div className="lg:col-span-5">
                 <div className="inline-block mb-6 text-[11px] font-bold tracking-[0.4em] text-bridge-secondary uppercase font-jakarta">
-                  {t("landing.scheduling.label")}
+                  {t('landing.scheduling.label')}
                 </div>
                 <h2 className="font-jakarta text-4xl md:text-7xl mb-12 leading-tight text-white font-extrabold tracking-tighter">
-                  {t("landing.scheduling.titleLine1")} <br />
-                  {t("landing.scheduling.titleLine2")}
+                  {t('landing.scheduling.titleLine1')} <br />
+                  {t('landing.scheduling.titleLine2')}
                   <span className="spot-dot scale-150 ml-2" />
                 </h2>
                 <p className="text-xl text-slate-400 mb-16 leading-relaxed font-light font-inter">
-                  {t("landing.scheduling.subtitle")}
+                  {t('landing.scheduling.subtitle')}
                 </p>
               </div>
               <div className="lg:col-span-7 flex flex-col gap-12">
@@ -537,29 +521,29 @@ export const LandingPage: React.FC = () => {
                   <div className="flex justify-center mb-6">
                     <div className="inline-flex bg-white/5 border border-white/10 rounded-2xl p-1.5">
                       <button
-                        onClick={() => setDailyTab("timeblock")}
+                        onClick={() => setDailyTab('timeblock')}
                         className={`px-6 py-2.5 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all font-jakarta ${
-                          dailyTab === "timeblock"
-                            ? "bg-bridge-accent text-white shadow-lg"
-                            : "text-slate-500 hover:text-slate-300"
+                          dailyTab === 'timeblock'
+                            ? 'bg-bridge-accent text-white shadow-lg'
+                            : 'text-slate-500 hover:text-slate-300'
                         }`}
                       >
-                        {t("landing.scheduling.timeBlocks")}
+                        {t('landing.scheduling.timeBlocks')}
                       </button>
                       <button
-                        onClick={() => setDailyTab("checklist")}
+                        onClick={() => setDailyTab('checklist')}
                         className={`px-6 py-2.5 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all font-jakarta ${
-                          dailyTab === "checklist"
-                            ? "bg-bridge-secondary text-bridge-dark shadow-lg"
-                            : "text-slate-500 hover:text-slate-300"
+                          dailyTab === 'checklist'
+                            ? 'bg-bridge-secondary text-bridge-dark shadow-lg'
+                            : 'text-slate-500 hover:text-slate-300'
                         }`}
                       >
-                        {t("landing.scheduling.dailyChecklist")}
+                        {t('landing.scheduling.dailyChecklist')}
                       </button>
                     </div>
                   </div>
                   <AnimatePresence mode="wait">
-                    {dailyTab === "timeblock" ? (
+                    {dailyTab === 'timeblock' ? (
                       <motion.div
                         key="timeblock"
                         initial={{ opacity: 0, y: 10 }}
@@ -588,42 +572,39 @@ export const LandingPage: React.FC = () => {
         </section>
 
         {/* My Space Section */}
-        <section
-          id="myspace"
-          className="py-48 bg-bridge-dark relative overflow-hidden"
-        >
+        <section id="myspace" className="py-48 bg-bridge-dark relative overflow-hidden">
           <div className="absolute top-0 left-0 w-[800px] h-[800px] bg-bridge-secondary/5 blur-[250px] rounded-full -ml-96 -mt-96" />
           <div className="container mx-auto px-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-28 items-center">
               <div className="lg:col-span-5">
                 <div className="inline-block mb-6 text-[11px] font-bold tracking-[0.4em] text-bridge-secondary uppercase font-jakarta">
-                  {t("landing.myspace.label")}
+                  {t('landing.myspace.label')}
                 </div>
                 <h2 className="font-jakarta text-4xl md:text-7xl mb-12 leading-tight text-white font-extrabold tracking-tighter">
-                  {t("landing.myspace.titleLine1")}
+                  {t('landing.myspace.titleLine1')}
                   <br />
-                  {t("landing.myspace.titleLine2")}
+                  {t('landing.myspace.titleLine2')}
                   <span className="spot-dot scale-150 ml-2" />
                 </h2>
                 <p className="text-xl text-slate-400 mb-16 leading-relaxed font-light font-inter">
-                  {t("landing.myspace.subtitle")}
+                  {t('landing.myspace.subtitle')}
                 </p>
                 <div className="space-y-12">
                   {[
                     {
                       icon: LayoutGrid,
-                      title: t("landing.myspace.matrix.title"),
-                      text: t("landing.myspace.matrix.text"),
+                      title: t('landing.myspace.matrix.title'),
+                      text: t('landing.myspace.matrix.text'),
                     },
                     {
                       icon: Flame,
-                      title: t("landing.myspace.habits.title"),
-                      text: t("landing.myspace.habits.text"),
+                      title: t('landing.myspace.habits.title'),
+                      text: t('landing.myspace.habits.text'),
                     },
                     {
                       icon: CalendarDays,
-                      title: t("landing.myspace.calendar.title"),
-                      text: t("landing.myspace.calendar.text"),
+                      title: t('landing.myspace.calendar.title'),
+                      text: t('landing.myspace.calendar.text'),
                     },
                   ].map((item, i) => (
                     <motion.div
@@ -655,27 +636,25 @@ export const LandingPage: React.FC = () => {
               <div className="lg:col-span-7">
                 <div className="flex justify-center mb-6">
                   <div className="inline-flex bg-white/5 border border-white/10 rounded-2xl p-1.5">
-                    {(["overview", "matrix", "habits"] as const).map(
-                      (tab) => (
-                        <button
-                          key={tab}
-                          onClick={() => setMySpaceTab(tab)}
-                          className={`px-5 py-2.5 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all font-jakarta ${
-                            mySpaceTab === tab
-                              ? "bg-bridge-secondary text-bridge-dark shadow-lg"
-                              : "text-slate-500 hover:text-slate-300"
-                          }`}
-                        >
-                          {t(`landing.myspace.tabs.${tab}`)}
-                        </button>
-                      ),
-                    )}
+                    {(['overview', 'matrix', 'habits'] as const).map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setMySpaceTab(tab)}
+                        className={`px-5 py-2.5 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all font-jakarta ${
+                          mySpaceTab === tab
+                            ? 'bg-bridge-secondary text-bridge-dark shadow-lg'
+                            : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                      >
+                        {t(`landing.myspace.tabs.${tab}`)}
+                      </button>
+                    ))}
                   </div>
                 </div>
                 <div className="relative">
                   <div className="absolute -inset-10 bg-bridge-secondary/5 blur-[100px] rounded-full" />
                   <AnimatePresence mode="wait">
-                    {mySpaceTab === "overview" && (
+                    {mySpaceTab === 'overview' && (
                       <motion.div
                         key="overview"
                         initial={{ opacity: 0, y: 10 }}
@@ -686,7 +665,7 @@ export const LandingPage: React.FC = () => {
                         <MySpaceOverviewDiagram />
                       </motion.div>
                     )}
-                    {mySpaceTab === "matrix" && (
+                    {mySpaceTab === 'matrix' && (
                       <motion.div
                         key="matrix"
                         initial={{ opacity: 0, y: 10 }}
@@ -697,7 +676,7 @@ export const LandingPage: React.FC = () => {
                         <EisenhowerDiagram />
                       </motion.div>
                     )}
-                    {mySpaceTab === "habits" && (
+                    {mySpaceTab === 'habits' && (
                       <motion.div
                         key="habits"
                         initial={{ opacity: 0, y: 10 }}
@@ -731,37 +710,37 @@ export const LandingPage: React.FC = () => {
               <div className="lg:col-span-5 order-1 lg:order-2">
                 <div className="flex items-center gap-4 mb-6">
                   <span className="text-[11px] font-bold tracking-[0.4em] text-bridge-secondary uppercase font-jakarta">
-                    {t("landing.collaboration.label")}
+                    {t('landing.collaboration.label')}
                   </span>
                   <span className="px-3 py-1 bg-bridge-secondary/10 border border-bridge-secondary/30 rounded-full text-[9px] font-black text-bridge-secondary tracking-widest uppercase font-jakarta">
-                    {t("landing.collaboration.premium")}
+                    {t('landing.collaboration.premium')}
                   </span>
                 </div>
                 <h2 className="font-jakarta text-4xl md:text-7xl mb-12 leading-tight text-white font-extrabold tracking-tighter">
-                  {t("landing.collaboration.titleLine1")}
+                  {t('landing.collaboration.titleLine1')}
                   <br />
-                  {t("landing.collaboration.titleLine2")}
+                  {t('landing.collaboration.titleLine2')}
                   <span className="spot-dot scale-150 ml-2" />
                 </h2>
                 <p className="text-xl text-slate-400 mb-16 leading-relaxed font-light font-inter">
-                  {t("landing.collaboration.subtitle")}
+                  {t('landing.collaboration.subtitle')}
                 </p>
                 <div className="space-y-12">
                   {[
                     {
                       icon: Bell,
-                      title: t("landing.collaboration.slack.title"),
-                      text: t("landing.collaboration.slack.text"),
+                      title: t('landing.collaboration.slack.title'),
+                      text: t('landing.collaboration.slack.text'),
                     },
                     {
                       icon: AtSign,
-                      title: t("landing.collaboration.mention.title"),
-                      text: t("landing.collaboration.mention.text"),
+                      title: t('landing.collaboration.mention.title'),
+                      text: t('landing.collaboration.mention.text'),
                     },
                     {
                       icon: Settings2,
-                      title: t("landing.collaboration.granular.title"),
-                      text: t("landing.collaboration.granular.text"),
+                      title: t('landing.collaboration.granular.title'),
+                      text: t('landing.collaboration.granular.text'),
                     },
                   ].map((item, i) => (
                     <motion.div
@@ -795,47 +774,44 @@ export const LandingPage: React.FC = () => {
         </section>
 
         {/* AI Intelligence Section */}
-        <section
-          id="ai"
-          className="py-48 bg-bridge-dark relative overflow-hidden"
-        >
+        <section id="ai" className="py-48 bg-bridge-dark relative overflow-hidden">
           <div className="absolute bottom-0 left-0 w-[800px] h-[800px] bg-bridge-accent/5 blur-[250px] rounded-full -ml-96 -mb-96" />
           <div className="container mx-auto px-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-28 items-center">
               <div className="lg:col-span-5">
                 <div className="flex items-center gap-4 mb-6">
                   <span className="text-[11px] font-bold tracking-[0.4em] text-bridge-secondary uppercase font-jakarta">
-                    {t("landing.ai.label")}
+                    {t('landing.ai.label')}
                   </span>
                   <span className="px-3 py-1 bg-bridge-secondary/10 border border-bridge-secondary/30 rounded-full text-[9px] font-black text-bridge-secondary tracking-widest uppercase font-jakarta">
-                    {t("landing.ai.premium")}
+                    {t('landing.ai.premium')}
                   </span>
                 </div>
                 <h2 className="font-jakarta text-4xl md:text-7xl mb-12 leading-tight text-white font-extrabold tracking-tighter">
-                  {t("landing.ai.titleLine1")}
+                  {t('landing.ai.titleLine1')}
                   <br />
-                  {t("landing.ai.titleLine2")}
+                  {t('landing.ai.titleLine2')}
                   <span className="spot-dot scale-150 ml-2" />
                 </h2>
                 <p className="text-xl text-slate-400 mb-16 leading-relaxed font-light font-inter">
-                  {t("landing.ai.subtitle")}
+                  {t('landing.ai.subtitle')}
                 </p>
                 <div className="space-y-12">
                   {[
                     {
                       icon: Sparkles,
-                      title: t("landing.ai.narrative.title"),
-                      text: t("landing.ai.narrative.text"),
+                      title: t('landing.ai.narrative.title'),
+                      text: t('landing.ai.narrative.text'),
                     },
                     {
                       icon: Clock,
-                      title: t("landing.ai.standup.title"),
-                      text: t("landing.ai.standup.text"),
+                      title: t('landing.ai.standup.title'),
+                      text: t('landing.ai.standup.text'),
                     },
                     {
                       icon: Users,
-                      title: t("landing.ai.insights.title"),
-                      text: t("landing.ai.insights.text"),
+                      title: t('landing.ai.insights.title'),
+                      text: t('landing.ai.insights.text'),
                     },
                   ].map((item, i) => (
                     <motion.div
@@ -879,9 +855,7 @@ export const LandingPage: React.FC = () => {
 
         {/* Final CTA */}
         <section className="py-72 relative overflow-hidden bg-bridge-dark text-white text-center">
-          <Suspense
-            fallback={<div className="absolute inset-0 bg-bridge-dark" />}
-          >
+          <Suspense fallback={<div className="absolute inset-0 bg-bridge-dark" />}>
             <HeroScene />
           </Suspense>
           <div className="absolute inset-0 bg-gradient-to-t from-bridge-dark via-transparent to-bridge-dark" />
@@ -893,21 +867,19 @@ export const LandingPage: React.FC = () => {
               transition={{ duration: 1.2 }}
               className="font-jakarta text-5xl sm:text-7xl md:text-[13rem] mb-20 leading-none text-white tracking-tighter font-extrabold"
             >
-              {t("landing.cta.titleLine1")}
+              {t('landing.cta.titleLine1')}
               <br />
-              <span className="text-outline">
-                {t("landing.cta.titleLine2")}
-              </span>
+              <span className="text-outline">{t('landing.cta.titleLine2')}</span>
               <span className="spot-dot scale-[2]" />
             </motion.h2>
             <p className="text-3xl text-slate-400 mb-24 font-light max-w-5xl mx-auto leading-relaxed font-inter">
-              {t("landing.cta.subtitle")}
+              {t('landing.cta.subtitle')}
             </p>
             <button
               onClick={handleGetStarted}
               className="px-10 sm:px-24 py-6 sm:py-10 bg-white text-bridge-dark rounded-full font-black uppercase tracking-[0.3em] sm:tracking-[0.7em] text-[13px] shadow-[0_0_120px_rgba(255,255,255,0.25)] hover:scale-110 transition-all duration-700 font-jakarta"
             >
-              {t("landing.cta.button")}
+              {t('landing.cta.button')}
             </button>
           </div>
         </section>
@@ -930,105 +902,78 @@ export const LandingPage: React.FC = () => {
                 </div>
               </div>
               <p className="text-lg leading-relaxed text-slate-400 font-normal font-inter">
-                {t("landing.footer.tagline")}
+                {t('landing.footer.tagline')}
               </p>
             </div>
             <div>
               <h4 className="font-bold text-white mb-10 text-[11px] uppercase tracking-[0.5em] font-jakarta">
-                {t("landing.footer.ecosystem")}
+                {t('landing.footer.ecosystem')}
               </h4>
               <ul className="text-lg space-y-6 font-light font-inter">
                 <li>
-                  <a
-                    href="#"
-                    className="hover:text-bridge-secondary transition-all"
-                  >
-                    {t("landing.footer.templates")}
+                  <a href="#" className="hover:text-bridge-secondary transition-all">
+                    {t('landing.footer.templates')}
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="#"
-                    className="hover:text-bridge-secondary transition-all"
-                  >
-                    {t("landing.footer.integrations")}
+                  <a href="#" className="hover:text-bridge-secondary transition-all">
+                    {t('landing.footer.integrations')}
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="#"
-                    className="hover:text-bridge-secondary transition-all"
-                  >
-                    {t("landing.footer.apiGuide")}
+                  <a href="#" className="hover:text-bridge-secondary transition-all">
+                    {t('landing.footer.apiGuide')}
                   </a>
                 </li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold text-white mb-10 text-[11px] uppercase tracking-[0.5em] font-jakarta">
-                {t("landing.footer.community")}
+                {t('landing.footer.community')}
               </h4>
               <ul className="text-lg space-y-6 font-light font-inter">
                 <li>
-                  <a
-                    href="#"
-                    className="hover:text-bridge-secondary transition-all"
-                  >
+                  <a href="#" className="hover:text-bridge-secondary transition-all">
                     LinkedIn
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="#"
-                    className="hover:text-bridge-secondary transition-all"
-                  >
+                  <a href="#" className="hover:text-bridge-secondary transition-all">
                     Twitter / X
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="#"
-                    className="hover:text-bridge-secondary transition-all"
-                  >
-                    {t("landing.footer.slackGroup")}
+                  <a href="#" className="hover:text-bridge-secondary transition-all">
+                    {t('landing.footer.slackGroup')}
                   </a>
                 </li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold text-white mb-10 text-[11px] uppercase tracking-[0.5em] font-jakarta">
-                {t("landing.footer.mission")}
+                {t('landing.footer.mission')}
               </h4>
               <ul className="text-lg space-y-6 font-light font-inter">
                 <li>
-                  <a
-                    href="#"
-                    className="hover:text-bridge-secondary transition-all"
-                  >
-                    {t("landing.footer.manifesto")}
+                  <a href="#" className="hover:text-bridge-secondary transition-all">
+                    {t('landing.footer.manifesto')}
                   </a>
                 </li>
                 <li>
-                  <Link
-                    to="/privacy"
-                    className="hover:text-bridge-secondary transition-all"
-                  >
-                    {t("landing.footer.privacy")}
+                  <Link to="/privacy" className="hover:text-bridge-secondary transition-all">
+                    {t('landing.footer.privacy')}
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    to="/terms"
-                    className="hover:text-bridge-secondary transition-all"
-                  >
-                    {t("landing.footer.terms")}
+                  <Link to="/terms" className="hover:text-bridge-secondary transition-all">
+                    {t('landing.footer.terms')}
                   </Link>
                 </li>
               </ul>
             </div>
           </div>
           <div className="pt-20 border-t border-white/15 text-center text-[11px] tracking-[0.8em] uppercase font-black text-slate-700 font-jakarta">
-            {t("landing.footer.copyright")}
+            {t('landing.footer.copyright')}
           </div>
         </div>
       </footer>

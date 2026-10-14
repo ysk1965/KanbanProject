@@ -1,20 +1,63 @@
-import { useState, useEffect, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+  forwardRef,
+  useImperativeHandle,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useEscClose } from '../../hooks/useEscClose';
 import { FEATURE_COLORS } from '../../constants';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2, ListTodo, AlertCircle, Search, Flame, ChevronDown, ChevronUp, Layers, LayoutDashboard, Users, ExternalLink } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Trash2,
+  X,
+  Loader2,
+  Settings,
+  RotateCw,
+  CalendarDays,
+  Clock,
+  CheckCircle2,
+  ListTodo,
+  AlertCircle,
+  Search,
+  Flame,
+  ChevronDown,
+  ChevronUp,
+  Layers,
+  LayoutDashboard,
+  Users,
+  ExternalLink,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
 import { IconButton } from '../ui/IconButton';
 import { TimePicker } from '../ui/TimePicker';
 import { ColorPickerPopover } from '../ui/ColorPickerPopover';
-import { personalEventService, personalTaskService, personalCalendarService } from '../../utils/services';
+import {
+  personalEventService,
+  personalTaskService,
+  personalCalendarService,
+} from '../../utils/services';
 import { personalHabitAPI, boardAPI } from '../../utils/api';
 import { CheckInConfirmModal } from './PersonalHabits';
 import { formatDate } from '../../utils/dateUtils';
 import { useHolidays } from '../../hooks/useHolidays';
-import type { PersonalEvent, PersonalTask, PersonalTaskPriority, PersonalHabit, HabitWeeklyRow, HabitFrequency, UnifiedCalendarEvent, Board } from '../../types';
+import type {
+  PersonalEvent,
+  PersonalTask,
+  PersonalTaskPriority,
+  PersonalHabit,
+  HabitWeeklyRow,
+  HabitFrequency,
+  UnifiedCalendarEvent,
+  Board,
+} from '../../types';
 import {
   startOfWeek,
   endOfWeek,
@@ -36,7 +79,8 @@ const EVENT_COLORS = FEATURE_COLORS;
 
 const PRIORITY_DOT: Record<string, string> = {
   MEDIUM: 'bg-amber-400',
-  HIGH: 'bg-orange-500', URGENT: 'bg-red-500',
+  HIGH: 'bg-orange-500',
+  URGENT: 'bg-red-500',
 };
 
 /* ColorDropdown replaced by ColorPickerPopover */
@@ -63,7 +107,9 @@ const loadSettings = (): ScheduleSettings => {
         endHour: Math.max(1, Math.min(24, parsed.endHour ?? DEFAULT_END_HOUR)),
       };
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return { startHour: DEFAULT_START_HOUR, endHour: DEFAULT_END_HOUR };
 };
 
@@ -109,7 +155,9 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
     try {
       const raw = localStorage.getItem('bridge-personal-schedule-show-connected-boards');
       return raw !== null ? JSON.parse(raw) : true;
-    } catch { return true; }
+    } catch {
+      return true;
+    }
   });
 
   // Board schedule overlay
@@ -118,12 +166,14 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
     try {
       const raw = localStorage.getItem('bridge-personal-schedule-show-board');
       return raw !== null ? JSON.parse(raw) : true;
-    } catch { return true; }
+    } catch {
+      return true;
+    }
   });
 
   // View mode: day or week (mobile defaults to day, desktop to week)
   const [viewMode, setViewMode] = useState<'day' | 'week'>(() =>
-    typeof window !== 'undefined' && window.innerWidth < 768 ? 'day' : 'week'
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 'day' : 'week',
   );
 
   const startHour = settings.startHour;
@@ -139,7 +189,13 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
   // Habit create modal
   const [isCreateHabitOpen, setIsCreateHabitOpen] = useState(false);
   // Habit confirm modal
-  const [habitConfirm, setHabitConfirm] = useState<{ habitId: string; date: string; isUndo: boolean; title: string; icon?: string | null } | null>(null);
+  const [habitConfirm, setHabitConfirm] = useState<{
+    habitId: string;
+    date: string;
+    isUndo: boolean;
+    title: string;
+    icon?: string | null;
+  } | null>(null);
 
   // Mobile sidebar
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
@@ -177,7 +233,8 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
   }, [currentDate, viewMode]);
 
   // In day view, fetch one extra day before to capture overnight events spanning into today
-  const startDate = viewMode === 'day' ? toDateString(subDays(weekDays[0], 1)) : toDateString(weekDays[0]);
+  const startDate =
+    viewMode === 'day' ? toDateString(subDays(weekDays[0], 1)) : toDateString(weekDays[0]);
   const endDate = toDateString(weekDays[weekDays.length - 1]);
 
   // ---- Data loading ----
@@ -251,7 +308,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
       try {
         const data = await personalCalendarService.getUnifiedCalendar(startDate, endDate);
         const blocks = (data.board_events || []).filter(
-          (e: UnifiedCalendarEvent) => e.source === 'SCHEDULE_BLOCK' && e.start_time && e.end_time
+          (e: UnifiedCalendarEvent) => e.source === 'SCHEDULE_BLOCK' && e.start_time && e.end_time,
         );
         setBoardBlocks(blocks);
       } catch {
@@ -263,7 +320,16 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
 
   // Group habit completions by date
   const habitsByDate = useMemo(() => {
-    const grouped: Record<string, { habit_id: string; title: string; icon?: string | null; is_completed: boolean; count: number }[]> = {};
+    const grouped: Record<
+      string,
+      {
+        habit_id: string;
+        title: string;
+        icon?: string | null;
+        is_completed: boolean;
+        count: number;
+      }[]
+    > = {};
     habitRows.forEach((row) => {
       row.days.forEach((day) => {
         (grouped[day.date] ??= []).push({
@@ -294,19 +360,27 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
   // Group board blocks by date
   const boardBlocksByDate = useMemo(() => {
     const grouped: Record<string, UnifiedCalendarEvent[]> = {};
-    boardBlocks.forEach((b) => { (grouped[b.event_date] ??= []).push(b); });
+    boardBlocks.forEach((b) => {
+      (grouped[b.event_date] ??= []).push(b);
+    });
     return grouped;
   }, [boardBlocks]);
 
   const handleHabitCheckIn = async (habitId: string, date: string) => {
     // Optimistic update
-    setHabitRows(prev => prev.map(row => {
-      if (row.habit_id !== habitId) return row;
-      return {
-        ...row,
-        days: row.days.map(d => d.date === date ? { ...d, is_completed: !d.is_completed, count: d.is_completed ? 0 : 1 } : d),
-      };
-    }));
+    setHabitRows((prev) =>
+      prev.map((row) => {
+        if (row.habit_id !== habitId) return row;
+        return {
+          ...row,
+          days: row.days.map((d) =>
+            d.date === date
+              ? { ...d, is_completed: !d.is_completed, count: d.is_completed ? 0 : 1 }
+              : d,
+          ),
+        };
+      }),
+    );
     try {
       await personalHabitAPI.checkIn(habitId, { log_date: date });
     } catch {
@@ -347,8 +421,14 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
   };
 
   // ---- Navigation ----
-  const handlePrev = () => { triggerSlide(-1); setCurrentDate((d) => viewMode === 'day' ? subDays(d, 1) : subWeeks(d, 1)); };
-  const handleNext = () => { triggerSlide(1); setCurrentDate((d) => viewMode === 'day' ? addDays(d, 1) : addWeeks(d, 1)); };
+  const handlePrev = () => {
+    triggerSlide(-1);
+    setCurrentDate((d) => (viewMode === 'day' ? subDays(d, 1) : subWeeks(d, 1)));
+  };
+  const handleNext = () => {
+    triggerSlide(1);
+    setCurrentDate((d) => (viewMode === 'day' ? addDays(d, 1) : addWeeks(d, 1)));
+  };
   const handleToday = () => setCurrentDate(new Date());
 
   useImperativeHandle(ref, () => ({ swipePrev: handlePrev, swipeNext: handleNext }));
@@ -357,7 +437,14 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
   const isTodayInView = weekDays.some((d) => toDateString(d) === todayStr);
 
   // ---- Events grouped by date ----
-  const { allDayByDate, timedByDate, calendarByDate, hasAllDay, hasCalendarEvents, overnightContinuations } = useMemo(() => {
+  const {
+    allDayByDate,
+    timedByDate,
+    calendarByDate,
+    hasAllDay,
+    hasCalendarEvents,
+    overnightContinuations,
+  } = useMemo(() => {
     const allDay: Record<string, PersonalEvent[]> = {};
     const timed: Record<string, PersonalEvent[]> = {};
     const calendar: Record<string, PersonalEvent[]> = {};
@@ -373,7 +460,10 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
         if (e.start_time) {
           (timed[e.event_date] ??= []).push(e);
           if (e.end_time && e.end_time < e.start_time) {
-            const nextDateStr = format(addDays(new Date(e.event_date + 'T00:00:00'), 1), 'yyyy-MM-dd');
+            const nextDateStr = format(
+              addDays(new Date(e.event_date + 'T00:00:00'), 1),
+              'yyyy-MM-dd',
+            );
             (timed[nextDateStr] ??= []).push(e);
             continuations.add(`${e.id}:${nextDateStr}`);
           }
@@ -387,13 +477,23 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
         (timed[e.event_date] ??= []).push(e);
         // Overnight events (end_time < start_time): also add to next day
         if (e.end_time && e.end_time < e.start_time) {
-          const nextDateStr = format(addDays(new Date(e.event_date + 'T00:00:00'), 1), 'yyyy-MM-dd');
+          const nextDateStr = format(
+            addDays(new Date(e.event_date + 'T00:00:00'), 1),
+            'yyyy-MM-dd',
+          );
           (timed[nextDateStr] ??= []).push(e);
           continuations.add(`${e.id}:${nextDateStr}`);
         }
       }
     });
-    return { allDayByDate: allDay, timedByDate: timed, calendarByDate: calendar, hasAllDay: hasAny, hasCalendarEvents: hasCalendar, overnightContinuations: continuations };
+    return {
+      allDayByDate: allDay,
+      timedByDate: timed,
+      calendarByDate: calendar,
+      hasAllDay: hasAny,
+      hasCalendarEvents: hasCalendar,
+      overnightContinuations: continuations,
+    };
   }, [events]);
 
   // ---- Drag handlers ----
@@ -451,7 +551,11 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
     recurrence_days_of_week?: number[];
   }) => {
     try {
-      await personalEventService.create({ ...data, event_date: createDate, event_type: 'SCHEDULE' });
+      await personalEventService.create({
+        ...data,
+        event_date: createDate,
+        event_type: 'SCHEDULE',
+      });
       await loadEvents();
       setIsCreateOpen(false);
     } catch (err) {
@@ -502,7 +606,12 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
   };
 
-  const checkEventOverlap = (eventId: string, eventDate: string, newStartMin: number, newEndMin: number): boolean => {
+  const checkEventOverlap = (
+    eventId: string,
+    eventDate: string,
+    newStartMin: number,
+    newEndMin: number,
+  ): boolean => {
     const dayEvents = timedByDate[eventDate] || [];
     for (const other of dayEvents) {
       if (other.id === eventId) continue;
@@ -513,30 +622,43 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
       const [oeh, oem] = other.end_time.split(':').map(Number);
       const otherStart = osh * 60 + osm;
       // Overnight: extend end past midnight
-      const otherEnd = oeh * 60 + oem <= otherStart ? (oeh * 60 + oem) + 24 * 60 : oeh * 60 + oem;
+      const otherEnd = oeh * 60 + oem <= otherStart ? oeh * 60 + oem + 24 * 60 : oeh * 60 + oem;
       const effNewEnd = newEndMin <= newStartMin ? newEndMin + 24 * 60 : newEndMin;
       if (newStartMin < otherEnd && effNewEnd > otherStart) return true;
     }
     return false;
   };
 
-  const handleEventTimeChange = async (eventId: string, newStartTime: string, newEndTime: string) => {
-    setEvents(prev => prev.map(ev =>
-      ev.id === eventId ? { ...ev, start_time: newStartTime, end_time: newEndTime } : ev
-    ));
+  const handleEventTimeChange = async (
+    eventId: string,
+    newStartTime: string,
+    newEndTime: string,
+  ) => {
+    setEvents((prev) =>
+      prev.map((ev) =>
+        ev.id === eventId ? { ...ev, start_time: newStartTime, end_time: newEndTime } : ev,
+      ),
+    );
     try {
-      await personalEventService.update(eventId, { start_time: newStartTime, end_time: newEndTime });
+      await personalEventService.update(eventId, {
+        start_time: newStartTime,
+        end_time: newEndTime,
+      });
     } catch {
       loadEvents();
     }
   };
 
-  const handleEventResizeStart = (e: React.MouseEvent, ev: PersonalEvent, handle: 'top' | 'bottom') => {
+  const handleEventResizeStart = (
+    e: React.MouseEvent,
+    ev: PersonalEvent,
+    handle: 'top' | 'bottom',
+  ) => {
     e.stopPropagation();
     e.preventDefault();
     if (!ev.start_time || !ev.end_time) return;
 
-    const type = handle === 'top' ? 'resize-top' as const : 'resize-bottom' as const;
+    const type = handle === 'top' ? ('resize-top' as const) : ('resize-bottom' as const);
     const [esh, esm] = ev.start_time.split(':').map(Number);
     const [eeh, eem] = ev.end_time.split(':').map(Number);
     const origStartMin = esh * 60 + esm;
@@ -611,9 +733,8 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
     const [eeh, eem] = ev.end_time.split(':').map(Number);
     const origStartMin = esh * 60 + esm;
     const origEndMin = eeh * 60 + eem;
-    const duration = origEndMin >= origStartMin
-      ? origEndMin - origStartMin
-      : (24 * 60 - origStartMin) + origEndMin;
+    const duration =
+      origEndMin >= origStartMin ? origEndMin - origStartMin : 24 * 60 - origStartMin + origEndMin;
     const workStartMin = startHour * 60;
     const workEndMin = endHour * 60;
     const origTop = ((origStartMin - workStartMin) / 30) * SLOT_HEIGHT;
@@ -634,11 +755,22 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
         const deltaMin = (snappedOffset / SLOT_HEIGHT) * 30;
         let checkStart = origStartMin + deltaMin;
         let checkEnd = checkStart + duration;
-        if (checkStart < workStartMin) { checkStart = workStartMin; checkEnd = workStartMin + duration; }
-        if (checkEnd > workEndMin) { checkEnd = workEndMin; checkStart = workEndMin - duration; }
+        if (checkStart < workStartMin) {
+          checkStart = workStartMin;
+          checkEnd = workStartMin + duration;
+        }
+        if (checkEnd > workEndMin) {
+          checkEnd = workEndMin;
+          checkStart = workEndMin - duration;
+        }
         const hasOverlap = checkEventOverlap(ev.id, ev.event_date, checkStart, checkEnd);
         eventOverlapRef.current = hasOverlap;
-        setEventInteraction({ eventId: ev.id, type: 'drag', offsetPx: snappedOffset, overlap: hasOverlap });
+        setEventInteraction({
+          eventId: ev.id,
+          type: 'drag',
+          offsetPx: snappedOffset,
+          overlap: hasOverlap,
+        });
       };
 
       const onUp = () => {
@@ -736,7 +868,9 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
         const me = endOfMonth(calendarMonth);
         const data = await personalEventService.getWeekly(toDateString(ms), toDateString(me));
         setMonthlyEvents(data);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     };
     fetchMonthly();
   }, [calendarMonth]);
@@ -757,9 +891,15 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
     // Also include currently loaded weekly events
     events.forEach((e) => set.add(e.event_date));
     // Also include habit dates
-    habitRows.forEach((row) => row.days.forEach((d) => { if (d.is_completed || d.completed_count > 0) set.add(d.date); }));
+    habitRows.forEach((row) =>
+      row.days.forEach((d) => {
+        if (d.is_completed || d.completed_count > 0) set.add(d.date);
+      }),
+    );
     // Also include task due dates
-    tasks.forEach((t) => { if (t.due_date) set.add(t.due_date); });
+    tasks.forEach((t) => {
+      if (t.due_date) set.add(t.due_date);
+    });
     return set;
   }, [monthlyEvents, events, habitRows, tasks]);
 
@@ -834,13 +974,15 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
       </AnimatePresence>
 
       {/* ======== Left Sidebar ======== */}
-      <div className={`
+      <div
+        className={`
         fixed md:relative inset-y-0 left-0 z-50 md:z-auto
         w-[300px] md:w-[340px] flex-shrink-0 border-r border-foreground/5 flex flex-col overflow-hidden
         bg-bridge-dark md:bg-transparent
         transition-transform duration-300 ease-in-out safe-left safe-top safe-bottom
         ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-      `}>
+      `}
+      >
         <div className="px-4 pt-4 pb-2 flex-shrink-0">
           {/* Title */}
           <div className="flex items-center gap-2.5 mb-4">
@@ -857,7 +999,10 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
           {/* Month Navigation */}
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-bold text-foreground">
-              {t('personal.schedule.monthYear', { year: format(calendarMonth, 'yyyy'), month: format(calendarMonth, 'M') })}
+              {t('personal.schedule.monthYear', {
+                year: format(calendarMonth, 'yyyy'),
+                month: format(calendarMonth, 'M'),
+              })}
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -919,9 +1064,10 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                     onClick={() => handleCalendarDateClick(day)}
                     className={`
                       relative flex flex-col items-center justify-center py-1.5 rounded-lg transition-all min-h-[36px]
-                      ${isInCurrentWeek
-                        ? 'bg-bridge-accent/10 border border-bridge-accent/20'
-                        : 'border border-transparent hover:bg-foreground/5'
+                      ${
+                        isInCurrentWeek
+                          ? 'bg-bridge-accent/10 border border-bridge-accent/20'
+                          : 'border border-transparent hover:bg-foreground/5'
                       }
                       ${!isCurrentMonth ? 'opacity-30' : ''}
                     `}
@@ -929,15 +1075,18 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                     <span
                       className={`
                         text-xs font-medium leading-none
-                        ${isTodayDate
-                          ? 'bg-bridge-accent text-white rounded-full w-5 h-5 flex items-center justify-center text-xs'
-                          : isInCurrentWeek
-                            ? isHoliday || dayOfWeek === 0 ? 'text-red-400' : 'text-foreground'
-                            : isHoliday || dayOfWeek === 0
-                              ? 'text-red-400/80'
-                              : dayOfWeek === 6
-                                ? 'text-blue-400/80'
-                                : 'text-muted-foreground'
+                        ${
+                          isTodayDate
+                            ? 'bg-bridge-accent text-white rounded-full w-5 h-5 flex items-center justify-center text-xs'
+                            : isInCurrentWeek
+                              ? isHoliday || dayOfWeek === 0
+                                ? 'text-red-400'
+                                : 'text-foreground'
+                              : isHoliday || dayOfWeek === 0
+                                ? 'text-red-400/80'
+                                : dayOfWeek === 6
+                                  ? 'text-blue-400/80'
+                                  : 'text-muted-foreground'
                         }
                       `}
                     >
@@ -985,7 +1134,9 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
             <div className="text-center py-6">
               <RotateCw size={20} className="mx-auto text-slate-600 mb-2" />
               <p className="text-slate-500 text-xs">{t('personal.schedule.noRecurring')}</p>
-              <p className="text-slate-600 text-xs mt-1">{t('personal.schedule.noRecurringHint')}</p>
+              <p className="text-slate-600 text-xs mt-1">
+                {t('personal.schedule.noRecurringHint')}
+              </p>
             </div>
           ) : (
             <div className="space-y-1.5">
@@ -1012,7 +1163,16 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                           <span className="text-xs text-slate-500 flex items-center gap-0.5">
                             <Clock size={8} />
                             {e.start_time.slice(0, 5)}
-                            {e.end_time && <>{` - ${e.end_time.slice(0, 5)}`}{e.end_time < e.start_time && <span className="text-bridge-accent ml-0.5">({t('personal.schedule.nextDay')})</span>}</>}
+                            {e.end_time && (
+                              <>
+                                {` - ${e.end_time.slice(0, 5)}`}
+                                {e.end_time < e.start_time && (
+                                  <span className="text-bridge-accent ml-0.5">
+                                    ({t('personal.schedule.nextDay')})
+                                  </span>
+                                )}
+                              </>
+                            )}
                           </span>
                         )}
                       </div>
@@ -1030,7 +1190,10 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
             onClick={() => {
               const next = !showConnectedBoards;
               setShowConnectedBoards(next);
-              localStorage.setItem('bridge-personal-schedule-show-connected-boards', JSON.stringify(next));
+              localStorage.setItem(
+                'bridge-personal-schedule-show-connected-boards',
+                JSON.stringify(next),
+              );
             }}
             className="w-full flex items-center justify-between pt-3 pb-2 group"
           >
@@ -1045,10 +1208,11 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                 </span>
               )}
             </div>
-            {showConnectedBoards
-              ? <ChevronUp size={14} className="text-slate-500" />
-              : <ChevronDown size={14} className="text-slate-500" />
-            }
+            {showConnectedBoards ? (
+              <ChevronUp size={14} className="text-slate-500" />
+            ) : (
+              <ChevronDown size={14} className="text-slate-500" />
+            )}
           </button>
           <AnimatePresence initial={false}>
             {showConnectedBoards && (
@@ -1066,8 +1230,15 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                 ) : connectedBoards.length === 0 ? (
                   <div className="text-center py-4">
                     <LayoutDashboard size={20} className="mx-auto text-slate-600 mb-2" />
-                    <p className="text-slate-500 text-xs">{t('personal.schedule.noBoards', '연결된 보드가 없습니다')}</p>
-                    <p className="text-slate-600 text-xs mt-1">{t('personal.schedule.noBoardsHint', '보드에 참여하면 협업 일정이 여기에 표시됩니다')}</p>
+                    <p className="text-slate-500 text-xs">
+                      {t('personal.schedule.noBoards', '연결된 보드가 없습니다')}
+                    </p>
+                    <p className="text-slate-600 text-xs mt-1">
+                      {t(
+                        'personal.schedule.noBoardsHint',
+                        '보드에 참여하면 협업 일정이 여기에 표시됩니다',
+                      )}
+                    </p>
                     <button
                       onClick={() => navigate('/boards')}
                       className="mt-2 flex items-center gap-1 mx-auto px-3 py-1.5 text-xs font-bold text-bridge-accent bg-bridge-accent/15 rounded-lg hover:bg-bridge-accent/25 transition-colors"
@@ -1114,7 +1285,10 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                               )}
                             </div>
                           </div>
-                          <ExternalLink size={12} className="text-slate-600 group-hover:text-bridge-accent flex-shrink-0 transition-colors" />
+                          <ExternalLink
+                            size={12}
+                            className="text-slate-600 group-hover:text-bridge-accent flex-shrink-0 transition-colors"
+                          />
                         </div>
                       </motion.button>
                     ))}
@@ -1150,13 +1324,21 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
             <h2 className="text-xs md:text-lg font-bold min-w-0 text-center whitespace-nowrap">
               {viewMode === 'day' ? (
                 <>
-                  <span className="hidden sm:inline">{formatDate(weekDays[0], 'EEE, MMM d, yyyy')}</span>
+                  <span className="hidden sm:inline">
+                    {formatDate(weekDays[0], 'EEE, MMM d, yyyy')}
+                  </span>
                   <span className="sm:hidden">{formatDate(weekDays[0], 'EEE M/d')}</span>
                 </>
               ) : (
                 <>
-                  <span className="hidden sm:inline">{formatDate(weekDays[0], 'MMM d')} - {formatDate(weekDays[weekDays.length - 1], 'MMM d, yyyy')}</span>
-                  <span className="sm:hidden">{formatDate(weekDays[0], 'M/d')} - {formatDate(weekDays[weekDays.length - 1], 'M/d')}</span>
+                  <span className="hidden sm:inline">
+                    {formatDate(weekDays[0], 'MMM d')} -{' '}
+                    {formatDate(weekDays[weekDays.length - 1], 'MMM d, yyyy')}
+                  </span>
+                  <span className="sm:hidden">
+                    {formatDate(weekDays[0], 'M/d')} -{' '}
+                    {formatDate(weekDays[weekDays.length - 1], 'M/d')}
+                  </span>
                 </>
               )}
             </h2>
@@ -1231,232 +1413,139 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
 
         {/* ======== Time-grid ======== */}
         <div ref={animRef} className="flex-1 overflow-auto custom-scrollbar bg-bridge-dark">
-          <div className={`${viewMode === 'day' ? '' : 'min-w-[520px] md:min-w-[760px]'} bg-bridge-dark`}>
-          {/* ---- Day headers (sticky) ---- */}
-          <div className="flex sticky top-0 bg-bridge-obsidian/95 backdrop-blur-sm z-10 border-b border-foreground/[0.08]">
-            <div className={`${TIME_COL_W} flex-shrink-0 border-r border-foreground/[0.08]`} />
-            {weekDays.map((day, idx) => {
-              const ds = toDateString(day);
-              const isToday = ds === todayStr;
-              const isHoliday = holidayMap.has(ds);
-              return (
-                <div
-                  key={ds}
-                  className={`flex-1 ${COL_MIN_W} p-3 border-r border-foreground/[0.08] ${
-                    isToday ? 'bg-bridge-accent/5' : ''
-                  }`}
-                >
+          <div
+            className={`${viewMode === 'day' ? '' : 'min-w-[520px] md:min-w-[760px]'} bg-bridge-dark`}
+          >
+            {/* ---- Day headers (sticky) ---- */}
+            <div className="flex sticky top-0 bg-bridge-obsidian/95 backdrop-blur-sm z-10 border-b border-foreground/[0.08]">
+              <div className={`${TIME_COL_W} flex-shrink-0 border-r border-foreground/[0.08]`} />
+              {weekDays.map((day, idx) => {
+                const ds = toDateString(day);
+                const isToday = ds === todayStr;
+                const isHoliday = holidayMap.has(ds);
+                return (
                   <div
-                    className={`text-xs font-bold uppercase tracking-widest ${
-                      isToday ? 'text-bridge-secondary' : isHoliday || day.getDay() === 0 ? 'text-red-400/60' : day.getDay() === 6 ? 'text-blue-400/60' : 'text-slate-500'
+                    key={ds}
+                    className={`flex-1 ${COL_MIN_W} p-3 border-r border-foreground/[0.08] ${
+                      isToday ? 'bg-bridge-accent/5' : ''
                     }`}
                   >
-                    {[
-                      t('personal.schedule.daySun'),
-                      t('personal.schedule.dayMon'),
-                      t('personal.schedule.dayTue'),
-                      t('personal.schedule.dayWed'),
-                      t('personal.schedule.dayThu'),
-                      t('personal.schedule.dayFri'),
-                      t('personal.schedule.daySat'),
-                    ][day.getDay()]}
-                  </div>
-                  <div className={`text-lg font-bold ${isToday ? 'text-bridge-secondary' : isHoliday ? 'text-red-400' : 'text-foreground'}`}>
-                    {day.getDate()}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* ---- All-day events row ---- */}
-          {hasAllDay && (
-            <div className="flex border-b border-foreground/[0.08] bg-white/[0.02]">
-              <div
-                className={`${TIME_COL_W} flex-shrink-0 p-2 text-xs text-slate-500 border-r border-foreground/[0.08] flex items-center justify-center font-bold tracking-wider`}
-              >
-                {t('personal.schedule.all')}
-              </div>
-              {weekDays.map((day) => {
-                const ds = toDateString(day);
-                const dayEvents = allDayByDate[ds] || [];
-                return (
-                  <div
-                    key={`ad-${ds}`}
-                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-foreground/[0.08] space-y-1`}
-                  >
-                    {dayEvents.map((ev) => (
-                      <div
-                        key={ev.id}
-                        onClick={() => setEditEvent(ev)}
-                        className="group relative px-2 py-1 rounded-md text-xs font-medium truncate cursor-pointer"
-                        style={{
-                          backgroundColor: `${ev.color}25`,
-                          borderLeft: `3px solid ${ev.color}`,
-                        }}
-                      >
-                        <span className="text-foreground/90 truncate flex items-center gap-1">
-                          {ev.recurrence_group_id && <RotateCw className="h-2.5 w-2.5 text-purple-400 flex-shrink-0" />}
-                          {ev.title}
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteEvent(ev.id);
-                          }}
-                          className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-rose-400 transition-all"
-                        >
-                          <Trash2 size={10} />
-                        </button>
-                      </div>
-                    ))}
+                    <div
+                      className={`text-xs font-bold uppercase tracking-widest ${
+                        isToday
+                          ? 'text-bridge-secondary'
+                          : isHoliday || day.getDay() === 0
+                            ? 'text-red-400/60'
+                            : day.getDay() === 6
+                              ? 'text-blue-400/60'
+                              : 'text-slate-500'
+                      }`}
+                    >
+                      {
+                        [
+                          t('personal.schedule.daySun'),
+                          t('personal.schedule.dayMon'),
+                          t('personal.schedule.dayTue'),
+                          t('personal.schedule.dayWed'),
+                          t('personal.schedule.dayThu'),
+                          t('personal.schedule.dayFri'),
+                          t('personal.schedule.daySat'),
+                        ][day.getDay()]
+                      }
+                    </div>
+                    <div
+                      className={`text-lg font-bold ${isToday ? 'text-bridge-secondary' : isHoliday ? 'text-red-400' : 'text-foreground'}`}
+                    >
+                      {day.getDate()}
+                    </div>
                   </div>
                 );
               })}
             </div>
-          )}
 
-          {/* ---- Calendar events row ---- */}
-          {hasCalendarEvents && (
-            <div className="flex border-b border-foreground/[0.08] bg-sky-500/[0.03]">
-              <div
-                className={`${TIME_COL_W} flex-shrink-0 p-2 text-xs text-sky-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
-              >
-                <CalendarDays size={12} />
-              </div>
-              {weekDays.map((day) => {
-                const ds = toDateString(day);
-                const dayCalendarEvents = calendarByDate[ds] || [];
-                return (
-                  <div
-                    key={`cal-${ds}`}
-                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-foreground/[0.08] space-y-1`}
-                  >
-                    {dayCalendarEvents.map((ev) => (
-                      <div
-                        key={ev.id}
-                        onClick={() => setEditEvent(ev)}
-                        className="group relative px-2 py-1 rounded-md text-xs font-medium truncate cursor-pointer"
-                        style={{
-                          backgroundColor: `${ev.color}25`,
-                          borderLeft: `3px solid ${ev.color}`,
-                        }}
-                      >
-                        <span className="text-foreground/90 truncate flex items-center gap-1">
-                          <CalendarDays className="h-2.5 w-2.5 text-sky-400 flex-shrink-0" />
-                          {ev.title}
-                          {ev.start_time && (
-                            <span className="text-xs text-slate-400 ml-auto flex-shrink-0">
-                              {ev.start_time.slice(0, 5)}
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* ---- Task deadlines row ---- */}
-          {hasTasksDue && (
-            <div className="flex border-b border-foreground/[0.08] bg-amber-500/[0.03]">
-              <div
-                className={`${TIME_COL_W} flex-shrink-0 p-2 text-xs text-amber-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
-              >
-                <ListTodo size={12} />
-              </div>
-              {weekDays.map((day) => {
-                const ds = toDateString(day);
-                const dayTasks = tasksByDate[ds] || [];
-                return (
-                  <div
-                    key={`tk-${ds}`}
-                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-foreground/[0.08] space-y-1`}
-                  >
-                    {dayTasks.map((task) => {
-                      const isDone = task.status === 'DONE';
-                      const isOverdue = !isDone && task.due_date! < todayStr;
-                      const priorityColors: Record<string, string> = {
-                        URGENT: 'bg-red-500',
-                        HIGH: 'bg-orange-500',
-                        MEDIUM: 'bg-amber-500',
-                        LOW: 'bg-blue-400',
-                        NONE: 'bg-slate-500',
-                      };
-                      return (
-                        <div
-                          key={task.id}
-                          className={`group flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-default transition-all ${
-                            isDone
-                              ? 'bg-slate-500/10 border-l-[3px] border-slate-500/30'
-                              : isOverdue
-                                ? 'bg-red-500/10 border-l-[3px] border-red-500/60'
-                                : 'bg-amber-500/10 border-l-[3px] border-amber-500/40'
-                          }`}
-                        >
-                          <div
-                            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${priorityColors[task.priority] || 'bg-slate-500'}`}
-                          />
-                          <span className={`truncate ${
-                            isDone ? 'line-through text-slate-500' : isOverdue ? 'text-red-300' : 'text-foreground/80'
-                          }`}>
-                            {task.title}
-                          </span>
-                          {isOverdue && (
-                            <AlertCircle size={10} className="text-red-400 flex-shrink-0 ml-auto" />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* ---- Habits row ---- */}
-          <div className="border-b border-foreground/[0.08] bg-purple-500/[0.03]">
-            {habitRows.length > 0 && (
-              <div className="flex">
+            {/* ---- All-day events row ---- */}
+            {hasAllDay && (
+              <div className="flex border-b border-foreground/[0.08] bg-white/[0.02]">
                 <div
-                  className={`${TIME_COL_W} flex-shrink-0 p-2 text-xs text-purple-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
+                  className={`${TIME_COL_W} flex-shrink-0 p-2 text-xs text-slate-500 border-r border-foreground/[0.08] flex items-center justify-center font-bold tracking-wider`}
                 >
-                  <CheckCircle2 size={12} />
+                  {t('personal.schedule.all')}
                 </div>
                 {weekDays.map((day) => {
                   const ds = toDateString(day);
-                  const dayHabits = habitsByDate[ds] || [];
+                  const dayEvents = allDayByDate[ds] || [];
                   return (
                     <div
-                      key={`hb-${ds}`}
+                      key={`ad-${ds}`}
                       className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-foreground/[0.08] space-y-1`}
                     >
-                      {dayHabits.map((item) => (
+                      {dayEvents.map((ev) => (
                         <div
-                          key={item.habit_id}
-                          className={`group flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-pointer transition-all ${
-                            item.is_completed
-                              ? 'bg-bridge-secondary/10 border-l-[3px] border-bridge-secondary/40'
-                              : 'bg-purple-400/10 border-l-[3px] border-purple-400/60 hover:bg-purple-400/15'
-                          }`}
-                          onClick={() => setHabitConfirm({ habitId: item.habit_id, date: ds, isUndo: item.is_completed, title: item.title, icon: item.icon })}
+                          key={ev.id}
+                          onClick={() => setEditEvent(ev)}
+                          className="group relative px-2 py-1 rounded-md text-xs font-medium truncate cursor-pointer"
+                          style={{
+                            backgroundColor: `${ev.color}25`,
+                            borderLeft: `3px solid ${ev.color}`,
+                          }}
                         >
-                          <div
-                            className={`w-3 h-3 rounded-full border flex items-center justify-center flex-shrink-0 transition-all ${
-                              item.is_completed
-                                ? 'bg-bridge-secondary border-bridge-secondary'
-                                : 'border-purple-400/40'
-                            }`}
+                          <span className="text-foreground/90 truncate flex items-center gap-1">
+                            {ev.recurrence_group_id && (
+                              <RotateCw className="h-2.5 w-2.5 text-purple-400 flex-shrink-0" />
+                            )}
+                            {ev.title}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteEvent(ev.id);
+                            }}
+                            className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-rose-400 transition-all"
                           >
-                            {item.is_completed && <CheckCircle2 size={8} className="text-white" />}
-                          </div>
-                          <span className={`truncate ${
-                            item.is_completed ? 'line-through text-slate-500' : 'text-foreground/80'
-                          }`}>
-                            {item.icon && <span className="mr-0.5">{item.icon}</span>}
-                            {item.title}
+                            <Trash2 size={10} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ---- Calendar events row ---- */}
+            {hasCalendarEvents && (
+              <div className="flex border-b border-foreground/[0.08] bg-sky-500/[0.03]">
+                <div
+                  className={`${TIME_COL_W} flex-shrink-0 p-2 text-xs text-sky-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
+                >
+                  <CalendarDays size={12} />
+                </div>
+                {weekDays.map((day) => {
+                  const ds = toDateString(day);
+                  const dayCalendarEvents = calendarByDate[ds] || [];
+                  return (
+                    <div
+                      key={`cal-${ds}`}
+                      className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-foreground/[0.08] space-y-1`}
+                    >
+                      {dayCalendarEvents.map((ev) => (
+                        <div
+                          key={ev.id}
+                          onClick={() => setEditEvent(ev)}
+                          className="group relative px-2 py-1 rounded-md text-xs font-medium truncate cursor-pointer"
+                          style={{
+                            backgroundColor: `${ev.color}25`,
+                            borderLeft: `3px solid ${ev.color}`,
+                          }}
+                        >
+                          <span className="text-foreground/90 truncate flex items-center gap-1">
+                            <CalendarDays className="h-2.5 w-2.5 text-sky-400 flex-shrink-0" />
+                            {ev.title}
+                            {ev.start_time && (
+                              <span className="text-xs text-slate-400 ml-auto flex-shrink-0">
+                                {ev.start_time.slice(0, 5)}
+                              </span>
+                            )}
                           </span>
                         </div>
                       ))}
@@ -1465,311 +1554,62 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                 })}
               </div>
             )}
-            {/* Add Habit button */}
-            <div className="flex">
-              <div className={`${TIME_COL_W} flex-shrink-0 border-r border-foreground/[0.08]`} />
-              <button
-                onClick={() => setIsCreateHabitOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-purple-400/70 hover:text-purple-300 hover:bg-purple-400/5 transition-all rounded-md m-1"
-              >
-                <Plus size={12} />
-                {t('personal.schedule.addHabit')}
-              </button>
-            </div>
-          </div>
 
-          {/* ---- Time slot rows + event overlay ---- */}
-          <div className="relative">
-            {timeSlots.map((time, slotIdx) => (
-              <div
-                key={time}
-                className="flex border-b border-white/[0.03]"
-                style={{ height: `${SLOT_HEIGHT}px` }}
-              >
-                {/* Time label */}
+            {/* ---- Task deadlines row ---- */}
+            {hasTasksDue && (
+              <div className="flex border-b border-foreground/[0.08] bg-amber-500/[0.03]">
                 <div
-                  className={`${TIME_COL_W} flex-shrink-0 px-2 text-xs text-slate-500 border-r border-foreground/[0.08] flex items-start pt-1`}
+                  className={`${TIME_COL_W} flex-shrink-0 p-2 text-xs text-amber-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
                 >
-                  {time.endsWith(':00') ? time : ''}
+                  <ListTodo size={12} />
                 </div>
-
-                {/* Day cells */}
                 {weekDays.map((day) => {
                   const ds = toDateString(day);
-                  const isToday = ds === todayStr;
-                  const selected = isSlotSelected(ds, slotIdx);
+                  const dayTasks = tasksByDate[ds] || [];
                   return (
                     <div
-                      key={`${ds}-${time}`}
-                      className={`flex-1 ${COL_MIN_W} border-r border-white/[0.03] cursor-pointer transition-colors group relative h-full ${
-                        selected
-                          ? 'bg-bridge-secondary/20'
-                          : isToday
-                          ? 'bg-bridge-accent/[0.03]'
-                          : 'hover:bg-white/[0.03]'
-                      }`}
-                      onMouseDown={(e) => handleMouseDown(e, ds, slotIdx)}
-                      onMouseEnter={() => handleMouseEnter(ds, slotIdx)}
+                      key={`tk-${ds}`}
+                      className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-foreground/[0.08] space-y-1`}
                     >
-                      {!selected && (
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                          <Plus className="h-3 w-3 text-slate-600" />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-
-            {/* ---- Current time indicator ---- */}
-            {isTodayInView && currentTimeTop != null && (
-              <div
-                ref={indicatorRef}
-                className="absolute left-0 right-0 z-[5] pointer-events-none flex items-center"
-                style={{ top: `${currentTimeTop}px` }}
-              >
-                <div className={`${TIME_COL_W} flex-shrink-0 flex justify-end pr-1`}>
-                  <span className="text-xs font-bold text-red-400 bg-red-500/15 px-1 rounded">
-                    {now.getHours().toString().padStart(2, '0')}:
-                    {now.getMinutes().toString().padStart(2, '0')}
-                  </span>
-                </div>
-                {/* Line across all day columns */}
-                {weekDays.map((day) => {
-                  const ds = toDateString(day);
-                  const isToday = ds === todayStr;
-                  return (
-                    <div key={`ti-${ds}`} className={`flex-1 ${COL_MIN_W} flex items-center`}>
-                      {isToday ? (
-                        <>
-                          <div className="w-2 h-2 rounded-full bg-red-500 -ml-1 flex-shrink-0" />
-                          <div className="flex-1 h-[2px] bg-red-500/70" />
-                        </>
-                      ) : (
-                        <div className="flex-1 h-[1px] bg-red-500/20" />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* ---- Board schedule blocks overlay (behind personal events) ---- */}
-            {showBoardSchedules && boardBlocks.length > 0 && (
-              <div className="absolute top-0 left-12 md:left-16 right-0 pointer-events-none">
-                <div className="flex">
-                  {weekDays.map((day) => {
-                    const ds = toDateString(day);
-                    const dayBlocks = boardBlocksByDate[ds] || [];
-                    return (
-                      <div
-                        key={`bb-${ds}`}
-                        className={`flex-1 ${COL_MIN_W} relative`}
-                        style={{ height: `${timeSlots.length * SLOT_HEIGHT}px` }}
-                      >
-                        {dayBlocks.map((block) => {
-                          if (!block.start_time || !block.end_time) return null;
-
-                          const [sh, sm] = block.start_time.split(':').map(Number);
-                          const [eh, em] = block.end_time.split(':').map(Number);
-                          const startMin = sh * 60 + sm;
-                          let endMin = eh * 60 + em;
-
-                          // Overnight: cap at grid end
-                          if (endMin < startMin) endMin = endHour * 60;
-
-                          const workStartMin = startHour * 60;
-                          const blockTop = ((startMin - workStartMin) / 30) * SLOT_HEIGHT;
-                          const blockHeight = Math.max(((endMin - startMin) / 30) * SLOT_HEIGHT, SLOT_HEIGHT * 0.6);
-
-                          if (blockTop < 0) return null;
-
-                          return (
-                            <div
-                              key={block.schedule_block_id || `bb-${block.title}-${block.start_time}`}
-                              className="absolute left-1 right-1 rounded-md border-l-4 border-dashed px-2 py-1 overflow-hidden opacity-50"
-                              style={{
-                                top: `${blockTop}px`,
-                                height: `${blockHeight}px`,
-                                backgroundColor: `${block.color || '#6366F1'}20`,
-                                borderLeftColor: block.color || '#6366F1',
-                              }}
-                            >
-                              <div className="flex flex-col h-full overflow-hidden">
-                                {block.board_name && (
-                                  <span className="text-xs font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent truncate max-w-[80%] self-start mb-0.5">
-                                    {block.board_name}
-                                  </span>
-                                )}
-                                <span className="text-xs font-medium text-foreground/70 truncate">
-                                  {block.title}
-                                </span>
-                                {blockHeight > 30 && block.task_title && (
-                                  <span className="text-xs text-slate-500 truncate">
-                                    {block.task_title}
-                                  </span>
-                                )}
-                                {blockHeight > 45 && (
-                                  <span className="text-xs text-slate-500">
-                                    {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* ---- Event blocks overlay ---- */}
-            <div className="absolute top-0 left-12 md:left-16 right-0 pointer-events-none">
-              <div className="flex">
-                {weekDays.map((day) => {
-                  const ds = toDateString(day);
-                  const dayEvents = timedByDate[ds] || [];
-                  return (
-                    <div
-                      key={`ev-${ds}`}
-                      className={`flex-1 ${COL_MIN_W} relative`}
-                      style={{ height: `${timeSlots.length * SLOT_HEIGHT}px` }}
-                    >
-                      {dayEvents.map((ev) => {
-                        if (!ev.start_time) return null;
-                        const isContinuation = overnightContinuations.has(`${ev.id}:${ds}`);
-                        const workStartMin = startHour * 60;
-
-                        let startMin: number;
-                        let endMin: number;
-
-                        if (isContinuation) {
-                          // Continuation block: 00:00 (or grid start) → end_time
-                          startMin = workStartMin;
-                          const [eh, em] = ev.end_time!.split(':').map(Number);
-                          endMin = eh * 60 + em;
-                          if (endMin <= workStartMin) return null; // ends before grid starts
-                        } else {
-                          const [sh, sm] = ev.start_time.split(':').map(Number);
-                          startMin = sh * 60 + sm;
-                          endMin = startMin + 30;
-                          if (ev.end_time) {
-                            const [eh, em] = ev.end_time.split(':').map(Number);
-                            endMin = eh * 60 + em;
-                            // Overnight: endTime < startTime → cap to end of grid
-                            if (endMin < startMin) {
-                              endMin = endHour * 60;
-                            }
-                          }
-                        }
-
-                        const evTop = ((startMin - workStartMin) / 30) * SLOT_HEIGHT;
-                        const evHeight = Math.max(((endMin - startMin) / 30) * SLOT_HEIGHT, SLOT_HEIGHT * 0.6);
-
-                        if (evTop < 0) return null;
-
-                        // Drag/resize visual adjustments
-                        const isActive = eventInteraction?.eventId === ev.id;
-                        const interType = isActive ? eventInteraction!.type : null;
-                        const offset = isActive ? eventInteraction!.offsetPx : 0;
-                        const hasOverlap = isActive ? eventInteraction!.overlap : false;
-
-                        let displayTop = evTop;
-                        let displayHeight = evHeight;
-                        let displayStartTime = isContinuation ? '00:00' : ev.start_time.slice(0, 5);
-                        let displayEndTime = ev.end_time?.slice(0, 5) || '';
-
-                        if (isActive && offset !== 0) {
-                          const deltaMin = (offset / SLOT_HEIGHT) * 30;
-                          if (interType === 'drag') {
-                            displayTop = evTop + offset;
-                            displayStartTime = fmtMinToTime(startMin + deltaMin);
-                            displayEndTime = fmtMinToTime(endMin + deltaMin);
-                          } else if (interType === 'resize-top') {
-                            displayTop = evTop + offset;
-                            displayHeight = evHeight - offset;
-                            displayStartTime = fmtMinToTime(startMin + deltaMin);
-                          } else if (interType === 'resize-bottom') {
-                            displayHeight = evHeight + offset;
-                            displayEndTime = fmtMinToTime(endMin + deltaMin);
-                          }
-                          displayHeight = Math.max(displayHeight, SLOT_HEIGHT * 0.6);
-                        }
-
+                      {dayTasks.map((task) => {
+                        const isDone = task.status === 'DONE';
+                        const isOverdue = !isDone && task.due_date! < todayStr;
+                        const priorityColors: Record<string, string> = {
+                          URGENT: 'bg-red-500',
+                          HIGH: 'bg-orange-500',
+                          MEDIUM: 'bg-amber-500',
+                          LOW: 'bg-blue-400',
+                          NONE: 'bg-slate-500',
+                        };
                         return (
                           <div
-                            key={isContinuation ? `${ev.id}-cont` : ev.id}
-                            onClick={() => !eventInteraction && setEditEvent(ev)}
-                            onMouseDown={isContinuation ? undefined : (e) => handleEventDragStart(e, ev)}
-                            onMouseUp={isContinuation ? undefined : handleEventMouseUp}
-                            onMouseLeave={isContinuation ? undefined : () => {
-                              if (eventLongPressTimer.current && !eventInteraction) {
-                                clearTimeout(eventLongPressTimer.current);
-                                eventLongPressTimer.current = null;
-                              }
-                            }}
-                            className={`absolute left-1 right-1 rounded-md px-2 py-1 pointer-events-auto overflow-hidden group
-                              ${isContinuation
-                                ? 'border-l-4 border-dashed cursor-pointer hover:shadow-lg transition-shadow opacity-70'
-                                : isActive && hasOverlap
-                                  ? 'border-l-4 ring-2 ring-red-500/70 z-20 ' + (interType === 'drag' ? 'cursor-grabbing shadow-2xl' : 'cursor-ns-resize shadow-lg')
-                                  : isActive && interType === 'drag'
-                                    ? 'border-l-4 cursor-grabbing shadow-2xl ring-2 ring-white/30 z-20'
-                                    : isActive
-                                      ? 'border-l-4 cursor-ns-resize shadow-lg z-20'
-                                      : 'border-l-4 cursor-pointer hover:shadow-lg transition-shadow'
-                              }`}
-                            style={{
-                              top: `${displayTop}px`,
-                              height: `${displayHeight}px`,
-                              backgroundColor: hasOverlap ? 'rgba(239,68,68,0.25)' : `${ev.color}25`,
-                              borderLeftColor: hasOverlap ? '#ef4444' : ev.color,
-                            }}
+                            key={task.id}
+                            className={`group flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-default transition-all ${
+                              isDone
+                                ? 'bg-slate-500/10 border-l-[3px] border-slate-500/30'
+                                : isOverdue
+                                  ? 'bg-red-500/10 border-l-[3px] border-red-500/60'
+                                  : 'bg-amber-500/10 border-l-[3px] border-amber-500/40'
+                            }`}
                           >
-                            {/* Top resize handle (not for continuations) */}
-                            {!isContinuation && (
-                              <div
-                                data-resize-handle="true"
-                                className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-white/20 transition-colors z-10"
-                                onMouseDown={(e) => handleEventResizeStart(e, ev, 'top')}
-                              />
-                            )}
-
-                            <div className="flex flex-col h-full overflow-hidden">
-                              <span className="text-xs font-medium text-foreground truncate flex items-center gap-1">
-                                {ev.recurrence_group_id && <RotateCw className="h-2.5 w-2.5 text-purple-400 flex-shrink-0" />}
-                                {isContinuation && <span className="text-bridge-accent">↳</span>}
-                                {ev.event_type === 'CALENDAR' && <CalendarDays className="h-2.5 w-2.5 text-sky-400 flex-shrink-0" />}
-                                {ev.title}
-                              </span>
-                              {displayHeight > 30 && (
-                                <span className="text-xs text-slate-400">
-                                  {isContinuation
-                                    ? <>00:00 - {displayEndTime} <span className="text-bridge-accent ml-0.5">({t('personal.schedule.prevDay')})</span></>
-                                    : <>{displayStartTime}{displayEndTime && ` - ${displayEndTime}`}{ev.start_time && ev.end_time && ev.end_time < ev.start_time && <span className="text-bridge-accent ml-0.5">({t('personal.schedule.nextDay')})</span>}</>
-                                  }
-                                </span>
-                              )}
-                            </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteEvent(ev.id);
-                              }}
-                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-rose-400 transition-all"
+                            <div
+                              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${priorityColors[task.priority] || 'bg-slate-500'}`}
+                            />
+                            <span
+                              className={`truncate ${
+                                isDone
+                                  ? 'line-through text-slate-500'
+                                  : isOverdue
+                                    ? 'text-red-300'
+                                    : 'text-foreground/80'
+                              }`}
                             >
-                              <Trash2 size={10} />
-                            </button>
-
-                            {/* Bottom resize handle (not for continuations) */}
-                            {!isContinuation && (
-                              <div
-                                data-resize-handle="true"
-                                className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-white/20 transition-colors z-10"
-                                onMouseDown={(e) => handleEventResizeStart(e, ev, 'bottom')}
+                              {task.title}
+                            </span>
+                            {isOverdue && (
+                              <AlertCircle
+                                size={10}
+                                className="text-red-400 flex-shrink-0 ml-auto"
                               />
                             )}
                           </div>
@@ -1779,10 +1619,431 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                   );
                 })}
               </div>
+            )}
+
+            {/* ---- Habits row ---- */}
+            <div className="border-b border-foreground/[0.08] bg-purple-500/[0.03]">
+              {habitRows.length > 0 && (
+                <div className="flex">
+                  <div
+                    className={`${TIME_COL_W} flex-shrink-0 p-2 text-xs text-purple-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
+                  >
+                    <CheckCircle2 size={12} />
+                  </div>
+                  {weekDays.map((day) => {
+                    const ds = toDateString(day);
+                    const dayHabits = habitsByDate[ds] || [];
+                    return (
+                      <div
+                        key={`hb-${ds}`}
+                        className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-foreground/[0.08] space-y-1`}
+                      >
+                        {dayHabits.map((item) => (
+                          <div
+                            key={item.habit_id}
+                            className={`group flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-pointer transition-all ${
+                              item.is_completed
+                                ? 'bg-bridge-secondary/10 border-l-[3px] border-bridge-secondary/40'
+                                : 'bg-purple-400/10 border-l-[3px] border-purple-400/60 hover:bg-purple-400/15'
+                            }`}
+                            onClick={() =>
+                              setHabitConfirm({
+                                habitId: item.habit_id,
+                                date: ds,
+                                isUndo: item.is_completed,
+                                title: item.title,
+                                icon: item.icon,
+                              })
+                            }
+                          >
+                            <div
+                              className={`w-3 h-3 rounded-full border flex items-center justify-center flex-shrink-0 transition-all ${
+                                item.is_completed
+                                  ? 'bg-bridge-secondary border-bridge-secondary'
+                                  : 'border-purple-400/40'
+                              }`}
+                            >
+                              {item.is_completed && (
+                                <CheckCircle2 size={8} className="text-white" />
+                              )}
+                            </div>
+                            <span
+                              className={`truncate ${
+                                item.is_completed
+                                  ? 'line-through text-slate-500'
+                                  : 'text-foreground/80'
+                              }`}
+                            >
+                              {item.icon && <span className="mr-0.5">{item.icon}</span>}
+                              {item.title}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {/* Add Habit button */}
+              <div className="flex">
+                <div className={`${TIME_COL_W} flex-shrink-0 border-r border-foreground/[0.08]`} />
+                <button
+                  onClick={() => setIsCreateHabitOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-purple-400/70 hover:text-purple-300 hover:bg-purple-400/5 transition-all rounded-md m-1"
+                >
+                  <Plus size={12} />
+                  {t('personal.schedule.addHabit')}
+                </button>
+              </div>
+            </div>
+
+            {/* ---- Time slot rows + event overlay ---- */}
+            <div className="relative">
+              {timeSlots.map((time, slotIdx) => (
+                <div
+                  key={time}
+                  className="flex border-b border-white/[0.03]"
+                  style={{ height: `${SLOT_HEIGHT}px` }}
+                >
+                  {/* Time label */}
+                  <div
+                    className={`${TIME_COL_W} flex-shrink-0 px-2 text-xs text-slate-500 border-r border-foreground/[0.08] flex items-start pt-1`}
+                  >
+                    {time.endsWith(':00') ? time : ''}
+                  </div>
+
+                  {/* Day cells */}
+                  {weekDays.map((day) => {
+                    const ds = toDateString(day);
+                    const isToday = ds === todayStr;
+                    const selected = isSlotSelected(ds, slotIdx);
+                    return (
+                      <div
+                        key={`${ds}-${time}`}
+                        className={`flex-1 ${COL_MIN_W} border-r border-white/[0.03] cursor-pointer transition-colors group relative h-full ${
+                          selected
+                            ? 'bg-bridge-secondary/20'
+                            : isToday
+                              ? 'bg-bridge-accent/[0.03]'
+                              : 'hover:bg-white/[0.03]'
+                        }`}
+                        onMouseDown={(e) => handleMouseDown(e, ds, slotIdx)}
+                        onMouseEnter={() => handleMouseEnter(ds, slotIdx)}
+                      >
+                        {!selected && (
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                            <Plus className="h-3 w-3 text-slate-600" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+
+              {/* ---- Current time indicator ---- */}
+              {isTodayInView && currentTimeTop != null && (
+                <div
+                  ref={indicatorRef}
+                  className="absolute left-0 right-0 z-[5] pointer-events-none flex items-center"
+                  style={{ top: `${currentTimeTop}px` }}
+                >
+                  <div className={`${TIME_COL_W} flex-shrink-0 flex justify-end pr-1`}>
+                    <span className="text-xs font-bold text-red-400 bg-red-500/15 px-1 rounded">
+                      {now.getHours().toString().padStart(2, '0')}:
+                      {now.getMinutes().toString().padStart(2, '0')}
+                    </span>
+                  </div>
+                  {/* Line across all day columns */}
+                  {weekDays.map((day) => {
+                    const ds = toDateString(day);
+                    const isToday = ds === todayStr;
+                    return (
+                      <div key={`ti-${ds}`} className={`flex-1 ${COL_MIN_W} flex items-center`}>
+                        {isToday ? (
+                          <>
+                            <div className="w-2 h-2 rounded-full bg-red-500 -ml-1 flex-shrink-0" />
+                            <div className="flex-1 h-[2px] bg-red-500/70" />
+                          </>
+                        ) : (
+                          <div className="flex-1 h-[1px] bg-red-500/20" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ---- Board schedule blocks overlay (behind personal events) ---- */}
+              {showBoardSchedules && boardBlocks.length > 0 && (
+                <div className="absolute top-0 left-12 md:left-16 right-0 pointer-events-none">
+                  <div className="flex">
+                    {weekDays.map((day) => {
+                      const ds = toDateString(day);
+                      const dayBlocks = boardBlocksByDate[ds] || [];
+                      return (
+                        <div
+                          key={`bb-${ds}`}
+                          className={`flex-1 ${COL_MIN_W} relative`}
+                          style={{ height: `${timeSlots.length * SLOT_HEIGHT}px` }}
+                        >
+                          {dayBlocks.map((block) => {
+                            if (!block.start_time || !block.end_time) return null;
+
+                            const [sh, sm] = block.start_time.split(':').map(Number);
+                            const [eh, em] = block.end_time.split(':').map(Number);
+                            const startMin = sh * 60 + sm;
+                            let endMin = eh * 60 + em;
+
+                            // Overnight: cap at grid end
+                            if (endMin < startMin) endMin = endHour * 60;
+
+                            const workStartMin = startHour * 60;
+                            const blockTop = ((startMin - workStartMin) / 30) * SLOT_HEIGHT;
+                            const blockHeight = Math.max(
+                              ((endMin - startMin) / 30) * SLOT_HEIGHT,
+                              SLOT_HEIGHT * 0.6,
+                            );
+
+                            if (blockTop < 0) return null;
+
+                            return (
+                              <div
+                                key={
+                                  block.schedule_block_id || `bb-${block.title}-${block.start_time}`
+                                }
+                                className="absolute left-1 right-1 rounded-md border-l-4 border-dashed px-2 py-1 overflow-hidden opacity-50"
+                                style={{
+                                  top: `${blockTop}px`,
+                                  height: `${blockHeight}px`,
+                                  backgroundColor: `${block.color || '#6366F1'}20`,
+                                  borderLeftColor: block.color || '#6366F1',
+                                }}
+                              >
+                                <div className="flex flex-col h-full overflow-hidden">
+                                  {block.board_name && (
+                                    <span className="text-xs font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent truncate max-w-[80%] self-start mb-0.5">
+                                      {block.board_name}
+                                    </span>
+                                  )}
+                                  <span className="text-xs font-medium text-foreground/70 truncate">
+                                    {block.title}
+                                  </span>
+                                  {blockHeight > 30 && block.task_title && (
+                                    <span className="text-xs text-slate-500 truncate">
+                                      {block.task_title}
+                                    </span>
+                                  )}
+                                  {blockHeight > 45 && (
+                                    <span className="text-xs text-slate-500">
+                                      {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* ---- Event blocks overlay ---- */}
+              <div className="absolute top-0 left-12 md:left-16 right-0 pointer-events-none">
+                <div className="flex">
+                  {weekDays.map((day) => {
+                    const ds = toDateString(day);
+                    const dayEvents = timedByDate[ds] || [];
+                    return (
+                      <div
+                        key={`ev-${ds}`}
+                        className={`flex-1 ${COL_MIN_W} relative`}
+                        style={{ height: `${timeSlots.length * SLOT_HEIGHT}px` }}
+                      >
+                        {dayEvents.map((ev) => {
+                          if (!ev.start_time) return null;
+                          const isContinuation = overnightContinuations.has(`${ev.id}:${ds}`);
+                          const workStartMin = startHour * 60;
+
+                          let startMin: number;
+                          let endMin: number;
+
+                          if (isContinuation) {
+                            // Continuation block: 00:00 (or grid start) → end_time
+                            startMin = workStartMin;
+                            const [eh, em] = ev.end_time!.split(':').map(Number);
+                            endMin = eh * 60 + em;
+                            if (endMin <= workStartMin) return null; // ends before grid starts
+                          } else {
+                            const [sh, sm] = ev.start_time.split(':').map(Number);
+                            startMin = sh * 60 + sm;
+                            endMin = startMin + 30;
+                            if (ev.end_time) {
+                              const [eh, em] = ev.end_time.split(':').map(Number);
+                              endMin = eh * 60 + em;
+                              // Overnight: endTime < startTime → cap to end of grid
+                              if (endMin < startMin) {
+                                endMin = endHour * 60;
+                              }
+                            }
+                          }
+
+                          const evTop = ((startMin - workStartMin) / 30) * SLOT_HEIGHT;
+                          const evHeight = Math.max(
+                            ((endMin - startMin) / 30) * SLOT_HEIGHT,
+                            SLOT_HEIGHT * 0.6,
+                          );
+
+                          if (evTop < 0) return null;
+
+                          // Drag/resize visual adjustments
+                          const isActive = eventInteraction?.eventId === ev.id;
+                          const interType = isActive ? eventInteraction!.type : null;
+                          const offset = isActive ? eventInteraction!.offsetPx : 0;
+                          const hasOverlap = isActive ? eventInteraction!.overlap : false;
+
+                          let displayTop = evTop;
+                          let displayHeight = evHeight;
+                          let displayStartTime = isContinuation
+                            ? '00:00'
+                            : ev.start_time.slice(0, 5);
+                          let displayEndTime = ev.end_time?.slice(0, 5) || '';
+
+                          if (isActive && offset !== 0) {
+                            const deltaMin = (offset / SLOT_HEIGHT) * 30;
+                            if (interType === 'drag') {
+                              displayTop = evTop + offset;
+                              displayStartTime = fmtMinToTime(startMin + deltaMin);
+                              displayEndTime = fmtMinToTime(endMin + deltaMin);
+                            } else if (interType === 'resize-top') {
+                              displayTop = evTop + offset;
+                              displayHeight = evHeight - offset;
+                              displayStartTime = fmtMinToTime(startMin + deltaMin);
+                            } else if (interType === 'resize-bottom') {
+                              displayHeight = evHeight + offset;
+                              displayEndTime = fmtMinToTime(endMin + deltaMin);
+                            }
+                            displayHeight = Math.max(displayHeight, SLOT_HEIGHT * 0.6);
+                          }
+
+                          return (
+                            <div
+                              key={isContinuation ? `${ev.id}-cont` : ev.id}
+                              onClick={() => !eventInteraction && setEditEvent(ev)}
+                              onMouseDown={
+                                isContinuation ? undefined : (e) => handleEventDragStart(e, ev)
+                              }
+                              onMouseUp={isContinuation ? undefined : handleEventMouseUp}
+                              onMouseLeave={
+                                isContinuation
+                                  ? undefined
+                                  : () => {
+                                      if (eventLongPressTimer.current && !eventInteraction) {
+                                        clearTimeout(eventLongPressTimer.current);
+                                        eventLongPressTimer.current = null;
+                                      }
+                                    }
+                              }
+                              className={`absolute left-1 right-1 rounded-md px-2 py-1 pointer-events-auto overflow-hidden group
+                              ${
+                                isContinuation
+                                  ? 'border-l-4 border-dashed cursor-pointer hover:shadow-lg transition-shadow opacity-70'
+                                  : isActive && hasOverlap
+                                    ? 'border-l-4 ring-2 ring-red-500/70 z-20 ' +
+                                      (interType === 'drag'
+                                        ? 'cursor-grabbing shadow-2xl'
+                                        : 'cursor-ns-resize shadow-lg')
+                                    : isActive && interType === 'drag'
+                                      ? 'border-l-4 cursor-grabbing shadow-2xl ring-2 ring-white/30 z-20'
+                                      : isActive
+                                        ? 'border-l-4 cursor-ns-resize shadow-lg z-20'
+                                        : 'border-l-4 cursor-pointer hover:shadow-lg transition-shadow'
+                              }`}
+                              style={{
+                                top: `${displayTop}px`,
+                                height: `${displayHeight}px`,
+                                backgroundColor: hasOverlap
+                                  ? 'rgba(239,68,68,0.25)'
+                                  : `${ev.color}25`,
+                                borderLeftColor: hasOverlap ? '#ef4444' : ev.color,
+                              }}
+                            >
+                              {/* Top resize handle (not for continuations) */}
+                              {!isContinuation && (
+                                <div
+                                  data-resize-handle="true"
+                                  className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-white/20 transition-colors z-10"
+                                  onMouseDown={(e) => handleEventResizeStart(e, ev, 'top')}
+                                />
+                              )}
+
+                              <div className="flex flex-col h-full overflow-hidden">
+                                <span className="text-xs font-medium text-foreground truncate flex items-center gap-1">
+                                  {ev.recurrence_group_id && (
+                                    <RotateCw className="h-2.5 w-2.5 text-purple-400 flex-shrink-0" />
+                                  )}
+                                  {isContinuation && <span className="text-bridge-accent">↳</span>}
+                                  {ev.event_type === 'CALENDAR' && (
+                                    <CalendarDays className="h-2.5 w-2.5 text-sky-400 flex-shrink-0" />
+                                  )}
+                                  {ev.title}
+                                </span>
+                                {displayHeight > 30 && (
+                                  <span className="text-xs text-slate-400">
+                                    {isContinuation ? (
+                                      <>
+                                        00:00 - {displayEndTime}{' '}
+                                        <span className="text-bridge-accent ml-0.5">
+                                          ({t('personal.schedule.prevDay')})
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        {displayStartTime}
+                                        {displayEndTime && ` - ${displayEndTime}`}
+                                        {ev.start_time &&
+                                          ev.end_time &&
+                                          ev.end_time < ev.start_time && (
+                                            <span className="text-bridge-accent ml-0.5">
+                                              ({t('personal.schedule.nextDay')})
+                                            </span>
+                                          )}
+                                      </>
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteEvent(ev.id);
+                                }}
+                                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-rose-400 transition-all"
+                              >
+                                <Trash2 size={10} />
+                              </button>
+
+                              {/* Bottom resize handle (not for continuations) */}
+                              {!isContinuation && (
+                                <div
+                                  data-resize-handle="true"
+                                  className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-white/20 transition-colors z-10"
+                                  onMouseDown={(e) => handleEventResizeStart(e, ev, 'bottom')}
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
         {/* ======== Bottom guide + mobile toolbar ======== */}
         <div className="px-3 md:px-6 py-2 border-t border-foreground/[0.08] flex-shrink-0 flex items-center justify-between">
@@ -1900,7 +2161,7 @@ function getOverlappingEvents(
   const [sh, sm] = startTime.split(':').map(Number);
   const [eh, em] = endTime.split(':').map(Number);
   const newStart = sh * 60 + sm;
-  const newEnd = eh * 60 + em <= newStart ? (eh * 60 + em) + 24 * 60 : eh * 60 + em;
+  const newEnd = eh * 60 + em <= newStart ? eh * 60 + em + 24 * 60 : eh * 60 + em;
 
   return events.filter((ev) => {
     if (ev.id === excludeId) return false;
@@ -1909,7 +2170,7 @@ function getOverlappingEvents(
     const [esh, esm] = ev.start_time.split(':').map(Number);
     const [eeh, eem] = ev.end_time.split(':').map(Number);
     const evStart = esh * 60 + esm;
-    const evEnd = eeh * 60 + eem <= evStart ? (eeh * 60 + eem) + 24 * 60 : eeh * 60 + eem;
+    const evEnd = eeh * 60 + eem <= evStart ? eeh * 60 + eem + 24 * 60 : eeh * 60 + eem;
     return newStart < evEnd && newEnd > evStart;
   });
 }
@@ -1943,15 +2204,18 @@ function CreateEventModal({
     recurrence_end_date?: string;
     recurrence_days_of_week?: number[];
   }) => void;
-  onUpdate?: (eventId: string, data: {
-    title?: string;
-    description?: string;
-    event_date?: string;
-    start_time?: string | null;
-    end_time?: string | null;
-    color?: string;
-    all_day?: boolean;
-  }) => void;
+  onUpdate?: (
+    eventId: string,
+    data: {
+      title?: string;
+      description?: string;
+      event_date?: string;
+      start_time?: string | null;
+      end_time?: string | null;
+      color?: string;
+      all_day?: boolean;
+    },
+  ) => void;
 }) {
   const { t } = useTranslation();
   const [title, setTitle] = useState('');
@@ -1996,45 +2260,56 @@ function CreateEventModal({
 
   // Fetch tasks, habits & events when switching to task mode
   useEffect(() => {
-    if (mode === 'task' && tasks.length === 0 && habits.length === 0 && events.length === 0 && !isLoadingItems) {
+    if (
+      mode === 'task' &&
+      tasks.length === 0 &&
+      habits.length === 0 &&
+      events.length === 0 &&
+      !isLoadingItems
+    ) {
       setIsLoadingItems(true);
       Promise.all([
-        personalTaskService.getTasks()
-          .then((all: PersonalTask[]) => all.filter(t => t.status !== 'DONE' && t.status !== 'ARCHIVED'))
+        personalTaskService
+          .getTasks()
+          .then((all: PersonalTask[]) =>
+            all.filter((t) => t.status !== 'DONE' && t.status !== 'ARCHIVED'),
+          )
           .catch(() => [] as PersonalTask[]),
-        personalHabitAPI.getAll()
-          .then((all: PersonalHabit[]) => all.filter(h => h.is_active))
+        personalHabitAPI
+          .getAll()
+          .then((all: PersonalHabit[]) => all.filter((h) => h.is_active))
           .catch(() => [] as PersonalHabit[]),
-        personalEventService.getByDate(date)
-          .catch(() => [] as PersonalEvent[]),
-      ]).then(([fetchedTasks, fetchedHabits, fetchedEvents]) => {
-        setTasks(fetchedTasks);
-        setHabits(fetchedHabits);
-        setEvents(fetchedEvents);
-      }).finally(() => setIsLoadingItems(false));
+        personalEventService.getByDate(date).catch(() => [] as PersonalEvent[]),
+      ])
+        .then(([fetchedTasks, fetchedHabits, fetchedEvents]) => {
+          setTasks(fetchedTasks);
+          setHabits(fetchedHabits);
+          setEvents(fetchedEvents);
+        })
+        .finally(() => setIsLoadingItems(false));
     }
   }, [mode]);
 
   const filteredTasks = useMemo(() => {
     if (!taskSearch.trim()) return tasks;
     const q = taskSearch.toLowerCase();
-    return tasks.filter(t =>
-      t.title.toLowerCase().includes(q) ||
-      (t.category && t.category.toLowerCase().includes(q)),
+    return tasks.filter(
+      (t) =>
+        t.title.toLowerCase().includes(q) || (t.category && t.category.toLowerCase().includes(q)),
     );
   }, [tasks, taskSearch]);
 
   const filteredHabits = useMemo(() => {
     if (!taskSearch.trim()) return habits;
     const q = taskSearch.toLowerCase();
-    return habits.filter(h => h.title.toLowerCase().includes(q));
+    return habits.filter((h) => h.title.toLowerCase().includes(q));
   }, [habits, taskSearch]);
 
   const filteredEvents = useMemo(() => {
-    const calendarOnly = events.filter(e => e.event_type === 'CALENDAR');
+    const calendarOnly = events.filter((e) => e.event_type === 'CALENDAR');
     if (!taskSearch.trim()) return calendarOnly;
     const q = taskSearch.toLowerCase();
-    return calendarOnly.filter(e => e.title.toLowerCase().includes(q));
+    return calendarOnly.filter((e) => e.title.toLowerCase().includes(q));
   }, [events, taskSearch]);
 
   const handleSelectTask = (task: PersonalTask) => {
@@ -2102,8 +2377,10 @@ function CreateEventModal({
       all_day: false,
       recurrence_rule: recurrenceRule || undefined,
       recurrence_end_date: recurrenceEndDate || undefined,
-      recurrence_days_of_week: recurrenceRule === 'WEEKLY' && recurrenceDaysOfWeek.length > 0
-        ? recurrenceDaysOfWeek : undefined,
+      recurrence_days_of_week:
+        recurrenceRule === 'WEEKLY' && recurrenceDaysOfWeek.length > 0
+          ? recurrenceDaysOfWeek
+          : undefined,
     });
   };
 
@@ -2112,13 +2389,21 @@ function CreateEventModal({
     [existingEvents, date, startTime, endTime],
   );
 
-  const showForm = mode === 'new' || selectedTask !== null || selectedHabit !== null || selectedEvent !== null;
+  const showForm =
+    mode === 'new' || selectedTask !== null || selectedHabit !== null || selectedEvent !== null;
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]">
+    <MotionModal
+      open={open}
+      onClose={onClose}
+      className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]"
+    >
       <div>
         {/* Top accent line */}
-        <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
+        <div
+          className="h-[2px]"
+          style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }}
+        />
 
         {/* Header */}
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
@@ -2130,7 +2415,9 @@ function CreateEventModal({
             triggerShape="circle"
             showCustomColor={false}
           />
-          <span className="text-sm font-bold text-foreground">{t('personal.schedule.newEvent')}</span>
+          <span className="text-sm font-bold text-foreground">
+            {t('personal.schedule.newEvent')}
+          </span>
           <div className="flex-1" />
           <IconButton onClick={onClose} aria-label="닫기">
             <X />
@@ -2141,7 +2428,15 @@ function CreateEventModal({
           {/* Mode toggle */}
           <div className="flex gap-1 p-1 bg-foreground/5 rounded-xl border border-foreground/[0.08]">
             <button
-              onClick={() => { setMode('new'); setSelectedTask(null); setSelectedHabit(null); setSelectedEvent(null); setTitle(''); setDescription(''); setColor(EVENT_COLORS[0]); }}
+              onClick={() => {
+                setMode('new');
+                setSelectedTask(null);
+                setSelectedHabit(null);
+                setSelectedEvent(null);
+                setTitle('');
+                setDescription('');
+                setColor(EVENT_COLORS[0]);
+              }}
               className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
                 mode === 'new'
                   ? 'bg-bridge-accent text-white shadow-sm'
@@ -2169,11 +2464,23 @@ function CreateEventModal({
             <div className="space-y-3">
               {/* Sub-tabs: 태스크 / 습관 / 일정 */}
               <div className="flex gap-1 p-0.5 bg-foreground/[0.04] rounded-lg border border-foreground/[0.08]">
-                {([
-                  { key: 'tasks' as const, label: t('personal.schedule.tasksSection'), count: filteredTasks.length },
-                  { key: 'habits' as const, label: t('personal.schedule.habitsSection'), count: filteredHabits.length },
-                  { key: 'events' as const, label: t('personal.schedule.eventsSection'), count: filteredEvents.length },
-                ]).map(({ key, label, count }) => (
+                {[
+                  {
+                    key: 'tasks' as const,
+                    label: t('personal.schedule.tasksSection'),
+                    count: filteredTasks.length,
+                  },
+                  {
+                    key: 'habits' as const,
+                    label: t('personal.schedule.habitsSection'),
+                    count: filteredHabits.length,
+                  },
+                  {
+                    key: 'events' as const,
+                    label: t('personal.schedule.eventsSection'),
+                    count: filteredEvents.length,
+                  },
+                ].map(({ key, label, count }) => (
                   <button
                     key={key}
                     onClick={() => setSubTab(key)}
@@ -2190,7 +2497,10 @@ function CreateEventModal({
               </div>
 
               <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                />
                 <input
                   type="text"
                   value={taskSearch}
@@ -2206,11 +2516,17 @@ function CreateEventModal({
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-5 w-5 text-slate-400 animate-spin" />
                   </div>
-                ) : (subTab === 'tasks' ? filteredTasks.length : subTab === 'habits' ? filteredHabits.length : filteredEvents.length) === 0 ? (
+                ) : (subTab === 'tasks'
+                    ? filteredTasks.length
+                    : subTab === 'habits'
+                      ? filteredHabits.length
+                      : filteredEvents.length) === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
                     <ListTodo size={24} className="text-slate-600 mb-2" />
                     <p className="text-sm text-slate-500">
-                      {tasks.length === 0 && habits.length === 0 && events.length === 0 ? t('personal.schedule.noActiveTasks') : t('personal.schedule.noMatchingTasks')}
+                      {tasks.length === 0 && habits.length === 0 && events.length === 0
+                        ? t('personal.schedule.noActiveTasks')
+                        : t('personal.schedule.noMatchingTasks')}
                     </p>
                     {tasks.length === 0 && habits.length === 0 && events.length === 0 && (
                       <button
@@ -2233,14 +2549,24 @@ function CreateEventModal({
                             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-foreground/[0.08] hover:border-foreground/10 transition-all text-left group"
                           >
                             {task.priority !== 'NONE' && (
-                              <div className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_DOT[task.priority]}`} />
+                              <div
+                                className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_DOT[task.priority]}`}
+                              />
                             )}
                             <div className="flex-1 min-w-0">
-                              <span className="text-sm text-foreground truncate block">{task.title}</span>
+                              <span className="text-sm text-foreground truncate block">
+                                {task.title}
+                              </span>
                               {(task.category || task.due_date) && (
                                 <div className="flex items-center gap-2 mt-0.5">
-                                  {task.category && <span className="text-xs text-slate-500">{task.category}</span>}
-                                  {task.due_date && <span className="text-xs text-slate-500">{formatDate(task.due_date)}</span>}
+                                  {task.category && (
+                                    <span className="text-xs text-slate-500">{task.category}</span>
+                                  )}
+                                  {task.due_date && (
+                                    <span className="text-xs text-slate-500">
+                                      {formatDate(task.due_date)}
+                                    </span>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -2266,10 +2592,16 @@ function CreateEventModal({
                           >
                             <span className="text-sm shrink-0">{habit.icon || '🔄'}</span>
                             <div className="flex-1 min-w-0">
-                              <span className="text-sm text-foreground truncate block">{habit.title}</span>
+                              <span className="text-sm text-foreground truncate block">
+                                {habit.title}
+                              </span>
                               <div className="flex items-center gap-2 mt-0.5">
                                 <Flame size={10} className="text-slate-500" />
-                                <span className="text-xs text-slate-500">{t('personal.schedule.streakDays', { count: habit.current_streak })}</span>
+                                <span className="text-xs text-slate-500">
+                                  {t('personal.schedule.streakDays', {
+                                    count: habit.current_streak,
+                                  })}
+                                </span>
                               </div>
                             </div>
                             <div
@@ -2294,10 +2626,13 @@ function CreateEventModal({
                               className="w-1.5 h-1.5 rounded-full shrink-0"
                               style={{ backgroundColor: ev.color }}
                             />
-                            <span className="text-sm text-foreground truncate flex-1">{ev.title}</span>
+                            <span className="text-sm text-foreground truncate flex-1">
+                              {ev.title}
+                            </span>
                             {(ev.start_time || ev.end_time) && (
                               <span className="text-xs text-slate-500 shrink-0">
-                                {ev.start_time?.slice(0, 5)}{ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}
+                                {ev.start_time?.slice(0, 5)}
+                                {ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}
                               </span>
                             )}
                           </button>
@@ -2318,7 +2653,10 @@ function CreateEventModal({
                 <div className="flex items-center gap-2 px-3 py-2 bg-bridge-accent/10 border border-bridge-accent/20 rounded-xl">
                   <CheckCircle2 size={14} className="text-bridge-accent shrink-0" />
                   <span className="text-xs text-bridge-accent flex-1 truncate">
-                    {t('personal.schedule.scheduling', { title: selectedTask?.title || selectedHabit?.title || selectedEvent?.title || '' })}
+                    {t('personal.schedule.scheduling', {
+                      title:
+                        selectedTask?.title || selectedHabit?.title || selectedEvent?.title || '',
+                    })}
                   </span>
                   <button
                     onClick={handleClearSelection}
@@ -2359,7 +2697,9 @@ function CreateEventModal({
                       if (val && !endTime) {
                         const [h, m] = val.split(':').map(Number);
                         const endH = (h + 1) % 24;
-                        setEndTime(`${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+                        setEndTime(
+                          `${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+                        );
                       }
                     }}
                     className="py-1.5 px-3 text-xs border-foreground/10"
@@ -2374,7 +2714,9 @@ function CreateEventModal({
                   />
                 </div>
                 {startTime && endTime && endTime < startTime && (
-                  <span className="text-xs font-bold text-bridge-accent shrink-0">({t('personal.schedule.nextDay')})</span>
+                  <span className="text-xs font-bold text-bridge-accent shrink-0">
+                    ({t('personal.schedule.nextDay')})
+                  </span>
                 )}
               </div>
 
@@ -2402,9 +2744,7 @@ function CreateEventModal({
                         </p>
                       ))}
                       {overlapping.length > 3 && (
-                        <p className="text-xs text-amber-400/50">
-                          +{overlapping.length - 3}
-                        </p>
+                        <p className="text-xs text-amber-400/50">+{overlapping.length - 3}</p>
                       )}
                     </div>
                   </div>
@@ -2424,9 +2764,15 @@ function CreateEventModal({
                   }}
                   className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 px-3 text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                 >
-                  <option value="" className="bg-bridge-obsidian">{t('personal.schedule.noRepeat')}</option>
-                  <option value="DAILY" className="bg-bridge-obsidian">{t('personal.schedule.everyDay')}</option>
-                  <option value="WEEKLY" className="bg-bridge-obsidian">{t('personal.schedule.everyWeek')}</option>
+                  <option value="" className="bg-bridge-obsidian">
+                    {t('personal.schedule.noRepeat')}
+                  </option>
+                  <option value="DAILY" className="bg-bridge-obsidian">
+                    {t('personal.schedule.everyDay')}
+                  </option>
+                  <option value="WEEKLY" className="bg-bridge-obsidian">
+                    {t('personal.schedule.everyWeek')}
+                  </option>
                 </select>
               </div>
 
@@ -2465,7 +2811,9 @@ function CreateEventModal({
                     })}
                   </div>
                   {recurrenceDaysOfWeek.length === 0 && (
-                    <p className="mt-1 text-xs text-amber-400">{t('personal.schedule.selectDay')}</p>
+                    <p className="mt-1 text-xs text-amber-400">
+                      {t('personal.schedule.selectDay')}
+                    </p>
                   )}
                 </div>
               )}
@@ -2480,7 +2828,9 @@ function CreateEventModal({
                     className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 px-3 text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
                   />
                   {!recurrenceEndDate && (
-                    <p className="mt-1 text-xs text-amber-400">{t('personal.schedule.endDateRequired')}</p>
+                    <p className="mt-1 text-xs text-amber-400">
+                      {t('personal.schedule.endDateRequired')}
+                    </p>
                   )}
                 </div>
               )}
@@ -2489,13 +2839,15 @@ function CreateEventModal({
 
           {/* Footer */}
           <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
-            <span className="text-xs text-slate-600">
-              Esc {t('common.close', '닫기')}
-            </span>
+            <span className="text-xs text-slate-600">Esc {t('common.close', '닫기')}</span>
             {showForm && (
               <button
                 onClick={handleSubmit}
-                disabled={!title.trim() || (!!recurrenceRule && !recurrenceEndDate) || (recurrenceRule === 'WEEKLY' && recurrenceDaysOfWeek.length === 0)}
+                disabled={
+                  !title.trim() ||
+                  (!!recurrenceRule && !recurrenceEndDate) ||
+                  (recurrenceRule === 'WEEKLY' && recurrenceDaysOfWeek.length === 0)
+                }
                 className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 {t('personal.schedule.create')}
@@ -2568,27 +2920,32 @@ export function EventDetailModal({
       setColor(event.color);
       setRecurrenceRule(event.recurrence_rule || '');
       setRecurrenceEndDate(event.recurrence_end_date || '');
-      setRecurrenceDaysOfWeek(event.recurrence_days_of_week ? event.recurrence_days_of_week.split(',').map(Number) : []);
+      setRecurrenceDaysOfWeek(
+        event.recurrence_days_of_week ? event.recurrence_days_of_week.split(',').map(Number) : [],
+      );
       setShowDeleteScope(false);
       setShowUpdateScope(false);
     }
   }, [event]);
 
-  const recurrenceChanged = isRecurring && event && (
-    recurrenceRule !== (event.recurrence_rule || '') ||
-    recurrenceEndDate !== (event.recurrence_end_date || '') ||
-    recurrenceDaysOfWeek.join(',') !== (event.recurrence_days_of_week || '')
-  );
+  const recurrenceChanged =
+    isRecurring &&
+    event &&
+    (recurrenceRule !== (event.recurrence_rule || '') ||
+      recurrenceEndDate !== (event.recurrence_end_date || '') ||
+      recurrenceDaysOfWeek.join(',') !== (event.recurrence_days_of_week || ''));
 
   const overlapping = useMemo(
-    () => event ? getOverlappingEvents(existingEvents, event.event_date, startTime, endTime, event.id) : [],
+    () =>
+      event
+        ? getOverlappingEvents(existingEvents, event.event_date, startTime, endTime, event.id)
+        : [],
     [existingEvents, event, startTime, endTime],
   );
 
-  const recurrenceValid = !recurrenceRule || (
-    !!recurrenceEndDate &&
-    (recurrenceRule !== 'WEEKLY' || recurrenceDaysOfWeek.length > 0)
-  );
+  const recurrenceValid =
+    !recurrenceRule ||
+    (!!recurrenceEndDate && (recurrenceRule !== 'WEEKLY' || recurrenceDaysOfWeek.length > 0));
 
   if (!event) return null;
 
@@ -2630,18 +2987,27 @@ export function EventDetailModal({
       color,
       recurrence_rule: recurrenceRule || '',
       recurrence_end_date: recurrenceEndDate || undefined,
-      recurrence_days_of_week: recurrenceRule === 'WEEKLY' && recurrenceDaysOfWeek.length > 0
-        ? recurrenceDaysOfWeek : undefined,
+      recurrence_days_of_week:
+        recurrenceRule === 'WEEKLY' && recurrenceDaysOfWeek.length > 0
+          ? recurrenceDaysOfWeek
+          : undefined,
       scope,
     });
     onClose();
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]">
+    <MotionModal
+      open={open}
+      onClose={onClose}
+      className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]"
+    >
       <div>
         {/* Top accent line */}
-        <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
+        <div
+          className="h-[2px]"
+          style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }}
+        />
 
         {/* Header: color picker + title + delete/close */}
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
@@ -2683,7 +3049,9 @@ export function EventDetailModal({
         <div className="px-5 pb-5 space-y-4 pt-4">
           {showDeleteScope && (
             <div className="p-3 bg-foreground/5 rounded-xl border border-foreground/10 space-y-2">
-              <p className="text-xs text-muted-foreground font-medium">{t('personal.schedule.recurringEvent')}</p>
+              <p className="text-xs text-muted-foreground font-medium">
+                {t('personal.schedule.recurringEvent')}
+              </p>
               <button
                 onClick={() => onDelete(event.id, 'THIS_ONLY')}
                 className="w-full px-3 py-2 text-xs font-bold bg-foreground/5 border border-foreground/10 rounded-lg text-foreground hover:bg-foreground/10 transition-all"
@@ -2738,7 +3106,9 @@ export function EventDetailModal({
               />
             </div>
             {startTime && endTime && endTime < startTime && (
-              <span className="text-xs font-bold text-bridge-accent shrink-0">({t('personal.schedule.nextDay')})</span>
+              <span className="text-xs font-bold text-bridge-accent shrink-0">
+                ({t('personal.schedule.nextDay')})
+              </span>
             )}
           </div>
 
@@ -2765,9 +3135,15 @@ export function EventDetailModal({
                 }}
                 className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-1.5 px-3 text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               >
-                <option value="" className="bg-bridge-obsidian">{t('personal.schedule.noRepeat')}</option>
-                <option value="DAILY" className="bg-bridge-obsidian">{t('personal.schedule.everyDay')}</option>
-                <option value="WEEKLY" className="bg-bridge-obsidian">{t('personal.schedule.everyWeek')}</option>
+                <option value="" className="bg-bridge-obsidian">
+                  {t('personal.schedule.noRepeat')}
+                </option>
+                <option value="DAILY" className="bg-bridge-obsidian">
+                  {t('personal.schedule.everyDay')}
+                </option>
+                <option value="WEEKLY" className="bg-bridge-obsidian">
+                  {t('personal.schedule.everyWeek')}
+                </option>
               </select>
 
               {recurrenceRule === 'WEEKLY' && (
@@ -2805,7 +3181,9 @@ export function EventDetailModal({
                     })}
                   </div>
                   {recurrenceDaysOfWeek.length === 0 && (
-                    <p className="mt-1 text-xs text-amber-400">{t('personal.schedule.selectDay')}</p>
+                    <p className="mt-1 text-xs text-amber-400">
+                      {t('personal.schedule.selectDay')}
+                    </p>
                   )}
                 </div>
               )}
@@ -2820,7 +3198,9 @@ export function EventDetailModal({
                     className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-1.5 px-3 text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
                   />
                   {!recurrenceEndDate && (
-                    <p className="mt-1 text-xs text-amber-400">{t('personal.schedule.endDateRequired')}</p>
+                    <p className="mt-1 text-xs text-amber-400">
+                      {t('personal.schedule.endDateRequired')}
+                    </p>
                   )}
                 </div>
               )}
@@ -2842,9 +3222,7 @@ export function EventDetailModal({
                     </p>
                   ))}
                   {overlapping.length > 3 && (
-                    <p className="text-xs text-amber-400/50">
-                      +{overlapping.length - 3}
-                    </p>
+                    <p className="text-xs text-amber-400/50">+{overlapping.length - 3}</p>
                   )}
                 </div>
               </div>
@@ -2854,7 +3232,9 @@ export function EventDetailModal({
           {/* Update scope dialog */}
           {showUpdateScope && (
             <div className="p-3 bg-foreground/5 rounded-xl border border-foreground/10 space-y-2">
-              <p className="text-xs text-muted-foreground font-medium">{t('personal.schedule.recurringUpdateScope')}</p>
+              <p className="text-xs text-muted-foreground font-medium">
+                {t('personal.schedule.recurringUpdateScope')}
+              </p>
               <button
                 onClick={() => handleSaveWithScope('THIS_AND_FUTURE')}
                 className="w-full px-3 py-2 text-xs font-bold bg-bridge-accent/10 border border-bridge-accent/20 rounded-lg text-bridge-accent hover:bg-bridge-accent/20 transition-all"
@@ -2873,9 +3253,7 @@ export function EventDetailModal({
           {/* Footer */}
           {!showUpdateScope && (
             <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
-              <span className="text-xs text-slate-600">
-                Esc {t('common.close', '닫기')}
-              </span>
+              <span className="text-xs text-slate-600">Esc {t('common.close', '닫기')}</span>
               <button
                 onClick={handleSave}
                 disabled={!title.trim() || !recurrenceValid || !hasChanged}
@@ -2921,7 +3299,11 @@ function ScheduleSettingsModal({
   const fmtHour = (h: number) => `${h.toString().padStart(2, '0')}:00`;
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-sm p-0 overflow-hidden border-foreground/[0.08]">
+    <MotionModal
+      open={open}
+      onClose={onClose}
+      className="sm:max-w-sm p-0 overflow-hidden border-foreground/[0.08]"
+    >
       <div>
         <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
 
@@ -2929,7 +3311,9 @@ function ScheduleSettingsModal({
           <div className="w-8 h-8 rounded-lg bg-bridge-accent/10 flex items-center justify-center shrink-0">
             <Settings size={15} className="text-bridge-accent" />
           </div>
-          <h3 className="flex-1 text-sm font-bold text-foreground">{t('personal.schedule.settingsTitle')}</h3>
+          <h3 className="flex-1 text-sm font-bold text-foreground">
+            {t('personal.schedule.settingsTitle')}
+          </h3>
           <IconButton onClick={onClose} aria-label="닫기">
             <X />
           </IconButton>
@@ -2938,7 +3322,9 @@ function ScheduleSettingsModal({
         <div className="px-5 pt-4 pb-5 space-y-3">
           <div className="flex items-center gap-3">
             <div className="flex-1">
-              <span className="text-xs text-slate-500 mb-1 block">{t('personal.schedule.settingsStartTime')}</span>
+              <span className="text-xs text-slate-500 mb-1 block">
+                {t('personal.schedule.settingsStartTime')}
+              </span>
               <select
                 value={sHour}
                 onChange={(e) => setSHour(Number(e.target.value))}
@@ -2953,7 +3339,9 @@ function ScheduleSettingsModal({
             </div>
             <span className="text-slate-500 mt-5">~</span>
             <div className="flex-1">
-              <span className="text-xs text-slate-500 mb-1 block">{t('personal.schedule.settingsEndTime')}</span>
+              <span className="text-xs text-slate-500 mb-1 block">
+                {t('personal.schedule.settingsEndTime')}
+              </span>
               <select
                 value={eHour}
                 onChange={(e) => setEHour(Number(e.target.value))}
@@ -2973,7 +3361,9 @@ function ScheduleSettingsModal({
           )}
 
           <div className="bg-foreground/[0.03] rounded-lg px-3 py-2.5 border border-foreground/10">
-            <span className="text-xs text-slate-500 uppercase tracking-wider">{t('personal.schedule.settingsPreview')}</span>
+            <span className="text-xs text-slate-500 uppercase tracking-wider">
+              {t('personal.schedule.settingsPreview')}
+            </span>
             <p className="text-sm text-foreground mt-0.5">
               {fmtHour(sHour)} — {fmtHour(eHour)}{' '}
               <span className="text-slate-400">({eHour - sHour}h)</span>
@@ -3003,8 +3393,22 @@ function ScheduleSettingsModal({
 const HABIT_COLORS = FEATURE_COLORS;
 
 const HABIT_ICONS = [
-  '🏃', '📚', '💧', '🧘', '💪', '🎯', '✍️', '🎵',
-  '🧠', '🌿', '💊', '🍎', '😴', '🚶', '🧹', '📵',
+  '🏃',
+  '📚',
+  '💧',
+  '🧘',
+  '💪',
+  '🎯',
+  '✍️',
+  '🎵',
+  '🧠',
+  '🌿',
+  '💊',
+  '🍎',
+  '😴',
+  '🚶',
+  '🧹',
+  '📵',
 ];
 
 const FREQUENCY_PRESET_VALUES: HabitFrequency[] = ['DAILY', 'WEEKDAY', 'CUSTOM'];
@@ -3057,7 +3461,7 @@ function CreateHabitModal({
   const isValid = title.trim().length > 0 && (frequencyType !== 'CUSTOM' || customDays.length > 0);
 
   const toggleDay = (day: number) => {
-    setCustomDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+    setCustomDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
   };
 
   const handleSubmit = () => {
@@ -3068,19 +3472,29 @@ function CreateHabitModal({
       icon: icon || undefined,
       color,
       frequency_type: frequencyType,
-      frequency_days: frequencyType === 'CUSTOM' ? customDays.sort((a, b) => a - b).join(',') : undefined,
+      frequency_days:
+        frequencyType === 'CUSTOM' ? customDays.sort((a, b) => a - b).join(',') : undefined,
       target_count: 1,
     });
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]">
+    <MotionModal
+      open={open}
+      onClose={onClose}
+      className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]"
+    >
       <div>
-        <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
+        <div
+          className="h-[2px]"
+          style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }}
+        />
 
         {/* Header */}
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
-          <span className="text-base shrink-0">{icon || <Flame size={16} className="text-purple-400" />}</span>
+          <span className="text-base shrink-0">
+            {icon || <Flame size={16} className="text-purple-400" />}
+          </span>
           <input
             type="text"
             value={title}
@@ -3106,11 +3520,12 @@ function CreateHabitModal({
                   if (value !== 'CUSTOM') setCustomDays([]);
                 }}
                 className="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all"
-                style={frequencyType === value
-                  ? { backgroundColor: color, color: '#fff' }
-                  : undefined}
+                style={
+                  frequencyType === value ? { backgroundColor: color, color: '#fff' } : undefined
+                }
                 {...(frequencyType !== value && {
-                  className: 'flex-1 py-1.5 text-xs font-bold rounded-lg transition-all bg-foreground/5 text-slate-400 hover:bg-foreground/10 hover:text-foreground',
+                  className:
+                    'flex-1 py-1.5 text-xs font-bold rounded-lg transition-all bg-foreground/5 text-slate-400 hover:bg-foreground/10 hover:text-foreground',
                 })}
               >
                 {frequencyLabels[value]}
@@ -3127,11 +3542,14 @@ function CreateHabitModal({
                     key={value}
                     onClick={() => toggleDay(value)}
                     className="flex-1 py-2 text-xs font-bold rounded-lg transition-all"
-                    style={customDays.includes(value)
-                      ? { backgroundColor: color, color: '#fff' }
-                      : undefined}
+                    style={
+                      customDays.includes(value)
+                        ? { backgroundColor: color, color: '#fff' }
+                        : undefined
+                    }
                     {...(!customDays.includes(value) && {
-                      className: 'flex-1 py-2 text-xs font-bold rounded-lg transition-all bg-foreground/5 text-slate-400 hover:bg-foreground/10',
+                      className:
+                        'flex-1 py-2 text-xs font-bold rounded-lg transition-all bg-foreground/5 text-slate-400 hover:bg-foreground/10',
                     })}
                   >
                     {label}
@@ -3173,7 +3591,14 @@ function CreateHabitModal({
                           ? 'ring-2 scale-110'
                           : 'bg-foreground/5 hover:bg-foreground/10 hover:scale-105'
                       }`}
-                      style={icon === emoji ? ({ backgroundColor: `${color}33`, '--tw-ring-color': color } as React.CSSProperties) : undefined}
+                      style={
+                        icon === emoji
+                          ? ({
+                              backgroundColor: `${color}33`,
+                              '--tw-ring-color': color,
+                            } as React.CSSProperties)
+                          : undefined
+                      }
                     >
                       {emoji}
                     </button>

@@ -12,10 +12,7 @@ interface JoinRequestsPanelProps {
   onMemberAdded?: () => void;
 }
 
-export default function JoinRequestsPanel({
-  boardId,
-  onMemberAdded,
-}: JoinRequestsPanelProps) {
+export default function JoinRequestsPanel({ boardId, onMemberAdded }: JoinRequestsPanelProps) {
   const { t } = useTranslation();
   const [requests, setRequests] = useState<BoardJoinRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -114,9 +111,7 @@ export default function JoinRequestsPanel({
                 {request.requester.email}
                 {request.message && ` · "${request.message}"`}
               </div>
-              <div className="text-xs text-slate-600">
-                {formatRelativeTime(request.created_at)}
-              </div>
+              <div className="text-xs text-slate-600">{formatRelativeTime(request.created_at)}</div>
             </div>
 
             {/* Actions */}

@@ -1,25 +1,25 @@
-import { useState, useEffect, useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { useSearchParams } from "react-router-dom";
-import { Users, LayoutGrid, CalendarOff, ChevronRight } from "lucide-react";
-import { motion } from "framer-motion";
-import { leaveService } from "../../../utils/services";
-import { useOrgData } from "../../../contexts/OrgDataContext";
-import { useAuth } from "../../../contexts/AuthContext";
-import { getTodayDateString } from "../../../utils/dateUtils";
+import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
+import { Users, LayoutGrid, CalendarOff, ChevronRight } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { leaveService } from '../../../utils/services';
+import { useOrgData } from '../../../contexts/OrgDataContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { getTodayDateString } from '../../../utils/dateUtils';
 import type {
   LeaveRequestResponse,
   OrgRole,
   OrgAnnouncement,
   AnniversaryType,
-} from "../../../types";
-import { OrgSubscriptionBadge } from "../subscription/OrgSubscriptionBadge";
-import { OrgAnnouncementModal } from "../OrgAnnouncementModal";
-import { OrgAnnouncementListModal } from "../OrgAnnouncementListModal";
-import { AttendanceWidget } from "../AttendanceWidget";
-import { CelebrationModal } from "../CelebrationModal";
-import { OrgFeedSection } from "../OrgFeedSection";
-import { OkrDashboardWidget } from "../okr/OkrDashboardWidget";
+} from '../../../types';
+import { OrgSubscriptionBadge } from '../subscription/OrgSubscriptionBadge';
+import { OrgAnnouncementModal } from '../OrgAnnouncementModal';
+import { OrgAnnouncementListModal } from '../OrgAnnouncementListModal';
+import { AttendanceWidget } from '../AttendanceWidget';
+import { CelebrationModal } from '../CelebrationModal';
+import { OrgFeedSection } from '../OrgFeedSection';
+import { OkrDashboardWidget } from '../okr/OkrDashboardWidget';
 
 interface OrgDashboardTabProps {
   orgId: string;
@@ -37,8 +37,7 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
 
   // Announcement modals
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingAnnouncement, setEditingAnnouncement] =
-    useState<OrgAnnouncement | null>(null);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<OrgAnnouncement | null>(null);
   const [showListModal, setShowListModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -63,7 +62,7 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
           const today = getTodayDateString();
           try {
             const leavesData = await leaveService.getRequests(orgId, {
-              status: "APPROVED",
+              status: 'APPROVED',
               start_date: today,
               end_date: today,
               size: 100,
@@ -74,7 +73,7 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
           }
         }
       } catch (error) {
-        console.warn("Failed to fetch dashboard data:", error);
+        console.warn('Failed to fetch dashboard data:', error);
       } finally {
         setLoading(false);
       }
@@ -110,32 +109,29 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
         {[
           {
             icon: Users,
-            bgClass: "bg-bridge-accent/15",
-            textClass: "text-bridge-accent",
-            label: t("organization.dashboard.members", "Members"),
+            bgClass: 'bg-bridge-accent/15',
+            textClass: 'text-bridge-accent',
+            label: t('organization.dashboard.members', 'Members'),
             value: org?.member_count ?? 0,
-            tab: "members" as const,
+            tab: 'members' as const,
           },
           {
             icon: LayoutGrid,
-            bgClass: "bg-bridge-secondary/15",
-            textClass: "text-bridge-secondary",
-            label: t("organization.dashboard.boards", "Boards"),
+            bgClass: 'bg-bridge-secondary/15',
+            textClass: 'text-bridge-secondary',
+            label: t('organization.dashboard.boards', 'Boards'),
             value: org?.board_count ?? 0,
-            tab: "boards" as const,
+            tab: 'boards' as const,
           },
           ...(!hrSystemEnabled
             ? [
                 {
                   icon: CalendarOff,
-                  bgClass: "bg-amber-500/15",
-                  textClass: "text-amber-500",
-                  label: t(
-                    "organization.dashboard.todayLeaves",
-                    "Today's Leaves",
-                  ),
+                  bgClass: 'bg-amber-500/15',
+                  textClass: 'text-amber-500',
+                  label: t('organization.dashboard.todayLeaves', "Today's Leaves"),
                   value: todayLeaves.length,
-                  tab: "leaves" as const,
+                  tab: 'leaves' as const,
                 },
               ]
             : []),
@@ -144,7 +140,7 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
             key={stat.label}
             onClick={() => setSearchParams({ tab: stat.tab })}
             className={`flex-1 min-w-0 flex items-center gap-2 md:gap-3 px-3 md:px-4 py-3 cursor-pointer hover:bg-foreground/5 transition-colors group ${
-              index < arr.length - 1 ? "border-r border-foreground/[0.08]" : ""
+              index < arr.length - 1 ? 'border-r border-foreground/[0.08]' : ''
             }`}
           >
             <div
@@ -152,12 +148,8 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
             >
               <stat.icon size={14} className={stat.textClass} />
             </div>
-            <span className="text-xs text-slate-400 truncate hidden md:inline">
-              {stat.label}
-            </span>
-            <span className="text-lg font-bold text-foreground ml-auto shrink-0">
-              {stat.value}
-            </span>
+            <span className="text-xs text-slate-400 truncate hidden md:inline">{stat.label}</span>
+            <span className="text-lg font-bold text-foreground ml-auto shrink-0">{stat.value}</span>
             <ChevronRight
               size={12}
               className="text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 hidden md:block"
@@ -182,10 +174,8 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
       {/* 3. OKR + Onboarding Widget */}
       <OkrDashboardWidget
         orgId={orgId}
-        onNavigateOkr={() => setSearchParams({ tab: "okr" })}
-        onNavigateOnboarding={() =>
-          setSearchParams({ tab: "settings", subtab: "onboarding" })
-        }
+        onNavigateOkr={() => setSearchParams({ tab: 'okr' })}
+        onNavigateOnboarding={() => setSearchParams({ tab: 'settings', subtab: 'onboarding' })}
         hrSystemEnabled={hrSystemEnabled}
       />
 

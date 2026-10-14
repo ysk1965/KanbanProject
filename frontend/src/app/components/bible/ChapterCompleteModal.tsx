@@ -1,7 +1,7 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Trophy } from "lucide-react";
-import { Button } from "../ui/button";
-import { useEscClose } from "../../hooks/useEscClose";
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle2, Trophy } from 'lucide-react';
+import { Button } from '../ui/button';
+import { useEscClose } from '../../hooks/useEscClose';
 
 interface ChapterCompleteModalProps {
   show: boolean;
@@ -42,7 +42,7 @@ export function ChapterCompleteModal({ show, book, chapter, onNext }: ChapterCom
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
                 className="flex justify-center"
               >
                 <div className="relative">

@@ -49,9 +49,11 @@ export function lazyWithRetry<T extends ComponentType<unknown>>(
       sessionStorage.removeItem(key);
 
       const UpdateFallback = () =>
-        createElement('div', {
-          className: 'flex flex-col items-center justify-center h-screen bg-bridge-dark gap-4',
-        },
+        createElement(
+          'div',
+          {
+            className: 'flex flex-col items-center justify-center h-screen bg-bridge-dark gap-4',
+          },
           createElement(Loader2, { className: 'w-8 h-8 text-bridge-accent animate-spin' }),
           createElement('p', { className: 'text-sm text-slate-400' }, '업데이트 적용 중...'),
         );

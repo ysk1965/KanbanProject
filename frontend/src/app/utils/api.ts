@@ -1,9 +1,9 @@
-import { nowUTC } from "./dateUtils";
-import { domainBrandName } from "./domain";
-import { addBreadcrumb } from "../../lib/sentry";
-import { reportServerReachable, reportServerUnreachable } from "./serverHealth";
-import { CLIENT_ID } from "./clientId";
-import { API_BASE_URL, API_ORIGIN, CLOUDFRONT_DOMAIN } from "../config/env";
+import { nowUTC } from './dateUtils';
+import { domainBrandName } from './domain';
+import { addBreadcrumb } from '../../lib/sentry';
+import { reportServerReachable, reportServerUnreachable } from './serverHealth';
+import { CLIENT_ID } from './clientId';
+import { API_BASE_URL, API_ORIGIN, CLOUDFRONT_DOMAIN } from '../config/env';
 
 // 백엔드 Origin (파일 URL 해석용 · MCP 연결 명령의 BRIDGE_API_URL)
 // 현재 FE가 붙어있는 백엔드 주소 → 환경별로 자동(로컬/milkyway/bridgespots).
@@ -19,13 +19,13 @@ const S3_DIRECT_URL_RE = /^https:\/\/[\w.-]+\.s3\.[\w.-]+\.amazonaws\.com\//;
  * - 상대 경로(/uploads/...)이면 백엔드 origin을 앞에 붙임
  */
 export const resolveFileUrl = (url: string | null | undefined): string => {
-  if (!url) return "";
+  if (!url) return '';
   const u = url.trim();
   if (
-    u.startsWith("http://") ||
-    u.startsWith("https://") ||
-    u.startsWith("blob:") ||
-    u.startsWith("data:")
+    u.startsWith('http://') ||
+    u.startsWith('https://') ||
+    u.startsWith('blob:') ||
+    u.startsWith('data:')
   ) {
     if (CLOUDFRONT_DOMAIN && S3_DIRECT_URL_RE.test(u)) {
       return u.replace(S3_DIRECT_URL_RE, `https://${CLOUDFRONT_DOMAIN}/`);
@@ -36,39 +36,39 @@ export const resolveFileUrl = (url: string | null | undefined): string => {
   // 맨이름(예: 외부 붙여넣기로 들어온 "image.png")이 origin에 그대로 붙어
   // "https://api.bridgespots.comimage.png" 같은 비정상 호스트명
   // (ERR_NAME_NOT_RESOLVED)이 되던 버그를 방지한다.
-  const path = u.startsWith("/") ? u : `/${u}`;
+  const path = u.startsWith('/') ? u : `/${u}`;
   return `${BACKEND_ORIGIN}${path}`;
 };
 
 // 토큰 관리
 const getAccessToken = (): string | null => {
-  return localStorage.getItem("access_token");
+  return localStorage.getItem('access_token');
 };
 
 const setTokens = (accessToken: string, refreshToken: string) => {
-  localStorage.setItem("access_token", accessToken);
-  localStorage.setItem("refresh_token", refreshToken);
+  localStorage.setItem('access_token', accessToken);
+  localStorage.setItem('refresh_token', refreshToken);
 };
 
 const clearTokens = () => {
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
 };
 
 const getRefreshToken = (): string | null => {
-  return localStorage.getItem("refresh_token");
+  return localStorage.getItem('refresh_token');
 };
 
 // JWT 토큰 디코딩 (만료 시간 확인용)
 const decodeToken = (token: string): { exp: number } | null => {
   try {
-    const base64Url = token.split(".")[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
     const jsonPayload = decodeURIComponent(
       atob(base64)
-        .split("")
-        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join(""),
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join(''),
     );
     return JSON.parse(jsonPayload);
   } catch {
@@ -109,18 +109,17 @@ export interface ApiError {
 
 // 서버 생존 확인용 엔드포인트. 여기서 나는 실패는 가드가 직접 판정하므로
 // 신호를 발행하지 않는다(신호 → 재확인 → 실패 → 신호 루프 방지).
-const HEALTH_ENDPOINT = "/system/status";
+const HEALTH_ENDPOINT = '/system/status';
 
 // 탭 간 refresh 직렬화용 Web Locks 이름 (같은 origin의 모든 탭이 공유)
-const AUTH_REFRESH_LOCK = "bridge-auth-refresh";
+const AUTH_REFRESH_LOCK = 'bridge-auth-refresh';
 
 // API 클라이언트
 class ApiClient {
   private baseURL: string;
   private refreshPromise: Promise<boolean> | null = null;
   // Rate limit 관리: 엔드포인트별 backoff 상태
-  private rateLimitBackoff: Map<string, { until: number; retries: number }> =
-    new Map();
+  private rateLimitBackoff: Map<string, { until: number; retries: number }> = new Map();
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
@@ -133,24 +132,24 @@ class ApiClient {
     isRetryAfterRefresh: boolean = false,
   ): Promise<T> {
     // Rate limit backoff 체크: 이전에 429를 받은 엔드포인트는 backoff 기간 동안 즉시 차단
-    const backoffKey = endpoint.split("?")[0]; // 쿼리 파라미터 제거
+    const backoffKey = endpoint.split('?')[0]; // 쿼리 파라미터 제거
     const backoffState = this.rateLimitBackoff.get(backoffKey);
     if (backoffState && Date.now() < backoffState.until) {
       console.warn(
         `⏳ [Rate Limit] ${endpoint} — backoff ${Math.ceil((backoffState.until - Date.now()) / 1000)}s 남음`,
       );
       throw {
-        code: "R001",
-        message: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.",
+        code: 'R001',
+        message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
         status: 429,
       } as ApiError;
     }
     const url = `${this.baseURL}${endpoint}`;
 
     const headers: Record<string, string> = {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       // WS self-echo 필터용 탭 식별자 — 백엔드가 이벤트에 client_id로 에코
-      "X-Client-Id": CLIENT_ID,
+      'X-Client-Id': CLIENT_ID,
       ...(options?.headers as Record<string, string>),
     };
 
@@ -160,16 +159,16 @@ class ApiClient {
 
       // 토큰이 10분 이내 만료 예정이면 선제적으로 갱신
       if (token && isTokenExpiringSoon(token)) {
-        console.log("🔄 [Token] 토큰 만료 임박, 선제적 갱신 시도...");
+        console.log('🔄 [Token] 토큰 만료 임박, 선제적 갱신 시도...');
         const refreshed = await this.tryRefreshToken();
         if (refreshed) {
           token = getAccessToken();
-          console.log("✅ [Token] 선제적 갱신 완료");
+          console.log('✅ [Token] 선제적 갱신 완료');
         }
       }
 
       if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
+        headers['Authorization'] = `Bearer ${token}`;
       }
     }
 
@@ -179,10 +178,10 @@ class ApiClient {
     };
 
     // Request 로깅
-    console.log(`🚀 [API Request] ${options?.method || "GET"} ${url}`, {
+    console.log(`🚀 [API Request] ${options?.method || 'GET'} ${url}`, {
       headers: {
         ...headers,
-        Authorization: headers.Authorization ? "***" : undefined,
+        Authorization: headers.Authorization ? '***' : undefined,
       },
       body: options?.body ? JSON.parse(options.body as string) : undefined,
     });
@@ -192,18 +191,14 @@ class ApiClient {
 
       if (!response.ok) {
         const errorData: ApiError = await response.json().catch(() => ({
-          code: "UNKNOWN",
+          code: 'UNKNOWN',
           message: response.statusText,
           timestamp: nowUTC(),
         }));
         errorData.status = response.status;
 
         // 502/503/504 = 서버가 내려갔거나 배포 중(ALB가 정상 인스턴스를 못 찾음)
-        if (
-          response.status === 502 ||
-          response.status === 503 ||
-          response.status === 504
-        ) {
+        if (response.status === 502 || response.status === 503 || response.status === 504) {
           if (!endpoint.startsWith(HEALTH_ENDPOINT)) {
             reportServerUnreachable(endpoint);
           }
@@ -212,17 +207,17 @@ class ApiClient {
         }
 
         // Error Response 로깅
-        console.error(`❌ [API Error] ${options?.method || "GET"} ${url}`, {
+        console.error(`❌ [API Error] ${options?.method || 'GET'} ${url}`, {
           status: response.status,
           error: errorData,
         });
 
         // Sentry breadcrumb: 에러 직전 어떤 API가 실패했는지 자동 첨부 (민감 body 제외)
         addBreadcrumb({
-          category: "api",
-          type: "http",
-          level: response.status >= 500 ? "error" : "warning",
-          message: `${options?.method || "GET"} ${endpoint} → ${response.status}`,
+          category: 'api',
+          type: 'http',
+          level: response.status >= 500 ? 'error' : 'warning',
+          message: `${options?.method || 'GET'} ${endpoint} → ${response.status}`,
           data: { status: response.status, code: errorData.code },
         });
 
@@ -243,10 +238,7 @@ class ApiClient {
           if (retries >= 5) {
             setTimeout(() => this.rateLimitBackoff.delete(backoffKey), 60000);
           } else {
-            setTimeout(
-              () => this.rateLimitBackoff.delete(backoffKey),
-              backoffMs,
-            );
+            setTimeout(() => this.rateLimitBackoff.delete(backoffKey), backoffMs);
           }
           throw errorData;
         }
@@ -266,10 +258,10 @@ class ApiClient {
         // AI 크레딧 소진 (402 Payment Required)
         if (response.status === 402) {
           // AI 크레딧 소진 이벤트 발행
-          const creditExhaustedEvent = new CustomEvent("ai-credits-exhausted", {
+          const creditExhaustedEvent = new CustomEvent('ai-credits-exhausted', {
             detail: {
-              message: errorData.message || "AI 크레딧이 소진되었습니다",
-              code: errorData.code || "AI_CREDITS_EXHAUSTED",
+              message: errorData.message || 'AI 크레딧이 소진되었습니다',
+              code: errorData.code || 'AI_CREDITS_EXHAUSTED',
             },
           });
           window.dispatchEvent(creditExhaustedEvent);
@@ -283,7 +275,7 @@ class ApiClient {
 
       // 204 No Content 또는 빈 응답 처리
       if (response.status === 204) {
-        console.log(`✅ [API Response] ${options?.method || "GET"} ${url}`, {
+        console.log(`✅ [API Response] ${options?.method || 'GET'} ${url}`, {
           status: 204,
           data: null,
         });
@@ -291,11 +283,11 @@ class ApiClient {
       }
 
       // Content-Length가 0이거나 응답 본문이 비어있는 경우 처리
-      const contentLength = response.headers.get("Content-Length");
-      const contentType = response.headers.get("Content-Type");
+      const contentLength = response.headers.get('Content-Length');
+      const contentType = response.headers.get('Content-Type');
 
-      if (contentLength === "0" || !contentType?.includes("application/json")) {
-        console.log(`✅ [API Response] ${options?.method || "GET"} ${url}`, {
+      if (contentLength === '0' || !contentType?.includes('application/json')) {
+        console.log(`✅ [API Response] ${options?.method || 'GET'} ${url}`, {
           status: response.status,
           data: null,
         });
@@ -303,8 +295,8 @@ class ApiClient {
       }
 
       const text = await response.text();
-      if (!text || text.trim() === "") {
-        console.log(`✅ [API Response] ${options?.method || "GET"} ${url}`, {
+      if (!text || text.trim() === '') {
+        console.log(`✅ [API Response] ${options?.method || 'GET'} ${url}`, {
           status: response.status,
           data: null,
         });
@@ -314,7 +306,7 @@ class ApiClient {
       const data = JSON.parse(text);
 
       // Success Response 로깅
-      console.log(`✅ [API Response] ${options?.method || "GET"} ${url}`, {
+      console.log(`✅ [API Response] ${options?.method || 'GET'} ${url}`, {
         status: response.status,
         data,
       });
@@ -326,10 +318,10 @@ class ApiClient {
       // 네트워크 계층 실패(fetch reject)도 breadcrumb로 흔적 남김
       if (error instanceof TypeError) {
         addBreadcrumb({
-          category: "api",
-          type: "http",
-          level: "error",
-          message: `${options?.method || "GET"} ${endpoint} → network error`,
+          category: 'api',
+          type: 'http',
+          level: 'error',
+          message: `${options?.method || 'GET'} ${endpoint} → network error`,
         });
       }
 
@@ -374,19 +366,19 @@ class ApiClient {
       const current = getRefreshToken();
       if (current && current !== before) {
         // 락 대기 중 다른 탭이 이미 갱신 완료 — 새 토큰이 localStorage에 있다
-        console.log("✅ [Auth] 다른 탭이 토큰을 갱신함, 재사용");
+        console.log('✅ [Auth] 다른 탭이 토큰을 갱신함, 재사용');
         return true;
       }
       return this.executeRefreshToken();
     };
 
-    const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+    const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
     if (locks?.request) {
       try {
         return await locks.request(AUTH_REFRESH_LOCK, run);
       } catch (error) {
         // 락 API 자체가 실패한 경우(권한/컨텍스트 문제)만 락 없이 진행
-        console.warn("⚠️ [Auth] Web Locks 사용 불가, 락 없이 갱신", error);
+        console.warn('⚠️ [Auth] Web Locks 사용 불가, 락 없이 갱신', error);
       }
     }
     return run();
@@ -401,8 +393,8 @@ class ApiClient {
 
     try {
       const response = await fetch(`${this.baseURL}/auth/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken }),
       });
 
@@ -415,15 +407,15 @@ class ApiClient {
       // 서버 장애(5xx)는 세션 만료가 아니다. 토큰을 지우거나 로그인으로 보내면
       // BE 배포 때마다 전원이 로그아웃되므로, 갱신만 포기하고 토큰은 남긴다.
       if (response.status >= 500) {
-        console.warn("⚠️ [Auth] 서버 장애로 토큰 갱신 실패 — 세션 유지");
-        reportServerUnreachable("/auth/refresh");
+        console.warn('⚠️ [Auth] 서버 장애로 토큰 갱신 실패 — 세션 유지');
+        reportServerUnreachable('/auth/refresh');
         return false;
       }
     } catch (error) {
       // 네트워크 자체가 끊긴 경우도 세션 만료로 취급하지 않는다
       if (error instanceof TypeError) {
-        console.warn("⚠️ [Auth] 네트워크 오류로 토큰 갱신 실패 — 세션 유지");
-        reportServerUnreachable("/auth/refresh");
+        console.warn('⚠️ [Auth] 네트워크 오류로 토큰 갱신 실패 — 세션 유지');
+        reportServerUnreachable('/auth/refresh');
         return false;
       }
     }
@@ -432,87 +424,68 @@ class ApiClient {
     // 브라우저의 다른 탭)이 먼저 회전시킨 것 — 세션은 살아 있으니 지우지 않는다.
     const latest = getRefreshToken();
     if (latest && latest !== refreshToken) {
-      console.log("✅ [Auth] 갱신 경쟁에서 밀렸지만 다른 탭이 갱신 완료, 세션 유지");
+      console.log('✅ [Auth] 갱신 경쟁에서 밀렸지만 다른 탭이 갱신 완료, 세션 유지');
       return true;
     }
 
     // 세션 만료 - 로그인 페이지로 리다이렉트
-    console.log("🔒 [Auth] 세션 만료, 로그인 페이지로 이동");
+    console.log('🔒 [Auth] 세션 만료, 로그인 페이지로 이동');
     clearTokens();
-    localStorage.removeItem("user");
+    localStorage.removeItem('user');
     this.redirectToLogin();
     return false;
   }
 
   private redirectToLogin(): void {
     // 이미 로그인 페이지면 리다이렉트 안함
-    if (
-      window.location.pathname === "/login" ||
-      window.location.pathname === "/signup"
-    ) {
+    if (window.location.pathname === '/login' || window.location.pathname === '/signup') {
       return;
     }
-    window.location.href = "/login";
+    window.location.href = '/login';
   }
 
   async get<T>(endpoint: string, skipAuth: boolean = false): Promise<T> {
-    return this.request<T>(endpoint, { method: "GET" }, skipAuth);
+    return this.request<T>(endpoint, { method: 'GET' }, skipAuth);
   }
 
-  async post<T>(
-    endpoint: string,
-    data?: unknown,
-    skipAuth: boolean = false,
-  ): Promise<T> {
+  async post<T>(endpoint: string, data?: unknown, skipAuth: boolean = false): Promise<T> {
     return this.request<T>(
       endpoint,
       {
-        method: "POST",
+        method: 'POST',
         body: data ? JSON.stringify(data) : undefined,
       },
       skipAuth,
     );
   }
 
-  async put<T>(
-    endpoint: string,
-    data?: unknown,
-    skipAuth: boolean = false,
-  ): Promise<T> {
+  async put<T>(endpoint: string, data?: unknown, skipAuth: boolean = false): Promise<T> {
     return this.request<T>(
       endpoint,
       {
-        method: "PUT",
+        method: 'PUT',
         body: data ? JSON.stringify(data) : undefined,
       },
       skipAuth,
     );
   }
 
-  async delete<T>(
-    endpoint: string,
-    data?: unknown,
-    skipAuth: boolean = false,
-  ): Promise<T> {
+  async delete<T>(endpoint: string, data?: unknown, skipAuth: boolean = false): Promise<T> {
     return this.request<T>(
       endpoint,
       {
-        method: "DELETE",
+        method: 'DELETE',
         body: data ? JSON.stringify(data) : undefined,
       },
       skipAuth,
     );
   }
 
-  async patch<T>(
-    endpoint: string,
-    data?: unknown,
-    skipAuth: boolean = false,
-  ): Promise<T> {
+  async patch<T>(endpoint: string, data?: unknown, skipAuth: boolean = false): Promise<T> {
     return this.request<T>(
       endpoint,
       {
-        method: "PATCH",
+        method: 'PATCH',
         body: data ? JSON.stringify(data) : undefined,
       },
       skipAuth,
@@ -534,26 +507,26 @@ export async function authenticatedFetch(
 
   // 토큰 만료 임박 시 선제적 갱신
   if (token && isTokenExpiringSoon(token)) {
-    const refreshed = await apiClient["tryRefreshToken"]();
+    const refreshed = await apiClient['tryRefreshToken']();
     if (refreshed) token = getAccessToken();
   }
 
   const headers: Record<string, string> = {
-    "X-Client-Id": CLIENT_ID,
+    'X-Client-Id': CLIENT_ID,
     ...(options.headers as Record<string, string>),
   };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
   let response = await fetch(url, { ...options, headers });
 
   // 401 + 토큰 만료 → 갱신 후 재시도
   if (response.status === 401) {
     const errData = await response.json().catch(() => null);
-    if (errData?.code === "A004") {
-      const refreshed = await apiClient["tryRefreshToken"]();
+    if (errData?.code === 'A004') {
+      const refreshed = await apiClient['tryRefreshToken']();
       if (refreshed) {
         token = getAccessToken();
-        if (token) headers["Authorization"] = `Bearer ${token}`;
+        if (token) headers['Authorization'] = `Bearer ${token}`;
         response = await fetch(url, { ...options, headers });
       }
     }
@@ -581,7 +554,7 @@ export interface AuthResponse {
 }
 
 export interface BoardSubscription {
-  status: "TRIAL" | "ACTIVE" | "SUSPENDED" | "CANCELED";
+  status: 'TRIAL' | 'ACTIVE' | 'SUSPENDED' | 'CANCELED';
   plan: string | null;
   trial_ends_at: string | null;
   current_period_end: string | null;
@@ -597,8 +570,8 @@ export interface BoardListItem {
   id: string;
   name: string;
   description: string | null;
-  board_type?: "TEAM" | "PERSONAL";
-  role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+  board_type?: 'TEAM' | 'PERSONAL';
+  role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
   is_starred: boolean;
   member_count: number;
   task_count: number;
@@ -621,9 +594,9 @@ export interface BoardDetail {
   id: string;
   name: string;
   description: string | null;
-  board_type?: "TEAM" | "PERSONAL";
+  board_type?: 'TEAM' | 'PERSONAL';
   owner: BoardOwner;
-  my_role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+  my_role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
   is_starred: boolean;
   member_count: number;
   subscription: BoardSubscription;
@@ -639,8 +612,8 @@ export interface BoardDetail {
 export interface BlockResponse {
   id: string;
   name: string;
-  type: "FIXED" | "CUSTOM";
-  fixed_type: "FEATURE" | "TASK" | "DONE" | null;
+  type: 'FIXED' | 'CUSTOM';
+  fixed_type: 'FEATURE' | 'TASK' | 'DONE' | null;
   color: string | null;
   position: number;
   show_progress_bar?: boolean;
@@ -670,10 +643,10 @@ export interface FeatureResponse {
   description?: string;
   color: string;
   assignee: AssigneeResponse | null;
-  priority: "HIGH" | "MEDIUM" | "LOW" | null;
+  priority: 'HIGH' | 'MEDIUM' | 'LOW' | null;
   start_date: string | null;
   due_date: string | null;
-  status: "ACTIVE" | "COMPLETED";
+  status: 'ACTIVE' | 'COMPLETED';
   total_tasks: number;
   completed_tasks: number;
   progress_percentage: number;
@@ -859,7 +832,7 @@ export interface MemberUserResponse {
 export interface MemberResponse {
   id: string;
   user: MemberUserResponse;
-  role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+  role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
   joined_at: string;
   invited_by: { id: string; name: string } | null;
   assignee_color?: string | null;
@@ -901,7 +874,7 @@ export interface ContractorInfo {
   start_date?: string | null;
   end_date?: string | null;
   periods?: ContractorPeriod[];
-  status?: "active" | "upcoming" | "expired" | "none" | string;
+  status?: 'active' | 'upcoming' | 'expired' | 'none' | string;
   manager_member_id?: string | null;
   manager_name?: string | null;
   job_role?: {
@@ -930,7 +903,7 @@ export interface MembersListResponse {
 }
 
 export interface InviteResultResponse {
-  type: "DIRECT_ADD" | "EMAIL_SENT";
+  type: 'DIRECT_ADD' | 'EMAIL_SENT';
   member?: MemberResponse; // DIRECT_ADD인 경우
   email?: string; // EMAIL_SENT인 경우
   role?: string; // EMAIL_SENT인 경우
@@ -939,7 +912,7 @@ export interface InviteResultResponse {
 export interface InviteLinkResponse {
   id: string;
   code: string;
-  role: "ADMIN" | "MEMBER" | "VIEWER";
+  role: 'ADMIN' | 'MEMBER' | 'VIEWER';
   max_uses: number | null;
   used_count: number;
   expires_at: string | null;
@@ -979,9 +952,9 @@ export interface ActivitiesResponse {
 
 export interface SubscriptionResponse {
   id: string;
-  status: "TRIAL" | "ACTIVE" | "SUSPENDED" | "CANCELED";
+  status: 'TRIAL' | 'ACTIVE' | 'SUSPENDED' | 'CANCELED';
   plan: string | null;
-  billing_cycle: "MONTHLY" | "YEARLY" | null;
+  billing_cycle: 'MONTHLY' | 'YEARLY' | null;
   price: number | null;
   trial_ends_at: string | null;
   current_period_start: string | null;
@@ -1012,7 +985,7 @@ export interface PricingResponse {
 }
 
 // Board Tier Response Types
-export type BoardTier = "TRIAL" | "STANDARD" | "PREMIUM";
+export type BoardTier = 'TRIAL' | 'STANDARD' | 'PREMIUM';
 
 export interface BoardTierResponse {
   tier: BoardTier;
@@ -1038,9 +1011,9 @@ export interface BoardFullResponse {
   id: string;
   name: string;
   description: string | null;
-  board_type?: "TEAM" | "PERSONAL";
+  board_type?: 'TEAM' | 'PERSONAL';
   owner: BoardOwner;
-  my_role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+  my_role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
   is_starred: boolean;
   member_count: number;
   subscription: BoardSubscription;
@@ -1075,7 +1048,7 @@ export interface BoardFullResponse {
   milestones: { milestones: MilestoneDetailResponse[] };
   tier_info: BoardTierResponse;
   limits: BoardLimitsResponse;
-  ai_credits: import("../types").AiCredits | null;
+  ai_credits: import('../types').AiCredits | null;
 }
 
 // Seat Pricing Response
@@ -1097,38 +1070,26 @@ export interface SeatPricingResponse {
 
 export const authAPI = {
   signup: async (data: { email: string; password: string; name: string }) => {
-    const response = await apiClient.post<AuthResponse>(
-      "/auth/signup",
-      data,
-      true,
-    );
+    const response = await apiClient.post<AuthResponse>('/auth/signup', data, true);
     setTokens(response.access_token, response.refresh_token);
     return response;
   },
 
   login: async (data: { email: string; password: string }) => {
-    const response = await apiClient.post<AuthResponse>(
-      "/auth/login",
-      data,
-      true,
-    );
+    const response = await apiClient.post<AuthResponse>('/auth/login', data, true);
     setTokens(response.access_token, response.refresh_token);
     return response;
   },
 
   googleLogin: async (code: string) => {
-    const response = await apiClient.post<AuthResponse>(
-      "/auth/google",
-      { code },
-      true,
-    );
+    const response = await apiClient.post<AuthResponse>('/auth/google', { code }, true);
     setTokens(response.access_token, response.refresh_token);
     return response;
   },
 
   googleLoginWithIdToken: async (idToken: string) => {
     const response = await apiClient.post<AuthResponse>(
-      "/auth/google",
+      '/auth/google',
       { id_token: idToken },
       true,
     );
@@ -1137,37 +1098,26 @@ export const authAPI = {
   },
 
   logout: async () => {
-    const response = await apiClient.post<{ message: string }>("/auth/logout");
+    const response = await apiClient.post<{ message: string }>('/auth/logout');
     clearTokens();
     return response;
   },
 
   verifyEmail: async (token: string) => {
-    return apiClient.get<{ message: string }>(
-      `/auth/verify-email?token=${token}`,
-      true,
-    );
+    return apiClient.get<{ message: string }>(`/auth/verify-email?token=${token}`, true);
   },
 
   resendVerificationEmail: async (email: string) => {
-    return apiClient.post<{ message: string }>(
-      "/auth/resend-verification",
-      { email },
-      true,
-    );
+    return apiClient.post<{ message: string }>('/auth/resend-verification', { email }, true);
   },
 
   forgotPassword: async (email: string) => {
-    return apiClient.post<{ message: string }>(
-      "/auth/forgot-password",
-      { email },
-      true,
-    );
+    return apiClient.post<{ message: string }>('/auth/forgot-password', { email }, true);
   },
 
   resetPassword: async (token: string, newPassword: string) => {
     return apiClient.post<{ message: string }>(
-      "/auth/reset-password",
+      '/auth/reset-password',
       { token, newPassword },
       true,
     );
@@ -1178,7 +1128,7 @@ export const authAPI = {
       access_token: string;
       refresh_token: string;
       token_type: string;
-    }>("/auth/refresh", { refresh_token: refreshToken }, true);
+    }>('/auth/refresh', { refresh_token: refreshToken }, true);
   },
 
   // 토큰이 존재하고 유효한지 확인 (만료 여부 포함)
@@ -1198,7 +1148,7 @@ export const authAPI = {
   // refresh token으로 access token 갱신 시도 (중복 요청 방지)
   tryRefreshToken: async (): Promise<boolean> => {
     // ApiClient의 refreshPromise를 공유하여 모든 경로에서 단일 요청 보장
-    return apiClient["tryRefreshToken"]();
+    return apiClient['tryRefreshToken']();
   },
 
   getAccessToken,
@@ -1217,13 +1167,13 @@ export const userAPI = {
       name: string;
       profile_image: string;
       email_verified: boolean;
-    }>("/users/me");
+    }>('/users/me');
   },
 
   updateProfile: async (data: {
     name?: string;
     profileImage?: string;
-    theme?: "dark" | "light";
+    theme?: 'dark' | 'light';
   }) => {
     return apiClient.patch<{
       id: string;
@@ -1231,8 +1181,8 @@ export const userAPI = {
       name: string;
       profile_image: string;
       email_verified: boolean;
-      theme?: "dark" | "light";
-    }>("/users/me", {
+      theme?: 'dark' | 'light';
+    }>('/users/me', {
       name: data.name,
       profile_image: data.profileImage,
       theme: data.theme,
@@ -1240,31 +1190,28 @@ export const userAPI = {
   },
 
   changePassword: async (currentPassword: string, newPassword: string) => {
-    return apiClient.post<{ message: string }>("/users/me/password", {
+    return apiClient.post<{ message: string }>('/users/me/password', {
       current_password: currentPassword,
       new_password: newPassword,
     });
   },
 
   deleteAccount: async () => {
-    return apiClient.delete<{ message: string }>("/users/me");
+    return apiClient.delete<{ message: string }>('/users/me');
   },
 
   uploadProfileImage: async (file: File) => {
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append('file', file);
 
-    const response = await authenticatedFetch(
-      `${API_BASE_URL}/users/me/profile-image`,
-      {
-        method: "POST",
-        body: formData,
-      },
-    );
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/me/profile-image`, {
+      method: 'POST',
+      body: formData,
+    });
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({
-        code: "UNKNOWN",
+        code: 'UNKNOWN',
         message: response.statusText,
       }));
       throw errData;
@@ -1290,10 +1237,10 @@ export const userAPI = {
       email_verified: boolean;
       theme: string;
       provider: string;
-    }>("/users/me/profile-image");
+    }>('/users/me/profile-image');
   },
 
-  getMyTasks: async (filter: "today" | "week" | "overdue" = "today") => {
+  getMyTasks: async (filter: 'today' | 'week' | 'overdue' = 'today') => {
     return apiClient.get<MyTasksResponse>(`/users/me/tasks?filter=${filter}`);
   },
 };
@@ -1325,7 +1272,7 @@ export interface MyTasksResponse {
 
 export const boardAPI = {
   getBoards: async () => {
-    return apiClient.get<BoardListItem[]>("/boards");
+    return apiClient.get<BoardListItem[]>('/boards');
   },
 
   getBoard: async (boardId: string) => {
@@ -1337,7 +1284,7 @@ export const boardAPI = {
     description?: string;
     background_gradient?: string;
   }) => {
-    return apiClient.post<BoardDetail>("/boards", data);
+    return apiClient.post<BoardDetail>('/boards', data);
   },
 
   updateBoard: async (
@@ -1352,35 +1299,21 @@ export const boardAPI = {
   },
 
   toggleStar: async (boardId: string) => {
-    return apiClient.patch<{ board_id: string; is_starred: boolean }>(
-      `/boards/${boardId}/star`,
-    );
+    return apiClient.patch<{ board_id: string; is_starred: boolean }>(`/boards/${boardId}/star`);
   },
 
-  updateSelectedMilestone: async (
-    boardId: string,
-    milestoneId: string | null,
-  ) => {
-    return apiClient.patch<BoardDetail>(
-      `/boards/${boardId}/selected-milestone`,
-      {
-        milestone_id: milestoneId,
-      },
-    );
+  updateSelectedMilestone: async (boardId: string, milestoneId: string | null) => {
+    return apiClient.patch<BoardDetail>(`/boards/${boardId}/selected-milestone`, {
+      milestone_id: milestoneId,
+    });
   },
 
   /**
    * 화면 복잡도 변경. 레벨만·옵션만 따로 보낼 수 있다 —
    * 서랍의 옵션 토글 하나가 레벨을 건드리면 안 된다.
    */
-  updateUiConfig: async (
-    boardId: string,
-    payload: { ui_level?: number; ui_options?: string },
-  ) => {
-    return apiClient.patch<BoardDetail>(
-      `/boards/${boardId}/ui-config`,
-      payload,
-    );
+  updateUiConfig: async (boardId: string, payload: { ui_level?: number; ui_options?: string }) => {
+    return apiClient.patch<BoardDetail>(`/boards/${boardId}/ui-config`, payload);
   },
 
   getBoardTier: async (boardId: string) => {
@@ -1414,26 +1347,26 @@ export const boardAPI = {
 
 export const boardJoinRequestAPI = {
   create: async (boardId: string, data?: { message?: string }) => {
-    return apiClient.post<import("../types").BoardJoinRequest>(
+    return apiClient.post<import('../types').BoardJoinRequest>(
       `/boards/${boardId}/join-requests`,
       data || {},
     );
   },
 
   list: async (boardId: string) => {
-    return apiClient.get<{ requests: import("../types").BoardJoinRequest[] }>(
+    return apiClient.get<{ requests: import('../types').BoardJoinRequest[] }>(
       `/boards/${boardId}/join-requests`,
     );
   },
 
   approve: async (boardId: string, requestId: string) => {
-    return apiClient.patch<import("../types").BoardJoinRequest>(
+    return apiClient.patch<import('../types').BoardJoinRequest>(
       `/boards/${boardId}/join-requests/${requestId}/approve`,
     );
   },
 
   reject: async (boardId: string, requestId: string) => {
-    return apiClient.patch<import("../types").BoardJoinRequest>(
+    return apiClient.patch<import('../types').BoardJoinRequest>(
       `/boards/${boardId}/join-requests/${requestId}/reject`,
     );
   },
@@ -1445,7 +1378,7 @@ export const boardJoinRequestAPI = {
 
 export const blockAPI = {
   getBlocks: async (boardId: string, milestoneId?: string) => {
-    const query = milestoneId ? `?milestoneId=${milestoneId}` : "";
+    const query = milestoneId ? `?milestoneId=${milestoneId}` : '';
     return apiClient.get<{
       blocks: BlockResponse[];
       hidden_blocks?: BlockResponse[];
@@ -1464,25 +1397,17 @@ export const blockAPI = {
     blockId: string,
     data: { name?: string; color?: string; show_progress_bar?: boolean },
   ) => {
-    return apiClient.put<BlockResponse>(
-      `/boards/${boardId}/blocks/${blockId}`,
-      data,
-    );
+    return apiClient.put<BlockResponse>(`/boards/${boardId}/blocks/${blockId}`, data);
   },
 
   deleteBlock: async (boardId: string, blockId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/blocks/${blockId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/blocks/${blockId}`);
   },
 
   reorderBlocks: async (boardId: string, blockIds: string[]) => {
-    return apiClient.put<{ blocks: BlockResponse[] }>(
-      `/boards/${boardId}/blocks/reorder`,
-      {
-        block_ids: blockIds,
-      },
-    );
+    return apiClient.put<{ blocks: BlockResponse[] }>(`/boards/${boardId}/blocks/reorder`, {
+      block_ids: blockIds,
+    });
   },
 };
 
@@ -1510,16 +1435,12 @@ export const milestoneBlockAPI = {
 
 export const featureAPI = {
   getFeatures: async (boardId: string, milestoneId?: string) => {
-    const query = milestoneId ? `?milestoneId=${milestoneId}` : "";
-    return apiClient.get<{ features: FeatureResponse[] }>(
-      `/boards/${boardId}/features${query}`,
-    );
+    const query = milestoneId ? `?milestoneId=${milestoneId}` : '';
+    return apiClient.get<{ features: FeatureResponse[] }>(`/boards/${boardId}/features${query}`);
   },
 
   getFeature: async (boardId: string, featureId: string) => {
-    return apiClient.get<FeatureResponse>(
-      `/boards/${boardId}/features/${featureId}`,
-    );
+    return apiClient.get<FeatureResponse>(`/boards/${boardId}/features/${featureId}`);
   },
 
   createFeature: async (
@@ -1548,10 +1469,7 @@ export const featureAPI = {
       due_date?: string | null;
     },
   ) => {
-    return apiClient.put<FeatureResponse>(
-      `/boards/${boardId}/features/${featureId}`,
-      data,
-    );
+    return apiClient.put<FeatureResponse>(`/boards/${boardId}/features/${featureId}`, data);
   },
 
   deleteFeature: async (
@@ -1561,29 +1479,20 @@ export const featureAPI = {
       task_migrations?: Array<{ task_id: string; target_feature_id: string }>;
     },
   ) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/features/${featureId}`,
-      data,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/features/${featureId}`, data);
   },
 
   reorderFeatures: async (boardId: string, featureIds: string[]) => {
-    return apiClient.put<{ features: FeatureResponse[] }>(
-      `/boards/${boardId}/features/reorder`,
-      {
-        feature_ids: featureIds,
-      },
-    );
+    return apiClient.put<{ features: FeatureResponse[] }>(`/boards/${boardId}/features/reorder`, {
+      feature_ids: featureIds,
+    });
   },
 
   // Feature 태그 관리
   addTag: async (boardId: string, featureId: string, tagId: string) => {
-    return apiClient.post<TagResponse[]>(
-      `/boards/${boardId}/features/${featureId}/tags`,
-      {
-        tag_id: tagId,
-      },
-    );
+    return apiClient.post<TagResponse[]>(`/boards/${boardId}/features/${featureId}/tags`, {
+      tag_id: tagId,
+    });
   },
 
   removeTag: async (boardId: string, featureId: string, tagId: string) => {
@@ -1592,22 +1501,14 @@ export const featureAPI = {
     );
   },
 
-  aiDecompose: async (
-    boardId: string,
-    featureId: string,
-    language?: string,
-  ) => {
-    const params = language ? `?language=${language}` : "";
+  aiDecompose: async (boardId: string, featureId: string, language?: string) => {
+    const params = language ? `?language=${language}` : '';
     return apiClient.post<FeatureAIDecompositionResponse>(
       `/boards/${boardId}/features/${featureId}/ai/decompose${params}`,
     );
   },
 
-  aiApply: async (
-    boardId: string,
-    featureId: string,
-    data: FeatureAIApplyRequest,
-  ) => {
+  aiApply: async (boardId: string, featureId: string, data: FeatureAIApplyRequest) => {
     return apiClient.post<FeatureAIApplyResult>(
       `/boards/${boardId}/features/${featureId}/ai/apply`,
       data,
@@ -1623,7 +1524,7 @@ import type {
   MindMapShareSettings,
   MiniKanbanDocument,
   SharedMindMapSnapshot,
-} from "../types";
+} from '../types';
 
 export const mindMapAPI = {
   get: async (boardId: string) => {
@@ -1640,9 +1541,7 @@ export const mindMapAPI = {
 
 export const mindMapShareAPI = {
   get: async (boardId: string) => {
-    return apiClient.get<MindMapShareSettings>(
-      `/boards/${boardId}/mindmap/share`,
-    );
+    return apiClient.get<MindMapShareSettings>(`/boards/${boardId}/mindmap/share`);
   },
   update: async (
     boardId: string,
@@ -1654,25 +1553,17 @@ export const mindMapShareAPI = {
       expires_at: string | null;
     },
   ) => {
-    return apiClient.put<MindMapShareSettings>(
-      `/boards/${boardId}/mindmap/share`,
-      data,
-    );
+    return apiClient.put<MindMapShareSettings>(`/boards/${boardId}/mindmap/share`, data);
   },
   /** share_code 교체 — 기존 링크는 즉시 404 */
   rotate: async (boardId: string) => {
-    return apiClient.post<MindMapShareSettings>(
-      `/boards/${boardId}/mindmap/share/rotate`,
-    );
+    return apiClient.post<MindMapShareSettings>(`/boards/${boardId}/mindmap/share/rotate`);
   },
 };
 
 export const publicMindMapAPI = {
   getSnapshot: async (shareCode: string) => {
-    return apiClient.get<SharedMindMapSnapshot>(
-      `/public/mindmaps/${shareCode}`,
-      true,
-    );
+    return apiClient.get<SharedMindMapSnapshot>(`/public/mindmaps/${shareCode}`, true);
   },
 };
 
@@ -1684,10 +1575,7 @@ export const miniKanbanAPI = {
     return apiClient.get<MiniKanbanDocument>(`/boards/${boardId}/mini-kanban`);
   },
   save: async (boardId: string, doc: MiniKanbanDocument) => {
-    return apiClient.put<MiniKanbanDocument>(
-      `/boards/${boardId}/mini-kanban`,
-      doc,
-    );
+    return apiClient.put<MiniKanbanDocument>(`/boards/${boardId}/mini-kanban`, doc);
   },
 };
 
@@ -1701,12 +1589,12 @@ export const taskAPI = {
     params?: { block_id?: string; feature_id?: string; milestone_id?: string },
   ) => {
     const query = new URLSearchParams();
-    if (params?.block_id) query.set("blockId", params.block_id);
-    if (params?.feature_id) query.set("featureId", params.feature_id);
-    if (params?.milestone_id) query.set("milestoneId", params.milestone_id);
+    if (params?.block_id) query.set('blockId', params.block_id);
+    if (params?.feature_id) query.set('featureId', params.feature_id);
+    if (params?.milestone_id) query.set('milestoneId', params.milestone_id);
     const queryString = query.toString();
     return apiClient.get<{ tasks: TaskResponse[] }>(
-      `/boards/${boardId}/tasks${queryString ? `?${queryString}` : ""}`,
+      `/boards/${boardId}/tasks${queryString ? `?${queryString}` : ''}`,
     );
   },
 
@@ -1734,10 +1622,7 @@ export const taskAPI = {
       milestone_id?: string | null;
     },
   ) => {
-    return apiClient.post<TaskResponse>(
-      `/boards/${boardId}/features/${featureId}/tasks`,
-      data,
-    );
+    return apiClient.post<TaskResponse>(`/boards/${boardId}/features/${featureId}/tasks`, data);
   },
 
   updateTask: async (
@@ -1752,10 +1637,7 @@ export const taskAPI = {
       estimated_minutes?: number | null;
     },
   ) => {
-    return apiClient.put<TaskResponse>(
-      `/boards/${boardId}/tasks/${taskId}`,
-      data,
-    );
+    return apiClient.put<TaskResponse>(`/boards/${boardId}/tasks/${taskId}`, data);
   },
 
   updateTaskDates: async (
@@ -1766,28 +1648,19 @@ export const taskAPI = {
       end_date?: string | null;
     },
   ) => {
-    return apiClient.put<TaskResponse>(
-      `/boards/${boardId}/tasks/${taskId}/dates`,
-      data,
-    );
+    return apiClient.put<TaskResponse>(`/boards/${boardId}/tasks/${taskId}/dates`, data);
   },
 
   deleteTask: async (boardId: string, taskId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/tasks/${taskId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/tasks/${taskId}`);
   },
 
   saveBaseline: async (boardId: string) => {
-    return apiClient.post<{ message: string }>(
-      `/boards/${boardId}/tasks/save-baseline`,
-    );
+    return apiClient.post<{ message: string }>(`/boards/${boardId}/tasks/save-baseline`);
   },
 
   clearBaseline: async (boardId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/tasks/baseline`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/tasks/baseline`);
   },
 
   moveTask: async (
@@ -1795,10 +1668,7 @@ export const taskAPI = {
     taskId: string,
     data: { target_block_id: string; position: number },
   ) => {
-    return apiClient.put<TaskResponse>(
-      `/boards/${boardId}/tasks/${taskId}/move`,
-      data,
-    );
+    return apiClient.put<TaskResponse>(`/boards/${boardId}/tasks/${taskId}/move`, data);
   },
 
   moveTaskToFeature: async (
@@ -1806,18 +1676,11 @@ export const taskAPI = {
     taskId: string,
     data: { target_feature_id: string },
   ) => {
-    return apiClient.put<TaskResponse>(
-      `/boards/${boardId}/tasks/${taskId}/move-feature`,
-      data,
-    );
+    return apiClient.put<TaskResponse>(`/boards/${boardId}/tasks/${taskId}/move-feature`, data);
   },
 
   // 피처 내 서브태스크 순서 변경
-  reorderFeatureTasks: async (
-    boardId: string,
-    featureId: string,
-    taskIds: string[],
-  ) => {
+  reorderFeatureTasks: async (boardId: string, featureId: string, taskIds: string[]) => {
     return apiClient.put<{ message: string }>(
       `/boards/${boardId}/features/${featureId}/tasks/reorder`,
       {
@@ -1828,12 +1691,9 @@ export const taskAPI = {
 
   // Task 태그 관리
   addTag: async (boardId: string, taskId: string, tagId: string) => {
-    return apiClient.post<TagResponse[]>(
-      `/boards/${boardId}/tasks/${taskId}/tags`,
-      {
-        tag_id: tagId,
-      },
-    );
+    return apiClient.post<TagResponse[]>(`/boards/${boardId}/tasks/${taskId}/tags`, {
+      tag_id: tagId,
+    });
   },
 
   removeTag: async (boardId: string, taskId: string, tagId: string) => {
@@ -1856,18 +1716,12 @@ export const tagAPI = {
     return apiClient.post<TagResponse>(`/boards/${boardId}/tags`, data);
   },
 
-  updateTag: async (
-    boardId: string,
-    tagId: string,
-    data: { name?: string; color?: string },
-  ) => {
+  updateTag: async (boardId: string, tagId: string, data: { name?: string; color?: string }) => {
     return apiClient.put<TagResponse>(`/boards/${boardId}/tags/${tagId}`, data);
   },
 
   deleteTag: async (boardId: string, tagId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/tags/${tagId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/tags/${tagId}`);
   },
 };
 
@@ -1890,19 +1744,11 @@ export interface MentionGroupDetail {
 
 export const mentionGroupAPI = {
   getGroups: async (boardId: string) => {
-    return apiClient.get<{ groups: MentionGroupDetail[] }>(
-      `/boards/${boardId}/mention-groups`,
-    );
+    return apiClient.get<{ groups: MentionGroupDetail[] }>(`/boards/${boardId}/mention-groups`);
   },
 
-  createGroup: async (
-    boardId: string,
-    data: { name: string; member_ids: string[] },
-  ) => {
-    return apiClient.post<MentionGroupDetail>(
-      `/boards/${boardId}/mention-groups`,
-      data,
-    );
+  createGroup: async (boardId: string, data: { name: string; member_ids: string[] }) => {
+    return apiClient.post<MentionGroupDetail>(`/boards/${boardId}/mention-groups`, data);
   },
 
   updateGroup: async (
@@ -1910,16 +1756,11 @@ export const mentionGroupAPI = {
     groupId: string,
     data: { name: string; member_ids: string[] },
   ) => {
-    return apiClient.put<MentionGroupDetail>(
-      `/boards/${boardId}/mention-groups/${groupId}`,
-      data,
-    );
+    return apiClient.put<MentionGroupDetail>(`/boards/${boardId}/mention-groups/${groupId}`, data);
   },
 
   deleteGroup: async (boardId: string, groupId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/mention-groups/${groupId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/mention-groups/${groupId}`);
   },
 };
 
@@ -1934,16 +1775,13 @@ export interface BatchChecklistResponse {
 
 export const checklistAPI = {
   getChecklist: async (boardId: string, taskId: string) => {
-    return apiClient.get<ChecklistResponse>(
-      `/boards/${boardId}/tasks/${taskId}/checklist`,
-    );
+    return apiClient.get<ChecklistResponse>(`/boards/${boardId}/tasks/${taskId}/checklist`);
   },
 
   getBatchChecklists: async (boardId: string, taskIds: string[]) => {
-    return apiClient.post<BatchChecklistResponse>(
-      `/boards/${boardId}/checklist-items/batch`,
-      { task_ids: taskIds },
-    );
+    return apiClient.post<BatchChecklistResponse>(`/boards/${boardId}/checklist-items/batch`, {
+      task_ids: taskIds,
+    });
   },
 
   addItem: async (
@@ -2030,16 +1868,13 @@ export const checklistAPI = {
       new_task?: { title: string };
     },
   ) => {
-    return apiClient.put<
-      ChecklistItemResponse & { created_task?: TaskResponse }
-    >(`/boards/${boardId}/tasks/${taskId}/checklist/${itemId}/move-task`, data);
+    return apiClient.put<ChecklistItemResponse & { created_task?: TaskResponse }>(
+      `/boards/${boardId}/tasks/${taskId}/checklist/${itemId}/move-task`,
+      data,
+    );
   },
 
-  reorderItems: async (
-    boardId: string,
-    taskId: string,
-    data: { item_ids: string[] },
-  ) => {
+  reorderItems: async (boardId: string, taskId: string, data: { item_ids: string[] }) => {
     return apiClient.put<{ message: string }>(
       `/boards/${boardId}/tasks/${taskId}/checklist/reorder`,
       data,
@@ -2066,17 +1901,13 @@ export const checklistAPI = {
   },
 
   aiDecompose: async (boardId: string, taskId: string, language?: string) => {
-    const params = language ? `?language=${language}` : "";
+    const params = language ? `?language=${language}` : '';
     return apiClient.post<ChecklistAIDecompositionResponse>(
       `/boards/${boardId}/tasks/${taskId}/checklist/ai/decompose${params}`,
     );
   },
 
-  aiApply: async (
-    boardId: string,
-    taskId: string,
-    data: ChecklistAIApplyRequest,
-  ) => {
+  aiApply: async (boardId: string, taskId: string, data: ChecklistAIApplyRequest) => {
     return apiClient.post<ChecklistAIApplyResult>(
       `/boards/${boardId}/tasks/${taskId}/checklist/ai/apply`,
       data,
@@ -2125,10 +1956,7 @@ export const checklistPresetAPI = {
       items: { title: string; assignee_id?: string | null }[];
     },
   ) => {
-    return apiClient.post<ChecklistPresetResponse>(
-      `/boards/${boardId}/checklist-presets`,
-      data,
-    );
+    return apiClient.post<ChecklistPresetResponse>(`/boards/${boardId}/checklist-presets`, data);
   },
 
   // 전체 교체(full replace) — 이름과 항목 목록을 통째로 저장한다.
@@ -2256,17 +2084,13 @@ export const fileAPI = {
    * Presigned URL 요청 (S3 모드에서만)
    * mode="direct"이면 presigned 미지원 → upload() 사용
    */
-  presign: async (data: {
-    fileName: string;
-    contentType: string;
-    fileSize: number;
-  }) => {
+  presign: async (data: { fileName: string; contentType: string; fileSize: number }) => {
     return apiClient.post<{
       mode: string;
       tempKey?: string;
       uploadUrl?: string;
       message?: string;
-    }>("/files/presign", {
+    }>('/files/presign', {
       file_name: data.fileName,
       content_type: data.contentType,
       file_size: data.fileSize,
@@ -2277,20 +2101,18 @@ export const fileAPI = {
    * 서버 직접 업로드 (Local/S3 모두 지원)
    * 인증된 multipart 요청
    */
-  upload: async (
-    file: File,
-  ): Promise<{ tempKey: string; previewUrl: string }> => {
+  upload: async (file: File): Promise<{ tempKey: string; previewUrl: string }> => {
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append('file', file);
 
     const response = await authenticatedFetch(`${API_BASE_URL}/files/upload`, {
-      method: "POST",
+      method: 'POST',
       body: formData,
     });
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({
-        code: "UNKNOWN",
+        code: 'UNKNOWN',
         message: response.statusText,
       }));
       throw errData;
@@ -2303,9 +2125,7 @@ export const fileAPI = {
    * 파일 업로드 (presigned URL 시도 → fallback: 직접 업로드)
    * 항상 tempKey를 반환
    */
-  smartUpload: async (
-    file: File,
-  ): Promise<{ tempKey: string; previewUrl: string }> => {
+  smartUpload: async (file: File): Promise<{ tempKey: string; previewUrl: string }> => {
     try {
       // 1. presigned URL 시도
       const presign = await fileAPI.presign({
@@ -2314,16 +2134,12 @@ export const fileAPI = {
         fileSize: file.size,
       });
 
-      if (
-        presign.mode === "presigned" &&
-        presign.uploadUrl &&
-        presign.tempKey
-      ) {
+      if (presign.mode === 'presigned' && presign.uploadUrl && presign.tempKey) {
         // 2. S3에 직접 업로드
         const putResponse = await fetch(presign.uploadUrl, {
-          method: "PUT",
+          method: 'PUT',
           body: file,
-          headers: { "Content-Type": file.type },
+          headers: { 'Content-Type': file.type },
         });
 
         if (putResponse.ok) {
@@ -2344,27 +2160,26 @@ export const fileAPI = {
 
   uploadNote: async (
     file: File,
-    scope:
-      { boardId: string } | { organizationId: string } | { personal: true },
+    scope: { boardId: string } | { organizationId: string } | { personal: true },
   ): Promise<{ url: string }> => {
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append('file', file);
 
     const param =
-      "boardId" in scope
+      'boardId' in scope
         ? `boardId=${encodeURIComponent(scope.boardId)}`
-        : "organizationId" in scope
+        : 'organizationId' in scope
           ? `organizationId=${encodeURIComponent(scope.organizationId)}`
           : `personal=true`;
 
-    const response = await authenticatedFetch(
-      `${API_BASE_URL}/files/upload-note?${param}`,
-      { method: "POST", body: formData },
-    );
+    const response = await authenticatedFetch(`${API_BASE_URL}/files/upload-note?${param}`, {
+      method: 'POST',
+      body: formData,
+    });
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({
-        code: "UNKNOWN",
+        code: 'UNKNOWN',
         message: response.statusText,
       }));
       throw errData;
@@ -2380,9 +2195,7 @@ export const fileAPI = {
 
 export const commentAPI = {
   getComments: async (boardId: string, taskId: string) => {
-    return apiClient.get<CommentListResponse>(
-      `/boards/${boardId}/tasks/${taskId}/comments`,
-    );
+    return apiClient.get<CommentListResponse>(`/boards/${boardId}/tasks/${taskId}/comments`);
   },
 
   createComment: async (
@@ -2397,16 +2210,13 @@ export const commentAPI = {
       checklistItemId?: string | null;
     },
   ) => {
-    return apiClient.post<CommentDetailResponse>(
-      `/boards/${boardId}/tasks/${taskId}/comments`,
-      {
-        content: data.content,
-        mentions: data.mentions,
-        file_keys: data.fileKeys,
-        parent_id: data.parentId,
-        checklist_item_id: data.checklistItemId,
-      },
-    );
+    return apiClient.post<CommentDetailResponse>(`/boards/${boardId}/tasks/${taskId}/comments`, {
+      content: data.content,
+      mentions: data.mentions,
+      file_keys: data.fileKeys,
+      parent_id: data.parentId,
+      checklist_item_id: data.checklistItemId,
+    });
   },
 
   updateComment: async (
@@ -2470,12 +2280,7 @@ export const commentAPI = {
     );
   },
 
-  toggleReaction: async (
-    boardId: string,
-    taskId: string,
-    commentId: string,
-    emoji: string,
-  ) => {
+  toggleReaction: async (boardId: string, taskId: string, commentId: string, emoji: string) => {
     return apiClient.post<ReactionsToggleResponse>(
       `/boards/${boardId}/tasks/${taskId}/comments/${commentId}/reactions/toggle`,
       { emoji },
@@ -2483,7 +2288,7 @@ export const commentAPI = {
   },
 
   aiSummarize: async (boardId: string, taskId: string, language?: string) => {
-    const params = language ? `?language=${language}` : "";
+    const params = language ? `?language=${language}` : '';
     return apiClient.post<CommentAISummaryResponse>(
       `/boards/${boardId}/tasks/${taskId}/comments/ai/summarize${params}`,
     );
@@ -2513,25 +2318,20 @@ export interface CustomEmojiListResponse {
 // ========================================
 
 export interface BoardResourceListResponse {
-  resources: import("../types").BoardResource[];
+  resources: import('../types').BoardResource[];
   total_count: number;
 }
 
 export const boardResourceAPI = {
   getResources: async (boardId: string) => {
-    return apiClient.get<BoardResourceListResponse>(
-      `/boards/${boardId}/resources`,
-    );
+    return apiClient.get<BoardResourceListResponse>(`/boards/${boardId}/resources`);
   },
 
   createResource: async (
     boardId: string,
     data: { title: string; url: string; description?: string },
   ) => {
-    return apiClient.post<import("../types").BoardResource>(
-      `/boards/${boardId}/resources`,
-      data,
-    );
+    return apiClient.post<import('../types').BoardResource>(`/boards/${boardId}/resources`, data);
   },
 
   updateResource: async (
@@ -2539,23 +2339,20 @@ export const boardResourceAPI = {
     resourceId: string,
     data: { title: string; url: string; description?: string },
   ) => {
-    return apiClient.put<import("../types").BoardResource>(
+    return apiClient.put<import('../types').BoardResource>(
       `/boards/${boardId}/resources/${resourceId}`,
       data,
     );
   },
 
   deleteResource: async (boardId: string, resourceId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/resources/${resourceId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/resources/${resourceId}`);
   },
 
   reorderResources: async (boardId: string, resourceIds: string[]) => {
-    return apiClient.put<BoardResourceListResponse>(
-      `/boards/${boardId}/resources/reorder`,
-      { resource_ids: resourceIds },
-    );
+    return apiClient.put<BoardResourceListResponse>(`/boards/${boardId}/resources/reorder`, {
+      resource_ids: resourceIds,
+    });
   },
 
   refreshFavicons: async (boardId: string) => {
@@ -2567,23 +2364,21 @@ export const boardResourceAPI = {
 
 export const customEmojiAPI = {
   getEmojis: async (boardId: string) => {
-    return apiClient.get<CustomEmojiListResponse>(
-      `/boards/${boardId}/custom-emojis`,
-    );
+    return apiClient.get<CustomEmojiListResponse>(`/boards/${boardId}/custom-emojis`);
   },
 
   uploadEmoji: async (boardId: string, name: string, file: File) => {
     const formData = new FormData();
-    formData.append("name", name);
-    formData.append("file", file);
+    formData.append('name', name);
+    formData.append('file', file);
     // multipart 업로드는 apiClient(JSON 전용)가 아니라 authenticatedFetch 로 보낸다
-    const response = await authenticatedFetch(
-      `${API_BASE_URL}/boards/${boardId}/custom-emojis`,
-      { method: "POST", body: formData },
-    );
+    const response = await authenticatedFetch(`${API_BASE_URL}/boards/${boardId}/custom-emojis`, {
+      method: 'POST',
+      body: formData,
+    });
     if (!response.ok) {
       const errData = await response.json().catch(() => ({
-        code: "UNKNOWN",
+        code: 'UNKNOWN',
         message: response.statusText,
       }));
       throw errData;
@@ -2592,9 +2387,7 @@ export const customEmojiAPI = {
   },
 
   deleteEmoji: async (boardId: string, emojiId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/custom-emojis/${emojiId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/custom-emojis/${emojiId}`);
   },
 };
 
@@ -2609,51 +2402,33 @@ export const memberAPI = {
 
   inviteMember: async (
     boardId: string,
-    data: { email: string; role: "ADMIN" | "MEMBER" | "VIEWER" },
+    data: { email: string; role: 'ADMIN' | 'MEMBER' | 'VIEWER' },
   ) => {
-    return apiClient.post<InviteResultResponse>(
-      `/boards/${boardId}/members/invite`,
-      data,
-    );
+    return apiClient.post<InviteResultResponse>(`/boards/${boardId}/members/invite`, data);
   },
 
   updateMemberRole: async (
     boardId: string,
     memberId: string,
-    role: "ADMIN" | "MEMBER" | "VIEWER",
+    role: 'ADMIN' | 'MEMBER' | 'VIEWER',
   ) => {
-    return apiClient.put<MemberResponse>(
-      `/boards/${boardId}/members/${memberId}/role`,
-      { role },
-    );
+    return apiClient.put<MemberResponse>(`/boards/${boardId}/members/${memberId}/role`, { role });
   },
 
   removeMember: async (boardId: string, memberId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/members/${memberId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/members/${memberId}`);
   },
 
-  updateMemberColor: async (
-    boardId: string,
-    memberId: string,
-    assigneeColor: string | null,
-  ) => {
-    return apiClient.put<MemberResponse>(
-      `/boards/${boardId}/members/${memberId}/color`,
-      { assignee_color: assigneeColor },
-    );
+  updateMemberColor: async (boardId: string, memberId: string, assigneeColor: string | null) => {
+    return apiClient.put<MemberResponse>(`/boards/${boardId}/members/${memberId}/color`, {
+      assignee_color: assigneeColor,
+    });
   },
 
-  updateMemberJobRole: async (
-    boardId: string,
-    memberId: string,
-    jobRoleId: string | null,
-  ) => {
-    return apiClient.put<MemberResponse>(
-      `/boards/${boardId}/members/${memberId}/job-role`,
-      { job_role_id: jobRoleId },
-    );
+  updateMemberJobRole: async (boardId: string, memberId: string, jobRoleId: string | null) => {
+    return apiClient.put<MemberResponse>(`/boards/${boardId}/members/${memberId}/job-role`, {
+      job_role_id: jobRoleId,
+    });
   },
 
   updateMemberGithubLogin: async (
@@ -2661,24 +2436,22 @@ export const memberAPI = {
     memberId: string,
     githubLogin: string | null,
   ) => {
-    return apiClient.put<MemberResponse>(
-      `/boards/${boardId}/members/${memberId}/github`,
-      { github_login: githubLogin ?? "" },
-    );
+    return apiClient.put<MemberResponse>(`/boards/${boardId}/members/${memberId}/github`, {
+      github_login: githubLogin ?? '',
+    });
   },
 
   reorderMembers: async (boardId: string, memberIds: string[]) => {
-    return apiClient.put<MembersListResponse>(
-      `/boards/${boardId}/members/reorder`,
-      { member_ids: memberIds },
-    );
+    return apiClient.put<MembersListResponse>(`/boards/${boardId}/members/reorder`, {
+      member_ids: memberIds,
+    });
   },
 
   getOrgCandidates: async (
     boardId: string,
     search?: string,
-  ): Promise<import("../types").OrgBoardCandidate[]> => {
-    const params = search ? `?search=${encodeURIComponent(search)}` : "";
+  ): Promise<import('../types').OrgBoardCandidate[]> => {
+    const params = search ? `?search=${encodeURIComponent(search)}` : '';
     return apiClient.get(`/boards/${boardId}/members/org-candidates${params}`);
   },
 
@@ -2702,10 +2475,7 @@ export const jobRoleAPI = {
     boardId: string,
     data: { name: string; color?: string | null; icon?: string | null },
   ) => {
-    return apiClient.post<JobRoleResponse>(
-      `/boards/${boardId}/job-roles`,
-      data,
-    );
+    return apiClient.post<JobRoleResponse>(`/boards/${boardId}/job-roles`, data);
   },
 
   update: async (
@@ -2713,23 +2483,15 @@ export const jobRoleAPI = {
     roleId: string,
     data: { name?: string; color?: string | null; icon?: string | null },
   ) => {
-    return apiClient.put<JobRoleResponse>(
-      `/boards/${boardId}/job-roles/${roleId}`,
-      data,
-    );
+    return apiClient.put<JobRoleResponse>(`/boards/${boardId}/job-roles/${roleId}`, data);
   },
 
   remove: async (boardId: string, roleId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/job-roles/${roleId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/job-roles/${roleId}`);
   },
 
   reorder: async (boardId: string, ids: string[]) => {
-    return apiClient.put<JobRolesListResponse>(
-      `/boards/${boardId}/job-roles/reorder`,
-      { ids },
-    );
+    return apiClient.put<JobRolesListResponse>(`/boards/${boardId}/job-roles/reorder`, { ids });
   },
 };
 
@@ -2739,9 +2501,7 @@ export const jobRoleAPI = {
 
 export const contractorAPI = {
   list: async (boardId: string) => {
-    return apiClient.get<ContractorsListResponse>(
-      `/boards/${boardId}/contractors`,
-    );
+    return apiClient.get<ContractorsListResponse>(`/boards/${boardId}/contractors`);
   },
 
   create: async (
@@ -2755,10 +2515,7 @@ export const contractorAPI = {
       end_date?: string | null;
     },
   ) => {
-    return apiClient.post<ContractorResponse>(
-      `/boards/${boardId}/contractors`,
-      data,
-    );
+    return apiClient.post<ContractorResponse>(`/boards/${boardId}/contractors`, data);
   },
 
   update: async (
@@ -2778,9 +2535,7 @@ export const contractorAPI = {
   },
 
   remove: async (boardId: string, contractorId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/contractors/${contractorId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/contractors/${contractorId}`);
   },
 
   setHidden: async (boardId: string, contractorId: string, hidden: boolean) => {
@@ -2791,10 +2546,9 @@ export const contractorAPI = {
   },
 
   reorder: async (boardId: string, ids: string[]) => {
-    return apiClient.put<ContractorsListResponse>(
-      `/boards/${boardId}/contractors/reorder`,
-      { ids },
-    );
+    return apiClient.put<ContractorsListResponse>(`/boards/${boardId}/contractors/reorder`, {
+      ids,
+    });
   },
 
   // ─── 계약 기간(periods) — 갱신/연장 ───
@@ -2826,11 +2580,7 @@ export const contractorAPI = {
     );
   },
 
-  deletePeriod: async (
-    boardId: string,
-    contractorId: string,
-    periodId: string,
-  ) => {
+  deletePeriod: async (boardId: string, contractorId: string, periodId: string) => {
     return apiClient.delete<ContractorResponse>(
       `/boards/${boardId}/contractors/${contractorId}/periods/${periodId}`,
     );
@@ -2843,29 +2593,22 @@ export const contractorAPI = {
 
 export const inviteLinkAPI = {
   getInviteLinks: async (boardId: string) => {
-    return apiClient.get<{ invites: InviteLinkResponse[] }>(
-      `/boards/${boardId}/invites`,
-    );
+    return apiClient.get<{ invites: InviteLinkResponse[] }>(`/boards/${boardId}/invites`);
   },
 
   createInviteLink: async (
     boardId: string,
     data: {
-      role: "ADMIN" | "MEMBER" | "VIEWER";
+      role: 'ADMIN' | 'MEMBER' | 'VIEWER';
       max_uses?: number | null;
       expires_in_hours?: number | null;
     },
   ) => {
-    return apiClient.post<InviteLinkResponse>(
-      `/boards/${boardId}/invites`,
-      data,
-    );
+    return apiClient.post<InviteLinkResponse>(`/boards/${boardId}/invites`, data);
   },
 
   deleteInviteLink: async (boardId: string, inviteId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/invites/${inviteId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/invites/${inviteId}`);
   },
 
   getInviteLinkInfo: async (code: string) => {
@@ -2887,25 +2630,18 @@ export const inviteLinkAPI = {
 // ========================================
 
 export const activityAPI = {
-  getActivities: async (
-    boardId: string,
-    params?: { cursor?: string; limit?: number },
-  ) => {
+  getActivities: async (boardId: string, params?: { cursor?: string; limit?: number }) => {
     const query = new URLSearchParams();
-    if (params?.cursor) query.set("cursor", params.cursor);
-    if (params?.limit) query.set("limit", params.limit.toString());
+    if (params?.cursor) query.set('cursor', params.cursor);
+    if (params?.limit) query.set('limit', params.limit.toString());
     const queryString = query.toString();
     return apiClient.get<ActivitiesResponse>(
-      `/boards/${boardId}/activities${queryString ? `?${queryString}` : ""}`,
+      `/boards/${boardId}/activities${queryString ? `?${queryString}` : ''}`,
     );
   },
 
   // 특정 대상(체크리스트 항목 등)의 변경 이력 조회 — 최신순 정렬
-  getTargetActivities: async (
-    boardId: string,
-    targetType: string,
-    targetId: string,
-  ) => {
+  getTargetActivities: async (boardId: string, targetType: string, targetId: string) => {
     return apiClient.get<ActivityLogResponse[]>(
       `/boards/${boardId}/activities/target/${targetType}/${targetId}`,
     );
@@ -2918,97 +2654,60 @@ export const activityAPI = {
 
 export const subscriptionAPI = {
   getSubscription: async (boardId: string) => {
-    return apiClient.get<SubscriptionResponse>(
-      `/boards/${boardId}/subscription`,
-    );
+    return apiClient.get<SubscriptionResponse>(`/boards/${boardId}/subscription`);
   },
 
   // Seat 가격 조회
   getSeatPricing: async (boardId: string) => {
-    return apiClient.get<SeatPricingResponse>(
-      `/boards/${boardId}/subscription/pricing`,
-    );
+    return apiClient.get<SeatPricingResponse>(`/boards/${boardId}/subscription/pricing`);
   },
 
-  changePlan: async (
-    boardId: string,
-    data: { billing_cycle: "MONTHLY" | "YEARLY" },
-  ) => {
-    return apiClient.put<SubscriptionResponse>(
-      `/boards/${boardId}/subscription/plan`,
-      data,
-    );
+  changePlan: async (boardId: string, data: { billing_cycle: 'MONTHLY' | 'YEARLY' }) => {
+    return apiClient.put<SubscriptionResponse>(`/boards/${boardId}/subscription/plan`, data);
   },
 
-  purchaseSeats: async (
-    boardId: string,
-    data: { additional_seats: number },
-  ) => {
-    return apiClient.post<SubscriptionResponse>(
-      `/boards/${boardId}/subscription/seats`,
-      data,
-    );
+  purchaseSeats: async (boardId: string, data: { additional_seats: number }) => {
+    return apiClient.post<SubscriptionResponse>(`/boards/${boardId}/subscription/seats`, data);
   },
 
   cancelSubscription: async (boardId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/subscription`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/subscription`);
   },
 
   undoCancellation: async (boardId: string) => {
-    return apiClient.post<{ message: string }>(
-      `/boards/${boardId}/subscription/undo-cancel`,
-    );
+    return apiClient.post<{ message: string }>(`/boards/${boardId}/subscription/undo-cancel`);
   },
 
   getBillingPortalUrl: async (boardId: string) => {
-    return apiClient.get<{ url: string }>(
-      `/boards/${boardId}/subscription/billing-portal`,
-    );
+    return apiClient.get<{ url: string }>(`/boards/${boardId}/subscription/billing-portal`);
   },
 
   // Polar Checkout - 보드 구독 시작
   createBoardCheckout: async (data: {
     board_id: string;
-    billing_cycle: "MONTHLY" | "YEARLY";
+    billing_cycle: 'MONTHLY' | 'YEARLY';
     seat_count: number;
   }) => {
-    return apiClient.post<{ checkout_url: string }>(
-      "/checkout/board-subscription",
-      data,
-    );
+    return apiClient.post<{ checkout_url: string }>('/checkout/board-subscription', data);
   },
 
   // Polar Checkout - 조직 구독
   createOrgCheckout: async (data: {
     org_id: string;
-    billing_cycle: "MONTHLY" | "YEARLY";
+    billing_cycle: 'MONTHLY' | 'YEARLY';
     seat_count: number;
   }) => {
-    return apiClient.post<{ checkout_url: string }>(
-      "/checkout/org-subscription",
-      data,
-    );
+    return apiClient.post<{ checkout_url: string }>('/checkout/org-subscription', data);
   },
 
   // Polar Checkout - 시트 추가 구매
-  createSeatCheckout: async (data: {
-    board_id: string;
-    additional_seats: number;
-  }) => {
-    return apiClient.post<{ checkout_url: string }>("/checkout/seats", data);
+  createSeatCheckout: async (data: { board_id: string; additional_seats: number }) => {
+    return apiClient.post<{ checkout_url: string }>('/checkout/seats', data);
   },
 
   // Polar Checkout - AI 크레딧 구매
-  createCreditCheckout: async (data: {
-    board_id: string;
-    credit_amount: number;
-  }) => {
-    return apiClient.post<{ checkout_url: string }>(
-      "/checkout/ai-credits",
-      data,
-    );
+  createCreditCheckout: async (data: { board_id: string; credit_amount: number }) => {
+    return apiClient.post<{ checkout_url: string }>('/checkout/ai-credits', data);
   },
 };
 
@@ -3018,7 +2717,7 @@ export const subscriptionAPI = {
 
 export const pricingAPI = {
   getPlans: async () => {
-    return apiClient.get<PricingResponse>("/pricing", true);
+    return apiClient.get<PricingResponse>('/pricing', true);
   },
 };
 
@@ -3029,7 +2728,7 @@ export const pricingAPI = {
 export interface ScheduleSettingsResponse {
   work_hours_per_day: number;
   work_start_time: string; // "HH:mm:ss" format
-  schedule_display_mode: "TIME" | "BLOCK";
+  schedule_display_mode: 'TIME' | 'BLOCK';
   break_start_time: string | null; // "HH:mm:ss" or null
   break_end_time: string | null; // "HH:mm:ss" or null
 }
@@ -3139,7 +2838,7 @@ export interface AISuggestionResponse {
 }
 
 export interface AIFeatureSuggestion {
-  type: "NEW" | "EXISTING";
+  type: 'NEW' | 'EXISTING';
   feature_id: string | null;
   title: string;
   description: string | null;
@@ -3162,7 +2861,7 @@ export interface AIApplyRequest {
 }
 
 export interface AIFeatureSuggestionApply {
-  type: "NEW" | "EXISTING";
+  type: 'NEW' | 'EXISTING';
   feature_id?: string;
   title?: string;
   description?: string;
@@ -3345,19 +3044,13 @@ export interface ChecklistByAssigneeResponse {
 // ========================================
 
 export const scheduleAPI = {
-  getDailySchedule: async (
-    boardId: string,
-    date: string,
-    assigneeIds?: string[],
-  ) => {
+  getDailySchedule: async (boardId: string, date: string, assigneeIds?: string[]) => {
     const query = new URLSearchParams();
-    query.set("date", date);
+    query.set('date', date);
     if (assigneeIds && assigneeIds.length > 0) {
-      assigneeIds.forEach((id) => query.append("assigneeIds", id));
+      assigneeIds.forEach((id) => query.append('assigneeIds', id));
     }
-    return apiClient.get<DailyScheduleResponse>(
-      `/boards/${boardId}/schedules?${query.toString()}`,
-    );
+    return apiClient.get<DailyScheduleResponse>(`/boards/${boardId}/schedules?${query.toString()}`);
   },
 
   /**
@@ -3372,13 +3065,13 @@ export const scheduleAPI = {
     includeOrgSchedules?: boolean,
   ) => {
     const query = new URLSearchParams();
-    query.set("startDate", startDate);
-    query.set("endDate", endDate);
+    query.set('startDate', startDate);
+    query.set('endDate', endDate);
     if (assigneeIds && assigneeIds.length > 0) {
-      assigneeIds.forEach((id) => query.append("assigneeIds", id));
+      assigneeIds.forEach((id) => query.append('assigneeIds', id));
     }
     if (includeOrgSchedules) {
-      query.set("includeOrgSchedules", "true");
+      query.set('includeOrgSchedules', 'true');
     }
     return apiClient.get<WeeklyScheduleResponse>(
       `/boards/${boardId}/schedules/weekly?${query.toString()}`,
@@ -3396,12 +3089,12 @@ export const scheduleAPI = {
     includeOrgSchedules?: boolean,
   ) => {
     const query = new URLSearchParams();
-    query.set("date", date);
+    query.set('date', date);
     if (assigneeIds && assigneeIds.length > 0) {
-      assigneeIds.forEach((id) => query.append("assigneeIds", id));
+      assigneeIds.forEach((id) => query.append('assigneeIds', id));
     }
     if (includeOrgSchedules) {
-      query.set("includeOrgSchedules", "true");
+      query.set('includeOrgSchedules', 'true');
     }
     return apiClient.get<DailyFullResponse>(
       `/boards/${boardId}/schedules/daily-full?${query.toString()}`,
@@ -3422,10 +3115,7 @@ export const scheduleAPI = {
       end_time: string;
     },
   ) => {
-    return apiClient.post<ScheduleBlockDetailResponse>(
-      `/boards/${boardId}/schedules`,
-      data,
-    );
+    return apiClient.post<ScheduleBlockDetailResponse>(`/boards/${boardId}/schedules`, data);
   },
 
   createWithChecklistItem: async (
@@ -3466,9 +3156,7 @@ export const scheduleAPI = {
   },
 
   deleteBlock: async (boardId: string, blockId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/schedules/${blockId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/schedules/${blockId}`);
   },
 
   // 타임블록을 다른 체크리스트 항목으로 재지정 (같은 보드 내)
@@ -3484,9 +3172,7 @@ export const scheduleAPI = {
   },
 
   getSettings: async (boardId: string) => {
-    return apiClient.get<ScheduleSettingsResponse>(
-      `/boards/${boardId}/schedules/settings`,
-    );
+    return apiClient.get<ScheduleSettingsResponse>(`/boards/${boardId}/schedules/settings`);
   },
 
   updateSettings: async (
@@ -3494,15 +3180,12 @@ export const scheduleAPI = {
     data: {
       work_hours_per_day?: number;
       work_start_time?: string;
-      schedule_display_mode?: "TIME" | "BLOCK";
+      schedule_display_mode?: 'TIME' | 'BLOCK';
       break_start_time?: string | null;
       break_end_time?: string | null;
     },
   ) => {
-    return apiClient.put<ScheduleSettingsResponse>(
-      `/boards/${boardId}/schedules/settings`,
-      data,
-    );
+    return apiClient.put<ScheduleSettingsResponse>(`/boards/${boardId}/schedules/settings`, data);
   },
 
   getByChecklistItem: async (boardId: string, checklistItemId: string) => {
@@ -3519,9 +3202,7 @@ export const scheduleAPI = {
   },
 
   getScheduledTaskIds: async (boardId: string) => {
-    return apiClient.get<{ task_ids: string[] }>(
-      `/boards/${boardId}/schedules/scheduled-task-ids`,
-    );
+    return apiClient.get<{ task_ids: string[] }>(`/boards/${boardId}/schedules/scheduled-task-ids`);
   },
 };
 
@@ -3530,15 +3211,10 @@ export const scheduleAPI = {
 // ========================================
 
 export const meetingAPI = {
-  getMeetings: async (
-    boardId: string,
-    date: string,
-  ): Promise<MeetingSummary[]> => {
+  getMeetings: async (boardId: string, date: string): Promise<MeetingSummary[]> => {
     const query = new URLSearchParams();
-    query.set("date", date);
-    return apiClient.get<MeetingSummary[]>(
-      `/boards/${boardId}/meetings?${query.toString()}`,
-    );
+    query.set('date', date);
+    return apiClient.get<MeetingSummary[]>(`/boards/${boardId}/meetings?${query.toString()}`);
   },
 
   getMeetingsByDateRange: async (
@@ -3551,13 +3227,8 @@ export const meetingAPI = {
     );
   },
 
-  getMeetingDetail: async (
-    boardId: string,
-    meetingId: string,
-  ): Promise<MeetingDetail> => {
-    return apiClient.get<MeetingDetail>(
-      `/boards/${boardId}/meetings/${meetingId}`,
-    );
+  getMeetingDetail: async (boardId: string, meetingId: string): Promise<MeetingDetail> => {
+    return apiClient.get<MeetingDetail>(`/boards/${boardId}/meetings/${meetingId}`);
   },
 
   createMeeting: async (
@@ -3590,33 +3261,25 @@ export const meetingAPI = {
       color?: string;
       recurrence_end_date?: string | null;
     },
-    scope?: "THIS_ONLY" | "THIS_AND_FUTURE",
+    scope?: 'THIS_ONLY' | 'THIS_AND_FUTURE',
   ): Promise<MeetingDetail> => {
-    const query = scope ? `?scope=${scope}` : "";
-    return apiClient.put<MeetingDetail>(
-      `/boards/${boardId}/meetings/${meetingId}${query}`,
-      data,
-    );
+    const query = scope ? `?scope=${scope}` : '';
+    return apiClient.put<MeetingDetail>(`/boards/${boardId}/meetings/${meetingId}${query}`, data);
   },
 
   deleteMeeting: async (
     boardId: string,
     meetingId: string,
-    scope?: "THIS_ONLY" | "THIS_AND_FUTURE",
+    scope?: 'THIS_ONLY' | 'THIS_AND_FUTURE',
   ): Promise<{ message: string }> => {
-    const query = scope ? `?scope=${scope}` : "";
+    const query = scope ? `?scope=${scope}` : '';
     return apiClient.delete<{ message: string }>(
       `/boards/${boardId}/meetings/${meetingId}${query}`,
     );
   },
 
-  notifyParticipants: async (
-    boardId: string,
-    meetingId: string,
-  ): Promise<{ message: string }> => {
-    return apiClient.post<{ message: string }>(
-      `/boards/${boardId}/meetings/${meetingId}/notify`,
-    );
+  notifyParticipants: async (boardId: string, meetingId: string): Promise<{ message: string }> => {
+    return apiClient.post<{ message: string }>(`/boards/${boardId}/meetings/${meetingId}/notify`);
   },
 
   aiOrganize: async (
@@ -3624,7 +3287,7 @@ export const meetingAPI = {
     meetingId: string,
     language?: string,
   ): Promise<AISuggestionResponse> => {
-    const params = language ? `?language=${encodeURIComponent(language)}` : "";
+    const params = language ? `?language=${encodeURIComponent(language)}` : '';
     return apiClient.post<AISuggestionResponse>(
       `/boards/${boardId}/meetings/${meetingId}/ai-organize${params}`,
     );
@@ -3635,31 +3298,24 @@ export const meetingAPI = {
     meetingId: string,
     data: AIApplyRequest,
   ): Promise<AIApplyResult> => {
-    return apiClient.post<AIApplyResult>(
-      `/boards/${boardId}/meetings/${meetingId}/ai-apply`,
-      data,
-    );
+    return apiClient.post<AIApplyResult>(`/boards/${boardId}/meetings/${meetingId}/ai-apply`, data);
   },
 
-  transcribeAudio: async (
-    boardId: string,
-    meetingId: string,
-    audioBlob: Blob,
-  ): Promise<void> => {
+  transcribeAudio: async (boardId: string, meetingId: string, audioBlob: Blob): Promise<void> => {
     const formData = new FormData();
-    formData.append("file", audioBlob, "recording.webm");
+    formData.append('file', audioBlob, 'recording.webm');
 
     const response = await authenticatedFetch(
       `${API_BASE_URL}/boards/${boardId}/meetings/${meetingId}/transcribe`,
       {
-        method: "POST",
+        method: 'POST',
         body: formData,
       },
     );
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({
-        code: "UNKNOWN",
+        code: 'UNKNOWN',
         message: response.statusText,
       }));
       throw errData;
@@ -3695,13 +3351,8 @@ export const meetingAPI = {
     );
   },
 
-  saveToNote: async (
-    boardId: string,
-    meetingId: string,
-  ): Promise<NoteDetail> => {
-    return apiClient.post<NoteDetail>(
-      `/boards/${boardId}/meetings/${meetingId}/save-to-note`,
-    );
+  saveToNote: async (boardId: string, meetingId: string): Promise<NoteDetail> => {
+    return apiClient.post<NoteDetail>(`/boards/${boardId}/meetings/${meetingId}/save-to-note`);
   },
 };
 
@@ -3720,14 +3371,14 @@ export const boardChecklistAPI = {
     },
   ) => {
     const query = new URLSearchParams();
-    if (params?.assignee_id) query.set("assigneeId", params.assignee_id);
+    if (params?.assignee_id) query.set('assigneeId', params.assignee_id);
     if (params?.is_scheduled !== undefined) {
-      query.set("isScheduled", params.is_scheduled.toString());
+      query.set('isScheduled', params.is_scheduled.toString());
     }
-    if (params?.exclude_jira) query.set("excludeJira", "true");
+    if (params?.exclude_jira) query.set('excludeJira', 'true');
     const queryString = query.toString();
     return apiClient.get<BoardChecklistResponse>(
-      `/boards/${boardId}/checklist-items${queryString ? `?${queryString}` : ""}`,
+      `/boards/${boardId}/checklist-items${queryString ? `?${queryString}` : ''}`,
     );
   },
 
@@ -3739,11 +3390,11 @@ export const boardChecklistAPI = {
     },
   ) => {
     const query = new URLSearchParams();
-    if (params?.start_date) query.set("startDate", params.start_date);
-    if (params?.end_date) query.set("endDate", params.end_date);
+    if (params?.start_date) query.set('startDate', params.start_date);
+    if (params?.end_date) query.set('endDate', params.end_date);
     const queryString = query.toString();
     return apiClient.get<ChecklistByAssigneeResponse>(
-      `/boards/${boardId}/checklist-items/by-assignee${queryString ? `?${queryString}` : ""}`,
+      `/boards/${boardId}/checklist-items/by-assignee${queryString ? `?${queryString}` : ''}`,
     );
   },
 
@@ -3786,7 +3437,7 @@ export interface MilestoneAllocationResponse {
   total_allocated_hours: number;
   actual_worked_hours?: number;
   difference?: number;
-  status?: "OVER" | "UNDER" | "NORMAL";
+  status?: 'OVER' | 'UNDER' | 'NORMAL';
 }
 
 export const milestoneAPI = {
@@ -3797,9 +3448,7 @@ export const milestoneAPI = {
   },
 
   getMilestone: async (boardId: string, milestoneId: string) => {
-    return apiClient.get<MilestoneDetailResponse>(
-      `/boards/${boardId}/milestones/${milestoneId}`,
-    );
+    return apiClient.get<MilestoneDetailResponse>(`/boards/${boardId}/milestones/${milestoneId}`);
   },
 
   createMilestone: async (
@@ -3812,16 +3461,13 @@ export const milestoneAPI = {
       feature_ids?: string[];
     },
   ) => {
-    return apiClient.post<MilestoneDetailResponse>(
-      `/boards/${boardId}/milestones`,
-      {
-        title: data.title,
-        description: data.description,
-        start_date: data.start_date,
-        end_date: data.end_date,
-        feature_ids: data.feature_ids,
-      },
-    );
+    return apiClient.post<MilestoneDetailResponse>(`/boards/${boardId}/milestones`, {
+      title: data.title,
+      description: data.description,
+      start_date: data.start_date,
+      end_date: data.end_date,
+      feature_ids: data.feature_ids,
+    });
   },
 
   updateMilestone: async (
@@ -3834,28 +3480,19 @@ export const milestoneAPI = {
       end_date?: string;
     },
   ) => {
-    return apiClient.put<MilestoneDetailResponse>(
-      `/boards/${boardId}/milestones/${milestoneId}`,
-      {
-        title: data.title,
-        description: data.description,
-        start_date: data.start_date,
-        end_date: data.end_date,
-      },
-    );
+    return apiClient.put<MilestoneDetailResponse>(`/boards/${boardId}/milestones/${milestoneId}`, {
+      title: data.title,
+      description: data.description,
+      start_date: data.start_date,
+      end_date: data.end_date,
+    });
   },
 
   deleteMilestone: async (boardId: string, milestoneId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/milestones/${milestoneId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/milestones/${milestoneId}`);
   },
 
-  addFeatures: async (
-    boardId: string,
-    milestoneId: string,
-    featureIds: string[],
-  ) => {
+  addFeatures: async (boardId: string, milestoneId: string, featureIds: string[]) => {
     return apiClient.post<MilestoneDetailResponse>(
       `/boards/${boardId}/milestones/${milestoneId}/features`,
       {
@@ -3864,11 +3501,7 @@ export const milestoneAPI = {
     );
   },
 
-  removeFeature: async (
-    boardId: string,
-    milestoneId: string,
-    featureId: string,
-  ) => {
+  removeFeature: async (boardId: string, milestoneId: string, featureId: string) => {
     return apiClient.delete<{ message: string }>(
       `/boards/${boardId}/milestones/${milestoneId}/features/${featureId}`,
     );
@@ -3911,11 +3544,7 @@ export const milestoneAPI = {
     );
   },
 
-  deleteAllocation: async (
-    boardId: string,
-    milestoneId: string,
-    allocationId: string,
-  ) => {
+  deleteAllocation: async (boardId: string, milestoneId: string, allocationId: string) => {
     return apiClient.delete<{ message: string }>(
       `/boards/${boardId}/milestones/${milestoneId}/allocations/${allocationId}`,
     );
@@ -3925,21 +3554,17 @@ export const milestoneAPI = {
 // ========================================
 // 스프린트 API (마일스톤 안의 선택형 스프린트)
 // ========================================
-import type { SprintBoard, SprintItemCard } from "../types";
+import type { SprintBoard, SprintItemCard } from '../types';
 
 export const sprintAPI = {
   /** 스프린트 프레임 조회 (타임라인 + 컬럼 + 게이지 + 백로그) */
   getSprintBoard: async (boardId: string, milestoneId: string) => {
-    return apiClient.get<SprintBoard>(
-      `/boards/${boardId}/milestones/${milestoneId}/sprint-board`,
-    );
+    return apiClient.get<SprintBoard>(`/boards/${boardId}/milestones/${milestoneId}/sprint-board`);
   },
 
   /** 마일스톤 관리 콘솔 — 마일스톤 전체 태스크(스프린트 무관) */
   getMilestoneConsole: async (boardId: string, milestoneId: string) => {
-    return apiClient.get<SprintItemCard[]>(
-      `/boards/${boardId}/milestones/${milestoneId}/console`,
-    );
+    return apiClient.get<SprintItemCard[]>(`/boards/${boardId}/milestones/${milestoneId}/console`);
   },
 
   /** 체크리스트 항목을 다른 Task로 이동 (콘솔 DnD — 피쳐가 바뀔 수 있음) */
@@ -3949,18 +3574,13 @@ export const sprintAPI = {
     itemId: string,
     targetTaskId: string,
   ) => {
-    return apiClient.put<void>(
-      `/boards/${boardId}/tasks/${taskId}/checklist/${itemId}/move-task`,
-      { target_task_id: targetTaskId },
-    );
+    return apiClient.put<void>(`/boards/${boardId}/tasks/${taskId}/checklist/${itemId}/move-task`, {
+      target_task_id: targetTaskId,
+    });
   },
 
   /** 스프린트 모드 on/off (관리자) — off 시 담긴 카드 병합 */
-  toggleSprintMode: async (
-    boardId: string,
-    milestoneId: string,
-    enabled: boolean,
-  ) => {
+  toggleSprintMode: async (boardId: string, milestoneId: string, enabled: boolean) => {
     return apiClient.patch<SprintBoard>(
       `/boards/${boardId}/milestones/${milestoneId}/sprint-mode`,
       { enabled },
@@ -3969,10 +3589,9 @@ export const sprintAPI = {
 
   /** 태스크 담기 — 담기의 단위. 그 태스크의 체크리스트는 함께 딸려 들어온다 */
   addTask: async (boardId: string, sprintId: string, taskId: string) => {
-    return apiClient.post<SprintBoard>(
-      `/boards/${boardId}/sprints/${sprintId}/tasks`,
-      { task_id: taskId },
-    );
+    return apiClient.post<SprintBoard>(`/boards/${boardId}/sprints/${sprintId}/tasks`, {
+      task_id: taskId,
+    });
   },
 
   /** 주기 이름·기간 변경 — 레벨 1→2 승급 마법사가 기간을 정할 때 쓴다 */
@@ -3981,25 +3600,19 @@ export const sprintAPI = {
     sprintId: string,
     payload: { name?: string; start_date?: string; end_date?: string },
   ) => {
-    return apiClient.patch<SprintBoard>(
-      `/boards/${boardId}/sprints/${sprintId}`,
-      payload,
-    );
+    return apiClient.patch<SprintBoard>(`/boards/${boardId}/sprints/${sprintId}`, payload);
   },
 
   /** 태스크 빼기 (백로그로 복귀) */
   removeTask: async (boardId: string, sprintId: string, taskId: string) => {
-    return apiClient.delete<SprintBoard>(
-      `/boards/${boardId}/sprints/${sprintId}/tasks/${taskId}`,
-    );
+    return apiClient.delete<SprintBoard>(`/boards/${boardId}/sprints/${sprintId}/tasks/${taskId}`);
   },
 
   /** 카드 컬럼 이동 (드래그) — END 컬럼 도달 = 스프린트 상의 완료 */
   moveToColumn: async (boardId: string, taskId: string, columnId: string) => {
-    return apiClient.patch<SprintBoard>(
-      `/boards/${boardId}/tasks/${taskId}/sprint-column`,
-      { column_id: columnId },
-    );
+    return apiClient.patch<SprintBoard>(`/boards/${boardId}/tasks/${taskId}/sprint-column`, {
+      column_id: columnId,
+    });
   },
 
   /** 중간 컬럼 추가 (관리자) */
@@ -4021,25 +3634,16 @@ export const sprintAPI = {
     columnId: string,
     patch: { name?: string; color?: string | null },
   ) => {
-    return apiClient.patch<SprintBoard>(
-      `/boards/${boardId}/sprint-columns/${columnId}`,
-      patch,
-    );
+    return apiClient.patch<SprintBoard>(`/boards/${boardId}/sprint-columns/${columnId}`, patch);
   },
 
   /** 중간 컬럼 삭제 (관리자) — 담긴 카드는 앞 컬럼으로 이동 */
   deleteColumn: async (boardId: string, columnId: string) => {
-    return apiClient.delete<SprintBoard>(
-      `/boards/${boardId}/sprint-columns/${columnId}`,
-    );
+    return apiClient.delete<SprintBoard>(`/boards/${boardId}/sprint-columns/${columnId}`);
   },
 
   /** 중간 컬럼 순서 재정렬 (관리자) */
-  reorderColumns: async (
-    boardId: string,
-    milestoneId: string,
-    columnIds: string[],
-  ) => {
+  reorderColumns: async (boardId: string, milestoneId: string, columnIds: string[]) => {
     return apiClient.patch<SprintBoard>(
       `/boards/${boardId}/milestones/${milestoneId}/sprint-columns/order`,
       { column_ids: columnIds },
@@ -4056,7 +3660,7 @@ export const sprintAPI = {
     payload: {
       count: number;
       boundaries?: string[];
-      task_distribution?: "keep" | "unassign" | "by_date";
+      task_distribution?: 'keep' | 'unassign' | 'by_date';
     },
   ) => {
     return apiClient.put<SprintBoard>(
@@ -4088,17 +3692,12 @@ export const sprintAPI = {
     boardId: string,
     payload: { item_ids: string[]; sprint_id: string | null },
   ) => {
-    return apiClient.patch<SprintBoard>(
-      `/boards/${boardId}/checklist-items/sprint`,
-      payload,
-    );
+    return apiClient.patch<SprintBoard>(`/boards/${boardId}/checklist-items/sprint`, payload);
   },
 
   /** 특정 스프린트에 담긴 태스크 카드 목록 */
   getSprintTasks: async (boardId: string, sprintId: string) => {
-    return apiClient.get<SprintItemCard[]>(
-      `/boards/${boardId}/sprints/${sprintId}/tasks`,
-    );
+    return apiClient.get<SprintItemCard[]>(`/boards/${boardId}/sprints/${sprintId}/tasks`);
   },
 };
 
@@ -4141,41 +3740,26 @@ export interface CalendarEventPayload {
 
 export const calendarEventAPI = {
   list: async (boardId: string) => {
-    return apiClient.get<{ events: CalendarEventItem[] }>(
-      `/boards/${boardId}/calendar-events`,
-    );
+    return apiClient.get<{ events: CalendarEventItem[] }>(`/boards/${boardId}/calendar-events`);
   },
 
   create: async (boardId: string, data: CalendarEventPayload) => {
-    return apiClient.post<CalendarEventItem>(
-      `/boards/${boardId}/calendar-events`,
-      data,
-    );
+    return apiClient.post<CalendarEventItem>(`/boards/${boardId}/calendar-events`, data);
   },
 
-  update: async (
-    boardId: string,
-    eventId: string,
-    data: Partial<CalendarEventPayload>,
-  ) => {
-    return apiClient.put<CalendarEventItem>(
-      `/boards/${boardId}/calendar-events/${eventId}`,
-      data,
-    );
+  update: async (boardId: string, eventId: string, data: Partial<CalendarEventPayload>) => {
+    return apiClient.put<CalendarEventItem>(`/boards/${boardId}/calendar-events/${eventId}`, data);
   },
 
   remove: async (boardId: string, eventId: string) => {
-    return apiClient.delete<{ message?: string }>(
-      `/boards/${boardId}/calendar-events/${eventId}`,
-    );
+    return apiClient.delete<{ message?: string }>(`/boards/${boardId}/calendar-events/${eventId}`);
   },
 
   /** 공유 메모 덮어쓰기 — 빈 문자열이면 비우기 */
   updateMemo: async (boardId: string, eventId: string, memo: string) => {
-    return apiClient.put<CalendarEventItem>(
-      `/boards/${boardId}/calendar-events/${eventId}/memo`,
-      { memo },
-    );
+    return apiClient.put<CalendarEventItem>(`/boards/${boardId}/calendar-events/${eventId}/memo`, {
+      memo,
+    });
   },
 };
 
@@ -4210,10 +3794,10 @@ export interface TestOrgDataResponse {
 
 export const testDataAPI = {
   createTestBoard: async () => {
-    return apiClient.post<TestDataResponse>("/test/create-board");
+    return apiClient.post<TestDataResponse>('/test/create-board');
   },
   createTestOrganization: async () => {
-    return apiClient.post<TestOrgDataResponse>("/test/create-organization");
+    return apiClient.post<TestOrgDataResponse>('/test/create-organization');
   },
 };
 
@@ -4268,7 +3852,7 @@ export interface DailyChecklistItemResponse {
  * - PINNED : 기간과 무관하게 사용자가 그 날로 당겨온 항목
  * - ADHOC  : 원본 체크리스트 없이 그 날만 존재하는 임시 항목
  */
-export type DailyChecklistSource = "DERIVED" | "OVERDUE" | "PINNED" | "ADHOC";
+export type DailyChecklistSource = 'DERIVED' | 'OVERDUE' | 'PINNED' | 'ADHOC';
 
 export interface DailyChecklistColumnResponse {
   user: {
@@ -4292,11 +3876,7 @@ export interface TimeblockDataResponse {
 
 export const dailyChecklistAPI = {
   // 타임블록 모달용 통합 데이터 조회
-  getTimeblockData: async (
-    boardId: string,
-    date: string,
-    assigneeId: string,
-  ) => {
+  getTimeblockData: async (boardId: string, date: string, assigneeId: string) => {
     return apiClient.get<TimeblockDataResponse>(
       `/boards/${boardId}/daily-checklists/timeblock-data?date=${date}&assigneeId=${assigneeId}`,
     );
@@ -4318,10 +3898,7 @@ export const dailyChecklistAPI = {
       assigned_date: string;
     },
   ) => {
-    return apiClient.post<DailyChecklistItemResponse>(
-      `/boards/${boardId}/daily-checklists`,
-      data,
-    );
+    return apiClient.post<DailyChecklistItemResponse>(`/boards/${boardId}/daily-checklists`, data);
   },
 
   // 새 체크리스트 생성 + 데일리 체크리스트로 추가
@@ -4353,11 +3930,7 @@ export const dailyChecklistAPI = {
   },
 
   // 우선순위 순서 변경
-  updatePosition: async (
-    boardId: string,
-    itemId: string,
-    data: { position: number },
-  ) => {
+  updatePosition: async (boardId: string, itemId: string, data: { position: number }) => {
     return apiClient.put<DailyChecklistItemResponse>(
       `/boards/${boardId}/daily-checklists/${itemId}/position`,
       data,
@@ -4366,9 +3939,7 @@ export const dailyChecklistAPI = {
 
   // 임시 항목 제거 (원본 체크리스트가 없는 항목 전용)
   removeItem: async (boardId: string, itemId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/daily-checklists/${itemId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/daily-checklists/${itemId}`);
   },
 
   // 오늘의 체크리스트에서 빼기 (원본 체크리스트는 유지)
@@ -4381,10 +3952,7 @@ export const dailyChecklistAPI = {
       assignee_id?: string;
     },
   ) => {
-    return apiClient.post<{ message: string }>(
-      `/boards/${boardId}/daily-checklists/exclude`,
-      data,
-    );
+    return apiClient.post<{ message: string }>(`/boards/${boardId}/daily-checklists/exclude`, data);
   },
 };
 
@@ -4506,7 +4074,7 @@ export interface MilestoneHealthResponse {
   };
   progress_percentage: number;
   estimated_completion_date: string | null;
-  status: "ON_TRACK" | "SLOW" | "AT_RISK" | "OVERDUE";
+  status: 'ON_TRACK' | 'SLOW' | 'AT_RISK' | 'OVERDUE';
   days_remaining: number;
   days_overdue: number;
   velocity: {
@@ -4542,7 +4110,7 @@ export interface MemberProductivityResponse {
   total_checklists: number;
   completed_checklists: number;
   checklist_completion_rate: number;
-  status: "NORMAL" | "NEEDS_ATTENTION" | "COMPLETED";
+  status: 'NORMAL' | 'NEEDS_ATTENTION' | 'COMPLETED';
   in_progress_task_details: {
     task_id: string;
     task_title: string;
@@ -4709,23 +4277,23 @@ export const statisticsAPI = {
     },
   ) => {
     const query = new URLSearchParams();
-    if (params?.start_date) query.set("start_date", params.start_date);
-    if (params?.end_date) query.set("end_date", params.end_date);
+    if (params?.start_date) query.set('start_date', params.start_date);
+    if (params?.end_date) query.set('end_date', params.end_date);
     if (params?.milestone_ids?.length) {
-      params.milestone_ids.forEach((id) => query.append("milestone_ids", id));
+      params.milestone_ids.forEach((id) => query.append('milestone_ids', id));
     }
     if (params?.feature_ids?.length) {
-      params.feature_ids.forEach((id) => query.append("feature_ids", id));
+      params.feature_ids.forEach((id) => query.append('feature_ids', id));
     }
     if (params?.member_ids?.length) {
-      params.member_ids.forEach((id) => query.append("member_ids", id));
+      params.member_ids.forEach((id) => query.append('member_ids', id));
     }
     if (params?.tag_ids?.length) {
-      params.tag_ids.forEach((id) => query.append("tag_ids", id));
+      params.tag_ids.forEach((id) => query.append('tag_ids', id));
     }
     const queryString = query.toString();
     return apiClient.get<BoardStatisticsResponse>(
-      `/boards/${boardId}/statistics${queryString ? `?${queryString}` : ""}`,
+      `/boards/${boardId}/statistics${queryString ? `?${queryString}` : ''}`,
     );
   },
 
@@ -4738,11 +4306,11 @@ export const statisticsAPI = {
     },
   ) => {
     const query = new URLSearchParams();
-    if (params?.start_date) query.set("start_date", params.start_date);
-    if (params?.end_date) query.set("end_date", params.end_date);
+    if (params?.start_date) query.set('start_date', params.start_date);
+    if (params?.end_date) query.set('end_date', params.end_date);
     const queryString = query.toString();
     return apiClient.get<PersonalStatisticsResponse>(
-      `/boards/${boardId}/statistics/personal${queryString ? `?${queryString}` : ""}`,
+      `/boards/${boardId}/statistics/personal${queryString ? `?${queryString}` : ''}`,
     );
   },
 
@@ -4756,24 +4324,22 @@ export const statisticsAPI = {
     },
   ) => {
     const query = new URLSearchParams();
-    if (params?.milestone_id) query.set("milestone_id", params.milestone_id);
+    if (params?.milestone_id) query.set('milestone_id', params.milestone_id);
     if (params?.stagnant_task_days !== undefined) {
-      query.set("stagnant_task_days", params.stagnant_task_days.toString());
+      query.set('stagnant_task_days', params.stagnant_task_days.toString());
     }
     if (params?.stuck_checklist_days !== undefined) {
-      query.set("stuck_checklist_days", params.stuck_checklist_days.toString());
+      query.set('stuck_checklist_days', params.stuck_checklist_days.toString());
     }
     const queryString = query.toString();
     return apiClient.get<ManagementStatisticsResponse>(
-      `/boards/${boardId}/statistics/management${queryString ? `?${queryString}` : ""}`,
+      `/boards/${boardId}/statistics/management${queryString ? `?${queryString}` : ''}`,
     );
   },
 
   // 가중치 레벨 설정 조회
   getWeightLevels: async (boardId: string) => {
-    return apiClient.get<BoardWeightSettingsResponse>(
-      `/boards/${boardId}/weight-levels`,
-    );
+    return apiClient.get<BoardWeightSettingsResponse>(`/boards/${boardId}/weight-levels`);
   },
 
   // 가중치 레벨 설정 생성/수정
@@ -4790,18 +4356,11 @@ export const statisticsAPI = {
       default_level_id?: string;
     },
   ) => {
-    return apiClient.put<BoardWeightSettingsResponse>(
-      `/boards/${boardId}/weight-levels`,
-      data,
-    );
+    return apiClient.put<BoardWeightSettingsResponse>(`/boards/${boardId}/weight-levels`, data);
   },
 
   // Task 가중치 설정
-  setTaskWeight: async (
-    boardId: string,
-    taskId: string,
-    weightLevelId: string,
-  ) => {
+  setTaskWeight: async (boardId: string, taskId: string, weightLevelId: string) => {
     return apiClient.patch<{ task_id: string; weight_level_id: string }>(
       `/boards/${boardId}/tasks/${taskId}/weight`,
       { weight_level_id: weightLevelId },
@@ -4824,8 +4383,8 @@ export interface AdminUserSummary {
   email: string;
   name: string;
   profile_image?: string | null;
-  system_role: "USER" | "TESTER" | "ADMIN";
-  provider: "email" | "google";
+  system_role: 'USER' | 'TESTER' | 'ADMIN';
+  provider: 'email' | 'google';
   email_verified: boolean;
   created_at: string;
   board_count: number;
@@ -4857,8 +4416,8 @@ export interface AdminBoardSummary {
   id: string;
   name: string;
   description?: string | null;
-  tier: "FREE" | "TRIAL" | "STANDARD" | "PREMIUM" | "ENTERPRISE";
-  board_type?: "TEAM" | "PERSONAL";
+  tier: 'FREE' | 'TRIAL' | 'STANDARD' | 'PREMIUM' | 'ENTERPRISE';
+  board_type?: 'TEAM' | 'PERSONAL';
   owner_id: string;
   owner_name: string;
   owner_email: string;
@@ -4875,13 +4434,13 @@ export interface AdminBoardDetail extends AdminBoardSummary {
     name: string;
     email: string;
     profile_image?: string | null;
-    role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+    role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
     joined_at: string;
   }[];
   seat_count?: number | null;
   subscription?: {
     id: string;
-    status: "ACTIVE" | "CANCELLED" | "EXPIRED" | "PENDING";
+    status: 'ACTIVE' | 'CANCELLED' | 'EXPIRED' | 'PENDING';
     started_at: string;
     expires_at?: string | null;
   } | null;
@@ -5039,7 +4598,7 @@ export interface AnnouncementDetail {
   id: string;
   title: string;
   content: string;
-  type: "POPUP" | "BANNER" | "NOTICE";
+  type: 'POPUP' | 'BANNER' | 'NOTICE';
   is_active: boolean;
   start_at: string | null;
   end_at: string | null;
@@ -5059,8 +4618,8 @@ export interface MaintenanceStatus {
 // ==================== AI API Key (Admin) ====================
 // 서버는 키 원문을 절대 응답하지 않는다. masked_key만 내려온다.
 
-export type AiKeyProvider = "claude" | "openai";
-export type AiKeySource = "DATABASE" | "ENVIRONMENT" | "NONE";
+export type AiKeyProvider = 'claude' | 'openai';
+export type AiKeySource = 'DATABASE' | 'ENVIRONMENT' | 'NONE';
 
 export interface AiKeyStatus {
   provider: AiKeyProvider;
@@ -5084,7 +4643,7 @@ export interface AiKeyList {
 export interface AiKeyLogEntry {
   id: string;
   provider: AiKeyProvider;
-  action: "ROTATE" | "VERIFY";
+  action: 'ROTATE' | 'VERIFY';
   actor_email: string | null;
   masked_key: string | null;
   success: boolean;
@@ -5112,8 +4671,8 @@ export interface AdminSubscriptionSummary {
   owner_id: string;
   owner_name: string;
   owner_email: string;
-  tier: "FREE" | "STANDARD" | "PREMIUM" | "ENTERPRISE";
-  status: "ACTIVE" | "CANCELLED" | "EXPIRED" | "PENDING";
+  tier: 'FREE' | 'STANDARD' | 'PREMIUM' | 'ENTERPRISE';
+  status: 'ACTIVE' | 'CANCELLED' | 'EXPIRED' | 'PENDING';
   started_at: string;
   expires_at?: string | null;
 }
@@ -5152,9 +4711,8 @@ export interface AdminOrgSummary {
     email: string;
     profile_image?: string | null;
   };
-  plan: "FREE" | "TEAM";
-  subscription_status:
-    "TRIAL" | "ACTIVE" | "PAST_DUE" | "SUSPENDED" | "CANCELED" | null;
+  plan: 'FREE' | 'TEAM';
+  subscription_status: 'TRIAL' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'CANCELED' | null;
   member_count: number;
   board_count: number;
   seat_count: number;
@@ -5164,7 +4722,7 @@ export interface AdminOrgSummary {
 }
 
 export interface AdminOrgDetail extends AdminOrgSummary {
-  billing_cycle?: "MONTHLY" | "YEARLY" | null;
+  billing_cycle?: 'MONTHLY' | 'YEARLY' | null;
   active_member_count: number;
   price_per_seat?: number | null;
   total_price?: number | null;
@@ -5185,7 +4743,7 @@ export interface AdminOrgDetail extends AdminOrgSummary {
     name: string;
     email: string;
     profile_image?: string | null;
-    role: "OWNER" | "ADMIN" | "MEMBER";
+    role: 'OWNER' | 'ADMIN' | 'MEMBER';
     department_name?: string | null;
     position_name?: string | null;
     title_name?: string | null;
@@ -5216,20 +4774,12 @@ export interface AdminOrgStatistics {
 
 export const adminAPI = {
   // 사용자 목록 조회
-  getUsers: async (params: {
-    page?: number;
-    size?: number;
-    search?: string;
-  }) => {
+  getUsers: async (params: { page?: number; size?: number; search?: string }) => {
     const searchParams = new URLSearchParams();
-    if (params.page !== undefined)
-      searchParams.append("page", params.page.toString());
-    if (params.size !== undefined)
-      searchParams.append("size", params.size.toString());
-    if (params.search) searchParams.append("search", params.search);
-    return apiClient.get<UserListResponse>(
-      `/admin/users?${searchParams.toString()}`,
-    );
+    if (params.page !== undefined) searchParams.append('page', params.page.toString());
+    if (params.size !== undefined) searchParams.append('size', params.size.toString());
+    if (params.search) searchParams.append('search', params.search);
+    return apiClient.get<UserListResponse>(`/admin/users?${searchParams.toString()}`);
   },
 
   // 사용자 상세 조회
@@ -5238,58 +4788,38 @@ export const adminAPI = {
   },
 
   // 사용자 정보 수정
-  updateUser: async (
-    userId: string,
-    data: { system_role?: "USER" | "TESTER" | "ADMIN" },
-  ) => {
+  updateUser: async (userId: string, data: { system_role?: 'USER' | 'TESTER' | 'ADMIN' }) => {
     return apiClient.patch<AdminUserSummary>(`/admin/users/${userId}`, data);
   },
 
   // 사용자의 보드 목록 조회
   getUserBoards: async (userId: string) => {
-    return apiClient.get<{ boards: AdminBoardSummary[] }>(
-      `/admin/users/${userId}/boards`,
-    );
+    return apiClient.get<{ boards: AdminBoardSummary[] }>(`/admin/users/${userId}/boards`);
   },
 
   // 사용자 비활성화
   deactivateUser: async (userId: string, reason?: string) => {
-    return apiClient.post<AdminUserSummary>(
-      `/admin/users/${userId}/deactivate`,
-      { reason },
-    );
+    return apiClient.post<AdminUserSummary>(`/admin/users/${userId}/deactivate`, { reason });
   },
 
   // 사용자 활성화
   activateUser: async (userId: string) => {
-    return apiClient.post<AdminUserSummary>(
-      `/admin/users/${userId}/activate`,
-      {},
-    );
+    return apiClient.post<AdminUserSummary>(`/admin/users/${userId}/activate`, {});
   },
 
   // 이메일 강제 인증
   verifyUserEmail: async (userId: string) => {
-    return apiClient.post<AdminUserSummary>(
-      `/admin/users/${userId}/verify-email`,
-      {},
-    );
+    return apiClient.post<AdminUserSummary>(`/admin/users/${userId}/verify-email`, {});
   },
 
   // 비밀번호 리셋 메일 발송
   sendPasswordResetEmail: async (userId: string) => {
-    return apiClient.post<{ message: string }>(
-      `/admin/users/${userId}/send-password-reset`,
-      {},
-    );
+    return apiClient.post<{ message: string }>(`/admin/users/${userId}/send-password-reset`, {});
   },
 
   // Personal Board 생성
   createPersonalBoard: async (userId: string) => {
-    return apiClient.post<{ message: string }>(
-      `/admin/users/${userId}/create-personal-board`,
-      {},
-    );
+    return apiClient.post<{ message: string }>(`/admin/users/${userId}/create-personal-board`, {});
   },
 
   // 유저 개인 AI 크레딧 조정
@@ -5297,10 +4827,7 @@ export const adminAPI = {
     userId: string,
     data: { personal_ai_credits?: number; add_bonus_credits?: number },
   ) => {
-    return apiClient.patch<AdminUserDetail>(
-      `/admin/users/${userId}/personal-ai-credits`,
-      data,
-    );
+    return apiClient.patch<AdminUserDetail>(`/admin/users/${userId}/personal-ai-credits`, data);
   },
 
   // 사용자 영구 삭제
@@ -5310,9 +4837,7 @@ export const adminAPI = {
 
   // 사용자를 보드에서 제거
   removeUserFromBoard: async (userId: string, boardId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/admin/users/${userId}/boards/${boardId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/admin/users/${userId}/boards/${boardId}`);
   },
 
   // 보드 목록 조회
@@ -5324,16 +4849,12 @@ export const adminAPI = {
     board_type?: string;
   }) => {
     const searchParams = new URLSearchParams();
-    if (params.page !== undefined)
-      searchParams.append("page", params.page.toString());
-    if (params.size !== undefined)
-      searchParams.append("size", params.size.toString());
-    if (params.search) searchParams.append("search", params.search);
-    if (params.tier) searchParams.append("tier", params.tier);
-    if (params.board_type) searchParams.append("board_type", params.board_type);
-    return apiClient.get<BoardListResponse>(
-      `/admin/boards?${searchParams.toString()}`,
-    );
+    if (params.page !== undefined) searchParams.append('page', params.page.toString());
+    if (params.size !== undefined) searchParams.append('size', params.size.toString());
+    if (params.search) searchParams.append('search', params.search);
+    if (params.tier) searchParams.append('tier', params.tier);
+    if (params.board_type) searchParams.append('board_type', params.board_type);
+    return apiClient.get<BoardListResponse>(`/admin/boards?${searchParams.toString()}`);
   },
 
   // 보드 상세 조회
@@ -5348,33 +4869,21 @@ export const adminAPI = {
 
   // 보드 복구
   restoreBoard: async (boardId: string) => {
-    return apiClient.post<{ message: string }>(
-      `/admin/boards/${boardId}/restore`,
-    );
+    return apiClient.post<{ message: string }>(`/admin/boards/${boardId}/restore`);
   },
 
   // 보드 영구 삭제
   permanentlyDeleteBoard: async (boardId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/admin/boards/${boardId}/permanent`,
-    );
+    return apiClient.delete<{ message: string }>(`/admin/boards/${boardId}/permanent`);
   },
 
   // 삭제된 보드 목록 조회
-  getDeletedBoards: async (params: {
-    page?: number;
-    size?: number;
-    search?: string;
-  }) => {
+  getDeletedBoards: async (params: { page?: number; size?: number; search?: string }) => {
     const searchParams = new URLSearchParams();
-    if (params.page !== undefined)
-      searchParams.append("page", params.page.toString());
-    if (params.size !== undefined)
-      searchParams.append("size", params.size.toString());
-    if (params.search) searchParams.append("search", params.search);
-    return apiClient.get<BoardListResponse>(
-      `/admin/boards/deleted?${searchParams.toString()}`,
-    );
+    if (params.page !== undefined) searchParams.append('page', params.page.toString());
+    if (params.size !== undefined) searchParams.append('size', params.size.toString());
+    if (params.search) searchParams.append('search', params.search);
+    return apiClient.get<BoardListResponse>(`/admin/boards/deleted?${searchParams.toString()}`);
   },
 
   // 보드 이름 변경
@@ -5385,10 +4894,7 @@ export const adminAPI = {
   },
 
   // 보드 티어 변경
-  updateBoardTier: async (
-    boardId: string,
-    tier: AdminBoardSummary["tier"],
-  ) => {
+  updateBoardTier: async (boardId: string, tier: AdminBoardSummary['tier']) => {
     return apiClient.patch<AdminBoardSummary>(`/admin/boards/${boardId}/tier`, {
       tier,
     });
@@ -5396,38 +4902,34 @@ export const adminAPI = {
 
   // 소유권 이전
   transferBoardOwnership: async (boardId: string, newOwnerId: string) => {
-    return apiClient.post<AdminBoardDetail>(
-      `/admin/boards/${boardId}/transfer-ownership`,
-      { new_owner_id: newOwnerId },
-    );
+    return apiClient.post<AdminBoardDetail>(`/admin/boards/${boardId}/transfer-ownership`, {
+      new_owner_id: newOwnerId,
+    });
   },
 
   // Trial 기간 연장
   extendTrial: async (boardId: string, extendDays: number) => {
-    return apiClient.patch<AdminBoardSummary>(
-      `/admin/boards/${boardId}/extend-trial`,
-      { extendDays },
-    );
+    return apiClient.patch<AdminBoardSummary>(`/admin/boards/${boardId}/extend-trial`, {
+      extendDays,
+    });
   },
 
   // 멤버 역할 변경
   updateMemberRole: async (
     boardId: string,
     memberId: string,
-    role: "ADMIN" | "MEMBER" | "VIEWER",
+    role: 'ADMIN' | 'MEMBER' | 'VIEWER',
   ) => {
-    return apiClient.patch<AdminBoardDetail>(
-      `/admin/boards/${boardId}/members/${memberId}/role`,
-      { role },
-    );
+    return apiClient.patch<AdminBoardDetail>(`/admin/boards/${boardId}/members/${memberId}/role`, {
+      role,
+    });
   },
 
   // 시트 수 변경
   updateSeatCount: async (boardId: string, seatCount: number) => {
-    return apiClient.patch<AdminBoardDetail>(
-      `/admin/boards/${boardId}/seat-count`,
-      { seat_count: seatCount },
-    );
+    return apiClient.patch<AdminBoardDetail>(`/admin/boards/${boardId}/seat-count`, {
+      seat_count: seatCount,
+    });
   },
 
   // AI 크레딧 조정
@@ -5435,43 +4937,26 @@ export const adminAPI = {
     boardId: string,
     data: { monthly_ai_credits?: number; add_purchased_credits?: number },
   ) => {
-    return apiClient.patch<AdminBoardDetail>(
-      `/admin/boards/${boardId}/ai-credits`,
-      data,
-    );
+    return apiClient.patch<AdminBoardDetail>(`/admin/boards/${boardId}/ai-credits`, data);
   },
 
   // ==================== Organizations ====================
 
   // 조직 목록 조회
-  getOrganizations: async (params: {
-    page?: number;
-    size?: number;
-    search?: string;
-  }) => {
+  getOrganizations: async (params: { page?: number; size?: number; search?: string }) => {
     const searchParams = new URLSearchParams();
-    if (params.page !== undefined)
-      searchParams.append("page", params.page.toString());
-    if (params.size !== undefined)
-      searchParams.append("size", params.size.toString());
-    if (params.search) searchParams.append("search", params.search);
-    return apiClient.get<OrgListResponse>(
-      `/admin/organizations?${searchParams.toString()}`,
-    );
+    if (params.page !== undefined) searchParams.append('page', params.page.toString());
+    if (params.size !== undefined) searchParams.append('size', params.size.toString());
+    if (params.search) searchParams.append('search', params.search);
+    return apiClient.get<OrgListResponse>(`/admin/organizations?${searchParams.toString()}`);
   },
 
   // 삭제된 조직 목록 조회
-  getDeletedOrganizations: async (params: {
-    page?: number;
-    size?: number;
-    search?: string;
-  }) => {
+  getDeletedOrganizations: async (params: { page?: number; size?: number; search?: string }) => {
     const searchParams = new URLSearchParams();
-    if (params.page !== undefined)
-      searchParams.append("page", params.page.toString());
-    if (params.size !== undefined)
-      searchParams.append("size", params.size.toString());
-    if (params.search) searchParams.append("search", params.search);
+    if (params.page !== undefined) searchParams.append('page', params.page.toString());
+    if (params.size !== undefined) searchParams.append('size', params.size.toString());
+    if (params.search) searchParams.append('search', params.search);
     return apiClient.get<OrgListResponse>(
       `/admin/organizations/deleted?${searchParams.toString()}`,
     );
@@ -5483,43 +4968,30 @@ export const adminAPI = {
   },
 
   // 조직 정보 수정
-  updateOrganization: async (
-    orgId: string,
-    data: { name?: string; description?: string },
-  ) => {
-    return apiClient.patch<AdminOrgDetail>(
-      `/admin/organizations/${orgId}`,
-      data,
-    );
+  updateOrganization: async (orgId: string, data: { name?: string; description?: string }) => {
+    return apiClient.patch<AdminOrgDetail>(`/admin/organizations/${orgId}`, data);
   },
 
   // 조직 삭제 (소프트)
   deleteOrganization: async (orgId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/admin/organizations/${orgId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/admin/organizations/${orgId}`);
   },
 
   // 조직 복구
   restoreOrganization: async (orgId: string) => {
-    return apiClient.post<{ message: string }>(
-      `/admin/organizations/${orgId}/restore`,
-    );
+    return apiClient.post<{ message: string }>(`/admin/organizations/${orgId}/restore`);
   },
 
   // 조직 영구 삭제
   permanentlyDeleteOrganization: async (orgId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/admin/organizations/${orgId}/permanent`,
-    );
+    return apiClient.delete<{ message: string }>(`/admin/organizations/${orgId}/permanent`);
   },
 
   // 소유권 이전
   transferOrgOwnership: async (orgId: string, newOwnerMemberId: string) => {
-    return apiClient.post<AdminOrgDetail>(
-      `/admin/organizations/${orgId}/transfer-ownership`,
-      { new_owner_member_id: newOwnerMemberId },
-    );
+    return apiClient.post<AdminOrgDetail>(`/admin/organizations/${orgId}/transfer-ownership`, {
+      new_owner_member_id: newOwnerMemberId,
+    });
   },
 
   // 구독 수정
@@ -5532,18 +5004,14 @@ export const adminAPI = {
       seat_count?: number;
     },
   ) => {
-    return apiClient.patch<AdminOrgDetail>(
-      `/admin/organizations/${orgId}/subscription`,
-      data,
-    );
+    return apiClient.patch<AdminOrgDetail>(`/admin/organizations/${orgId}/subscription`, data);
   },
 
   // Trial 연장
   extendOrgTrial: async (orgId: string, extendDays: number) => {
-    return apiClient.patch<AdminOrgDetail>(
-      `/admin/organizations/${orgId}/extend-trial`,
-      { extend_days: extendDays },
-    );
+    return apiClient.patch<AdminOrgDetail>(`/admin/organizations/${orgId}/extend-trial`, {
+      extend_days: extendDays,
+    });
   },
 
   // 조직 AI 크레딧 조정
@@ -5555,20 +5023,17 @@ export const adminAPI = {
       add_bonus_credits?: number;
     },
   ) => {
-    return apiClient.patch<AdminOrgDetail>(
-      `/admin/organizations/${orgId}/ai-credits`,
-      data,
-    );
+    return apiClient.patch<AdminOrgDetail>(`/admin/organizations/${orgId}/ai-credits`, data);
   },
 
   // 조직 통계
   getOrgStatistics: async () => {
-    return apiClient.get<AdminOrgStatistics>("/admin/organizations/statistics");
+    return apiClient.get<AdminOrgStatistics>('/admin/organizations/statistics');
   },
 
   // 통계 조회
   getStatistics: async () => {
-    return apiClient.get<AdminStatistics>("/admin/statistics");
+    return apiClient.get<AdminStatistics>('/admin/statistics');
   },
 
   // Analytics: 가입자 추이
@@ -5578,16 +5043,12 @@ export const adminAPI = {
 
   // Analytics: DAU/WAU/MAU
   getActiveUserStats: async (days: number = 30) => {
-    return apiClient.get<ActiveUserStats>(
-      `/admin/statistics/active-users?days=${days}`,
-    );
+    return apiClient.get<ActiveUserStats>(`/admin/statistics/active-users?days=${days}`);
   },
 
   // Analytics: 결제 전환율
   getConversionStats: async (days: number = 365) => {
-    return apiClient.get<ConversionStats>(
-      `/admin/statistics/conversion?days=${days}`,
-    );
+    return apiClient.get<ConversionStats>(`/admin/statistics/conversion?days=${days}`);
   },
 
   // Analytics: Personal → Team 전환 통계
@@ -5599,15 +5060,9 @@ export const adminAPI = {
 
   // Churn Analysis
   getRetentionAnalysis: async (weeks: number = 8) => {
-    return apiClient.get<RetentionAnalysis>(
-      `/admin/statistics/churn/retention?weeks=${weeks}`,
-    );
+    return apiClient.get<RetentionAnalysis>(`/admin/statistics/churn/retention?weeks=${weeks}`);
   },
-  getInactiveUsers: async (
-    inactiveDays: number = 14,
-    page: number = 0,
-    size: number = 20,
-  ) => {
+  getInactiveUsers: async (inactiveDays: number = 14, page: number = 0, size: number = 20) => {
     return apiClient.get<InactiveUserList>(
       `/admin/statistics/churn/inactive-users?inactive_days=${inactiveDays}&page=${page}&size=${size}`,
     );
@@ -5618,18 +5073,14 @@ export const adminAPI = {
     );
   },
   getActivityTrends: async (days: number = 90) => {
-    return apiClient.get<ActivityTrends>(
-      `/admin/statistics/churn/activity-trends?days=${days}`,
-    );
+    return apiClient.get<ActivityTrends>(`/admin/statistics/churn/activity-trends?days=${days}`);
   },
 
   // 구독 목록 조회
   getSubscriptions: async (params: { page?: number; size?: number }) => {
     const searchParams = new URLSearchParams();
-    if (params.page !== undefined)
-      searchParams.append("page", params.page.toString());
-    if (params.size !== undefined)
-      searchParams.append("size", params.size.toString());
+    if (params.page !== undefined) searchParams.append('page', params.page.toString());
+    if (params.size !== undefined) searchParams.append('size', params.size.toString());
     return apiClient.get<SubscriptionListResponse>(
       `/admin/subscriptions?${searchParams.toString()}`,
     );
@@ -5637,20 +5088,20 @@ export const adminAPI = {
 
   // 공지사항 관리
   getAnnouncements: async () => {
-    return apiClient.get<AnnouncementDetail[]>("/admin/announcements");
+    return apiClient.get<AnnouncementDetail[]>('/admin/announcements');
   },
 
   createAnnouncement: async (data: {
     title: string;
     content?: string;
-    type?: "POPUP" | "BANNER" | "NOTICE";
+    type?: 'POPUP' | 'BANNER' | 'NOTICE';
     is_active?: boolean;
     start_at?: string | null;
     end_at?: string | null;
     priority?: number;
     target_role?: string | null;
   }) => {
-    return apiClient.post<AnnouncementDetail>("/admin/announcements", data);
+    return apiClient.post<AnnouncementDetail>('/admin/announcements', data);
   },
 
   updateAnnouncement: async (
@@ -5658,7 +5109,7 @@ export const adminAPI = {
     data: {
       title: string;
       content?: string;
-      type?: "POPUP" | "BANNER" | "NOTICE";
+      type?: 'POPUP' | 'BANNER' | 'NOTICE';
       is_active?: boolean;
       start_at?: string | null;
       end_at?: string | null;
@@ -5666,10 +5117,7 @@ export const adminAPI = {
       target_role?: string | null;
     },
   ) => {
-    return apiClient.put<AnnouncementDetail>(
-      `/admin/announcements/${id}`,
-      data,
-    );
+    return apiClient.put<AnnouncementDetail>(`/admin/announcements/${id}`, data);
   },
 
   deleteAnnouncement: async (id: string) => {
@@ -5677,29 +5125,23 @@ export const adminAPI = {
   },
 
   bulkCreatePersonalBoards: async () => {
-    return apiClient.post<BulkCreateResult>(
-      "/admin/system/bulk-create-personal-boards",
-      {},
-    );
+    return apiClient.post<BulkCreateResult>('/admin/system/bulk-create-personal-boards', {});
   },
 
   // 수익화 토글
   getMonetizationStatus: async () => {
-    return apiClient.get<{ monetization_enabled: boolean }>(
-      "/admin/system/monetization",
-    );
+    return apiClient.get<{ monetization_enabled: boolean }>('/admin/system/monetization');
   },
 
   setMonetizationEnabled: async (enabled: boolean) => {
-    return apiClient.put<{ monetization_enabled: boolean }>(
-      "/admin/system/monetization",
-      { monetization_enabled: enabled },
-    );
+    return apiClient.put<{ monetization_enabled: boolean }>('/admin/system/monetization', {
+      monetization_enabled: enabled,
+    });
   },
 
   // 점검 모드
   getMaintenanceStatus: async () => {
-    return apiClient.get<MaintenanceStatus>("/admin/system/maintenance");
+    return apiClient.get<MaintenanceStatus>('/admin/system/maintenance');
   },
 
   setMaintenanceMode: async (data: {
@@ -5707,12 +5149,12 @@ export const adminAPI = {
     message?: string;
     estimated_end_at?: string | null;
   }) => {
-    return apiClient.post<MaintenanceStatus>("/admin/system/maintenance", data);
+    return apiClient.post<MaintenanceStatus>('/admin/system/maintenance', data);
   },
 
   // AI API 키 (원문 조회 엔드포인트는 존재하지 않는다 — 마스킹 조회 + 쓰기 전용 교체)
   getAiKeys: async () => {
-    return apiClient.get<AiKeyList>("/admin/ai/keys");
+    return apiClient.get<AiKeyList>('/admin/ai/keys');
   },
 
   rotateAiKey: async (provider: AiKeyProvider, apiKey: string) => {
@@ -5727,47 +5169,34 @@ export const adminAPI = {
 
   getAiKeyLogs: async (params: { page?: number; size?: number } = {}) => {
     const searchParams = new URLSearchParams();
-    if (params.page !== undefined)
-      searchParams.append("page", params.page.toString());
-    if (params.size !== undefined)
-      searchParams.append("size", params.size.toString());
-    return apiClient.get<AiKeyLogList>(
-      `/admin/ai/keys/logs?${searchParams.toString()}`,
-    );
+    if (params.page !== undefined) searchParams.append('page', params.page.toString());
+    if (params.size !== undefined) searchParams.append('size', params.size.toString());
+    return apiClient.get<AiKeyLogList>(`/admin/ai/keys/logs?${searchParams.toString()}`);
   },
 
   // 문의 관리
-  getInquiries: async (params: {
-    page?: number;
-    size?: number;
-    status?: string;
-  }) => {
+  getInquiries: async (params: { page?: number; size?: number; status?: string }) => {
     const searchParams = new URLSearchParams();
-    if (params.page !== undefined)
-      searchParams.append("page", params.page.toString());
-    if (params.size !== undefined)
-      searchParams.append("size", params.size.toString());
-    if (params.status) searchParams.append("status", params.status);
-    return apiClient.get<import("../types").InquiryListResponse>(
+    if (params.page !== undefined) searchParams.append('page', params.page.toString());
+    if (params.size !== undefined) searchParams.append('size', params.size.toString());
+    if (params.status) searchParams.append('status', params.status);
+    return apiClient.get<import('../types').InquiryListResponse>(
       `/admin/inquiries?${searchParams.toString()}`,
     );
   },
 
   getInquiryDetail: async (inquiryId: string) => {
-    return apiClient.get<import("../types").InquiryDetail>(
-      `/admin/inquiries/${inquiryId}`,
-    );
+    return apiClient.get<import('../types').InquiryDetail>(`/admin/inquiries/${inquiryId}`);
   },
 
   replyToInquiry: async (inquiryId: string, content: string) => {
-    return apiClient.post<import("../types").InquiryReply>(
-      `/admin/inquiries/${inquiryId}/reply`,
-      { content },
-    );
+    return apiClient.post<import('../types').InquiryReply>(`/admin/inquiries/${inquiryId}/reply`, {
+      content,
+    });
   },
 
   updateInquiryStatus: async (inquiryId: string, status: string) => {
-    return apiClient.patch<import("../types").InquiryDetail>(
+    return apiClient.patch<import('../types').InquiryDetail>(
       `/admin/inquiries/${inquiryId}/status`,
       { status },
     );
@@ -5779,33 +5208,26 @@ export const adminAPI = {
 // ========================================
 
 export const inquiryAPI = {
-  createInquiry: async (data: {
-    title: string;
-    content: string;
-    fileKeys?: string[];
-  }) => {
-    return apiClient.post<import("../types").InquiryDetail>("/inquiries", data);
+  createInquiry: async (data: { title: string; content: string; fileKeys?: string[] }) => {
+    return apiClient.post<import('../types').InquiryDetail>('/inquiries', data);
   },
 
   getMyInquiries: async () => {
-    return apiClient.get<import("../types").InquirySummary[]>("/inquiries");
+    return apiClient.get<import('../types').InquirySummary[]>('/inquiries');
   },
 
   getInquiry: async (inquiryId: string) => {
-    return apiClient.get<import("../types").InquiryDetail>(
-      `/inquiries/${inquiryId}`,
-    );
+    return apiClient.get<import('../types').InquiryDetail>(`/inquiries/${inquiryId}`);
   },
 
   replyToInquiry: async (inquiryId: string, content: string) => {
-    return apiClient.post<import("../types").InquiryReply>(
-      `/inquiries/${inquiryId}/replies`,
-      { content },
-    );
+    return apiClient.post<import('../types').InquiryReply>(`/inquiries/${inquiryId}/replies`, {
+      content,
+    });
   },
 
   getUnreadReplyCount: async () => {
-    return apiClient.get<number>("/inquiries/unread-count");
+    return apiClient.get<number>('/inquiries/unread-count');
   },
 };
 
@@ -5814,17 +5236,15 @@ export const systemAPI = {
   getStatus: async () => {
     // 공개 엔드포인트 — 인증 헤더를 붙이지 않아야 서버 다운 중 토큰 갱신/로그아웃
     // 경로를 타지 않는다 (서버 생존 확인 용도로도 쓰인다)
-    return apiClient.get<MaintenanceStatus>("/system/status", true);
+    return apiClient.get<MaintenanceStatus>('/system/status', true);
   },
 
   getActiveAnnouncements: async () => {
-    return apiClient.get<AnnouncementDetail[]>("/system/announcements/active");
+    return apiClient.get<AnnouncementDetail[]>('/system/announcements/active');
   },
 
   getMonetizationStatus: async () => {
-    return apiClient.get<{ monetization_enabled: boolean }>(
-      "/system/monetization",
-    );
+    return apiClient.get<{ monetization_enabled: boolean }>('/system/monetization');
   },
 };
 
@@ -5833,15 +5253,11 @@ export const systemAPI = {
 // ========================================
 
 export const notificationAPI = {
-  getNotifications: async (params?: {
-    boardId?: string;
-    cursor?: string;
-    limit?: number;
-  }) => {
+  getNotifications: async (params?: { boardId?: string; cursor?: string; limit?: number }) => {
     const query = new URLSearchParams();
-    if (params?.boardId) query.set("boardId", params.boardId);
-    if (params?.cursor) query.set("cursor", params.cursor);
-    if (params?.limit) query.set("limit", params.limit.toString());
+    if (params?.boardId) query.set('boardId', params.boardId);
+    if (params?.cursor) query.set('cursor', params.cursor);
+    if (params?.limit) query.set('limit', params.limit.toString());
     const queryString = query.toString();
     return apiClient.get<{
       notifications: Array<{
@@ -5865,18 +5281,16 @@ export const notificationAPI = {
       unread_count: number;
       has_more: boolean;
       next_cursor: string | null;
-    }>(`/notifications${queryString ? `?${queryString}` : ""}`);
+    }>(`/notifications${queryString ? `?${queryString}` : ''}`);
   },
 
   getUnreadCount: async (boardId?: string) => {
-    const query = boardId ? `?boardId=${boardId}` : "";
-    return apiClient.get<{ unread_count: number }>(
-      `/notifications/unread-count${query}`,
-    );
+    const query = boardId ? `?boardId=${boardId}` : '';
+    return apiClient.get<{ unread_count: number }>(`/notifications/unread-count${query}`);
   },
 
   getUnreadCounts: async (boardId?: string) => {
-    const query = boardId ? `?boardId=${boardId}` : "";
+    const query = boardId ? `?boardId=${boardId}` : '';
     return apiClient.get<{
       unread_count: number;
       unread_inquiry_count: number;
@@ -5884,16 +5298,12 @@ export const notificationAPI = {
   },
 
   markAsRead: async (notificationId: string) => {
-    return apiClient.put<Record<string, unknown>>(
-      `/notifications/${notificationId}/read`,
-    );
+    return apiClient.put<Record<string, unknown>>(`/notifications/${notificationId}/read`);
   },
 
   markAllAsRead: async (boardId?: string) => {
-    const query = boardId ? `?boardId=${boardId}` : "";
-    return apiClient.put<{ message: string }>(
-      `/notifications/read-all${query}`,
-    );
+    const query = boardId ? `?boardId=${boardId}` : '';
+    return apiClient.put<{ message: string }>(`/notifications/read-all${query}`);
   },
 };
 
@@ -5974,8 +5384,7 @@ export const notificationPreferenceAPI = {
       discord_checklist_assigned_enabled: data.discordChecklistAssignedEnabled,
       discord_task_comment_enabled: data.discordTaskCommentEnabled,
       discord_meeting_memo_shared_enabled: data.discordMeetingMemoSharedEnabled,
-      discord_note_comment_mention_enabled:
-        data.discordNoteCommentMentionEnabled,
+      discord_note_comment_mention_enabled: data.discordNoteCommentMentionEnabled,
     });
   },
 };
@@ -6004,10 +5413,10 @@ export interface PatCreated {
 }
 
 export const patAPI = {
-  list: async () => apiClient.get<PatSummary[]>("/pat"),
+  list: async () => apiClient.get<PatSummary[]>('/pat'),
 
   create: async (data: { name?: string; expiresInDays?: number | null }) =>
-    apiClient.post<PatCreated>("/pat", {
+    apiClient.post<PatCreated>('/pat', {
       name: data.name || undefined,
       expires_in_days: data.expiresInDays ?? undefined,
     }),
@@ -6017,15 +5426,11 @@ export const patAPI = {
 
 export const slackWebhookAPI = {
   getMemberStatuses: async (boardId: string) => {
-    return apiClient.get<SlackWebhookMemberStatus[]>(
-      `/boards/${boardId}/slack-webhook/statuses`,
-    );
+    return apiClient.get<SlackWebhookMemberStatus[]>(`/boards/${boardId}/slack-webhook/statuses`);
   },
 
   getMyConfig: async (boardId: string) => {
-    return apiClient.get<SlackWebhookConfig>(
-      `/boards/${boardId}/slack-webhook/me`,
-    );
+    return apiClient.get<SlackWebhookConfig>(`/boards/${boardId}/slack-webhook/me`);
   },
 
   upsertMyConfig: async (
@@ -6036,20 +5441,15 @@ export const slackWebhookAPI = {
       enabled?: boolean;
     },
   ) => {
-    return apiClient.put<SlackWebhookConfig>(
-      `/boards/${boardId}/slack-webhook/me`,
-      {
-        webhook_url: data.webhookUrl || undefined,
-        channel_name: data.channelName,
-        enabled: data.enabled,
-      },
-    );
+    return apiClient.put<SlackWebhookConfig>(`/boards/${boardId}/slack-webhook/me`, {
+      webhook_url: data.webhookUrl || undefined,
+      channel_name: data.channelName,
+      enabled: data.enabled,
+    });
   },
 
   deleteMyConfig: async (boardId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/slack-webhook/me`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/slack-webhook/me`);
   },
 
   testMyWebhook: async (boardId: string) => {
@@ -6065,7 +5465,7 @@ export const slackWebhookAPI = {
 
 export interface SlackAppInstallation {
   id: string;
-  scope: "BOARD" | "ORGANIZATION";
+  scope: 'BOARD' | 'ORGANIZATION';
   slack_team_id: string;
   slack_team_name: string;
   bot_user_id: string | null;
@@ -6104,7 +5504,7 @@ export interface SlackMemberStatus {
 }
 
 export const slackAppAPI = {
-  getInstallUrl: async (scope: "BOARD" | "ORGANIZATION", entityId: string) => {
+  getInstallUrl: async (scope: 'BOARD' | 'ORGANIZATION', entityId: string) => {
     const origin = encodeURIComponent(window.location.origin);
     return apiClient.get<{ url: string }>(
       `/slack/oauth/install?scope=${scope}&entity_id=${entityId}&origin=${origin}`,
@@ -6112,29 +5512,21 @@ export const slackAppAPI = {
   },
 
   getStatus: async (boardId: string) => {
-    return apiClient.get<SlackAppInstallation | null>(
-      `/slack/app/status?board_id=${boardId}`,
-    );
+    return apiClient.get<SlackAppInstallation | null>(`/slack/app/status?board_id=${boardId}`);
   },
 
   getOrgStatus: async (orgId: string) => {
-    return apiClient.get<SlackAppInstallation | null>(
-      `/slack/app/status?organization_id=${orgId}`,
-    );
+    return apiClient.get<SlackAppInstallation | null>(`/slack/app/status?organization_id=${orgId}`);
   },
 
   listChannels: async (boardId: string, cursor?: string) => {
-    const params = cursor ? `&cursor=${cursor}` : "";
-    return apiClient.get<SlackChannelList>(
-      `/slack/app/channels?board_id=${boardId}${params}`,
-    );
+    const params = cursor ? `&cursor=${cursor}` : '';
+    return apiClient.get<SlackChannelList>(`/slack/app/channels?board_id=${boardId}${params}`);
   },
 
   listOrgChannels: async (orgId: string, cursor?: string) => {
-    const params = cursor ? `&cursor=${cursor}` : "";
-    return apiClient.get<SlackChannelList>(
-      `/slack/app/channels?organization_id=${orgId}${params}`,
-    );
+    const params = cursor ? `&cursor=${cursor}` : '';
+    return apiClient.get<SlackChannelList>(`/slack/app/channels?organization_id=${orgId}${params}`);
   },
 
   // 목록에 없는 채널(대형 워크스페이스)을 ID로 직접 조회·검증
@@ -6144,18 +5536,11 @@ export const slackAppAPI = {
     );
   },
 
-  setDefaultChannel: async (
-    installationId: string,
-    channelId: string,
-    channelName: string,
-  ) => {
-    return apiClient.put(
-      `/slack/app/channel?installation_id=${installationId}`,
-      {
-        channelId: channelId,
-        channelName: channelName,
-      },
-    );
+  setDefaultChannel: async (installationId: string, channelId: string, channelName: string) => {
+    return apiClient.put(`/slack/app/channel?installation_id=${installationId}`, {
+      channelId: channelId,
+      channelName: channelName,
+    });
   },
 
   uninstall: async (installationId: string) => {
@@ -6179,9 +5564,7 @@ export const slackAppAPI = {
   },
 
   getMemberStatuses: async (boardId: string) => {
-    return apiClient.get<SlackMemberStatus[]>(
-      `/slack/user/statuses?board_id=${boardId}`,
-    );
+    return apiClient.get<SlackMemberStatus[]>(`/slack/user/statuses?board_id=${boardId}`);
   },
 
   testNotification: async (boardId: string) => {
@@ -6226,7 +5609,7 @@ export interface DiscordTestResult {
 }
 
 export const discordAPI = {
-  getOAuthUrl: async (boardId: string, type: "bot_install" | "user_link") => {
+  getOAuthUrl: async (boardId: string, type: 'bot_install' | 'user_link') => {
     const origin = encodeURIComponent(window.location.origin);
     return apiClient.get<{ oauth_url: string }>(
       `/boards/${boardId}/discord/oauth-url?type=${type}&origin=${origin}`,
@@ -6234,9 +5617,7 @@ export const discordAPI = {
   },
 
   getConfig: async (boardId: string) => {
-    return apiClient.get<DiscordBotConfig | null>(
-      `/boards/${boardId}/discord/config`,
-    );
+    return apiClient.get<DiscordBotConfig | null>(`/boards/${boardId}/discord/config`);
   },
 
   deleteConfig: async (boardId: string) => {
@@ -6244,9 +5625,7 @@ export const discordAPI = {
   },
 
   getMyLink: async (boardId: string) => {
-    return apiClient.get<DiscordUserLinkStatus>(
-      `/boards/${boardId}/discord/me`,
-    );
+    return apiClient.get<DiscordUserLinkStatus>(`/boards/${boardId}/discord/me`);
   },
 
   unlinkMe: async (boardId: string) => {
@@ -6254,9 +5633,7 @@ export const discordAPI = {
   },
 
   getMemberStatuses: async (boardId: string) => {
-    return apiClient.get<DiscordMemberStatus[]>(
-      `/boards/${boardId}/discord/statuses`,
-    );
+    return apiClient.get<DiscordMemberStatus[]>(`/boards/${boardId}/discord/statuses`);
   },
 
   testNotification: async (boardId: string) => {
@@ -6308,8 +5685,8 @@ export interface JiraAgileBoard {
 /** 매핑 항목: key=blockId(블록 매핑) 또는 "__rejected"(반려 전환 규칙). */
 export interface JiraBlockStatusEntry {
   jira_status_id?: string;
-  dir?: "push" | "pull";
-  qa?: "REVIEW" | "VERIFIED";
+  dir?: 'push' | 'pull';
+  qa?: 'REVIEW' | 'VERIFIED';
   /** __rejected 전용: 반려 시작 status(검토중). 여기서 개발 블록으로 되돌리면 반려로 감지. */
   from_status_id?: string;
   /** __rejected 전용: 반려 시 복귀할 블록(작업 중). */
@@ -6393,7 +5770,7 @@ export interface JiraTransitions {
 export interface JiraPreviewItem {
   key: string;
   summary: string;
-  target_type: "FEATURE" | "TASK";
+  target_type: 'FEATURE' | 'TASK';
   block_name: string | null;
   assignee_name: string | null;
   assignee_matched: boolean;
@@ -6419,17 +5796,10 @@ export interface JiraImportResult {
 }
 
 /** 자동수정 트리아지 판정. 기준은 "고쳐졌음을 자동 검증할 수 있는가". */
-export type JiraAutofixVerdict = "CANDIDATE" | "CONDITIONAL" | "EXCLUDED";
+export type JiraAutofixVerdict = 'CANDIDATE' | 'CONDITIONAL' | 'EXCLUDED';
 
 export type JiraAutofixCategory =
-  | "TEXT"
-  | "NULL_GUARD"
-  | "CONSTANT"
-  | "LOGIC"
-  | "UI_STATE"
-  | "ASSET"
-  | "DESIGN_INTENT"
-  | "OTHER";
+  'TEXT' | 'NULL_GUARD' | 'CONSTANT' | 'LOGIC' | 'UI_STATE' | 'ASSET' | 'DESIGN_INTENT' | 'OTHER';
 
 export interface JiraAutofixCategoryCount {
   category: JiraAutofixCategory;
@@ -6449,7 +5819,7 @@ export interface JiraAutofixSummary {
   categories: JiraAutofixCategoryCount[];
 }
 
-export type JiraAutofixTriageRunStatus = "RUNNING" | "SUCCEEDED" | "FAILED";
+export type JiraAutofixTriageRunStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED';
 
 /**
  * 트리아지 실행 상태. 시작 응답과 폴링 응답이 같은 모양이다.
@@ -6497,7 +5867,7 @@ export interface JiraAutofixTaskState {
   /** FEATURE / TASK / DONE — 고정 블록이 아니면 null. */
   block_fixed_type: string | null;
   /** JIRA에서 pull된 QA 상태. null이면 QA 흐름 밖. */
-  qa_state: "REVIEW" | "VERIFIED" | "REJECTED" | null;
+  qa_state: 'REVIEW' | 'VERIFIED' | 'REJECTED' | null;
   completed: boolean;
   /** 개발 단계를 이미 지났는지(완료 체크 / Done 블록 / QA가 물고 있음). 서버의 담기 가드레일과 같은 기준. */
   already_done: boolean;
@@ -6521,16 +5891,10 @@ export interface JiraAutofixItem {
 }
 
 /** 연결된 저장소의 자동 검증 기반 수준. 판정 기준을 통째로 바꾼다. */
-export type JiraAutofixTestInfra = "NONE" | "PARTIAL" | "MATURE";
+export type JiraAutofixTestInfra = 'NONE' | 'PARTIAL' | 'MATURE';
 
 export type JiraAutofixJobStatus =
-  | "QUEUED"
-  | "DISPATCHED"
-  | "SUCCEEDED"
-  | "NO_CHANGE"
-  | "FAILED"
-  | "TIMED_OUT"
-  | "CANCELLED";
+  'QUEUED' | 'DISPATCHED' | 'SUCCEEDED' | 'NO_CHANGE' | 'FAILED' | 'TIMED_OUT' | 'CANCELLED';
 
 /**
  * 러너(맥) 자가진단. 러너가 claim에 실어 보낸다.
@@ -6586,7 +5950,7 @@ export interface JiraAutofixQueueStatus {
 }
 
 /** JIRA = 트리아지가 고른 이슈, MANUAL = 사람이 직접 맡긴 태스크·체크리스트 항목. */
-export type JiraAutofixJobKind = "JIRA" | "MANUAL";
+export type JiraAutofixJobKind = 'JIRA' | 'MANUAL';
 
 export interface JiraAutofixJob {
   id: string;
@@ -6665,15 +6029,11 @@ export interface JiraAutofixEnqueueResult {
 
 export const jiraAutofixAPI = {
   getQueueStatus: async (boardId: string) => {
-    return apiClient.get<JiraAutofixQueueStatus>(
-      `/boards/${boardId}/jira/autofix/queue-status`,
-    );
+    return apiClient.get<JiraAutofixQueueStatus>(`/boards/${boardId}/jira/autofix/queue-status`);
   },
 
   getJobs: async (boardId: string, limit = 50) => {
-    return apiClient.get<JiraAutofixJob[]>(
-      `/boards/${boardId}/jira/autofix/jobs?limit=${limit}`,
-    );
+    return apiClient.get<JiraAutofixJob[]>(`/boards/${boardId}/jira/autofix/jobs?limit=${limit}`);
   },
 
   /**
@@ -6701,11 +6061,8 @@ export const jiraAutofixAPI = {
    * 트리아지 후보를 큐에 담는다. 임계값·이슈당 1회 가드레일은 서버가 건다.
    * issueKeys를 주면 그중에서만 — 목록에서 골라 담는 경로.
    */
-  enqueue: async (
-    boardId: string,
-    options?: { limit?: number; issueKeys?: string[] },
-  ) => {
-    const query = options?.limit != null ? `?limit=${options.limit}` : "";
+  enqueue: async (boardId: string, options?: { limit?: number; issueKeys?: string[] }) => {
+    const query = options?.limit != null ? `?limit=${options.limit}` : '';
     return apiClient.post<JiraAutofixEnqueueResult>(
       `/boards/${boardId}/jira/autofix/queue${query}`,
       options?.issueKeys?.length ? { issue_keys: options.issueKeys } : {},
@@ -6718,7 +6075,7 @@ export const jiraAutofixAPI = {
    */
   cancelJob: async (boardId: string, jobId: string, force = false) => {
     return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/jira/autofix/jobs/${jobId}${force ? "?force=true" : ""}`,
+      `/boards/${boardId}/jira/autofix/jobs/${jobId}${force ? '?force=true' : ''}`,
     );
   },
 
@@ -6730,9 +6087,7 @@ export const jiraAutofixAPI = {
    * 경우이므로 판정을 다시 묻지 않는다.
    */
   requeueJob: async (boardId: string, jobId: string) => {
-    return apiClient.post<JiraAutofixJob>(
-      `/boards/${boardId}/jira/autofix/jobs/${jobId}/requeue`,
-    );
+    return apiClient.post<JiraAutofixJob>(`/boards/${boardId}/jira/autofix/jobs/${jobId}/requeue`);
   },
 
   /** 러너 시크릿 BRIDGE_CALLBACK_TOKEN에 넣을 값을 발급/조회(멱등). */
@@ -6751,10 +6106,10 @@ export const jiraAutofixAPI = {
     channelId: string | null,
     channelName?: string | null,
   ) => {
-    return apiClient.put<void>(
-      `/boards/${boardId}/jira/autofix/slack-channel`,
-      { slack_channel_id: channelId, slack_channel_name: channelName ?? null },
-    );
+    return apiClient.put<void>(`/boards/${boardId}/jira/autofix/slack-channel`, {
+      slack_channel_id: channelId,
+      slack_channel_name: channelName ?? null,
+    });
   },
 
   getTestInfra: async (boardId: string) => {
@@ -6790,22 +6145,16 @@ export const jiraAutofixAPI = {
 
   /** 트리아지 진행률. status가 RUNNING이 아니면 끝난 것이다. */
   getTriageStatus: async (boardId: string) => {
-    return apiClient.get<JiraAutofixTriageRun>(
-      `/boards/${boardId}/jira/autofix/triage/status`,
-    );
+    return apiClient.get<JiraAutofixTriageRun>(`/boards/${boardId}/jira/autofix/triage/status`);
   },
 
   getSummary: async (boardId: string) => {
-    return apiClient.get<JiraAutofixSummary>(
-      `/boards/${boardId}/jira/autofix/summary`,
-    );
+    return apiClient.get<JiraAutofixSummary>(`/boards/${boardId}/jira/autofix/summary`);
   },
 
   getItems: async (boardId: string, verdict?: JiraAutofixVerdict) => {
-    const query = verdict ? `?verdict=${verdict}` : "";
-    return apiClient.get<JiraAutofixItem[]>(
-      `/boards/${boardId}/jira/autofix/items${query}`,
-    );
+    const query = verdict ? `?verdict=${verdict}` : '';
+    return apiClient.get<JiraAutofixItem[]>(`/boards/${boardId}/jira/autofix/items${query}`);
   },
 };
 
@@ -6828,14 +6177,11 @@ export const jiraAPI = {
     boardId: string,
     data: { cloudId: string; baseUrl: string; projectKey: string },
   ) => {
-    return apiClient.post<JiraStatus>(
-      `/boards/${boardId}/jira/oauth/finalize`,
-      {
-        cloud_id: data.cloudId,
-        base_url: data.baseUrl,
-        project_key: data.projectKey,
-      },
-    );
+    return apiClient.post<JiraStatus>(`/boards/${boardId}/jira/oauth/finalize`, {
+      cloud_id: data.cloudId,
+      base_url: data.baseUrl,
+      project_key: data.projectKey,
+    });
   },
 
   connect: async (
@@ -6863,20 +6209,14 @@ export const jiraAPI = {
 
   /** milestoneId를 주면 그 마일스톤 스코프 기준(스코프 프로젝트 상태 + 스코프 미러 블록만). */
   getMeta: async (boardId: string, milestoneId?: string) => {
-    const query = milestoneId
-      ? `?milestone_id=${encodeURIComponent(milestoneId)}`
-      : "";
+    const query = milestoneId ? `?milestone_id=${encodeURIComponent(milestoneId)}` : '';
     return apiClient.get<JiraMeta>(`/boards/${boardId}/jira/meta${query}`);
   },
 
   /** 임의 프로젝트의 상태 목록 — 스코프 위저드의 완료 전환 상태 선택용. */
   getProjectStatuses: async (boardId: string, projectKey?: string) => {
-    const query = projectKey
-      ? `?project_key=${encodeURIComponent(projectKey)}`
-      : "";
-    return apiClient.get<JiraNameRef[]>(
-      `/boards/${boardId}/jira/project-statuses${query}`,
-    );
+    const query = projectKey ? `?project_key=${encodeURIComponent(projectKey)}` : '';
+    return apiClient.get<JiraNameRef[]>(`/boards/${boardId}/jira/project-statuses${query}`);
   },
 
   /**
@@ -6907,20 +6247,15 @@ export const jiraAPI = {
     boardId: string,
     blockStatusMap: Record<string, JiraBlockStatusEntry>,
   ) => {
-    return apiClient.put<JiraStatus>(
-      `/boards/${boardId}/jira/block-status-map`,
-      { block_status_map: blockStatusMap },
-    );
+    return apiClient.put<JiraStatus>(`/boards/${boardId}/jira/block-status-map`, {
+      block_status_map: blockStatusMap,
+    });
   },
 
   /** 미러 대상으로 고를 수 있는 Agile 보드 목록. projectKey를 주면 그 프로젝트 기준(스코프 위저드용). */
   getBoards: async (boardId: string, projectKey?: string) => {
-    const query = projectKey
-      ? `?project_key=${encodeURIComponent(projectKey)}`
-      : "";
-    return apiClient.get<JiraAgileBoard[]>(
-      `/boards/${boardId}/jira/boards${query}`,
-    );
+    const query = projectKey ? `?project_key=${encodeURIComponent(projectKey)}` : '';
+    return apiClient.get<JiraAgileBoard[]>(`/boards/${boardId}/jira/boards${query}`);
   },
 
   /** 미러 대상 Agile 보드 선택 (빈 문자열이면 자동 선택). 저장 후 재동기화 필요. */
@@ -6932,22 +6267,15 @@ export const jiraAPI = {
 
   /** 미러 셋업 — JIRA 상태별 미러 컬럼 생성 + 미러 모드 전환 (멱등). */
   setupMirror: async (boardId: string) => {
-    return apiClient.post<JiraMirrorSetup>(
-      `/boards/${boardId}/jira/mirror/setup`,
-    );
+    return apiClient.post<JiraMirrorSetup>(`/boards/${boardId}/jira/mirror/setup`);
   },
 
   /** pre-block — 이 태스크에서 드롭 가능한 JIRA 상태 id 목록. */
   getTaskTransitions: async (boardId: string, taskId: string) => {
-    return apiClient.get<JiraTransitions>(
-      `/boards/${boardId}/jira/tasks/${taskId}/transitions`,
-    );
+    return apiClient.get<JiraTransitions>(`/boards/${boardId}/jira/tasks/${taskId}/transitions`);
   },
 
-  importIssues: async (
-    boardId: string,
-    data?: { jql?: string; preview?: boolean },
-  ) => {
+  importIssues: async (boardId: string, data?: { jql?: string; preview?: boolean }) => {
     return apiClient.post<JiraImportResult>(`/boards/${boardId}/jira/import`, {
       jql: data?.jql || undefined,
       preview: data?.preview ?? false,
@@ -6957,9 +6285,7 @@ export const jiraAPI = {
   // ── 마일스톤 스코프 (마일스톤별 JIRA 뷰 범위) ──
 
   getScopes: async (boardId: string) => {
-    return apiClient.get<JiraMilestoneScope[]>(
-      `/boards/${boardId}/jira/scopes`,
-    );
+    return apiClient.get<JiraMilestoneScope[]>(`/boards/${boardId}/jira/scopes`);
   },
 
   /**
@@ -6977,22 +6303,17 @@ export const jiraAPI = {
       writeBackTargetStatusId?: string | null;
     },
   ) => {
-    return apiClient.put<JiraMilestoneScope>(
-      `/boards/${boardId}/jira/scopes/${milestoneId}`,
-      {
-        jql: data.jql || undefined,
-        project_key: data.projectKey || undefined,
-        agile_board_id: data.agileBoardId || undefined,
-        write_back_target_status_id: data.writeBackTargetStatusId || undefined,
-      },
-    );
+    return apiClient.put<JiraMilestoneScope>(`/boards/${boardId}/jira/scopes/${milestoneId}`, {
+      jql: data.jql || undefined,
+      project_key: data.projectKey || undefined,
+      agile_board_id: data.agileBoardId || undefined,
+      write_back_target_status_id: data.writeBackTargetStatusId || undefined,
+    });
   },
 
   /** 스코프 해제 — 이 마일스톤은 다시 보드 전체를 본다. */
   deleteScope: async (boardId: string, milestoneId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/jira/scopes/${milestoneId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/jira/scopes/${milestoneId}`);
   },
 
   disconnect: async (boardId: string) => {
@@ -7004,7 +6325,7 @@ export const jiraAPI = {
 // Daily Standup Config API
 // ========================================
 
-import type { StandupConfig } from "../types";
+import type { StandupConfig } from '../types';
 
 export const standupConfigAPI = {
   getConfig: async (boardId: string) => {
@@ -7035,7 +6356,7 @@ export const standupConfigAPI = {
 // AI Report API
 // ========================================
 
-import type { ReportType, WeeklyReport, WeeklyReportListItem } from "../types";
+import type { ReportType, WeeklyReport, WeeklyReportListItem } from '../types';
 
 export const reportAPI = {
   generateReport: async (
@@ -7057,32 +6378,20 @@ export const reportAPI = {
     });
   },
 
-  getReports: async (
-    boardId: string,
-    reportType?: ReportType,
-    targetUserId?: string,
-  ) => {
+  getReports: async (boardId: string, reportType?: ReportType, targetUserId?: string) => {
     const params = new URLSearchParams();
-    if (reportType) params.set("report_type", reportType);
-    if (targetUserId) params.set("target_user_id", targetUserId);
-    const query = params.toString() ? `?${params.toString()}` : "";
-    return apiClient.get<{ reports: WeeklyReportListItem[] }>(
-      `/boards/${boardId}/reports${query}`,
-    );
+    if (reportType) params.set('report_type', reportType);
+    if (targetUserId) params.set('target_user_id', targetUserId);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return apiClient.get<{ reports: WeeklyReportListItem[] }>(`/boards/${boardId}/reports${query}`);
   },
 
   getReport: async (boardId: string, reportId: string) => {
-    return apiClient.get<WeeklyReport>(
-      `/boards/${boardId}/reports/${reportId}`,
-    );
+    return apiClient.get<WeeklyReport>(`/boards/${boardId}/reports/${reportId}`);
   },
 
-  regenerateReport: async (
-    boardId: string,
-    reportId: string,
-    language?: string,
-  ) => {
-    const params = language ? `?language=${encodeURIComponent(language)}` : "";
+  regenerateReport: async (boardId: string, reportId: string, language?: string) => {
+    const params = language ? `?language=${encodeURIComponent(language)}` : '';
     return apiClient.post<WeeklyReport>(
       `/boards/${boardId}/reports/${reportId}/regenerate${params}`,
     );
@@ -7094,19 +6403,19 @@ export const reportAPI = {
 // ========================================
 
 /** 노트 페이지 상태 — null이면 상태 없음. @see utils/noteStatus.ts */
-export type NoteStatus = "DRAFT" | "IN_REVIEW" | "DONE";
+export type NoteStatus = 'DRAFT' | 'IN_REVIEW' | 'DONE';
 
 /** 본문 검색 결과 (GET .../notes/search?q=) — 2자 미만이면 서버가 빈 배열을 준다 */
 export interface NoteSearchResult {
   id: string;
   title: string;
-  type: "FOLDER" | "DOCUMENT" | "BOARD";
+  type: 'FOLDER' | 'DOCUMENT' | 'BOARD';
   parent_id: string | null;
   parent_title: string | null;
   status: NoteStatus | null;
   /** 검색어 주변 평문 발췌 */
   excerpt: string | null;
-  match_in: "title" | "content";
+  match_in: 'title' | 'content';
   updated_at: string;
   updated_by: NoteUserInfo | null;
 }
@@ -7119,7 +6428,7 @@ export interface NoteTreeItem {
    * 노트 트리에 얹기 위해 프론트에서 합성하는 노드 타입이다.
    * @see components/library/libraryTree.ts
    */
-  type: "FOLDER" | "DOCUMENT" | "BOARD" | "FILE";
+  type: 'FOLDER' | 'DOCUMENT' | 'BOARD' | 'FILE';
   title: string;
   position: number;
   depth: number;
@@ -7151,7 +6460,7 @@ export interface BoardNoteSection {
 export interface NoteDetail {
   id: string;
   parent_id: string | null;
-  type: "FOLDER" | "DOCUMENT" | "BOARD";
+  type: 'FOLDER' | 'DOCUMENT' | 'BOARD';
   title: string;
   content: string | null;
   position: number;
@@ -7178,7 +6487,7 @@ export interface NoteDetail {
 export interface SharedNote {
   title: string;
   content: string | null;
-  type: "FOLDER" | "DOCUMENT" | "BOARD";
+  type: 'FOLDER' | 'DOCUMENT' | 'BOARD';
   tags: NoteTagInfo[];
   author_name: string;
   updated_at: string;
@@ -7226,7 +6535,7 @@ export interface NoteTagInfo {
 
 export interface NoteTrashItem {
   id: string;
-  type: "FOLDER" | "DOCUMENT" | "BOARD";
+  type: 'FOLDER' | 'DOCUMENT' | 'BOARD';
   title: string;
   parent_id: string | null;
   parent_title: string | null;
@@ -7292,7 +6601,7 @@ export interface NoteCommentAnchor {
   end?: number | null;
 }
 
-export type NoteCommentAnchorStatus = "ATTACHED" | "ORPHANED";
+export type NoteCommentAnchorStatus = 'ATTACHED' | 'ORPHANED';
 
 export interface NoteCommentCreateData {
   content: string;
@@ -7336,20 +6645,11 @@ export interface NoteCommentListResponse {
 
 export const noteCommentAPI = {
   getComments: async (boardId: string, noteId: string) => {
-    return apiClient.get<NoteCommentListResponse>(
-      `/boards/${boardId}/notes/${noteId}/comments`,
-    );
+    return apiClient.get<NoteCommentListResponse>(`/boards/${boardId}/notes/${noteId}/comments`);
   },
 
-  createComment: async (
-    boardId: string,
-    noteId: string,
-    data: NoteCommentCreateData,
-  ) => {
-    return apiClient.post<NoteCommentDetail>(
-      `/boards/${boardId}/notes/${noteId}/comments`,
-      data,
-    );
+  createComment: async (boardId: string, noteId: string, data: NoteCommentCreateData) => {
+    return apiClient.post<NoteCommentDetail>(`/boards/${boardId}/notes/${noteId}/comments`, data);
   },
 
   updateComment: async (
@@ -7373,11 +6673,7 @@ export const noteCommentAPI = {
     );
   },
 
-  toggleResolved: async (
-    boardId: string,
-    noteId: string,
-    commentId: string,
-  ) => {
+  toggleResolved: async (boardId: string, noteId: string, commentId: string) => {
     return apiClient.post<NoteCommentDetail>(
       `/boards/${boardId}/notes/${noteId}/comments/${commentId}/resolve`,
     );
@@ -7395,12 +6691,7 @@ export const noteCommentAPI = {
     );
   },
 
-  toggleReaction: async (
-    boardId: string,
-    noteId: string,
-    commentId: string,
-    emoji: string,
-  ) => {
+  toggleReaction: async (boardId: string, noteId: string, commentId: string, emoji: string) => {
     return apiClient.post<ReactionsToggleResponse>(
       `/boards/${boardId}/notes/${noteId}/comments/${commentId}/reactions/toggle`,
       { emoji },
@@ -7415,14 +6706,11 @@ export const noteCommentAPI = {
  *   discardDraft=false  → publish while other editors are live; keep the shared
  *                         Yjs draft instead of nuking it out from under them.
  */
-function buildNoteUpdateParams(
-  createVersion: boolean,
-  discardDraft: boolean,
-): string {
+function buildNoteUpdateParams(createVersion: boolean, discardDraft: boolean): string {
   const parts: string[] = [];
-  if (!createVersion) parts.push("createVersion=false");
-  if (!discardDraft) parts.push("discardDraft=false");
-  return parts.length ? `?${parts.join("&")}` : "";
+  if (!createVersion) parts.push('createVersion=false');
+  if (!discardDraft) parts.push('discardDraft=false');
+  return parts.length ? `?${parts.join('&')}` : '';
 }
 
 export const noteAPI = {
@@ -7442,7 +6730,7 @@ export const noteAPI = {
     boardId: string,
     data: {
       title: string;
-      type: "FOLDER" | "DOCUMENT" | "BOARD";
+      type: 'FOLDER' | 'DOCUMENT' | 'BOARD';
       parentId?: string | null;
       content?: string;
       tagIds?: string[];
@@ -7477,15 +6765,8 @@ export const noteAPI = {
     );
   },
 
-  updateStatus: async (
-    boardId: string,
-    noteId: string,
-    status: NoteStatus | null,
-  ) => {
-    return apiClient.put<NoteDetail>(
-      `/boards/${boardId}/notes/${noteId}/status`,
-      { status },
-    );
+  updateStatus: async (boardId: string, noteId: string, status: NoteStatus | null) => {
+    return apiClient.put<NoteDetail>(`/boards/${boardId}/notes/${noteId}/status`, { status });
   },
 
   updateVersionNote: async (
@@ -7501,9 +6782,7 @@ export const noteAPI = {
   },
 
   delete: async (boardId: string, noteId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/notes/${noteId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/notes/${noteId}`);
   },
 
   move: async (
@@ -7514,26 +6793,17 @@ export const noteAPI = {
       position?: number;
     },
   ) => {
-    return apiClient.put<NoteDetail>(
-      `/boards/${boardId}/notes/${noteId}/move`,
-      {
-        parent_id: data.parentId,
-        position: data.position,
-      },
-    );
+    return apiClient.put<NoteDetail>(`/boards/${boardId}/notes/${noteId}/move`, {
+      parent_id: data.parentId,
+      position: data.position,
+    });
   },
 
   getVersions: async (boardId: string, noteId: string) => {
-    return apiClient.get<NoteVersionInfo[]>(
-      `/boards/${boardId}/notes/${noteId}/versions`,
-    );
+    return apiClient.get<NoteVersionInfo[]>(`/boards/${boardId}/notes/${noteId}/versions`);
   },
 
-  getVersionDetail: async (
-    boardId: string,
-    noteId: string,
-    versionId: string,
-  ) => {
+  getVersionDetail: async (boardId: string, noteId: string, versionId: string) => {
     return apiClient.get<NoteVersionDetail>(
       `/boards/${boardId}/notes/${noteId}/versions/${versionId}`,
     );
@@ -7552,15 +6822,11 @@ export const noteAPI = {
   },
 
   deleteVersion: async (boardId: string, noteId: string, versionId: string) => {
-    return apiClient.delete<void>(
-      `/boards/${boardId}/notes/${noteId}/versions/${versionId}`,
-    );
+    return apiClient.delete<void>(`/boards/${boardId}/notes/${noteId}/versions/${versionId}`);
   },
 
   deleteAllVersions: async (boardId: string, noteId: string) => {
-    return apiClient.delete<void>(
-      `/boards/${boardId}/notes/${noteId}/versions`,
-    );
+    return apiClient.delete<void>(`/boards/${boardId}/notes/${noteId}/versions`);
   },
 
   discardDraft: async (boardId: string, noteId: string) => {
@@ -7568,9 +6834,7 @@ export const noteAPI = {
   },
 
   restoreDraft: async (boardId: string, noteId: string) => {
-    return apiClient.post<void>(
-      `/boards/${boardId}/notes/${noteId}/draft/restore`,
-    );
+    return apiClient.post<void>(`/boards/${boardId}/notes/${noteId}/draft/restore`);
   },
 
   hasArchivedDraft: async (boardId: string, noteId: string) => {
@@ -7588,9 +6852,7 @@ export const noteAPI = {
   },
 
   deleteTag: async (boardId: string, tagId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/note-tags/${tagId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/note-tags/${tagId}`);
   },
 
   aiOrganize: async (
@@ -7598,7 +6860,7 @@ export const noteAPI = {
     noteId: string,
     language?: string,
   ): Promise<NoteAISuggestionResponse> => {
-    const params = language ? `?language=${language}` : "";
+    const params = language ? `?language=${language}` : '';
     return apiClient.post<NoteAISuggestionResponse>(
       `/boards/${boardId}/notes/${noteId}/ai-organize${params}`,
     );
@@ -7609,35 +6871,24 @@ export const noteAPI = {
     noteId: string,
     data: AIApplyRequest,
   ): Promise<NoteAIApplyResult> => {
-    return apiClient.post<NoteAIApplyResult>(
-      `/boards/${boardId}/notes/${noteId}/ai-apply`,
-      data,
-    );
+    return apiClient.post<NoteAIApplyResult>(`/boards/${boardId}/notes/${noteId}/ai-apply`, data);
   },
 
   enableShare: async (boardId: string, noteId: string) => {
-    return apiClient.post<NoteDetail>(
-      `/boards/${boardId}/notes/${noteId}/share`,
-    );
+    return apiClient.post<NoteDetail>(`/boards/${boardId}/notes/${noteId}/share`);
   },
 
   disableShare: async (boardId: string, noteId: string) => {
-    return apiClient.delete<NoteDetail>(
-      `/boards/${boardId}/notes/${noteId}/share`,
-    );
+    return apiClient.delete<NoteDetail>(`/boards/${boardId}/notes/${noteId}/share`);
   },
 
   rotateShareToken: async (boardId: string, noteId: string) => {
-    return apiClient.post<NoteDetail>(
-      `/boards/${boardId}/notes/${noteId}/share/rotate`,
-    );
+    return apiClient.post<NoteDetail>(`/boards/${boardId}/notes/${noteId}/share/rotate`);
   },
 
   // ===== Like =====
   toggleLike: async (boardId: string, noteId: string) => {
-    return apiClient.post<NoteDetail>(
-      `/boards/${boardId}/notes/${noteId}/like/toggle`,
-    );
+    return apiClient.post<NoteDetail>(`/boards/${boardId}/notes/${noteId}/like/toggle`);
   },
 
   // ===== Trash =====
@@ -7647,21 +6898,15 @@ export const noteAPI = {
   },
 
   restoreFromTrash: async (boardId: string, noteId: string) => {
-    return apiClient.post<NoteDetail>(
-      `/boards/${boardId}/notes/${noteId}/restore`,
-    );
+    return apiClient.post<NoteDetail>(`/boards/${boardId}/notes/${noteId}/restore`);
   },
 
   permanentDelete: async (boardId: string, noteId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/notes/${noteId}/permanent`,
-    );
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/notes/${noteId}/permanent`);
   },
 
   emptyTrash: async (boardId: string) => {
-    return apiClient.delete<{ deleted_count: number }>(
-      `/boards/${boardId}/notes/trash`,
-    );
+    return apiClient.delete<{ deleted_count: number }>(`/boards/${boardId}/notes/trash`);
   },
 };
 
@@ -7677,9 +6922,7 @@ export const publicNoteAPI = {
 
 export const orgNoteAPI = {
   getBoardNotes: async (orgId: string) => {
-    return apiClient.get<BoardNoteSection[]>(
-      `/organizations/${orgId}/notes/board-notes`,
-    );
+    return apiClient.get<BoardNoteSection[]>(`/organizations/${orgId}/notes/board-notes`);
   },
 
   getTree: async (orgId: string) => {
@@ -7698,7 +6941,7 @@ export const orgNoteAPI = {
     orgId: string,
     data: {
       title: string;
-      type: "FOLDER" | "DOCUMENT" | "BOARD";
+      type: 'FOLDER' | 'DOCUMENT' | 'BOARD';
       parentId?: string | null;
       content?: string;
       tagIds?: string[];
@@ -7733,15 +6976,8 @@ export const orgNoteAPI = {
     );
   },
 
-  updateStatus: async (
-    orgId: string,
-    noteId: string,
-    status: NoteStatus | null,
-  ) => {
-    return apiClient.put<NoteDetail>(
-      `/organizations/${orgId}/notes/${noteId}/status`,
-      { status },
-    );
+  updateStatus: async (orgId: string, noteId: string, status: NoteStatus | null) => {
+    return apiClient.put<NoteDetail>(`/organizations/${orgId}/notes/${noteId}/status`, { status });
   },
 
   updateVersionNote: async (
@@ -7757,9 +6993,7 @@ export const orgNoteAPI = {
   },
 
   delete: async (orgId: string, noteId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/organizations/${orgId}/notes/${noteId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/organizations/${orgId}/notes/${noteId}`);
   },
 
   move: async (
@@ -7770,26 +7004,17 @@ export const orgNoteAPI = {
       position?: number;
     },
   ) => {
-    return apiClient.put<NoteDetail>(
-      `/organizations/${orgId}/notes/${noteId}/move`,
-      {
-        parent_id: data.parentId,
-        position: data.position,
-      },
-    );
+    return apiClient.put<NoteDetail>(`/organizations/${orgId}/notes/${noteId}/move`, {
+      parent_id: data.parentId,
+      position: data.position,
+    });
   },
 
   getVersions: async (orgId: string, noteId: string) => {
-    return apiClient.get<NoteVersionInfo[]>(
-      `/organizations/${orgId}/notes/${noteId}/versions`,
-    );
+    return apiClient.get<NoteVersionInfo[]>(`/organizations/${orgId}/notes/${noteId}/versions`);
   },
 
-  getVersionDetail: async (
-    orgId: string,
-    noteId: string,
-    versionId: string,
-  ) => {
+  getVersionDetail: async (orgId: string, noteId: string, versionId: string) => {
     return apiClient.get<NoteVersionDetail>(
       `/organizations/${orgId}/notes/${noteId}/versions/${versionId}`,
     );
@@ -7808,27 +7033,19 @@ export const orgNoteAPI = {
   },
 
   deleteVersion: async (orgId: string, noteId: string, versionId: string) => {
-    return apiClient.delete<void>(
-      `/organizations/${orgId}/notes/${noteId}/versions/${versionId}`,
-    );
+    return apiClient.delete<void>(`/organizations/${orgId}/notes/${noteId}/versions/${versionId}`);
   },
 
   deleteAllVersions: async (orgId: string, noteId: string) => {
-    return apiClient.delete<void>(
-      `/organizations/${orgId}/notes/${noteId}/versions`,
-    );
+    return apiClient.delete<void>(`/organizations/${orgId}/notes/${noteId}/versions`);
   },
 
   discardDraft: async (orgId: string, noteId: string) => {
-    return apiClient.delete<void>(
-      `/organizations/${orgId}/notes/${noteId}/draft`,
-    );
+    return apiClient.delete<void>(`/organizations/${orgId}/notes/${noteId}/draft`);
   },
 
   restoreDraft: async (orgId: string, noteId: string) => {
-    return apiClient.post<void>(
-      `/organizations/${orgId}/notes/${noteId}/draft/restore`,
-    );
+    return apiClient.post<void>(`/organizations/${orgId}/notes/${noteId}/draft/restore`);
   },
 
   hasArchivedDraft: async (orgId: string, noteId: string) => {
@@ -7842,55 +7059,38 @@ export const orgNoteAPI = {
   },
 
   createTag: async (orgId: string, data: { name: string; color: string }) => {
-    return apiClient.post<NoteTagInfo>(
-      `/organizations/${orgId}/note-tags`,
-      data,
-    );
+    return apiClient.post<NoteTagInfo>(`/organizations/${orgId}/note-tags`, data);
   },
 
   deleteTag: async (orgId: string, tagId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/organizations/${orgId}/note-tags/${tagId}`,
-    );
+    return apiClient.delete<{ message: string }>(`/organizations/${orgId}/note-tags/${tagId}`);
   },
 
   enableShare: async (orgId: string, noteId: string) => {
-    return apiClient.post<NoteDetail>(
-      `/organizations/${orgId}/notes/${noteId}/share`,
-    );
+    return apiClient.post<NoteDetail>(`/organizations/${orgId}/notes/${noteId}/share`);
   },
 
   disableShare: async (orgId: string, noteId: string) => {
-    return apiClient.delete<NoteDetail>(
-      `/organizations/${orgId}/notes/${noteId}/share`,
-    );
+    return apiClient.delete<NoteDetail>(`/organizations/${orgId}/notes/${noteId}/share`);
   },
 
   rotateShareToken: async (orgId: string, noteId: string) => {
-    return apiClient.post<NoteDetail>(
-      `/organizations/${orgId}/notes/${noteId}/share/rotate`,
-    );
+    return apiClient.post<NoteDetail>(`/organizations/${orgId}/notes/${noteId}/share/rotate`);
   },
 
   // ===== Like =====
   toggleLike: async (orgId: string, noteId: string) => {
-    return apiClient.post<NoteDetail>(
-      `/organizations/${orgId}/notes/${noteId}/like/toggle`,
-    );
+    return apiClient.post<NoteDetail>(`/organizations/${orgId}/notes/${noteId}/like/toggle`);
   },
 
   // ===== Trash =====
 
   getTrash: async (orgId: string) => {
-    return apiClient.get<NoteTrashItem[]>(
-      `/organizations/${orgId}/notes/trash`,
-    );
+    return apiClient.get<NoteTrashItem[]>(`/organizations/${orgId}/notes/trash`);
   },
 
   restoreFromTrash: async (orgId: string, noteId: string) => {
-    return apiClient.post<NoteDetail>(
-      `/organizations/${orgId}/notes/${noteId}/restore`,
-    );
+    return apiClient.post<NoteDetail>(`/organizations/${orgId}/notes/${noteId}/restore`);
   },
 
   permanentDelete: async (orgId: string, noteId: string) => {
@@ -7900,9 +7100,7 @@ export const orgNoteAPI = {
   },
 
   emptyTrash: async (orgId: string) => {
-    return apiClient.delete<{ deleted_count: number }>(
-      `/organizations/${orgId}/notes/trash`,
-    );
+    return apiClient.delete<{ deleted_count: number }>(`/organizations/${orgId}/notes/trash`);
   },
 };
 
@@ -7913,11 +7111,7 @@ export const orgNoteCommentAPI = {
     );
   },
 
-  createComment: async (
-    orgId: string,
-    noteId: string,
-    data: NoteCommentCreateData,
-  ) => {
+  createComment: async (orgId: string, noteId: string, data: NoteCommentCreateData) => {
     return apiClient.post<NoteCommentDetail>(
       `/organizations/${orgId}/notes/${noteId}/comments`,
       data,
@@ -7963,12 +7157,7 @@ export const orgNoteCommentAPI = {
     );
   },
 
-  toggleReaction: async (
-    orgId: string,
-    noteId: string,
-    commentId: string,
-    emoji: string,
-  ) => {
+  toggleReaction: async (orgId: string, noteId: string, commentId: string, emoji: string) => {
     return apiClient.post<ReactionsToggleResponse>(
       `/organizations/${orgId}/notes/${noteId}/comments/${commentId}/reactions/toggle`,
       { emoji },
@@ -7999,7 +7188,7 @@ export const myNoteAPI = {
     _scopeId: string,
     data: {
       title: string;
-      type: "FOLDER" | "DOCUMENT" | "BOARD";
+      type: 'FOLDER' | 'DOCUMENT' | 'BOARD';
       parentId?: string | null;
       content?: string;
       tagIds?: string[];
@@ -8022,23 +7211,14 @@ export const myNoteAPI = {
     discardDraft = true,
   ) => {
     const params = buildNoteUpdateParams(createVersion, discardDraft);
-    return apiClient.put<NoteDetail>(
-      `/me/notes/${noteId}${params}`,
-      buildNoteUpdateBody(data),
-    );
+    return apiClient.put<NoteDetail>(`/me/notes/${noteId}${params}`, buildNoteUpdateBody(data));
   },
 
   search: async (_scopeId: string, q: string) => {
-    return apiClient.get<NoteSearchResult[]>(
-      `/me/notes/search?q=${encodeURIComponent(q)}`,
-    );
+    return apiClient.get<NoteSearchResult[]>(`/me/notes/search?q=${encodeURIComponent(q)}`);
   },
 
-  updateStatus: async (
-    _scopeId: string,
-    noteId: string,
-    status: NoteStatus | null,
-  ) => {
+  updateStatus: async (_scopeId: string, noteId: string, status: NoteStatus | null) => {
     return apiClient.put<NoteDetail>(`/me/notes/${noteId}/status`, {
       status,
     });
@@ -8050,10 +7230,9 @@ export const myNoteAPI = {
     versionId: string,
     note: string | null,
   ) => {
-    return apiClient.patch<NoteVersionInfo>(
-      `/me/notes/${noteId}/versions/${versionId}/note`,
-      { note },
-    );
+    return apiClient.patch<NoteVersionInfo>(`/me/notes/${noteId}/versions/${versionId}/note`, {
+      note,
+    });
   },
 
   delete: async (_scopeId: string, noteId: string) => {
@@ -8078,14 +7257,8 @@ export const myNoteAPI = {
     return apiClient.get<NoteVersionInfo[]>(`/me/notes/${noteId}/versions`);
   },
 
-  getVersionDetail: async (
-    _scopeId: string,
-    noteId: string,
-    versionId: string,
-  ) => {
-    return apiClient.get<NoteVersionDetail>(
-      `/me/notes/${noteId}/versions/${versionId}`,
-    );
+  getVersionDetail: async (_scopeId: string, noteId: string, versionId: string) => {
+    return apiClient.get<NoteVersionDetail>(`/me/notes/${noteId}/versions/${versionId}`);
   },
 
   restoreVersion: async (
@@ -8100,11 +7273,7 @@ export const myNoteAPI = {
     );
   },
 
-  deleteVersion: async (
-    _scopeId: string,
-    noteId: string,
-    versionId: string,
-  ) => {
+  deleteVersion: async (_scopeId: string, noteId: string, versionId: string) => {
     return apiClient.delete<void>(`/me/notes/${noteId}/versions/${versionId}`);
   },
 
@@ -8121,19 +7290,14 @@ export const myNoteAPI = {
   },
 
   hasArchivedDraft: async (_scopeId: string, noteId: string) => {
-    return apiClient.get<{ available: boolean }>(
-      `/me/notes/${noteId}/draft/archived`,
-    );
+    return apiClient.get<{ available: boolean }>(`/me/notes/${noteId}/draft/archived`);
   },
 
   getTags: async (_scopeId?: string) => {
     return apiClient.get<NoteTagInfo[]>(`/me/note-tags`);
   },
 
-  createTag: async (
-    _scopeId: string,
-    data: { name: string; color: string },
-  ) => {
+  createTag: async (_scopeId: string, data: { name: string; color: string }) => {
     return apiClient.post<NoteTagInfo>(`/me/note-tags`, data);
   },
 
@@ -8166,9 +7330,7 @@ export const myNoteAPI = {
   },
 
   permanentDelete: async (_scopeId: string, noteId: string) => {
-    return apiClient.delete<{ message: string }>(
-      `/me/notes/${noteId}/permanent`,
-    );
+    return apiClient.delete<{ message: string }>(`/me/notes/${noteId}/permanent`);
   },
 
   emptyTrash: async (_scopeId?: string) => {
@@ -8178,20 +7340,11 @@ export const myNoteAPI = {
 
 export const myNoteCommentAPI = {
   getComments: async (_scopeId: string, noteId: string) => {
-    return apiClient.get<NoteCommentListResponse>(
-      `/me/notes/${noteId}/comments`,
-    );
+    return apiClient.get<NoteCommentListResponse>(`/me/notes/${noteId}/comments`);
   },
 
-  createComment: async (
-    _scopeId: string,
-    noteId: string,
-    data: NoteCommentCreateData,
-  ) => {
-    return apiClient.post<NoteCommentDetail>(
-      `/me/notes/${noteId}/comments`,
-      data,
-    );
+  createComment: async (_scopeId: string, noteId: string, data: NoteCommentCreateData) => {
+    return apiClient.post<NoteCommentDetail>(`/me/notes/${noteId}/comments`, data);
   },
 
   updateComment: async (
@@ -8203,30 +7356,15 @@ export const myNoteCommentAPI = {
       mentions?: string[];
     },
   ) => {
-    return apiClient.put<NoteCommentDetail>(
-      `/me/notes/${noteId}/comments/${commentId}`,
-      data,
-    );
+    return apiClient.put<NoteCommentDetail>(`/me/notes/${noteId}/comments/${commentId}`, data);
   },
 
-  deleteComment: async (
-    _scopeId: string,
-    noteId: string,
-    commentId: string,
-  ) => {
-    return apiClient.delete<{ message: string }>(
-      `/me/notes/${noteId}/comments/${commentId}`,
-    );
+  deleteComment: async (_scopeId: string, noteId: string, commentId: string) => {
+    return apiClient.delete<{ message: string }>(`/me/notes/${noteId}/comments/${commentId}`);
   },
 
-  toggleResolved: async (
-    _scopeId: string,
-    noteId: string,
-    commentId: string,
-  ) => {
-    return apiClient.post<NoteCommentDetail>(
-      `/me/notes/${noteId}/comments/${commentId}/resolve`,
-    );
+  toggleResolved: async (_scopeId: string, noteId: string, commentId: string) => {
+    return apiClient.post<NoteCommentDetail>(`/me/notes/${noteId}/comments/${commentId}/resolve`);
   },
 
   updateAnchor: async (
@@ -8241,12 +7379,7 @@ export const myNoteCommentAPI = {
     );
   },
 
-  toggleReaction: async (
-    _scopeId: string,
-    noteId: string,
-    commentId: string,
-    emoji: string,
-  ) => {
+  toggleReaction: async (_scopeId: string, noteId: string, commentId: string, emoji: string) => {
     return apiClient.post<ReactionsToggleResponse>(
       `/me/notes/${noteId}/comments/${commentId}/reactions/toggle`,
       { emoji },
@@ -8258,7 +7391,7 @@ export const myNoteCommentAPI = {
 // Task Dependency API
 // ========================================
 
-import type { PersonalEvent } from "../types";
+import type { PersonalEvent } from '../types';
 
 // ========================================
 // Personal Space API
@@ -8266,11 +7399,11 @@ import type { PersonalEvent } from "../types";
 
 export const personalSpaceAPI = {
   activate: async (): Promise<{ personal_space_enabled: boolean }> => {
-    return apiClient.post("/personal-space/activate", {});
+    return apiClient.post('/personal-space/activate', {});
   },
 
   getStatus: async (): Promise<{ personal_space_enabled: boolean }> => {
-    return apiClient.get("/personal-space/status");
+    return apiClient.get('/personal-space/status');
   },
 };
 
@@ -8279,11 +7412,8 @@ export const personalSpaceAPI = {
 // ========================================
 
 export const personalEventAPI = {
-  getByDate: async (
-    date: string,
-    eventType?: string,
-  ): Promise<PersonalEvent[]> => {
-    const typeParam = eventType ? `&event_type=${eventType}` : "";
+  getByDate: async (date: string, eventType?: string): Promise<PersonalEvent[]> => {
+    const typeParam = eventType ? `&event_type=${eventType}` : '';
     return apiClient.get(`/personal/events?date=${date}${typeParam}`);
   },
 
@@ -8292,7 +7422,7 @@ export const personalEventAPI = {
     endDate: string,
     eventType?: string,
   ): Promise<PersonalEvent[]> => {
-    const typeParam = eventType ? `&event_type=${eventType}` : "";
+    const typeParam = eventType ? `&event_type=${eventType}` : '';
     return apiClient.get(
       `/personal/events/weekly?start_date=${startDate}&end_date=${endDate}${typeParam}`,
     );
@@ -8312,7 +7442,7 @@ export const personalEventAPI = {
     recurrence_days_of_week?: number[];
     event_type?: string;
   }): Promise<PersonalEvent> => {
-    return apiClient.post("/personal/events", data);
+    return apiClient.post('/personal/events', data);
   },
 
   update: async (
@@ -8336,7 +7466,7 @@ export const personalEventAPI = {
   },
 
   delete: async (eventId: string, scope?: string): Promise<void> => {
-    const query = scope ? `?scope=${scope}` : "";
+    const query = scope ? `?scope=${scope}` : '';
     return apiClient.delete(`/personal/events/${eventId}${query}`);
   },
 };
@@ -8345,7 +7475,7 @@ export const personalEventAPI = {
 // Task Dependency API
 // ========================================
 
-import type { TaskDependency } from "../types";
+import type { TaskDependency } from '../types';
 
 export const taskDependencyAPI = {
   // 보드의 모든 의존성 조회
@@ -8363,9 +7493,7 @@ export const taskDependencyAPI = {
 
   // 의존성 삭제
   delete: async (boardId: string, dependencyId: string): Promise<void> => {
-    return apiClient.delete(
-      `/boards/${boardId}/task-dependencies/${dependencyId}`,
-    );
+    return apiClient.delete(`/boards/${boardId}/task-dependencies/${dependencyId}`);
   },
 };
 
@@ -8374,7 +7502,7 @@ export const taskDependencyAPI = {
 /** 승격할 곳 추천 한 건 — 규칙 추천이면 reason_code, AI 추천이면 reason이 온다 */
 export interface PromoteSuggestion {
   ref_id: string;
-  ref_type: "TASK" | "FEATURE";
+  ref_type: 'TASK' | 'FEATURE';
   score: number;
   /** TITLE_MATCH · TAG_MATCH · MINE · RECENT · SAME_MILESTONE · RELATED */
   reason_code: string | null;
@@ -8385,7 +7513,7 @@ export interface PromoteSuggestion {
 }
 
 export interface PromoteSuggestionsResponse {
-  source: "AI" | "RULE";
+  source: 'AI' | 'RULE';
   credits_used: number;
   /** AI를 요청했지만 크레딧이 없어 규칙으로 내려온 경우 */
   credits_exhausted: boolean;
@@ -8393,11 +7521,11 @@ export interface PromoteSuggestionsResponse {
 }
 
 export const personalTaskAPI = {
-  getAll: async (): Promise<import("../types").PersonalTask[]> => {
-    return apiClient.get("/personal/tasks");
+  getAll: async (): Promise<import('../types').PersonalTask[]> => {
+    return apiClient.get('/personal/tasks');
   },
 
-  getById: async (taskId: string): Promise<import("../types").PersonalTask> => {
+  getById: async (taskId: string): Promise<import('../types').PersonalTask> => {
     return apiClient.get(`/personal/tasks/${taskId}`);
   },
 
@@ -8412,23 +7540,23 @@ export const personalTaskAPI = {
   getBacklog: async (
     boardId: string,
     userId?: string,
-  ): Promise<import("../types").PersonalTask[]> => {
+  ): Promise<import('../types').PersonalTask[]> => {
     const query = new URLSearchParams({ board_id: boardId });
-    if (userId) query.set("user_id", userId);
+    if (userId) query.set('user_id', userId);
     return apiClient.get(`/personal/tasks?${query.toString()}`);
   },
 
   create: async (data: {
     title: string;
     description?: string;
-    priority?: import("../types").PersonalTaskPriority;
+    priority?: import('../types').PersonalTaskPriority;
     due_date?: string;
     category?: string;
     color?: string;
     /** 넘기면 그 보드의 백로그로 저장된다 (마감일 자동 지정도 하지 않는다) */
     board_id?: string;
-  }): Promise<import("../types").PersonalTask> => {
-    return apiClient.post("/personal/tasks", data);
+  }): Promise<import('../types').PersonalTask> => {
+    return apiClient.post('/personal/tasks', data);
   },
 
   /**
@@ -8438,7 +7566,7 @@ export const personalTaskAPI = {
   promote: async (
     taskId: string,
     data: {
-      target: import("../types").PersonalTaskPromotionType;
+      target: import('../types').PersonalTaskPromotionType;
       feature_id?: string;
       task_id?: string;
       scheduled_date?: string;
@@ -8447,7 +7575,7 @@ export const personalTaskAPI = {
       start_date?: string;
       due_date?: string;
     },
-  ): Promise<import("../types").PersonalTask> => {
+  ): Promise<import('../types').PersonalTask> => {
     return apiClient.post(`/personal/tasks/${taskId}/promote`, data);
   },
 
@@ -8459,7 +7587,7 @@ export const personalTaskAPI = {
   promoteSuggestions: async (
     taskId: string,
     data: {
-      target: import("../types").PersonalTaskPromotionType;
+      target: import('../types').PersonalTaskPromotionType;
       milestone_id?: string | null;
       include_done?: boolean;
       use_ai?: boolean;
@@ -8467,10 +7595,7 @@ export const personalTaskAPI = {
       language?: string;
     },
   ): Promise<PromoteSuggestionsResponse> => {
-    return apiClient.post(
-      `/personal/tasks/${taskId}/promote-suggestions`,
-      data,
-    );
+    return apiClient.post(`/personal/tasks/${taskId}/promote-suggestions`, data);
   },
 
   update: async (
@@ -8478,26 +7603,26 @@ export const personalTaskAPI = {
     data: {
       title?: string;
       description?: string;
-      priority?: import("../types").PersonalTaskPriority;
+      priority?: import('../types').PersonalTaskPriority;
       due_date?: string | null;
       category?: string | null;
       color?: string;
     },
-  ): Promise<import("../types").PersonalTask> => {
+  ): Promise<import('../types').PersonalTask> => {
     return apiClient.put(`/personal/tasks/${taskId}`, data);
   },
 
   updateStatus: async (
     taskId: string,
-    status: import("../types").PersonalTaskStatus,
-  ): Promise<import("../types").PersonalTask> => {
+    status: import('../types').PersonalTaskStatus,
+  ): Promise<import('../types').PersonalTask> => {
     return apiClient.patch(`/personal/tasks/${taskId}/status`, { status });
   },
 
   updatePosition: async (
     taskId: string,
     data: {
-      status?: import("../types").PersonalTaskStatus;
+      status?: import('../types').PersonalTaskStatus;
       position: number;
     },
   ): Promise<void> => {
@@ -8509,20 +7634,18 @@ export const personalTaskAPI = {
   },
 
   getCategories: async (): Promise<string[]> => {
-    return apiClient.get("/personal/tasks/categories");
+    return apiClient.get('/personal/tasks/categories');
   },
 };
 
 // ─── Personal Habit API (v9.0) ───
 
 export const personalHabitAPI = {
-  getAll: async (): Promise<import("../types").PersonalHabit[]> => {
-    return apiClient.get("/personal/habits");
+  getAll: async (): Promise<import('../types').PersonalHabit[]> => {
+    return apiClient.get('/personal/habits');
   },
 
-  getById: async (
-    habitId: string,
-  ): Promise<import("../types").PersonalHabit> => {
+  getById: async (habitId: string): Promise<import('../types').PersonalHabit> => {
     return apiClient.get(`/personal/habits/${habitId}`);
   },
 
@@ -8531,13 +7654,13 @@ export const personalHabitAPI = {
     description?: string;
     icon?: string;
     color?: string;
-    frequency_type?: import("../types").HabitFrequency;
+    frequency_type?: import('../types').HabitFrequency;
     frequency_days?: string;
     target_count?: number;
     unit?: string;
-    importance?: import("../types").HabitImportance;
-  }): Promise<import("../types").PersonalHabit> => {
-    return apiClient.post("/personal/habits", data);
+    importance?: import('../types').HabitImportance;
+  }): Promise<import('../types').PersonalHabit> => {
+    return apiClient.post('/personal/habits', data);
   },
 
   update: async (
@@ -8547,13 +7670,13 @@ export const personalHabitAPI = {
       description?: string;
       icon?: string;
       color?: string;
-      frequency_type?: import("../types").HabitFrequency;
+      frequency_type?: import('../types').HabitFrequency;
       frequency_days?: string;
       target_count?: number;
       unit?: string;
-      importance?: import("../types").HabitImportance;
+      importance?: import('../types').HabitImportance;
     },
-  ): Promise<import("../types").PersonalHabit> => {
+  ): Promise<import('../types').PersonalHabit> => {
     return apiClient.put(`/personal/habits/${habitId}`, data);
   },
 
@@ -8568,59 +7691,45 @@ export const personalHabitAPI = {
   checkIn: async (
     habitId: string,
     options?: { note?: string; log_date?: string },
-  ): Promise<import("../types").HabitTodayItem> => {
-    return apiClient.post(
-      `/personal/habits/${habitId}/check-in`,
-      options ?? {},
-    );
+  ): Promise<import('../types').HabitTodayItem> => {
+    return apiClient.post(`/personal/habits/${habitId}/check-in`, options ?? {});
   },
 
   getLogs: async (
     habitId: string,
     startDate: string,
     endDate: string,
-  ): Promise<import("../types").PersonalHabitLog[]> => {
+  ): Promise<import('../types').PersonalHabitLog[]> => {
     return apiClient.get(
       `/personal/habits/${habitId}/logs?start_date=${startDate}&end_date=${endDate}`,
     );
   },
 
-  getToday: async (
-    date?: string,
-  ): Promise<import("../types").HabitTodayItem[]> => {
-    const params = date ? `?date=${date}` : "";
+  getToday: async (date?: string): Promise<import('../types').HabitTodayItem[]> => {
+    const params = date ? `?date=${date}` : '';
     return apiClient.get(`/personal/habits/today${params}`);
   },
 
   getWeekly: async (
     startDate: string,
     endDate: string,
-  ): Promise<import("../types").HabitWeeklyMatrix> => {
-    return apiClient.get(
-      `/personal/habits/weekly?start_date=${startDate}&end_date=${endDate}`,
-    );
+  ): Promise<import('../types').HabitWeeklyMatrix> => {
+    return apiClient.get(`/personal/habits/weekly?start_date=${startDate}&end_date=${endDate}`);
   },
 };
 
 // ─── Custom Icon API ───
 
 export const customIconAPI = {
-  uploadReference: async (
-    file: File,
-  ): Promise<{ reference_id: string; url: string }> => {
+  uploadReference: async (file: File): Promise<{ reference_id: string; url: string }> => {
     const formData = new FormData();
-    formData.append("file", file);
-    const response = await authenticatedFetch(
-      `${API_BASE_URL}/customicon/upload-reference`,
-      {
-        method: "POST",
-        body: formData,
-      },
-    );
+    formData.append('file', file);
+    const response = await authenticatedFetch(`${API_BASE_URL}/customicon/upload-reference`, {
+      method: 'POST',
+      body: formData,
+    });
     if (!response.ok) {
-      const err = await response
-        .json()
-        .catch(() => ({ message: "Upload failed" }));
+      const err = await response.json().catch(() => ({ message: 'Upload failed' }));
       throw err;
     }
     return response.json();
@@ -8635,7 +7744,7 @@ export const customIconAPI = {
     detail: string;
     padding_ratio: number;
   }> => {
-    return apiClient.post("/customicon/analyze-style", {
+    return apiClient.post('/customicon/analyze-style', {
       reference_id: referenceId,
     });
   },
@@ -8657,7 +7766,7 @@ export const customIconAPI = {
     sprite_sheet_url: string;
     icons: Array<{ name: string; index: number; url: string; size: string }>;
   }> => {
-    return apiClient.post("/customicon/generate", request);
+    return apiClient.post('/customicon/generate', request);
   },
 };
 
@@ -8665,19 +7774,17 @@ export const customIconAPI = {
 
 export const organizationAPI = {
   // Organization CRUD
-  list: async (): Promise<import("../types").OrganizationSimple[]> => {
-    return apiClient.get("/organizations");
+  list: async (): Promise<import('../types').OrganizationSimple[]> => {
+    return apiClient.get('/organizations');
   },
-  get: async (
-    orgId: string,
-  ): Promise<import("../types").OrganizationDetail> => {
+  get: async (orgId: string): Promise<import('../types').OrganizationDetail> => {
     return apiClient.get(`/organizations/${orgId}`);
   },
   create: async (data: {
     name: string;
     description?: string;
-  }): Promise<import("../types").OrganizationDetail> => {
-    return apiClient.post("/organizations", data);
+  }): Promise<import('../types').OrganizationDetail> => {
+    return apiClient.post('/organizations', data);
   },
   update: async (
     orgId: string,
@@ -8687,26 +7794,18 @@ export const organizationAPI = {
       hr_system_enabled?: boolean;
       auto_board_access_enabled?: boolean;
     },
-  ): Promise<import("../types").OrganizationDetail> => {
+  ): Promise<import('../types').OrganizationDetail> => {
     return apiClient.put(`/organizations/${orgId}`, data);
   },
-  uploadLogo: async (
-    orgId: string,
-    file: File,
-  ): Promise<import("../types").OrganizationDetail> => {
+  uploadLogo: async (orgId: string, file: File): Promise<import('../types').OrganizationDetail> => {
     const formData = new FormData();
-    formData.append("file", file);
-    const response = await authenticatedFetch(
-      `${API_BASE_URL}/organizations/${orgId}/logo`,
-      {
-        method: "POST",
-        body: formData,
-      },
-    );
+    formData.append('file', file);
+    const response = await authenticatedFetch(`${API_BASE_URL}/organizations/${orgId}/logo`, {
+      method: 'POST',
+      body: formData,
+    });
     if (!response.ok) {
-      const err = await response
-        .json()
-        .catch(() => ({ message: "Upload failed" }));
+      const err = await response.json().catch(() => ({ message: 'Upload failed' }));
       throw err;
     }
     return response.json();
@@ -8717,21 +7816,17 @@ export const organizationAPI = {
   transferOwnership: async (
     orgId: string,
     data: { member_id: string },
-  ): Promise<import("../types").OrganizationDetail> => {
+  ): Promise<import('../types').OrganizationDetail> => {
     return apiClient.put(`/organizations/${orgId}/transfer-ownership`, data);
   },
 
   // Structure Data (combined)
-  getStructureData: async (
-    orgId: string,
-  ): Promise<import("../types").OrgStructureData> => {
+  getStructureData: async (orgId: string): Promise<import('../types').OrgStructureData> => {
     return apiClient.get(`/organizations/${orgId}/structure-data`);
   },
 
   // Departments
-  getDepartments: async (
-    orgId: string,
-  ): Promise<import("../types").OrgDepartment[]> => {
+  getDepartments: async (orgId: string): Promise<import('../types').OrgDepartment[]> => {
     return apiClient.get(`/organizations/${orgId}/departments`);
   },
   createDepartment: async (
@@ -8743,7 +7838,7 @@ export const organizationAPI = {
       leader_id?: string;
       description?: string;
     },
-  ): Promise<import("../types").OrgDepartment> => {
+  ): Promise<import('../types').OrgDepartment> => {
     return apiClient.post(`/organizations/${orgId}/departments`, data);
   },
   updateDepartment: async (
@@ -8756,7 +7851,7 @@ export const organizationAPI = {
       leader_id?: string | null;
       description?: string;
     },
-  ): Promise<import("../types").OrgDepartment> => {
+  ): Promise<import('../types').OrgDepartment> => {
     return apiClient.put(`/organizations/${orgId}/departments/${deptId}`, data);
   },
   deleteDepartment: async (orgId: string, deptId: string): Promise<void> => {
@@ -8764,72 +7859,62 @@ export const organizationAPI = {
   },
 
   // Job Groups
-  getJobGroups: async (
-    orgId: string,
-  ): Promise<import("../types").OrgJobGroup[]> => {
+  getJobGroups: async (orgId: string): Promise<import('../types').OrgJobGroup[]> => {
     return apiClient.get(`/organizations/${orgId}/job-groups`);
   },
   createJobGroup: async (
     orgId: string,
     data: { name: string; display_order?: number },
-  ): Promise<import("../types").OrgJobGroup> => {
+  ): Promise<import('../types').OrgJobGroup> => {
     return apiClient.post(`/organizations/${orgId}/job-groups`, data);
   },
   updateJobGroup: async (
     orgId: string,
     jobGroupId: string,
     data: { name?: string; display_order?: number },
-  ): Promise<import("../types").OrgJobGroup> => {
-    return apiClient.put(
-      `/organizations/${orgId}/job-groups/${jobGroupId}`,
-      data,
-    );
+  ): Promise<import('../types').OrgJobGroup> => {
+    return apiClient.put(`/organizations/${orgId}/job-groups/${jobGroupId}`, data);
   },
   deleteJobGroup: async (orgId: string, jobGroupId: string): Promise<void> => {
     return apiClient.delete(`/organizations/${orgId}/job-groups/${jobGroupId}`);
   },
 
   // Positions
-  getPositions: async (
-    orgId: string,
-  ): Promise<import("../types").OrgPosition[]> => {
+  getPositions: async (orgId: string): Promise<import('../types').OrgPosition[]> => {
     return apiClient.get(`/organizations/${orgId}/positions`);
   },
   createPosition: async (
     orgId: string,
     data: { name: string; display_order?: number },
-  ): Promise<import("../types").OrgPosition> => {
+  ): Promise<import('../types').OrgPosition> => {
     return apiClient.post(`/organizations/${orgId}/positions`, data);
   },
   updatePosition: async (
     orgId: string,
     positionId: string,
     data: { name?: string; display_order?: number },
-  ): Promise<import("../types").OrgPosition> => {
-    return apiClient.put(
-      `/organizations/${orgId}/positions/${positionId}`,
-      data,
-    );
+  ): Promise<import('../types').OrgPosition> => {
+    return apiClient.put(`/organizations/${orgId}/positions/${positionId}`, data);
   },
   deletePosition: async (orgId: string, positionId: string): Promise<void> => {
     return apiClient.delete(`/organizations/${orgId}/positions/${positionId}`);
   },
 
   // Titles
-  getTitles: async (orgId: string): Promise<import("../types").OrgTitle[]> => {
+  getTitles: async (orgId: string): Promise<import('../types').OrgTitle[]> => {
     return apiClient.get(`/organizations/${orgId}/titles`);
   },
   createTitle: async (
     orgId: string,
     data: { name: string; display_order?: number },
-  ): Promise<import("../types").OrgTitle> => {
+  ): Promise<import('../types').OrgTitle> => {
     return apiClient.post(`/organizations/${orgId}/titles`, data);
   },
   updateTitle: async (
     orgId: string,
     titleId: string,
     data: { name?: string; display_order?: number },
-  ): Promise<import("../types").OrgTitle> => {
+  ): Promise<import('../types').OrgTitle> => {
     return apiClient.put(`/organizations/${orgId}/titles/${titleId}`, data);
   },
   deleteTitle: async (orgId: string, titleId: string): Promise<void> => {
@@ -8837,20 +7922,20 @@ export const organizationAPI = {
   },
 
   // Grades
-  getGrades: async (orgId: string): Promise<import("../types").OrgGrade[]> => {
+  getGrades: async (orgId: string): Promise<import('../types').OrgGrade[]> => {
     return apiClient.get(`/organizations/${orgId}/grades`);
   },
   createGrade: async (
     orgId: string,
     data: { name: string; display_order?: number },
-  ): Promise<import("../types").OrgGrade> => {
+  ): Promise<import('../types').OrgGrade> => {
     return apiClient.post(`/organizations/${orgId}/grades`, data);
   },
   updateGrade: async (
     orgId: string,
     gradeId: string,
     data: { name?: string; display_order?: number },
-  ): Promise<import("../types").OrgGrade> => {
+  ): Promise<import('../types').OrgGrade> => {
     return apiClient.put(`/organizations/${orgId}/grades/${gradeId}`, data);
   },
   deleteGrade: async (orgId: string, gradeId: string): Promise<void> => {
@@ -8869,22 +7954,20 @@ export const organizationAPI = {
       page?: number;
       size?: number;
     },
-  ): Promise<import("../types").OrgMemberPageResponse> => {
+  ): Promise<import('../types').OrgMemberPageResponse> => {
     const query = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([k, v]) => {
-        if (v !== undefined && v !== null && v !== "") query.set(k, String(v));
+        if (v !== undefined && v !== null && v !== '') query.set(k, String(v));
       });
     }
     const qs = query.toString();
-    return apiClient.get(
-      `/organizations/${orgId}/members${qs ? `?${qs}` : ""}`,
-    );
+    return apiClient.get(`/organizations/${orgId}/members${qs ? `?${qs}` : ''}`);
   },
   getMember: async (
     orgId: string,
     memberId: string,
-  ): Promise<import("../types").OrgMemberDetail> => {
+  ): Promise<import('../types').OrgMemberDetail> => {
     return apiClient.get(`/organizations/${orgId}/members/${memberId}`);
   },
   inviteMember: async (
@@ -8895,14 +7978,14 @@ export const organizationAPI = {
       department_id?: string;
       job_title?: string;
     },
-  ): Promise<import("../types").OrgMemberInviteResult> => {
+  ): Promise<import('../types').OrgMemberInviteResult> => {
     return apiClient.post(`/organizations/${orgId}/members`, data);
   },
   updateMember: async (
     orgId: string,
     memberId: string,
     data: Record<string, unknown>,
-  ): Promise<import("../types").OrgMemberDetail> => {
+  ): Promise<import('../types').OrgMemberDetail> => {
     return apiClient.put(`/organizations/${orgId}/members/${memberId}`, data);
   },
   changeMemberRole: async (
@@ -8910,51 +7993,46 @@ export const organizationAPI = {
     memberId: string,
     data: { role: string },
   ): Promise<void> => {
-    return apiClient.put(
-      `/organizations/${orgId}/members/${memberId}/role`,
-      data,
-    );
+    return apiClient.put(`/organizations/${orgId}/members/${memberId}/role`, data);
   },
   removeMember: async (
     orgId: string,
     memberId: string,
-  ): Promise<import("../types").OrgMemberRemoveResult> => {
+  ): Promise<import('../types').OrgMemberRemoveResult> => {
     return apiClient.delete(`/organizations/${orgId}/members/${memberId}`);
   },
   getMemberBoards: async (
     orgId: string,
     memberId: string,
-  ): Promise<import("../types").OrgMemberBoard[]> => {
+  ): Promise<import('../types').OrgMemberBoard[]> => {
     return apiClient.get(`/organizations/${orgId}/members/${memberId}/boards`);
   },
   getMemberLeaveBalances: async (
     orgId: string,
     memberId: string,
     year?: number,
-  ): Promise<import("../types").LeaveBalance[]> => {
-    const params = year ? `?year=${year}` : "";
-    return apiClient.get(
-      `/organizations/${orgId}/members/${memberId}/leave-balances${params}`,
-    );
+  ): Promise<import('../types').LeaveBalance[]> => {
+    const params = year ? `?year=${year}` : '';
+    return apiClient.get(`/organizations/${orgId}/members/${memberId}/leave-balances${params}`);
   },
   uploadMemberProfileImage: async (
     orgId: string,
     memberId: string,
     file: File,
-  ): Promise<import("../types").OrgMemberDetail> => {
+  ): Promise<import('../types').OrgMemberDetail> => {
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append('file', file);
     const response = await authenticatedFetch(
       `${API_BASE_URL}/organizations/${orgId}/members/${memberId}/profile-image`,
       {
-        method: "POST",
+        method: 'POST',
         body: formData,
       },
     );
     if (!response.ok) {
       const errData = await response
         .json()
-        .catch(() => ({ code: "UNKNOWN", message: response.statusText }));
+        .catch(() => ({ code: 'UNKNOWN', message: response.statusText }));
       throw errData;
     }
     return response.json();
@@ -8962,10 +8040,8 @@ export const organizationAPI = {
   deleteMemberProfileImage: async (
     orgId: string,
     memberId: string,
-  ): Promise<import("../types").OrgMemberDetail> => {
-    return apiClient.delete(
-      `/organizations/${orgId}/members/${memberId}/profile-image`,
-    );
+  ): Promise<import('../types').OrgMemberDetail> => {
+    return apiClient.delete(`/organizations/${orgId}/members/${memberId}/profile-image`);
   },
   updateMemberConcurrentDepts: async (
     orgId: string,
@@ -8977,38 +8053,30 @@ export const organizationAPI = {
         display_order?: number;
       }>;
     },
-  ): Promise<import("../types").OrgMemberConcurrentDeptInfo[]> => {
-    return apiClient.put(
-      `/organizations/${orgId}/members/${memberId}/concurrent-depts`,
-      data,
-    );
+  ): Promise<import('../types').OrgMemberConcurrentDeptInfo[]> => {
+    return apiClient.put(`/organizations/${orgId}/members/${memberId}/concurrent-depts`, data);
   },
 
   // Member History
   getMemberHistory: async (
     orgId: string,
     memberId: string,
-  ): Promise<import("../types").OrgMemberHistoryItem[]> => {
-    return apiClient.get(
-      `/organizations/${orgId}/members/${memberId}/histories`,
-    );
+  ): Promise<import('../types').OrgMemberHistoryItem[]> => {
+    return apiClient.get(`/organizations/${orgId}/members/${memberId}/histories`);
   },
   createMemberHistory: async (
     orgId: string,
     memberId: string,
-    data: import("../types").OrgMemberHistoryCreateRequest,
-  ): Promise<import("../types").OrgMemberHistoryItem> => {
-    return apiClient.post(
-      `/organizations/${orgId}/members/${memberId}/histories`,
-      data,
-    );
+    data: import('../types').OrgMemberHistoryCreateRequest,
+  ): Promise<import('../types').OrgMemberHistoryItem> => {
+    return apiClient.post(`/organizations/${orgId}/members/${memberId}/histories`, data);
   },
   updateMemberHistoryDescription: async (
     orgId: string,
     memberId: string,
     historyId: string,
     description: string,
-  ): Promise<import("../types").OrgMemberHistoryItem> => {
+  ): Promise<import('../types').OrgMemberHistoryItem> => {
     return apiClient.patch(
       `/organizations/${orgId}/members/${memberId}/histories/${historyId}/description`,
       { description },
@@ -9019,35 +8087,29 @@ export const organizationAPI = {
     memberId: string,
     historyId: string,
   ): Promise<void> => {
-    return apiClient.delete(
-      `/organizations/${orgId}/members/${memberId}/histories/${historyId}`,
-    );
+    return apiClient.delete(`/organizations/${orgId}/members/${memberId}/histories/${historyId}`);
   },
 
   // Boards
-  getBoards: async (
-    orgId: string,
-  ): Promise<import("../types").OrgBoardSimple[]> => {
+  getBoards: async (orgId: string): Promise<import('../types').OrgBoardSimple[]> => {
     return apiClient.get(`/organizations/${orgId}/boards`);
   },
   checkBoardEligibility: async (
     orgId: string,
     boardId: string,
-  ): Promise<import("../types").OrgBoardEligibilityCheck> => {
-    return apiClient.get(
-      `/organizations/${orgId}/boards/check-eligibility?board_id=${boardId}`,
-    );
+  ): Promise<import('../types').OrgBoardEligibilityCheck> => {
+    return apiClient.get(`/organizations/${orgId}/boards/check-eligibility?board_id=${boardId}`);
   },
   addBoard: async (
     orgId: string,
     data: { board_id: string },
-  ): Promise<import("../types").OrgBoardSimple> => {
+  ): Promise<import('../types').OrgBoardSimple> => {
     return apiClient.post(`/organizations/${orgId}/boards`, data);
   },
   createBoard: async (
     orgId: string,
     data: { name: string; description?: string },
-  ): Promise<import("../types").OrgBoardSimple> => {
+  ): Promise<import('../types').OrgBoardSimple> => {
     return apiClient.post(`/organizations/${orgId}/boards/create`, data);
   },
   removeBoard: async (orgId: string, boardId: string): Promise<void> => {
@@ -9058,23 +8120,19 @@ export const organizationAPI = {
   },
 
   // Invite Links
-  getInviteLinks: async (
-    orgId: string,
-  ): Promise<import("../types").OrgInviteLink[]> => {
+  getInviteLinks: async (orgId: string): Promise<import('../types').OrgInviteLink[]> => {
     return apiClient.get(`/organizations/${orgId}/invites`);
   },
   createInviteLink: async (
     orgId: string,
     data: { role?: string; max_uses?: number | null; expires_in_days?: number },
-  ): Promise<import("../types").OrgInviteLink> => {
+  ): Promise<import('../types').OrgInviteLink> => {
     return apiClient.post(`/organizations/${orgId}/invites`, data);
   },
   deleteInviteLink: async (orgId: string, linkId: string): Promise<void> => {
     return apiClient.delete(`/organizations/${orgId}/invites/${linkId}`);
   },
-  getInviteInfo: async (
-    code: string,
-  ): Promise<import("../types").OrgInvitePublicInfo> => {
+  getInviteInfo: async (code: string): Promise<import('../types').OrgInvitePublicInfo> => {
     return apiClient.get(`/org-invites/${code}`);
   },
   acceptInvite: async (
@@ -9091,66 +8149,52 @@ export const organizationAPI = {
   // Onboarding
   getOnboardingTemplates: async (
     orgId: string,
-  ): Promise<import("../types").OnboardingTemplateSummary[]> => {
+  ): Promise<import('../types').OnboardingTemplateSummary[]> => {
     return apiClient.get(`/organizations/${orgId}/onboarding/templates`);
   },
   getOnboardingTemplate: async (
     orgId: string,
     templateId: string,
-  ): Promise<import("../types").OnboardingTemplateDetail> => {
-    return apiClient.get(
-      `/organizations/${orgId}/onboarding/templates/${templateId}`,
-    );
+  ): Promise<import('../types').OnboardingTemplateDetail> => {
+    return apiClient.get(`/organizations/${orgId}/onboarding/templates/${templateId}`);
   },
   createOnboardingTemplate: async (
     orgId: string,
     data: Record<string, unknown>,
-  ): Promise<import("../types").OnboardingTemplateDetail> => {
+  ): Promise<import('../types').OnboardingTemplateDetail> => {
     return apiClient.post(`/organizations/${orgId}/onboarding/templates`, data);
   },
   updateOnboardingTemplate: async (
     orgId: string,
     templateId: string,
     data: Record<string, unknown>,
-  ): Promise<import("../types").OnboardingTemplateDetail> => {
-    return apiClient.put(
-      `/organizations/${orgId}/onboarding/templates/${templateId}`,
-      data,
-    );
+  ): Promise<import('../types').OnboardingTemplateDetail> => {
+    return apiClient.put(`/organizations/${orgId}/onboarding/templates/${templateId}`, data);
   },
-  deleteOnboardingTemplate: async (
-    orgId: string,
-    templateId: string,
-  ): Promise<void> => {
-    return apiClient.delete(
-      `/organizations/${orgId}/onboarding/templates/${templateId}`,
-    );
+  deleteOnboardingTemplate: async (orgId: string, templateId: string): Promise<void> => {
+    return apiClient.delete(`/organizations/${orgId}/onboarding/templates/${templateId}`);
   },
   getOnboardingInstances: async (
     orgId: string,
     params?: { status?: string; member_id?: string },
-  ): Promise<import("../types").OnboardingInstanceSummary[]> => {
+  ): Promise<import('../types').OnboardingInstanceSummary[]> => {
     const query = new URLSearchParams();
-    if (params?.status) query.set("status", params.status);
-    if (params?.member_id) query.set("member_id", params.member_id);
+    if (params?.status) query.set('status', params.status);
+    if (params?.member_id) query.set('member_id', params.member_id);
     const qs = query.toString();
-    return apiClient.get(
-      `/organizations/${orgId}/onboarding/instances${qs ? `?${qs}` : ""}`,
-    );
+    return apiClient.get(`/organizations/${orgId}/onboarding/instances${qs ? `?${qs}` : ''}`);
   },
   getOnboardingInstanceItems: async (
     orgId: string,
     instanceId: string,
-  ): Promise<import("../types").OnboardingInstanceItemDetail[]> => {
-    return apiClient.get(
-      `/organizations/${orgId}/onboarding/instances/${instanceId}/items`,
-    );
+  ): Promise<import('../types').OnboardingInstanceItemDetail[]> => {
+    return apiClient.get(`/organizations/${orgId}/onboarding/instances/${instanceId}/items`);
   },
   toggleOnboardingItem: async (
     orgId: string,
     instanceId: string,
     itemId: string,
-  ): Promise<import("../types").OnboardingToggleResult> => {
+  ): Promise<import('../types').OnboardingToggleResult> => {
     return apiClient.put(
       `/organizations/${orgId}/onboarding/instances/${instanceId}/items/${itemId}/toggle`,
       {},
@@ -9159,12 +8203,12 @@ export const organizationAPI = {
   createOnboardingInstance: async (
     orgId: string,
     data: { member_id: string; template_id: string },
-  ): Promise<import("../types").OnboardingInstanceSummary> => {
+  ): Promise<import('../types').OnboardingInstanceSummary> => {
     return apiClient.post(`/organizations/${orgId}/onboarding/instances`, data);
   },
 
   // Chart
-  getChart: async (orgId: string): Promise<import("../types").OrgChartData> => {
+  getChart: async (orgId: string): Promise<import('../types').OrgChartData> => {
     return apiClient.get(`/organizations/${orgId}/chart`);
   },
   updateManager: async (
@@ -9172,17 +8216,14 @@ export const organizationAPI = {
     memberId: string,
     data: { manager_id: string | null },
   ): Promise<void> => {
-    return apiClient.put(
-      `/organizations/${orgId}/members/${memberId}/manager`,
-      data,
-    );
+    return apiClient.put(`/organizations/${orgId}/members/${memberId}/manager`, data);
   },
 
   // Insights
   getInsightsSummary: async (
     orgId: string,
     params: { start_date: string; end_date: string },
-  ): Promise<import("../types").OrgInsightsSummary> => {
+  ): Promise<import('../types').OrgInsightsSummary> => {
     const query = new URLSearchParams({
       start_date: params.start_date,
       end_date: params.end_date,
@@ -9200,10 +8241,10 @@ export const organizationAPI = {
       sort_by?: string;
       sort_dir?: string;
     },
-  ): Promise<import("../types").OrgMemberContribution[]> => {
+  ): Promise<import('../types').OrgMemberContribution[]> => {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && v !== "") query.set(k, String(v));
+      if (v !== undefined && v !== null && v !== '') query.set(k, String(v));
     });
     return apiClient.get(`/organizations/${orgId}/insights/members?${query}`);
   },
@@ -9212,14 +8253,12 @@ export const organizationAPI = {
     orgId: string,
     memberId: string,
     params: { start_date: string; end_date: string },
-  ): Promise<import("../types").OrgMemberContributionDetail> => {
+  ): Promise<import('../types').OrgMemberContributionDetail> => {
     const query = new URLSearchParams({
       start_date: params.start_date,
       end_date: params.end_date,
     });
-    return apiClient.get(
-      `/organizations/${orgId}/insights/members/${memberId}?${query}`,
-    );
+    return apiClient.get(`/organizations/${orgId}/insights/members/${memberId}?${query}`);
   },
 
   getInsightBoards: async (
@@ -9229,18 +8268,16 @@ export const organizationAPI = {
       end_date: string;
       sort_by?: string;
     },
-  ): Promise<import("../types").OrgBoardResourceResponse> => {
+  ): Promise<import('../types').OrgBoardResourceResponse> => {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && v !== "") query.set(k, String(v));
+      if (v !== undefined && v !== null && v !== '') query.set(k, String(v));
     });
     return apiClient.get(`/organizations/${orgId}/insights/boards?${query}`);
   },
 
   // 1:1 Meeting Notes
-  getOneOnOnes: async (
-    orgId: string,
-  ): Promise<import("../types").OneOnOneSummary[]> => {
+  getOneOnOnes: async (orgId: string): Promise<import('../types').OneOnOneSummary[]> => {
     return apiClient.get(`/organizations/${orgId}/one-on-ones`);
   },
   createOneOnOne: async (
@@ -9250,7 +8287,7 @@ export const organizationAPI = {
       recurrence_type?: string;
       recurrence_day?: number;
     },
-  ): Promise<import("../types").OneOnOneSummary> => {
+  ): Promise<import('../types').OneOnOneSummary> => {
     return apiClient.post(`/organizations/${orgId}/one-on-ones`, data);
   },
   updateOneOnOne: async (
@@ -9261,23 +8298,18 @@ export const organizationAPI = {
       recurrence_day?: number;
       next_meeting_date?: string;
     },
-  ): Promise<import("../types").OneOnOneSummary> => {
-    return apiClient.put(
-      `/organizations/${orgId}/one-on-ones/${oneOnOneId}`,
-      data,
-    );
+  ): Promise<import('../types').OneOnOneSummary> => {
+    return apiClient.put(`/organizations/${orgId}/one-on-ones/${oneOnOneId}`, data);
   },
   deleteOneOnOne: async (orgId: string, oneOnOneId: string): Promise<void> => {
-    return apiClient.delete(
-      `/organizations/${orgId}/one-on-ones/${oneOnOneId}`,
-    );
+    return apiClient.delete(`/organizations/${orgId}/one-on-ones/${oneOnOneId}`);
   },
   getOneOnOneByMember: async (
     orgId: string,
     memberId: string,
-  ): Promise<import("../types").OneOnOneSummary | null> => {
+  ): Promise<import('../types').OneOnOneSummary | null> => {
     try {
-      const data = await apiClient.get<import("../types").OneOnOneSummary>(
+      const data = await apiClient.get<import('../types').OneOnOneSummary>(
         `/organizations/${orgId}/one-on-ones/by-member/${memberId}`,
       );
       // 204 No Content returns {} — treat as null
@@ -9294,13 +8326,13 @@ export const organizationAPI = {
       cursor?: string;
       size?: number;
     },
-  ): Promise<import("../types").OneOnOneMeetingListResponse> => {
+  ): Promise<import('../types').OneOnOneMeetingListResponse> => {
     const query = new URLSearchParams();
-    if (params?.cursor) query.set("cursor", params.cursor);
-    if (params?.size) query.set("size", String(params.size));
+    if (params?.cursor) query.set('cursor', params.cursor);
+    if (params?.size) query.set('size', String(params.size));
     const qs = query.toString();
     return apiClient.get(
-      `/organizations/${orgId}/one-on-ones/${oneOnOneId}/meetings${qs ? `?${qs}` : ""}`,
+      `/organizations/${orgId}/one-on-ones/${oneOnOneId}/meetings${qs ? `?${qs}` : ''}`,
     );
   },
   createOneOnOneMeeting: async (
@@ -9312,11 +8344,8 @@ export const organizationAPI = {
       notes?: string;
       action_items?: { title: string; assignee_id?: string }[];
     },
-  ): Promise<import("../types").OneOnOneMeetingDetail> => {
-    return apiClient.post(
-      `/organizations/${orgId}/one-on-ones/${oneOnOneId}/meetings`,
-      data,
-    );
+  ): Promise<import('../types').OneOnOneMeetingDetail> => {
+    return apiClient.post(`/organizations/${orgId}/one-on-ones/${oneOnOneId}/meetings`, data);
   },
   updateOneOnOneMeeting: async (
     orgId: string,
@@ -9328,7 +8357,7 @@ export const organizationAPI = {
       notes?: string;
       action_items?: { title: string; assignee_id?: string }[];
     },
-  ): Promise<import("../types").OneOnOneMeetingDetail> => {
+  ): Promise<import('../types').OneOnOneMeetingDetail> => {
     return apiClient.put(
       `/organizations/${orgId}/one-on-ones/${oneOnOneId}/meetings/${meetingId}`,
       data,
@@ -9347,7 +8376,7 @@ export const organizationAPI = {
     orgId: string,
     oneOnOneId: string,
     actionId: string,
-  ): Promise<import("../types").OneOnOneActionItemDetail> => {
+  ): Promise<import('../types').OneOnOneActionItemDetail> => {
     return apiClient.put(
       `/organizations/${orgId}/one-on-ones/${oneOnOneId}/action-items/${actionId}/toggle`,
       {},
@@ -9356,79 +8385,59 @@ export const organizationAPI = {
   getOneOnOneOpenActions: async (
     orgId: string,
     oneOnOneId: string,
-  ): Promise<import("../types").OneOnOneOpenActionItem[]> => {
-    return apiClient.get(
-      `/organizations/${orgId}/one-on-ones/${oneOnOneId}/action-items/open`,
-    );
+  ): Promise<import('../types').OneOnOneOpenActionItem[]> => {
+    return apiClient.get(`/organizations/${orgId}/one-on-ones/${oneOnOneId}/action-items/open`);
   },
 
   // Attendance & Time Tracking
-  clockIn: async (
-    orgId: string,
-  ): Promise<import("../types").AttendanceRecordDetail> => {
+  clockIn: async (orgId: string): Promise<import('../types').AttendanceRecordDetail> => {
     return apiClient.post(`/organizations/${orgId}/attendance/clock-in`, {});
   },
-  clockOut: async (
-    orgId: string,
-  ): Promise<import("../types").AttendanceRecordDetail> => {
+  clockOut: async (orgId: string): Promise<import('../types').AttendanceRecordDetail> => {
     return apiClient.post(`/organizations/${orgId}/attendance/clock-out`, {});
   },
-  cancelClockOut: async (
-    orgId: string,
-  ): Promise<import("../types").AttendanceRecordDetail> => {
-    return apiClient.post(
-      `/organizations/${orgId}/attendance/cancel-clock-out`,
-      {},
-    );
+  cancelClockOut: async (orgId: string): Promise<import('../types').AttendanceRecordDetail> => {
+    return apiClient.post(`/organizations/${orgId}/attendance/cancel-clock-out`, {});
   },
   getMyAttendanceRecords: async (
     orgId: string,
     params?: { year?: number; month?: number },
-  ): Promise<import("../types").AttendanceMyRecordsResponse> => {
+  ): Promise<import('../types').AttendanceMyRecordsResponse> => {
     const query = new URLSearchParams();
-    if (params?.year) query.set("year", String(params.year));
-    if (params?.month) query.set("month", String(params.month));
+    if (params?.year) query.set('year', String(params.year));
+    if (params?.month) query.set('month', String(params.month));
     const qs = query.toString();
-    return apiClient.get(
-      `/organizations/${orgId}/attendance/my-records${qs ? `?${qs}` : ""}`,
-    );
+    return apiClient.get(`/organizations/${orgId}/attendance/my-records${qs ? `?${qs}` : ''}`);
   },
-  getAttendanceToday: async (
-    orgId: string,
-  ): Promise<import("../types").AttendanceTodayStatus> => {
+  getAttendanceToday: async (orgId: string): Promise<import('../types').AttendanceTodayStatus> => {
     return apiClient.get(`/organizations/${orgId}/attendance/today`);
   },
   getAttendanceTodayMembers: async (
     orgId: string,
-  ): Promise<import("../types").AttendanceTodayMembers> => {
+  ): Promise<import('../types').AttendanceTodayMembers> => {
     return apiClient.get(`/organizations/${orgId}/attendance/today/members`);
   },
   getAttendanceTeamSummary: async (
     orgId: string,
     params?: { year?: number; month?: number; department_id?: string },
-  ): Promise<import("../types").AttendanceTeamSummaryResponse> => {
+  ): Promise<import('../types').AttendanceTeamSummaryResponse> => {
     const query = new URLSearchParams();
-    if (params?.year) query.set("year", String(params.year));
-    if (params?.month) query.set("month", String(params.month));
-    if (params?.department_id) query.set("department_id", params.department_id);
+    if (params?.year) query.set('year', String(params.year));
+    if (params?.month) query.set('month', String(params.month));
+    if (params?.department_id) query.set('department_id', params.department_id);
     const qs = query.toString();
-    return apiClient.get(
-      `/organizations/${orgId}/attendance/team-summary${qs ? `?${qs}` : ""}`,
-    );
+    return apiClient.get(`/organizations/${orgId}/attendance/team-summary${qs ? `?${qs}` : ''}`);
   },
   adminModifyAttendance: async (
     orgId: string,
     recordId: string,
     data: { clock_in?: string; clock_out?: string; note?: string },
-  ): Promise<import("../types").AttendanceRecordDetail> => {
-    return apiClient.put(
-      `/organizations/${orgId}/attendance/records/${recordId}`,
-      data,
-    );
+  ): Promise<import('../types').AttendanceRecordDetail> => {
+    return apiClient.put(`/organizations/${orgId}/attendance/records/${recordId}`, data);
   },
   getAttendancePolicy: async (
     orgId: string,
-  ): Promise<import("../types").AttendancePolicyResponse> => {
+  ): Promise<import('../types').AttendancePolicyResponse> => {
     return apiClient.get(`/organizations/${orgId}/attendance/policy`);
   },
   updateAttendancePolicy: async (
@@ -9442,56 +8451,49 @@ export const organizationAPI = {
       auto_clock_out_time?: string;
       weekend_days?: string;
     },
-  ): Promise<import("../types").AttendancePolicyResponse> => {
+  ): Promise<import('../types').AttendancePolicyResponse> => {
     return apiClient.put(`/organizations/${orgId}/attendance/policy`, data);
   },
   getAttendanceHolidays: async (
     orgId: string,
-  ): Promise<import("../types").AttendanceHolidayResponse[]> => {
+  ): Promise<import('../types').AttendanceHolidayResponse[]> => {
     return apiClient.get(`/organizations/${orgId}/attendance/holidays`);
   },
   createAttendanceHoliday: async (
     orgId: string,
     data: { holiday_date: string; name: string; is_recurring?: boolean },
-  ): Promise<import("../types").AttendanceHolidayResponse> => {
+  ): Promise<import('../types').AttendanceHolidayResponse> => {
     return apiClient.post(`/organizations/${orgId}/attendance/holidays`, data);
   },
-  deleteAttendanceHoliday: async (
-    orgId: string,
-    holidayId: string,
-  ): Promise<void> => {
-    return apiClient.delete(
-      `/organizations/${orgId}/attendance/holidays/${holidayId}`,
-    );
+  deleteAttendanceHoliday: async (orgId: string, holidayId: string): Promise<void> => {
+    return apiClient.delete(`/organizations/${orgId}/attendance/holidays/${holidayId}`);
   },
   exportAttendanceCsv: async (
     orgId: string,
     params?: { year?: number; month?: number; department_id?: string },
   ): Promise<Blob> => {
     const query = new URLSearchParams();
-    if (params?.year) query.set("year", String(params.year));
-    if (params?.month) query.set("month", String(params.month));
-    if (params?.department_id) query.set("department_id", params.department_id);
+    if (params?.year) query.set('year', String(params.year));
+    if (params?.month) query.set('month', String(params.month));
+    if (params?.department_id) query.set('department_id', params.department_id);
     const qs = query.toString();
-    const url = `${API_BASE_URL}/organizations/${orgId}/attendance/export${qs ? `?${qs}` : ""}`;
+    const url = `${API_BASE_URL}/organizations/${orgId}/attendance/export${qs ? `?${qs}` : ''}`;
     const token = getAccessToken();
     const res = await fetch(url, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
-    if (!res.ok) throw new Error("Export failed");
+    if (!res.ok) throw new Error('Export failed');
     return res.blob();
   },
 
   // Structure Settings
-  getStructureSettings: async (
-    orgId: string,
-  ): Promise<import("../types").OrgStructureSettings> => {
+  getStructureSettings: async (orgId: string): Promise<import('../types').OrgStructureSettings> => {
     return apiClient.get(`/organizations/${orgId}/structure-settings`);
   },
   updateStructureSettings: async (
     orgId: string,
-    data: Partial<import("../types").OrgStructureSettings>,
-  ): Promise<import("../types").OrgStructureSettings> => {
+    data: Partial<import('../types').OrgStructureSettings>,
+  ): Promise<import('../types').OrgStructureSettings> => {
     return apiClient.put(`/organizations/${orgId}/structure-settings`, data);
   },
 };
@@ -9502,14 +8504,12 @@ export const orgAnnouncementAPI = {
   list: async (
     orgId: string,
     params?: { cursor?: string; limit?: number },
-  ): Promise<import("../types").OrgAnnouncementListResponse> => {
+  ): Promise<import('../types').OrgAnnouncementListResponse> => {
     const query = new URLSearchParams();
-    if (params?.cursor) query.set("cursor", params.cursor);
-    if (params?.limit) query.set("limit", String(params.limit));
+    if (params?.cursor) query.set('cursor', params.cursor);
+    if (params?.limit) query.set('limit', String(params.limit));
     const qs = query.toString();
-    return apiClient.get(
-      `/organizations/${orgId}/announcements${qs ? `?${qs}` : ""}`,
-    );
+    return apiClient.get(`/organizations/${orgId}/announcements${qs ? `?${qs}` : ''}`);
   },
   create: async (
     orgId: string,
@@ -9519,7 +8519,7 @@ export const orgAnnouncementAPI = {
       is_pinned?: boolean;
       file_keys?: string[];
     },
-  ): Promise<import("../types").OrgAnnouncement> => {
+  ): Promise<import('../types').OrgAnnouncement> => {
     return apiClient.post(`/organizations/${orgId}/announcements`, data);
   },
   update: async (
@@ -9531,43 +8531,35 @@ export const orgAnnouncementAPI = {
       keep_attachment_ids?: string[];
       new_file_keys?: string[];
     },
-  ): Promise<import("../types").OrgAnnouncement> => {
+  ): Promise<import('../types').OrgAnnouncement> => {
     return apiClient.put(`/organizations/${orgId}/announcements/${id}`, data);
   },
   delete: async (orgId: string, id: string): Promise<void> => {
     return apiClient.delete(`/organizations/${orgId}/announcements/${id}`);
   },
-  togglePin: async (
-    orgId: string,
-    id: string,
-  ): Promise<import("../types").OrgAnnouncement> => {
+  togglePin: async (orgId: string, id: string): Promise<import('../types').OrgAnnouncement> => {
     return apiClient.put(`/organizations/${orgId}/announcements/${id}/pin`, {});
   },
   // Comments
   getComments: async (
     orgId: string,
     announcementId: string,
-  ): Promise<import("../types").OrgAnnouncementCommentListResponse> => {
-    return apiClient.get(
-      `/organizations/${orgId}/announcements/${announcementId}/comments`,
-    );
+  ): Promise<import('../types').OrgAnnouncementCommentListResponse> => {
+    return apiClient.get(`/organizations/${orgId}/announcements/${announcementId}/comments`);
   },
   addComment: async (
     orgId: string,
     announcementId: string,
     data: { content: string },
-  ): Promise<import("../types").OrgAnnouncementComment> => {
-    return apiClient.post(
-      `/organizations/${orgId}/announcements/${announcementId}/comments`,
-      data,
-    );
+  ): Promise<import('../types').OrgAnnouncementComment> => {
+    return apiClient.post(`/organizations/${orgId}/announcements/${announcementId}/comments`, data);
   },
   updateComment: async (
     orgId: string,
     announcementId: string,
     commentId: string,
     data: { content: string },
-  ): Promise<import("../types").OrgAnnouncementComment> => {
+  ): Promise<import('../types').OrgAnnouncementComment> => {
     return apiClient.put(
       `/organizations/${orgId}/announcements/${announcementId}/comments/${commentId}`,
       data,
@@ -9590,14 +8582,12 @@ export const orgActivityAPI = {
   list: async (
     orgId: string,
     params?: { cursor?: string; limit?: number },
-  ): Promise<import("../types").OrgActivityListResponse> => {
+  ): Promise<import('../types').OrgActivityListResponse> => {
     const query = new URLSearchParams();
-    if (params?.cursor) query.set("cursor", params.cursor);
-    if (params?.limit) query.set("limit", String(params.limit));
+    if (params?.cursor) query.set('cursor', params.cursor);
+    if (params?.limit) query.set('limit', String(params.limit));
     const qs = query.toString();
-    return apiClient.get(
-      `/organizations/${orgId}/activities${qs ? `?${qs}` : ""}`,
-    );
+    return apiClient.get(`/organizations/${orgId}/activities${qs ? `?${qs}` : ''}`);
   },
 };
 
@@ -9605,9 +8595,7 @@ export const orgActivityAPI = {
 
 export const leaveAPI = {
   // Policies
-  getPolicies: async (
-    orgId: string,
-  ): Promise<import("../types").LeavePolicy[]> => {
+  getPolicies: async (orgId: string): Promise<import('../types').LeavePolicy[]> => {
     return apiClient.get(`/organizations/${orgId}/leave-policies`);
   },
   createPolicy: async (
@@ -9620,40 +8608,33 @@ export const leaveAPI = {
       requires_approval?: boolean;
       description?: string;
     },
-  ): Promise<import("../types").LeavePolicy> => {
+  ): Promise<import('../types').LeavePolicy> => {
     return apiClient.post(`/organizations/${orgId}/leave-policies`, data);
   },
   updatePolicy: async (
     orgId: string,
     policyId: string,
     data: Record<string, unknown>,
-  ): Promise<import("../types").LeavePolicy> => {
-    return apiClient.put(
-      `/organizations/${orgId}/leave-policies/${policyId}`,
-      data,
-    );
+  ): Promise<import('../types').LeavePolicy> => {
+    return apiClient.put(`/organizations/${orgId}/leave-policies/${policyId}`, data);
   },
 
   // Balances
-  getMyBalance: async (
-    orgId: string,
-  ): Promise<import("../types").LeaveBalance[]> => {
+  getMyBalance: async (orgId: string): Promise<import('../types').LeaveBalance[]> => {
     return apiClient.get(`/organizations/${orgId}/my-leave-balance`);
   },
   getMemberBalance: async (
     orgId: string,
     memberId: string,
-  ): Promise<import("../types").LeaveBalance[]> => {
-    return apiClient.get(
-      `/organizations/${orgId}/members/${memberId}/leave-balance`,
-    );
+  ): Promise<import('../types').LeaveBalance[]> => {
+    return apiClient.get(`/organizations/${orgId}/members/${memberId}/leave-balance`);
   },
   updateMemberBalance: async (
     orgId: string,
     memberId: string,
     balanceId: string,
     data: { total_days: number },
-  ): Promise<import("../types").LeaveBalance> => {
+  ): Promise<import('../types').LeaveBalance> => {
     return apiClient.put(
       `/organizations/${orgId}/members/${memberId}/leave-balance/${balanceId}`,
       data,
@@ -9664,8 +8645,8 @@ export const leaveAPI = {
   getOnLeaveToday: async (
     orgId: string,
     date?: string,
-  ): Promise<import("../types").LeaveRequestResponse[]> => {
-    const query = date ? `?date=${date}` : "";
+  ): Promise<import('../types').LeaveRequestResponse[]> => {
+    const query = date ? `?date=${date}` : '';
     return apiClient.get(`/organizations/${orgId}/on-leave-today${query}`);
   },
 
@@ -9680,17 +8661,15 @@ export const leaveAPI = {
       page?: number;
       size?: number;
     },
-  ): Promise<import("../types").LeaveRequestPageResponse> => {
+  ): Promise<import('../types').LeaveRequestPageResponse> => {
     const query = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([k, v]) => {
-        if (v !== undefined && v !== null && v !== "") query.set(k, String(v));
+        if (v !== undefined && v !== null && v !== '') query.set(k, String(v));
       });
     }
     const qs = query.toString();
-    return apiClient.get(
-      `/organizations/${orgId}/leave-requests${qs ? `?${qs}` : ""}`,
-    );
+    return apiClient.get(`/organizations/${orgId}/leave-requests${qs ? `?${qs}` : ''}`);
   },
   createRequest: async (
     orgId: string,
@@ -9701,45 +8680,33 @@ export const leaveAPI = {
       duration_type?: string;
       reason?: string;
     },
-  ): Promise<import("../types").LeaveRequestResponse> => {
+  ): Promise<import('../types').LeaveRequestResponse> => {
     return apiClient.post(`/organizations/${orgId}/leave-requests`, data);
   },
   approveRequest: async (
     orgId: string,
     requestId: string,
-  ): Promise<import("../types").LeaveRequestResponse> => {
-    return apiClient.put(
-      `/organizations/${orgId}/leave-requests/${requestId}/approve`,
-      {},
-    );
+  ): Promise<import('../types').LeaveRequestResponse> => {
+    return apiClient.put(`/organizations/${orgId}/leave-requests/${requestId}/approve`, {});
   },
   rejectRequest: async (
     orgId: string,
     requestId: string,
     data?: { comment?: string },
-  ): Promise<import("../types").LeaveRequestResponse> => {
-    return apiClient.put(
-      `/organizations/${orgId}/leave-requests/${requestId}/reject`,
-      data || {},
-    );
+  ): Promise<import('../types').LeaveRequestResponse> => {
+    return apiClient.put(`/organizations/${orgId}/leave-requests/${requestId}/reject`, data || {});
   },
   cancelRequest: async (
     orgId: string,
     requestId: string,
-  ): Promise<import("../types").LeaveRequestResponse> => {
-    return apiClient.put(
-      `/organizations/${orgId}/leave-requests/${requestId}/cancel`,
-      {},
-    );
+  ): Promise<import('../types').LeaveRequestResponse> => {
+    return apiClient.put(`/organizations/${orgId}/leave-requests/${requestId}/cancel`, {});
   },
   reopenRequest: async (
     orgId: string,
     requestId: string,
-  ): Promise<import("../types").LeaveRequestResponse> => {
-    return apiClient.put(
-      `/organizations/${orgId}/leave-requests/${requestId}/reopen`,
-      {},
-    );
+  ): Promise<import('../types').LeaveRequestResponse> => {
+    return apiClient.put(`/organizations/${orgId}/leave-requests/${requestId}/reopen`, {});
   },
 
   // Balance Adjustments
@@ -9752,7 +8719,7 @@ export const leaveAPI = {
       days: number;
       reason: string;
     },
-  ): Promise<import("../types").LeaveBalance> => {
+  ): Promise<import('../types').LeaveBalance> => {
     return apiClient.post(
       `/organizations/${orgId}/members/${memberId}/leave-balance/${balanceId}/adjust`,
       data,
@@ -9762,7 +8729,7 @@ export const leaveAPI = {
     orgId: string,
     memberId: string,
     params?: { page?: number; size?: number },
-  ): Promise<import("../types").LeaveAdjustmentPageResponse> => {
+  ): Promise<import('../types').LeaveAdjustmentPageResponse> => {
     const query = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([k, v]) => {
@@ -9771,13 +8738,13 @@ export const leaveAPI = {
     }
     const qs = query.toString();
     return apiClient.get(
-      `/organizations/${orgId}/members/${memberId}/leave-adjustments${qs ? `?${qs}` : ""}`,
+      `/organizations/${orgId}/members/${memberId}/leave-adjustments${qs ? `?${qs}` : ''}`,
     );
   },
   getAdjustments: async (
     orgId: string,
     params?: { page?: number; size?: number },
-  ): Promise<import("../types").LeaveAdjustmentPageResponse> => {
+  ): Promise<import('../types').LeaveAdjustmentPageResponse> => {
     const query = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([k, v]) => {
@@ -9785,9 +8752,7 @@ export const leaveAPI = {
       });
     }
     const qs = query.toString();
-    return apiClient.get(
-      `/organizations/${orgId}/leave-adjustments${qs ? `?${qs}` : ""}`,
-    );
+    return apiClient.get(`/organizations/${orgId}/leave-adjustments${qs ? `?${qs}` : ''}`);
   },
 };
 
@@ -9797,26 +8762,24 @@ export const anniversaryAPI = {
   getUpcoming: async (
     orgId: string,
     range?: string,
-  ): Promise<import("../types").UpcomingAnniversaries> => {
-    const params = range ? `?range=${range}` : "";
-    return apiClient.get(
-      `/organizations/${orgId}/anniversaries/upcoming${params}`,
-    );
+  ): Promise<import('../types').UpcomingAnniversaries> => {
+    const params = range ? `?range=${range}` : '';
+    return apiClient.get(`/organizations/${orgId}/anniversaries/upcoming${params}`);
   },
   getMessages: async (
     orgId: string,
     memberId: string,
     params: { type: string; date: string; cursor?: string; size?: number },
   ): Promise<{
-    messages: import("../types").CelebrationMessage[];
+    messages: import('../types').CelebrationMessage[];
     next_cursor: string | null;
     has_more: boolean;
   }> => {
     const query = new URLSearchParams();
-    query.set("type", params.type);
-    query.set("date", params.date);
-    if (params.cursor) query.set("cursor", params.cursor);
-    if (params.size) query.set("size", String(params.size));
+    query.set('type', params.type);
+    query.set('date', params.date);
+    if (params.cursor) query.set('cursor', params.cursor);
+    if (params.size) query.set('size', String(params.size));
     return apiClient.get(
       `/organizations/${orgId}/anniversaries/${memberId}/messages?${query.toString()}`,
     );
@@ -9826,40 +8789,31 @@ export const anniversaryAPI = {
     memberId: string,
     data: { type: string; date: string; message: string },
   ): Promise<{ id: string; message: string; created_at: string }> => {
-    return apiClient.post(
-      `/organizations/${orgId}/anniversaries/${memberId}/messages`,
-      data,
-    );
+    return apiClient.post(`/organizations/${orgId}/anniversaries/${memberId}/messages`, data);
   },
   updateMessage: async (
     orgId: string,
     memberId: string,
     messageId: string,
     data: { message: string },
-  ): Promise<import("../types").CelebrationMessage> => {
+  ): Promise<import('../types').CelebrationMessage> => {
     return apiClient.put(
       `/organizations/${orgId}/anniversaries/${memberId}/messages/${messageId}`,
       data,
     );
   },
-  deleteMessage: async (
-    orgId: string,
-    memberId: string,
-    messageId: string,
-  ): Promise<void> => {
+  deleteMessage: async (orgId: string, memberId: string, messageId: string): Promise<void> => {
     return apiClient.delete(
       `/organizations/${orgId}/anniversaries/${memberId}/messages/${messageId}`,
     );
   },
-  getSettings: async (
-    orgId: string,
-  ): Promise<import("../types").AnniversarySettings> => {
+  getSettings: async (orgId: string): Promise<import('../types').AnniversarySettings> => {
     return apiClient.get(`/organizations/${orgId}/anniversary-settings`);
   },
   updateSettings: async (
     orgId: string,
-    data: Partial<import("../types").AnniversarySettings>,
-  ): Promise<import("../types").AnniversarySettings> => {
+    data: Partial<import('../types').AnniversarySettings>,
+  ): Promise<import('../types').AnniversarySettings> => {
     return apiClient.put(`/organizations/${orgId}/anniversary-settings`, data);
   },
 };
@@ -9867,28 +8821,20 @@ export const anniversaryAPI = {
 // ─── Personal Dashboard API (v9.0) ───
 
 export const personalDashboardAPI = {
-  getToday: async (
-    date?: string,
-  ): Promise<import("../types").PersonalDashboardToday> => {
-    const params = date ? `?date=${date}` : "";
+  getToday: async (date?: string): Promise<import('../types').PersonalDashboardToday> => {
+    const params = date ? `?date=${date}` : '';
     return apiClient.get(`/personal/dashboard/today${params}`);
   },
-  getOverview: async (
-    date?: string,
-  ): Promise<import("../types").PersonalOverviewData> => {
-    const params = date ? `?date=${date}` : "";
+  getOverview: async (date?: string): Promise<import('../types').PersonalOverviewData> => {
+    const params = date ? `?date=${date}` : '';
     return apiClient.get(`/personal/dashboard/overview${params}`);
   },
-  getBoardTasks: async (
-    date?: string,
-  ): Promise<import("../types").BoardTasksData> => {
-    const params = date ? `?date=${date}` : "";
+  getBoardTasks: async (date?: string): Promise<import('../types').BoardTasksData> => {
+    const params = date ? `?date=${date}` : '';
     return apiClient.get(`/personal/dashboard/board-tasks${params}`);
   },
-  getCelebrations: async (
-    date?: string,
-  ): Promise<import("../types").CelebrationsData> => {
-    const params = date ? `?date=${date}` : "";
+  getCelebrations: async (date?: string): Promise<import('../types').CelebrationsData> => {
+    const params = date ? `?date=${date}` : '';
     return apiClient.get(`/personal/dashboard/celebrations${params}`);
   },
 };
@@ -9899,10 +8845,8 @@ export const personalCalendarAPI = {
   getUnifiedCalendar: async (
     startDate: string,
     endDate: string,
-  ): Promise<import("../types").UnifiedCalendarData> => {
-    return apiClient.get(
-      `/personal/calendar/unified?start_date=${startDate}&end_date=${endDate}`,
-    );
+  ): Promise<import('../types').UnifiedCalendarData> => {
+    return apiClient.get(`/personal/calendar/unified?start_date=${startDate}&end_date=${endDate}`);
   },
 };
 
@@ -9911,40 +8855,32 @@ export const personalCalendarAPI = {
 // ========================================
 
 export const orgSubscriptionAPI = {
-  get: async (orgId: string): Promise<import("../types").OrgSubscription> => {
+  get: async (orgId: string): Promise<import('../types').OrgSubscription> => {
     return apiClient.get(`/organizations/${orgId}/subscription`);
   },
 
   activate: async (
     orgId: string,
     data: { billing_cycle: string; seat_count: number },
-  ): Promise<import("../types").OrgSubscription> => {
-    return apiClient.post(
-      `/organizations/${orgId}/subscription/activate`,
-      data,
-    );
+  ): Promise<import('../types').OrgSubscription> => {
+    return apiClient.post(`/organizations/${orgId}/subscription/activate`, data);
   },
 
   migratePreview: async (
     orgId: string,
     data: { billing_cycle: string; board_ids: string[] },
-  ): Promise<import("../types").MigrationPreview> => {
-    return apiClient.post(
-      `/organizations/${orgId}/subscription/migrate/preview`,
-      data,
-    );
+  ): Promise<import('../types').MigrationPreview> => {
+    return apiClient.post(`/organizations/${orgId}/subscription/migrate/preview`, data);
   },
 
   migrate: async (
     orgId: string,
     data: { billing_cycle: string; board_ids: string[] },
-  ): Promise<import("../types").OrgSubscription> => {
+  ): Promise<import('../types').OrgSubscription> => {
     return apiClient.post(`/organizations/${orgId}/subscription/migrate`, data);
   },
 
-  downgrade: async (
-    orgId: string,
-  ): Promise<import("../types").OrgSubscription> => {
+  downgrade: async (orgId: string): Promise<import('../types').OrgSubscription> => {
     return apiClient.post(`/organizations/${orgId}/subscription/downgrade`);
   },
 
@@ -9963,7 +8899,7 @@ export const orgSubscriptionAPI = {
   purchaseSeats: async (
     orgId: string,
     additionalSeats: number,
-  ): Promise<import("../types").OrgSubscription> => {
+  ): Promise<import('../types').OrgSubscription> => {
     return apiClient.post(`/organizations/${orgId}/subscription/seats`, {
       additional_seats: additionalSeats,
     });
@@ -9974,20 +8910,20 @@ export const orgSubscriptionAPI = {
 
 export const orgPhotoAPI = {
   // Tab CRUD
-  getTabs: (orgId: string): Promise<import("../types").OrgPhotoTab[]> =>
+  getTabs: (orgId: string): Promise<import('../types').OrgPhotoTab[]> =>
     apiClient.get(`/organizations/${orgId}/photos/tabs`),
 
   createTab: (
     orgId: string,
     data: { name: string; description?: string },
-  ): Promise<import("../types").OrgPhotoTab> =>
+  ): Promise<import('../types').OrgPhotoTab> =>
     apiClient.post(`/organizations/${orgId}/photos/tabs`, data),
 
   updateTab: (
     orgId: string,
     tabId: string,
     data: { name: string; description?: string; cover_photo_id?: string },
-  ): Promise<import("../types").OrgPhotoTab> =>
+  ): Promise<import('../types').OrgPhotoTab> =>
     apiClient.put(`/organizations/${orgId}/photos/tabs/${tabId}`, data),
 
   deleteTab: (orgId: string, tabId: string): Promise<void> =>
@@ -9999,23 +8935,14 @@ export const orgPhotoAPI = {
     }),
 
   // Sharing
-  enableShare: (
-    orgId: string,
-    tabId: string,
-  ): Promise<import("../types").OrgPhotoTab> =>
+  enableShare: (orgId: string, tabId: string): Promise<import('../types').OrgPhotoTab> =>
     apiClient.post(`/organizations/${orgId}/photos/tabs/${tabId}/share`),
 
-  disableShare: (
-    orgId: string,
-    tabId: string,
-  ): Promise<import("../types").OrgPhotoTab> =>
+  disableShare: (orgId: string, tabId: string): Promise<import('../types').OrgPhotoTab> =>
     apiClient.delete(`/organizations/${orgId}/photos/tabs/${tabId}/share`),
 
   // Gallery-level sharing
-  enableGalleryShare: (
-    orgId: string,
-    title?: string,
-  ): Promise<{ share_token: string }> =>
+  enableGalleryShare: (orgId: string, title?: string): Promise<{ share_token: string }> =>
     apiClient.post(`/organizations/${orgId}/photos/gallery-share`, { title }),
 
   disableGalleryShare: (orgId: string): Promise<void> =>
@@ -10042,33 +8969,25 @@ export const orgPhotoAPI = {
     apiClient.get(`/organizations/${orgId}/photos/gallery-upload`),
 
   // Upload link
-  enableUploadLink: (
-    orgId: string,
-    tabId: string,
-  ): Promise<import("../types").OrgPhotoTab> =>
+  enableUploadLink: (orgId: string, tabId: string): Promise<import('../types').OrgPhotoTab> =>
     apiClient.post(`/organizations/${orgId}/photos/tabs/${tabId}/upload-link`),
 
-  disableUploadLink: (
-    orgId: string,
-    tabId: string,
-  ): Promise<import("../types").OrgPhotoTab> =>
-    apiClient.delete(
-      `/organizations/${orgId}/photos/tabs/${tabId}/upload-link`,
-    ),
+  disableUploadLink: (orgId: string, tabId: string): Promise<import('../types').OrgPhotoTab> =>
+    apiClient.delete(`/organizations/${orgId}/photos/tabs/${tabId}/upload-link`),
 
   // Multi share-link management
   listShareLinks: (
     orgId: string,
     tabId?: string,
-  ): Promise<{ links: import("../types").PhotoShareLink[] }> => {
-    const query = tabId ? `?tab_id=${encodeURIComponent(tabId)}` : "";
+  ): Promise<{ links: import('../types').PhotoShareLink[] }> => {
+    const query = tabId ? `?tab_id=${encodeURIComponent(tabId)}` : '';
     return apiClient.get(`/organizations/${orgId}/photos/share-links${query}`);
   },
 
   issueShareLink: (
     orgId: string,
-    payload: import("../types").PhotoShareLinkCreatePayload,
-  ): Promise<import("../types").PhotoShareLink> =>
+    payload: import('../types').PhotoShareLinkCreatePayload,
+  ): Promise<import('../types').PhotoShareLink> =>
     apiClient.post(`/organizations/${orgId}/photos/share-links`, payload),
 
   revokeShareLink: (orgId: string, linkId: string): Promise<void> =>
@@ -10079,17 +8998,15 @@ export const orgPhotoAPI = {
     orgId: string,
     linkId: string,
     file: File,
-  ): Promise<import("../types").PhotoShareLink> => {
+  ): Promise<import('../types').PhotoShareLink> => {
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append('file', file);
     const response = await authenticatedFetch(
       `${API_BASE_URL}/organizations/${orgId}/photos/share-links/${linkId}/og-image`,
-      { method: "POST", body: formData },
+      { method: 'POST', body: formData },
     );
     if (!response.ok) {
-      const err = await response
-        .json()
-        .catch(() => ({ message: "Upload failed" }));
+      const err = await response.json().catch(() => ({ message: 'Upload failed' }));
       throw err;
     }
     return response.json();
@@ -10098,20 +9015,18 @@ export const orgPhotoAPI = {
   deleteShareLinkOgImage: (
     orgId: string,
     linkId: string,
-  ): Promise<import("../types").PhotoShareLink> =>
-    apiClient.delete(
-      `/organizations/${orgId}/photos/share-links/${linkId}/og-image`,
-    ),
+  ): Promise<import('../types').PhotoShareLink> =>
+    apiClient.delete(`/organizations/${orgId}/photos/share-links/${linkId}/og-image`),
 
   // Photo CRUD
   getPhotos: (
     orgId: string,
     params: { tab_id?: string; cursor?: string; size?: number },
-  ): Promise<import("../types").OrgPhotoPage> => {
+  ): Promise<import('../types').OrgPhotoPage> => {
     const query = new URLSearchParams();
-    if (params.tab_id) query.set("tab_id", params.tab_id);
-    if (params.cursor) query.set("cursor", params.cursor);
-    if (params.size) query.set("size", String(params.size));
+    if (params.tab_id) query.set('tab_id', params.tab_id);
+    if (params.cursor) query.set('cursor', params.cursor);
+    if (params.size) query.set('size', String(params.size));
     return apiClient.get(`/organizations/${orgId}/photos?${query.toString()}`);
   },
 
@@ -10119,21 +9034,19 @@ export const orgPhotoAPI = {
     orgId: string,
     tabId: string,
     files: File[],
-  ): Promise<import("../types").OrgPhoto[]> => {
+  ): Promise<import('../types').OrgPhoto[]> => {
     const formData = new FormData();
-    files.forEach((f) => formData.append("files", f));
+    files.forEach((f) => formData.append('files', f));
     // NOTE: Do NOT set Content-Type — browser sets multipart boundary automatically
     const response = await authenticatedFetch(
       `${API_BASE_URL}/organizations/${orgId}/photos/upload?tabId=${tabId}`,
       {
-        method: "POST",
+        method: 'POST',
         body: formData,
       },
     );
     if (!response.ok) {
-      const err = await response
-        .json()
-        .catch(() => ({ message: "Upload failed" }));
+      const err = await response.json().catch(() => ({ message: 'Upload failed' }));
       throw err;
     }
     return response.json();
@@ -10165,7 +9078,7 @@ export const orgPhotoAPI = {
     orgId: string,
     photoId: string,
     data: { caption: string },
-  ): Promise<import("../types").OrgPhoto> =>
+  ): Promise<import('../types').OrgPhoto> =>
     apiClient.put(`/organizations/${orgId}/photos/${photoId}`, data),
 
   deletePhotos: (orgId: string, photoIds: string[]): Promise<void> =>
@@ -10186,22 +9099,20 @@ export const orgPhotoAPI = {
 // ─── Public Gallery API (no auth) ───
 
 export const publicGalleryAPI = {
-  getSharedGallery: (
-    shareToken: string,
-  ): Promise<import("../types").SharedGalleryInfo> =>
+  getSharedGallery: (shareToken: string): Promise<import('../types').SharedGalleryInfo> =>
     apiClient.get(`/public/gallery/${shareToken}`, true),
 
   getSharedGalleryPhotos: (
     shareToken: string,
     albumId: string,
     params?: { cursor?: string; size?: number },
-  ): Promise<import("../types").SharedPhotoPage> => {
+  ): Promise<import('../types').SharedPhotoPage> => {
     const query = new URLSearchParams();
-    if (params?.cursor) query.set("cursor", params.cursor);
-    if (params?.size) query.set("size", String(params.size));
+    if (params?.cursor) query.set('cursor', params.cursor);
+    if (params?.size) query.set('size', String(params.size));
     const qs = query.toString();
     return apiClient.get(
-      `/public/gallery/${shareToken}/albums/${albumId}/photos${qs ? `?${qs}` : ""}`,
+      `/public/gallery/${shareToken}/albums/${albumId}/photos${qs ? `?${qs}` : ''}`,
       true,
     );
   },
@@ -10229,7 +9140,7 @@ export interface PhotoPresignFile {
 }
 
 export interface PhotoPresignResponse {
-  mode: "presigned" | "direct";
+  mode: 'presigned' | 'direct';
   items: {
     client_id: string;
     s3_key: string;
@@ -10249,7 +9160,7 @@ export interface PhotoConfirmItem {
 }
 
 export interface PhotoConfirmResponse {
-  succeeded: { s3_key: string; photo: import("../types").OrgPhoto }[];
+  succeeded: { s3_key: string; photo: import('../types').OrgPhoto }[];
   failed: { s3_key: string; reason: string }[];
 }
 
@@ -10262,8 +9173,7 @@ export function splitFilesIntoChunks(files: File[]): File[][] {
     // If adding this file exceeds limits, start a new chunk
     if (
       currentChunk.length > 0 &&
-      (currentSize + file.size > CHUNK_MAX_SIZE ||
-        currentChunk.length >= CHUNK_MAX_FILES)
+      (currentSize + file.size > CHUNK_MAX_SIZE || currentChunk.length >= CHUNK_MAX_FILES)
     ) {
       chunks.push(currentChunk);
       currentChunk = [];
@@ -10283,75 +9193,55 @@ export function splitFilesIntoChunks(files: File[]): File[][] {
 export async function uploadFormData(
   url: string,
   files: File[],
-): Promise<import("../types").OrgPhoto[]> {
+): Promise<import('../types').OrgPhoto[]> {
   const formData = new FormData();
-  files.forEach((f) => formData.append("files", f));
+  files.forEach((f) => formData.append('files', f));
   const response = await fetch(url, {
-    method: "POST",
+    method: 'POST',
     body: formData,
   });
   if (!response.ok) {
-    const err = await response
-      .json()
-      .catch(() => ({ message: "Upload failed" }));
+    const err = await response.json().catch(() => ({ message: 'Upload failed' }));
     throw err;
   }
   return response.json();
 }
 
 export const publicUploadAPI = {
-  getUploadAlbumInfo: (
-    uploadToken: string,
-  ): Promise<import("../types").UploadAlbumInfo> =>
+  getUploadAlbumInfo: (uploadToken: string): Promise<import('../types').UploadAlbumInfo> =>
     apiClient.get(`/public/upload/${uploadToken}`, true),
 
   getPhotos: (
     uploadToken: string,
     params?: { cursor?: string; size?: number },
-  ): Promise<import("../types").SharedPhotoPage> => {
+  ): Promise<import('../types').SharedPhotoPage> => {
     const query = new URLSearchParams();
-    if (params?.cursor) query.set("cursor", params.cursor);
-    if (params?.size) query.set("size", String(params.size));
+    if (params?.cursor) query.set('cursor', params.cursor);
+    if (params?.size) query.set('size', String(params.size));
     const qs = query.toString();
-    return apiClient.get(
-      `/public/upload/${uploadToken}/photos${qs ? `?${qs}` : ""}`,
-      true,
-    );
+    return apiClient.get(`/public/upload/${uploadToken}/photos${qs ? `?${qs}` : ''}`, true);
   },
 
   deletePhoto: (uploadToken: string, photoId: string): Promise<void> =>
-    apiClient.delete(
-      `/public/upload/${uploadToken}/photos/${photoId}`,
-      undefined,
-      true,
-    ),
+    apiClient.delete(`/public/upload/${uploadToken}/photos/${photoId}`, undefined, true),
 
-  presign: (
-    uploadToken: string,
-    files: PhotoPresignFile[],
-  ): Promise<PhotoPresignResponse> =>
+  presign: (uploadToken: string, files: PhotoPresignFile[]): Promise<PhotoPresignResponse> =>
     apiClient.post(`/public/upload/${uploadToken}/presign`, { files }, true),
 
-  confirm: (
-    uploadToken: string,
-    items: PhotoConfirmItem[],
-  ): Promise<PhotoConfirmResponse> =>
+  confirm: (uploadToken: string, items: PhotoConfirmItem[]): Promise<PhotoConfirmResponse> =>
     apiClient.post(`/public/upload/${uploadToken}/confirm`, { items }, true),
 
   /** multipart 한 묶음 업로드 (presign 미지원 환경 폴백) */
-  uploadChunk: (
-    uploadToken: string,
-    files: File[],
-  ): Promise<import("../types").OrgPhoto[]> =>
+  uploadChunk: (uploadToken: string, files: File[]): Promise<import('../types').OrgPhoto[]> =>
     uploadFormData(`${API_BASE_URL}/public/upload/${uploadToken}`, files),
 
   uploadPhotos: async (
     uploadToken: string,
     files: File[],
     onProgress?: (progress: ChunkedUploadProgress) => void,
-  ): Promise<import("../types").OrgPhoto[]> => {
+  ): Promise<import('../types').OrgPhoto[]> => {
     const chunks = splitFilesIntoChunks(files);
-    const allResults: import("../types").OrgPhoto[] = [];
+    const allResults: import('../types').OrgPhoto[] = [];
     let uploadedFiles = 0;
 
     for (let i = 0; i < chunks.length; i++) {
@@ -10384,15 +9274,13 @@ export const publicUploadAPI = {
 // ─── Public Gallery Upload API (no auth) ───
 
 export const publicGalleryUploadAPI = {
-  getGalleryUploadInfo: (
-    uploadToken: string,
-  ): Promise<import("../types").GalleryUploadInfo> =>
+  getGalleryUploadInfo: (uploadToken: string): Promise<import('../types').GalleryUploadInfo> =>
     apiClient.get(`/public/gallery-upload/${uploadToken}`, true),
 
   createAlbum: (
     uploadToken: string,
     data: { name: string; description?: string },
-  ): Promise<import("../types").SharedAlbumSummary> =>
+  ): Promise<import('../types').SharedAlbumSummary> =>
     apiClient.post(`/public/gallery-upload/${uploadToken}/albums`, data, true),
 
   presign: (
@@ -10422,30 +9310,26 @@ export const publicGalleryUploadAPI = {
     uploadToken: string,
     albumId: string,
     files: File[],
-  ): Promise<import("../types").OrgPhoto[]> =>
+  ): Promise<import('../types').OrgPhoto[]> =>
     uploadFormData(
       `${API_BASE_URL}/public/gallery-upload/${uploadToken}/albums/${albumId}/photos`,
       files,
     ),
 
   deleteAlbum: (uploadToken: string, albumId: string): Promise<void> =>
-    apiClient.delete(
-      `/public/gallery-upload/${uploadToken}/albums/${albumId}`,
-      undefined,
-      true,
-    ),
+    apiClient.delete(`/public/gallery-upload/${uploadToken}/albums/${albumId}`, undefined, true),
 
   getAlbumPhotos: (
     uploadToken: string,
     albumId: string,
     params?: { cursor?: string; size?: number },
-  ): Promise<import("../types").SharedPhotoPage> => {
+  ): Promise<import('../types').SharedPhotoPage> => {
     const query = new URLSearchParams();
-    if (params?.cursor) query.set("cursor", params.cursor);
-    if (params?.size) query.set("size", String(params.size));
+    if (params?.cursor) query.set('cursor', params.cursor);
+    if (params?.size) query.set('size', String(params.size));
     const qs = query.toString();
     return apiClient.get(
-      `/public/gallery-upload/${uploadToken}/albums/${albumId}/photos${qs ? `?${qs}` : ""}`,
+      `/public/gallery-upload/${uploadToken}/albums/${albumId}/photos${qs ? `?${qs}` : ''}`,
       true,
     );
   },
@@ -10455,9 +9339,9 @@ export const publicGalleryUploadAPI = {
     albumId: string,
     files: File[],
     onProgress?: (progress: ChunkedUploadProgress) => void,
-  ): Promise<import("../types").OrgPhoto[]> => {
+  ): Promise<import('../types').OrgPhoto[]> => {
     const chunks = splitFilesIntoChunks(files);
-    const allResults: import("../types").OrgPhoto[] = [];
+    const allResults: import('../types').OrgPhoto[] = [];
     let uploadedFiles = 0;
 
     for (let i = 0; i < chunks.length; i++) {
@@ -10486,11 +9370,7 @@ export const publicGalleryUploadAPI = {
     return allResults;
   },
 
-  deletePhoto: (
-    uploadToken: string,
-    albumId: string,
-    photoId: string,
-  ): Promise<void> =>
+  deletePhoto: (uploadToken: string, albumId: string, photoId: string): Promise<void> =>
     apiClient.delete(
       `/public/gallery-upload/${uploadToken}/albums/${albumId}/photos/${photoId}`,
       undefined,
@@ -10500,23 +9380,18 @@ export const publicGalleryUploadAPI = {
 
 /** @deprecated kept for per-album share backward compat */
 export const publicAlbumAPI = {
-  getSharedAlbum: (
-    shareToken: string,
-  ): Promise<import("../types").SharedAlbumInfo> =>
+  getSharedAlbum: (shareToken: string): Promise<import('../types').SharedAlbumInfo> =>
     apiClient.get(`/public/albums/${shareToken}`, true),
 
   getSharedAlbumPhotos: (
     shareToken: string,
     params?: { cursor?: string; size?: number },
-  ): Promise<import("../types").SharedPhotoPage> => {
+  ): Promise<import('../types').SharedPhotoPage> => {
     const query = new URLSearchParams();
-    if (params?.cursor) query.set("cursor", params.cursor);
-    if (params?.size) query.set("size", String(params.size));
+    if (params?.cursor) query.set('cursor', params.cursor);
+    if (params?.size) query.set('size', String(params.size));
     const qs = query.toString();
-    return apiClient.get(
-      `/public/albums/${shareToken}/photos${qs ? `?${qs}` : ""}`,
-      true,
-    );
+    return apiClient.get(`/public/albums/${shareToken}/photos${qs ? `?${qs}` : ''}`, true);
   },
 };
 
@@ -10524,46 +9399,29 @@ export const publicAlbumAPI = {
 // Trash API (휴지통)
 // ========================================
 
-import type { TrashListResponse } from "../types";
+import type { TrashListResponse } from '../types';
 
 export const trashAPI = {
   list: (boardId: string): Promise<TrashListResponse> =>
     apiClient.get<TrashListResponse>(`/boards/${boardId}/trash`),
 
   restoreFeature: (boardId: string, featureId: string): Promise<void> =>
-    apiClient.post<void>(
-      `/boards/${boardId}/trash/features/${featureId}/restore`,
-      {},
-    ),
+    apiClient.post<void>(`/boards/${boardId}/trash/features/${featureId}/restore`, {}),
 
   restoreTask: (boardId: string, taskId: string): Promise<void> =>
-    apiClient.post<void>(
-      `/boards/${boardId}/trash/tasks/${taskId}/restore`,
-      {},
-    ),
+    apiClient.post<void>(`/boards/${boardId}/trash/tasks/${taskId}/restore`, {}),
 
   restoreChecklistItem: (boardId: string, itemId: string): Promise<void> =>
-    apiClient.post<void>(
-      `/boards/${boardId}/trash/checklist-items/${itemId}/restore`,
-      {},
-    ),
+    apiClient.post<void>(`/boards/${boardId}/trash/checklist-items/${itemId}/restore`, {}),
 
-  permanentlyDeleteFeature: (
-    boardId: string,
-    featureId: string,
-  ): Promise<void> =>
+  permanentlyDeleteFeature: (boardId: string, featureId: string): Promise<void> =>
     apiClient.delete<void>(`/boards/${boardId}/trash/features/${featureId}`),
 
   permanentlyDeleteTask: (boardId: string, taskId: string): Promise<void> =>
     apiClient.delete<void>(`/boards/${boardId}/trash/tasks/${taskId}`),
 
-  permanentlyDeleteChecklistItem: (
-    boardId: string,
-    itemId: string,
-  ): Promise<void> =>
-    apiClient.delete<void>(
-      `/boards/${boardId}/trash/checklist-items/${itemId}`,
-    ),
+  permanentlyDeleteChecklistItem: (boardId: string, itemId: string): Promise<void> =>
+    apiClient.delete<void>(`/boards/${boardId}/trash/checklist-items/${itemId}`),
 
   emptyTrash: (boardId: string): Promise<void> =>
     apiClient.delete<void>(`/boards/${boardId}/trash`),
@@ -10612,7 +9470,7 @@ export interface StorageFileItem {
 /** 문서(docx/pptx/hwp) PDF 미리보기 상태. url 은 READY 일 때만 채워진다. */
 export interface StoragePreviewInfo {
   /** UNAVAILABLE: 형식 미지원/서버에 변환기 없음, TOO_LARGE: 원본이 변환 상한 초과 */
-  status: "NONE" | "PENDING" | "READY" | "FAILED" | "UNAVAILABLE" | "TOO_LARGE";
+  status: 'NONE' | 'PENDING' | 'READY' | 'FAILED' | 'UNAVAILABLE' | 'TOO_LARGE';
   url: string | null;
   /** TOO_LARGE 일 때 변환 상한(바이트) */
   max_source_bytes?: number | null;
@@ -10629,7 +9487,7 @@ export interface StorageUsage {
 }
 
 export interface StorageCategoryUsage {
-  category: "IMAGE" | "VIDEO" | "DOCUMENT" | "OTHER";
+  category: 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'OTHER';
   bytes: number;
   count: number;
 }
@@ -10650,7 +9508,7 @@ export interface StoragePresignResult {
 
 export interface StorageTrashItem {
   id: string;
-  type: "FOLDER" | "FILE";
+  type: 'FOLDER' | 'FILE';
   name: string;
   deleted_at: string | null;
 }
@@ -10663,11 +9521,8 @@ function putToS3WithProgress(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("PUT", uploadUrl);
-    xhr.setRequestHeader(
-      "Content-Type",
-      file.type || "application/octet-stream",
-    );
+    xhr.open('PUT', uploadUrl);
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) {
         onProgress(Math.round((e.loaded / e.total) * 100));
@@ -10677,7 +9532,7 @@ function putToS3WithProgress(
       xhr.status >= 200 && xhr.status < 300
         ? resolve()
         : reject(new Error(`S3 업로드 실패 (${xhr.status})`));
-    xhr.onerror = () => reject(new Error("S3 업로드 네트워크 오류"));
+    xhr.onerror = () => reject(new Error('S3 업로드 네트워크 오류'));
     xhr.send(file);
   });
 }
@@ -10696,11 +9551,7 @@ export function makeStorageAPI(base: string) {
     renameFolder: (folderId: string, name: string) =>
       apiClient.put<StorageFolderTree>(`${base}/folders/${folderId}`, { name }),
 
-    moveFolder: (
-      folderId: string,
-      parentId: string | null,
-      position?: number,
-    ) =>
+    moveFolder: (folderId: string, parentId: string | null, position?: number) =>
       apiClient.put<StorageFolderTree>(`${base}/folders/${folderId}/move`, {
         parent_id: parentId,
         position: position ?? null,
@@ -10710,17 +9561,14 @@ export function makeStorageAPI(base: string) {
       apiClient.delete<{ message: string }>(`${base}/folders/${folderId}`),
 
     enableFolderShare: (folderId: string) =>
-      apiClient.post<StorageFolderTree>(
-        `${base}/folders/${folderId}/share`,
-        {},
-      ),
+      apiClient.post<StorageFolderTree>(`${base}/folders/${folderId}/share`, {}),
 
     disableFolderShare: (folderId: string) =>
       apiClient.delete<StorageFolderTree>(`${base}/folders/${folderId}/share`),
 
     // Files
     getFiles: (folderId?: string | null) => {
-      const q = folderId ? `?folder_id=${encodeURIComponent(folderId)}` : "";
+      const q = folderId ? `?folder_id=${encodeURIComponent(folderId)}` : '';
       return apiClient.get<StorageFileItem[]>(`${base}/files${q}`);
     },
 
@@ -10735,46 +9583,36 @@ export function makeStorageAPI(base: string) {
       folderId?: string | null,
       onProgress?: (percent: number) => void,
     ): Promise<StorageFileItem> => {
-      const presign = await apiClient.post<StoragePresignResult>(
-        `${base}/files/presign`,
-        {
-          file_name: file.name,
-          content_type: file.type || "application/octet-stream",
-          file_size: file.size,
-          folder_id: folderId ?? null,
-        },
-      );
+      const presign = await apiClient.post<StoragePresignResult>(`${base}/files/presign`, {
+        file_name: file.name,
+        content_type: file.type || 'application/octet-stream',
+        file_size: file.size,
+        folder_id: folderId ?? null,
+      });
 
-      if (
-        presign.mode === "presigned" &&
-        presign.upload_url &&
-        presign.s3_key
-      ) {
+      if (presign.mode === 'presigned' && presign.upload_url && presign.s3_key) {
         await putToS3WithProgress(presign.upload_url, file, onProgress);
         return apiClient.post<StorageFileItem>(`${base}/files/confirm`, {
           s3_key: presign.s3_key,
           folder_id: folderId ?? null,
           original_filename: file.name,
-          content_type: file.type || "application/octet-stream",
+          content_type: file.type || 'application/octet-stream',
           file_size: file.size,
         });
       }
 
       // 폴백: 서버 경유 multipart
       const formData = new FormData();
-      formData.append("file", file);
-      if (folderId) formData.append("folder_id", folderId);
-      const response = await authenticatedFetch(
-        `${API_BASE_URL}${base}/files`,
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
+      formData.append('file', file);
+      if (folderId) formData.append('folder_id', folderId);
+      const response = await authenticatedFetch(`${API_BASE_URL}${base}/files`, {
+        method: 'POST',
+        body: formData,
+      });
       if (!response.ok) {
         const errData = await response
           .json()
-          .catch(() => ({ code: "UNKNOWN", message: response.statusText }));
+          .catch(() => ({ code: 'UNKNOWN', message: response.statusText }));
         throw errData;
       }
       onProgress?.(100);
@@ -10797,56 +9635,44 @@ export function makeStorageAPI(base: string) {
 
     /** 인증 다운로드 → Blob (브라우저 저장은 서비스 레이어에서 트리거) */
     downloadFile: async (fileId: string): Promise<Blob> => {
-      const response = await authenticatedFetch(
-        `${API_BASE_URL}${base}/files/${fileId}/download`,
-        { method: "GET" },
-      );
-      if (!response.ok) throw new Error("다운로드에 실패했습니다");
+      const response = await authenticatedFetch(`${API_BASE_URL}${base}/files/${fileId}/download`, {
+        method: 'GET',
+      });
+      if (!response.ok) throw new Error('다운로드에 실패했습니다');
       return response.blob();
     },
 
     // Usage
     getUsage: () => apiClient.get<StorageUsage>(`${base}/usage`),
 
-    getUsageDetail: () =>
-      apiClient.get<StorageUsageDetail>(`${base}/usage/detail`),
+    getUsageDetail: () => apiClient.get<StorageUsageDetail>(`${base}/usage/detail`),
 
     // Trash
     getTrash: () => apiClient.get<StorageTrashItem[]>(`${base}/trash`),
 
     restoreFile: (fileId: string) =>
-      apiClient.post<{ message: string }>(
-        `${base}/trash/files/${fileId}/restore`,
-        {},
-      ),
+      apiClient.post<{ message: string }>(`${base}/trash/files/${fileId}/restore`, {}),
 
     restoreFolder: (folderId: string) =>
-      apiClient.post<{ message: string }>(
-        `${base}/trash/folders/${folderId}/restore`,
-        {},
-      ),
+      apiClient.post<{ message: string }>(`${base}/trash/folders/${folderId}/restore`, {}),
 
     permanentDeleteFile: (fileId: string) =>
       apiClient.delete<{ message: string }>(`${base}/trash/files/${fileId}`),
 
     permanentDeleteFolder: (folderId: string) =>
-      apiClient.delete<{ message: string }>(
-        `${base}/trash/folders/${folderId}`,
-      ),
+      apiClient.delete<{ message: string }>(`${base}/trash/folders/${folderId}`),
 
-    emptyTrash: () =>
-      apiClient.delete<{ deleted_count: number }>(`${base}/trash`),
+    emptyTrash: () => apiClient.delete<{ deleted_count: number }>(`${base}/trash`),
 
     /** 문서 PDF 미리보기 상태 조회. 미변환이면 서버가 변환을 큐잉하고 PENDING 을 준다 */
     getPreview: (fileId: string) =>
       apiClient.get<StoragePreviewInfo>(`${base}/files/${fileId}/preview`),
     /** 인증 경유로 파일 원본 바이트를 받는다 (미리보기 파서용, CORS 무관) */
     fetchBlob: async (fileId: string): Promise<Blob> => {
-      const response = await authenticatedFetch(
-        `${API_BASE_URL}${base}/files/${fileId}/download`,
-        { method: "GET" },
-      );
-      if (!response.ok) throw new Error("파일을 불러오지 못했습니다");
+      const response = await authenticatedFetch(`${API_BASE_URL}${base}/files/${fileId}/download`, {
+        method: 'GET',
+      });
+      if (!response.ok) throw new Error('파일을 불러오지 못했습니다');
       return response.blob();
     },
     /** presigned GET 링크 발급. mode="proxy" 면 url 이 null → /download 스트리밍으로 폴백 */
@@ -10857,22 +9683,16 @@ export function makeStorageAPI(base: string) {
      * 파일 다운로드. presigned URL 을 받아 브라우저가 S3 에서 직접 받게 한다(네이티브 진행률, 메모리 부담 없음).
      * presign 미지원(로컬)일 때만 인증 fetch → Blob 폴백.
      */
-    downloadAndSave: async (
-      fileId: string,
-      filename: string,
-    ): Promise<void> => {
-      const link = await apiClient.get<StorageDownloadUrl>(
-        `${base}/files/${fileId}/download-url`,
-      );
-      if (link.mode === "presigned" && link.url) {
+    downloadAndSave: async (fileId: string, filename: string): Promise<void> => {
+      const link = await apiClient.get<StorageDownloadUrl>(`${base}/files/${fileId}/download-url`);
+      if (link.mode === 'presigned' && link.url) {
         triggerBrowserDownload(link.url, filename);
         return;
       }
-      const response = await authenticatedFetch(
-        `${API_BASE_URL}${base}/files/${fileId}/download`,
-        { method: "GET" },
-      );
-      if (!response.ok) throw new Error("다운로드에 실패했습니다");
+      const response = await authenticatedFetch(`${API_BASE_URL}${base}/files/${fileId}/download`, {
+        method: 'GET',
+      });
+      if (!response.ok) throw new Error('다운로드에 실패했습니다');
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       triggerBrowserDownload(url, filename);
@@ -10882,23 +9702,23 @@ export function makeStorageAPI(base: string) {
 }
 
 export interface StorageDownloadUrl {
-  mode: "presigned" | "proxy";
+  mode: 'presigned' | 'proxy';
   url: string | null;
 }
 
 /** <a download> 클릭으로 브라우저 저장을 트리거한다. 교차 출처 URL 은 서버의 Content-Disposition 이 파일명을 정한다. */
 function triggerBrowserDownload(href: string, filename: string): void {
-  const a = document.createElement("a");
+  const a = document.createElement('a');
   a.href = href;
   a.download = filename;
-  a.rel = "noopener";
+  a.rel = 'noopener';
   document.body.appendChild(a);
   a.click();
   a.remove();
 }
 
 export type StorageApi = ReturnType<typeof makeStorageAPI>;
-export const myStorageAPI = makeStorageAPI("/me/storage");
+export const myStorageAPI = makeStorageAPI('/me/storage');
 export const makeBoardStorageAPI = (boardId: string) =>
   makeStorageAPI(`/boards/${boardId}/storage`);
 export const makeOrgStorageAPI = (orgId: string) =>
@@ -11242,15 +10062,11 @@ export const autoReportAPI = {
 
   /** 자동 보고서 이력 (본문 제외) */
   list: async (boardId: string, limit = 20) => {
-    return apiClient.get<AutoReport[]>(
-      `/boards/${boardId}/reports/auto?limit=${limit}`,
-    );
+    return apiClient.get<AutoReport[]>(`/boards/${boardId}/reports/auto?limit=${limit}`);
   },
 
   getForMember: async (boardId: string, reportId: string) => {
-    return apiClient.get<AutoReport>(
-      `/boards/${boardId}/reports/auto/${reportId}`,
-    );
+    return apiClient.get<AutoReport>(`/boards/${boardId}/reports/auto/${reportId}`);
   },
 
   /** 발송 이력 — 크론 실행/실패/진행 상황. 관리자 이상만 조회 가능. */
@@ -11261,16 +10077,12 @@ export const autoReportAPI = {
   },
 
   revokeShareLink: async (boardId: string, reportId: string) => {
-    return apiClient.delete<void>(
-      `/boards/${boardId}/reports/auto/${reportId}/share`,
-    );
+    return apiClient.delete<void>(`/boards/${boardId}/reports/auto/${reportId}/share`);
   },
 
   /** 보관된 보고서 삭제 — 관리자 이상만 */
   remove: async (boardId: string, reportId: string) => {
-    return apiClient.delete<void>(
-      `/boards/${boardId}/reports/auto/${reportId}`,
-    );
+    return apiClient.delete<void>(`/boards/${boardId}/reports/auto/${reportId}`);
   },
 
   getConfig: async (boardId: string) => {
@@ -11278,59 +10090,40 @@ export const autoReportAPI = {
   },
 
   updateConfig: async (boardId: string, config: Partial<ReportConfig>) => {
-    return apiClient.put<ReportConfig>(
-      `/boards/${boardId}/reports/config`,
-      config,
-    );
+    return apiClient.put<ReportConfig>(`/boards/${boardId}/reports/config`, config);
   },
 
   /** 수집만 실행 — AI 미호출, 저장 안 함 */
-  preview: async (boardId: string, type: "DAILY_DEV" | "WEEKLY_INTEGRATED") => {
-    return apiClient.post<ReportPreview>(
-      `/boards/${boardId}/reports/preview?type=${type}`,
-      {},
-    );
+  preview: async (boardId: string, type: 'DAILY_DEV' | 'WEEKLY_INTEGRATED') => {
+    return apiClient.post<ReportPreview>(`/boards/${boardId}/reports/preview?type=${type}`, {});
   },
 
   /**
    * 발송하지 않고 실제 보고서를 렌더링 — AI 호출, 저장·슬랙 게시 없음.
    * 수집 데이터가 없으면 content 없이 소스 상태만 돌아온다(AI 미호출).
    */
-  renderPreview: async (
-    boardId: string,
-    type: "DAILY_DEV" | "WEEKLY_INTEGRATED",
-  ) => {
-    return apiClient.post<AutoReport>(
-      `/boards/${boardId}/reports/render-preview?type=${type}`,
-      {},
-    );
+  renderPreview: async (boardId: string, type: 'DAILY_DEV' | 'WEEKLY_INTEGRATED') => {
+    return apiClient.post<AutoReport>(`/boards/${boardId}/reports/render-preview?type=${type}`, {});
   },
 
   /**
    * 스케줄을 기다리지 않고 지금 발송.
    * status가 SKIPPED면 "기간 내 활동 없음"으로 발송을 건너뛴 정상 결과다(report_id는 null).
    */
-  dispatchNow: async (
-    boardId: string,
-    type: "DAILY_DEV" | "WEEKLY_INTEGRATED",
-  ) => {
+  dispatchNow: async (boardId: string, type: 'DAILY_DEV' | 'WEEKLY_INTEGRATED') => {
     return apiClient.post<{
-      status: "SUCCESS" | "PARTIAL" | "FAILED" | "SKIPPED";
+      status: 'SUCCESS' | 'PARTIAL' | 'FAILED' | 'SKIPPED';
       report_id: string | null;
       message: string | null;
     }>(`/boards/${boardId}/reports/dispatch?type=${type}`, {});
   },
 
   /** 발송 채널 추가 — 최대 max_delivery_channels개. 갱신된 설정을 돌려준다. */
-  addChannel: async (
-    boardId: string,
-    channelId: string,
-    channelName: string | null,
-  ) => {
-    return apiClient.post<ReportConfig>(
-      `/boards/${boardId}/reports/config/channels`,
-      { channel_id: channelId, channel_name: channelName },
-    );
+  addChannel: async (boardId: string, channelId: string, channelName: string | null) => {
+    return apiClient.post<ReportConfig>(`/boards/${boardId}/reports/config/channels`, {
+      channel_id: channelId,
+      channel_name: channelName,
+    });
   },
 
   /** 발송 채널 제거 — 마지막 채널을 지우면 슬랙 설치 기본 채널로 되돌아간다 */
@@ -11358,7 +10151,7 @@ export const autoReportAPI = {
         message: string | null;
       }[];
     }>(
-      `/boards/${boardId}/reports/test-dispatch${channelId ? `?channel=${encodeURIComponent(channelId)}` : ""}`,
+      `/boards/${boardId}/reports/test-dispatch${channelId ? `?channel=${encodeURIComponent(channelId)}` : ''}`,
       {},
     );
   },
@@ -11410,18 +10203,12 @@ export const githubAPI = {
 
   /** username이 실제 GitHub 계정인지 확인 (멤버 GitHub 연결 입력 검증용) */
   validateUser: async (boardId: string, login: string) =>
-    apiClient.get<GithubUserCheck>(
-      `/boards/${boardId}/github/users/${encodeURIComponent(login)}`,
-    ),
+    apiClient.get<GithubUserCheck>(`/boards/${boardId}/github/users/${encodeURIComponent(login)}`),
 
   getInstallUrl: async (boardId: string) =>
     apiClient.get<{ url: string }>(`/boards/${boardId}/github/install-url`),
 
-  linkInstallation: async (
-    boardId: string,
-    installationId: string,
-    shareWithOrganization = true,
-  ) =>
+  linkInstallation: async (boardId: string, installationId: string, shareWithOrganization = true) =>
     apiClient.post<GithubStatus>(`/boards/${boardId}/github/installations`, {
       installation_id: installationId,
       share_with_organization: shareWithOrganization,
@@ -11438,11 +10225,9 @@ export const githubAPI = {
   selectRepos: async (
     boardId: string,
     repos: { repo_full_name: string; branch?: string | null }[],
-  ) =>
-    apiClient.put<GithubStatus>(`/boards/${boardId}/github/repos`, { repos }),
+  ) => apiClient.put<GithubStatus>(`/boards/${boardId}/github/repos`, { repos }),
 
-  disconnect: async (boardId: string) =>
-    apiClient.delete<void>(`/boards/${boardId}/github`),
+  disconnect: async (boardId: string) => apiClient.delete<void>(`/boards/${boardId}/github`),
 };
 
 // ========================================
@@ -11499,11 +10284,7 @@ export const confluenceAPI = {
   selectSite: async (
     boardId: string,
     site: { cloud_id: string; base_url?: string; site_name?: string },
-  ) =>
-    apiClient.post<ConfluenceStatus>(
-      `/boards/${boardId}/confluence/site`,
-      site,
-    ),
+  ) => apiClient.post<ConfluenceStatus>(`/boards/${boardId}/confluence/site`, site),
 
   listSpaces: async (boardId: string) =>
     apiClient.get<ConfluenceSpaceRef[]>(`/boards/${boardId}/confluence/spaces`),
@@ -11523,8 +10304,7 @@ export const confluenceAPI = {
       spaces,
     }),
 
-  disconnect: async (boardId: string) =>
-    apiClient.delete<void>(`/boards/${boardId}/confluence`),
+  disconnect: async (boardId: string) => apiClient.delete<void>(`/boards/${boardId}/confluence`),
 };
 
 // ========================================
@@ -11537,17 +10317,14 @@ export const imageVoteAPI = {
     noteId: string,
     body: {
       title: string;
-      candidates: import("../types").ImageVoteCandidateInput[];
+      candidates: import('../types').ImageVoteCandidateInput[];
     },
-  ): Promise<import("../types").ImageVoteCreated> =>
+  ): Promise<import('../types').ImageVoteCreated> =>
     apiClient.post(`/boards/${boardId}/notes/${noteId}/image-votes`, body),
 
-  getPublic: (
-    token: string,
-    voterKey?: string,
-  ): Promise<import("../types").PublicImageVote> =>
+  getPublic: (token: string, voterKey?: string): Promise<import('../types').PublicImageVote> =>
     apiClient.get(
-      `/public/image-votes/${token}${voterKey ? `?voter_key=${encodeURIComponent(voterKey)}` : ""}`,
+      `/public/image-votes/${token}${voterKey ? `?voter_key=${encodeURIComponent(voterKey)}` : ''}`,
       true,
     ),
 
@@ -11560,16 +10337,15 @@ export const imageVoteAPI = {
       second_candidate_id: string;
       third_candidate_id: string;
     },
-  ): Promise<void> =>
-    apiClient.post(`/public/image-votes/${token}/ballots`, body, true),
+  ): Promise<void> => apiClient.post(`/public/image-votes/${token}/ballots`, body, true),
 
   /** 관리 토큰으로 결과 + 투표자별 내역 조회 */
-  getAdmin: (adminToken: string): Promise<import("../types").AdminImageVote> =>
+  getAdmin: (adminToken: string): Promise<import('../types').AdminImageVote> =>
     apiClient.get(`/public/image-votes/manage/${adminToken}`, true),
 
-  close: (adminToken: string): Promise<import("../types").AdminImageVote> =>
+  close: (adminToken: string): Promise<import('../types').AdminImageVote> =>
     apiClient.post(`/public/image-votes/manage/${adminToken}/close`, {}, true),
 
-  reopen: (adminToken: string): Promise<import("../types").AdminImageVote> =>
+  reopen: (adminToken: string): Promise<import('../types').AdminImageVote> =>
     apiClient.post(`/public/image-votes/manage/${adminToken}/reopen`, {}, true),
 };

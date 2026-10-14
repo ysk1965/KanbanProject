@@ -1,15 +1,11 @@
-import { useState, useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import { motion } from "framer-motion";
-import { Target, ChevronRight, BarChart3, ClipboardCheck } from "lucide-react";
-import { okrService, organizationService } from "../../../utils/services";
-import type {
-  OkrCycle,
-  OkrTreeData,
-  OnboardingInstanceSummary,
-} from "../../../types";
-import { OkrProgressBar } from "./OkrProgressBar";
-import { OnboardingDetailModal } from "../OnboardingDetailModal";
+import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
+import { Target, ChevronRight, BarChart3, ClipboardCheck } from 'lucide-react';
+import { okrService, organizationService } from '../../../utils/services';
+import type { OkrCycle, OkrTreeData, OnboardingInstanceSummary } from '../../../types';
+import { OkrProgressBar } from './OkrProgressBar';
+import { OnboardingDetailModal } from '../OnboardingDetailModal';
 
 interface OkrDashboardWidgetProps {
   orgId: string;
@@ -26,9 +22,7 @@ export function OkrDashboardWidget({
 }: OkrDashboardWidgetProps) {
   const { t } = useTranslation();
   const [treeData, setTreeData] = useState<OkrTreeData | null>(null);
-  const [onboardingInstances, setOnboardingInstances] = useState<
-    OnboardingInstanceSummary[]
-  >([]);
+  const [onboardingInstances, setOnboardingInstances] = useState<OnboardingInstanceSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
 
@@ -38,11 +32,11 @@ export function OkrDashboardWidget({
         const [cycles, instances] = await Promise.all([
           okrService.getCycles(orgId).catch(() => [] as OkrCycle[]),
           organizationService
-            .getOnboardingInstances(orgId, { status: "IN_PROGRESS" })
+            .getOnboardingInstances(orgId, { status: 'IN_PROGRESS' })
             .catch(() => [] as OnboardingInstanceSummary[]),
         ]);
 
-        const active = cycles.find((c: OkrCycle) => c.status === "ACTIVE");
+        const active = cycles.find((c: OkrCycle) => c.status === 'ACTIVE');
         if (active) {
           try {
             const tree = await okrService.getTree(orgId, active.id);
@@ -74,8 +68,7 @@ export function OkrDashboardWidget({
   const onboardingAvgProgress =
     onboardingTotal > 0
       ? Math.round(
-          onboardingInstances.reduce((sum, i) => sum + i.progress_percent, 0) /
-            onboardingTotal,
+          onboardingInstances.reduce((sum, i) => sum + i.progress_percent, 0) / onboardingTotal,
         )
       : 0;
 
@@ -84,7 +77,7 @@ export function OkrDashboardWidget({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.08 }}
-      className={`grid gap-3 ${hasOkr && hasOnboarding ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}
+      className={`grid gap-3 ${hasOkr && hasOnboarding ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}
     >
       {/* OKR Card */}
       {hasOkr && treeData && (
@@ -108,15 +101,9 @@ export function OkrDashboardWidget({
                 <span className="text-xs font-bold text-foreground truncate">
                   {treeData.cycle.name}
                 </span>
-                <span className="text-xs font-bold text-bridge-accent">
-                  {progress}%
-                </span>
+                <span className="text-xs font-bold text-bridge-accent">{progress}%</span>
               </div>
-              <OkrProgressBar
-                progress={treeData.overall_progress}
-                size="sm"
-                animated
-              />
+              <OkrProgressBar progress={treeData.overall_progress} size="sm" animated />
             </div>
 
             <div className="flex items-center gap-3 shrink-0">
@@ -155,28 +142,26 @@ export function OkrDashboardWidget({
                 <ClipboardCheck size={14} className="text-emerald-500" />
               </div>
               <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                {t("organization.dashboard.onboarding", "Onboarding")}
+                {t('organization.dashboard.onboarding', 'Onboarding')}
               </span>
             </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs font-bold text-foreground">
-                  {t("organization.dashboard.onboardingInProgress", {
+                  {t('organization.dashboard.onboardingInProgress', {
                     count: onboardingTotal,
-                    defaultValue: "{{count}} in progress",
+                    defaultValue: '{{count}} in progress',
                   })}
                 </span>
-                <span className="text-xs font-bold text-emerald-500">
-                  {onboardingAvgProgress}%
-                </span>
+                <span className="text-xs font-bold text-emerald-500">{onboardingAvgProgress}%</span>
               </div>
               <div className="w-full h-1 rounded-full bg-foreground/[0.06] overflow-hidden">
                 <motion.div
                   className="h-full rounded-full bg-emerald-500"
                   initial={{ width: 0 }}
                   animate={{ width: `${onboardingAvgProgress}%` }}
-                  transition={{ duration: 0.6, ease: "easeOut" }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
                 />
               </div>
             </div>

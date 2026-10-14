@@ -3,7 +3,17 @@ import { useTranslation } from 'react-i18next';
 import { useEscClose } from '../../../hooks/useEscClose';
 import { useBlockBrowserZoom, wheelToZoomFactor } from '../../../hooks/useBlockBrowserZoom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Trash2, X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, Loader2 } from 'lucide-react';
+import {
+  Download,
+  Trash2,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Loader2,
+} from 'lucide-react';
 import type { OrgPhoto } from '../../../types';
 import { resolveFileUrl } from '../../../utils/api';
 
@@ -114,21 +124,18 @@ export function PhotoLightbox({
     });
   }, []);
 
-  const clampPan = useCallback(
-    (x: number, y: number, currentZoom: number) => {
-      if (currentZoom <= 1) return { x: 0, y: 0 };
-      const container = imageContainerRef.current;
-      if (!container) return { x, y };
-      const rect = container.getBoundingClientRect();
-      const maxX = (rect.width * (currentZoom - 1)) / 2;
-      const maxY = (rect.height * (currentZoom - 1)) / 2;
-      return {
-        x: Math.max(-maxX, Math.min(maxX, x)),
-        y: Math.max(-maxY, Math.min(maxY, y)),
-      };
-    },
-    [],
-  );
+  const clampPan = useCallback((x: number, y: number, currentZoom: number) => {
+    if (currentZoom <= 1) return { x: 0, y: 0 };
+    const container = imageContainerRef.current;
+    if (!container) return { x, y };
+    const rect = container.getBoundingClientRect();
+    const maxX = (rect.width * (currentZoom - 1)) / 2;
+    const maxY = (rect.height * (currentZoom - 1)) / 2;
+    return {
+      x: Math.max(-maxX, Math.min(maxX, x)),
+      y: Math.max(-maxY, Math.min(maxY, y)),
+    };
+  }, []);
 
   const goPrev = useCallback(() => {
     if (currentIndex > 0) {
@@ -301,7 +308,11 @@ export function PhotoLightbox({
   const handleDoubleTap = useCallback(
     (e: React.TouchEvent) => {
       const now = Date.now();
-      if (now - lastTapRef.current < 300 && e.changedTouches.length === 1 && !hasPannedRef.current) {
+      if (
+        now - lastTapRef.current < 300 &&
+        e.changedTouches.length === 1 &&
+        !hasPannedRef.current
+      ) {
         e.preventDefault();
         if (isZoomed) {
           resetZoom();
@@ -450,7 +461,9 @@ export function PhotoLightbox({
               <button
                 onClick={isZoomed ? resetZoom : onClose}
                 className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-                title={isZoomed ? t('photoGallery.resetZoom', 'Reset zoom') : t('common.close', 'Close')}
+                title={
+                  isZoomed ? t('photoGallery.resetZoom', 'Reset zoom') : t('common.close', 'Close')
+                }
                 aria-label="닫기"
               >
                 <X size={18} />

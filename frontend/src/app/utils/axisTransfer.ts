@@ -15,22 +15,16 @@
  *   - 간트 바는 마우스 기반 커스텀 드래그다 → dataTransfer가 없어 좌표로 존을 찾는다.
  *   두 경로 모두 같은 AXIS_DROP 이벤트로 합류한다.
  */
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type DragEvent,
-} from "react";
+import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
 
 /**
  * timeblock은 확정도 축의 끝이다 — "며칠에 한다"를 넘어 "몇 시에 한다"까지 정해진 상태.
  * 다만 이 존만은 목적지가 블록을 먼저 만들고 나서 드롭을 알린다(아래 targetDate 주석 참고).
  */
-export type AxisZone = "workload" | "placement" | "backlog" | "timeblock";
+export type AxisZone = 'workload' | 'placement' | 'backlog' | 'timeblock';
 
 /** 통합 드래그 페이로드 MIME. 기존 존별 타입과 함께 실어 하위 호환을 지킨다 */
-export const AXIS_DRAG_TYPE = "application/bridge-axis-item";
+export const AXIS_DRAG_TYPE = 'application/bridge-axis-item';
 
 export interface AxisItem {
   /** 체크리스트 항목 id(workload·placement) 또는 백로그 항목 id(backlog) */
@@ -43,9 +37,9 @@ export interface AxisItem {
   assignee_id?: string | null;
 }
 
-const DRAG_EVENT = "bridge:axis-drag";
-const DROP_EVENT = "bridge:axis-drop";
-const REFRESH_EVENT = "bridge:axis-refresh";
+const DRAG_EVENT = 'bridge:axis-drag';
+const DROP_EVENT = 'bridge:axis-drop';
+const REFRESH_EVENT = 'bridge:axis-refresh';
 
 interface AxisDragDetail {
   /** null이면 드래그 종료 */
@@ -82,35 +76,22 @@ interface AxisDragPayload {
 
 /** 드래그 시작을 알린다 — 받을 수 있는 존들이 스스로 불을 켠다 */
 export function startAxisDrag(from: AxisZone) {
-  window.dispatchEvent(
-    new CustomEvent<AxisDragDetail>(DRAG_EVENT, { detail: { from } }),
-  );
+  window.dispatchEvent(new CustomEvent<AxisDragDetail>(DRAG_EVENT, { detail: { from } }));
 }
 
 /** 마우스 기반 소스 전용 — 커서 아래 존이 바뀔 때마다 알린다 */
 export function updateAxisDragOver(from: AxisZone, over: AxisZone | null) {
-  window.dispatchEvent(
-    new CustomEvent<AxisDragDetail>(DRAG_EVENT, { detail: { from, over } }),
-  );
+  window.dispatchEvent(new CustomEvent<AxisDragDetail>(DRAG_EVENT, { detail: { from, over } }));
 }
 
 export function endAxisDrag() {
-  window.dispatchEvent(
-    new CustomEvent<AxisDragDetail>(DRAG_EVENT, { detail: { from: null } }),
-  );
+  window.dispatchEvent(new CustomEvent<AxisDragDetail>(DRAG_EVENT, { detail: { from: null } }));
 }
 
 /** HTML5 드래그 소스가 dragstart에서 부른다 */
-export function setAxisDragData(
-  dataTransfer: DataTransfer,
-  from: AxisZone,
-  item: AxisItem,
-) {
-  dataTransfer.setData(
-    AXIS_DRAG_TYPE,
-    JSON.stringify({ from, item } satisfies AxisDragPayload),
-  );
-  dataTransfer.effectAllowed = "move";
+export function setAxisDragData(dataTransfer: DataTransfer, from: AxisZone, item: AxisItem) {
+  dataTransfer.setData(AXIS_DRAG_TYPE, JSON.stringify({ from, item } satisfies AxisDragPayload));
+  dataTransfer.effectAllowed = 'move';
   startAxisDrag(from);
 }
 
@@ -140,29 +121,27 @@ export function setAxisDragGhost(
   { title, accentHex }: { title: string; accentHex?: string | null },
 ) {
   const doc = source.ownerDocument;
-  const ghost = doc.createElement("div");
+  const ghost = doc.createElement('div');
 
   ghost.className =
-    "flex items-center gap-2 px-3 py-2 rounded-xl " +
-    "bg-bridge-obsidian border border-foreground/10 shadow-2xl " +
-    "text-xs font-bold text-foreground";
+    'flex items-center gap-2 px-3 py-2 rounded-xl ' +
+    'bg-bridge-obsidian border border-foreground/10 shadow-2xl ' +
+    'text-xs font-bold text-foreground';
   // 화면 밖이라도 실제로 그려져 있어야 한다 — display:none이면 스냅샷이 안 떠진다
   ghost.style.cssText =
     `position:fixed;top:-1000px;left:-1000px;pointer-events:none;` +
     `width:${GHOST_WIDTH}px;height:${GHOST_HEIGHT}px;box-sizing:border-box;`;
 
   if (accentHex) {
-    const dot = doc.createElement("span");
+    const dot = doc.createElement('span');
     dot.style.cssText =
-      `flex:none;width:6px;height:6px;border-radius:2px;` +
-      `background:${accentHex};`;
+      `flex:none;width:6px;height:6px;border-radius:2px;` + `background:${accentHex};`;
     ghost.appendChild(dot);
   }
 
-  const label = doc.createElement("span");
+  const label = doc.createElement('span');
   label.textContent = title;
-  label.style.cssText =
-    "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+  label.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
   ghost.appendChild(label);
 
   doc.body.appendChild(ghost);
@@ -184,14 +163,9 @@ export function requestAxisRefresh() {
  */
 export function findAxisZoneAt(x: number, y: number): AxisZone | null {
   const el = document.elementFromPoint(x, y);
-  const zoneEl = el?.closest("[data-axis-zone]") as HTMLElement | null;
-  const zone = zoneEl?.getAttribute("data-axis-zone");
-  if (
-    zone === "workload" ||
-    zone === "placement" ||
-    zone === "backlog" ||
-    zone === "timeblock"
-  ) {
+  const zoneEl = el?.closest('[data-axis-zone]') as HTMLElement | null;
+  const zone = zoneEl?.getAttribute('data-axis-zone');
+  if (zone === 'workload' || zone === 'placement' || zone === 'backlog' || zone === 'timeblock') {
     return zone;
   }
   return null;
@@ -199,7 +173,7 @@ export function findAxisZoneAt(x: number, y: number): AxisZone | null {
 
 /* ── 드래그를 못 쓰는 환경의 대체 경로 ─────────────── */
 
-const TIMEBLOCK_REQUEST_EVENT = "bridge:timeblock-request";
+const TIMEBLOCK_REQUEST_EVENT = 'bridge:timeblock-request';
 
 /**
  * "이 항목을 지금부터 타임블록에 넣어 달라" — 터치·키보드용.
@@ -208,9 +182,7 @@ const TIMEBLOCK_REQUEST_EVENT = "bridge:timeblock-request";
  * 블록을 만든 뒤 dispatchAxisDrop을 쏘는 뒷부분은 드롭과 완전히 같은 코드를 탄다.
  */
 export function requestTimeblockPlacement(item: AxisItem) {
-  window.dispatchEvent(
-    new CustomEvent<AxisItem>(TIMEBLOCK_REQUEST_EVENT, { detail: item }),
-  );
+  window.dispatchEvent(new CustomEvent<AxisItem>(TIMEBLOCK_REQUEST_EVENT, { detail: item }));
 }
 
 /** 타임블록이 구독한다 — 듣는 쪽이 없으면(일정 탭 밖) 아무 일도 일어나지 않는다 */
@@ -272,17 +244,13 @@ export function useAxisDropZone(options: {
         return;
       }
       // over 키가 없는 이벤트(=HTML5 소스의 시작 알림)는 pointerOver를 건드리지 않는다
-      if ("over" in detail) setPointerOver(detail.over === zone);
+      if ('over' in detail) setPointerOver(detail.over === zone);
     };
     window.addEventListener(DRAG_EVENT, onDrag);
     return () => window.removeEventListener(DRAG_EVENT, onDrag);
   }, [zone]);
 
-  const active =
-    !disabled &&
-    dragFrom !== null &&
-    dragFrom !== zone &&
-    accepts.includes(dragFrom);
+  const active = !disabled && dragFrom !== null && dragFrom !== zone && accepts.includes(dragFrom);
 
   // 핸들러가 매번 새로 만들어지지 않도록 ref로 읽는다.
   // 자기 존에서 나온 카드는 받지 않는다 — 받아 주는 척하면 안 된다.
@@ -293,7 +261,7 @@ export function useAxisDropZone(options: {
     if (!activeRef.current) return;
     if (!e.dataTransfer.types.includes(AXIS_DRAG_TYPE)) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
+    e.dataTransfer.dropEffect = 'move';
   }, []);
 
   const onDragEnter = useCallback((e: DragEvent) => {
@@ -336,7 +304,7 @@ export function useAxisDropZone(options: {
     active,
     over: active && (pointerOver || htmlOver),
     zoneProps: {
-      "data-axis-zone": zone,
+      'data-axis-zone': zone,
       onDragOver,
       onDragEnter,
       onDragLeave,

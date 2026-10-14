@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Cake,
   PartyPopper,
@@ -13,15 +13,12 @@ import {
   MessageCircle,
   Send,
   Loader2,
-} from "lucide-react";
-import { toast } from "sonner";
-import {
-  anniversaryService,
-  orgAnnouncementService,
-} from "../../utils/services";
-import { resolveFileUrl } from "../../utils/api";
-import { formatRelativeTime } from "../../utils/dateUtils";
-import { useAuth } from "../../contexts/AuthContext";
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { anniversaryService, orgAnnouncementService } from '../../utils/services';
+import { resolveFileUrl } from '../../utils/api';
+import { formatRelativeTime } from '../../utils/dateUtils';
+import { useAuth } from '../../contexts/AuthContext';
 import type {
   AnniversaryItem,
   AnniversaryType,
@@ -29,19 +26,19 @@ import type {
   OrgAnnouncement,
   OrgAnnouncementComment,
   OrgRole,
-} from "../../types";
+} from '../../types';
 
 /* ── Feed item union ── */
 type FeedItem =
   | {
       id: string;
-      kind: "anniversary";
+      kind: 'anniversary';
       data: AnniversaryItem;
       isToday: boolean;
     }
-  | { id: string; kind: "announcement"; data: OrgAnnouncement };
+  | { id: string; kind: 'announcement'; data: OrgAnnouncement };
 
-type FeedFilter = "all" | "anniversary" | "announcement";
+type FeedFilter = 'all' | 'anniversary' | 'announcement';
 
 interface Props {
   orgId: string;
@@ -62,12 +59,10 @@ interface Props {
 function getDday(dateStr: string): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const [, m, d] = dateStr.split("-").map(Number);
+  const [, m, d] = dateStr.split('-').map(Number);
   const target = new Date(today.getFullYear(), m - 1, d);
   if (target < today) target.setFullYear(target.getFullYear() + 1);
-  return Math.round(
-    (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
-  );
+  return Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -85,12 +80,12 @@ export function OrgFeedSection({
   const { t } = useTranslation();
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<FeedFilter>("all");
+  const [filter, setFilter] = useState<FeedFilter>('all');
   const [hasMoreAnnouncements, setHasMoreAnnouncements] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const isAdmin = role === "OWNER" || role === "ADMIN";
+  const isAdmin = role === 'OWNER' || role === 'ADMIN';
 
   /* ── Fetch data ── */
   useEffect(() => {
@@ -98,7 +93,7 @@ export function OrgFeedSection({
       try {
         setLoading(true);
         const [annivData, announcementData] = await Promise.all([
-          anniversaryService.getUpcoming(orgId, "THIS_MONTH"),
+          anniversaryService.getUpcoming(orgId, 'THIS_MONTH'),
           orgAnnouncementService.list(orgId, { limit: 10 }),
         ]);
 
@@ -107,7 +102,7 @@ export function OrgFeedSection({
         (annivData.today || []).forEach((a) =>
           items.push({
             id: `anniv-${a.member_id}-${a.type}-today`,
-            kind: "anniversary",
+            kind: 'anniversary',
             data: a,
             isToday: true,
           }),
@@ -115,7 +110,7 @@ export function OrgFeedSection({
         (annivData.this_week || []).forEach((a) =>
           items.push({
             id: `anniv-${a.member_id}-${a.type}-week`,
-            kind: "anniversary",
+            kind: 'anniversary',
             data: a,
             isToday: false,
           }),
@@ -123,7 +118,7 @@ export function OrgFeedSection({
         (annivData.this_month || []).forEach((a) =>
           items.push({
             id: `anniv-${a.member_id}-${a.type}-month`,
-            kind: "anniversary",
+            kind: 'anniversary',
             data: a,
             isToday: false,
           }),
@@ -132,22 +127,22 @@ export function OrgFeedSection({
         (announcementData.announcements || []).forEach((a) =>
           items.push({
             id: `announce-${a.id}`,
-            kind: "announcement",
+            kind: 'announcement',
             data: a,
           }),
         );
 
         items.sort((a, b) => {
           const scoreA =
-            a.kind === "announcement" && a.data.is_pinned
+            a.kind === 'announcement' && a.data.is_pinned
               ? 3
-              : a.kind === "anniversary" && a.isToday
+              : a.kind === 'anniversary' && a.isToday
                 ? 2
                 : 0;
           const scoreB =
-            b.kind === "announcement" && b.data.is_pinned
+            b.kind === 'announcement' && b.data.is_pinned
               ? 3
-              : b.kind === "anniversary" && b.isToday
+              : b.kind === 'anniversary' && b.isToday
                 ? 2
                 : 0;
           return scoreB - scoreA;
@@ -176,7 +171,7 @@ export function OrgFeedSection({
       });
       const newItems: FeedItem[] = (data.announcements || []).map((a) => ({
         id: `announce-${a.id}`,
-        kind: "announcement" as const,
+        kind: 'announcement' as const,
         data: a,
       }));
       setFeedItems((prev) => [...prev, ...newItems]);
@@ -191,50 +186,34 @@ export function OrgFeedSection({
 
   /* ── IntersectionObserver for sentinel ── */
   useEffect(() => {
-    if (!hasMoreAnnouncements || filter === "anniversary") return;
+    if (!hasMoreAnnouncements || filter === 'anniversary') return;
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) loadMore();
       },
-      { rootMargin: "200px" },
+      { rootMargin: '200px' },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [hasMoreAnnouncements, filter, loadMore]);
 
   const filtered = feedItems.filter((item) => {
-    if (filter === "all") return true;
+    if (filter === 'all') return true;
     return item.kind === filter;
   });
 
   /* ── Announcement actions ── */
   const handleDeleteAnnouncement = async (id: string) => {
-    if (
-      !confirm(
-        t(
-          "organization.announcement.deleteConfirm",
-          "Delete this announcement?",
-        ),
-      )
-    )
-      return;
+    if (!confirm(t('organization.announcement.deleteConfirm', 'Delete this announcement?'))) return;
     try {
       await orgAnnouncementService.delete(orgId, id);
       setFeedItems((prev) =>
-        prev.filter(
-          (item) =>
-            !(item.kind === "announcement" && item.data.id === id),
-        ),
+        prev.filter((item) => !(item.kind === 'announcement' && item.data.id === id)),
       );
     } catch {
-      toast.error(
-        t(
-          "organization.announcement.deleteError",
-          "Failed to delete announcement",
-        ),
-      );
+      toast.error(t('organization.announcement.deleteError', 'Failed to delete announcement'));
     }
   };
 
@@ -243,9 +222,7 @@ export function OrgFeedSection({
       const updated = await orgAnnouncementService.togglePin(orgId, id);
       setFeedItems((prev) =>
         prev.map((item) =>
-          item.kind === "announcement" && item.data.id === id
-            ? { ...item, data: updated }
-            : item,
+          item.kind === 'announcement' && item.data.id === id ? { ...item, data: updated } : item,
         ),
       );
     } catch {
@@ -256,15 +233,12 @@ export function OrgFeedSection({
   const handleCommentCountChange = (announcementId: string, delta: number) => {
     setFeedItems((prev) =>
       prev.map((item) =>
-        item.kind === "announcement" && item.data.id === announcementId
+        item.kind === 'announcement' && item.data.id === announcementId
           ? {
               ...item,
               data: {
                 ...item.data,
-                comment_count: Math.max(
-                  0,
-                  (item.data.comment_count || 0) + delta,
-                ),
+                comment_count: Math.max(0, (item.data.comment_count || 0) + delta),
               },
             }
           : item,
@@ -272,12 +246,8 @@ export function OrgFeedSection({
     );
   };
 
-  const anniversaryCount = feedItems.filter(
-    (i) => i.kind === "anniversary",
-  ).length;
-  const announcementCount = feedItems.filter(
-    (i) => i.kind === "announcement",
-  ).length;
+  const anniversaryCount = feedItems.filter((i) => i.kind === 'anniversary').length;
+  const announcementCount = feedItems.filter((i) => i.kind === 'announcement').length;
 
   if (loading) {
     return (
@@ -299,7 +269,7 @@ export function OrgFeedSection({
           <Rss size={28} className="text-bridge-accent/60" />
         </div>
         <p className="text-sm text-muted-foreground mb-1">
-          {t("organization.feed.empty", "No updates yet")}
+          {t('organization.feed.empty', 'No updates yet')}
         </p>
         {isAdmin && (
           <button
@@ -307,7 +277,7 @@ export function OrgFeedSection({
             className="mt-3 flex items-center gap-1.5 text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 px-3 py-1.5 rounded-lg transition-colors mx-auto"
           >
             <Plus size={13} />
-            {t("organization.dashboard.newAnnouncement", "New")}
+            {t('organization.dashboard.newAnnouncement', 'New')}
           </button>
         )}
       </div>
@@ -321,7 +291,7 @@ export function OrgFeedSection({
         <div className="flex items-center gap-2">
           <Rss size={14} className="text-bridge-accent" />
           <h3 className="text-sm font-bold text-foreground">
-            {t("organization.feed.title", "Feed")}
+            {t('organization.feed.title', 'Feed')}
           </h3>
           <span className="text-xs font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full">
             {filtered.length}
@@ -333,7 +303,7 @@ export function OrgFeedSection({
             className="flex items-center gap-1.5 text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 px-3 py-1.5 rounded-lg transition-colors"
           >
             <Plus size={13} />
-            {t("organization.dashboard.newAnnouncement", "새 공지")}
+            {t('organization.dashboard.newAnnouncement', '새 공지')}
           </button>
         )}
       </div>
@@ -342,9 +312,21 @@ export function OrgFeedSection({
       <div className="flex items-center gap-1 mb-3">
         {(
           [
-            { key: "all" as FeedFilter, label: t("organization.feed.all", "전체"), count: feedItems.length },
-            { key: "anniversary" as FeedFilter, label: t("organization.feed.anniversaries", "기념일"), count: anniversaryCount },
-            { key: "announcement" as FeedFilter, label: t("organization.feed.announcements", "공지"), count: announcementCount },
+            {
+              key: 'all' as FeedFilter,
+              label: t('organization.feed.all', '전체'),
+              count: feedItems.length,
+            },
+            {
+              key: 'anniversary' as FeedFilter,
+              label: t('organization.feed.anniversaries', '기념일'),
+              count: anniversaryCount,
+            },
+            {
+              key: 'announcement' as FeedFilter,
+              label: t('organization.feed.announcements', '공지'),
+              count: announcementCount,
+            },
           ] as const
         ).map((tab) => (
           <button
@@ -352,14 +334,12 @@ export function OrgFeedSection({
             onClick={() => setFilter(tab.key)}
             className={`text-xs font-medium px-2.5 py-1 rounded-lg transition-all ${
               filter === tab.key
-                ? "bg-bridge-accent/15 text-bridge-accent"
-                : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                ? 'bg-bridge-accent/15 text-bridge-accent'
+                : 'text-muted-foreground hover:text-foreground hover:bg-foreground/5'
             }`}
           >
             {tab.label}
-            {tab.count > 0 && (
-              <span className="ml-1 text-xs opacity-60">{tab.count}</span>
-            )}
+            {tab.count > 0 && <span className="ml-1 text-xs opacity-60">{tab.count}</span>}
           </button>
         ))}
       </div>
@@ -368,7 +348,7 @@ export function OrgFeedSection({
       {filtered.length === 0 ? (
         <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-8 text-center">
           <p className="text-sm text-muted-foreground">
-            {t("organization.feed.noItems", "이 카테고리에 항목이 없습니다")}
+            {t('organization.feed.noItems', '이 카테고리에 항목이 없습니다')}
           </p>
         </div>
       ) : (
@@ -380,7 +360,7 @@ export function OrgFeedSection({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: Math.min(index, 10) * 0.04 }}
             >
-              {item.kind === "anniversary" && (
+              {item.kind === 'anniversary' && (
                 <AnniversaryCard
                   orgId={orgId}
                   item={item.data}
@@ -388,7 +368,7 @@ export function OrgFeedSection({
                   onCelebrate={onOpenCelebration}
                 />
               )}
-              {item.kind === "announcement" && (
+              {item.kind === 'announcement' && (
                 <AnnouncementCard
                   orgId={orgId}
                   item={item.data}
@@ -403,11 +383,9 @@ export function OrgFeedSection({
             </motion.div>
           ))}
           {/* Sentinel for infinite scroll */}
-          {hasMoreAnnouncements && filter !== "anniversary" && (
+          {hasMoreAnnouncements && filter !== 'anniversary' && (
             <div ref={sentinelRef} className="flex items-center justify-center py-4">
-              {loadingMore && (
-                <Loader2 className="w-5 h-5 animate-spin text-bridge-accent" />
-              )}
+              {loadingMore && <Loader2 className="w-5 h-5 animate-spin text-bridge-accent" />}
             </div>
           )}
         </div>
@@ -428,42 +406,49 @@ function AnniversaryCard({
   orgId: string;
   item: AnniversaryItem;
   isToday: boolean;
-  onCelebrate: (
-    memberId: string,
-    memberName: string,
-    type: AnniversaryType,
-    date: string,
-  ) => void;
+  onCelebrate: (memberId: string, memberName: string, type: AnniversaryType, date: string) => void;
 }) {
   const { t } = useTranslation();
   const { currentUser } = useAuth();
-  const isBirthday = item.type === "BIRTHDAY";
+  const isBirthday = item.type === 'BIRTHDAY';
   const Icon = isBirthday ? Cake : PartyPopper;
   const typeLabel = isBirthday
-    ? t("organization.anniversary.birthday", "Birthday")
+    ? t('organization.anniversary.birthday', 'Birthday')
     : item.years
-      ? t("organization.anniversary.hireAnniversary", "{{years}} Year Work Anniversary", { years: String(item.years) })
-      : t("organization.anniversary.hireAnniversaryNoYears", "Work Anniversary");
+      ? t('organization.anniversary.hireAnniversary', '{{years}} Year Work Anniversary', {
+          years: String(item.years),
+        })
+      : t('organization.anniversary.hireAnniversaryNoYears', 'Work Anniversary');
 
   const celebTitle = isBirthday
-    ? t("organization.anniversary.celebrationTitle_BIRTHDAY", "{{name}}님의 생일을 축하합니다!", { name: item.member_name })
+    ? t('organization.anniversary.celebrationTitle_BIRTHDAY', '{{name}}님의 생일을 축하합니다!', {
+        name: item.member_name,
+      })
     : item.years
-      ? t("organization.anniversary.celebrationTitle_HIRE_ANNIVERSARY", "{{name}}님의 입사 {{years}}주년을 축하합니다!", { name: item.member_name, years: String(item.years) })
-      : t("organization.anniversary.celebrationTitle_HIRE_ANNIVERSARY_NO_YEARS", "{{name}}님의 입사 기념일을 축하합니다!", { name: item.member_name });
+      ? t(
+          'organization.anniversary.celebrationTitle_HIRE_ANNIVERSARY',
+          '{{name}}님의 입사 {{years}}주년을 축하합니다!',
+          { name: item.member_name, years: String(item.years) },
+        )
+      : t(
+          'organization.anniversary.celebrationTitle_HIRE_ANNIVERSARY_NO_YEARS',
+          '{{name}}님의 입사 기념일을 축하합니다!',
+          { name: item.member_name },
+        );
 
   const dateStr = (() => {
-    const [, m, d] = item.date.split("-");
+    const [, m, d] = item.date.split('-');
     return `${parseInt(m)}/${parseInt(d)}`;
   })();
 
   const dday = getDday(item.date);
-  const ddayLabel = dday === 0 ? "D-Day" : `D-${dday}`;
+  const ddayLabel = dday === 0 ? 'D-Day' : `D-${dday}`;
 
   // States for inline messages
   const [showMessages, setShowMessages] = useState(false);
   const [messages, setMessages] = useState<CelebrationMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [messageText, setMessageText] = useState("");
+  const [messageText, setMessageText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [localMessageCount, setLocalMessageCount] = useState(item.message_count || 0);
@@ -500,14 +485,16 @@ function AnniversaryCard({
         date: item.date,
         message: text,
       });
-      setMessageText("");
+      setMessageText('');
       setLocalMessageCount((c) => c + 1);
       await loadMessages();
     } catch (err: any) {
-      if (err?.code === "CB001") {
-        setSendError(t("organization.anniversary.duplicateMessage", "이미 축하 메시지를 보냈습니다"));
+      if (err?.code === 'CB001') {
+        setSendError(
+          t('organization.anniversary.duplicateMessage', '이미 축하 메시지를 보냈습니다'),
+        );
       } else {
-        setSendError(t("common.error", "An error occurred"));
+        setSendError(t('common.error', 'An error occurred'));
       }
     } finally {
       setSubmitting(false);
@@ -515,20 +502,20 @@ function AnniversaryCard({
   };
 
   // Theme colors
-  const ringColor = isBirthday ? "ring-pink-400/40" : "ring-amber-400/40";
-  const iconBg = isBirthday ? "bg-pink-500/15" : "bg-amber-500/15";
-  const iconColor = isBirthday ? "text-pink-500" : "text-amber-500";
+  const ringColor = isBirthday ? 'ring-pink-400/40' : 'ring-amber-400/40';
+  const iconBg = isBirthday ? 'bg-pink-500/15' : 'bg-amber-500/15';
+  const iconColor = isBirthday ? 'text-pink-500' : 'text-amber-500';
   const ddayBg = isToday
-    ? "bg-bridge-accent text-white"
+    ? 'bg-bridge-accent text-white'
     : isBirthday
-      ? "bg-pink-500/15 text-pink-600 dark:text-pink-400"
-      : "bg-amber-500/15 text-amber-600 dark:text-amber-400";
+      ? 'bg-pink-500/15 text-pink-600 dark:text-pink-400'
+      : 'bg-amber-500/15 text-amber-600 dark:text-amber-400';
   const accentGradient = isBirthday
-    ? "from-pink-500/60 via-rose-400/40 to-transparent"
-    : "from-amber-500/60 via-orange-400/40 to-transparent";
+    ? 'from-pink-500/60 via-rose-400/40 to-transparent'
+    : 'from-amber-500/60 via-orange-400/40 to-transparent';
   const bgGradient = isBirthday
-    ? "from-pink-500/8 via-rose-500/4 to-transparent"
-    : "from-amber-500/8 via-orange-500/4 to-transparent";
+    ? 'from-pink-500/8 via-rose-500/4 to-transparent'
+    : 'from-amber-500/8 via-orange-500/4 to-transparent';
 
   return (
     <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] hover:border-foreground/[0.12] overflow-hidden transition-colors">
@@ -555,9 +542,7 @@ function AnniversaryCard({
             ) : (
               <div
                 className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold ring-2 ${ringColor} ${
-                  isBirthday
-                    ? "bg-pink-500/15 text-pink-500"
-                    : "bg-amber-500/15 text-amber-500"
+                  isBirthday ? 'bg-pink-500/15 text-pink-500' : 'bg-amber-500/15 text-amber-500'
                 }`}
               >
                 {item.member_name.charAt(0)}
@@ -573,12 +558,8 @@ function AnniversaryCard({
           {/* Info */}
           <div className="flex-1 min-w-0 pt-0.5">
             <div className="flex items-center gap-2 mb-1">
-              <h4 className="text-sm font-bold text-foreground truncate">
-                {item.member_name}
-              </h4>
-              <span
-                className={`text-xs font-bold px-1.5 py-0.5 rounded-full shrink-0 ${ddayBg}`}
-              >
+              <h4 className="text-sm font-bold text-foreground truncate">{item.member_name}</h4>
+              <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full shrink-0 ${ddayBg}`}>
                 {ddayLabel}
               </span>
             </div>
@@ -586,8 +567,8 @@ function AnniversaryCard({
               <span
                 className={`text-xs font-medium ${
                   isBirthday
-                    ? "text-pink-600 dark:text-pink-400"
-                    : "text-amber-600 dark:text-amber-400"
+                    ? 'text-pink-600 dark:text-pink-400'
+                    : 'text-amber-600 dark:text-amber-400'
                 }`}
               >
                 {typeLabel}
@@ -595,9 +576,7 @@ function AnniversaryCard({
               {item.department_name && (
                 <>
                   <span className="text-foreground/20">·</span>
-                  <span className="text-xs text-slate-500 truncate">
-                    {item.department_name}
-                  </span>
+                  <span className="text-xs text-slate-500 truncate">{item.department_name}</span>
                 </>
               )}
               <span className="text-foreground/20">·</span>
@@ -609,7 +588,7 @@ function AnniversaryCard({
         {/* Celebration title text */}
         <div className="px-5 pt-3 pb-4">
           <p className="text-sm text-foreground/80 leading-relaxed">
-            {isBirthday ? "🎂" : "🎉"} {celebTitle}
+            {isBirthday ? '🎂' : '🎉'} {celebTitle}
           </p>
         </div>
       </div>
@@ -620,32 +599,28 @@ function AnniversaryCard({
           onClick={handleToggleMessages}
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group/comment"
         >
-          <MessageCircle size={14} className={`group-hover/comment:${isBirthday ? 'text-pink-500' : 'text-amber-500'} transition-colors`} />
+          <MessageCircle
+            size={14}
+            className={`group-hover/comment:${isBirthday ? 'text-pink-500' : 'text-amber-500'} transition-colors`}
+          />
           <span>
             {localMessageCount > 0
-              ? t("organization.feed.commentCount", "{{count}}개의 댓글", {
+              ? t('organization.feed.commentCount', '{{count}}개의 댓글', {
                   count: localMessageCount,
                 })
-              : t("organization.feed.addComment", "댓글 작성")}
+              : t('organization.feed.addComment', '댓글 작성')}
           </span>
         </button>
         {isToday && (
           <button
-            onClick={() =>
-              onCelebrate(
-                item.member_id,
-                item.member_name,
-                item.type,
-                item.date,
-              )
-            }
+            onClick={() => onCelebrate(item.member_id, item.member_name, item.type, item.date)}
             className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
               isBirthday
-                ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-[0_0_20px_rgba(236,72,153,0.3)]"
-                : "bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:shadow-[0_0_20px_rgba(245,158,11,0.3)]"
+                ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-[0_0_20px_rgba(236,72,153,0.3)]'
+                : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:shadow-[0_0_20px_rgba(245,158,11,0.3)]'
             }`}
           >
-            {t("organization.anniversary.sendMessage", "축하 메시지 보내기")}
+            {t('organization.anniversary.sendMessage', '축하 메시지 보내기')}
             <ChevronRight size={12} />
           </button>
         )}
@@ -656,7 +631,7 @@ function AnniversaryCard({
         {showMessages && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
+            animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
@@ -670,7 +645,7 @@ function AnniversaryCard({
                   </div>
                 ) : messages.length === 0 ? (
                   <p className="text-xs text-slate-500 text-center py-3">
-                    {t("organization.feed.noComments", "첫 댓글을 남겨보세요")}
+                    {t('organization.feed.noComments', '첫 댓글을 남겨보세요')}
                   </p>
                 ) : (
                   messages.map((msg) => (
@@ -730,14 +705,14 @@ function AnniversaryCard({
                       setSendError(null);
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
+                      if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         handleSubmitMessage();
                       }
                     }}
                     placeholder={t(
-                      "organization.anniversary.messagePlaceholder",
-                      "축하 메시지를 남겨보세요...",
+                      'organization.anniversary.messagePlaceholder',
+                      '축하 메시지를 남겨보세요...',
                     )}
                     className="flex-1 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 px-3 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                     disabled={submitting}
@@ -754,11 +729,7 @@ function AnniversaryCard({
                     )}
                   </button>
                 </div>
-                {sendError && (
-                  <p className="text-xs text-red-500 mt-1.5 ml-9">
-                    {sendError}
-                  </p>
-                )}
+                {sendError && <p className="text-xs text-red-500 mt-1.5 ml-9">{sendError}</p>}
               </div>
             </div>
           </motion.div>
@@ -796,7 +767,7 @@ function AnnouncementCard({
   const [showComments, setShowComments] = useState(commentCount > 0);
   const [comments, setComments] = useState<OrgAnnouncementComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
-  const [commentText, setCommentText] = useState("");
+  const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -827,38 +798,31 @@ function AnnouncementCard({
     if (!text || submitting) return;
     try {
       setSubmitting(true);
-      const newComment = await orgAnnouncementService.addComment(
-        orgId,
-        item.id,
-        { content: text },
-      );
+      const newComment = await orgAnnouncementService.addComment(orgId, item.id, { content: text });
       setComments((prev) => [...prev, newComment]);
-      setCommentText("");
+      setCommentText('');
       onCommentCountChange(item.id, 1);
     } catch {
-      toast.error(t("common.error", "An error occurred"));
+      toast.error(t('common.error', 'An error occurred'));
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDeleteComment = async (commentId: string) => {
-    if (
-      !confirm(t("organization.feed.deleteComment", "Delete this comment?"))
-    )
-      return;
+    if (!confirm(t('organization.feed.deleteComment', 'Delete this comment?'))) return;
     try {
       await orgAnnouncementService.deleteComment(orgId, item.id, commentId);
       setComments((prev) => prev.filter((c) => c.id !== commentId));
       onCommentCountChange(item.id, -1);
     } catch {
-      toast.error(t("common.error", "An error occurred"));
+      toast.error(t('common.error', 'An error occurred'));
     }
   };
 
   const accentGradient = item.is_pinned
-    ? "from-bridge-accent/80 via-bridge-secondary/40 to-transparent"
-    : "from-bridge-accent/40 via-bridge-accent/15 to-transparent";
+    ? 'from-bridge-accent/80 via-bridge-secondary/40 to-transparent'
+    : 'from-bridge-accent/40 via-bridge-accent/15 to-transparent';
 
   return (
     <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] hover:border-foreground/[0.12] transition-colors overflow-hidden group/card">
@@ -897,18 +861,14 @@ function AnnouncementCard({
           )}
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[13px] font-bold text-foreground">
-                {item.author_name}
-              </span>
+              <span className="text-[13px] font-bold text-foreground">{item.author_name}</span>
               {item.is_pinned && (
                 <span className="text-xs font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full">
                   PIN
                 </span>
               )}
             </div>
-            <span className="text-xs text-slate-500">
-              {formatRelativeTime(item.created_at)}
-            </span>
+            <span className="text-xs text-slate-500">{formatRelativeTime(item.created_at)}</span>
           </div>
         </div>
         {isAdmin && (
@@ -916,14 +876,9 @@ function AnnouncementCard({
             <button
               onClick={() => onTogglePin(item.id)}
               className="p-1.5 rounded-lg hover:bg-foreground/5 transition-colors"
-              title={item.is_pinned ? "Unpin" : "Pin"}
+              title={item.is_pinned ? 'Unpin' : 'Pin'}
             >
-              <Pin
-                size={13}
-                className={
-                  item.is_pinned ? "text-bridge-accent" : "text-slate-500"
-                }
-              />
+              <Pin size={13} className={item.is_pinned ? 'text-bridge-accent' : 'text-slate-500'} />
             </button>
             <button
               onClick={() => onEdit(item)}
@@ -937,10 +892,7 @@ function AnnouncementCard({
               className="p-1.5 rounded-lg hover:bg-rose-500/10 transition-colors"
               title="Delete"
             >
-              <Trash2
-                size={13}
-                className="text-slate-500 hover:text-rose-500"
-              />
+              <Trash2 size={13} className="text-slate-500 hover:text-rose-500" />
             </button>
           </div>
         )}
@@ -948,9 +900,7 @@ function AnnouncementCard({
 
       {/* Content */}
       <div className="px-5 pt-4 pb-4">
-        <h4 className="text-[15px] font-bold text-foreground mb-2 leading-snug">
-          {item.title}
-        </h4>
+        <h4 className="text-[15px] font-bold text-foreground mb-2 leading-snug">{item.title}</h4>
         {item.content && (
           <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap space-y-1">
             {item.content}
@@ -960,10 +910,17 @@ function AnnouncementCard({
 
       {/* Attached images */}
       {item.attachments && item.attachments.length > 0 && (
-        <div className={`px-5 pb-3 ${item.attachments.length === 1 ? '' : 'grid grid-cols-2 gap-1.5'}`}>
-          {item.attachments.map(att => (
-            <a key={att.id} href={resolveFileUrl(att.url)} target="_blank" rel="noopener noreferrer"
-              className="block rounded-xl overflow-hidden border border-foreground/[0.08]">
+        <div
+          className={`px-5 pb-3 ${item.attachments.length === 1 ? '' : 'grid grid-cols-2 gap-1.5'}`}
+        >
+          {item.attachments.map((att) => (
+            <a
+              key={att.id}
+              href={resolveFileUrl(att.url)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-xl overflow-hidden border border-foreground/[0.08]"
+            >
               <img
                 src={resolveFileUrl(att.thumbnail_url || att.url)}
                 alt={att.file_name}
@@ -981,20 +938,23 @@ function AnnouncementCard({
           onClick={handleToggleComments}
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group/comment"
         >
-          <MessageCircle size={14} className="group-hover/comment:text-bridge-accent transition-colors" />
+          <MessageCircle
+            size={14}
+            className="group-hover/comment:text-bridge-accent transition-colors"
+          />
           <span>
             {commentCount > 0
-              ? t("organization.feed.commentCount", "{{count}}개의 댓글", {
+              ? t('organization.feed.commentCount', '{{count}}개의 댓글', {
                   count: commentCount,
                 })
-              : t("organization.feed.addComment", "댓글 작성")}
+              : t('organization.feed.addComment', '댓글 작성')}
           </span>
         </button>
         <button
           onClick={onViewAll}
           className="text-xs text-slate-500 hover:text-bridge-accent flex items-center gap-0.5 transition-colors"
         >
-          {t("organization.dashboard.viewAll", "전체 보기")}
+          {t('organization.dashboard.viewAll', '전체 보기')}
           <ChevronRight size={12} />
         </button>
       </div>
@@ -1004,7 +964,7 @@ function AnnouncementCard({
         {showComments && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
+            animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
@@ -1017,10 +977,7 @@ function AnnouncementCard({
                   </div>
                 ) : comments.length === 0 ? (
                   <p className="text-xs text-slate-500 text-center py-3">
-                    {t(
-                      "organization.feed.noComments",
-                      "첫 댓글을 남겨보세요",
-                    )}
+                    {t('organization.feed.noComments', '첫 댓글을 남겨보세요')}
                   </p>
                 ) : (
                   comments.map((comment) => (
@@ -1046,16 +1003,12 @@ function AnnouncementCard({
                           <span className="text-xs text-slate-500">
                             {formatRelativeTime(comment.created_at)}
                           </span>
-                          {(currentUser?.name === comment.author_name ||
-                            isAdmin) && (
+                          {(currentUser?.name === comment.author_name || isAdmin) && (
                             <button
                               onClick={() => handleDeleteComment(comment.id)}
                               className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-rose-500/10 transition-all ml-auto"
                             >
-                              <Trash2
-                                size={11}
-                                className="text-slate-500 hover:text-rose-500"
-                              />
+                              <Trash2 size={11} className="text-slate-500 hover:text-rose-500" />
                             </button>
                           )}
                         </div>
@@ -1089,15 +1042,12 @@ function AnnouncementCard({
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
+                      if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         handleSubmitComment();
                       }
                     }}
-                    placeholder={t(
-                      "organization.feed.commentPlaceholder",
-                      "댓글을 입력하세요...",
-                    )}
+                    placeholder={t('organization.feed.commentPlaceholder', '댓글을 입력하세요...')}
                     className="flex-1 bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 px-3 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                     disabled={submitting}
                   />

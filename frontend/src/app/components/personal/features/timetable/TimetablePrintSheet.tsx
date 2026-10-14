@@ -1,6 +1,16 @@
 import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import type { FeaturePrintProps, TimetableColumn, TimetableContent, TimetableDay } from '../types';
-import { cellOf, covers, effectivePlaceNote, fmtT, formatDayLabel, parseRange, placeColumn, spanOf, timeColumn } from './timetableModel';
+import {
+  cellOf,
+  covers,
+  effectivePlaceNote,
+  fmtT,
+  formatDayLabel,
+  parseRange,
+  placeColumn,
+  spanOf,
+  timeColumn,
+} from './timetableModel';
 import './timetable.css';
 
 /**
@@ -99,9 +109,9 @@ export function TimetablePrintSheet({ doc }: FeaturePrintProps<TimetableContent>
   const content = doc.content;
   const columns = content?.columns || [];
   const days = content?.days || [];
-  const timeKey = content ? timeColumn(content)?.key ?? null : null;
+  const timeKey = content ? (timeColumn(content)?.key ?? null) : null;
   const mainKey = mainColumnKey(columns);
-  const placeKey = content ? placeColumn(content)?.key ?? null : null;
+  const placeKey = content ? (placeColumn(content)?.key ?? null) : null;
   const lastKey = columns.length ? columns[columns.length - 1].key : null;
   const placeNote = content ? effectivePlaceNote(content) : '';
 
@@ -147,7 +157,11 @@ export function TimetablePrintSheet({ doc }: FeaturePrintProps<TimetableContent>
           const flush = () => {
             if (!run.length) return;
             cells.push(
-              <td key={run[0]} colSpan={run.length > 1 ? run.length : undefined} className="tt-p-gap-cell">
+              <td
+                key={run[0]}
+                colSpan={run.length > 1 ? run.length : undefined}
+                className="tt-p-gap-cell"
+              >
                 {!labeled ? `쉬는 시간 ${fmtDuration(g.e - g.s)}` : null}
               </td>,
             );
@@ -184,13 +198,20 @@ export function TimetablePrintSheet({ doc }: FeaturePrintProps<TimetableContent>
             <table>
               <colgroup>
                 {columns.map((c) => (
-                  <col key={c.key} style={c.width ? ({ width: `${c.width}%` } as CSSProperties) : undefined} />
+                  <col
+                    key={c.key}
+                    style={c.width ? ({ width: `${c.width}%` } as CSSProperties) : undefined}
+                  />
                 ))}
               </colgroup>
               <thead>
                 <tr>
                   {columns.map((c) => (
-                    <th key={c.key} className={c.key === placeKey ? 'tt-p-place' : undefined} style={c.width ? { width: `${c.width}%` } : undefined}>
+                    <th
+                      key={c.key}
+                      className={c.key === placeKey ? 'tt-p-place' : undefined}
+                      style={c.width ? { width: `${c.width}%` } : undefined}
+                    >
                       {c.label}
                     </th>
                   ))}
@@ -219,7 +240,11 @@ export function TimetablePrintSheet({ doc }: FeaturePrintProps<TimetableContent>
                             .filter(Boolean)
                             .join(' ');
                           return (
-                            <td key={c.key} rowSpan={n > 1 ? n : undefined} className={cls || undefined}>
+                            <td
+                              key={c.key}
+                              rowSpan={n > 1 ? n : undefined}
+                              className={cls || undefined}
+                            >
                               {isTime ? <TimeText text={cell.t} duration /> : cell.t}
                             </td>
                           );

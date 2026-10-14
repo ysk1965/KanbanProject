@@ -1,19 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  X,
-  Loader2,
-  CheckSquare,
-  ChevronDown,
-  Check,
-} from 'lucide-react';
-import {
-  featureAPI,
-  taskAPI,
-  checklistAPI,
-  FeatureResponse,
-  TaskResponse,
-} from '../../utils/api';
+import { X, Loader2, CheckSquare, ChevronDown, Check } from 'lucide-react';
+import { featureAPI, taskAPI, checklistAPI, FeatureResponse, TaskResponse } from '../../utils/api';
 import { BoardMember } from '../ShareBoardModal';
 import { MotionModal } from '../ui/MotionModal';
 import { getInitials, getAssigneeHex } from '../../utils/assigneeColor';
@@ -118,10 +106,18 @@ export function AddChecklistItemModal({
   useEffect(() => {
     if (!showFeatureDropdown && !showTaskDropdown) return;
     const handleClick = (e: MouseEvent) => {
-      if (showFeatureDropdown && featureDropdownRef.current && !featureDropdownRef.current.contains(e.target as Node)) {
+      if (
+        showFeatureDropdown &&
+        featureDropdownRef.current &&
+        !featureDropdownRef.current.contains(e.target as Node)
+      ) {
         setShowFeatureDropdown(false);
       }
-      if (showTaskDropdown && taskDropdownRef.current && !taskDropdownRef.current.contains(e.target as Node)) {
+      if (
+        showTaskDropdown &&
+        taskDropdownRef.current &&
+        !taskDropdownRef.current.contains(e.target as Node)
+      ) {
         setShowTaskDropdown(false);
       }
     };
@@ -235,9 +231,11 @@ export function AddChecklistItemModal({
               </button>
 
               {showFeatureDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-1 z-50
+                <div
+                  className="absolute top-full left-0 right-0 mt-1 z-50
                   bg-bridge-obsidian border border-foreground/[0.08] rounded-xl shadow-xl
-                  max-h-[200px] overflow-y-auto custom-scrollbar py-1">
+                  max-h-[200px] overflow-y-auto custom-scrollbar py-1"
+                >
                   {features.map((feature) => (
                     <button
                       key={feature.id}
@@ -305,9 +303,11 @@ export function AddChecklistItemModal({
               </button>
 
               {showTaskDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-1 z-50
+                <div
+                  className="absolute top-full left-0 right-0 mt-1 z-50
                   bg-bridge-obsidian border border-foreground/[0.08] rounded-xl shadow-xl
-                  max-h-[200px] overflow-y-auto custom-scrollbar py-1">
+                  max-h-[200px] overflow-y-auto custom-scrollbar py-1"
+                >
                   {tasks.map((task) => (
                     <button
                       key={task.id}
@@ -374,7 +374,11 @@ export function AddChecklistItemModal({
                     style={{ backgroundColor: bgColor }}
                   >
                     {member.avatar ? (
-                      <img src={member.avatar} alt={member.name} className="w-full h-full rounded-full object-cover" />
+                      <img
+                        src={member.avatar}
+                        alt={member.name}
+                        className="w-full h-full rounded-full object-cover"
+                      />
                     ) : (
                       getInitials(member.name)
                     )}
@@ -386,16 +390,12 @@ export function AddChecklistItemModal({
         )}
 
         {/* Error */}
-        {error && (
-          <p className="text-xs text-red-400">{error}</p>
-        )}
+        {error && <p className="text-xs text-red-400">{error}</p>}
       </div>
 
       {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-xs text-slate-500">
-          Esc {t('common.close', 'Close')}
-        </span>
+        <span className="text-xs text-slate-500">Esc {t('common.close', 'Close')}</span>
         <div className="flex items-center gap-2">
           {addedCount > 0 && (
             <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
@@ -409,11 +409,7 @@ export function AddChecklistItemModal({
               disabled:opacity-50 disabled:cursor-not-allowed
               hover:bg-bridge-accent/90 transition-all"
           >
-            {isSubmitting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              t('common.add', 'Add')
-            )}
+            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : t('common.add', 'Add')}
           </button>
         </div>
       </div>

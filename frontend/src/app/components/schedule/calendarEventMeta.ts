@@ -3,7 +3,7 @@
  * event_type ↔ 라벨/아이콘/색/카테고리 매핑의 단일 소스.
  */
 
-export type CalendarCategory = "TEAM" | "MEMBER" | "CALENDAR";
+export type CalendarCategory = 'TEAM' | 'MEMBER' | 'CALENDAR';
 
 export interface CalendarTypeMeta {
   key: string; // event_type
@@ -16,32 +16,32 @@ export interface CalendarTypeMeta {
 /** 팀 공통 프로젝트 이벤트 */
 export const TEAM_TYPES: CalendarTypeMeta[] = [
   {
-    key: "BUILD",
-    label: "빌드",
-    icon: "⚒️",
-    color: "#f59e0b",
-    category: "TEAM",
+    key: 'BUILD',
+    label: '빌드',
+    icon: '⚒️',
+    color: '#f59e0b',
+    category: 'TEAM',
   },
   {
-    key: "RELEASE",
-    label: "릴리스",
-    icon: "🚀",
-    color: "#34d399",
-    category: "TEAM",
+    key: 'RELEASE',
+    label: '릴리스',
+    icon: '🚀',
+    color: '#34d399',
+    category: 'TEAM',
   },
   {
-    key: "DEADLINE",
-    label: "데드라인",
-    icon: "⚑",
-    color: "#ef4444",
-    category: "TEAM",
+    key: 'DEADLINE',
+    label: '데드라인',
+    icon: '⚑',
+    color: '#ef4444',
+    category: 'TEAM',
   },
   {
-    key: "EVENT",
-    label: "기타",
-    icon: "◈",
-    color: "#8b5cf6",
-    category: "TEAM",
+    key: 'EVENT',
+    label: '기타',
+    icon: '◈',
+    color: '#8b5cf6',
+    category: 'TEAM',
   },
 ];
 
@@ -52,78 +52,78 @@ export const TEAM_TYPES: CalendarTypeMeta[] = [
  */
 export const MEMBER_TYPES: CalendarTypeMeta[] = [
   {
-    key: "ABSENCE",
-    label: "부재",
-    icon: "🚶",
-    color: "#94a3b8",
-    category: "MEMBER",
+    key: 'ABSENCE',
+    label: '부재',
+    icon: '🚶',
+    color: '#94a3b8',
+    category: 'MEMBER',
   },
   {
-    key: "HOLIDAY_WORK",
-    label: "휴일근무",
-    icon: "🛠",
-    color: "#34d399",
-    category: "MEMBER",
+    key: 'HOLIDAY_WORK',
+    label: '휴일근무',
+    icon: '🛠',
+    color: '#34d399',
+    category: 'MEMBER',
   },
 ];
 
 /** 개인 휴일근무 타입 여부 — 그 멤버 행의 주말/휴무일 빗금을 해제한다. */
 export function isHolidayWorkType(eventType: string): boolean {
-  return eventType === "HOLIDAY_WORK";
+  return eventType === 'HOLIDAY_WORK';
 }
 
 /** 개인 부재 계열(ABSENCE + 레거시) 여부 */
 export function isAbsenceType(eventType: string): boolean {
-  return categoryOf(eventType) === "MEMBER" && !isHolidayWorkType(eventType);
+  return categoryOf(eventType) === 'MEMBER' && !isHolidayWorkType(eventType);
 }
 
 /** 레거시 부재 타입(하위호환 렌더용) — 신규 UI는 생성하지 않음 */
 export const LEGACY_MEMBER_TYPES: CalendarTypeMeta[] = [
   {
-    key: "VACATION",
-    label: "휴가",
-    icon: "🌴",
-    color: "#94a3b8",
-    category: "MEMBER",
+    key: 'VACATION',
+    label: '휴가',
+    icon: '🌴',
+    color: '#94a3b8',
+    category: 'MEMBER',
   },
   {
-    key: "TRIP",
-    label: "출장",
-    icon: "✈️",
-    color: "#38bdf8",
-    category: "MEMBER",
+    key: 'TRIP',
+    label: '출장',
+    icon: '✈️',
+    color: '#38bdf8',
+    category: 'MEMBER',
   },
   {
-    key: "SICK",
-    label: "병가",
-    icon: "🤒",
-    color: "#fb7185",
-    category: "MEMBER",
+    key: 'SICK',
+    label: '병가',
+    icon: '🤒',
+    color: '#fb7185',
+    category: 'MEMBER',
   },
   {
-    key: "REMOTE",
-    label: "재택",
-    icon: "🏠",
-    color: "#34d399",
-    category: "MEMBER",
+    key: 'REMOTE',
+    label: '재택',
+    icon: '🏠',
+    color: '#34d399',
+    category: 'MEMBER',
   },
 ];
 
 /** 달력 예외 (날짜 성격 재정의) */
 export const CALENDAR_TYPES: CalendarTypeMeta[] = [
   {
-    key: "HOLIDAY",
-    label: "휴무일",
-    icon: "🏖️",
-    color: "#f87171",
-    category: "CALENDAR",
+    key: 'HOLIDAY',
+    label: '휴무일',
+    icon: '🏖️',
+    color: '#f87171',
+    category: 'CALENDAR',
   },
   {
-    key: "WORKDAY",
-    label: "근무일",
-    icon: "💼",
-    color: "#34d399",
-    category: "CALENDAR",
+    key: 'WORKDAY',
+    label: '근무일',
+    icon: '💼',
+    color: '#34d399',
+    category: 'CALENDAR',
   },
 ];
 
@@ -147,9 +147,9 @@ export function calendarTypeMeta(eventType: string): CalendarTypeMeta {
     META_BY_KEY[eventType] || {
       key: eventType,
       label: eventType,
-      icon: "◈",
-      color: "#6366f1",
-      category: "TEAM",
+      icon: '◈',
+      color: '#6366f1',
+      category: 'TEAM',
     }
   );
 }

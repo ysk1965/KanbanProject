@@ -94,7 +94,12 @@ export function anchorOf(day: TimetableDay, key: string, ri: number): number {
 }
 
 /** 기존 병합에 걸치면 그 병합 전체를 포함하도록 범위를 넓힌다 */
-export function normRange(day: TimetableDay, key: string, r1: number, r2: number): { r1: number; r2: number } {
+export function normRange(
+  day: TimetableDay,
+  key: string,
+  r1: number,
+  r2: number,
+): { r1: number; r2: number } {
   const cov = covers(day, key);
   if (cov[r1] >= 0) r1 = cov[r1];
   const a2 = cov[r2] >= 0 ? cov[r2] : r2;
@@ -105,7 +110,8 @@ export function normRange(day: TimetableDay, key: string, r1: number, r2: number
 export function countMerged(content: TimetableContent): number {
   let n = 0;
   for (const day of content.days)
-    for (const c of content.columns) for (const row of day.rows) if (((cellOf(row, c.key).span || 0) | 0) > 1) n++;
+    for (const c of content.columns)
+      for (const row of day.rows) if (((cellOf(row, c.key).span || 0) | 0) > 1) n++;
   return n;
 }
 
@@ -141,7 +147,13 @@ function ensureCell(row: TimetableRow, key: string): TimetableCell {
 
 /* ───────────── 셀 · 헤더 값 ───────────── */
 
-export function setCell(content: TimetableContent, di: number, ri: number, key: string, patch: Partial<TimetableCell>): TimetableContent {
+export function setCell(
+  content: TimetableContent,
+  di: number,
+  ri: number,
+  key: string,
+  patch: Partial<TimetableCell>,
+): TimetableContent {
   const day = content.days[di];
   if (!day || !day.rows[ri]) return content;
   const next = cloneContent(content);
@@ -158,16 +170,27 @@ export function setCell(content: TimetableContent, di: number, ri: number, key: 
   return next;
 }
 
-export function setCellText(content: TimetableContent, di: number, ri: number, key: string, text: string): TimetableContent {
+export function setCellText(
+  content: TimetableContent,
+  di: number,
+  ri: number,
+  key: string,
+  text: string,
+): TimetableContent {
   if (cellOf(content.days[di]?.rows[ri], key).t === text) return content;
   return setCell(content, di, ri, key, { t: text });
 }
 
-export function setCellColor(content: TimetableContent, di: number, ri: number, key: string, color: TimetableCellColor): TimetableContent {
+export function setCellColor(
+  content: TimetableContent,
+  di: number,
+  ri: number,
+  key: string,
+  color: TimetableCellColor,
+): TimetableContent {
   if ((cellOf(content.days[di]?.rows[ri], key).c || '') === (color || '')) return content;
   return setCell(content, di, ri, key, { c: color });
 }
-
 
 /* ───────────── 장소 ───────────── */
 
@@ -175,7 +198,9 @@ const PLACE_LABEL_RE = /^(장소|place|venue|location)$/i;
 
 /** 「장소」 열. 라벨로 찾고, 없으면 기본 문서의 두 번째 열(c2)이 텍스트 열이면 그것 */
 export function placeColumn(content: TimetableContent): TimetableColumn | undefined {
-  const byLabel = content.columns.find((c) => c.type !== 'time' && PLACE_LABEL_RE.test((c.label || '').trim()));
+  const byLabel = content.columns.find(
+    (c) => c.type !== 'time' && PLACE_LABEL_RE.test((c.label || '').trim()),
+  );
   if (byLabel) return byLabel;
   const c2 = content.columns.find((c) => c.key === 'c2');
   return c2 && c2.type !== 'time' ? c2 : undefined;
@@ -216,7 +241,13 @@ export function effectivePlaceNote(content: TimetableContent): string {
  * 같은 열의 r1..r2 를 합친다. 맨 위 셀이 대표가 되고, 대표가 비어 있으면 범위 안 첫 값(색 포함)을 가져온다.
  * 나머지 셀의 값은 버리지 않고 숨긴다 (span만 지우면 돌아온다).
  */
-export function mergeRange(content: TimetableContent, di: number, key: string, r1: number, r2: number): TimetableContent {
+export function mergeRange(
+  content: TimetableContent,
+  di: number,
+  key: string,
+  r1: number,
+  r2: number,
+): TimetableContent {
   const day = content.days[di];
   if (!day) return content;
   const nr = normRange(day, key, Math.min(r1, r2), Math.max(r1, r2));
@@ -241,7 +272,12 @@ export function mergeRange(content: TimetableContent, di: number, key: string, r
 }
 
 /** ri 가 속한 병합을 푼다. 대표의 span만 지우므로 숨겨 둔 값이 그대로 돌아온다. */
-export function unmerge(content: TimetableContent, di: number, key: string, ri: number): TimetableContent {
+export function unmerge(
+  content: TimetableContent,
+  di: number,
+  key: string,
+  ri: number,
+): TimetableContent {
   const day = content.days[di];
   if (!day) return content;
   const a = anchorOf(day, key, ri);
@@ -273,7 +309,13 @@ export function autoMerge(content: TimetableContent): {
       let g = 0;
       while (g < segs.length) {
         let h = g;
-        while (segs[g].t && h + 1 < segs.length && segs[h + 1].t === segs[g].t && segs[h + 1].c === segs[g].c) h++;
+        while (
+          segs[g].t &&
+          h + 1 < segs.length &&
+          segs[h + 1].t === segs[g].t &&
+          segs[h + 1].c === segs[g].c
+        )
+          h++;
         if (h > g) {
           let total = 0;
           for (let k = g; k <= h; k++) {
@@ -367,7 +409,11 @@ export function setDayDate(content: TimetableContent, di: number, date: string):
 const WEEK_KO = ['일', '월', '화', '수', '목', '금', '토'];
 
 /** "2026-09-12" → "9.12 (토)". 형식이 아니면 fallback */
-export function formatDayLabel(iso: string, fallback = '날짜 없음', weekNames: string[] = WEEK_KO): string {
+export function formatDayLabel(
+  iso: string,
+  fallback = '날짜 없음',
+  weekNames: string[] = WEEK_KO,
+): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
   if (!m) return fallback;
   const d = new Date(+m[1], +m[2] - 1, +m[3]);
@@ -414,7 +460,11 @@ export function moveColumn(content: TimetableContent, key: string, dir: -1 | 1):
   return next;
 }
 
-export function setColumnLabel(content: TimetableContent, key: string, label: string): TimetableContent {
+export function setColumnLabel(
+  content: TimetableContent,
+  key: string,
+  label: string,
+): TimetableContent {
   const col = colOf(content, key);
   const v = label.trim() || '열';
   if (!col || col.label === v) return content;
@@ -494,7 +544,13 @@ export function defaultRange(content: TimetableContent, di: number, ri: number):
  * - 각 행의 길이는 유지된다. 시간이 없는 행·병합에 덮인 행은 건너뛴다.
  * - 옮긴 뒤에도 아래 행을 따로 고칠 수 있다 (고치면 그 아래가 다시 따라온다).
  */
-export function setTimeTextCascade(content: TimetableContent, di: number, ri: number, key: string, text: string): TimetableContent {
+export function setTimeTextCascade(
+  content: TimetableContent,
+  di: number,
+  ri: number,
+  key: string,
+  text: string,
+): TimetableContent {
   const day = content.days[di];
   if (!day) return content;
   const before = parseRange(cellOf(day.rows[ri], key).t);
@@ -511,7 +567,13 @@ export function setTimeTextCascade(content: TimetableContent, di: number, ri: nu
  * (복제본 전용) fromRow 부터 아래 시간 행들을 「이전 행 종료가 prevOldEnd → prevNewEnd 로 바뀌었다」고 보고 따라 옮긴다.
  * 간격 유지·겹침은 붙임·길이 유지. 시간이 없는 행·병합에 덮인 행은 건너뛴다. 바뀐 행 수를 돌려준다.
  */
-function cascadeBelowInPlace(day: TimetableDay, key: string, fromRow: number, prevOldEnd: number, prevNewEnd: number): number {
+function cascadeBelowInPlace(
+  day: TimetableDay,
+  key: string,
+  fromRow: number,
+  prevOldEnd: number,
+  prevNewEnd: number,
+): number {
   const cov = covers(day, key);
   let changed = 0;
   for (let i = fromRow; i < day.rows.length; i++) {
@@ -542,7 +604,11 @@ function cascadeBelowInPlace(day: TimetableDay, key: string, fromRow: number, pr
  *   그 아래 행들은 setTimeTextCascade 와 같은 규칙으로 따라 옮긴다.
  * - ri 가 어떤 열의 세로 병합 안에 있고 그 병합이 ri 아래로 이어지면 span 이 1 늘어 병합이 유지된다.
  */
-export function insertRowAfter(content: TimetableContent, di: number, ri: number): TimetableContent {
+export function insertRowAfter(
+  content: TimetableContent,
+  di: number,
+  ri: number,
+): TimetableContent {
   const src = content.days[di];
   if (!src || !src.rows[ri]) return content;
   const next = cloneContent(content);
@@ -577,7 +643,12 @@ export function insertRowAfter(content: TimetableContent, di: number, ri: number
  * 행 순서 바꾸기: from 행의 「시간 열이 아닌」 셀들을 to 자리로 옮긴다. 시간 칸은 고정이고 내용만 움직인다.
  * 시간 열이 아닌 열의 세로 병합이 from 을 포함하거나 이동으로 쪼개지면 아무것도 하지 않는다 (같은 객체 반환).
  */
-export function moveRow(content: TimetableContent, di: number, from: number, to: number): TimetableContent {
+export function moveRow(
+  content: TimetableContent,
+  di: number,
+  from: number,
+  to: number,
+): TimetableContent {
   const day = content.days[di];
   if (!day) return content;
   const n = day.rows.length;
@@ -677,7 +748,13 @@ export function parseClipboardGrid(text: string | null | undefined): string[][] 
  * 격자를 (di, ri, key) 부터 오른쪽·아래로 채운다. 열은 key 부터 순서대로, 행은 모자라면 끝에 붙인다.
  * 병합에 덮인 칸은 건너뛰고(대표 행에서 대표 칸에 쓴다), 시간 열 값은 normalizeTimeText 를 거친다.
  */
-export function pasteGrid(content: TimetableContent, di: number, ri: number, key: string, grid: string[][]): TimetableContent {
+export function pasteGrid(
+  content: TimetableContent,
+  di: number,
+  ri: number,
+  key: string,
+  grid: string[][],
+): TimetableContent {
   const src = content.days[di];
   const ci = content.columns.findIndex((c) => c.key === key);
   if (!src || !src.rows[ri] || ci < 0 || !grid.length) return content;
@@ -767,7 +844,13 @@ export function overlapRows(content: TimetableContent, di: number): Set<number> 
 }
 
 /** 두 content 사이에서 같은 날짜·시간 열의 ri 아래 행 중 값이 바뀐 행 수 (연쇄 안내용) */
-export function countChangedBelow(a: TimetableContent, b: TimetableContent, di: number, ri: number, key: string): number {
+export function countChangedBelow(
+  a: TimetableContent,
+  b: TimetableContent,
+  di: number,
+  ri: number,
+  key: string,
+): number {
   const ra = a.days[di]?.rows ?? [];
   const rb = b.days[di]?.rows ?? [];
   let n = 0;
@@ -816,7 +899,10 @@ export function collectDocTerms(content: TimetableContent, lastUsedAt = ''): Per
 }
 
 /** 서버 용어 + 문서 안 값 합집합 (같은 field/value 는 서버 값이 우선, 색은 문서 값이 있으면 채운다) */
-export function unionTerms(server: PersonalFeatureTerm[], docTerms: PersonalFeatureTerm[]): PersonalFeatureTerm[] {
+export function unionTerms(
+  server: PersonalFeatureTerm[],
+  docTerms: PersonalFeatureTerm[],
+): PersonalFeatureTerm[] {
   const map = new Map<string, PersonalFeatureTerm>();
   for (const t of server)
     map.set(`${t.field}\u0000${normTerm(t.value)}`, {
@@ -837,7 +923,12 @@ export function unionTerms(server: PersonalFeatureTerm[], docTerms: PersonalFeat
  * 추천 정렬: 앞글자 일치(0) → 포함 일치(1). 빈 입력이면 전부(2).
  * 같은 등급 안에서는 use_count ↓, last_used_at ↓. 입력과 똑같은 값은 뺀다. 최대 limit 개.
  */
-export function rankSuggestions(terms: PersonalFeatureTerm[], field: string, query: string, limit = SUGGEST_LIMIT): PersonalFeatureTerm[] {
+export function rankSuggestions(
+  terms: PersonalFeatureTerm[],
+  field: string,
+  query: string,
+  limit = SUGGEST_LIMIT,
+): PersonalFeatureTerm[] {
   const q = normTerm(query).toLowerCase();
   const out: { t: PersonalFeatureTerm; rank: number }[] = [];
   for (const t of terms) {
@@ -854,7 +945,9 @@ export function rankSuggestions(terms: PersonalFeatureTerm[], field: string, que
   }
   out.sort(
     (a, b) =>
-      a.rank - b.rank || (b.t.use_count || 0) - (a.t.use_count || 0) || (b.t.last_used_at || '').localeCompare(a.t.last_used_at || ''),
+      a.rank - b.rank ||
+      (b.t.use_count || 0) - (a.t.use_count || 0) ||
+      (b.t.last_used_at || '').localeCompare(a.t.last_used_at || ''),
   );
   return out.slice(0, limit).map((o) => o.t);
 }

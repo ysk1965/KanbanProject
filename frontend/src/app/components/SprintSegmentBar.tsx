@@ -1,13 +1,7 @@
-import { useMemo } from "react";
-import { Flag } from "lucide-react";
-import type { SprintInfo } from "../types";
-import {
-  diffDays,
-  formatMD,
-  inclusiveDays,
-  parseDay,
-  todayLocal,
-} from "../utils/sprintDates";
+import { useMemo } from 'react';
+import { Flag } from 'lucide-react';
+import type { SprintInfo } from '../types';
+import { diffDays, formatMD, inclusiveDays, parseDay, todayLocal } from '../utils/sprintDates';
 
 interface SprintSegmentBarProps {
   milestoneTitle: string;
@@ -38,18 +32,13 @@ export function SprintSegmentBar({
 }: SprintSegmentBarProps) {
   const span = useMemo(() => {
     // 마일스톤 기간이 비어 있는 보드도 있어(레거시) 스프린트 경계로 폴백한다.
-    const starts = sprints
-      .map((s) => parseDay(s.start_date))
-      .filter((d): d is Date => !!d);
-    const ends = sprints
-      .map((s) => parseDay(s.end_date))
-      .filter((d): d is Date => !!d);
+    const starts = sprints.map((s) => parseDay(s.start_date)).filter((d): d is Date => !!d);
+    const ends = sprints.map((s) => parseDay(s.end_date)).filter((d): d is Date => !!d);
     const start =
       parseDay(milestoneStart) ??
       (starts.length ? new Date(Math.min(...starts.map((d) => +d))) : null);
     const end =
-      parseDay(milestoneEnd) ??
-      (ends.length ? new Date(Math.max(...ends.map((d) => +d))) : null);
+      parseDay(milestoneEnd) ?? (ends.length ? new Date(Math.max(...ends.map((d) => +d))) : null);
     const days = inclusiveDays(start, end);
     return { start, end, days };
   }, [milestoneStart, milestoneEnd, sprints]);
@@ -118,23 +107,17 @@ export function SprintSegmentBar({
             const selected = s.id === selectedSprintId;
             const unfinished = unfinishedBySprint[s.id] ?? 0;
             const stateLabel =
-              s.state === "CURRENT"
-                ? "진행중"
-                : s.state === "PAST"
-                  ? "지남"
-                  : "예정";
+              s.state === 'CURRENT' ? '진행중' : s.state === 'PAST' ? '지남' : '예정';
             const shortName = single ? s.name : `S${s.sequence_no}`;
             const tip = [
               s.name,
               stateLabel,
               start && end ? `${formatMD(start)}–${formatMD(end)}` : null,
               `${pct}% (${s.done}/${s.total})`,
-              s.state === "PAST" && unfinished > 0
-                ? `미완료 ${unfinished}개`
-                : null,
+              s.state === 'PAST' && unfinished > 0 ? `미완료 ${unfinished}개` : null,
             ]
               .filter(Boolean)
-              .join(" · ");
+              .join(' · ');
             return (
               <button
                 key={s.id}
@@ -146,54 +129,49 @@ export function SprintSegmentBar({
                 style={{ flexGrow: days, flexBasis: 0 }}
                 className={`relative h-8 min-w-0 overflow-hidden rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
                   selected
-                    ? "border-bridge-accent shadow-[0_0_0_1px_var(--bridge-accent),0_0_16px_rgba(99,102,241,0.18)]"
-                    : "border-foreground/[0.08] hover:border-foreground/[0.16]"
+                    ? 'border-bridge-accent shadow-[0_0_0_1px_var(--bridge-accent),0_0_16px_rgba(99,102,241,0.18)]'
+                    : 'border-foreground/[0.08] hover:border-foreground/[0.16]'
                 } ${
-                  s.state === "CURRENT"
-                    ? "bg-bridge-accent/[0.06]"
-                    : s.state === "PAST"
-                      ? "bg-emerald-500/[0.05]"
-                      : "bg-foreground/[0.02]"
+                  s.state === 'CURRENT'
+                    ? 'bg-bridge-accent/[0.06]'
+                    : s.state === 'PAST'
+                      ? 'bg-emerald-500/[0.05]'
+                      : 'bg-foreground/[0.02]'
                 }`}
               >
                 {/* 진척 채움 — 세그먼트 배경 자체가 게이지다 */}
                 <span
                   aria-hidden
                   className={`absolute inset-y-0 left-0 transition-[width] duration-500 motion-reduce:transition-none ${
-                    s.state === "PAST"
-                      ? "bg-gradient-to-r from-emerald-500/25 to-emerald-500/[0.07]"
-                      : s.state === "CURRENT"
-                        ? "bg-gradient-to-r from-bridge-accent/30 to-bridge-accent/10"
-                        : "bg-foreground/[0.05]"
+                    s.state === 'PAST'
+                      ? 'bg-gradient-to-r from-emerald-500/25 to-emerald-500/[0.07]'
+                      : s.state === 'CURRENT'
+                        ? 'bg-gradient-to-r from-bridge-accent/30 to-bridge-accent/10'
+                        : 'bg-foreground/[0.05]'
                   }`}
                   style={{ width: `${pct}%` }}
                 />
                 <span className="relative z-[1] flex items-center gap-1.5 px-2 min-w-0 whitespace-nowrap">
                   <span
                     className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                      s.state === "CURRENT"
-                        ? "bg-bridge-accent shadow-[0_0_6px_var(--bridge-accent)]"
-                        : s.state === "PAST"
-                          ? "bg-emerald-500"
-                          : "bg-slate-600"
+                      s.state === 'CURRENT'
+                        ? 'bg-bridge-accent shadow-[0_0_6px_var(--bridge-accent)]'
+                        : s.state === 'PAST'
+                          ? 'bg-emerald-500'
+                          : 'bg-slate-600'
                     }`}
                   />
-                  <span className="text-xs font-bold text-foreground truncate">
-                    {shortName}
-                  </span>
+                  <span className="text-xs font-bold text-foreground truncate">{shortName}</span>
                   <span
                     className={`text-xs font-medium tabular-nums truncate ${
-                      s.state === "FUTURE" ? "text-slate-500" : "text-slate-400"
+                      s.state === 'FUTURE' ? 'text-slate-500' : 'text-slate-400'
                     }`}
                   >
                     {pct}%
                   </span>
                   {/* 지난 버킷의 미완료 신호 — 칩 대신 도트로 압축, 상세는 tooltip */}
-                  {s.state === "PAST" && unfinished > 0 && (
-                    <span
-                      className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"
-                      aria-hidden
-                    />
+                  {s.state === 'PAST' && unfinished > 0 && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" aria-hidden />
                   )}
                 </span>
               </button>

@@ -17,7 +17,14 @@ interface MentionGroupModalProps {
 
 type ModalView = 'list' | 'create' | 'edit';
 
-export function MentionGroupModal({ open, onClose, boardId, boardMembers, mentionGroups, onGroupsChange }: MentionGroupModalProps) {
+export function MentionGroupModal({
+  open,
+  onClose,
+  boardId,
+  boardMembers,
+  mentionGroups,
+  onGroupsChange,
+}: MentionGroupModalProps) {
   const { t } = useTranslation();
   const [view, setView] = useState<ModalView>('list');
   const [editingGroup, setEditingGroup] = useState<MentionGroupDetail | null>(null);
@@ -48,7 +55,7 @@ export function MentionGroupModal({ open, onClose, boardId, boardMembers, mentio
     setView('edit');
     setEditingGroup(group);
     setName(group.name);
-    setSelectedMemberIds(group.members.map(m => m.user_id));
+    setSelectedMemberIds(group.members.map((m) => m.user_id));
     setMemberSearch('');
   };
 
@@ -60,8 +67,8 @@ export function MentionGroupModal({ open, onClose, boardId, boardMembers, mentio
   };
 
   const toggleMember = (userId: string) => {
-    setSelectedMemberIds(prev =>
-      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    setSelectedMemberIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
     );
   };
 
@@ -70,11 +77,17 @@ export function MentionGroupModal({ open, onClose, boardId, boardMembers, mentio
     setIsSubmitting(true);
     try {
       if (view === 'create') {
-        const created = await mentionGroupAPI.createGroup(boardId, { name: name.trim(), member_ids: selectedMemberIds });
+        const created = await mentionGroupAPI.createGroup(boardId, {
+          name: name.trim(),
+          member_ids: selectedMemberIds,
+        });
         onGroupsChange([...mentionGroups, created]);
       } else if (view === 'edit' && editingGroup) {
-        const updated = await mentionGroupAPI.updateGroup(boardId, editingGroup.id, { name: name.trim(), member_ids: selectedMemberIds });
-        onGroupsChange(mentionGroups.map(g => g.id === editingGroup.id ? updated : g));
+        const updated = await mentionGroupAPI.updateGroup(boardId, editingGroup.id, {
+          name: name.trim(),
+          member_ids: selectedMemberIds,
+        });
+        onGroupsChange(mentionGroups.map((g) => (g.id === editingGroup.id ? updated : g)));
       }
       handleBack();
     } catch {
@@ -87,15 +100,15 @@ export function MentionGroupModal({ open, onClose, boardId, boardMembers, mentio
   const handleDelete = async (groupId: string) => {
     try {
       await mentionGroupAPI.deleteGroup(boardId, groupId);
-      onGroupsChange(mentionGroups.filter(g => g.id !== groupId));
+      onGroupsChange(mentionGroups.filter((g) => g.id !== groupId));
       setDeleteTarget(null);
     } catch {
       // error handled silently
     }
   };
 
-  const filteredBoardMembers = boardMembers.filter(m =>
-    m.name.toLowerCase().includes(memberSearch.toLowerCase())
+  const filteredBoardMembers = boardMembers.filter((m) =>
+    m.name.toLowerCase().includes(memberSearch.toLowerCase()),
   );
 
   return (
@@ -107,17 +120,25 @@ export function MentionGroupModal({ open, onClose, boardId, boardMembers, mentio
         {/* Header */}
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
           {view !== 'list' && (
-            <button onClick={handleBack} className="text-slate-400 hover:text-foreground transition-colors">
+            <button
+              onClick={handleBack}
+              className="text-slate-400 hover:text-foreground transition-colors"
+            >
               <ArrowLeft className="w-4 h-4" />
             </button>
           )}
           <Users className="w-4 h-4 text-bridge-secondary" />
           <h3 className="text-sm font-bold text-foreground">
-            {view === 'list' ? t('mentionGroup.manageTitle', '멘션 그룹 관리') :
-              view === 'create' ? t('mentionGroup.create', '멘션 그룹 만들기') :
-              t('mentionGroup.edit', '멘션 그룹 수정')}
+            {view === 'list'
+              ? t('mentionGroup.manageTitle', '멘션 그룹 관리')
+              : view === 'create'
+                ? t('mentionGroup.create', '멘션 그룹 만들기')
+                : t('mentionGroup.edit', '멘션 그룹 수정')}
           </h3>
-          <button onClick={onClose} className="ml-auto text-slate-400 hover:text-foreground transition-colors">
+          <button
+            onClick={onClose}
+            className="ml-auto text-slate-400 hover:text-foreground transition-colors"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -127,26 +148,37 @@ export function MentionGroupModal({ open, onClose, boardId, boardMembers, mentio
           {view === 'list' ? (
             <>
               {mentionGroups.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-6">{t('mentionGroup.noGroups', '멘션 그룹이 없습니다')}</p>
+                <p className="text-xs text-slate-500 text-center py-6">
+                  {t('mentionGroup.noGroups', '멘션 그룹이 없습니다')}
+                </p>
               ) : (
                 <div className="space-y-2">
-                  {mentionGroups.map(group => (
-                    <div key={group.id} className="flex items-center gap-3 p-3 rounded-xl border border-foreground/[0.08] hover:border-foreground/[0.12] transition-colors">
+                  {mentionGroups.map((group) => (
+                    <div
+                      key={group.id}
+                      className="flex items-center gap-3 p-3 rounded-xl border border-foreground/[0.08] hover:border-foreground/[0.12] transition-colors"
+                    >
                       <div className="w-8 h-8 rounded-full bg-bridge-secondary/20 flex items-center justify-center flex-shrink-0">
                         <Users className="w-4 h-4 text-bridge-secondary" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-foreground truncate">{group.name}</p>
-                        <p className="text-xs text-slate-500">{group.members.length}{t('mentionGroup.memberCountSuffix', '명')}</p>
+                        <p className="text-xs text-slate-500">
+                          {group.members.length}
+                          {t('mentionGroup.memberCountSuffix', '명')}
+                        </p>
                       </div>
                       <div className="flex items-center gap-1">
                         {/* Member avatars */}
                         <div className="flex -space-x-1.5 mr-2">
-                          {group.members.slice(0, 4).map(m => {
-                            const bm = boardMembers.find(b => b.userId === m.user_id);
+                          {group.members.slice(0, 4).map((m) => {
+                            const bm = boardMembers.find((b) => b.userId === m.user_id);
                             const color = getAssigneeClasses(m.name, bm?.assigneeColor);
                             return (
-                              <div key={m.user_id} className={`w-5 h-5 rounded-full ${color.bg} flex items-center justify-center text-[9px] font-bold text-white ring-1 ring-bridge-obsidian`}>
+                              <div
+                                key={m.user_id}
+                                className={`w-5 h-5 rounded-full ${color.bg} flex items-center justify-center text-[9px] font-bold text-white ring-1 ring-bridge-obsidian`}
+                              >
                                 {getInitials(m.name)}
                               </div>
                             );
@@ -159,19 +191,31 @@ export function MentionGroupModal({ open, onClose, boardId, boardMembers, mentio
                         </div>
                         {deleteTarget === group.id ? (
                           <div className="flex items-center gap-1">
-                            <button onClick={() => handleDelete(group.id)} className="p-1 text-red-400 hover:bg-red-500/10 rounded transition-colors">
+                            <button
+                              onClick={() => handleDelete(group.id)}
+                              className="p-1 text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                            >
                               <Check className="w-3.5 h-3.5" />
                             </button>
-                            <button onClick={() => setDeleteTarget(null)} className="p-1 text-slate-400 hover:bg-foreground/5 rounded transition-colors">
+                            <button
+                              onClick={() => setDeleteTarget(null)}
+                              className="p-1 text-slate-400 hover:bg-foreground/5 rounded transition-colors"
+                            >
                               <X className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         ) : (
                           <>
-                            <button onClick={() => handleEdit(group)} className="p-1 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded transition-colors">
+                            <button
+                              onClick={() => handleEdit(group)}
+                              className="p-1 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded transition-colors"
+                            >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
-                            <button onClick={() => setDeleteTarget(group.id)} className="p-1 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors">
+                            <button
+                              onClick={() => setDeleteTarget(group.id)}
+                              className="p-1 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                            >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </>
@@ -198,7 +242,7 @@ export function MentionGroupModal({ open, onClose, boardId, boardMembers, mentio
                 </label>
                 <input
                   value={name}
-                  onChange={e => setName(e.target.value)}
+                  onChange={(e) => setName(e.target.value)}
                   placeholder={t('mentionGroup.namePlaceholder', '예: 디자인팀, 개발팀')}
                   className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-4 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                   maxLength={50}
@@ -214,13 +258,13 @@ export function MentionGroupModal({ open, onClose, boardId, boardMembers, mentio
                 {boardMembers.length > 5 && (
                   <input
                     value={memberSearch}
-                    onChange={e => setMemberSearch(e.target.value)}
+                    onChange={(e) => setMemberSearch(e.target.value)}
                     placeholder={t('mentionGroup.searchMember', '멤버 검색...')}
                     className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 px-3 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all mb-2"
                   />
                 )}
                 <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
-                  {filteredBoardMembers.map(member => {
+                  {filteredBoardMembers.map((member) => {
                     const isSelected = selectedMemberIds.includes(member.userId);
                     const color = getAssigneeClasses(member.name, member.assigneeColor);
                     return (
@@ -229,7 +273,9 @@ export function MentionGroupModal({ open, onClose, boardId, boardMembers, mentio
                         onClick={() => toggleMember(member.userId)}
                         className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-xs transition-colors ${isSelected ? 'bg-bridge-accent/10 border border-bridge-accent/30' : 'hover:bg-foreground/5 border border-transparent'}`}
                       >
-                        <div className={`w-5 h-5 rounded-full ${color.bg} flex items-center justify-center text-xs font-bold text-white`}>
+                        <div
+                          className={`w-5 h-5 rounded-full ${color.bg} flex items-center justify-center text-xs font-bold text-white`}
+                        >
                           {getInitials(member.name)}
                         </div>
                         <span className="text-foreground flex-1 text-left">{member.name}</span>
@@ -252,8 +298,13 @@ export function MentionGroupModal({ open, onClose, boardId, boardMembers, mentio
               disabled={!name.trim() || selectedMemberIds.length === 0 || isSubmitting}
               className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
-              {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> :
-                view === 'create' ? t('mentionGroup.createBtn', '만들기') : t('mentionGroup.saveBtn', '저장')}
+              {isSubmitting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : view === 'create' ? (
+                t('mentionGroup.createBtn', '만들기')
+              ) : (
+                t('mentionGroup.saveBtn', '저장')
+              )}
             </button>
           </div>
         )}

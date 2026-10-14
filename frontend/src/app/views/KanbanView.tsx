@@ -8,10 +8,10 @@ import {
   Dispatch,
   SetStateAction,
   RefObject,
-} from "react";
-import { motion } from "framer-motion";
-import { Eye, Plus, GripVertical, Diamond, Loader2 } from "lucide-react";
-import { useTranslation } from "react-i18next";
+} from 'react';
+import { motion } from 'framer-motion';
+import { Eye, Plus, GripVertical, Diamond, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   DndContext,
   DragOverlay,
@@ -22,46 +22,46 @@ import {
   useSensors,
   DragStartEvent,
   DragEndEvent,
-} from "@dnd-kit/core";
+} from '@dnd-kit/core';
 import {
   SortableContext,
   arrayMove,
   horizontalListSortingStrategy,
   sortableKeyboardCoordinates,
-} from "@dnd-kit/sortable";
-import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
-import { Feature, Task, Tag, Block, ChecklistItem } from "../types";
-import type { BoardFeatures } from "../hooks/useBoardFeatures";
-import { KanbanBlock } from "../components/KanbanBlock";
-import { lazyWithRetry } from "../utils/lazyWithRetry";
+} from '@dnd-kit/sortable';
+import { restrictToHorizontalAxis } from '@dnd-kit/modifiers';
+import { Feature, Task, Tag, Block, ChecklistItem } from '../types';
+import type { BoardFeatures } from '../hooks/useBoardFeatures';
+import { KanbanBlock } from '../components/KanbanBlock';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
 // 스프린트/JIRA 보드(6,600줄)는 블록 보드 모드에서는 쓰이지 않으므로 전환 시에만 내려받는다.
 const SprintBoard = lazyWithRetry(
   () =>
-    import("../components/SprintBoard").then((m) => ({
+    import('../components/SprintBoard').then((m) => ({
       default: m.SprintBoard,
     })),
-  "SprintBoard",
+  'SprintBoard',
 );
-import { KanbanFilterToolbar } from "../components/KanbanFilterToolbar";
-import { EmptyBoardGuide } from "../components/EmptyBoardGuide";
-import JoinRequestBanner from "../components/JoinRequestBanner";
-import { FilterOptions } from "../components/FilterModal";
-import { BoardMember as ShareBoardMember } from "../components/ShareBoardModal";
+import { KanbanFilterToolbar } from '../components/KanbanFilterToolbar';
+import { EmptyBoardGuide } from '../components/EmptyBoardGuide';
+import JoinRequestBanner from '../components/JoinRequestBanner';
+import { FilterOptions } from '../components/FilterModal';
+import { BoardMember as ShareBoardMember } from '../components/ShareBoardModal';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
-import { blockService } from "../utils/services";
-import { jiraAPI } from "../utils/api";
+} from '../components/ui/dropdown-menu';
+import { blockService } from '../utils/services';
+import { jiraAPI } from '../utils/api';
 
 /**
  * 칸반 탭 안의 형제 화면. 셋 다 컬럼 축·데이터 스코프가 서로 달라 "뷰 전환"이 아니라
  * 화면 전환이다 — 스프린트(스프린트 스코프) · 블록 보드(보드 스코프, 블록 관리)
  * · JIRA(보드 스코프, 진행 단계 축).
  */
-type BoardMode = "sprint" | "blocks" | "jira";
+type BoardMode = 'sprint' | 'blocks' | 'jira';
 
 interface KanbanViewProps {
   boardId: string;
@@ -188,9 +188,9 @@ export const KanbanView = memo(function KanbanView({
   // JIRA는 원래 스프린트 안의 그룹 기준 토글(Feature/구성원 옆)에 있었지만, 스코프가
   // 스프린트가 아니라 보드 전체고 컬럼 축·드롭 결과·주변 UI가 전부 달라 형제 화면으로 올렸다.
   const [boardMode, setBoardModeState] = useState<BoardMode>(() => {
-    if (typeof window === "undefined") return "sprint";
+    if (typeof window === 'undefined') return 'sprint';
     const saved = localStorage.getItem(`kanbanBoardMode:${boardId}`);
-    return saved === "blocks" || saved === "jira" ? saved : "sprint";
+    return saved === 'blocks' || saved === 'jira' ? saved : 'sprint';
   });
   const setBoardMode = (mode: BoardMode) => {
     setBoardModeState(mode);
@@ -229,21 +229,21 @@ export const KanbanView = memo(function KanbanView({
 
   // JIRA 화면은 연동(jiraConnected)과 옵션(has("jira")) 둘 다 있어야 선다 —
   // 연동은 "쓸 수 있나", 옵션은 "지금 쓰기로 했나"로 축이 다르다.
-  const jiraVisible = jiraConnected && boardFeatures.has("jira");
+  const jiraVisible = jiraConnected && boardFeatures.has('jira');
 
   // 저장값이 아니라 이 값으로 렌더한다 — 예전에 blocks로 저장해 둔 일반 멤버가
   // 토글 없는 블록 보드에 갇히지 않도록. 권한이 뒤늦게 도착해도 자동으로 맞춰진다.
   // JIRA도 같은 이유로 연동이 끊기거나 옵션이 꺼지면 스프린트로 되돌린다.
   const effectiveBoardMode: BoardMode =
-    boardMode === "blocks"
+    boardMode === 'blocks'
       ? isAdminOrOwner
-        ? "blocks"
-        : "sprint"
-      : boardMode === "jira"
+        ? 'blocks'
+        : 'sprint'
+      : boardMode === 'jira'
         ? jiraVisible
-          ? "jira"
-          : "sprint"
-        : "sprint";
+          ? 'jira'
+          : 'sprint'
+        : 'sprint';
 
   // 화면 선택 줄 노출 조건 — 블록 보드는 관리자 전용이지만 JIRA는 뷰어 이상이면 볼 수 있다.
   const showBoardModeBar = isAdminOrOwner || jiraVisible;
@@ -260,31 +260,23 @@ export const KanbanView = memo(function KanbanView({
 
   // SortableContext 대상 블록 (FEATURE/TASK 고정 블록 제외)
   const sortableBlocks = useMemo(
-    () =>
-      sortedBlocks.filter(
-        (b) => b.fixed_type !== "FEATURE" && b.fixed_type !== "TASK",
-      ),
+    () => sortedBlocks.filter((b) => b.fixed_type !== 'FEATURE' && b.fixed_type !== 'TASK'),
     [sortedBlocks],
   );
 
   // Feature 칩 선택에 따른 태스크 필터링 여부
-  const showFeatureLabel =
-    selectedFeatureIds === null || selectedFeatureIds.length !== 1;
+  const showFeatureLabel = selectedFeatureIds === null || selectedFeatureIds.length !== 1;
 
   // 블록별 태스크 맵 캐시 (KanbanBlock 메모이제이션용)
   const blockTasksMap = useMemo(() => {
     const map: Record<string, Task[]> = {};
     sortedBlocks.forEach((block) => {
-      if (block.fixed_type === "FEATURE") return;
-      let blockTasks = filteredTasks.filter(
-        (task) => task.block_id === block.id,
-      );
+      if (block.fixed_type === 'FEATURE') return;
+      let blockTasks = filteredTasks.filter((task) => task.block_id === block.id);
       if (selectedFeatureIds !== null) {
-        blockTasks = blockTasks.filter((task) =>
-          selectedFeatureIds.includes(task.feature_id),
-        );
+        blockTasks = blockTasks.filter((task) => selectedFeatureIds.includes(task.feature_id));
       }
-      if (block.fixed_type === "TASK" && scheduledTaskIds.size > 0) {
+      if (block.fixed_type === 'TASK' && scheduledTaskIds.size > 0) {
         blockTasks = [...blockTasks].sort((a, b) => {
           const aScheduled = scheduledTaskIds.has(a.id) ? 0 : 1;
           const bScheduled = scheduledTaskIds.has(b.id) ? 0 : 1;
@@ -334,11 +326,11 @@ export const KanbanView = memo(function KanbanView({
           }
         }
         blockService.reorderBlocks(boardId, reorderIds).catch((error) => {
-          console.error("Failed to reorder blocks:", error);
+          console.error('Failed to reorder blocks:', error);
         });
       })
       .catch((error) => {
-        console.error("Failed to load all blocks for reorder:", error);
+        console.error('Failed to load all blocks for reorder:', error);
       });
   };
 
@@ -360,7 +352,7 @@ export const KanbanView = memo(function KanbanView({
     const newOrder = arrayMove(sortableBlocks, oldIndex, newIndex);
     // FEATURE + TASK 블록을 앞에 유지
     const fixedBlocks = sortedBlocks.filter(
-      (b) => b.fixed_type === "FEATURE" || b.fixed_type === "TASK",
+      (b) => b.fixed_type === 'FEATURE' || b.fixed_type === 'TASK',
     );
     const fullOrder = [...fixedBlocks, ...newOrder];
 
@@ -374,11 +366,9 @@ export const KanbanView = memo(function KanbanView({
     persistBlockReorder(fullOrder);
   };
 
-  const activeBlock = activeBlockId
-    ? sortedBlocks.find((b) => b.id === activeBlockId)
-    : null;
+  const activeBlock = activeBlockId ? sortedBlocks.find((b) => b.id === activeBlockId) : null;
 
-  const taskBlock = sortedBlocks.find((b) => b.fixed_type === "TASK");
+  const taskBlock = sortedBlocks.find((b) => b.fixed_type === 'TASK');
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden bg-bridge-dark">
@@ -396,15 +386,12 @@ export const KanbanView = memo(function KanbanView({
                   <Eye className="h-7 w-7 text-bridge-accent" />
                 </div>
                 <h2 className="font-jakarta text-2xl md:text-3xl font-bold tracking-tight text-foreground mb-3">
-                  {t(
-                    "board.joinRequest.emptyBoardTitle",
-                    "아직 콘텐츠가 없는 보드입니다",
-                  )}
+                  {t('board.joinRequest.emptyBoardTitle', '아직 콘텐츠가 없는 보드입니다')}
                 </h2>
                 <p className="text-slate-400 font-normal text-sm md:text-base leading-relaxed mb-8">
                   {t(
-                    "board.joinRequest.emptyBoardDesc",
-                    "이 보드에 참가하면 Feature를 만들고 편집할 수 있습니다. 상단 배너에서 참가 신청을 해보세요.",
+                    'board.joinRequest.emptyBoardDesc',
+                    '이 보드에 참가하면 Feature를 만들고 편집할 수 있습니다. 상단 배너에서 참가 신청을 해보세요.',
                   )}
                 </p>
                 {boardId && (
@@ -445,12 +432,12 @@ export const KanbanView = memo(function KanbanView({
               <button
                 type="button"
                 role="tab"
-                aria-selected={effectiveBoardMode === "sprint"}
-                onClick={() => setBoardMode("sprint")}
+                aria-selected={effectiveBoardMode === 'sprint'}
+                onClick={() => setBoardMode('sprint')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                  effectiveBoardMode === "sprint"
-                    ? "bg-bridge-accent/15 text-bridge-accent"
-                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                  effectiveBoardMode === 'sprint'
+                    ? 'bg-bridge-accent/15 text-bridge-accent'
+                    : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
                 }`}
               >
                 스프린트
@@ -459,13 +446,13 @@ export const KanbanView = memo(function KanbanView({
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={effectiveBoardMode === "blocks"}
-                  onClick={() => setBoardMode("blocks")}
+                  aria-selected={effectiveBoardMode === 'blocks'}
+                  onClick={() => setBoardMode('blocks')}
                   title="블록(상태 열) 관리용 화면입니다. 관리자에게만 보입니다."
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                    effectiveBoardMode === "blocks"
-                      ? "bg-bridge-accent/15 text-bridge-accent"
-                      : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                    effectiveBoardMode === 'blocks'
+                      ? 'bg-bridge-accent/15 text-bridge-accent'
+                      : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
                   }`}
                 >
                   블록 보드
@@ -475,17 +462,17 @@ export const KanbanView = memo(function KanbanView({
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={effectiveBoardMode === "jira"}
-                  onClick={() => setBoardMode("jira")}
+                  aria-selected={effectiveBoardMode === 'jira'}
+                  onClick={() => setBoardMode('jira')}
                   title={
                     jiraFresh > 0
                       ? `새로 들어온 JIRA 이슈 ${jiraFresh}건`
-                      : "연동된 JIRA 이슈를 진행 단계별로 봅니다. 보드 전체가 대상입니다."
+                      : '연동된 JIRA 이슈를 진행 단계별로 봅니다. 보드 전체가 대상입니다.'
                   }
                   className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                    effectiveBoardMode === "jira"
-                      ? "bg-bridge-accent/15 text-bridge-accent"
-                      : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                    effectiveBoardMode === 'jira'
+                      ? 'bg-bridge-accent/15 text-bridge-accent'
+                      : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
                   }`}
                 >
                   <Diamond className="w-3 h-3" />
@@ -495,7 +482,7 @@ export const KanbanView = memo(function KanbanView({
                       className="ml-0.5 min-w-[1.15rem] px-1 py-[1px] rounded-full text-xs font-bold tabular-nums text-center bg-bridge-accent/15 text-bridge-accent"
                       aria-label={`새 이슈 ${jiraFresh}건`}
                     >
-                      {jiraFresh > 99 ? "99+" : jiraFresh}
+                      {jiraFresh > 99 ? '99+' : jiraFresh}
                     </span>
                   )}
                 </button>
@@ -503,7 +490,7 @@ export const KanbanView = memo(function KanbanView({
             </div>
           )}
 
-          {effectiveBoardMode !== "blocks" ? (
+          {effectiveBoardMode !== 'blocks' ? (
             <div className="flex-1 min-h-0">
               <Suspense
                 fallback={
@@ -512,34 +499,33 @@ export const KanbanView = memo(function KanbanView({
                   </div>
                 }
               >
-              <SprintBoard
-                boardId={boardId}
-                milestones={milestones}
-                canEdit={canEdit}
-                isAdminOrOwner={isAdminOrOwner}
-                jiraView={effectiveBoardMode === "jira"}
-                onJiraFreshChange={handleJiraFreshChange}
-                onOpenChecklistItem={onOpenChecklistItem}
-                onOpenFeature={(featureId) => {
-                  const feature = features.find((f) => f.id === featureId);
-                  if (feature) onFeatureClick(feature);
-                }}
-                onCreateFeature={onCreateFeature}
-                milestoneId={
-                  selectedMilestoneId !== "all" &&
-                  selectedMilestoneId !== "none"
-                    ? selectedMilestoneId
-                    : undefined
-                }
-                filterOptions={filterOptions}
-                featureTagsMap={featureTagsMap}
-                taskTagsMap={taskTagsMap}
-                memberOrder={boardMembersData.map((m) => m.userId)}
-                memberColorMap={memberColorMap}
-                features={boardFeatures}
-                memberGhost={memberGhost}
-                reviewGhost={reviewGhost}
-              />
+                <SprintBoard
+                  boardId={boardId}
+                  milestones={milestones}
+                  canEdit={canEdit}
+                  isAdminOrOwner={isAdminOrOwner}
+                  jiraView={effectiveBoardMode === 'jira'}
+                  onJiraFreshChange={handleJiraFreshChange}
+                  onOpenChecklistItem={onOpenChecklistItem}
+                  onOpenFeature={(featureId) => {
+                    const feature = features.find((f) => f.id === featureId);
+                    if (feature) onFeatureClick(feature);
+                  }}
+                  onCreateFeature={onCreateFeature}
+                  milestoneId={
+                    selectedMilestoneId !== 'all' && selectedMilestoneId !== 'none'
+                      ? selectedMilestoneId
+                      : undefined
+                  }
+                  filterOptions={filterOptions}
+                  featureTagsMap={featureTagsMap}
+                  taskTagsMap={taskTagsMap}
+                  memberOrder={boardMembersData.map((m) => m.userId)}
+                  memberColorMap={memberColorMap}
+                  features={boardFeatures}
+                  memberGhost={memberGhost}
+                  reviewGhost={reviewGhost}
+                />
               </Suspense>
             </div>
           ) : (
@@ -631,8 +617,7 @@ export const KanbanView = memo(function KanbanView({
                         onToggleProgressBar={onToggleProgressBar}
                         onHideBlock={onHideBlock}
                         selectedMilestoneId={
-                          selectedMilestoneId !== "all" &&
-                          selectedMilestoneId !== "none"
+                          selectedMilestoneId !== 'all' && selectedMilestoneId !== 'none'
                             ? selectedMilestoneId
                             : undefined
                         }
@@ -661,9 +646,7 @@ export const KanbanView = memo(function KanbanView({
                             style={{ backgroundColor: activeBlock.color }}
                           />
                         )}
-                        <h3 className="font-bold text-sm text-foreground">
-                          {activeBlock.name}
-                        </h3>
+                        <h3 className="font-bold text-sm text-foreground">{activeBlock.name}</h3>
                         <span className="text-xs font-medium text-zinc-400 bg-bridge-surface-hover px-2 py-0.5 rounded-md">
                           {(blockTasksMap[activeBlock.id] || []).length}
                         </span>

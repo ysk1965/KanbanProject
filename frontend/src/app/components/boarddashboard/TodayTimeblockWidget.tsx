@@ -1,10 +1,10 @@
-import { useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import type { BoardWebSocketEvent } from "../../types";
-import type { MilestoneColorMap } from "../../utils/milestoneColor";
-import { DailyScheduleView } from "../DailyScheduleView";
-import type { BoardMember as ShareBoardMember } from "../ShareBoardModal";
-import { DashboardEmpty, PanelShell } from "./DashboardCard";
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { BoardWebSocketEvent } from '../../types';
+import type { MilestoneColorMap } from '../../utils/milestoneColor';
+import { DailyScheduleView } from '../DailyScheduleView';
+import type { BoardMember as ShareBoardMember } from '../ShareBoardModal';
+import { DashboardEmpty, PanelShell } from './DashboardCard';
 
 interface TodayTimeblockWidgetProps {
   boardId: string;
@@ -61,19 +61,16 @@ export function TodayTimeblockWidget({
     // 높이는 부모가 준 만큼 다 쓴다 — 하루가 안 들어오면 이 안에서만 스크롤한다
     <PanelShell
       dot="teal"
-      title={t("boardDashboard.timeblockTitle", "오늘의 타임블록")}
+      title={t('boardDashboard.timeblockTitle', '오늘의 타임블록')}
       subtitle={scopeName}
-      linkLabel={t("boardDashboard.timeblockLink", "주간 타임블록")}
+      linkLabel={t('boardDashboard.timeblockLink', '주간 타임블록')}
       onLinkClick={onOpenSchedule}
       padded={false}
       className="h-full"
     >
       {myMembers.length === 0 ? (
         <DashboardEmpty
-          message={t(
-            "boardDashboard.notBoardMember",
-            "이 보드의 멤버로 등록되어 있지 않습니다.",
-          )}
+          message={t('boardDashboard.notBoardMember', '이 보드의 멤버로 등록되어 있지 않습니다.')}
         />
       ) : (
         <DailyScheduleView

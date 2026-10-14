@@ -1,7 +1,7 @@
-import { useState, useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { Loader2, Plus, Settings2 } from "lucide-react";
-import type { ChecklistPreset } from "../types";
+import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Loader2, Plus, Settings2 } from 'lucide-react';
+import type { ChecklistPreset } from '../types';
 
 /**
  * 프리셋 칩 + 선택 팝오버 — 태스크 셀의 백로그 칩과 같은 시각 문법.
@@ -41,7 +41,7 @@ export function ChecklistPresetPopover({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /** "현재 항목을 프리셋으로 저장" 이름 입력 모드 */
   const [saveMode, setSaveMode] = useState(false);
-  const [saveName, setSaveName] = useState("");
+  const [saveName, setSaveName] = useState('');
   const [busy, setBusy] = useState(false);
 
   const current = presetId ? presets.find((p) => p.id === presetId) : undefined;
@@ -79,8 +79,7 @@ export function ChecklistPresetPopover({
   }
 
   const selected =
-    (selectedId ? presets.find((p) => p.id === selectedId) : undefined) ??
-    presets[0];
+    (selectedId ? presets.find((p) => p.id === selectedId) : undefined) ?? presets[0];
   const canSaveCurrent = taskItemTitles.length > 0;
 
   const commitSave = () => {
@@ -94,8 +93,7 @@ export function ChecklistPresetPopover({
     setSaveMode(true);
   };
 
-  const linkClass =
-    "text-xs text-slate-500 hover:text-foreground transition-colors";
+  const linkClass = 'text-xs text-slate-500 hover:text-foreground transition-colors';
 
   return (
     <span className="relative inline-flex">
@@ -104,27 +102,23 @@ export function ChecklistPresetPopover({
         aria-expanded={open}
         className={
           current
-            ? "text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity"
-            : "text-xs font-medium px-1.5 py-0.5 rounded-full border border-dashed border-bridge-accent/50 text-bridge-accent/70 whitespace-nowrap cursor-pointer hover:text-bridge-accent hover:border-bridge-accent transition-colors"
+            ? 'text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity'
+            : 'text-xs font-medium px-1.5 py-0.5 rounded-full border border-dashed border-bridge-accent/50 text-bridge-accent/70 whitespace-nowrap cursor-pointer hover:text-bridge-accent hover:border-bridge-accent transition-colors'
         }
       >
-        {current?.name ??
-          t("milestone.preset.chip", { defaultValue: "프리셋" })}
+        {current?.name ?? t('milestone.preset.chip', { defaultValue: '프리셋' })}
       </button>
       {open && (
         <>
-          <span
-            className="fixed inset-0 z-30 block"
-            onClick={() => setOpen(false)}
-          />
+          <span className="fixed inset-0 z-30 block" onClick={() => setOpen(false)} />
           <span className="absolute top-full left-0 mt-1 z-40 w-[30rem] max-w-[calc(100vw-2rem)] bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl block">
             {presets.length === 0 ? (
               /* 빈 상태 — 아직 프리셋이 없다 */
               <span className="block p-4 space-y-3">
                 <span className="block text-xs text-slate-500">
-                  {t("milestone.preset.empty", {
+                  {t('milestone.preset.empty', {
                     defaultValue:
-                      "아직 프리셋이 없습니다. 자주 쓰는 체크리스트를 저장해 두고 한 번에 추가하세요.",
+                      '아직 프리셋이 없습니다. 자주 쓰는 체크리스트를 저장해 두고 한 번에 추가하세요.',
                   })}
                 </span>
                 {saveMode ? (
@@ -132,14 +126,14 @@ export function ChecklistPresetPopover({
                     autoFocus
                     value={saveName}
                     disabled={busy}
-                    placeholder={t("milestone.preset.namePlaceholder", {
-                      defaultValue: "프리셋 이름",
+                    placeholder={t('milestone.preset.namePlaceholder', {
+                      defaultValue: '프리셋 이름',
                     })}
                     onChange={(e) => setSaveName(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.nativeEvent.isComposing) return;
-                      if (e.key === "Enter") commitSave();
-                      else if (e.key === "Escape") setSaveMode(false);
+                      if (e.key === 'Enter') commitSave();
+                      else if (e.key === 'Escape') setSaveMode(false);
                     }}
                     className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl px-3 py-1.5 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                   />
@@ -147,8 +141,8 @@ export function ChecklistPresetPopover({
                   <span className="flex items-center gap-3">
                     {canSaveCurrent && (
                       <button onClick={startSaveMode} className={linkClass}>
-                        {t("milestone.preset.saveCurrentShort", {
-                          defaultValue: "현재 항목으로 저장",
+                        {t('milestone.preset.saveCurrentShort', {
+                          defaultValue: '현재 항목으로 저장',
                         })}
                       </button>
                     )}
@@ -159,8 +153,8 @@ export function ChecklistPresetPopover({
                       }}
                       className={linkClass}
                     >
-                      {t("milestone.preset.createNew", {
-                        defaultValue: "새 프리셋 만들기",
+                      {t('milestone.preset.createNew', {
+                        defaultValue: '새 프리셋 만들기',
                       })}
                     </button>
                   </span>
@@ -178,22 +172,20 @@ export function ChecklistPresetPopover({
                           key={p.id}
                           onClick={() => setSelectedId(p.id)}
                           className={`w-full px-3 py-1.5 text-left transition-colors block ${
-                            on ? "bg-bridge-accent/10" : "hover:bg-foreground/5"
+                            on ? 'bg-bridge-accent/10' : 'hover:bg-foreground/5'
                           }`}
                         >
                           <span
                             className={`block text-xs truncate ${
-                              on
-                                ? "text-bridge-accent font-bold"
-                                : "text-foreground"
+                              on ? 'text-bridge-accent font-bold' : 'text-foreground'
                             }`}
                           >
                             {p.name}
                           </span>
                           <span className="block text-xs text-slate-500 tabular-nums">
-                            {t("milestone.preset.itemCount", {
+                            {t('milestone.preset.itemCount', {
                               count: p.item_count,
-                              defaultValue: "{{count}}개 항목",
+                              defaultValue: '{{count}}개 항목',
                             })}
                           </span>
                         </button>
@@ -206,8 +198,7 @@ export function ChecklistPresetPopover({
                         .sort((a, b) => a.sort_order - b.sort_order)
                         .map((item) => {
                           const assigneeName = item.assignee_id
-                            ? members.find((m) => m.id === item.assignee_id)
-                                ?.name
+                            ? members.find((m) => m.id === item.assignee_id)?.name
                             : undefined;
                           return (
                             <span
@@ -218,9 +209,7 @@ export function ChecklistPresetPopover({
                               <span className="min-w-0 break-words">
                                 {item.title}
                                 {assigneeName && (
-                                  <span className="ml-1 text-slate-500">
-                                    {assigneeName}
-                                  </span>
+                                  <span className="ml-1 text-slate-500">{assigneeName}</span>
                                 )}
                               </span>
                             </span>
@@ -228,8 +217,8 @@ export function ChecklistPresetPopover({
                         })
                     ) : (
                       <span className="block text-xs text-slate-600">
-                        {t("milestone.preset.noItems", {
-                          defaultValue: "항목 없음",
+                        {t('milestone.preset.noItems', {
+                          defaultValue: '항목 없음',
                         })}
                       </span>
                     )}
@@ -240,9 +229,7 @@ export function ChecklistPresetPopover({
                 <span className="block border-t border-foreground/[0.08] p-3 space-y-2">
                   <span className="flex items-center gap-2">
                     <button
-                      onClick={() =>
-                        selected && void run(() => onApply(selected.id), true)
-                      }
+                      onClick={() => selected && void run(() => onApply(selected.id), true)}
                       disabled={busy || !selected}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 transition-all disabled:opacity-50 disabled:pointer-events-none"
                     >
@@ -251,9 +238,9 @@ export function ChecklistPresetPopover({
                       ) : (
                         <Plus className="h-3.5 w-3.5" />
                       )}
-                      {t("milestone.preset.applyN", {
+                      {t('milestone.preset.applyN', {
                         count: selected?.item_count ?? 0,
-                        defaultValue: "{{count}}개 항목 추가",
+                        defaultValue: '{{count}}개 항목 추가',
                       })}
                     </button>
                     {presetId && (
@@ -262,8 +249,8 @@ export function ChecklistPresetPopover({
                         disabled={busy}
                         className="text-xs text-slate-500 hover:text-red-500 transition-colors disabled:opacity-50"
                       >
-                        {t("milestone.preset.clear", {
-                          defaultValue: "지정 해제",
+                        {t('milestone.preset.clear', {
+                          defaultValue: '지정 해제',
                         })}
                       </button>
                     )}
@@ -275,8 +262,8 @@ export function ChecklistPresetPopover({
                       className={`ml-auto flex items-center gap-1 ${linkClass}`}
                     >
                       <Settings2 className="h-3 w-3" />
-                      {t("milestone.preset.manage", {
-                        defaultValue: "프리셋 관리",
+                      {t('milestone.preset.manage', {
+                        defaultValue: '프리셋 관리',
                       })}
                     </button>
                   </span>
@@ -286,21 +273,21 @@ export function ChecklistPresetPopover({
                         autoFocus
                         value={saveName}
                         disabled={busy}
-                        placeholder={t("milestone.preset.namePlaceholder", {
-                          defaultValue: "프리셋 이름",
+                        placeholder={t('milestone.preset.namePlaceholder', {
+                          defaultValue: '프리셋 이름',
                         })}
                         onChange={(e) => setSaveName(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.nativeEvent.isComposing) return;
-                          if (e.key === "Enter") commitSave();
-                          else if (e.key === "Escape") setSaveMode(false);
+                          if (e.key === 'Enter') commitSave();
+                          else if (e.key === 'Escape') setSaveMode(false);
                         }}
                         className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl px-3 py-1.5 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                       />
                     ) : (
                       <button onClick={startSaveMode} className={linkClass}>
-                        {t("milestone.preset.saveCurrent", {
-                          defaultValue: "현재 항목을 프리셋으로 저장",
+                        {t('milestone.preset.saveCurrent', {
+                          defaultValue: '현재 항목을 프리셋으로 저장',
                         })}
                       </button>
                     ))}

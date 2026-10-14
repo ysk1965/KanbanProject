@@ -56,13 +56,18 @@ export const LOCALE_TO_COUNTRY: Record<string, string> = {
 
 // Lazy-loaded Holidays class (code-split date-holidays ~1.4MB)
 let HolidaysClass: any = null;
-const loadHolidays = () => import('date-holidays').then((m) => { HolidaysClass = m.default; });
+const loadHolidays = () =>
+  import('date-holidays').then((m) => {
+    HolidaysClass = m.default;
+  });
 
 function getInitialSource(): HolidaySource {
   try {
     const stored = localStorage.getItem(SOURCE_STORAGE_KEY);
     if (stored === 'device' || stored === 'library' || stored === 'off') return stored;
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   // Native apps default to 'device', web defaults to 'library'
   return isNative() ? 'device' : 'library';
 }
@@ -88,7 +93,9 @@ export function useHolidays(locale: string, year: number) {
       if (!stored) {
         setCountry(LOCALE_TO_COUNTRY[locale] || 'US');
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [locale]);
 
   const changeCountry = useCallback((code: string) => {
@@ -99,14 +106,18 @@ export function useHolidays(locale: string, year: number) {
       } else {
         localStorage.removeItem(STORAGE_KEY);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const changeHolidaySource = useCallback((source: HolidaySource) => {
     setHolidaySource(source);
     try {
       localStorage.setItem(SOURCE_STORAGE_KEY, source);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   // Device calendar holidays (native only)
@@ -117,7 +128,8 @@ export function useHolidays(locale: string, year: number) {
 
     const fetchDevice = async () => {
       try {
-        const { fetchDeviceHolidays, requestCalendarPermission } = await import('../utils/nativeCalendar');
+        const { fetchDeviceHolidays, requestCalendarPermission } =
+          await import('../utils/nativeCalendar');
 
         // Request permission first
         const perm = await requestCalendarPermission();
@@ -149,7 +161,9 @@ export function useHolidays(locale: string, year: number) {
     };
 
     fetchDevice();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [holidaySource, year, country]);
 
   // Library holidays (date-holidays)
@@ -158,7 +172,9 @@ export function useHolidays(locale: string, year: number) {
 
     let cancelled = false;
     computeLibraryHolidays(country, year, cancelled, setHolidayMap).then(() => {});
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [holidaySource, country, year]);
 
   // Off mode
@@ -167,7 +183,14 @@ export function useHolidays(locale: string, year: number) {
     setHolidayMap(new Map());
   }, [holidaySource]);
 
-  return { country, changeCountry, holidayMap, countries: COUNTRY_LIST, holidaySource, changeHolidaySource };
+  return {
+    country,
+    changeCountry,
+    holidayMap,
+    countries: COUNTRY_LIST,
+    holidaySource,
+    changeHolidaySource,
+  };
 }
 
 async function computeLibraryHolidays(
@@ -218,7 +241,9 @@ async function buildLibraryHolidayMap(
         map.get(dateStr)!.push({ date: dateStr, name: h.name, type: h.type });
       }
     }
-  } catch { /* unsupported country */ }
+  } catch {
+    /* unsupported country */
+  }
 
   return map;
 }
@@ -232,7 +257,8 @@ async function resolveHolidayMap(
   if (source === 'off') return new Map();
   if (source === 'device' && isNative()) {
     try {
-      const { fetchDeviceHolidays, requestCalendarPermission } = await import('../utils/nativeCalendar');
+      const { fetchDeviceHolidays, requestCalendarPermission } =
+        await import('../utils/nativeCalendar');
       const perm = await requestCalendarPermission();
       if (perm === 'granted') {
         const deviceMap = await fetchDeviceHolidays(year);
@@ -267,7 +293,9 @@ export function useHolidaysForYears(locale: string, years: number[]) {
       if (!stored) {
         setCountry(LOCALE_TO_COUNTRY[locale] || 'US');
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [locale]);
 
   // 연도별 캐시 — 키에 소스·국가를 넣어 설정이 바뀌면 자연히 다시 계산된다
@@ -287,7 +315,9 @@ export function useHolidaysForYears(locale: string, years: number[]) {
       }
       if (!cancelled) setVersion((v) => v + 1);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [yearsKey, country, holidaySource]);
 

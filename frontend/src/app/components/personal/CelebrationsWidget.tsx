@@ -37,9 +37,7 @@ function CelebrationRow({ item, index }: { item: CelebrationItem; index: number 
             className="w-full h-full object-cover"
           />
         ) : (
-          <span className="text-sm font-bold text-foreground">
-            {item.member_name.charAt(0)}
-          </span>
+          <span className="text-sm font-bold text-foreground">{item.member_name.charAt(0)}</span>
         )}
       </div>
 
@@ -78,7 +76,8 @@ export function CelebrationsWidget({ date }: CelebrationsWidgetProps) {
 
   useEffect(() => {
     setLoading(true);
-    personalDashboardService.getCelebrations(date)
+    personalDashboardService
+      .getCelebrations(date)
       .then(setData)
       .catch(() => setData(null))
       .finally(() => setLoading(false));
@@ -111,11 +110,7 @@ export function CelebrationsWidget({ date }: CelebrationsWidgetProps) {
       {/* Body */}
       <div className="px-3 md:px-5 py-2 md:py-3">
         {data.celebrations.map((item, idx) => (
-          <CelebrationRow
-            key={`${item.member_user_id}-${item.type}`}
-            item={item}
-            index={idx}
-          />
+          <CelebrationRow key={`${item.member_user_id}-${item.type}`} item={item} index={idx} />
         ))}
       </div>
     </motion.div>

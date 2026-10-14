@@ -1,6 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, ChevronLeft, ChevronRight, Folder, Users, User, ListTodo, Calendar, Filter, Eye, Trash2, RotateCcw, Loader2 } from 'lucide-react';
+import {
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Folder,
+  Users,
+  User,
+  ListTodo,
+  Calendar,
+  Filter,
+  Eye,
+  Trash2,
+  RotateCcw,
+  Loader2,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { adminService } from '../../utils/services';
 import { BoardListResponse } from '../../utils/api';
@@ -130,7 +144,10 @@ export function AdminBoardsTab() {
       {/* Tab Toggle: Active / Deleted */}
       <div className="flex items-center gap-2">
         <button
-          onClick={() => { setShowDeleted(false); setPage(0); }}
+          onClick={() => {
+            setShowDeleted(false);
+            setPage(0);
+          }}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             !showDeleted
               ? 'bg-bridge-accent text-white'
@@ -141,7 +158,10 @@ export function AdminBoardsTab() {
           {t('admin.boards.activeBoards', 'Active Boards')}
         </button>
         <button
-          onClick={() => { setShowDeleted(true); setPage(0); }}
+          onClick={() => {
+            setShowDeleted(true);
+            setPage(0);
+          }}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             showDeleted
               ? 'bg-red-500/20 text-red-400'
@@ -248,8 +268,15 @@ export function AdminBoardsTab() {
           {showDeleted && boards.boards.length === 0 ? (
             <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-12 text-center">
               <Trash2 className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-              <p className="text-slate-400 text-lg">{t('admin.boards.noDeletedBoards', 'No deleted boards')}</p>
-              <p className="text-slate-500 text-sm mt-2">{t('admin.boards.noDeletedBoardsDesc', 'Deleted boards will appear here for 7 days before permanent deletion.')}</p>
+              <p className="text-slate-400 text-lg">
+                {t('admin.boards.noDeletedBoards', 'No deleted boards')}
+              </p>
+              <p className="text-slate-500 text-sm mt-2">
+                {t(
+                  'admin.boards.noDeletedBoardsDesc',
+                  'Deleted boards will appear here for 7 days before permanent deletion.',
+                )}
+              </p>
             </div>
           ) : (
             <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] overflow-x-auto">
@@ -277,10 +304,11 @@ export function AdminBoardsTab() {
                       {t('admin.boards.tasks')}
                     </th>
                     <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                      {showDeleted ? t('admin.boards.deletedAt', 'Deleted') : t('admin.boards.createdAt')}
+                      {showDeleted
+                        ? t('admin.boards.deletedAt', 'Deleted')
+                        : t('admin.boards.createdAt')}
                     </th>
-                    <th className="text-right px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    </th>
+                    <th className="text-right px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -294,9 +322,11 @@ export function AdminBoardsTab() {
                     >
                       <td className="px-3 py-3 md:px-6 md:py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            showDeleted ? 'bg-red-500/20' : 'bg-bridge-accent/20'
-                          }`}>
+                          <div
+                            className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                              showDeleted ? 'bg-red-500/20' : 'bg-bridge-accent/20'
+                            }`}
+                          >
                             {showDeleted ? (
                               <Trash2 className="h-5 w-5 text-red-400" />
                             ) : (
@@ -326,7 +356,9 @@ export function AdminBoardsTab() {
                           ) : (
                             <Users className="h-3 w-3" />
                           )}
-                          {board.board_type === 'PERSONAL' ? t('admin.boards.typePersonal', 'Personal') : t('admin.boards.typeTeam', 'Team')}
+                          {board.board_type === 'PERSONAL'
+                            ? t('admin.boards.typePersonal', 'Personal')
+                            : t('admin.boards.typeTeam', 'Team')}
                         </span>
                       </td>
                       <td className="px-3 py-3 md:px-6 md:py-4">
@@ -339,7 +371,7 @@ export function AdminBoardsTab() {
                         <td className="px-3 py-3 md:px-6 md:py-4">
                           <span
                             className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getTierStyle(
-                              board.tier
+                              board.tier,
                             )}`}
                           >
                             {board.tier}
@@ -365,7 +397,9 @@ export function AdminBoardsTab() {
                               {formatRelativeTime(board.deleted_at)}
                             </span>
                             <p className="text-slate-500 text-xs mt-0.5">
-                              {t('admin.boards.daysLeft', { days: getDaysUntilPermanentDelete(board.deleted_at) })}
+                              {t('admin.boards.daysLeft', {
+                                days: getDaysUntilPermanentDelete(board.deleted_at),
+                              })}
                             </p>
                           </div>
                         ) : (
@@ -386,7 +420,9 @@ export function AdminBoardsTab() {
                               disabled:opacity-50 disabled:cursor-not-allowed
                               transition-all"
                           >
-                            <RotateCcw className={`h-3.5 w-3.5 ${isRestoring === board.id ? 'animate-spin' : ''}`} />
+                            <RotateCcw
+                              className={`h-3.5 w-3.5 ${isRestoring === board.id ? 'animate-spin' : ''}`}
+                            />
                             {t('admin.boards.restore', 'Restore')}
                           </button>
                         ) : (
@@ -433,7 +469,9 @@ export function AdminBoardsTab() {
                   {page + 1} / {Math.ceil(boards.total / boards.size) || 1}
                 </span>
                 <button
-                  onClick={() => setPage(Math.min(Math.ceil(boards.total / boards.size) - 1, page + 1))}
+                  onClick={() =>
+                    setPage(Math.min(Math.ceil(boards.total / boards.size) - 1, page + 1))
+                  }
                   disabled={page >= Math.ceil(boards.total / boards.size) - 1}
                   className="p-2 bg-bridge-obsidian border border-foreground/[0.08] rounded-lg
                     text-slate-400 hover:text-foreground hover:bg-foreground/5

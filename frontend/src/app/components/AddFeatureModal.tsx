@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import { X, CheckCircle2, CalendarIcon, ChevronDown } from "lucide-react";
-import { MotionModal } from "./ui/MotionModal";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Calendar } from "./ui/calendar";
-import { format } from "date-fns";
-import { ko } from "date-fns/locale";
-import type { DateRange } from "react-day-picker";
-import type { Milestone } from "../types";
+import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { X, CheckCircle2, CalendarIcon, ChevronDown } from 'lucide-react';
+import { MotionModal } from './ui/MotionModal';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar } from './ui/calendar';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import type { DateRange } from 'react-day-picker';
+import type { Milestone } from '../types';
 
 interface AddFeatureModalProps {
   open: boolean;
@@ -31,15 +31,15 @@ export function AddFeatureModal({
   defaultMilestoneId,
 }: AddFeatureModalProps) {
   const { t } = useTranslation();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [milestoneId, setMilestoneId] = useState("");
+  const [milestoneId, setMilestoneId] = useState('');
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   // 'yyyy-MM-dd' → Date (로컬 파싱, 오프바이원 방지)
   const parseYmd = (s: string) => {
-    const [y, m, d] = s.split("-").map(Number);
+    const [y, m, d] = s.split('-').map(Number);
     return new Date(y, m - 1, d);
   };
 
@@ -48,9 +48,9 @@ export function AddFeatureModal({
   useEffect(() => {
     if (open) {
       const initial =
-        defaultMilestoneId && defaultMilestoneId !== "all"
+        defaultMilestoneId && defaultMilestoneId !== 'all'
           ? defaultMilestoneId
-          : (milestones[0]?.id ?? "");
+          : (milestones[0]?.id ?? '');
       setMilestoneId(initial);
     }
     // milestones는 deps에서 제외 — 모달이 열린 중 마일스톤 목록이 갱신돼도 유저 선택을 리셋하지 않기 위함
@@ -78,16 +78,14 @@ export function AddFeatureModal({
         title: title.trim(),
         description: description.trim() || undefined,
         // 마일스톤 기간을 기본값으로 상속하되 좁힐 수 있음 — 선택된 기간을 그대로 전송
-        startDate: dateRange?.from
-          ? format(dateRange.from, "yyyy-MM-dd")
-          : undefined,
-        dueDate: dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
+        startDate: dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined,
+        dueDate: dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : undefined,
         milestoneId: milestoneId || undefined,
       });
-      setTitle("");
-      setDescription("");
+      setTitle('');
+      setDescription('');
       setDateRange(undefined);
-      setMilestoneId("");
+      setMilestoneId('');
       onClose();
     }
   };
@@ -100,9 +98,7 @@ export function AddFeatureModal({
     >
       {/* 헤더 */}
       <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-foreground/[0.08] bg-foreground/[0.03]">
-        <h2 className="text-lg font-bold text-foreground">
-          {t("feature.addTitle")}
-        </h2>
+        <h2 className="text-lg font-bold text-foreground">{t('feature.addTitle')}</h2>
         <button
           onClick={onClose}
           className="p-2 text-slate-400 hover:text-foreground transition-colors"
@@ -115,27 +111,23 @@ export function AddFeatureModal({
       {/* 콘텐츠 */}
       <div className="px-5 pb-5 pt-4 space-y-6">
         <div className="space-y-2">
-          <label className="kanban-label block">
-            {t("feature.titleLabel")} *
-          </label>
+          <label className="kanban-label block">{t('feature.titleLabel')} *</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder={t("feature.titlePlaceholder")}
+            placeholder={t('feature.titlePlaceholder')}
             className="w-full bg-bridge-obsidian border border-foreground/10 rounded-xl p-3 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all text-sm"
             autoFocus
           />
         </div>
 
         <div className="space-y-2">
-          <label className="kanban-label block">
-            {t("feature.descriptionLabel")}
-          </label>
+          <label className="kanban-label block">{t('feature.descriptionLabel')}</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder={t("feature.descriptionPlaceholder")}
+            placeholder={t('feature.descriptionPlaceholder')}
             rows={3}
             className="w-full bg-bridge-obsidian border border-foreground/10 rounded-xl p-3 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all resize-none text-sm"
           />
@@ -143,16 +135,14 @@ export function AddFeatureModal({
 
         {milestones.length > 0 && (
           <div className="space-y-2">
-            <label className="kanban-label block">
-              {t("milestone.titleLabel", "마일스톤")}
-            </label>
+            <label className="kanban-label block">{t('milestone.titleLabel', '마일스톤')}</label>
             <div className="relative">
               <select
                 value={milestoneId}
                 onChange={(e) => setMilestoneId(e.target.value)}
                 className="w-full appearance-none bg-bridge-surface-hover border border-foreground/10 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 text-xs font-bold text-foreground cursor-pointer"
               >
-                <option value="">{t("kanban.noMilestone", "없음")}</option>
+                <option value="">{t('kanban.noMilestone', '없음')}</option>
                 {milestones.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.title}
@@ -168,9 +158,7 @@ export function AddFeatureModal({
         )}
 
         <div className="space-y-2">
-          <label className="kanban-label block">
-            {t("featureDetail.dateRange")}
-          </label>
+          <label className="kanban-label block">{t('featureDetail.dateRange')}</label>
           <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
             <PopoverTrigger asChild>
               <button
@@ -180,16 +168,12 @@ export function AddFeatureModal({
                 <CalendarIcon className="mr-2 h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
                 {dateRange?.from ? (
                   <span>
-                    {format(dateRange.from, "yyyy. MM. dd.", { locale: ko })}
-                    {" ~ "}
-                    {dateRange.to
-                      ? format(dateRange.to, "yyyy. MM. dd.", { locale: ko })
-                      : "?"}
+                    {format(dateRange.from, 'yyyy. MM. dd.', { locale: ko })}
+                    {' ~ '}
+                    {dateRange.to ? format(dateRange.to, 'yyyy. MM. dd.', { locale: ko }) : '?'}
                   </span>
                 ) : (
-                  <span className="text-slate-500">
-                    {t("featureDetail.selectDateRange")}
-                  </span>
+                  <span className="text-slate-500">{t('featureDetail.selectDateRange')}</span>
                 )}
               </button>
             </PopoverTrigger>
@@ -212,7 +196,7 @@ export function AddFeatureModal({
                     onClick={() => setDateRange(undefined)}
                     className="flex-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-md py-1.5 transition-colors"
                   >
-                    {t("featureDetail.removeDate")}
+                    {t('featureDetail.removeDate')}
                   </button>
                   {dateRange.from && dateRange.to && (
                     <button
@@ -220,7 +204,7 @@ export function AddFeatureModal({
                       onClick={() => setCalendarOpen(false)}
                       className="flex-1 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-md py-1.5 transition-colors font-bold"
                     >
-                      {t("common.confirm", "확인")}
+                      {t('common.confirm', '확인')}
                     </button>
                   )}
                 </div>
@@ -230,8 +214,8 @@ export function AddFeatureModal({
           {selectedMilestone && (
             <p className="text-xs text-slate-500">
               {t(
-                "feature.periodInheritsMilestone",
-                "마일스톤 기간이 기본값으로 채워졌어요. 좁혀도 됩니다.",
+                'feature.periodInheritsMilestone',
+                '마일스톤 기간이 기본값으로 채워졌어요. 좁혀도 됩니다.',
               )}
             </p>
           )}
@@ -244,14 +228,14 @@ export function AddFeatureModal({
           onClick={onClose}
           className="text-xs font-bold text-slate-400 hover:text-foreground transition-all tracking-wider"
         >
-          {t("common.cancel")}
+          {t('common.cancel')}
         </button>
         <button
           onClick={handleSubmit}
           disabled={!title.trim()}
           className="px-6 py-2.5 bg-white text-black font-bold text-xs rounded-lg tracking-widest hover:bg-slate-200 transition-all flex items-center gap-2 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {t("common.add")}
+          {t('common.add')}
           <CheckCircle2 size={14} className="text-indigo-600" />
         </button>
       </div>

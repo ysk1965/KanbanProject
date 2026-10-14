@@ -1,4 +1,4 @@
-import { StorageView } from "../../storage/StorageView";
+import { StorageView } from '../../storage/StorageView';
 
 interface OrgStorageTabProps {
   orgId: string;

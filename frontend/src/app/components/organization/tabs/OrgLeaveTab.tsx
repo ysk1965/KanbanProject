@@ -1,6 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, ChevronLeft, ChevronRight, Check, X, Clock, CalendarOff, Palmtree, RotateCcw, Scale, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import {
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  X,
+  Clock,
+  CalendarOff,
+  Palmtree,
+  RotateCcw,
+  Scale,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { leaveService } from '../../../utils/services';
@@ -9,9 +23,13 @@ import { getTodayDateString } from '../../../utils/dateUtils';
 import { MotionModal } from '../../ui/MotionModal';
 import { IconButton } from '../../ui/IconButton';
 import type {
-  LeaveBalance, LeavePolicy, LeaveRequestResponse,
+  LeaveBalance,
+  LeavePolicy,
+  LeaveRequestResponse,
   LeaveBalanceAdjustmentResponse,
-  OrgRole, LeaveStatus, LeaveDurationType,
+  OrgRole,
+  LeaveStatus,
+  LeaveDurationType,
 } from '../../../types';
 
 interface OrgLeaveTabProps {
@@ -139,11 +157,19 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
         reason: adjustForm.reason,
       });
       setShowAdjustModal(false);
-      setAdjustForm({ member_id: '', balance_id: '', adjustment_type: 'GRANT', days: 0.5, reason: '' });
+      setAdjustForm({
+        member_id: '',
+        balance_id: '',
+        adjustment_type: 'GRANT',
+        days: 0.5,
+        reason: '',
+      });
       setMemberBalances([]);
       fetchData();
       if (showHistory) fetchAdjustments();
-      toast.success(adjustForm.adjustment_type === 'GRANT' ? '휴가가 부여되었습니다' : '휴가가 회수되었습니다');
+      toast.success(
+        adjustForm.adjustment_type === 'GRANT' ? '휴가가 부여되었습니다' : '휴가가 회수되었습니다',
+      );
     } catch (error: any) {
       const msg = error?.response?.data?.message || '조정에 실패했습니다';
       toast.error(msg);
@@ -250,7 +276,10 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
     return (
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-20 bg-bridge-obsidian rounded-xl border border-foreground/[0.08] animate-pulse" />
+          <div
+            key={i}
+            className="h-20 bg-bridge-obsidian rounded-xl border border-foreground/[0.08] animate-pulse"
+          />
         ))}
       </div>
     );
@@ -320,11 +349,19 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
                   {leave.requester?.name?.charAt(0) || '?'}
                 </div>
                 <div className="min-w-0">
-                  <span className="text-sm text-foreground font-medium block truncate">{leave.requester?.name}</span>
+                  <span className="text-sm text-foreground font-medium block truncate">
+                    {leave.requester?.name}
+                  </span>
                   <span className="text-xs text-muted-foreground">
                     {leave.policy.name}
                     {leave.duration_type !== 'FULL_DAY' && (
-                      <> · {leave.duration_type === 'AM_HALF' ? t('organization.leave.amHalf', 'AM') : t('organization.leave.pmHalf', 'PM')}</>
+                      <>
+                        {' '}
+                        ·{' '}
+                        {leave.duration_type === 'AM_HALF'
+                          ? t('organization.leave.amHalf', 'AM')
+                          : t('organization.leave.pmHalf', 'PM')}
+                      </>
                     )}
                   </span>
                 </div>
@@ -339,7 +376,10 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
         <div className="flex items-center gap-3">
           <select
             value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(0);
+            }}
             className="bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-2 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
           >
             <option value="">{t('organization.leave.allStatuses', 'All Statuses')}</option>
@@ -402,7 +442,9 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
           {totalElements > 20 && (
             <div className="flex items-center justify-between pb-2">
               <p className="text-muted-foreground text-xs">
-                {t('organization.leave.totalRequests', '{{count}} requests', { count: totalElements })}
+                {t('organization.leave.totalRequests', '{{count}} requests', {
+                  count: totalElements,
+                })}
               </p>
               <div className="flex items-center gap-2">
                 <IconButton
@@ -442,14 +484,20 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-foreground font-medium text-sm">{req.requester?.name}</span>
-                      <span className={`text-xs font-bold uppercase px-1.5 py-0.5 rounded-full ${STATUS_STYLES[req.status]}`}>
+                      <span className="text-foreground font-medium text-sm">
+                        {req.requester?.name}
+                      </span>
+                      <span
+                        className={`text-xs font-bold uppercase px-1.5 py-0.5 rounded-full ${STATUS_STYLES[req.status]}`}
+                      >
                         {t(STATUS_LABEL_KEYS[req.status])}
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
-                      {req.policy.name} · {req.start_date} ~ {req.end_date} · {req.total_days}{t('organization.leave.days', ' days')}
-                      {req.duration_type !== 'FULL_DAY' && ` (${req.duration_type === 'AM_HALF' ? t('organization.leave.amHalf', 'AM Half') : t('organization.leave.pmHalf', 'PM Half')})`}
+                      {req.policy.name} · {req.start_date} ~ {req.end_date} · {req.total_days}
+                      {t('organization.leave.days', ' days')}
+                      {req.duration_type !== 'FULL_DAY' &&
+                        ` (${req.duration_type === 'AM_HALF' ? t('organization.leave.amHalf', 'AM Half') : t('organization.leave.pmHalf', 'PM Half')})`}
                     </div>
                     {req.reason && (
                       <div className="text-xs text-muted-foreground mt-1">{req.reason}</div>
@@ -516,7 +564,11 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
                 </span>
               )}
             </div>
-            {showHistory ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+            {showHistory ? (
+              <ChevronUp size={16} className="text-slate-400" />
+            ) : (
+              <ChevronDown size={16} className="text-slate-400" />
+            )}
           </button>
           {showHistory && (
             <div className="border-t border-foreground/[0.08] px-5 py-4">
@@ -550,34 +602,47 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
                         className="flex items-center justify-between py-2.5 px-3 bg-foreground/[0.02] rounded-xl border border-foreground/[0.06]"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <span className={`text-xs font-bold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${typeStyles[adj.adjustment_type] || ''}`}>
+                          <span
+                            className={`text-xs font-bold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${typeStyles[adj.adjustment_type] || ''}`}
+                          >
                             {typeLabels[adj.adjustment_type] || adj.adjustment_type}
                           </span>
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-sm text-foreground font-medium truncate">{adj.member_name}</span>
+                              <span className="text-sm text-foreground font-medium truncate">
+                                {adj.member_name}
+                              </span>
                               <span className="text-xs text-slate-400">&middot;</span>
                               <span className="text-xs text-slate-400">{adj.policy_name}</span>
                             </div>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className={`text-xs font-bold ${adj.days > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                                {adj.days > 0 ? '+' : ''}{adj.days}일
+                              <span
+                                className={`text-xs font-bold ${adj.days > 0 ? 'text-emerald-500' : 'text-red-500'}`}
+                              >
+                                {adj.days > 0 ? '+' : ''}
+                                {adj.days}일
                               </span>
                               <span className="text-xs text-slate-500">
                                 ({adj.previous_total} &rarr; {adj.new_total})
                               </span>
-                              {adj.reason && adj.reason !== '수동 조정' && adj.reason !== '연간 기본 배정' && (
-                                <>
-                                  <span className="text-xs text-slate-400">&middot;</span>
-                                  <span className="text-xs text-slate-400 truncate max-w-[200px]">{adj.reason}</span>
-                                </>
-                              )}
+                              {adj.reason &&
+                                adj.reason !== '수동 조정' &&
+                                adj.reason !== '연간 기본 배정' && (
+                                  <>
+                                    <span className="text-xs text-slate-400">&middot;</span>
+                                    <span className="text-xs text-slate-400 truncate max-w-[200px]">
+                                      {adj.reason}
+                                    </span>
+                                  </>
+                                )}
                             </div>
                           </div>
                         </div>
                         <div className="text-right shrink-0 ml-3">
                           {adj.granted_by_name && (
-                            <span className="text-xs text-slate-400 block">{adj.granted_by_name}</span>
+                            <span className="text-xs text-slate-400 block">
+                              {adj.granted_by_name}
+                            </span>
                           )}
                           <span className="text-xs text-slate-500">
                             {new Date(adj.created_at).toLocaleDateString()}
@@ -600,7 +665,11 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
                         {adjustmentPage + 1} / {Math.ceil(adjustmentTotal / 20)}
                       </span>
                       <IconButton
-                        onClick={() => setAdjustmentPage(Math.min(Math.ceil(adjustmentTotal / 20) - 1, adjustmentPage + 1))}
+                        onClick={() =>
+                          setAdjustmentPage(
+                            Math.min(Math.ceil(adjustmentTotal / 20) - 1, adjustmentPage + 1),
+                          )
+                        }
                         disabled={adjustmentPage >= Math.ceil(adjustmentTotal / 20) - 1}
                         aria-label="다음 페이지"
                         className="disabled:opacity-50"
@@ -620,7 +689,9 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
       <MotionModal open={showRequestModal} onClose={() => setShowRequestModal(false)}>
         <div className="h-1 bg-gradient-to-r from-bridge-accent to-bridge-secondary rounded-t-2xl" />
         <div className="px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
-          <h2 className="text-lg font-bold text-foreground">{t('organization.leave.requestTitle', 'Request Leave')}</h2>
+          <h2 className="text-lg font-bold text-foreground">
+            {t('organization.leave.requestTitle', 'Request Leave')}
+          </h2>
         </div>
         <div className="px-5 pb-5 pt-4 space-y-4">
           <div>
@@ -634,7 +705,9 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
             >
               <option value="">{t('organization.leave.selectType', 'Select leave type')}</option>
               {policies.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
               ))}
             </select>
           </div>
@@ -659,7 +732,11 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
                       : 'bg-foreground/[0.03] text-muted-foreground border-foreground/[0.08] hover:bg-foreground/[0.06]'
                   }`}
                 >
-                  {dt === 'FULL_DAY' ? t('organization.leave.fullDay', 'Full Day') : dt === 'AM_HALF' ? t('organization.leave.amHalf', 'AM Half') : t('organization.leave.pmHalf', 'PM Half')}
+                  {dt === 'FULL_DAY'
+                    ? t('organization.leave.fullDay', 'Full Day')
+                    : dt === 'AM_HALF'
+                      ? t('organization.leave.amHalf', 'AM Half')
+                      : t('organization.leave.pmHalf', 'PM Half')}
                 </button>
               ))}
             </div>
@@ -677,7 +754,12 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
                   setRequestForm({
                     ...requestForm,
                     start_date: val,
-                    end_date: requestForm.duration_type !== 'FULL_DAY' ? val : requestForm.end_date < val ? val : requestForm.end_date,
+                    end_date:
+                      requestForm.duration_type !== 'FULL_DAY'
+                        ? val
+                        : requestForm.end_date < val
+                          ? val
+                          : requestForm.end_date,
                   });
                 }}
                 className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
@@ -723,7 +805,9 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
               disabled={!requestForm.policy_id || submitting}
               className="px-4 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50"
             >
-              {submitting ? t('common.submitting', 'Submitting...') : t('organization.leave.submit', 'Submit Request')}
+              {submitting
+                ? t('common.submitting', 'Submitting...')
+                : t('organization.leave.submit', 'Submit Request')}
             </button>
           </div>
         </div>
@@ -738,7 +822,9 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
         <div className="px-5 pb-5 pt-4 space-y-4">
           {/* Member Select */}
           <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">대상 멤버</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+              대상 멤버
+            </label>
             <select
               value={adjustForm.member_id}
               onChange={(e) => {
@@ -754,7 +840,9 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
                 <option disabled>로딩 중...</option>
               ) : (
                 members.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name} ({m.email})</option>
+                  <option key={m.id} value={m.id}>
+                    {m.name} ({m.email})
+                  </option>
                 ))
               )}
             </select>
@@ -763,7 +851,9 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
           {/* Balance Select */}
           {adjustForm.member_id && (
             <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">대상 정책</label>
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                대상 정책
+              </label>
               <select
                 value={adjustForm.balance_id}
                 onChange={(e) => setAdjustForm({ ...adjustForm, balance_id: e.target.value })}
@@ -771,46 +861,60 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
               >
                 <option value="">정책 선택</option>
                 {memberBalances.map((b) => (
-                  <option key={b.id} value={b.id}>{b.policy_name} (잔여: {b.remaining}/{b.total_days})</option>
+                  <option key={b.id} value={b.id}>
+                    {b.policy_name} (잔여: {b.remaining}/{b.total_days})
+                  </option>
                 ))}
               </select>
             </div>
           )}
 
           {/* Current Balance Info */}
-          {adjustForm.balance_id && (() => {
-            const selectedBalance = memberBalances.find(b => b.id === adjustForm.balance_id);
-            if (!selectedBalance) return null;
-            const preview = adjustForm.adjustment_type === 'GRANT'
-              ? selectedBalance.total_days + adjustForm.days
-              : selectedBalance.total_days - adjustForm.days;
-            return (
-              <div className="p-3 bg-foreground/[0.03] rounded-xl border border-foreground/[0.06]">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">현재 총 일수</span>
-                  <span className="text-foreground font-medium">{selectedBalance.total_days}일</span>
+          {adjustForm.balance_id &&
+            (() => {
+              const selectedBalance = memberBalances.find((b) => b.id === adjustForm.balance_id);
+              if (!selectedBalance) return null;
+              const preview =
+                adjustForm.adjustment_type === 'GRANT'
+                  ? selectedBalance.total_days + adjustForm.days
+                  : selectedBalance.total_days - adjustForm.days;
+              return (
+                <div className="p-3 bg-foreground/[0.03] rounded-xl border border-foreground/[0.06]">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-400">현재 총 일수</span>
+                    <span className="text-foreground font-medium">
+                      {selectedBalance.total_days}일
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-1">
+                    <span className="text-slate-400">사용</span>
+                    <span className="text-foreground">{selectedBalance.used_days}일</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-1">
+                    <span className="text-slate-400">잔여</span>
+                    <span className="text-bridge-secondary font-bold">
+                      {selectedBalance.remaining}일
+                    </span>
+                  </div>
+                  <div className="border-t border-foreground/[0.06] mt-2 pt-2 flex items-center justify-between text-sm">
+                    <span className="text-slate-400">변경 후</span>
+                    <span
+                      className={`font-bold ${adjustForm.adjustment_type === 'GRANT' ? 'text-emerald-500' : 'text-red-500'}`}
+                    >
+                      {selectedBalance.total_days} &rarr; {preview.toFixed(1)} (
+                      {adjustForm.adjustment_type === 'GRANT' ? '+' : '-'}
+                      {adjustForm.days})
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-sm mt-1">
-                  <span className="text-slate-400">사용</span>
-                  <span className="text-foreground">{selectedBalance.used_days}일</span>
-                </div>
-                <div className="flex items-center justify-between text-sm mt-1">
-                  <span className="text-slate-400">잔여</span>
-                  <span className="text-bridge-secondary font-bold">{selectedBalance.remaining}일</span>
-                </div>
-                <div className="border-t border-foreground/[0.06] mt-2 pt-2 flex items-center justify-between text-sm">
-                  <span className="text-slate-400">변경 후</span>
-                  <span className={`font-bold ${adjustForm.adjustment_type === 'GRANT' ? 'text-emerald-500' : 'text-red-500'}`}>
-                    {selectedBalance.total_days} &rarr; {preview.toFixed(1)} ({adjustForm.adjustment_type === 'GRANT' ? '+' : '-'}{adjustForm.days})
-                  </span>
-                </div>
-              </div>
-            );
-          })()}
+              );
+            })()}
 
           {/* Adjustment Type */}
           <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">조정 유형</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+              조정 유형
+            </label>
             <div className="flex gap-2">
               {(['GRANT', 'REVOKE'] as const).map((type) => (
                 <button
@@ -832,20 +936,26 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
 
           {/* Days Input */}
           <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">일수</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+              일수
+            </label>
             <input
               type="number"
               min="0.5"
               step="0.5"
               value={adjustForm.days}
-              onChange={(e) => setAdjustForm({ ...adjustForm, days: parseFloat(e.target.value) || 0.5 })}
+              onChange={(e) =>
+                setAdjustForm({ ...adjustForm, days: parseFloat(e.target.value) || 0.5 })
+              }
               className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
             />
           </div>
 
           {/* Reason */}
           <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">사유 (필수)</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+              사유 (필수)
+            </label>
             <textarea
               value={adjustForm.reason}
               onChange={(e) => setAdjustForm({ ...adjustForm, reason: e.target.value })}
@@ -866,7 +976,12 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
             </button>
             <button
               onClick={handleAdjust}
-              disabled={!adjustForm.balance_id || !adjustForm.reason.trim() || adjustForm.days <= 0 || adjusting}
+              disabled={
+                !adjustForm.balance_id ||
+                !adjustForm.reason.trim() ||
+                adjustForm.days <= 0 ||
+                adjusting
+              }
               className="px-4 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
             >
               {adjusting ? '처리 중...' : '조정'}

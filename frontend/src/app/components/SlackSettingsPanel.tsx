@@ -1,6 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Settings, X, Send, Trash2, Loader2, Check, AlertCircle, Link2, HelpCircle, Lock, Rocket } from 'lucide-react';
+import {
+  Settings,
+  X,
+  Send,
+  Trash2,
+  Loader2,
+  Check,
+  AlertCircle,
+  Link2,
+  HelpCircle,
+  Lock,
+  Rocket,
+} from 'lucide-react';
 import { slackWebhookAPI, SlackWebhookConfig } from '../utils/api';
 import { SlackGuideModal } from './SlackGuideModal';
 
@@ -11,7 +23,12 @@ interface SlackSettingsPanelProps {
   onUpgrade?: () => void;
 }
 
-export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlack = true, onUpgrade }: SlackSettingsPanelProps) {
+export function SlackSettingsPanel({
+  boardId,
+  onSlackStatusChange,
+  canAccessSlack = true,
+  onUpgrade,
+}: SlackSettingsPanelProps) {
   const { t } = useTranslation();
   const [config, setConfig] = useState<SlackWebhookConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -123,7 +140,9 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
             <Lock size={12} className="text-bridge-accent" />
-            <span className="text-xs font-medium text-bridge-accent">{t('slackSettings.premiumLabel')}</span>
+            <span className="text-xs font-medium text-bridge-accent">
+              {t('slackSettings.premiumLabel')}
+            </span>
           </div>
           {onUpgrade && (
             <button
@@ -135,9 +154,7 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
             </button>
           )}
         </div>
-        <p className="text-xs text-slate-400 leading-relaxed">
-          {t('slackSettings.premiumDesc')}
-        </p>
+        <p className="text-xs text-slate-400 leading-relaxed">{t('slackSettings.premiumDesc')}</p>
       </div>
     );
   }
@@ -147,8 +164,14 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
     return (
       <div className="mx-3 mt-3 mb-2 p-3 bg-white/[0.03] rounded-xl border border-foreground/10">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-medium text-foreground">{t('slackSettings.settingsTitle')}</span>
-          <button onClick={handleCancel} className="text-slate-400 hover:text-foreground transition-colors" aria-label="닫기">
+          <span className="text-xs font-medium text-foreground">
+            {t('slackSettings.settingsTitle')}
+          </span>
+          <button
+            onClick={handleCancel}
+            className="text-slate-400 hover:text-foreground transition-colors"
+            aria-label="닫기"
+          >
             <X size={14} />
           </button>
         </div>
@@ -162,17 +185,26 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
               type="url"
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
-              placeholder={isExistingConfig ? (config?.webhook_url_masked || 'https://hooks.slack.com/services/...') : 'https://hooks.slack.com/services/T.../B.../...'}
+              placeholder={
+                isExistingConfig
+                  ? config?.webhook_url_masked || 'https://hooks.slack.com/services/...'
+                  : 'https://hooks.slack.com/services/T.../B.../...'
+              }
               className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 px-3 text-xs text-foreground placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
             />
             {isExistingConfig && (
-              <p className="text-xs text-slate-500 mt-0.5">{t('slackSettings.webhookUrlKeepHint', '변경하지 않으려면 비워두세요')}</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {t('slackSettings.webhookUrlKeepHint', '변경하지 않으려면 비워두세요')}
+              </p>
             )}
           </div>
 
           <div>
             <label className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-1 block">
-              Channel Name <span className="normal-case tracking-normal text-slate-500">({t('slackSettings.channelNameLabel')})</span>
+              Channel Name{' '}
+              <span className="normal-case tracking-normal text-slate-500">
+                ({t('slackSettings.channelNameLabel')})
+              </span>
             </label>
             <input
               type="text"
@@ -202,7 +234,9 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
         )}
 
         {testResult && (
-          <div className={`flex items-center gap-1.5 mt-2 text-xs ${testResult.success ? 'text-green-400' : 'text-red-400'}`}>
+          <div
+            className={`flex items-center gap-1.5 mt-2 text-xs ${testResult.success ? 'text-green-400' : 'text-red-400'}`}
+          >
             {testResult.success ? <Check size={12} /> : <AlertCircle size={12} />}
             {testResult.message}
           </div>
@@ -255,16 +289,24 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
   // Connected state
   if (config) {
     return (
-      <div className={`mx-3 mt-3 mb-2 p-3 rounded-xl border ${
-        config.enabled
-          ? 'bg-white/[0.03] border-foreground/10'
-          : 'bg-amber-500/5 border-amber-500/20'
-      }`}>
+      <div
+        className={`mx-3 mt-3 mb-2 p-3 rounded-xl border ${
+          config.enabled
+            ? 'bg-white/[0.03] border-foreground/10'
+            : 'bg-amber-500/5 border-amber-500/20'
+        }`}
+      >
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
-            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.enabled ? 'bg-green-400' : 'bg-amber-400'}`} />
-            <span className={`text-xs font-medium ${config.enabled ? 'text-green-400' : 'text-amber-400'}`}>
-              {config.enabled ? t('slackSettings.connectedStatus') : t('slackSettings.disabledStatus')}
+            <div
+              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.enabled ? 'bg-green-400' : 'bg-amber-400'}`}
+            />
+            <span
+              className={`text-xs font-medium ${config.enabled ? 'text-green-400' : 'text-amber-400'}`}
+            >
+              {config.enabled
+                ? t('slackSettings.connectedStatus')
+                : t('slackSettings.disabledStatus')}
             </span>
           </div>
           <button
@@ -284,9 +326,7 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
             </span>
           </div>
           {config.channel_name && (
-            <div className="text-xs text-slate-500 pl-[16px]">
-              {config.channel_name}
-            </div>
+            <div className="text-xs text-slate-500 pl-[16px]">{config.channel_name}</div>
           )}
         </div>
         {!config.enabled && (
@@ -304,7 +344,9 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
           <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-red-400" />
-          <span className="text-xs font-medium text-red-400">{t('slackSettings.needConnection')}</span>
+          <span className="text-xs font-medium text-red-400">
+            {t('slackSettings.needConnection')}
+          </span>
         </div>
         <button
           onClick={handleStartEdit}
@@ -318,9 +360,7 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
         <Link2 size={10} className="text-red-400/50 flex-shrink-0" />
         <span className="text-xs text-red-400/60">{t('slackSettings.webhookUrlNeeded')}</span>
       </div>
-      <p className="text-xs text-slate-500 leading-relaxed">
-        {t('slackSettings.connectionDesc')}
-      </p>
+      <p className="text-xs text-slate-500 leading-relaxed">{t('slackSettings.connectionDesc')}</p>
       <button
         onClick={() => setShowGuide(true)}
         className="flex items-center gap-1 mt-2 text-xs text-slate-500 hover:text-bridge-accent transition-colors"

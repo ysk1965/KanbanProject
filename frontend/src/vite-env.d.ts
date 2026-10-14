@@ -29,7 +29,7 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
-declare module "node-htmldiff" {
+declare module 'node-htmldiff' {
   function htmldiff(
     before: string,
     after: string,

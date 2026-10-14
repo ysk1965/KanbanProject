@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { Check, ChevronDown, Loader2 } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { jiraAPI, taskAPI } from "../utils/api";
-import type { JiraBlockRef } from "../utils/api";
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { Check, ChevronDown, Loader2 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { jiraAPI, taskAPI } from '../utils/api';
+import type { JiraBlockRef } from '../utils/api';
 
 interface JiraColumnPickerProps {
   boardId: string;
@@ -29,9 +29,7 @@ export function JiraColumnPicker({
 }: JiraColumnPickerProps) {
   const [open, setOpen] = useState(false);
   // 선택 직후 표시용 — 모달의 task prop은 이동 후에도 갱신되지 않는다
-  const [selected, setSelected] = useState<{ id: string; name: string } | null>(
-    null,
-  );
+  const [selected, setSelected] = useState<{ id: string; name: string } | null>(null);
   const [columns, setColumns] = useState<JiraBlockRef[] | null>(null);
   const [allowed, setAllowed] = useState<Set<string> | null>(null);
   const [loading, setLoading] = useState(false);
@@ -44,7 +42,7 @@ export function JiraColumnPicker({
   }, [taskId]);
 
   const activeBlockId = selected?.id ?? currentBlockId ?? null;
-  const activeName = selected?.name ?? currentBlockName ?? "—";
+  const activeName = selected?.name ?? currentBlockName ?? '—';
 
   useEffect(() => {
     if (!open || columns) return;
@@ -55,9 +53,7 @@ export function JiraColumnPicker({
     (async () => {
       try {
         // 스코프 전용 미러가 있으면 그 컬럼, 태스크 블록이 거기 없으면 보드 미러로 폴백
-        let cols = mirrorOf(
-          (await jiraAPI.getMeta(boardId, milestoneId ?? undefined)).blocks,
-        );
+        let cols = mirrorOf((await jiraAPI.getMeta(boardId, milestoneId ?? undefined)).blocks);
         if (milestoneId && !cols.some((c) => c.id === currentBlockId)) {
           const boardCols = mirrorOf((await jiraAPI.getMeta(boardId)).blocks);
           if (boardCols.some((c) => c.id === currentBlockId)) cols = boardCols;
@@ -108,7 +104,7 @@ export function JiraColumnPicker({
       });
     } catch {
       setSelected(prev);
-      toast.error("JIRA 컬럼 이동에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      toast.error('JIRA 컬럼 이동에 실패했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setMoving(false);
       setAllowed(null);
@@ -139,18 +135,14 @@ export function JiraColumnPicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="w-56 p-1 max-h-72 overflow-y-auto custom-scrollbar"
-      >
+      <PopoverContent align="start" className="w-56 p-1 max-h-72 overflow-y-auto custom-scrollbar">
         {loading || !columns ? (
           <div className="flex justify-center py-3">
             <Loader2 className="w-4 h-4 animate-spin text-bridge-accent" />
           </div>
         ) : columns.length === 0 ? (
           <p className="px-2.5 py-2 text-xs text-slate-500">
-            JIRA 미러 컬럼이 없어 여기서 옮길 수 없습니다. JIRA 화면에서
-            옮겨주세요.
+            JIRA 미러 컬럼이 없어 여기서 옮길 수 없습니다. JIRA 화면에서 옮겨주세요.
           </p>
         ) : (
           columns.map((col) => {
@@ -160,20 +152,18 @@ export function JiraColumnPicker({
               <button
                 key={col.id}
                 disabled={isCurrent || !ok}
-                title={ok ? undefined : "JIRA에서 허용되지 않는 이동입니다"}
+                title={ok ? undefined : 'JIRA에서 허용되지 않는 이동입니다'}
                 onClick={() => void moveTo(col)}
                 className={`w-full flex items-center gap-1.5 text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-foreground/10 disabled:cursor-default disabled:hover:bg-transparent ${
                   isCurrent
-                    ? "text-bridge-accent font-bold"
+                    ? 'text-bridge-accent font-bold'
                     : ok
-                      ? "text-foreground"
-                      : "text-slate-500 opacity-60"
+                      ? 'text-foreground'
+                      : 'text-slate-500 opacity-60'
                 }`}
               >
                 <span className="truncate">{col.name}</span>
-                {isCurrent && (
-                  <Check className="w-3 h-3 ml-auto flex-shrink-0" />
-                )}
+                {isCurrent && <Check className="w-3 h-3 ml-auto flex-shrink-0" />}
               </button>
             );
           })

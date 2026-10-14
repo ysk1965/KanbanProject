@@ -1,14 +1,14 @@
-import { useCallback, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
-import { boardAPI } from "../utils/api";
-import type { Board } from "../types";
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
+import { boardAPI } from '../utils/api';
+import type { Board } from '../types';
 import {
   serializeBoardOptions,
   useBoardFeatures,
   type BoardFeatures,
   type BoardUiLevel,
   type BoardUiOption,
-} from "./useBoardFeatures";
+} from './useBoardFeatures';
 
 /**
  * 보드 화면 복잡도의 **읽기 + 쓰기**를 한 곳에 모은다.
@@ -47,10 +47,7 @@ export function useBoardUiConfig(
   onLevelRaisedRef.current = onLevelRaised;
 
   const apply = useCallback(
-    async (
-      payload: { ui_level?: number; ui_options?: string },
-      key: string,
-    ) => {
+    async (payload: { ui_level?: number; ui_options?: string }, key: string) => {
       if (!boardId || pending) return;
       setPending(key);
       try {
@@ -65,7 +62,7 @@ export function useBoardUiConfig(
             : prev,
         );
       } catch {
-        toast.error("설정을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+        toast.error('설정을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.');
       } finally {
         setPending(null);
       }

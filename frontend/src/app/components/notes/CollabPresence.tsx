@@ -1,6 +1,6 @@
-import type { CollabUser } from "../../hooks/useCollaboration";
-import type { CollabStatus } from "../../utils/collabProvider";
-import { getInitials } from "../../utils/assigneeColor";
+import type { CollabUser } from '../../hooks/useCollaboration';
+import type { CollabStatus } from '../../utils/collabProvider';
+import { getInitials } from '../../utils/assigneeColor';
 
 interface CollabPresenceProps {
   status: CollabStatus;

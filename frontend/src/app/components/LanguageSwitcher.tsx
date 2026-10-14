@@ -20,7 +20,7 @@ export function LanguageSwitcher({ variant = 'default' }: { variant?: 'default' 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const currentLang = languages.find(l => l.code === i18n.language) || languages[1];
+  const currentLang = languages.find((l) => l.code === i18n.language) || languages[1];
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -50,7 +50,7 @@ export function LanguageSwitcher({ variant = 'default' }: { variant?: 'default' 
 
         {isOpen && (
           <div className="absolute right-0 top-full mt-1 bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl overflow-hidden z-50 min-w-[140px]">
-            {languages.map(lang => (
+            {languages.map((lang) => (
               <button
                 key={lang.code}
                 onClick={() => handleChange(lang.code)}
@@ -81,7 +81,7 @@ export function LanguageSwitcher({ variant = 'default' }: { variant?: 'default' 
 
       {isOpen && (
         <div className="absolute right-0 top-full mt-2 bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl overflow-hidden z-50 min-w-[160px]">
-          {languages.map(lang => (
+          {languages.map((lang) => (
             <button
               key={lang.code}
               onClick={() => handleChange(lang.code)}

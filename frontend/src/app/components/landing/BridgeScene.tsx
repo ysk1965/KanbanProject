@@ -3,7 +3,12 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Float, Stars, Environment, Sphere, MeshDistortMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 
-const GlowSpot: React.FC<{ position: [number, number, number]; color: string; size?: number; delay?: number }> = ({ position, color, size = 0.15, delay = 0 }) => {
+const GlowSpot: React.FC<{
+  position: [number, number, number];
+  color: string;
+  size?: number;
+  delay?: number;
+}> = ({ position, color, size = 0.15, delay = 0 }) => {
   const ref = useRef<THREE.Mesh>(null);
 
   useFrame((state) => {
@@ -30,7 +35,12 @@ const GlowSpot: React.FC<{ position: [number, number, number]; color: string; si
   );
 };
 
-const DataPacket: React.FC<{ start: THREE.Vector3; end: THREE.Vector3; delay: number; color: string }> = ({ start, end, delay, color }) => {
+const DataPacket: React.FC<{
+  start: THREE.Vector3;
+  end: THREE.Vector3;
+  delay: number;
+  color: string;
+}> = ({ start, end, delay, color }) => {
   const ref = useRef<THREE.Mesh>(null);
   const direction = useMemo(() => new THREE.Vector3().subVectors(end, start), [start, end]);
 
@@ -53,12 +63,13 @@ const DataPacket: React.FC<{ start: THREE.Vector3; end: THREE.Vector3; delay: nu
   );
 };
 
-const ConnectionLine: React.FC<{ start: [number, number, number]; end: [number, number, number]; color?: string }> = ({ start, end, color = "#6366F1" }) => {
+const ConnectionLine: React.FC<{
+  start: [number, number, number];
+  end: [number, number, number];
+  color?: string;
+}> = ({ start, end, color = '#6366F1' }) => {
   const geometry = useMemo(() => {
-    const points = [
-      new THREE.Vector3(...start),
-      new THREE.Vector3(...end)
-    ];
+    const points = [new THREE.Vector3(...start), new THREE.Vector3(...end)];
     return new THREE.BufferGeometry().setFromPoints(points);
   }, [start, end]);
 
@@ -81,15 +92,18 @@ const SpotNetwork = () => {
     }
   });
 
-  const nodes = useMemo(() => [
-    { pos: [-6, -1.5, 0] as [number, number, number], color: "#6366F1" },
-    { pos: [-3, 2, 1] as [number, number, number], color: "#818CF8" },
-    { pos: [0, -2, 0] as [number, number, number], color: "#2DD4BF" },
-    { pos: [4, 1.5, -1.5] as [number, number, number], color: "#6366F1" },
-    { pos: [6, -1, 0] as [number, number, number], color: "#2DD4BF" }
-  ], []);
+  const nodes = useMemo(
+    () => [
+      { pos: [-6, -1.5, 0] as [number, number, number], color: '#6366F1' },
+      { pos: [-3, 2, 1] as [number, number, number], color: '#818CF8' },
+      { pos: [0, -2, 0] as [number, number, number], color: '#2DD4BF' },
+      { pos: [4, 1.5, -1.5] as [number, number, number], color: '#6366F1' },
+      { pos: [6, -1, 0] as [number, number, number], color: '#2DD4BF' },
+    ],
+    [],
+  );
 
-  const nodeVectors = useMemo(() => nodes.map(n => new THREE.Vector3(...n.pos)), [nodes]);
+  const nodeVectors = useMemo(() => nodes.map((n) => new THREE.Vector3(...n.pos)), [nodes]);
 
   return (
     <group ref={ref}>
@@ -103,20 +117,46 @@ const SpotNetwork = () => {
         return (
           <group key={`conn-${i}`}>
             <ConnectionLine start={node.pos} end={next.pos} color={node.color} />
-            <DataPacket start={nodeVectors[i]} end={nodeVectors[i+1]} delay={i * 2} color={next.color} />
-            <DataPacket start={nodeVectors[i]} end={nodeVectors[i+1]} delay={i * 2 + 1.5} color={node.color} />
+            <DataPacket
+              start={nodeVectors[i]}
+              end={nodeVectors[i + 1]}
+              delay={i * 2}
+              color={next.color}
+            />
+            <DataPacket
+              start={nodeVectors[i]}
+              end={nodeVectors[i + 1]}
+              delay={i * 2 + 1.5}
+              color={node.color}
+            />
           </group>
         );
       })}
 
       <Float speed={2.5} rotationIntensity={1.5} floatIntensity={1.5}>
         <Sphere args={[0.6, 32, 32]} position={[3, -3, -4]}>
-          <MeshDistortMaterial color="#6366F1" emissive="#6366F1" emissiveIntensity={0.6} distort={0.5} speed={2} transparent opacity={0.3} />
+          <MeshDistortMaterial
+            color="#6366F1"
+            emissive="#6366F1"
+            emissiveIntensity={0.6}
+            distort={0.5}
+            speed={2}
+            transparent
+            opacity={0.3}
+          />
         </Sphere>
       </Float>
       <Float speed={2} rotationIntensity={1.5} floatIntensity={1.5}>
         <Sphere args={[0.5, 32, 32]} position={[-4, 3, -3]}>
-          <MeshDistortMaterial color="#2DD4BF" emissive="#2DD4BF" emissiveIntensity={0.6} distort={0.4} speed={1.5} transparent opacity={0.2} />
+          <MeshDistortMaterial
+            color="#2DD4BF"
+            emissive="#2DD4BF"
+            emissiveIntensity={0.6}
+            distort={0.4}
+            speed={1.5}
+            transparent
+            opacity={0.2}
+          />
         </Sphere>
       </Float>
     </group>
@@ -130,7 +170,13 @@ export const HeroScene: React.FC = () => {
         <fog attach="fog" args={['#0A0E17', 8, 28]} />
         <ambientLight intensity={0.15} />
         <pointLight position={[12, 12, 12]} intensity={1.2} color="#6366F1" />
-        <spotLight position={[-12, 12, 12]} angle={0.35} penumbra={1} intensity={1.2} color="#2DD4BF" />
+        <spotLight
+          position={[-12, 12, 12]}
+          angle={0.35}
+          penumbra={1}
+          intensity={1.2}
+          color="#2DD4BF"
+        />
 
         <Float speed={1.8} rotationIntensity={0.15} floatIntensity={0.25}>
           <SpotNetwork />
@@ -150,17 +196,17 @@ export const KanbanScene: React.FC = () => {
         <ambientLight intensity={0.6} />
         <Environment preset="night" />
         <Float rotationIntensity={0.6} floatIntensity={0.6} speed={2}>
-           <group>
-             <Sphere args={[0.6, 32, 32]} position={[-2, 0, 0]}>
-                <meshStandardMaterial color="#6366F1" emissive="#6366F1" emissiveIntensity={2.5} />
-             </Sphere>
-             <Sphere args={[0.6, 32, 32]} position={[0, 0, 0]}>
-                <meshStandardMaterial color="#2DD4BF" emissive="#2DD4BF" emissiveIntensity={2.5} />
-             </Sphere>
-             <Sphere args={[0.6, 32, 32]} position={[2, 0, 0]}>
-                <meshStandardMaterial color="#818CF8" emissive="#818CF8" emissiveIntensity={2.5} />
-             </Sphere>
-           </group>
+          <group>
+            <Sphere args={[0.6, 32, 32]} position={[-2, 0, 0]}>
+              <meshStandardMaterial color="#6366F1" emissive="#6366F1" emissiveIntensity={2.5} />
+            </Sphere>
+            <Sphere args={[0.6, 32, 32]} position={[0, 0, 0]}>
+              <meshStandardMaterial color="#2DD4BF" emissive="#2DD4BF" emissiveIntensity={2.5} />
+            </Sphere>
+            <Sphere args={[0.6, 32, 32]} position={[2, 0, 0]}>
+              <meshStandardMaterial color="#818CF8" emissive="#818CF8" emissiveIntensity={2.5} />
+            </Sphere>
+          </group>
         </Float>
       </Canvas>
     </div>

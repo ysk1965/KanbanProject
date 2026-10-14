@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { Send, AtSign, X, Users } from "lucide-react";
-import type { MemberResponse, MentionGroupDetail } from "../../utils/api";
+import { useState, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Send, AtSign, X, Users } from 'lucide-react';
+import type { MemberResponse, MentionGroupDetail } from '../../utils/api';
 
 interface NoteCommentInputProps {
   boardId: string;
@@ -21,12 +21,12 @@ export function NoteCommentInput({
   onCancel,
   placeholder,
   autoFocus = false,
-  initialContent = "",
+  initialContent = '',
 }: NoteCommentInputProps) {
   const { t } = useTranslation();
   const [content, setContent] = useState(initialContent);
   const [showMentions, setShowMentions] = useState(false);
-  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionQuery, setMentionQuery] = useState('');
   const [selectedMentions, setSelectedMentions] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -41,36 +41,33 @@ export function NoteCommentInput({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         handleSubmit();
       }
-      if (e.key === "Escape" && showMentions) {
+      if (e.key === 'Escape' && showMentions) {
         setShowMentions(false);
       }
     },
     [content, showMentions],
   );
 
-  const handleInput = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const val = e.target.value;
-      setContent(val);
+  const handleInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setContent(val);
 
-      // Detect @ trigger
-      const cursorPos = e.target.selectionStart;
-      const textBeforeCursor = val.substring(0, cursorPos);
-      const atMatch = textBeforeCursor.match(/@(\w*)$/);
+    // Detect @ trigger
+    const cursorPos = e.target.selectionStart;
+    const textBeforeCursor = val.substring(0, cursorPos);
+    const atMatch = textBeforeCursor.match(/@(\w*)$/);
 
-      if (atMatch) {
-        setMentionQuery(atMatch[1]);
-        setShowMentions(true);
-      } else {
-        setShowMentions(false);
-      }
-    },
-    [],
-  );
+    if (atMatch) {
+      setMentionQuery(atMatch[1]);
+      setShowMentions(true);
+    } else {
+      setShowMentions(false);
+    }
+  }, []);
 
   const insertMention = useCallback(
     (member: MemberResponse) => {
@@ -80,12 +77,10 @@ export function NoteCommentInput({
       const cursorPos = textarea.selectionStart;
       const textBeforeCursor = content.substring(0, cursorPos);
       const textAfterCursor = content.substring(cursorPos);
-      const atIndex = textBeforeCursor.lastIndexOf("@");
+      const atIndex = textBeforeCursor.lastIndexOf('@');
 
       const newText =
-        textBeforeCursor.substring(0, atIndex) +
-        `@${member.user.name} ` +
-        textAfterCursor;
+        textBeforeCursor.substring(0, atIndex) + `@${member.user.name} ` + textAfterCursor;
       setContent(newText);
       setShowMentions(false);
 
@@ -110,12 +105,9 @@ export function NoteCommentInput({
       const cursorPos = textarea.selectionStart;
       const textBeforeCursor = content.substring(0, cursorPos);
       const textAfterCursor = content.substring(cursorPos);
-      const atIndex = textBeforeCursor.lastIndexOf("@");
+      const atIndex = textBeforeCursor.lastIndexOf('@');
 
-      const newText =
-        textBeforeCursor.substring(0, atIndex) +
-        `@${group.name} ` +
-        textAfterCursor;
+      const newText = textBeforeCursor.substring(0, atIndex) + `@${group.name} ` + textAfterCursor;
       setContent(newText);
       setShowMentions(false);
 
@@ -136,7 +128,7 @@ export function NoteCommentInput({
     setSubmitting(true);
     try {
       await onSubmit(content.trim(), selectedMentions);
-      setContent("");
+      setContent('');
       setSelectedMentions([]);
     } finally {
       setSubmitting(false);
@@ -152,8 +144,7 @@ export function NoteCommentInput({
           onChange={handleInput}
           onKeyDown={handleKeyDown}
           placeholder={
-            placeholder ||
-            t("notes.comment.placeholder", "댓글을 입력하세요... (@로 멘션)")
+            placeholder || t('notes.comment.placeholder', '댓글을 입력하세요... (@로 멘션)')
           }
           autoFocus={autoFocus}
           rows={2}
@@ -192,61 +183,58 @@ export function NoteCommentInput({
       </div>
 
       {/* Mention dropdown */}
-      {showMentions &&
-        (filteredGroups.length > 0 || filteredMembers.length > 0) && (
-          <div
-            className="absolute z-50 bottom-full mb-1 left-0 w-full max-h-40 overflow-y-auto custom-scrollbar
+      {showMentions && (filteredGroups.length > 0 || filteredMembers.length > 0) && (
+        <div
+          className="absolute z-50 bottom-full mb-1 left-0 w-full max-h-40 overflow-y-auto custom-scrollbar
             bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-xl"
-          >
-            {filteredGroups.length > 0 && (
-              <>
-                {filteredGroups.map((group) => (
-                  <button
-                    key={`group-${group.id}`}
-                    onClick={() => insertGroupMention(group)}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground
+        >
+          {filteredGroups.length > 0 && (
+            <>
+              {filteredGroups.map((group) => (
+                <button
+                  key={`group-${group.id}`}
+                  onClick={() => insertGroupMention(group)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground
                       hover:bg-foreground/5 hover:text-foreground transition-colors"
-                  >
-                    <div className="h-5 w-5 rounded-full bg-bridge-secondary/20 flex items-center justify-center">
-                      <Users className="w-3 h-3 text-bridge-secondary" />
-                    </div>
-                    <span className="text-bridge-secondary font-medium">
-                      {group.name}
-                    </span>
-                    <span className="ml-auto text-xs text-slate-500">
-                      {group.members.length}
-                      {t("mentionGroup.memberCountSuffix", "명")}
-                    </span>
-                  </button>
-                ))}
-                {filteredMembers.length > 0 && (
-                  <div className="border-t border-foreground/[0.08] my-0.5" />
-                )}
-              </>
-            )}
-            {filteredMembers.map((member) => (
-              <button
-                key={member.user.id}
-                onClick={() => insertMention(member)}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground
-                  hover:bg-foreground/5 hover:text-foreground transition-colors"
-              >
-                {member.user.profile_image ? (
-                  <img
-                    src={member.user.profile_image}
-                    alt={member.user.name || "프로필"}
-                    className="h-5 w-5 rounded-full"
-                  />
-                ) : (
-                  <div className="h-5 w-5 rounded-full bg-bridge-accent/30 flex items-center justify-center text-xs font-bold text-bridge-accent">
-                    {member.user.name.charAt(0)}
+                >
+                  <div className="h-5 w-5 rounded-full bg-bridge-secondary/20 flex items-center justify-center">
+                    <Users className="w-3 h-3 text-bridge-secondary" />
                   </div>
-                )}
-                <span>{member.user.name}</span>
-              </button>
-            ))}
-          </div>
-        )}
+                  <span className="text-bridge-secondary font-medium">{group.name}</span>
+                  <span className="ml-auto text-xs text-slate-500">
+                    {group.members.length}
+                    {t('mentionGroup.memberCountSuffix', '명')}
+                  </span>
+                </button>
+              ))}
+              {filteredMembers.length > 0 && (
+                <div className="border-t border-foreground/[0.08] my-0.5" />
+              )}
+            </>
+          )}
+          {filteredMembers.map((member) => (
+            <button
+              key={member.user.id}
+              onClick={() => insertMention(member)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground
+                  hover:bg-foreground/5 hover:text-foreground transition-colors"
+            >
+              {member.user.profile_image ? (
+                <img
+                  src={member.user.profile_image}
+                  alt={member.user.name || '프로필'}
+                  className="h-5 w-5 rounded-full"
+                />
+              ) : (
+                <div className="h-5 w-5 rounded-full bg-bridge-accent/30 flex items-center justify-center text-xs font-bold text-bridge-accent">
+                  {member.user.name.charAt(0)}
+                </div>
+              )}
+              <span>{member.user.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

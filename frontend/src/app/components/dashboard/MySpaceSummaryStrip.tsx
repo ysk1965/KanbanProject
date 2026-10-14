@@ -1,11 +1,5 @@
 import { motion } from 'framer-motion';
-import {
-  Sparkles,
-  ListTodo,
-  Flame,
-  Clock,
-  ChevronRight,
-} from 'lucide-react';
+import { Sparkles, ListTodo, Flame, Clock, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { PersonalDashboardToday } from '../../types';
 

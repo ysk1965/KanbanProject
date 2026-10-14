@@ -1,22 +1,10 @@
-import {
-  useState,
-  useEffect,
-  Dispatch,
-  SetStateAction,
-  RefObject,
-} from "react";
-import {
-  Feature,
-  Task,
-  Tag,
-  Milestone,
-  TaskDependency,
-} from "../types";
-import { KanbanFilterToolbar } from "../components/KanbanFilterToolbar";
-import { WeeklyScheduleView } from "../components/WeeklyScheduleView";
-import { FilterOptions } from "../components/FilterModal";
-import { BoardMember as ShareBoardMember } from "../components/ShareBoardModal";
-import { taskService, taskDependencyService } from "../utils/services";
+import { useState, useEffect, Dispatch, SetStateAction, RefObject } from 'react';
+import { Feature, Task, Tag, Milestone, TaskDependency } from '../types';
+import { KanbanFilterToolbar } from '../components/KanbanFilterToolbar';
+import { WeeklyScheduleView } from '../components/WeeklyScheduleView';
+import { FilterOptions } from '../components/FilterModal';
+import { BoardMember as ShareBoardMember } from '../components/ShareBoardModal';
+import { taskService, taskDependencyService } from '../utils/services';
 
 interface GanttViewProps {
   boardId: string;
@@ -56,9 +44,7 @@ export function GanttView({
   onFeatureClick,
   onTaskClick,
 }: GanttViewProps) {
-  const [taskDependencies, setTaskDependencies] = useState<TaskDependency[]>(
-    [],
-  );
+  const [taskDependencies, setTaskDependencies] = useState<TaskDependency[]>([]);
 
   // 태스크 의존성 로드 (간트 뷰 마운트 시)
   useEffect(() => {
@@ -98,14 +84,10 @@ export function GanttView({
         }}
         onUpdateTaskDates={async (taskId, startDate, endDate) => {
           try {
-            const updatedTask = await taskService.updateTaskDates(
-              boardId,
-              taskId,
-              {
-                start_date: startDate,
-                end_date: endDate,
-              },
-            );
+            const updatedTask = await taskService.updateTaskDates(boardId, taskId, {
+              start_date: startDate,
+              end_date: endDate,
+            });
             setTasks((prev) =>
               prev.map((t) =>
                 t.id === taskId
@@ -118,7 +100,7 @@ export function GanttView({
               ),
             );
           } catch (error) {
-            console.error("Failed to update task dates:", error);
+            console.error('Failed to update task dates:', error);
           }
         }}
         selectedMilestoneId={selectedMilestoneId}
@@ -128,30 +110,24 @@ export function GanttView({
             const updatedTasks = await taskService.getTasks(boardId);
             setTasks(updatedTasks);
           } catch (error) {
-            console.error("Failed to save baseline:", error);
+            console.error('Failed to save baseline:', error);
           }
         }}
         dependencies={taskDependencies}
         onCreateDependency={async (predecessorId, successorId) => {
           try {
-            const newDep = await taskDependencyService.create(
-              boardId,
-              predecessorId,
-              successorId,
-            );
+            const newDep = await taskDependencyService.create(boardId, predecessorId, successorId);
             setTaskDependencies((prev) => [...prev, newDep]);
           } catch (error) {
-            console.error("Failed to create dependency:", error);
+            console.error('Failed to create dependency:', error);
           }
         }}
         onDeleteDependency={async (dependencyId) => {
           try {
             await taskDependencyService.delete(boardId, dependencyId);
-            setTaskDependencies((prev) =>
-              prev.filter((d) => d.id !== dependencyId),
-            );
+            setTaskDependencies((prev) => prev.filter((d) => d.id !== dependencyId));
           } catch (error) {
-            console.error("Failed to delete dependency:", error);
+            console.error('Failed to delete dependency:', error);
           }
         }}
       />

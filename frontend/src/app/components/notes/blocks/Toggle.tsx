@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { createReactBlockSpec } from "@blocknote/react";
-import { defaultProps } from "@blocknote/core";
+import { useState } from 'react';
+import { createReactBlockSpec } from '@blocknote/react';
+import { defaultProps } from '@blocknote/core';
 
 // The collapsed/expanded behavior is driven entirely by the `data-open`
 // attribute on the toggle's root element. A CSS :has() rule in
@@ -11,11 +11,11 @@ import { defaultProps } from "@blocknote/core";
 // class rename. The :has() selector is supported in all modern browsers.
 export const Toggle = createReactBlockSpec(
   {
-    type: "toggle" as const,
+    type: 'toggle' as const,
     propSchema: {
       ...defaultProps,
     },
-    content: "inline",
+    content: 'inline',
   },
   {
     render: function ToggleView(props) {
@@ -33,8 +33,8 @@ export const Toggle = createReactBlockSpec(
               width="14"
               height="14"
               style={{
-                transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
-                transition: "transform 0.15s ease",
+                transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                transition: 'transform 0.15s ease',
               }}
             >
               <path
@@ -59,8 +59,8 @@ export const Toggle = createReactBlockSpec(
       </details>
     ),
     parse: (el) => {
-      if (el.tagName === "DETAILS") return {};
-      if (el.getAttribute("data-block-type") === "toggle") return {};
+      if (el.tagName === 'DETAILS') return {};
+      if (el.getAttribute('data-block-type') === 'toggle') return {};
       return undefined;
     },
   },

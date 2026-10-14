@@ -1,48 +1,44 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, ChevronDown, History, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AlertCircle, ChevronDown, History, Loader2 } from 'lucide-react';
 
-import {
-  autoReportAPI,
-  type ReportDeliveryLog,
-  type ReportDeliveryLogPage,
-} from "../../utils/api";
-import { formatDateTimeShort, formatRelativeTime } from "../../utils/dateUtils";
+import { autoReportAPI, type ReportDeliveryLog, type ReportDeliveryLogPage } from '../../utils/api';
+import { formatDateTimeShort, formatRelativeTime } from '../../utils/dateUtils';
 
 const PAGE_SIZE = 5;
 /** 진행 상황(발송 중)을 따라잡기 위한 폴링 간격 — 패널이 열려 있을 때만 돈다 */
 const POLL_MS = 5000;
 
 const SOURCE_LABEL: Record<string, string> = {
-  GITHUB: "GitHub",
-  KANBAN: "칸반",
-  CONFLUENCE: "Confluence",
-  SLACK: "Slack",
+  GITHUB: 'GitHub',
+  KANBAN: '칸반',
+  CONFLUENCE: 'Confluence',
+  SLACK: 'Slack',
 };
 
 type StatusMeta = { label: string; cls: string };
 
 const STATUS_META: Record<string, StatusMeta> = {
-  RUNNING: { label: "발송 중", cls: "bg-bridge-accent/15 text-bridge-accent" },
+  RUNNING: { label: '발송 중', cls: 'bg-bridge-accent/15 text-bridge-accent' },
   SUCCESS: {
-    label: "성공",
-    cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+    label: '성공',
+    cls: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
   },
   PARTIAL: {
-    label: "부분",
-    cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+    label: '부분',
+    cls: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
   },
   FAILED: {
-    label: "실패",
-    cls: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+    label: '실패',
+    cls: 'bg-rose-500/15 text-rose-600 dark:text-rose-400',
   },
-  SKIPPED: { label: "건너뜀", cls: "bg-foreground/[0.06] text-slate-400" },
+  SKIPPED: { label: '건너뜀', cls: 'bg-foreground/[0.06] text-slate-400' },
 };
 
 function statusMeta(status: string): StatusMeta {
   return (
     STATUS_META[status] ?? {
       label: status,
-      cls: "bg-foreground/[0.06] text-slate-400",
+      cls: 'bg-foreground/[0.06] text-slate-400',
     }
   );
 }
@@ -72,7 +68,7 @@ export function DeliveryHistoryPanel({ boardId }: DeliveryHistoryPanelProps) {
         setData(res);
         setError(null);
       } catch {
-        setError("발송 이력을 불러오지 못했습니다.");
+        setError('발송 이력을 불러오지 못했습니다.');
       } finally {
         if (!silent) setLoading(false);
       }
@@ -95,10 +91,7 @@ export function DeliveryHistoryPanel({ boardId }: DeliveryHistoryPanelProps) {
   const latest = data?.items?.[0] ?? null;
   const totalPages = data?.total_pages ?? 0;
 
-  const pageNumbers = useMemo(
-    () => Array.from({ length: totalPages }, (_, i) => i),
-    [totalPages],
-  );
+  const pageNumbers = useMemo(() => Array.from({ length: totalPages }, (_, i) => i), [totalPages]);
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-bridge-obsidian border border-foreground/[0.08]">
@@ -116,12 +109,9 @@ export function DeliveryHistoryPanel({ boardId }: DeliveryHistoryPanelProps) {
           <History className="w-5 h-5" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-bold text-foreground">
-            발송 이력
-          </span>
+          <span className="block text-sm font-bold text-foreground">발송 이력</span>
           <span className="block text-xs text-slate-500 mt-0.5">
-            크론이 매분 스케줄을 확인해 발송합니다 · 성공·실패·진행 상황을
-            확인하세요.
+            크론이 매분 스케줄을 확인해 발송합니다 · 성공·실패·진행 상황을 확인하세요.
           </span>
         </span>
 
@@ -132,9 +122,7 @@ export function DeliveryHistoryPanel({ boardId }: DeliveryHistoryPanelProps) {
             <span
               className={`inline-flex items-center gap-1.5 text-xs font-bold px-2 py-1 rounded-full ${statusMeta(latest.status).cls}`}
             >
-              {latest.status === "RUNNING" && (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              )}
+              {latest.status === 'RUNNING' && <Loader2 className="w-3 h-3 animate-spin" />}
               {statusMeta(latest.status).label}
               <span className="font-normal opacity-70">
                 · {formatRelativeTime(latest.created_at)}
@@ -146,7 +134,7 @@ export function DeliveryHistoryPanel({ boardId }: DeliveryHistoryPanelProps) {
         </span>
 
         <ChevronDown
-          className={`w-[18px] h-[18px] text-slate-400 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`w-[18px] h-[18px] text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -190,11 +178,7 @@ export function DeliveryHistoryPanel({ boardId }: DeliveryHistoryPanelProps) {
                     ‹
                   </PagerButton>
                   {pageNumbers.map((n) => (
-                    <PagerButton
-                      key={n}
-                      active={n === data.page}
-                      onClick={() => setPage(n)}
-                    >
+                    <PagerButton key={n} active={n === data.page} onClick={() => setPage(n)}>
                       {n + 1}
                     </PagerButton>
                   ))}
@@ -217,9 +201,9 @@ export function DeliveryHistoryPanel({ boardId }: DeliveryHistoryPanelProps) {
 
 function DeliveryRow({ log }: { log: ReportDeliveryLog }) {
   const meta = statusMeta(log.status);
-  const isWeekly = log.report_type === "WEEKLY_INTEGRATED";
+  const isWeekly = log.report_type === 'WEEKLY_INTEGRATED';
   const sources = log.source_status ?? [];
-  const running = log.status === "RUNNING";
+  const running = log.status === 'RUNNING';
 
   return (
     <div className="grid grid-cols-[auto_auto_1fr_auto] items-center gap-3 px-4 py-3 border-t border-foreground/[0.06] first:border-t-0">
@@ -232,11 +216,11 @@ function DeliveryRow({ log }: { log: ReportDeliveryLog }) {
       <span
         className={`text-xs font-bold px-2 py-0.5 rounded-full text-center ${
           isWeekly
-            ? "bg-bridge-secondary/15 text-bridge-secondary"
-            : "bg-bridge-accent/15 text-bridge-accent"
+            ? 'bg-bridge-secondary/15 text-bridge-secondary'
+            : 'bg-bridge-accent/15 text-bridge-accent'
         }`}
       >
-        {isWeekly ? "주간" : "일일"}
+        {isWeekly ? '주간' : '일일'}
       </span>
 
       <div className="min-w-0">
@@ -249,10 +233,10 @@ function DeliveryRow({ log }: { log: ReportDeliveryLog }) {
                 className="inline-flex items-center gap-1 text-xs text-slate-500"
               >
                 <span
-                  className={`w-1.5 h-1.5 rounded-full ${s.success ? "bg-emerald-400" : "bg-rose-400"}`}
+                  className={`w-1.5 h-1.5 rounded-full ${s.success ? 'bg-emerald-400' : 'bg-rose-400'}`}
                 />
                 {SOURCE_LABEL[s.source] ?? s.source}
-                {!s.success && s.error ? ` (${s.error})` : ""}
+                {!s.success && s.error ? ` (${s.error})` : ''}
               </span>
             ))}
           </div>
@@ -271,16 +255,15 @@ function DeliveryRow({ log }: { log: ReportDeliveryLog }) {
 
 /** 상태에 맞는 한 줄 설명 — 실패면 사유를, 성공/건너뜀이면 담백한 문구를 보여준다. */
 function rowMessage(log: ReportDeliveryLog): string {
-  if (log.status === "RUNNING") {
-    return "보고서를 수집·작성·게시하는 중입니다…";
+  if (log.status === 'RUNNING') {
+    return '보고서를 수집·작성·게시하는 중입니다…';
   }
   if (log.error_message) {
     return log.error_message;
   }
-  const kind =
-    log.report_type === "WEEKLY_INTEGRATED" ? "주간 통합" : "일일 개발";
-  if (log.status === "SKIPPED") {
-    return "기간 내 활동이 없어 이번 발송을 건너뛰었습니다.";
+  const kind = log.report_type === 'WEEKLY_INTEGRATED' ? '주간 통합' : '일일 개발';
+  if (log.status === 'SKIPPED') {
+    return '기간 내 활동이 없어 이번 발송을 건너뛰었습니다.';
   }
   return `${kind} 보고서 발송 완료`;
 }
@@ -304,8 +287,8 @@ export function PagerButton({
       onClick={onClick}
       className={`min-w-[30px] h-[30px] px-2 grid place-items-center rounded-lg text-xs font-bold tabular-nums transition-colors disabled:opacity-40 disabled:cursor-default ${
         active
-          ? "bg-bridge-accent/15 border border-bridge-accent/40 text-bridge-accent"
-          : "bg-foreground/5 border border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/10"
+          ? 'bg-bridge-accent/15 border border-bridge-accent/40 text-bridge-accent'
+          : 'bg-foreground/5 border border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/10'
       }`}
       {...rest}
     >

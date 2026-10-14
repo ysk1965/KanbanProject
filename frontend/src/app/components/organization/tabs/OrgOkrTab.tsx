@@ -1,17 +1,17 @@
-import { useState, useEffect, useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { motion } from "framer-motion";
-import { Target, Loader2, Plus, List, GitBranch } from "lucide-react";
-import { okrService } from "../../../utils/services";
-import type { OkrCycle, OkrTreeData } from "../../../types";
-import { EmptyState } from "../../ui/EmptyState";
-import { OkrSummaryCard } from "../okr/OkrSummaryCard";
-import { OkrCycleSelector } from "../okr/OkrCycleSelector";
-import { OkrListView } from "../okr/OkrListView";
-import { OkrTreeView } from "../okr/OkrTreeView";
-import { OkrObjectiveModal } from "../okr/OkrObjectiveModal";
-import { OkrCreateModal } from "../okr/OkrCreateModal";
-import { OkrCheckInModal } from "../okr/OkrCheckInModal";
+import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
+import { Target, Loader2, Plus, List, GitBranch } from 'lucide-react';
+import { okrService } from '../../../utils/services';
+import type { OkrCycle, OkrTreeData } from '../../../types';
+import { EmptyState } from '../../ui/EmptyState';
+import { OkrSummaryCard } from '../okr/OkrSummaryCard';
+import { OkrCycleSelector } from '../okr/OkrCycleSelector';
+import { OkrListView } from '../okr/OkrListView';
+import { OkrTreeView } from '../okr/OkrTreeView';
+import { OkrObjectiveModal } from '../okr/OkrObjectiveModal';
+import { OkrCreateModal } from '../okr/OkrCreateModal';
+import { OkrCheckInModal } from '../okr/OkrCheckInModal';
 
 interface OrgOkrTabProps {
   orgId: string;
@@ -24,7 +24,7 @@ export function OrgOkrTab({ orgId, myRole }: OrgOkrTabProps) {
   const [cycles, setCycles] = useState<OkrCycle[]>([]);
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
   const [treeData, setTreeData] = useState<OkrTreeData | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "tree">("list");
+  const [viewMode, setViewMode] = useState<'list' | 'tree'>('list');
 
   // Modal states
   const [showCreateCycleModal, setShowCreateCycleModal] = useState(false);
@@ -34,7 +34,7 @@ export function OrgOkrTab({ orgId, myRole }: OrgOkrTabProps) {
   const [createParentId, setCreateParentId] = useState<string | null>(null);
   const [editObjectiveId, setEditObjectiveId] = useState<string | null>(null);
 
-  const isAdmin = myRole === "OWNER" || myRole === "ADMIN";
+  const isAdmin = myRole === 'OWNER' || myRole === 'ADMIN';
 
   // Fetch cycles
   useEffect(() => {
@@ -46,11 +46,11 @@ export function OrgOkrTab({ orgId, myRole }: OrgOkrTabProps) {
       const data = await okrService.getCycles(orgId);
       setCycles(data);
       if (data.length > 0 && !selectedCycleId) {
-        const active = data.find((c) => c.status === "ACTIVE") || data[0];
+        const active = data.find((c) => c.status === 'ACTIVE') || data[0];
         setSelectedCycleId(active.id);
       }
     } catch (error) {
-      console.warn("Failed to fetch OKR cycles:", error);
+      console.warn('Failed to fetch OKR cycles:', error);
     }
   };
 
@@ -66,7 +66,7 @@ export function OrgOkrTab({ orgId, myRole }: OrgOkrTabProps) {
       const data = await okrService.getTree(orgId, selectedCycleId);
       setTreeData(data);
     } catch (error) {
-      console.warn("Failed to fetch OKR tree:", error);
+      console.warn('Failed to fetch OKR tree:', error);
     } finally {
       setLoading(false);
     }
@@ -82,11 +82,17 @@ export function OrgOkrTab({ orgId, myRole }: OrgOkrTabProps) {
       <>
         <EmptyState
           icon={Target}
-          title={t("okr.empty.title", "Start your first OKR cycle")}
-          description={t("okr.empty.description", "Set goals for your organization and align with your team")}
+          title={t('okr.empty.title', 'Start your first OKR cycle')}
+          description={t(
+            'okr.empty.description',
+            'Set goals for your organization and align with your team',
+          )}
           action={
             isAdmin
-              ? { label: t("okr.createCycle", "Create Cycle"), onClick: () => setShowCreateCycleModal(true) }
+              ? {
+                  label: t('okr.createCycle', 'Create Cycle'),
+                  onClick: () => setShowCreateCycleModal(true),
+                }
               : undefined
           }
           color="accent"
@@ -118,7 +124,12 @@ export function OrgOkrTab({ orgId, myRole }: OrgOkrTabProps) {
 
   const selectedCycle = cycles.find((c) => c.id === selectedCycleId);
   const daysRemaining = selectedCycle
-    ? Math.max(0, Math.ceil((new Date(selectedCycle.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    ? Math.max(
+        0,
+        Math.ceil(
+          (new Date(selectedCycle.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+        ),
+      )
     : 0;
 
   return (
@@ -135,22 +146,26 @@ export function OrgOkrTab({ orgId, myRole }: OrgOkrTabProps) {
           {/* View Toggle */}
           <div className="flex items-center bg-foreground/5 rounded-lg p-0.5">
             <button
-              onClick={() => setViewMode("list")}
+              onClick={() => setViewMode('list')}
               className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
-                viewMode === "list" ? "bg-bridge-accent text-white" : "text-slate-400 hover:text-foreground"
+                viewMode === 'list'
+                  ? 'bg-bridge-accent text-white'
+                  : 'text-slate-400 hover:text-foreground'
               }`}
             >
               <List size={14} className="inline mr-1" />
-              {t("okr.view.list", "List")}
+              {t('okr.view.list', 'List')}
             </button>
             <button
-              onClick={() => setViewMode("tree")}
+              onClick={() => setViewMode('tree')}
               className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
-                viewMode === "tree" ? "bg-bridge-accent text-white" : "text-slate-400 hover:text-foreground"
+                viewMode === 'tree'
+                  ? 'bg-bridge-accent text-white'
+                  : 'text-slate-400 hover:text-foreground'
               }`}
             >
               <GitBranch size={14} className="inline mr-1" />
-              {t("okr.view.tree", "Tree")}
+              {t('okr.view.tree', 'Tree')}
             </button>
           </div>
           {/* Add Objective */}
@@ -164,7 +179,7 @@ export function OrgOkrTab({ orgId, myRole }: OrgOkrTabProps) {
               className="flex items-center gap-1.5 px-3 py-1.5 bg-bridge-accent text-white rounded-lg text-xs font-bold hover:bg-bridge-accent/90 transition-colors"
             >
               <Plus size={14} />
-              {t("okr.addObjective", "Add Objective")}
+              {t('okr.addObjective', 'Add Objective')}
             </button>
           )}
         </div>
@@ -175,7 +190,7 @@ export function OrgOkrTab({ orgId, myRole }: OrgOkrTabProps) {
 
       {/* View */}
       {treeData &&
-        (viewMode === "list" ? (
+        (viewMode === 'list' ? (
           <OkrListView
             objectives={treeData.objectives}
             onObjectiveClick={setSelectedObjectiveId}

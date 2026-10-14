@@ -1,39 +1,22 @@
-import { useRef, useCallback, useMemo, useState, memo } from "react";
-import { Block, Task, Feature, ChecklistItem } from "../types";
-import { DraggableCard } from "./DraggableCard";
-import {
-  GripVertical,
-  MoreVertical,
-  Plus,
-  BarChart2,
-  Check,
-  X,
-  Clock,
-  Circle,
-} from "lucide-react";
-import {
-  parseUTCDate,
-  formatRelativeTime,
-  getTodayDateString,
-} from "../utils/dateUtils";
-import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
-import { MotionModal } from "./ui/MotionModal";
-import { useTranslation } from "react-i18next";
-import { Button } from "./ui/button";
+import { useRef, useCallback, useMemo, useState, memo } from 'react';
+import { Block, Task, Feature, ChecklistItem } from '../types';
+import { DraggableCard } from './DraggableCard';
+import { GripVertical, MoreVertical, Plus, BarChart2, Check, X, Clock, Circle } from 'lucide-react';
+import { parseUTCDate, formatRelativeTime, getTodayDateString } from '../utils/dateUtils';
+import { getAssigneeHex, getInitials } from '../utils/assigneeColor';
+import { MotionModal } from './ui/MotionModal';
+import { useTranslation } from 'react-i18next';
+import { Button } from './ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-} from "./ui/dropdown-menu";
-import {
-  useTaskDragState,
-  useTaskPlaceholder,
-  useDragActions,
-} from "../contexts/DragContext";
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+} from './ui/dropdown-menu';
+import { useTaskDragState, useTaskPlaceholder, useDragActions } from '../contexts/DragContext';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface KanbanBlockProps {
   block: Block;
@@ -92,20 +75,12 @@ export const KanbanBlock = memo(function KanbanBlock({
 
   const { draggedTask } = useTaskDragState();
   const taskPlaceholder = useTaskPlaceholder();
-  const { updateTaskPlaceholder, clearTaskPlaceholder, endTaskDrag } =
-    useDragActions();
+  const { updateTaskPlaceholder, clearTaskPlaceholder, endTaskDrag } = useDragActions();
 
   // @dnd-kit sortable - TASK 블록은 드래그 비활성화
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: block.id,
-    disabled: block.fixed_type === "TASK",
+    disabled: block.fixed_type === 'TASK',
   });
 
   const sortableStyle = {
@@ -113,23 +88,19 @@ export const KanbanBlock = memo(function KanbanBlock({
     transition,
   };
 
-  const isCustomBlock = block.type === "CUSTOM";
-  const isFixedBlock = block.type === "FIXED";
+  const isCustomBlock = block.type === 'CUSTOM';
+  const isFixedBlock = block.type === 'FIXED';
 
   // 카드별 features.find() 대신 O(1) 조회 맵
-  const featuresById = useMemo(
-    () => new Map((features ?? []).map((f) => [f.id, f])),
-    [features],
-  );
+  const featuresById = useMemo(() => new Map((features ?? []).map((f) => [f.id, f])), [features]);
 
   // 체크리스트 진행 현황 모달 (진행률 바 연계)
   const [recentDoneOpen, setRecentDoneOpen] = useState(false);
   const [recentDoneTab, setRecentDoneTab] = useState<
-    "todayDone" | "inProgress" | "earlierDone" | "notStarted"
-  >("todayDone");
+    'todayDone' | 'inProgress' | 'earlierDone' | 'notStarted'
+  >('todayDone');
   // 완료 시각 소스: completed_at(정확) 우선, 없으면 done_date(과거 데이터 폴백, day 단위)
-  const doneTs = (i: ChecklistItem) =>
-    parseUTCDate(i.completed_at ?? i.done_date)?.getTime() ?? 0;
+  const doneTs = (i: ChecklistItem) => parseUTCDate(i.completed_at ?? i.done_date)?.getTime() ?? 0;
   // 블록 안 전체 체크리스트 항목 (task 동봉) — 상태 분류의 단일 소스
   const allChecklistItems = useMemo(() => {
     if (!checklistDataMap) return [] as { item: ChecklistItem; task: Task }[];
@@ -150,7 +121,7 @@ export const KanbanBlock = memo(function KanbanBlock({
   const handleTaskDragOver = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
       // Task 드래그인지 확인
-      if (!e.dataTransfer.types.includes("application/task")) {
+      if (!e.dataTransfer.types.includes('application/task')) {
         return;
       }
 
@@ -167,12 +138,12 @@ export const KanbanBlock = memo(function KanbanBlock({
       if (!container) return;
 
       // 모든 카드의 위치 정보 수집 (드래그 중인 것 포함)
-      const children = container.querySelectorAll("[data-task-id]");
+      const children = container.querySelectorAll('[data-task-id]');
       let insertIndex = tasks.length; // 기본값: 맨 끝
 
       for (let i = 0; i < children.length; i++) {
         const child = children[i] as HTMLElement;
-        const taskId = child.getAttribute("data-task-id");
+        const taskId = child.getAttribute('data-task-id');
         const rect = child.getBoundingClientRect();
         const midY = rect.top + rect.height / 2;
 
@@ -193,18 +164,15 @@ export const KanbanBlock = memo(function KanbanBlock({
   );
 
   // Task 드래그 리브 핸들러 - placeholder는 drop/dragend에서만 정리
-  const handleTaskDragLeave = useCallback(
-    (e: React.DragEvent<HTMLDivElement>) => {
-      // dragleave에서는 placeholder를 정리하지 않음
-      // 다른 블록으로 이동하면 그 블록의 dragover에서 새 placeholder가 설정됨
-    },
-    [],
-  );
+  const handleTaskDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    // dragleave에서는 placeholder를 정리하지 않음
+    // 다른 블록으로 이동하면 그 블록의 dragover에서 새 placeholder가 설정됨
+  }, []);
 
   // Task 드롭 핸들러
   const handleTaskDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
-      const taskId = e.dataTransfer.getData("application/task");
+      const taskId = e.dataTransfer.getData('application/task');
       if (!taskId) return;
 
       // 플레이스홀더가 있으면 그 위치로 이동
@@ -264,11 +232,11 @@ export const KanbanBlock = memo(function KanbanBlock({
       className="h-16 border-2 border-dashed border-bridge-secondary/50 rounded-xl bg-bridge-secondary/10 flex items-center justify-center"
       onDragEnter={(e) => {
         e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
+        e.dataTransfer.dropEffect = 'move';
       }}
       onDragOver={(e) => {
         e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
+        e.dataTransfer.dropEffect = 'move';
       }}
       onDrop={(e) => {
         e.preventDefault();
@@ -277,7 +245,7 @@ export const KanbanBlock = memo(function KanbanBlock({
       }}
     >
       <span className="text-bridge-secondary text-xs font-medium pointer-events-none">
-        {t("kanbanBlock.dropHere")}
+        {t('kanbanBlock.dropHere')}
       </span>
     </div>
   );
@@ -288,40 +256,38 @@ export const KanbanBlock = memo(function KanbanBlock({
       style={sortableStyle}
       onDragEnter={(e) => {
         // Task 드래그용 dragenter
-        if (e.dataTransfer.types.includes("application/task")) {
+        if (e.dataTransfer.types.includes('application/task')) {
           e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
+          e.dataTransfer.dropEffect = 'move';
         }
       }}
       onDragOver={(e) => {
         // Task 드래그용 dragover
-        if (e.dataTransfer.types.includes("application/task")) {
+        if (e.dataTransfer.types.includes('application/task')) {
           e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
+          e.dataTransfer.dropEffect = 'move';
           handleTaskDragOver(e);
         }
       }}
       onDragLeave={handleTaskDragLeave}
       onDrop={(e) => {
-        if (e.dataTransfer.types.includes("application/task")) {
+        if (e.dataTransfer.types.includes('application/task')) {
           e.preventDefault();
           e.stopPropagation();
           handleTaskDrop(e);
         }
       }}
       className={`relative flex flex-col bg-bridge-surface rounded-2xl overflow-hidden border border-bridge-border min-w-[260px] max-w-[260px] md:min-w-[280px] md:max-w-[280px] transition-shadow duration-200 ${
-        taskPlaceholderInThisBlock
-          ? "ring-2 ring-bridge-secondary/50 bg-bridge-secondary/5"
-          : ""
-      } ${isDragging ? "opacity-40 scale-95 z-10" : ""}`}
+        taskPlaceholderInThisBlock ? 'ring-2 ring-bridge-secondary/50 bg-bridge-secondary/5' : ''
+      } ${isDragging ? 'opacity-40 scale-95 z-10' : ''}`}
     >
       {/* 고정 블록 상단 강조선 */}
       {isFixedBlock && (
         <div
           className={`h-1 ${
-            block.fixed_type === "TASK"
-              ? "bg-gradient-to-r from-bridge-accent/60 via-bridge-accent/30 to-transparent"
-              : "bg-gradient-to-r from-emerald-500/60 via-emerald-500/30 to-transparent"
+            block.fixed_type === 'TASK'
+              ? 'bg-gradient-to-r from-bridge-accent/60 via-bridge-accent/30 to-transparent'
+              : 'bg-gradient-to-r from-emerald-500/60 via-emerald-500/30 to-transparent'
           }`}
         />
       )}
@@ -329,32 +295,27 @@ export const KanbanBlock = memo(function KanbanBlock({
       {/* 블록 헤더 */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-bridge-border group">
         {/* 드래그 핸들 - TASK 제외 모든 블록 표시 */}
-        {block.fixed_type !== "TASK" && (
+        {block.fixed_type !== 'TASK' && (
           <div
             {...attributes}
             {...listeners}
             className="cursor-grab active:cursor-grabbing p-1 -ml-1 mr-1 rounded-lg hover:bg-bridge-surface-hover opacity-40 group-hover:opacity-100 transition-all"
-            title={t("kanbanBlock.dragToMove")}
+            title={t('kanbanBlock.dragToMove')}
           >
             <GripVertical className="h-4 w-4 text-slate-400" />
           </div>
         )}
         <div className="flex items-center gap-2 flex-1">
           {block.color && (
-            <div
-              className="w-2.5 h-2.5 rounded-full"
-              style={{ backgroundColor: block.color }}
-            />
+            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: block.color }} />
           )}
-          <h3 className="font-bold text-sm text-foreground tracking-tight">
-            {block.name}
-          </h3>
+          <h3 className="font-bold text-sm text-foreground tracking-tight">{block.name}</h3>
           {isFixedBlock && (
             <span
               className={`text-xs font-medium uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                block.fixed_type === "TASK"
-                  ? "bg-bridge-accent/15 text-bridge-accent"
-                  : "bg-emerald-500/15 text-emerald-400"
+                block.fixed_type === 'TASK'
+                  ? 'bg-bridge-accent/15 text-bridge-accent'
+                  : 'bg-emerald-500/15 text-emerald-400'
               }`}
             >
               Fixed
@@ -381,32 +342,27 @@ export const KanbanBlock = memo(function KanbanBlock({
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="bg-bridge-surface border-bridge-border"
-            >
+            <DropdownMenuContent align="end" className="bg-bridge-surface border-bridge-border">
               <DropdownMenuItem
                 onClick={() => onEditBlock?.(block)}
                 className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
               >
-                {t("kanbanBlock.rename")}
+                {t('kanbanBlock.rename')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => onEditBlock?.(block)}
                 className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
               >
-                {t("kanbanBlock.changeColor")}
+                {t('kanbanBlock.changeColor')}
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() =>
-                  onToggleProgressBar?.(block.id, !block.show_progress_bar)
-                }
+                onClick={() => onToggleProgressBar?.(block.id, !block.show_progress_bar)}
                 className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
               >
                 <BarChart2 className="h-3.5 w-3.5 mr-2" />
                 {block.show_progress_bar
-                  ? t("kanbanBlock.disableProgressBar", "프로그레스바 끄기")
-                  : t("kanbanBlock.enableProgressBar", "프로그레스바 켜기")}
+                  ? t('kanbanBlock.disableProgressBar', '프로그레스바 끄기')
+                  : t('kanbanBlock.enableProgressBar', '프로그레스바 켜기')}
               </DropdownMenuItem>
               {/* 마일스톤 선택 중 + 마일스톤 비전속 블록만 숨김 가능 */}
               {onHideBlock && !block.milestone_id && selectedMilestoneId && (
@@ -416,7 +372,7 @@ export const KanbanBlock = memo(function KanbanBlock({
                     onClick={() => onHideBlock(block.id)}
                     className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
                   >
-                    {t("kanbanBlock.hideInMilestone", "이 마일스톤에서 숨기기")}
+                    {t('kanbanBlock.hideInMilestone', '이 마일스톤에서 숨기기')}
                   </DropdownMenuItem>
                 </>
               )}
@@ -425,7 +381,7 @@ export const KanbanBlock = memo(function KanbanBlock({
                 onClick={() => onDeleteBlock?.(block.id)}
                 className="text-red-400 hover:bg-red-500/10 hover:text-red-300 text-xs"
               >
-                {t("kanbanBlock.deleteBlock")}
+                {t('kanbanBlock.deleteBlock')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -437,11 +393,7 @@ export const KanbanBlock = memo(function KanbanBlock({
         (() => {
           // 오늘 경계 (완료 시각 비교용 ms) + 오늘 날짜 문자열 (기간 비교용)
           const now = new Date();
-          const startToday = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate(),
-          ).getTime();
+          const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
           const todayStr = getTodayDateString();
 
           // 4개 상태로 분류: 오늘 완료 / 진행 중 / 기존 완료 / 미완료
@@ -468,13 +420,8 @@ export const KanbanBlock = memo(function KanbanBlock({
           }
           bTodayDone.sort((a, b) => doneTs(b.item) - doneTs(a.item));
           bEarlierDone.sort((a, b) => doneTs(b.item) - doneTs(a.item));
-          const byDue = (
-            a: { item: ChecklistItem },
-            b: { item: ChecklistItem },
-          ) =>
-            (a.item.due_date ?? "9999-99-99").localeCompare(
-              b.item.due_date ?? "9999-99-99",
-            );
+          const byDue = (a: { item: ChecklistItem }, b: { item: ChecklistItem }) =>
+            (a.item.due_date ?? '9999-99-99').localeCompare(b.item.due_date ?? '9999-99-99');
           bInProgress.sort(byDue);
           bNotStarted.sort(byDue);
 
@@ -504,12 +451,7 @@ export const KanbanBlock = memo(function KanbanBlock({
           } as const;
           const list = buckets[recentDoneTab];
 
-          const TABS = [
-            "todayDone",
-            "inProgress",
-            "earlierDone",
-            "notStarted",
-          ] as const;
+          const TABS = ['todayDone', 'inProgress', 'earlierDone', 'notStarted'] as const;
 
           return (
             <>
@@ -517,7 +459,7 @@ export const KanbanBlock = memo(function KanbanBlock({
                 type="button"
                 onClick={() => setRecentDoneOpen(true)}
                 aria-haspopup="dialog"
-                aria-label={t("kanbanBlock.recentDone.toggle")}
+                aria-label={t('kanbanBlock.recentDone.toggle')}
                 className="w-full flex items-center gap-2 px-3 py-1.5 border-b border-bridge-border hover:bg-foreground/5 transition-colors"
               >
                 <div className="flex-1 h-1.5 bg-slate-600 rounded-full overflow-hidden relative">
@@ -531,7 +473,7 @@ export const KanbanBlock = memo(function KanbanBlock({
                       style={{
                         left: `${segEarlier}%`,
                         width: `${segToday}%`,
-                        boxShadow: "0 0 8px var(--bridge-secondary)",
+                        boxShadow: '0 0 8px var(--bridge-secondary)',
                       }}
                     />
                   )}
@@ -541,8 +483,7 @@ export const KanbanBlock = memo(function KanbanBlock({
                 </span>
                 {nToday > 0 && (
                   <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0">
-                    ▲{" "}
-                    {t("kanbanBlock.recentDone.todayDelta", { count: nToday })}
+                    ▲ {t('kanbanBlock.recentDone.todayDelta', { count: nToday })}
                   </span>
                 )}
               </button>
@@ -551,22 +492,20 @@ export const KanbanBlock = memo(function KanbanBlock({
                 open={recentDoneOpen}
                 onClose={() => setRecentDoneOpen(false)}
                 accentColor
-                aria-label={t("kanbanBlock.recentDone.title")}
+                aria-label={t('kanbanBlock.recentDone.title')}
                 className="sm:max-w-xl"
               >
                 {/* Header */}
                 <div className="flex items-center gap-2 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
                   <Check className="w-4 h-4 text-bridge-secondary shrink-0" />
                   <h3 className="text-sm font-bold text-foreground truncate">
-                    {t("kanbanBlock.recentDone.title")}
+                    {t('kanbanBlock.recentDone.title')}
                   </h3>
-                  <span className="text-xs text-slate-500 truncate min-w-0">
-                    · {block.name}
-                  </span>
+                  <span className="text-xs text-slate-500 truncate min-w-0">· {block.name}</span>
                   <button
                     type="button"
                     onClick={() => setRecentDoneOpen(false)}
-                    aria-label={t("common.close")}
+                    aria-label={t('common.close')}
                     className="ml-auto text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg p-1.5 transition-colors shrink-0"
                   >
                     <X className="w-4 h-4" />
@@ -584,8 +523,8 @@ export const KanbanBlock = memo(function KanbanBlock({
                     </span>
                     {nToday > 0 && (
                       <span className="ml-auto text-xs font-bold px-2.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
-                        ▲{" "}
-                        {t("kanbanBlock.recentDone.todayDelta", {
+                        ▲{' '}
+                        {t('kanbanBlock.recentDone.todayDelta', {
                           count: nToday,
                         })}
                       </span>
@@ -612,19 +551,19 @@ export const KanbanBlock = memo(function KanbanBlock({
                   <div className="flex items-center gap-x-3.5 gap-y-1.5 mt-2.5 flex-wrap">
                     <span className="flex items-center gap-1.5 text-xs text-slate-400">
                       <span className="w-2 h-2 rounded-sm bg-bridge-secondary" />
-                      {t("kanbanBlock.recentDone.tab.todayDone")} {nToday}
+                      {t('kanbanBlock.recentDone.tab.todayDone')} {nToday}
                     </span>
                     <span className="flex items-center gap-1.5 text-xs text-slate-400">
                       <span className="w-2 h-2 rounded-sm bg-amber-500" />
-                      {t("kanbanBlock.recentDone.tab.inProgress")} {nProg}
+                      {t('kanbanBlock.recentDone.tab.inProgress')} {nProg}
                     </span>
                     <span className="flex items-center gap-1.5 text-xs text-slate-400">
                       <span className="w-2 h-2 rounded-sm bg-bridge-accent" />
-                      {t("kanbanBlock.recentDone.tab.earlierDone")} {nEarlier}
+                      {t('kanbanBlock.recentDone.tab.earlierDone')} {nEarlier}
                     </span>
                     <span className="flex items-center gap-1.5 text-xs text-slate-400">
                       <span className="w-2 h-2 rounded-sm bg-slate-600" />
-                      {t("kanbanBlock.recentDone.tab.notStarted")} {nNot}
+                      {t('kanbanBlock.recentDone.tab.notStarted')} {nNot}
                     </span>
                   </div>
                 </div>
@@ -639,8 +578,8 @@ export const KanbanBlock = memo(function KanbanBlock({
                         onClick={() => setRecentDoneTab(tab)}
                         className={`text-xs px-3 py-1 rounded-full transition-colors ${
                           recentDoneTab === tab
-                            ? "bg-bridge-secondary/15 text-bridge-secondary font-bold"
-                            : "text-slate-500 hover:text-slate-300 bg-foreground/[0.03]"
+                            ? 'bg-bridge-secondary/15 text-bridge-secondary font-bold'
+                            : 'text-slate-500 hover:text-slate-300 bg-foreground/[0.03]'
                         }`}
                       >
                         {t(`kanbanBlock.recentDone.tab.${tab}`)} {counts[tab]}
@@ -650,22 +589,20 @@ export const KanbanBlock = memo(function KanbanBlock({
 
                   {list.length === 0 ? (
                     <div className="text-sm text-slate-500 py-12 text-center">
-                      {t("kanbanBlock.recentDone.empty")}
+                      {t('kanbanBlock.recentDone.empty')}
                     </div>
                   ) : (
                     <div className="space-y-1 max-h-[60dvh] overflow-y-auto custom-scrollbar">
                       {list.slice(0, 100).map(({ item, task }) => {
                         const isDone = item.completed;
-                        const isProg = recentDoneTab === "inProgress";
+                        const isProg = recentDoneTab === 'inProgress';
                         const rightLabel = isDone
-                          ? formatRelativeTime(
-                              item.completed_at ?? item.done_date,
-                            )
+                          ? formatRelativeTime(item.completed_at ?? item.done_date)
                           : item.due_date
                             ? `~ ${item.due_date}`
                             : item.start_date
                               ? `${item.start_date} ~`
-                              : "";
+                              : '';
                         return (
                           <button
                             key={item.id}
@@ -679,10 +616,10 @@ export const KanbanBlock = memo(function KanbanBlock({
                             <span
                               className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
                                 isDone
-                                  ? "bg-emerald-500/15"
+                                  ? 'bg-emerald-500/15'
                                   : isProg
-                                    ? "bg-amber-500/15"
-                                    : "bg-slate-500/15"
+                                    ? 'bg-amber-500/15'
+                                    : 'bg-slate-500/15'
                               }`}
                             >
                               {isDone ? (
@@ -703,9 +640,7 @@ export const KanbanBlock = memo(function KanbanBlock({
                                 </span>
                                 {item.assignee && (
                                   <>
-                                    <span className="text-xs text-slate-600 shrink-0">
-                                      ·
-                                    </span>
+                                    <span className="text-xs text-slate-600 shrink-0">·</span>
                                     <span className="flex items-center gap-1 shrink-0">
                                       <span
                                         className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold leading-none text-white flex-shrink-0 border border-foreground/[0.08] whitespace-nowrap overflow-hidden"
@@ -713,9 +648,7 @@ export const KanbanBlock = memo(function KanbanBlock({
                                           backgroundColor: getAssigneeHex(
                                             item.assignee.name,
                                             item.assignee.id
-                                              ? memberColorMap?.[
-                                                  item.assignee.id
-                                                ]
+                                              ? memberColorMap?.[item.assignee.id]
                                               : undefined,
                                           ),
                                         }}
@@ -750,21 +683,21 @@ export const KanbanBlock = memo(function KanbanBlock({
         ref={taskContainerRef}
         className="flex-1 p-2 space-y-2 overflow-y-auto min-h-0 custom-scrollbar"
         onDragEnter={(e) => {
-          if (e.dataTransfer.types.includes("application/task")) {
+          if (e.dataTransfer.types.includes('application/task')) {
             e.preventDefault();
             e.stopPropagation();
           }
         }}
         onDragOver={(e) => {
-          if (e.dataTransfer.types.includes("application/task")) {
+          if (e.dataTransfer.types.includes('application/task')) {
             e.preventDefault();
             e.stopPropagation();
-            e.dataTransfer.dropEffect = "move";
+            e.dataTransfer.dropEffect = 'move';
             handleTaskDragOver(e);
           }
         }}
         onDrop={(e) => {
-          if (e.dataTransfer.types.includes("application/task")) {
+          if (e.dataTransfer.types.includes('application/task')) {
             e.preventDefault();
             e.stopPropagation();
             handleTaskDrop(e);
@@ -775,19 +708,19 @@ export const KanbanBlock = memo(function KanbanBlock({
           <div
             key={task.id}
             onDragEnter={(e) => {
-              if (e.dataTransfer.types.includes("application/task")) {
+              if (e.dataTransfer.types.includes('application/task')) {
                 e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
+                e.dataTransfer.dropEffect = 'move';
               }
             }}
             onDragOver={(e) => {
-              if (e.dataTransfer.types.includes("application/task")) {
+              if (e.dataTransfer.types.includes('application/task')) {
                 e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
+                e.dataTransfer.dropEffect = 'move';
               }
             }}
             onDrop={(e) => {
-              if (e.dataTransfer.types.includes("application/task")) {
+              if (e.dataTransfer.types.includes('application/task')) {
                 e.preventDefault();
                 e.stopPropagation();
                 handleTaskDrop(e);
@@ -797,17 +730,13 @@ export const KanbanBlock = memo(function KanbanBlock({
             {/* 플레이스홀더 - 해당 인덱스 전에 표시 */}
             {taskPlaceholderInThisBlock &&
               placeholderIndex === index &&
-              draggedTask?.id !== task.id && (
-                <div className="mb-2">{placeholderElement}</div>
-              )}
+              draggedTask?.id !== task.id && <div className="mb-2">{placeholderElement}</div>}
             <DraggableCard
               task={task}
               blockId={block.id}
               index={index}
               onTaskClick={onTaskClick}
-              feature={
-                task.feature_id ? featuresById.get(task.feature_id) : undefined
-              }
+              feature={task.feature_id ? featuresById.get(task.feature_id) : undefined}
               boardId={boardId}
               isChecklistExpanded={expandedChecklistTaskIds?.has(task.id)}
               onToggleChecklistExpand={onToggleChecklistExpand}
@@ -822,9 +751,7 @@ export const KanbanBlock = memo(function KanbanBlock({
           </div>
         ))}
         {/* 맨 끝에 플레이스홀더 (빈 블록 포함) */}
-        {taskPlaceholderInThisBlock &&
-          placeholderIndex >= tasks.length &&
-          placeholderElement}
+        {taskPlaceholderInThisBlock && placeholderIndex >= tasks.length && placeholderElement}
       </div>
 
       {/* Quick Add Card Button - always visible at bottom */}
@@ -838,9 +765,7 @@ export const KanbanBlock = memo(function KanbanBlock({
               size={16}
               className="text-slate-500 group-hover:text-bridge-accent transition-colors"
             />
-            <span className="text-xs font-medium">
-              {t("quickAdd.addCard", "Add a card")}
-            </span>
+            <span className="text-xs font-medium">{t('quickAdd.addCard', 'Add a card')}</span>
           </button>
         </div>
       )}

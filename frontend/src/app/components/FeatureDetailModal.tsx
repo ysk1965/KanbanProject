@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
   closestCenter,
@@ -8,21 +8,18 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  restrictToVerticalAxis,
-  restrictToParentElement,
-} from "@dnd-kit/modifiers";
+} from '@dnd-kit/core';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 import {
   arrayMove,
   SortableContext,
   verticalListSortingStrategy,
   useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { Feature, Task, Tag, Milestone } from "../types";
-import { FEATURE_COLORS } from "../constants";
-import { sortByFeatureOrder } from "../utils/taskOrder";
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Feature, Task, Tag, Milestone } from '../types';
+import { FEATURE_COLORS } from '../constants';
+import { sortByFeatureOrder } from '../utils/taskOrder';
 import {
   X,
   Trash2,
@@ -38,31 +35,31 @@ import {
   AlertTriangle,
   ChevronDown,
   GripVertical,
-} from "lucide-react";
-import { MotionModal } from "./ui/MotionModal";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Textarea } from "./ui/textarea";
-import { Label } from "./ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Calendar } from "./ui/calendar";
-import { format } from "date-fns";
-import { ko } from "date-fns/locale";
-import type { DateRange } from "react-day-picker";
-import { useTranslation } from "react-i18next";
-import { ColorPickerPopover } from "./ui/ColorPickerPopover";
-import { TagPickerPopover } from "./TagPickerPopover";
-import { featureAPI, taskAPI } from "../utils/api";
-import { getTodayDateString } from "../utils/dateUtils";
-import { FeatureAIDecomposeModal } from "./FeatureAIDecomposeModal";
-import { useAuth } from "../contexts/AuthContext";
-import { getAssigneeClasses, getInitials } from "../utils/assigneeColor";
-import { MILESTONE_PALETTE } from "../utils/milestoneColor";
+} from 'lucide-react';
+import { MotionModal } from './ui/MotionModal';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { Label } from './ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar } from './ui/calendar';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import type { DateRange } from 'react-day-picker';
+import { useTranslation } from 'react-i18next';
+import { ColorPickerPopover } from './ui/ColorPickerPopover';
+import { TagPickerPopover } from './TagPickerPopover';
+import { featureAPI, taskAPI } from '../utils/api';
+import { getTodayDateString } from '../utils/dateUtils';
+import { FeatureAIDecomposeModal } from './FeatureAIDecomposeModal';
+import { useAuth } from '../contexts/AuthContext';
+import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
+import { MILESTONE_PALETTE } from '../utils/milestoneColor';
 
 // 마일스톤 색상 팔레트 — 단일 소스 utils/milestoneColor.ts (마인드맵 등과 공유).
 // 보드 milestones 배열의 인덱스로 색상을 파생해 모든 화면의 마일스톤 색상을 일치시킨다.
 const MILESTONE_COLORS = MILESTONE_PALETTE.map((c) => c.hex);
-const MILESTONE_UNASSIGNED_COLOR = "#64748b"; // slate — 미배치 그룹
+const MILESTONE_UNASSIGNED_COLOR = '#64748b'; // slate — 미배치 그룹
 
 interface FeatureDetailModalProps {
   feature: Feature | null;
@@ -84,10 +81,7 @@ interface FeatureDetailModalProps {
   allFeatures: Feature[];
   availableTags: Tag[];
   onCreateTag: (name: string, color: string) => Promise<string | undefined>;
-  onUpdateTag: (
-    tagId: string,
-    data: { name?: string; color?: string },
-  ) => Promise<void>;
+  onUpdateTag: (tagId: string, data: { name?: string; color?: string }) => Promise<void>;
   onDeleteTag: (tagId: string) => Promise<void>;
   boardId: string;
   canEdit?: boolean;
@@ -118,20 +112,16 @@ export function FeatureDetailModal({
   isOnboarding = false,
   onTaskClick,
 }: FeatureDetailModalProps) {
-  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
-  const [newSubtaskMilestoneId, setNewSubtaskMilestoneId] = useState<
-    string | null
-  >(null);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [newSubtaskMilestoneId, setNewSubtaskMilestoneId] = useState<string | null>(null);
   const [milestoneDropdownOpen, setMilestoneDropdownOpen] = useState(false);
   const [initialFeature, setInitialFeature] = useState<Feature | null>(null);
   const [editedFeature, setEditedFeature] = useState<Feature | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [taskMigrationMap, setTaskMigrationMap] = useState<
-    Record<string, string>
-  >({});
-  const [bulkTargetFeatureId, setBulkTargetFeatureId] = useState<string>("");
+  const [taskMigrationMap, setTaskMigrationMap] = useState<Record<string, string>>({});
+  const [bulkTargetFeatureId, setBulkTargetFeatureId] = useState<string>('');
   const [flyingTask, setFlyingTask] = useState<{
     title: string;
     x: number;
@@ -141,7 +131,7 @@ export function FeatureDetailModal({
   const [showAIConfirm, setShowAIConfirm] = useState(false);
   const [showAIDecompose, setShowAIDecompose] = useState(false);
   const [dateCalendarOpen, setDateCalendarOpen] = useState(false);
-  const [editingTaskTitle, setEditingTaskTitle] = useState("");
+  const [editingTaskTitle, setEditingTaskTitle] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const addBtnRef = useRef<HTMLButtonElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -161,8 +151,7 @@ export function FeatureDetailModal({
 
   useEffect(() => {
     if (initialFeature && editedFeature) {
-      const changed =
-        JSON.stringify(initialFeature) !== JSON.stringify(editedFeature);
+      const changed = JSON.stringify(initialFeature) !== JSON.stringify(editedFeature);
       setHasChanges(changed);
     }
   }, [initialFeature, editedFeature]);
@@ -179,11 +168,7 @@ export function FeatureDetailModal({
   // Feature에는 milestone 링크가 없어 milestones의 features에서 역참조(primaryMilestone과 동일 패턴).
   const featureMilestones = useMemo(
     () =>
-      feature
-        ? milestones.filter((m) =>
-            (m.features ?? []).some((f) => f.id === feature.id),
-          )
-        : [],
+      feature ? milestones.filter((m) => (m.features ?? []).some((f) => f.id === feature.id)) : [],
     [feature, milestones],
   );
   // 기본값: 오늘 날짜가 포함되는 연결 마일스톤, 없으면 null(미배치).
@@ -191,8 +176,7 @@ export function FeatureDetailModal({
     const today = getTodayDateString();
     const match = featureMilestones.find(
       (m) =>
-        (m.start_date?.slice(0, 10) ?? "") <= today &&
-        today <= (m.end_date?.slice(0, 10) ?? ""),
+        (m.start_date?.slice(0, 10) ?? '') <= today && today <= (m.end_date?.slice(0, 10) ?? ''),
     );
     return match?.id ?? null;
   }, [featureMilestones]);
@@ -254,9 +238,9 @@ export function FeatureDetailModal({
     const unassigned = byMs.get(null);
     if (unassigned?.length) {
       groups.push({
-        key: "__unassigned__",
+        key: '__unassigned__',
         milestoneId: null,
-        title: t("featureDetail.milestoneUnassigned"),
+        title: t('featureDetail.milestoneUnassigned'),
         color: MILESTONE_UNASSIGNED_COLOR,
         tasks: unassigned,
       });
@@ -337,7 +321,7 @@ export function FeatureDetailModal({
         await taskAPI.updateTask(boardId, editingTaskId, { title: newTitle });
         onRenameSubtask?.(editingTaskId, newTitle);
       } catch (error) {
-        console.error("Failed to rename subtask:", error);
+        console.error('Failed to rename subtask:', error);
       }
     }
     setEditingTaskId(null);
@@ -365,7 +349,7 @@ export function FeatureDetailModal({
         setTimeout(() => setFlyingTask(null), 800);
       }
       onAddSubtask(newSubtaskTitle.trim(), newSubtaskMilestoneId);
-      setNewSubtaskTitle("");
+      setNewSubtaskTitle('');
       setNewSubtaskMilestoneId(defaultSubtaskMilestoneId);
     }
   };
@@ -379,7 +363,7 @@ export function FeatureDetailModal({
       try {
         await featureAPI.addTag(boardId, feature.id, tagId);
       } catch (error) {
-        console.error("Failed to add tag:", error);
+        console.error('Failed to add tag:', error);
         updateEditedFeature({ tags: currentTags });
       }
     }
@@ -392,7 +376,7 @@ export function FeatureDetailModal({
     try {
       await featureAPI.removeTag(boardId, feature.id, tagId);
     } catch (error) {
-      console.error("Failed to remove tag:", error);
+      console.error('Failed to remove tag:', error);
       updateEditedFeature({ tags: currentTags });
     }
   };
@@ -411,39 +395,33 @@ export function FeatureDetailModal({
     // 마일스톤 필터로 blocks가 축소되어도 타 마일스톤 태스크의 블록명을 해석하려면 전체 블록(allBlocks)을 우선 조회
     const blockPool = allBlocks && allBlocks.length > 0 ? allBlocks : blocks;
     // 못 찾으면 "—" — id를 그대로 노출하면 36자 UUID가 행을 차지해 제목을 밀어낸다
-    return blockPool.find((b) => b.id === blockId)?.name || "—";
+    return blockPool.find((b) => b.id === blockId)?.name || '—';
   };
 
   const getTaskMilestoneTitle = (milestoneId?: string | null) =>
-    milestoneId
-      ? milestones.find((m) => m.id === milestoneId)?.title
-      : undefined;
+    milestoneId ? milestones.find((m) => m.id === milestoneId)?.title : undefined;
 
   // 마일스톤 색상 — 보드 milestones 배열 내 인덱스로 파생(마인드맵과 일치). 미배치는 slate.
   const getMilestoneColor = (milestoneId?: string | null) => {
     if (!milestoneId) return MILESTONE_UNASSIGNED_COLOR;
     const idx = milestones.findIndex((m) => m.id === milestoneId);
-    return idx >= 0
-      ? MILESTONE_COLORS[idx % MILESTONE_COLORS.length]
-      : MILESTONE_UNASSIGNED_COLOR;
+    return idx >= 0 ? MILESTONE_COLORS[idx % MILESTONE_COLORS.length] : MILESTONE_UNASSIGNED_COLOR;
   };
 
   const featureTags = editedFeature.tags || [];
-  const selectedColor = editedFeature.color || "#8B5CF6";
+  const selectedColor = editedFeature.color || '#8B5CF6';
 
   // 서브태스크 한 행 렌더링. grouped일 때 점 색상은 마일스톤 색을 따르고,
   // 우측 라벨의 마일스톤명은 그룹 헤더로 승격되어 중복 표기하지 않는다(블록명만 표시).
   const renderSubtaskRow = (task: Task) => {
-    const dotColor = grouped
-      ? getMilestoneColor(task.milestone_id)
-      : selectedColor;
+    const dotColor = grouped ? getMilestoneColor(task.milestone_id) : selectedColor;
     const milestoneTitle = getTaskMilestoneTitle(task.milestone_id);
     return (
       <SortableSubtaskRow
         key={task.id}
         taskId={task.id}
         dragEnabled={canEdit && !!onReorderSubtasks && orderedTasks.length > 1}
-        className={`flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition-colors group ${onTaskClick ? "cursor-pointer" : ""}`}
+        className={`flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition-colors group ${onTaskClick ? 'cursor-pointer' : ''}`}
         onClick={() => {
           if (onTaskClick && editingTaskId !== task.id) {
             onTaskClick(task);
@@ -468,14 +446,14 @@ export function FeatureDetailModal({
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return;
-                if (e.key === "Enter") handleSaveTaskTitle();
-                if (e.key === "Escape") setEditingTaskId(null);
+                if (e.key === 'Enter') handleSaveTaskTitle();
+                if (e.key === 'Escape') setEditingTaskId(null);
               }}
               className="flex-1 text-xs font-medium bg-foreground/5 border border-bridge-accent/50 rounded-md px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
             />
           ) : (
             <span
-              className={`text-xs font-medium text-foreground/80 group-hover:text-foreground transition-colors truncate ${canEdit ? "cursor-text hover:bg-foreground/5 rounded px-1 -mx-1" : ""}`}
+              className={`text-xs font-medium text-foreground/80 group-hover:text-foreground transition-colors truncate ${canEdit ? 'cursor-text hover:bg-foreground/5 rounded px-1 -mx-1' : ''}`}
               onClick={(e) => {
                 if (canEdit) {
                   e.stopPropagation();
@@ -489,7 +467,7 @@ export function FeatureDetailModal({
         </div>
         <div className="flex items-center gap-2 text-xs font-bold text-slate-400 flex-shrink-0 ml-2">
           <span className="tracking-widest transition-colors">
-            →{" "}
+            →{' '}
             {!grouped && milestoneTitle && (
               <span className="text-bridge-accent">{milestoneTitle} · </span>
             )}
@@ -507,10 +485,7 @@ export function FeatureDetailModal({
     return (
       <div className="flex items-center gap-2 px-5 pt-4 pb-2">
         <span className="flex-1 h-px" style={{ background: `${c}4D` }} />
-        <span
-          className="text-xs font-bold whitespace-nowrap"
-          style={{ color: c }}
-        >
+        <span className="text-xs font-bold whitespace-nowrap" style={{ color: c }}>
           {group.title}
         </span>
         <span
@@ -549,20 +524,18 @@ export function FeatureDetailModal({
                   selectedColor={selectedColor}
                   onColorChange={(color) => updateEditedFeature({ color })}
                   disabled={!canEdit}
-                  customColorLabel={t("featureDetail.customColor")}
+                  customColorLabel={t('featureDetail.customColor')}
                 />
 
                 {/* Title - hover to edit */}
                 {canEdit && isEditingTitle ? (
                   <Input
                     value={editedFeature.title}
-                    onChange={(e) =>
-                      updateEditedFeature({ title: e.target.value })
-                    }
+                    onChange={(e) => updateEditedFeature({ title: e.target.value })}
                     onBlur={() => setIsEditingTitle(false)}
                     onKeyDown={(e) => {
                       if (e.nativeEvent.isComposing) return;
-                      if (e.key === "Enter" || e.key === "Escape") {
+                      if (e.key === 'Enter' || e.key === 'Escape') {
                         setIsEditingTitle(false);
                       }
                     }}
@@ -571,12 +544,10 @@ export function FeatureDetailModal({
                   />
                 ) : (
                   <div
-                    className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${canEdit ? "cursor-pointer hover:bg-foreground/5" : ""}`}
+                    className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${canEdit ? 'cursor-pointer hover:bg-foreground/5' : ''}`}
                     onClick={() => canEdit && setIsEditingTitle(true)}
                   >
-                    <span className="text-lg font-bold text-foreground">
-                      {editedFeature.title}
-                    </span>
+                    <span className="text-lg font-bold text-foreground">{editedFeature.title}</span>
                     {canEdit && (
                       <Pencil className="h-4 w-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                     )}
@@ -618,75 +589,63 @@ export function FeatureDetailModal({
                 // 마일스톤에 속하면 기간은 마일스톤을 따름 — 읽기 전용 표시
                 if (primaryMilestone) {
                   const parseYmd = (s: string) => {
-                    const [y, m, d] = s.split("-").map(Number);
+                    const [y, m, d] = s.split('-').map(Number);
                     return new Date(y, m - 1, d);
                   };
                   return (
                     <div
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border bg-bridge-accent/[0.12] border-bridge-accent/35 text-foreground cursor-default"
-                      title={t(
-                        "feature.periodFollowsMilestone",
-                        "마일스톤 기간을 따릅니다",
-                      )}
+                      title={t('feature.periodFollowsMilestone', '마일스톤 기간을 따릅니다')}
                     >
                       <CalendarIcon className="h-3.5 w-3.5 text-bridge-accent" />
                       <span>
-                        {format(parseYmd(primaryMilestone.start_date), "M.d", {
+                        {format(parseYmd(primaryMilestone.start_date), 'M.d', {
                           locale: ko,
                         })}
-                        {" ~ "}
-                        {format(parseYmd(primaryMilestone.end_date), "M.d", {
+                        {' ~ '}
+                        {format(parseYmd(primaryMilestone.end_date), 'M.d', {
                           locale: ko,
                         })}
                       </span>
                     </div>
                   );
                 }
-                const hasDate = !!(
-                  editedFeature.start_date || editedFeature.due_date
-                );
+                const hasDate = !!(editedFeature.start_date || editedFeature.due_date);
                 const dateLabel = hasDate ? (
                   <span>
                     {editedFeature.start_date
-                      ? format(new Date(editedFeature.start_date), "M.d", {
+                      ? format(new Date(editedFeature.start_date), 'M.d', {
                           locale: ko,
                         })
-                      : "?"}
-                    {" ~ "}
+                      : '?'}
+                    {' ~ '}
                     {editedFeature.due_date
-                      ? format(new Date(editedFeature.due_date), "M.d", {
+                      ? format(new Date(editedFeature.due_date), 'M.d', {
                           locale: ko,
                         })
-                      : "?"}
+                      : '?'}
                   </span>
                 ) : (
-                  <span>{t("featureDetail.selectDateRange")}</span>
+                  <span>{t('featureDetail.selectDateRange')}</span>
                 );
                 const chipClass = `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-colors ${
                   hasDate
-                    ? "bg-bridge-accent/[0.12] border-bridge-accent/35 text-foreground hover:bg-bridge-accent/20"
-                    : "bg-foreground/[0.04] border-foreground/10 text-slate-400 hover:bg-foreground/10"
+                    ? 'bg-bridge-accent/[0.12] border-bridge-accent/35 text-foreground hover:bg-bridge-accent/20'
+                    : 'bg-foreground/[0.04] border-foreground/10 text-slate-400 hover:bg-foreground/10'
                 }`;
                 const chipInner = (
                   <>
                     <CalendarIcon
-                      className={`h-3.5 w-3.5 ${hasDate ? "text-bridge-accent" : "text-slate-400"}`}
+                      className={`h-3.5 w-3.5 ${hasDate ? 'text-bridge-accent' : 'text-slate-400'}`}
                     />
                     {dateLabel}
                   </>
                 );
                 if (!canEdit) {
-                  return (
-                    <div className={`${chipClass} cursor-default`}>
-                      {chipInner}
-                    </div>
-                  );
+                  return <div className={`${chipClass} cursor-default`}>{chipInner}</div>;
                 }
                 return (
-                  <Popover
-                    open={dateCalendarOpen}
-                    onOpenChange={setDateCalendarOpen}
-                  >
+                  <Popover open={dateCalendarOpen} onOpenChange={setDateCalendarOpen}>
                     <PopoverTrigger asChild>
                       <button type="button" className={chipClass}>
                         {chipInner}
@@ -712,12 +671,8 @@ export function FeatureDetailModal({
                         }
                         onSelect={(range: DateRange | undefined) => {
                           updateEditedFeature({
-                            start_date: range?.from
-                              ? format(range.from, "yyyy-MM-dd")
-                              : null,
-                            due_date: range?.to
-                              ? format(range.to, "yyyy-MM-dd")
-                              : null,
+                            start_date: range?.from ? format(range.from, 'yyyy-MM-dd') : null,
+                            due_date: range?.to ? format(range.to, 'yyyy-MM-dd') : null,
                           });
                         }}
                         numberOfMonths={2}
@@ -737,19 +692,18 @@ export function FeatureDetailModal({
                               })
                             }
                           >
-                            {t("featureDetail.removeDate")}
+                            {t('featureDetail.removeDate')}
                           </Button>
-                          {editedFeature.start_date &&
-                            editedFeature.due_date && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="flex-1 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 font-bold"
-                                onClick={() => setDateCalendarOpen(false)}
-                              >
-                                {t("common.confirm", "확인")}
-                              </Button>
-                            )}
+                          {editedFeature.start_date && editedFeature.due_date && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="flex-1 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 font-bold"
+                              onClick={() => setDateCalendarOpen(false)}
+                            >
+                              {t('common.confirm', '확인')}
+                            </Button>
+                          )}
                         </div>
                       )}
                     </PopoverContent>
@@ -784,12 +738,8 @@ export function FeatureDetailModal({
                             return (
                               <div
                                 key={a.id}
-                                className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white border-2 border-bridge-obsidian whitespace-nowrap overflow-hidden leading-none ${i > 0 ? "-ml-2" : ""}`}
-                                style={
-                                  !color.bg
-                                    ? { backgroundColor: color.hex }
-                                    : undefined
-                                }
+                                className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white border-2 border-bridge-obsidian whitespace-nowrap overflow-hidden leading-none ${i > 0 ? '-ml-2' : ''}`}
+                                style={!color.bg ? { backgroundColor: color.hex } : undefined}
                               >
                                 {getInitials(a.name)}
                               </div>
@@ -797,9 +747,9 @@ export function FeatureDetailModal({
                           })}
                         </div>
                         <span className="text-slate-400">
-                          {t("task.assigneeCount", {
+                          {t('task.assigneeCount', {
                             count: uniqueAssignees.length,
-                            defaultValue: "담당 {{count}}명",
+                            defaultValue: '담당 {{count}}명',
                           })}
                         </span>
                         <ChevronDown className="w-3 h-3 opacity-60" />
@@ -810,7 +760,7 @@ export function FeatureDetailModal({
                       className="w-64 p-2 bg-bridge-obsidian border-foreground/10"
                     >
                       <div className="px-1 pb-2 text-xs font-bold uppercase tracking-widest text-slate-400">
-                        {t("task.assignee")}
+                        {t('task.assignee')}
                       </div>
                       <div className="flex flex-col gap-1 max-h-64 overflow-y-auto custom-scrollbar">
                         {uniqueAssignees.map((a) => {
@@ -822,17 +772,11 @@ export function FeatureDetailModal({
                             >
                               <div
                                 className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white whitespace-nowrap overflow-hidden leading-none`}
-                                style={
-                                  !color.bg
-                                    ? { backgroundColor: color.hex }
-                                    : undefined
-                                }
+                                style={!color.bg ? { backgroundColor: color.hex } : undefined}
                               >
                                 {getInitials(a.name)}
                               </div>
-                              <span className="text-sm text-foreground truncate">
-                                {a.name}
-                              </span>
+                              <span className="text-sm text-foreground truncate">{a.name}</span>
                             </div>
                           );
                         })}
@@ -855,10 +799,7 @@ export function FeatureDetailModal({
                 >
                   {tag.name}
                   {canEdit && (
-                    <button
-                      onClick={() => handleRemoveTag(tag.id)}
-                      className="hover:opacity-80"
-                    >
+                    <button onClick={() => handleRemoveTag(tag.id)} className="hover:opacity-80">
                       <X size={10} />
                     </button>
                   )}
@@ -881,34 +822,28 @@ export function FeatureDetailModal({
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-slate-400" />
                 <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                  {t("featureDetail.description")}
+                  {t('featureDetail.description')}
                 </Label>
               </div>
               <Textarea
-                placeholder={t("featureDetail.descriptionPlaceholder")}
-                value={editedFeature.description || ""}
-                onChange={(e) =>
-                  canEdit &&
-                  updateEditedFeature({ description: e.target.value })
-                }
+                placeholder={t('featureDetail.descriptionPlaceholder')}
+                value={editedFeature.description || ''}
+                onChange={(e) => canEdit && updateEditedFeature({ description: e.target.value })}
                 readOnly={!canEdit}
                 rows={7}
-                className={`bg-bridge-dark/50 border-bridge-border/30 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEdit ? "cursor-default" : ""}`}
+                className={`bg-bridge-dark/50 border-bridge-border/30 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEdit ? 'cursor-default' : ''}`}
               />
             </div>
 
             {/* Subtask Module */}
             <div
-              className={`mt-6 pt-6 border-t border-foreground/10 relative ${isOnboarding && tasks.length === 0 ? "z-10" : ""}`}
+              className={`mt-6 pt-6 border-t border-foreground/10 relative ${isOnboarding && tasks.length === 0 ? 'z-10' : ''}`}
             >
               <div className="flex items-center justify-between mb-4 relative">
                 <div className="flex items-center gap-2">
-                  <ClipboardList
-                    className="h-5 w-5"
-                    style={{ color: selectedColor }}
-                  />
+                  <ClipboardList className="h-5 w-5" style={{ color: selectedColor }} />
                   <Label className="text-base font-bold text-foreground">
-                    {t("featureDetail.subtaskList")}
+                    {t('featureDetail.subtaskList')}
                   </Label>
                   {canEdit && !isRestricted && (
                     <button
@@ -930,17 +865,14 @@ export function FeatureDetailModal({
                       }}
                     />
                   </div>
-                  <span
-                    className="text-sm font-medium"
-                    style={{ color: selectedColor }}
-                  >
+                  <span className="text-sm font-medium" style={{ color: selectedColor }}>
                     {Math.round(progressPercent)}%
                   </span>
                 </div>
               </div>
 
               <div
-                className={`relative bg-bridge-dark/40 rounded-xl overflow-hidden transition-all duration-500 ${isOnboarding && tasks.length === 0 ? "border-2 border-bridge-accent/50" : "border border-bridge-border/30"}`}
+                className={`relative bg-bridge-dark/40 rounded-xl overflow-hidden transition-all duration-500 ${isOnboarding && tasks.length === 0 ? 'border-2 border-bridge-accent/50' : 'border border-bridge-border/30'}`}
               >
                 {/* 온보딩 펄스 글로우 */}
                 {isOnboarding && tasks.length === 0 && (
@@ -948,15 +880,15 @@ export function FeatureDetailModal({
                     className="absolute inset-0 rounded-xl pointer-events-none z-0"
                     animate={{
                       boxShadow: [
-                        "0 0 0 2px rgba(99,102,241,0.2), 0 0 15px rgba(99,102,241,0.08)",
-                        "0 0 0 3px rgba(99,102,241,0.5), 0 0 40px rgba(99,102,241,0.2), 0 0 80px rgba(99,102,241,0.08)",
-                        "0 0 0 2px rgba(99,102,241,0.2), 0 0 15px rgba(99,102,241,0.08)",
+                        '0 0 0 2px rgba(99,102,241,0.2), 0 0 15px rgba(99,102,241,0.08)',
+                        '0 0 0 3px rgba(99,102,241,0.5), 0 0 40px rgba(99,102,241,0.2), 0 0 80px rgba(99,102,241,0.08)',
+                        '0 0 0 2px rgba(99,102,241,0.2), 0 0 15px rgba(99,102,241,0.08)',
                       ],
                     }}
                     transition={{
                       duration: 2.5,
                       repeat: Infinity,
-                      ease: "easeInOut",
+                      ease: 'easeInOut',
                     }}
                   />
                 )}
@@ -970,7 +902,7 @@ export function FeatureDetailModal({
                           animate={{ opacity: 1, scale: 1, y: 0 }}
                           transition={{
                             delay: 0.3,
-                            type: "spring",
+                            type: 'spring',
                             stiffness: 260,
                             damping: 22,
                           }}
@@ -981,9 +913,9 @@ export function FeatureDetailModal({
                               animate={{
                                 scale: [1, 1.2, 1],
                                 boxShadow: [
-                                  "0 0 0 0 rgba(99,102,241,0)",
-                                  "0 0 0 8px rgba(99,102,241,0.2)",
-                                  "0 0 0 0 rgba(99,102,241,0)",
+                                  '0 0 0 0 rgba(99,102,241,0)',
+                                  '0 0 0 8px rgba(99,102,241,0.2)',
+                                  '0 0 0 0 rgba(99,102,241,0)',
                                 ],
                               }}
                               transition={{ duration: 2, repeat: Infinity }}
@@ -995,10 +927,10 @@ export function FeatureDetailModal({
                             </motion.div>
                             <div className="flex-1">
                               <p className="text-sm font-bold text-white">
-                                {t("featureDetail.onboardingStep2")}
+                                {t('featureDetail.onboardingStep2')}
                               </p>
                               <p className="text-xs text-slate-400 mt-0.5">
-                                {t("featureDetail.subtaskDescription")}
+                                {t('featureDetail.subtaskDescription')}
                               </p>
                             </div>
                           </div>
@@ -1008,13 +940,13 @@ export function FeatureDetailModal({
                             transition={{
                               duration: 1,
                               repeat: Infinity,
-                              ease: "easeInOut",
+                              ease: 'easeInOut',
                             }}
                             className="flex items-center justify-center gap-1.5 text-bridge-accent/70"
                           >
                             <ArrowRight className="h-3.5 w-3.5 rotate-90" />
                             <span className="text-xs font-bold tracking-wider uppercase">
-                              {t("featureDetail.addSubtaskGuide")}
+                              {t('featureDetail.addSubtaskGuide')}
                             </span>
                             <ArrowRight className="h-3.5 w-3.5 rotate-90" />
                           </motion.div>
@@ -1026,17 +958,14 @@ export function FeatureDetailModal({
                               className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
                               style={{ backgroundColor: `${selectedColor}15` }}
                             >
-                              <Lightbulb
-                                size={14}
-                                style={{ color: selectedColor }}
-                              />
+                              <Lightbulb size={14} style={{ color: selectedColor }} />
                             </div>
                             <div>
                               <p className="text-xs font-medium text-foreground mb-1">
-                                {t("featureDetail.addSubtaskGuide")}
+                                {t('featureDetail.addSubtaskGuide')}
                               </p>
                               <p className="text-xs text-slate-500 leading-relaxed">
-                                {t("featureDetail.subtaskDescription")}
+                                {t('featureDetail.subtaskDescription')}
                               </p>
                             </div>
                           </div>
@@ -1050,37 +979,27 @@ export function FeatureDetailModal({
                           </span>
                         </div>
                         <div className="divide-y divide-white/5">
-                          {[
-                            "API 엔드포인트 설계",
-                            "화면 UI 구현",
-                            "테스트 코드 작성",
-                          ].map((title, i) => (
-                            <div
-                              key={i}
-                              className="flex items-center justify-between px-4 py-3"
-                            >
-                              <div className="flex items-center gap-3">
-                                <div
-                                  className="w-2 h-2 rounded-full flex-shrink-0"
-                                  style={{
-                                    backgroundColor: selectedColor,
-                                    boxShadow: `0 0 8px ${selectedColor}44`,
-                                  }}
-                                />
-                                <span className="text-xs font-medium text-slate-400">
-                                  {title}
+                          {['API 엔드포인트 설계', '화면 UI 구현', '테스트 코드 작성'].map(
+                            (title, i) => (
+                              <div key={i} className="flex items-center justify-between px-4 py-3">
+                                <div className="flex items-center gap-3">
+                                  <div
+                                    className="w-2 h-2 rounded-full flex-shrink-0"
+                                    style={{
+                                      backgroundColor: selectedColor,
+                                      boxShadow: `0 0 8px ${selectedColor}44`,
+                                    }}
+                                  />
+                                  <span className="text-xs font-medium text-slate-400">
+                                    {title}
+                                  </span>
+                                </div>
+                                <span className="text-xs font-bold tracking-widest text-slate-500">
+                                  → {i === 0 ? 'TASK' : i === 1 ? 'IN PROGRESS' : 'DONE ✓'}
                                 </span>
                               </div>
-                              <span className="text-xs font-bold tracking-widest text-slate-500">
-                                →{" "}
-                                {i === 0
-                                  ? "TASK"
-                                  : i === 1
-                                    ? "IN PROGRESS"
-                                    : "DONE ✓"}
-                              </span>
-                            </div>
-                          ))}
+                            ),
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1088,10 +1007,7 @@ export function FeatureDetailModal({
                   <DndContext
                     sensors={subtaskSensors}
                     collisionDetection={closestCenter}
-                    modifiers={[
-                      restrictToVerticalAxis,
-                      restrictToParentElement,
-                    ]}
+                    modifiers={[restrictToVerticalAxis, restrictToParentElement]}
                     onDragEnd={handleSubtaskDragEnd}
                   >
                     <SortableContext
@@ -1102,9 +1018,7 @@ export function FeatureDetailModal({
                         ? taskGroups.map((group) => (
                             <div key={group.key}>
                               {renderMilestoneDivider(group)}
-                              {group.tasks.map((task) =>
-                                renderSubtaskRow(task),
-                              )}
+                              {group.tasks.map((task) => renderSubtaskRow(task))}
                             </div>
                           ))
                         : orderedTasks.map((task) => renderSubtaskRow(task))}
@@ -1115,14 +1029,14 @@ export function FeatureDetailModal({
                 {/* Quick Add Dock */}
                 {canEdit && (
                   <motion.div
-                    className={`relative z-[1] p-2 flex gap-2 border-t transition-all ${isOnboarding && tasks.length === 0 ? "bg-bridge-accent/5 border-bridge-accent/20" : "bg-bridge-dark/30 border-bridge-border/20"}`}
+                    className={`relative z-[1] p-2 flex gap-2 border-t transition-all ${isOnboarding && tasks.length === 0 ? 'bg-bridge-accent/5 border-bridge-accent/20' : 'bg-bridge-dark/30 border-bridge-border/20'}`}
                     animate={
                       isOnboarding && tasks.length === 0
                         ? {
                             backgroundColor: [
-                              "rgba(99,102,241,0.03)",
-                              "rgba(99,102,241,0.08)",
-                              "rgba(99,102,241,0.03)",
+                              'rgba(99,102,241,0.03)',
+                              'rgba(99,102,241,0.08)',
+                              'rgba(99,102,241,0.03)',
                             ],
                           }
                         : {}
@@ -1130,23 +1044,19 @@ export function FeatureDetailModal({
                     transition={{
                       duration: 2,
                       repeat: Infinity,
-                      ease: "easeInOut",
+                      ease: 'easeInOut',
                     }}
                   >
-                    <Popover
-                      open={milestoneDropdownOpen}
-                      onOpenChange={setMilestoneDropdownOpen}
-                    >
+                    <Popover open={milestoneDropdownOpen} onOpenChange={setMilestoneDropdownOpen}>
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          title={t("featureDetail.selectMilestone")}
+                          title={t('featureDetail.selectMilestone')}
                           className="flex items-center gap-1 flex-shrink-0 rounded-lg px-2.5 py-2.5 text-xs text-foreground bg-bridge-dark/50 border border-bridge-border/30 hover:border-bridge-accent/50 transition-all max-w-[130px]"
                         >
                           <span className="truncate">
-                            {milestones.find(
-                              (m) => m.id === newSubtaskMilestoneId,
-                            )?.title ?? t("featureDetail.milestoneUnassigned")}
+                            {milestones.find((m) => m.id === newSubtaskMilestoneId)?.title ??
+                              t('featureDetail.milestoneUnassigned')}
                           </span>
                           <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
                         </button>
@@ -1161,11 +1071,11 @@ export function FeatureDetailModal({
                             }}
                             className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
                               newSubtaskMilestoneId === null
-                                ? "bg-bridge-accent/15 text-bridge-accent font-bold"
-                                : "text-foreground hover:bg-foreground/5"
+                                ? 'bg-bridge-accent/15 text-bridge-accent font-bold'
+                                : 'text-foreground hover:bg-foreground/5'
                             }`}
                           >
-                            {t("featureDetail.milestoneUnassigned")}
+                            {t('featureDetail.milestoneUnassigned')}
                           </button>
                           {milestones.map((m) => (
                             <button
@@ -1177,8 +1087,8 @@ export function FeatureDetailModal({
                               }}
                               className={`w-full text-left px-3 py-2 rounded-lg text-xs truncate transition-colors ${
                                 newSubtaskMilestoneId === m.id
-                                  ? "bg-bridge-accent/15 text-bridge-accent font-bold"
-                                  : "text-foreground hover:bg-foreground/5"
+                                  ? 'bg-bridge-accent/15 text-bridge-accent font-bold'
+                                  : 'text-foreground hover:bg-foreground/5'
                               }`}
                             >
                               {m.title}
@@ -1189,14 +1099,14 @@ export function FeatureDetailModal({
                     </Popover>
                     <input
                       type="text"
-                      placeholder={t("featureDetail.newSubtaskPlaceholder")}
+                      placeholder={t('featureDetail.newSubtaskPlaceholder')}
                       value={newSubtaskTitle}
                       onChange={(e) => setNewSubtaskTitle(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.nativeEvent.isComposing) return;
-                        if (e.key === "Enter") handleAddSubtask();
+                        if (e.key === 'Enter') handleAddSubtask();
                       }}
-                      className={`flex-1 rounded-lg px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent text-foreground transition-all ${isOnboarding && tasks.length === 0 ? "bg-bridge-dark/70 border-2 border-bridge-accent/40 placeholder-slate-500 shadow-[0_0_12px_rgba(99,102,241,0.15)]" : "bg-bridge-dark/50 border border-bridge-border/30 placeholder-slate-500"}`}
+                      className={`flex-1 rounded-lg px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent text-foreground transition-all ${isOnboarding && tasks.length === 0 ? 'bg-bridge-dark/70 border-2 border-bridge-accent/40 placeholder-slate-500 shadow-[0_0_12px_rgba(99,102,241,0.15)]' : 'bg-bridge-dark/50 border border-bridge-border/30 placeholder-slate-500'}`}
                       autoFocus={isOnboarding && tasks.length === 0}
                     />
                     <motion.button
@@ -1211,11 +1121,7 @@ export function FeatureDetailModal({
                         color: selectedColor,
                         borderColor: `${selectedColor}33`,
                       }}
-                      animate={
-                        isOnboarding && tasks.length === 0
-                          ? { scale: [1, 1.05, 1] }
-                          : {}
-                      }
+                      animate={isOnboarding && tasks.length === 0 ? { scale: [1, 1.05, 1] } : {}}
                       transition={{ duration: 1.5, repeat: Infinity }}
                     >
                       ADD
@@ -1231,20 +1137,15 @@ export function FeatureDetailModal({
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setEditedFeature(
-                      JSON.parse(JSON.stringify(initialFeature)),
-                    );
+                    setEditedFeature(JSON.parse(JSON.stringify(initialFeature)));
                     setHasChanges(false);
                   }}
                   className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
                 >
-                  {t("common.cancel")}
+                  {t('common.cancel')}
                 </Button>
-                <Button
-                  onClick={handleSave}
-                  className="bg-bridge-accent hover:bg-bridge-accent/90"
-                >
-                  {t("common.save")}
+                <Button onClick={handleSave} className="bg-bridge-accent hover:bg-bridge-accent/90">
+                  {t('common.save')}
                 </Button>
               </div>
             )}
@@ -1258,24 +1159,20 @@ export function FeatureDetailModal({
         onClose={() => setShowConfirmDialog(false)}
         className="sm:max-w-sm p-6"
       >
-        <h3 className="text-lg font-bold text-foreground">
-          {t("featureDetail.saveChangesTitle")}
-        </h3>
-        <p className="text-sm text-slate-400 mt-1">
-          {t("featureDetail.saveChangesDesc")}
-        </p>
+        <h3 className="text-lg font-bold text-foreground">{t('featureDetail.saveChangesTitle')}</h3>
+        <p className="text-sm text-slate-400 mt-1">{t('featureDetail.saveChangesDesc')}</p>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
           <button
             onClick={handleDiscardAndClose}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10"
           >
-            {t("featureDetail.discard")}
+            {t('featureDetail.discard')}
           </button>
           <button
             onClick={handleSaveAndClose}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-bridge-accent text-white hover:bg-bridge-accent/90"
           >
-            {t("common.save")}
+            {t('common.save')}
           </button>
         </div>
       </MotionModal>
@@ -1286,9 +1183,9 @@ export function FeatureDetailModal({
         onClose={() => {
           setShowDeleteDialog(false);
           setTaskMigrationMap({});
-          setBulkTargetFeatureId("");
+          setBulkTargetFeatureId('');
         }}
-        className={`${tasks.length > 0 ? "sm:max-w-lg" : "sm:max-w-sm"} p-0 max-h-[80dvh] flex flex-col overflow-hidden`}
+        className={`${tasks.length > 0 ? 'sm:max-w-lg' : 'sm:max-w-sm'} p-0 max-h-[80dvh] flex flex-col overflow-hidden`}
       >
         {tasks.length > 0 ? (
           <>
@@ -1300,10 +1197,10 @@ export function FeatureDetailModal({
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-foreground">
-                    {t("featureDetail.deleteTitle")}
+                    {t('featureDetail.deleteTitle')}
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    {t("featureDetail.taskMigrationDesc", {
+                    {t('featureDetail.taskMigrationDesc', {
                       count: tasks.length,
                     })}
                   </p>
@@ -1315,7 +1212,7 @@ export function FeatureDetailModal({
             <div className="px-6 py-3 border-b border-foreground/5 bg-foreground/[0.02] flex-shrink-0">
               <div className="flex items-center gap-3">
                 <span className="text-xs font-bold uppercase tracking-widest text-slate-400 whitespace-nowrap">
-                  {t("featureDetail.bulkMigrate", "일괄 이관")}
+                  {t('featureDetail.bulkMigrate', '일괄 이관')}
                 </span>
                 <div className="relative flex-1">
                   <select
@@ -1336,7 +1233,7 @@ export function FeatureDetailModal({
                     className="w-full appearance-none bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2 pr-8 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                   >
                     <option value="">
-                      {t("featureDetail.selectFeature", "이관할 피처 선택...")}
+                      {t('featureDetail.selectFeature', '이관할 피처 선택...')}
                     </option>
                     {allFeatures
                       .filter((f) => f.id !== feature.id)
@@ -1374,7 +1271,7 @@ export function FeatureDetailModal({
                     </span>
                     <div className="relative flex-shrink-0">
                       <select
-                        value={taskMigrationMap[task.id] || ""}
+                        value={taskMigrationMap[task.id] || ''}
                         onChange={(e) => {
                           const val = e.target.value;
                           setTaskMigrationMap((prev) => {
@@ -1386,13 +1283,11 @@ export function FeatureDetailModal({
                             }
                             return next;
                           });
-                          setBulkTargetFeatureId("");
+                          setBulkTargetFeatureId('');
                         }}
                         className="appearance-none bg-foreground/5 border border-foreground/10 rounded-md px-2.5 py-1.5 pr-7 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 max-w-[160px]"
                       >
-                        <option value="">
-                          {t("featureDetail.deleteWithFeature", "삭제")}
-                        </option>
+                        <option value="">{t('featureDetail.deleteWithFeature', '삭제')}</option>
                         {allFeatures
                           .filter((f) => f.id !== feature.id)
                           .map((f) => (
@@ -1412,19 +1307,15 @@ export function FeatureDetailModal({
             <div className="px-6 py-4 border-t border-foreground/10 flex-shrink-0">
               {/* Warning for tasks to be deleted */}
               {(() => {
-                const deleteCount = tasks.filter(
-                  (t) => !taskMigrationMap[t.id],
-                ).length;
-                const migrateCount = tasks.filter(
-                  (t) => !!taskMigrationMap[t.id],
-                ).length;
+                const deleteCount = tasks.filter((t) => !taskMigrationMap[t.id]).length;
+                const migrateCount = tasks.filter((t) => !!taskMigrationMap[t.id]).length;
                 return (
                   <>
                     {deleteCount > 0 && (
                       <div className="flex items-start gap-2 mb-3 p-2.5 rounded-lg bg-red-500/10 border border-red-500/20">
                         <AlertTriangle className="h-3.5 w-3.5 text-red-400 flex-shrink-0 mt-0.5" />
                         <p className="text-xs text-red-300">
-                          {t("featureDetail.deleteWarning", {
+                          {t('featureDetail.deleteWarning', {
                             deleteCount,
                             defaultValue: `${deleteCount}개 태스크가 피처와 함께 삭제됩니다.`,
                           })}
@@ -1436,11 +1327,11 @@ export function FeatureDetailModal({
                         onClick={() => {
                           setShowDeleteDialog(false);
                           setTaskMigrationMap({});
-                          setBulkTargetFeatureId("");
+                          setBulkTargetFeatureId('');
                         }}
                         className="flex-1 inline-flex items-center justify-center rounded-lg text-sm font-medium h-10 px-4 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10 transition-colors"
                       >
-                        {t("common.cancel")}
+                        {t('common.cancel')}
                       </button>
                       <button
                         onClick={() => {
@@ -1450,24 +1341,21 @@ export function FeatureDetailModal({
                               task_id: taskId,
                               target_feature_id: targetId,
                             }));
-                          onDelete(
-                            feature.id,
-                            migrations.length > 0 ? migrations : undefined,
-                          );
+                          onDelete(feature.id, migrations.length > 0 ? migrations : undefined);
                           onClose();
                         }}
                         className={`flex-1 inline-flex items-center justify-center rounded-lg text-sm font-bold h-10 px-4 text-white transition-all ${
                           migrateCount > 0
-                            ? "bg-bridge-accent hover:bg-bridge-accent/90"
-                            : "bg-red-500 hover:bg-red-600"
+                            ? 'bg-bridge-accent hover:bg-bridge-accent/90'
+                            : 'bg-red-500 hover:bg-red-600'
                         }`}
                       >
                         {migrateCount > 0
-                          ? t("featureDetail.migrateAndDelete", {
+                          ? t('featureDetail.migrateAndDelete', {
                               migrateCount,
                               defaultValue: `${migrateCount}개 이관 후 삭제`,
                             })
-                          : t("featureDetail.deleteAll", "전체 삭제")}
+                          : t('featureDetail.deleteAll', '전체 삭제')}
                       </button>
                     </div>
                   </>
@@ -1478,18 +1366,14 @@ export function FeatureDetailModal({
         ) : (
           /* 태스크 없을 때: 간단 확인 모달 */
           <div className="p-6">
-            <h3 className="text-lg font-bold text-foreground">
-              {t("featureDetail.deleteTitle")}
-            </h3>
-            <p className="text-sm text-slate-400 mt-1">
-              {t("featureDetail.deleteDesc")}
-            </p>
+            <h3 className="text-lg font-bold text-foreground">{t('featureDetail.deleteTitle')}</h3>
+            <p className="text-sm text-slate-400 mt-1">{t('featureDetail.deleteDesc')}</p>
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
               <button
                 onClick={() => setShowDeleteDialog(false)}
                 className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10"
               >
-                {t("common.cancel")}
+                {t('common.cancel')}
               </button>
               <button
                 onClick={() => {
@@ -1498,7 +1382,7 @@ export function FeatureDetailModal({
                 }}
                 className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-500 hover:bg-red-600 text-white"
               >
-                {t("common.delete")}
+                {t('common.delete')}
               </button>
             </div>
           </div>
@@ -1519,7 +1403,7 @@ export function FeatureDetailModal({
                 <Sparkles className="h-3.5 w-3.5 text-white" />
               </div>
               <h3 className="text-sm font-bold text-foreground">
-                {t("featureDetail.aiConfirmTitle")}
+                {t('featureDetail.aiConfirmTitle')}
               </h3>
             </div>
             <button
@@ -1532,14 +1416,12 @@ export function FeatureDetailModal({
 
           {/* Content */}
           <div className="px-5 py-4 space-y-4">
-            <p className="text-xs text-slate-400">
-              {t("featureDetail.aiConfirmDesc")}
-            </p>
+            <p className="text-xs text-slate-400">{t('featureDetail.aiConfirmDesc')}</p>
 
             {/* Feature title */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                {t("featureDetail.aiConfirmFeatureTitle")}
+                {t('featureDetail.aiConfirmFeatureTitle')}
               </label>
               <input
                 type="text"
@@ -1552,14 +1434,12 @@ export function FeatureDetailModal({
             {/* Feature description */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                {t("featureDetail.aiConfirmFeatureDesc")}
+                {t('featureDetail.aiConfirmFeatureDesc')}
               </label>
               <textarea
-                value={editedFeature.description || ""}
-                onChange={(e) =>
-                  updateEditedFeature({ description: e.target.value })
-                }
-                placeholder={t("featureDetail.aiConfirmNoDesc")}
+                value={editedFeature.description || ''}
+                onChange={(e) => updateEditedFeature({ description: e.target.value })}
+                placeholder={t('featureDetail.aiConfirmNoDesc')}
                 rows={3}
                 className="w-full px-3 py-2.5 bg-white/5 rounded-lg border border-foreground/5 text-sm text-slate-300 placeholder-amber-400/60 resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
               />
@@ -1572,7 +1452,7 @@ export function FeatureDetailModal({
               onClick={() => setShowAIConfirm(false)}
               className="px-4 py-2 text-sm text-slate-400 hover:text-foreground transition-colors"
             >
-              {t("common.cancel")}
+              {t('common.cancel')}
             </button>
             <button
               onClick={() => {
@@ -1587,7 +1467,7 @@ export function FeatureDetailModal({
               className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-lg hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all flex items-center gap-1.5"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              {t("featureDetail.aiConfirmStart")}
+              {t('featureDetail.aiConfirmStart')}
             </button>
           </div>
         </MotionModal>
@@ -1631,9 +1511,7 @@ export function FeatureDetailModal({
             >
               <div className="flex items-center gap-2 px-4 py-2 bg-indigo-600 rounded-lg shadow-[0_0_20px_rgba(99,102,241,0.5)]">
                 <ArrowRight size={12} className="text-white" />
-                <span className="text-xs font-bold text-white whitespace-nowrap">
-                  TASK
-                </span>
+                <span className="text-xs font-bold text-white whitespace-nowrap">TASK</span>
               </div>
             </motion.div>
           </AnimatePresence>,
@@ -1657,31 +1535,21 @@ function SortableSubtaskRow({
   onClick: () => void;
   children: React.ReactNode;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: taskId, disabled: !dragEnabled });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: taskId,
+    disabled: !dragEnabled,
+  });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 10 : undefined,
-    position: isDragging ? "relative" : undefined,
+    position: isDragging ? 'relative' : undefined,
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      className={className}
-      onClick={onClick}
-    >
+    <div ref={setNodeRef} style={style} {...attributes} className={className} onClick={onClick}>
       {dragEnabled && (
         <span
           {...listeners}

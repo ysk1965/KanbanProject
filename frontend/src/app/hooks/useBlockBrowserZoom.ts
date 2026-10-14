@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect } from 'react';
 
 /**
  * 이미지 뷰어(라이트박스 등)가 열려 있는 동안 브라우저 자체 줌을 막는다.
@@ -12,29 +12,26 @@ import { useEffect } from "react";
  */
 export function useBlockBrowserZoom(enabled: boolean) {
   useEffect(() => {
-    if (!enabled || typeof document === "undefined") return;
+    if (!enabled || typeof document === 'undefined') return;
 
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) e.preventDefault();
     };
     const onGesture = (e: Event) => e.preventDefault();
 
-    document.addEventListener("wheel", onWheel, { passive: false });
-    document.addEventListener("gesturestart", onGesture);
-    document.addEventListener("gesturechange", onGesture);
+    document.addEventListener('wheel', onWheel, { passive: false });
+    document.addEventListener('gesturestart', onGesture);
+    document.addEventListener('gesturechange', onGesture);
     return () => {
-      document.removeEventListener("wheel", onWheel);
-      document.removeEventListener("gesturestart", onGesture);
-      document.removeEventListener("gesturechange", onGesture);
+      document.removeEventListener('wheel', onWheel);
+      document.removeEventListener('gesturestart', onGesture);
+      document.removeEventListener('gesturechange', onGesture);
     };
   }, [enabled]);
 }
 
 /** wheel 이벤트를 줌 배율 변화량으로 변환 (핀치는 연속, 마우스 휠은 단계식) */
-export function wheelToZoomFactor(
-  e: WheelEvent,
-  step: number,
-): (z: number) => number {
+export function wheelToZoomFactor(e: WheelEvent, step: number): (z: number) => number {
   if (e.ctrlKey || e.metaKey) {
     // 트랙패드 핀치: deltaY 가 작고 연속적 → 비례 스케일
     const factor = Math.exp(-e.deltaY * 0.01);

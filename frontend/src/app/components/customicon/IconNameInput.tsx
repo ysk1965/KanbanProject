@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, X, Grid3X3 } from "lucide-react";
+import { useState } from 'react';
+import { Plus, X, Grid3X3 } from 'lucide-react';
 
 interface IconNameInputProps {
   names: string[];
@@ -8,18 +8,13 @@ interface IconNameInputProps {
   onLayoutChange: (layout: string) => void;
 }
 
-const LAYOUTS = ["2x2", "3x3", "4x4"];
+const LAYOUTS = ['2x2', '3x3', '4x4'];
 
-export function IconNameInput({
-  names,
-  onChange,
-  layout,
-  onLayoutChange,
-}: IconNameInputProps) {
-  const [inputValue, setInputValue] = useState("");
+export function IconNameInput({ names, onChange, layout, onLayoutChange }: IconNameInputProps) {
+  const [inputValue, setInputValue] = useState('');
 
   const maxIcons = (() => {
-    const [c, r] = layout.split("x").map(Number);
+    const [c, r] = layout.split('x').map(Number);
     return c * r;
   })();
 
@@ -28,12 +23,12 @@ export function IconNameInput({
     if (!trimmed || names.length >= maxIcons) return;
     // comma-separated 입력 지원
     const newNames = trimmed
-      .split(",")
+      .split(',')
       .map((n) => n.trim())
       .filter(Boolean);
     const combined = [...names, ...newNames].slice(0, maxIcons);
     onChange(combined);
-    setInputValue("");
+    setInputValue('');
   };
 
   const removeName = (index: number) => {
@@ -41,7 +36,7 @@ export function IconNameInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+    if (e.key === 'Enter') {
       e.preventDefault();
       addName();
     }
@@ -63,8 +58,8 @@ export function IconNameInput({
                 px-3 py-2 min-h-11 text-xs rounded transition-all
                 ${
                   layout === l
-                    ? "bg-bridge-accent text-white"
-                    : "bg-white/5 text-slate-500 hover:bg-white/10"
+                    ? 'bg-bridge-accent text-white'
+                    : 'bg-white/5 text-slate-500 hover:bg-white/10'
                 }
               `}
             >
@@ -118,9 +113,7 @@ export function IconNameInput({
         </div>
       )}
 
-      <p className="text-xs text-slate-600">
-        Tip: Separate multiple names with commas
-      </p>
+      <p className="text-xs text-slate-600">Tip: Separate multiple names with commas</p>
     </div>
   );
 }

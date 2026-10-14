@@ -105,7 +105,10 @@ export function AdminMonitoringTab() {
       setToast({ message: t('admin.monitoring.configSaved'), type: 'success' });
     } catch (err) {
       console.error('Failed to save config:', err);
-      setToast({ message: t('admin.monitoring.configSaveFailed', 'Failed to save configuration'), type: 'error' });
+      setToast({
+        message: t('admin.monitoring.configSaveFailed', 'Failed to save configuration'),
+        type: 'error',
+      });
     } finally {
       setIsSavingConfig(false);
     }
@@ -118,7 +121,10 @@ export function AdminMonitoringTab() {
       setToast({ message: t('admin.monitoring.testSent'), type: 'success' });
     } catch (err) {
       console.error('Failed to send test alert:', err);
-      setToast({ message: t('admin.monitoring.testSendFailed', 'Failed to send test alert'), type: 'error' });
+      setToast({
+        message: t('admin.monitoring.testSendFailed', 'Failed to send test alert'),
+        type: 'error',
+      });
     } finally {
       setIsSendingTest(false);
     }
@@ -196,7 +202,8 @@ export function AdminMonitoringTab() {
             />
           </div>
           <p className="text-xs text-slate-500 mt-2">
-            {Math.round(dashboard.jvm.heap_used / 1024 / 1024)} MB / {Math.round(dashboard.jvm.heap_max / 1024 / 1024)} MB
+            {Math.round(dashboard.jvm.heap_used / 1024 / 1024)} MB /{' '}
+            {Math.round(dashboard.jvm.heap_max / 1024 / 1024)} MB
           </p>
         </div>
 
@@ -216,7 +223,8 @@ export function AdminMonitoringTab() {
             />
           </div>
           <p className="text-xs text-slate-500 mt-2">
-            {t('admin.monitoring.active')}: {dashboard.hikari.active_connections} / {t('admin.monitoring.idle')}: {dashboard.hikari.idle_connections}
+            {t('admin.monitoring.active')}: {dashboard.hikari.active_connections} /{' '}
+            {t('admin.monitoring.idle')}: {dashboard.hikari.idle_connections}
           </p>
         </div>
 
@@ -236,7 +244,8 @@ export function AdminMonitoringTab() {
             {dashboard.api.error_rate.toFixed(2)}%
           </p>
           <p className="text-xs text-slate-500 mt-3">
-            {dashboard.api.total_errors.toLocaleString()} / {dashboard.api.total_requests.toLocaleString()}
+            {dashboard.api.total_errors.toLocaleString()} /{' '}
+            {dashboard.api.total_requests.toLocaleString()}
           </p>
         </button>
 
@@ -256,14 +265,21 @@ export function AdminMonitoringTab() {
       </div>
 
       {/* Charts */}
-      <MonitoringCharts dashboard={dashboard} history={history} aiUsage={aiUsage} openAIBilling={openAIBilling} />
+      <MonitoringCharts
+        dashboard={dashboard}
+        history={history}
+        aiUsage={aiUsage}
+        openAIBilling={openAIBilling}
+      />
 
       {/* OpenAI Account Billing */}
       {openAIBilling && (
         <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
           <div className="flex items-center gap-2 mb-4">
             <CreditCard className="h-5 w-5 text-emerald-400" />
-            <h3 className="text-lg font-bold text-foreground">{t('admin.monitoring.openAIBilling')}</h3>
+            <h3 className="text-lg font-bold text-foreground">
+              {t('admin.monitoring.openAIBilling')}
+            </h3>
           </div>
           {openAIBilling.connected ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -282,23 +298,35 @@ export function AdminMonitoringTab() {
               <div className="bg-foreground/5 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Zap className="h-4 w-4 text-amber-400" />
-                  <p className="text-slate-400 text-sm">{t('admin.monitoring.openAITotalRequests')}</p>
+                  <p className="text-slate-400 text-sm">
+                    {t('admin.monitoring.openAITotalRequests')}
+                  </p>
                 </div>
                 <p className="text-2xl font-bold text-foreground">
-                  {openAIBilling.model_usage.reduce((sum, m) => sum + m.requests, 0).toLocaleString()}
+                  {openAIBilling.model_usage
+                    .reduce((sum, m) => sum + m.requests, 0)
+                    .toLocaleString()}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">{t('admin.monitoring.last30Days')}</p>
               </div>
               <div className="bg-foreground/5 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Activity className="h-4 w-4 text-cyan-400" />
-                  <p className="text-slate-400 text-sm">{t('admin.monitoring.openAITotalTokens')}</p>
+                  <p className="text-slate-400 text-sm">
+                    {t('admin.monitoring.openAITotalTokens')}
+                  </p>
                 </div>
                 <p className="text-2xl font-bold text-foreground">
-                  {((openAIBilling.model_usage.reduce((sum, m) => sum + m.input_tokens + m.output_tokens, 0)) / 1000).toFixed(1)}K
+                  {(
+                    openAIBilling.model_usage.reduce(
+                      (sum, m) => sum + m.input_tokens + m.output_tokens,
+                      0,
+                    ) / 1000
+                  ).toFixed(1)}
+                  K
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
-                  {openAIBilling.model_usage.map(m => m.model).join(', ') || '-'}
+                  {openAIBilling.model_usage.map((m) => m.model).join(', ') || '-'}
                 </p>
               </div>
             </div>
@@ -306,7 +334,9 @@ export function AdminMonitoringTab() {
             <div className="text-center py-6">
               <Key className="h-8 w-8 text-slate-500 mx-auto mb-3" />
               <p className="text-slate-400 mb-1">{t('admin.monitoring.openAINotConnected')}</p>
-              <p className="text-slate-500 text-sm">{t('admin.monitoring.openAINotConnectedDesc')}</p>
+              <p className="text-slate-500 text-sm">
+                {t('admin.monitoring.openAINotConnectedDesc')}
+              </p>
             </div>
           )}
         </div>
@@ -323,9 +353,7 @@ export function AdminMonitoringTab() {
             <p className="text-2xl font-bold text-foreground mt-1">
               {aiUsage.total_calls.toLocaleString()}
             </p>
-            <p className="text-xs text-slate-500 mt-3">
-              {t('admin.monitoring.last30Days')}
-            </p>
+            <p className="text-xs text-slate-500 mt-3">{t('admin.monitoring.last30Days')}</p>
           </div>
 
           <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
@@ -337,7 +365,8 @@ export function AdminMonitoringTab() {
               {((aiUsage.total_input_tokens + aiUsage.total_output_tokens) / 1000).toFixed(1)}K
             </p>
             <p className="text-xs text-slate-500 mt-3">
-              In: {(aiUsage.total_input_tokens / 1000).toFixed(1)}K / Out: {(aiUsage.total_output_tokens / 1000).toFixed(1)}K
+              In: {(aiUsage.total_input_tokens / 1000).toFixed(1)}K / Out:{' '}
+              {(aiUsage.total_output_tokens / 1000).toFixed(1)}K
             </p>
           </div>
 
@@ -349,9 +378,7 @@ export function AdminMonitoringTab() {
             <p className="text-2xl font-bold text-foreground mt-1">
               ${aiUsage.total_estimated_cost_usd.toFixed(4)}
             </p>
-            <p className="text-xs text-slate-500 mt-3">
-              {t('admin.monitoring.last30Days')}
-            </p>
+            <p className="text-xs text-slate-500 mt-3">{t('admin.monitoring.last30Days')}</p>
           </div>
 
           <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
@@ -361,12 +388,13 @@ export function AdminMonitoringTab() {
             </div>
             <p className="text-2xl font-bold text-foreground mt-1">
               {aiUsage.total_calls > 0
-                ? Math.round((aiUsage.total_input_tokens + aiUsage.total_output_tokens) / aiUsage.total_calls).toLocaleString()
+                ? Math.round(
+                    (aiUsage.total_input_tokens + aiUsage.total_output_tokens) /
+                      aiUsage.total_calls,
+                  ).toLocaleString()
                 : 0}
             </p>
-            <p className="text-xs text-slate-500 mt-3">
-              {t('admin.monitoring.tokensPerCall')}
-            </p>
+            <p className="text-xs text-slate-500 mt-3">{t('admin.monitoring.tokensPerCall')}</p>
           </div>
         </div>
       )}
@@ -420,7 +448,11 @@ export function AdminMonitoringTab() {
               />
               <button
                 onClick={() => {
-                  if (newEmail.trim() && newEmail.includes('@') && !emailRecipients.includes(newEmail.trim())) {
+                  if (
+                    newEmail.trim() &&
+                    newEmail.includes('@') &&
+                    !emailRecipients.includes(newEmail.trim())
+                  ) {
                     setEmailRecipients([...emailRecipients, newEmail.trim()]);
                     setNewEmail('');
                   }
@@ -450,7 +482,12 @@ export function AdminMonitoringTab() {
               </div>
             )}
             {emailRecipients.length === 0 && (
-              <p className="text-xs text-slate-600">{t('admin.monitoring.emailRecipientsHint', '500 에러 발생 시 이메일로도 알림을 받을 수 있습니다')}</p>
+              <p className="text-xs text-slate-600">
+                {t(
+                  'admin.monitoring.emailRecipientsHint',
+                  '500 에러 발생 시 이메일로도 알림을 받을 수 있습니다',
+                )}
+              </p>
             )}
           </div>
 
@@ -503,7 +540,10 @@ export function AdminMonitoringTab() {
 
       {/* Error Detail Modal */}
       {showErrorDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowErrorDetail(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowErrorDetail(false)}
+        >
           <div
             className="bg-bridge-obsidian rounded-2xl border border-foreground/10 shadow-2xl w-full max-w-3xl max-h-[80dvh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
@@ -513,13 +553,19 @@ export function AdminMonitoringTab() {
               <div className="flex items-center gap-3">
                 <AlertTriangle className="h-5 w-5 text-amber-400" />
                 <div>
-                  <h3 className="text-lg font-bold text-foreground">{t('admin.monitoring.errorDetail', 'API 에러 상세')}</h3>
+                  <h3 className="text-lg font-bold text-foreground">
+                    {t('admin.monitoring.errorDetail', 'API 에러 상세')}
+                  </h3>
                   <p className="text-sm text-slate-400 mt-0.5">
-                    {t('admin.monitoring.errorSummary', '총 {{errors}}건 / {{requests}}건 ({{rate}}%)', {
-                      errors: dashboard.api.total_errors.toLocaleString(),
-                      requests: dashboard.api.total_requests.toLocaleString(),
-                      rate: dashboard.api.error_rate.toFixed(2),
-                    })}
+                    {t(
+                      'admin.monitoring.errorSummary',
+                      '총 {{errors}}건 / {{requests}}건 ({{rate}}%)',
+                      {
+                        errors: dashboard.api.total_errors.toLocaleString(),
+                        requests: dashboard.api.total_requests.toLocaleString(),
+                        rate: dashboard.api.error_rate.toFixed(2),
+                      },
+                    )}
                   </p>
                 </div>
               </div>
@@ -536,24 +582,37 @@ export function AdminMonitoringTab() {
               {dashboard.api.top_error_endpoints && dashboard.api.top_error_endpoints.length > 0 ? (
                 <div className="space-y-3">
                   {dashboard.api.top_error_endpoints.map((ep, idx) => (
-                    <div key={idx} className="bg-foreground/5 rounded-xl p-4 hover:bg-white/[0.07] transition-colors">
+                    <div
+                      key={idx}
+                      className="bg-foreground/5 rounded-xl p-4 hover:bg-white/[0.07] transition-colors"
+                    >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <span className={`px-2 py-0.5 rounded text-xs font-bold shrink-0 ${
-                            ep.http_method === 'GET' ? 'bg-emerald-500/20 text-emerald-400' :
-                            ep.http_method === 'POST' ? 'bg-blue-500/20 text-blue-400' :
-                            ep.http_method === 'PUT' ? 'bg-amber-500/20 text-amber-400' :
-                            ep.http_method === 'DELETE' ? 'bg-red-500/20 text-red-400' :
-                            'bg-slate-500/20 text-slate-400'
-                          }`}>
+                          <span
+                            className={`px-2 py-0.5 rounded text-xs font-bold shrink-0 ${
+                              ep.http_method === 'GET'
+                                ? 'bg-emerald-500/20 text-emerald-400'
+                                : ep.http_method === 'POST'
+                                  ? 'bg-blue-500/20 text-blue-400'
+                                  : ep.http_method === 'PUT'
+                                    ? 'bg-amber-500/20 text-amber-400'
+                                    : ep.http_method === 'DELETE'
+                                      ? 'bg-red-500/20 text-red-400'
+                                      : 'bg-slate-500/20 text-slate-400'
+                            }`}
+                          >
                             {ep.http_method}
                           </span>
-                          <span className="text-sm text-foreground font-mono truncate">{ep.endpoint}</span>
+                          <span className="text-sm text-foreground font-mono truncate">
+                            {ep.endpoint}
+                          </span>
                         </div>
                         <div className="flex items-center gap-3 shrink-0 ml-3">
                           <span className="text-sm text-red-400 font-bold">{ep.error_count}</span>
                           <span className="text-xs text-slate-500">/ {ep.request_count}</span>
-                          <span className="text-xs text-amber-400 font-medium">({ep.error_rate.toFixed(1)}%)</span>
+                          <span className="text-xs text-amber-400 font-medium">
+                            ({ep.error_rate.toFixed(1)}%)
+                          </span>
                         </div>
                       </div>
                       {/* Status Code Badges */}
@@ -568,14 +627,16 @@ export function AdminMonitoringTab() {
                                   Number(code) >= 500
                                     ? 'bg-red-500/15 text-red-400 border border-red-500/20'
                                     : Number(code) === 401 || Number(code) === 403
-                                    ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
-                                    : Number(code) === 404
-                                    ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20'
-                                    : 'bg-slate-500/15 text-slate-400 border border-slate-500/20'
+                                      ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+                                      : Number(code) === 404
+                                        ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20'
+                                        : 'bg-slate-500/15 text-slate-400 border border-slate-500/20'
                                 }`}
                               >
                                 <span className="font-bold">{code}</span>
-                                <span className="opacity-70">&times;{(count as number).toLocaleString()}</span>
+                                <span className="opacity-70">
+                                  &times;{(count as number).toLocaleString()}
+                                </span>
                               </span>
                             ))}
                         </div>

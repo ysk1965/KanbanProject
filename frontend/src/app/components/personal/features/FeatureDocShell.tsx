@@ -1,14 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { useTranslation } from "react-i18next";
-import { Copy, Loader2, Printer, Trash2 } from "lucide-react";
-import { personalFeatureAPI } from "../../../utils/services";
-import { formatRelativeTime } from "../../../utils/dateUtils";
-import type {
-  PersonalFeature,
-  PersonalFeatureDoc,
-  PersonalFeatureTerm,
-} from "./types";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
+import { Copy, Loader2, Printer, Trash2 } from 'lucide-react';
+import { personalFeatureAPI } from '../../../utils/services';
+import { formatRelativeTime } from '../../../utils/dateUtils';
+import type { PersonalFeature, PersonalFeatureDoc, PersonalFeatureTerm } from './types';
 
 /**
  * 기능 문서 공통 셸.
@@ -19,8 +15,8 @@ import type {
  */
 
 const SAVE_DEBOUNCE_MS = 800;
-const NARROW_QUERY = "(max-width: 639px)";
-const PRINT_WRAPPER_ID = "timetable-print";
+const NARROW_QUERY = '(max-width: 639px)';
+const PRINT_WRAPPER_ID = 'timetable-print';
 
 interface FeatureDocShellProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,15 +33,13 @@ interface FeatureDocShellProps {
 
 function useIsNarrow(): boolean {
   const [narrow, setNarrow] = useState(() =>
-    typeof window !== "undefined"
-      ? window.matchMedia(NARROW_QUERY).matches
-      : false,
+    typeof window !== 'undefined' ? window.matchMedia(NARROW_QUERY).matches : false,
   );
   useEffect(() => {
     const mql = window.matchMedia(NARROW_QUERY);
     const handler = (e: MediaQueryListEvent) => setNarrow(e.matches);
-    mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
   }, []);
   return narrow;
 }
@@ -68,7 +62,7 @@ export function FeatureDocShell({
 
   // 제목 인라인 편집
   const [editingTitle, setEditingTitle] = useState(false);
-  const [titleDraft, setTitleDraft] = useState("");
+  const [titleDraft, setTitleDraft] = useState('');
 
   // 「n분 전 저장됨」 갱신용 틱
   const [, setTick] = useState(0);
@@ -85,7 +79,7 @@ export function FeatureDocShell({
     try {
       setTerms(await personalFeatureAPI.listTerms(featureKeyRef.current));
     } catch (e) {
-      console.error("Failed to load feature terms:", e);
+      console.error('Failed to load feature terms:', e);
     }
   }, []);
 
@@ -100,14 +94,12 @@ export function FeatureDocShell({
         if (docIdRef.current === id) {
           setLastSavedAt(saved.updated_at);
           setDoc((prev) =>
-            prev && prev.id === id
-              ? { ...prev, updated_at: saved.updated_at }
-              : prev,
+            prev && prev.id === id ? { ...prev, updated_at: saved.updated_at } : prev,
           );
           void refreshTerms();
         }
       } catch (e) {
-        console.error("Failed to save feature doc:", e);
+        console.error('Failed to save feature doc:', e);
       } finally {
         setSaving(false);
       }
@@ -141,19 +133,14 @@ export function FeatureDocShell({
     [flushPending],
   );
 
-  const handleForgetTerm = useCallback(
-    async (field: string, value: string) => {
-      try {
-        await personalFeatureAPI.forgetTerm(featureKeyRef.current, field, value);
-        setTerms((prev) =>
-          prev.filter((x) => !(x.field === field && x.value === value)),
-        );
-      } catch (e) {
-        console.error("Failed to forget term:", e);
-      }
-    },
-    [],
-  );
+  const handleForgetTerm = useCallback(async (field: string, value: string) => {
+    try {
+      await personalFeatureAPI.forgetTerm(featureKeyRef.current, field, value);
+      setTerms((prev) => prev.filter((x) => !(x.field === field && x.value === value)));
+    } catch (e) {
+      console.error('Failed to forget term:', e);
+    }
+  }, []);
 
   // 문서 + 추천 용어 로드. docId가 바뀌면 이전 문서의 보류 저장을 먼저 flush.
   useEffect(() => {
@@ -172,7 +159,7 @@ export function FeatureDocShell({
         setTerms(ts);
         setLastSavedAt(d.updated_at);
       } catch (e) {
-        console.error("Failed to load feature doc:", e);
+        console.error('Failed to load feature doc:', e);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -219,7 +206,7 @@ export function FeatureDocShell({
       setLastSavedAt(saved.updated_at);
       onDocChanged(id);
     } catch (e) {
-      console.error("Failed to rename feature doc:", e);
+      console.error('Failed to rename feature doc:', e);
     }
   }, [doc, titleDraft, feature.key, onDocChanged]);
 
@@ -232,7 +219,7 @@ export function FeatureDocShell({
       const copy = await personalFeatureAPI.duplicateDoc(feature.key, doc.id);
       onDocChanged(copy.id);
     } catch (e) {
-      console.error("Failed to duplicate feature doc:", e);
+      console.error('Failed to duplicate feature doc:', e);
     } finally {
       setDuplicating(false);
     }
@@ -243,12 +230,12 @@ export function FeatureDocShell({
     if (!doc) return;
     flushPending();
     const original = document.title;
-    document.title = doc.title || t("personal.features.untitled");
+    document.title = doc.title || t('personal.features.untitled');
     const restore = () => {
       document.title = original;
-      window.removeEventListener("afterprint", restore);
+      window.removeEventListener('afterprint', restore);
     };
-    window.addEventListener("afterprint", restore);
+    window.addEventListener('afterprint', restore);
     window.print();
   }, [doc, flushPending, t]);
 
@@ -275,10 +262,10 @@ export function FeatureDocShell({
               onChange={(e) => setTitleDraft(e.target.value)}
               onBlur={commitTitle}
               onKeyDown={(e) => {
-                if (e.key === "Enter") commitTitle();
-                if (e.key === "Escape") setEditingTitle(false);
+                if (e.key === 'Enter') commitTitle();
+                if (e.key === 'Escape') setEditingTitle(false);
               }}
-              aria-label={t("personal.features.untitled")}
+              aria-label={t('personal.features.untitled')}
               className="flex-1 min-w-0 max-w-md bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1.5 px-2.5 text-sm font-bold text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
             />
           ) : (
@@ -288,15 +275,15 @@ export function FeatureDocShell({
               title={doc.title}
               className="min-w-0 truncate text-sm md:text-base font-bold text-foreground hover:bg-foreground/5 rounded-lg px-1.5 py-1 -mx-1.5 transition-colors text-left"
             >
-              {doc.title || t("personal.features.untitled")}
+              {doc.title || t('personal.features.untitled')}
             </button>
           )}
           <span className="text-xs text-slate-500 whitespace-nowrap">
             {saving
-              ? t("personal.features.saving")
+              ? t('personal.features.saving')
               : lastSavedAt
-                ? `${t("personal.features.saved_ago")} · ${formatRelativeTime(lastSavedAt)}`
-                : ""}
+                ? `${t('personal.features.saved_ago')} · ${formatRelativeTime(lastSavedAt)}`
+                : ''}
           </span>
         </div>
 
@@ -312,7 +299,7 @@ export function FeatureDocShell({
             ) : (
               <Copy className="w-4 h-4" />
             )}
-            {t("personal.features.duplicate")}
+            {t('personal.features.duplicate')}
           </button>
           {PrintSheet && (
             <button
@@ -321,7 +308,7 @@ export function FeatureDocShell({
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10 transition-colors"
             >
               <Printer className="w-4 h-4" />
-              {t("personal.features.export_pdf")}
+              {t('personal.features.export_pdf')}
             </button>
           )}
           <button
@@ -330,7 +317,7 @@ export function FeatureDocShell({
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
           >
             <Trash2 className="w-4 h-4" />
-            {t("personal.features.delete")}
+            {t('personal.features.delete')}
           </button>
         </div>
       </div>

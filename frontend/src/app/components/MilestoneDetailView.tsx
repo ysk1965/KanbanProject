@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import { motion } from "framer-motion";
-import { useReducedMotion } from "../hooks/useReducedMotion";
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import {
   ChevronLeft,
   ChevronRight,
@@ -12,7 +12,7 @@ import {
   AlertTriangle,
   Loader2,
   Layers,
-} from "lucide-react";
+} from 'lucide-react';
 import type {
   Feature,
   Task,
@@ -22,16 +22,13 @@ import type {
   SprintInfo,
   SprintItemCard,
   SprintState,
-} from "../types";
-import { checklistService } from "../utils/services";
-import { sprintAPI } from "../utils/api";
-import { getMilestoneStatus } from "./MilestoneView";
-import {
-  MilestoneTableView,
-  type MilestoneTableFilters,
-} from "./MilestoneTableView";
+} from '../types';
+import { checklistService } from '../utils/services';
+import { sprintAPI } from '../utils/api';
+import { getMilestoneStatus } from './MilestoneView';
+import { MilestoneTableView, type MilestoneTableFilters } from './MilestoneTableView';
 
-const UNASSIGNED = "__unassigned__";
+const UNASSIGNED = '__unassigned__';
 
 // ========================================
 // Types
@@ -75,13 +72,13 @@ export interface TaskSprintInfo {
   checklistTotal: number;
 }
 
-type GroupMode = "feature" | "sprint";
-type LayoutMode = "board" | "table";
+type GroupMode = 'feature' | 'sprint';
+type LayoutMode = 'board' | 'table';
 
 /** "YYYY-MM-DD" → "M/D" (타임존 영향 없이 문자열 파싱) */
 export function toShortDate(dateStr?: string | null): string {
-  if (!dateStr) return "";
-  const p = dateStr.split("-");
+  if (!dateStr) return '';
+  const p = dateStr.split('-');
   return p.length < 3 ? dateStr : `${Number(p[1])}/${Number(p[2])}`;
 }
 
@@ -107,30 +104,29 @@ export function SprintChip({
   if (!info?.sprintId) {
     return (
       <span className="text-xs font-medium px-1.5 py-0.5 rounded-full border border-dashed border-foreground/20 text-slate-500 whitespace-nowrap">
-        {t("milestone.detail.backlog", { defaultValue: "백로그" })}
+        {t('milestone.detail.backlog', { defaultValue: '백로그' })}
       </span>
     );
   }
-  const seq = info.seq ?? currentSeq ?? "?";
-  if (info.state === "PAST") {
+  const seq = info.seq ?? currentSeq ?? '?';
+  if (info.state === 'PAST') {
     return (
       <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-foreground/[0.06] text-slate-500 whitespace-nowrap tabular-nums">
         S{seq} ✓
       </span>
     );
   }
-  if (info.state === "CURRENT") {
+  if (info.state === 'CURRENT') {
     return (
       <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary whitespace-nowrap tabular-nums">
-        S{seq} {t("milestone.detail.sprintActive", { defaultValue: "진행 중" })}
+        S{seq} {t('milestone.detail.sprintActive', { defaultValue: '진행 중' })}
       </span>
     );
   }
-  if (info.state === "FUTURE") {
+  if (info.state === 'FUTURE') {
     return (
       <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent whitespace-nowrap tabular-nums">
-        S{seq}{" "}
-        {t("milestone.detail.sprintUpcoming", { defaultValue: "예정" })}
+        S{seq} {t('milestone.detail.sprintUpcoming', { defaultValue: '예정' })}
       </span>
     );
   }
@@ -193,8 +189,7 @@ function TaskCard({
     ? sprintInfo.checklistDone
     : (task.checklist_completed ?? 0);
   const clTotal = sprintInfo?.checklistTotal ?? task.checklist_total ?? 0;
-  const dueOver =
-    !task.completed && !!task.due_date && daysUntil(task.due_date) < 0;
+  const dueOver = !task.completed && !!task.due_date && daysUntil(task.due_date) < 0;
   const assignees = task.assignees ?? [];
 
   return (
@@ -203,22 +198,22 @@ function TaskCard({
       tabIndex={0}
       onClick={onToggle}
       onKeyDown={(e) => {
-        if (e.key === "Enter") onToggle();
+        if (e.key === 'Enter') onToggle();
       }}
       className={`bg-bridge-dark rounded-xl border p-2.5 cursor-pointer transition-colors ${
         expanded
-          ? "border-bridge-secondary/35 bg-bridge-secondary/[0.04]"
-          : "border-foreground/[0.08] hover:border-foreground/[0.12]"
-      } ${task.completed ? "opacity-55" : ""}`}
+          ? 'border-bridge-secondary/35 bg-bridge-secondary/[0.04]'
+          : 'border-foreground/[0.08] hover:border-foreground/[0.12]'
+      } ${task.completed ? 'opacity-55' : ''}`}
     >
       {/* 1줄: 상태 + 제목 + 키 */}
       <div className="flex items-baseline gap-1.5">
         <span
           className={`text-xs flex-shrink-0 ${
-            task.completed ? "text-emerald-500" : "text-slate-400"
+            task.completed ? 'text-emerald-500' : 'text-slate-400'
           }`}
         >
-          {task.completed ? "✓" : clDone > 0 ? "◐" : "○"}
+          {task.completed ? '✓' : clDone > 0 ? '◐' : '○'}
         </span>
         <span
           onClick={(e) => {
@@ -227,8 +222,8 @@ function TaskCard({
             onTitleClick();
           }}
           className={`text-xs font-medium min-w-0 break-words ${
-            task.completed ? "text-slate-500 line-through" : "text-foreground"
-          }${onTitleClick ? " hover:text-bridge-accent hover:underline" : ""}`}
+            task.completed ? 'text-slate-500 line-through' : 'text-foreground'
+          }${onTitleClick ? ' hover:text-bridge-accent hover:underline' : ''}`}
         >
           {task.title}
         </span>
@@ -250,26 +245,22 @@ function TaskCard({
             <span className="truncate max-w-[110px]">{showFeature.title}</span>
           </span>
         )}
-        {sprintEnabled && !showFeature && (
-          <SprintChip info={sprintInfo} currentSeq={currentSeq} />
-        )}
+        {sprintEnabled && !showFeature && <SprintChip info={sprintInfo} currentSeq={currentSeq} />}
         {(sprintInfo?.carryOver ?? 0) > 0 && (
           <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 whitespace-nowrap">
-            {t("milestone.detail.carryOver", {
+            {t('milestone.detail.carryOver', {
               count: sprintInfo!.carryOver,
-              defaultValue: "이월 {{count}}",
+              defaultValue: '이월 {{count}}',
             })}
           </span>
         )}
         {task.due_date && (
           <span
             className={`text-xs tabular-nums ml-auto whitespace-nowrap ${
-              dueOver ? "font-bold text-red-500" : "text-slate-500"
+              dueOver ? 'font-bold text-red-500' : 'text-slate-500'
             }`}
           >
-            {task.completed
-              ? `${toShortDate(task.due_date)} ✓`
-              : `~${toShortDate(task.due_date)}`}
+            {task.completed ? `${toShortDate(task.due_date)} ✓` : `~${toShortDate(task.due_date)}`}
           </span>
         )}
       </div>
@@ -297,8 +288,8 @@ function TaskCard({
             </div>
           ) : !checklist || checklist.length === 0 ? (
             <div className="text-xs text-slate-600 py-1">
-              {t("milestone.detail.noChecklist", {
-                defaultValue: "체크리스트가 없습니다",
+              {t('milestone.detail.noChecklist', {
+                defaultValue: '체크리스트가 없습니다',
               })}
             </div>
           ) : (
@@ -307,17 +298,15 @@ function TaskCard({
                 <span
                   className={`w-3 h-3 rounded flex-shrink-0 border flex items-center justify-center text-xs leading-none ${
                     item.completed
-                      ? "bg-bridge-secondary/20 border-bridge-secondary text-bridge-secondary"
-                      : "border-foreground/25"
+                      ? 'bg-bridge-secondary/20 border-bridge-secondary text-bridge-secondary'
+                      : 'border-foreground/25'
                   }`}
                 >
-                  {item.completed ? "✓" : ""}
+                  {item.completed ? '✓' : ''}
                 </span>
                 <span
                   className={`text-xs min-w-0 truncate ${
-                    item.completed
-                      ? "text-slate-500 line-through"
-                      : "text-foreground/80"
+                    item.completed ? 'text-slate-500 line-through' : 'text-foreground/80'
                   }`}
                 >
                   {item.title}
@@ -326,19 +315,19 @@ function TaskCard({
                 <span
                   className={`text-xs ml-auto flex-shrink-0 ${
                     item.assignee || item.contractor
-                      ? "text-slate-500"
-                      : "text-amber-600 dark:text-amber-400"
+                      ? 'text-slate-500'
+                      : 'text-amber-600 dark:text-amber-400'
                   }`}
                   title={
                     item.contractor && !item.assignee
-                      ? `${t("task.contractorSection", { defaultValue: "외주 작업자" })} · ${item.contractor.name}`
+                      ? `${t('task.contractorSection', { defaultValue: '외주 작업자' })} · ${item.contractor.name}`
                       : undefined
                   }
                 >
                   {item.assignee?.name ??
                     item.contractor?.name ??
-                    t("milestone.detail.unassigned", {
-                      defaultValue: "미배정",
+                    t('milestone.detail.unassigned', {
+                      defaultValue: '미배정',
                     })}
                 </span>
               </div>
@@ -379,14 +368,14 @@ export function MilestoneDetailView({
   const { t } = useTranslation();
   const reduced = useReducedMotion();
 
-  const [groupMode, setGroupMode] = useState<GroupMode>("feature");
+  const [groupMode, setGroupMode] = useState<GroupMode>('feature');
   // 레이아웃: 보드(컬럼) ↔ 테이블. 보드별 localStorage 영속화.
   const layoutKey = `milestoneDetailLayout_${boardId}`;
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(() => {
     // 공유 링크가 레이아웃을 지정했으면 그게 우선 — 보낸 화면 그대로 열린다
     if (initialLayout) return initialLayout;
-    if (typeof window === "undefined") return "board";
-    return localStorage.getItem(layoutKey) === "table" ? "table" : "board";
+    if (typeof window === 'undefined') return 'board';
+    return localStorage.getItem(layoutKey) === 'table' ? 'table' : 'board';
   });
   const changeLayout = useCallback(
     (mode: LayoutMode) => {
@@ -436,35 +425,27 @@ export function MilestoneDetailView({
   const sortedMilestones = useMemo(
     () =>
       [...milestones].sort(
-        (a, b) =>
-          new Date(a.start_date).getTime() - new Date(b.start_date).getTime(),
+        (a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime(),
       ),
     [milestones],
   );
   const msIndex = sortedMilestones.findIndex((m) => m.id === mid);
   const prevMs = msIndex > 0 ? sortedMilestones[msIndex - 1] : null;
   const nextMs =
-    msIndex >= 0 && msIndex < sortedMilestones.length - 1
-      ? sortedMilestones[msIndex + 1]
-      : null;
+    msIndex >= 0 && msIndex < sortedMilestones.length - 1 ? sortedMilestones[msIndex + 1] : null;
 
   // 키보드: ←/→ 마일스톤 전환, Esc 복귀 (입력 필드에선 무시)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
-      if (
-        el &&
-        (el.tagName === "INPUT" ||
-          el.tagName === "TEXTAREA" ||
-          el.isContentEditable)
-      )
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable))
         return;
-      if (e.key === "Escape") onBack();
-      else if (e.key === "ArrowLeft" && prevMs) onSelectMilestone(prevMs.id);
-      else if (e.key === "ArrowRight" && nextMs) onSelectMilestone(nextMs.id);
+      if (e.key === 'Escape') onBack();
+      else if (e.key === 'ArrowLeft' && prevMs) onSelectMilestone(prevMs.id);
+      else if (e.key === 'ArrowRight' && nextMs) onSelectMilestone(nextMs.id);
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [onBack, onSelectMilestone, prevMs, nextMs]);
 
   // ── 마일스톤 스코프 집계 (진실 = task.milestone_id) ──
@@ -478,8 +459,7 @@ export function MilestoneDetailView({
     () => scopedTasks.filter((tk) => tk.completed).length,
     [scopedTasks],
   );
-  const scopedPct =
-    scopedTotal > 0 ? Math.round((scopedCompleted / scopedTotal) * 100) : 0;
+  const scopedPct = scopedTotal > 0 ? Math.round((scopedCompleted / scopedTotal) * 100) : 0;
   // 히어로 메타용 피처 수 — 그룹 모드와 무관하게 이 마일스톤에 걸친 피처 기준
   const scopedFeatureCount = useMemo(
     () => new Set(scopedTasks.map((tk) => tk.feature_id)).size,
@@ -488,10 +468,7 @@ export function MilestoneDetailView({
 
   // featureId → (milestoneKey → count) — 갈래·유입/유출 파생용 (전체 태스크 기준)
   const grid = useMemo(() => {
-    const map = new Map<
-      string,
-      Map<string, { total: number; completed: number }>
-    >();
+    const map = new Map<string, Map<string, { total: number; completed: number }>>();
     for (const tk of tasks) {
       if (!map.has(tk.feature_id)) map.set(tk.feature_id, new Map());
       const inner = map.get(tk.feature_id)!;
@@ -537,10 +514,7 @@ export function MilestoneDetailView({
   // ── 스프린트 조인 맵 ──
   const sprintEnabled = sprintBoard?.sprint_enabled ?? false;
   // 마일스톤 기간을 N등분한 버킷 전체 (sequence_no 오름차순).
-  const sprints = useMemo<SprintInfo[]>(
-    () => sprintBoard?.sprints ?? [],
-    [sprintBoard],
-  );
+  const sprints = useMemo<SprintInfo[]>(() => sprintBoard?.sprints ?? [], [sprintBoard]);
   const currentSeq = sprintBoard?.current_sprint?.sequence_no ?? null;
 
   const sprintById = useMemo(() => {
@@ -582,8 +556,7 @@ export function MilestoneDetailView({
         // 빼기 → 담기 순서. 서버가 재배정해 주더라도 결과는 같다.
         let next: SprintBoard | null = null;
         if (from) next = await sprintAPI.removeTask(boardId, from, taskId);
-        if (toSprintId)
-          next = await sprintAPI.addTask(boardId, toSprintId, taskId);
+        if (toSprintId) next = await sprintAPI.addTask(boardId, toSprintId, taskId);
         if (next) setSprintBoard(next);
       })().catch(() => {
         /* 실패 시 칩 원상태 유지 */
@@ -607,7 +580,7 @@ export function MilestoneDetailView({
   }
 
   const columns = useMemo<Column[]>(() => {
-    if (groupMode === "sprint" && sprintEnabled) {
+    if (groupMode === 'sprint' && sprintEnabled) {
       // 컬럼 = 버킷 (회차 순 = 지남 → 진행 중 → 예정) + 미배정 백로그
       const buckets = new Map<string, Task[]>();
       const backlog: Task[] = [];
@@ -633,25 +606,21 @@ export function MilestoneDetailView({
         if (!list?.length) continue;
         buckets.delete(sp.id);
         const mark =
-          sp.state === "PAST"
-            ? " ✓"
-            : sp.state === "CURRENT"
-              ? ` · ${t("milestone.detail.sprintActive", { defaultValue: "진행 중" })}`
-              : "";
+          sp.state === 'PAST'
+            ? ' ✓'
+            : sp.state === 'CURRENT'
+              ? ` · ${t('milestone.detail.sprintActive', { defaultValue: '진행 중' })}`
+              : '';
         cols.push(toColumn(sp.id, `S${sp.sequence_no}${mark}`, list));
       }
       // sprints에 없는 버킷에 담긴 카드도 흘리지 않는다 — 컬럼 합계가 어긋나면 안 된다.
       for (const [sid, list] of buckets) {
         const seq = sprintInfoByTask.get(list[0].id)?.seq;
-        cols.push(toColumn(sid, `S${seq ?? "?"}`, list));
+        cols.push(toColumn(sid, `S${seq ?? '?'}`, list));
       }
       if (backlog.length > 0) {
         cols.push(
-          toColumn(
-            "backlog",
-            t("milestone.detail.backlog", { defaultValue: "백로그" }),
-            backlog,
-          ),
+          toColumn('backlog', t('milestone.detail.backlog', { defaultValue: '백로그' }), backlog),
         );
       }
       return cols;
@@ -669,7 +638,7 @@ export function MilestoneDetailView({
       const completed = list.filter((tk) => tk.completed).length;
       // 갈래: 이 피처의 태스크가 다른 마일스톤/미배정에 얼마나 걸쳤나
       let splitCount = 0;
-      let splitLabel = "";
+      let splitLabel = '';
       let unassignedCount = 0;
       const inner = grid.get(featureId);
       if (inner) {
@@ -682,14 +651,14 @@ export function MilestoneDetailView({
             splitCount += s.total;
             if (s.total > bestSplit) {
               bestSplit = s.total;
-              splitLabel = milestoneTitleById.get(k) ?? "";
+              splitLabel = milestoneTitleById.get(k) ?? '';
             }
           }
         }
       }
       cols.push({
         key: featureId,
-        title: feature?.title ?? list[0]?.feature_title ?? "",
+        title: feature?.title ?? list[0]?.feature_title ?? '',
         color: feature?.color ?? list[0]?.feature_color ?? null,
         tasks: list,
         completed,
@@ -768,18 +737,11 @@ export function MilestoneDetailView({
 
   // ── 헤더 파생값 ──
   // 진행률 = 스코프 태스크들의 체크리스트 완료 합계 기준 (체크리스트가 없으면 태스크 완료 폴백)
-  const clDone = scopedTasks.reduce(
-    (acc, tk) => acc + (tk.checklist_completed ?? 0),
-    0,
-  );
-  const clTotal = scopedTasks.reduce(
-    (acc, tk) => acc + (tk.checklist_total ?? 0),
-    0,
-  );
+  const clDone = scopedTasks.reduce((acc, tk) => acc + (tk.checklist_completed ?? 0), 0);
+  const clTotal = scopedTasks.reduce((acc, tk) => acc + (tk.checklist_total ?? 0), 0);
   const progressDone = clTotal > 0 ? clDone : scopedCompleted;
   const progressTotal = clTotal > 0 ? clTotal : scopedTotal;
-  const progressPct =
-    progressTotal > 0 ? Math.round((progressDone / progressTotal) * 100) : 0;
+  const progressPct = progressTotal > 0 ? Math.round((progressDone / progressTotal) * 100) : 0;
 
   const status = getMilestoneStatus(
     milestone.start_date,
@@ -792,21 +754,18 @@ export function MilestoneDetailView({
   const end = new Date(milestone.end_date).getTime();
   const timePct =
     end > start
-      ? Math.min(
-          100,
-          Math.max(0, Math.round(((Date.now() - start) / (end - start)) * 100)),
-        )
+      ? Math.min(100, Math.max(0, Math.round(((Date.now() - start) / (end - start)) * 100)))
       : 100;
   const paceDelta = progressPct - timePct;
 
   const statusLabel =
-    status.key === "completed"
-      ? t("milestone.statusCompleted")
-      : status.key === "waiting"
-        ? t("milestone.statusWaiting")
-        : status.key === "overdue"
-          ? t("schedule.overdue", { defaultValue: "Overdue" })
-          : t("milestone.statusInProgress");
+    status.key === 'completed'
+      ? t('milestone.statusCompleted')
+      : status.key === 'waiting'
+        ? t('milestone.statusWaiting')
+        : status.key === 'overdue'
+          ? t('schedule.overdue', { defaultValue: 'Overdue' })
+          : t('milestone.statusInProgress');
 
   const TASK_LIMIT = 6;
 
@@ -824,8 +783,8 @@ export function MilestoneDetailView({
             onClick={() => prevMs && onSelectMilestone(prevMs.id)}
             disabled={!prevMs}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/[0.07] disabled:opacity-30 disabled:pointer-events-none transition-colors"
-            aria-label={t("milestone.detail.prevMilestone", {
-              defaultValue: "이전 마일스톤",
+            aria-label={t('milestone.detail.prevMilestone', {
+              defaultValue: '이전 마일스톤',
             })}
           >
             <ChevronLeft className="h-3.5 w-3.5" />
@@ -843,8 +802,8 @@ export function MilestoneDetailView({
             onClick={() => nextMs && onSelectMilestone(nextMs.id)}
             disabled={!nextMs}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/[0.07] disabled:opacity-30 disabled:pointer-events-none transition-colors"
-            aria-label={t("milestone.detail.nextMilestone", {
-              defaultValue: "다음 마일스톤",
+            aria-label={t('milestone.detail.nextMilestone', {
+              defaultValue: '다음 마일스톤',
             })}
           >
             <ChevronRight className="h-3.5 w-3.5" />
@@ -853,10 +812,7 @@ export function MilestoneDetailView({
           {/* 점프 드롭다운 */}
           {switcherOpen && (
             <>
-              <div
-                className="fixed inset-0 z-30"
-                onClick={() => setSwitcherOpen(false)}
-              />
+              <div className="fixed inset-0 z-30" onClick={() => setSwitcherOpen(false)} />
               <div className="absolute top-full left-0 mt-1.5 z-40 w-60 max-h-72 overflow-y-auto custom-scrollbar bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1.5">
                 {sortedMilestones.map((ms) => (
                   <button
@@ -867,8 +823,8 @@ export function MilestoneDetailView({
                     }}
                     className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${
                       ms.id === mid
-                        ? "text-bridge-accent font-bold bg-bridge-accent/10"
-                        : "text-foreground hover:bg-foreground/5"
+                        ? 'text-bridge-accent font-bold bg-bridge-accent/10'
+                        : 'text-foreground hover:bg-foreground/5'
                     }`}
                   >
                     <span className="truncate flex-1">{ms.title}</span>
@@ -887,77 +843,76 @@ export function MilestoneDetailView({
         >
           {statusLabel}
         </span>
-        {status.key !== "completed" && (
+        {status.key !== 'completed' && (
           <span
             className={`text-xs font-bold tabular-nums ${
-              dday < 0 ? "text-red-500" : "text-slate-400"
+              dday < 0 ? 'text-red-500' : 'text-slate-400'
             }`}
           >
-            {dday < 0 ? `D+${-dday}` : dday === 0 ? "D-DAY" : `D-${dday}`}
+            {dday < 0 ? `D+${-dday}` : dday === 0 ? 'D-DAY' : `D-${dday}`}
           </span>
         )}
         <span className="hidden md:inline text-xs text-slate-400 tabular-nums whitespace-nowrap">
-          {toShortDate(milestone.start_date)}~{toShortDate(milestone.end_date)}{" "}
-          ·{" "}
-          {t("milestone.detail.featureCount", {
+          {toShortDate(milestone.start_date)}~{toShortDate(milestone.end_date)} ·{' '}
+          {t('milestone.detail.featureCount', {
             count: scopedFeatureCount,
-            defaultValue: "피처 {{count}}개",
-          })}{" "}
-          ·{" "}
-          {t("milestone.detail.taskCount", {
+            defaultValue: '피처 {{count}}개',
+          })}{' '}
+          ·{' '}
+          {t('milestone.detail.taskCount', {
             count: scopedTotal,
-            defaultValue: "태스크 {{count}}개",
+            defaultValue: '태스크 {{count}}개',
           })}
         </span>
 
         {/* 진행 막대 (체크리스트 기준) + 오늘 마커 */}
         <div
           className="relative flex-1 min-w-[120px] h-1.5 rounded-full bg-foreground/10"
-          title={t("milestone.detail.timeElapsed", {
+          title={t('milestone.detail.timeElapsed', {
             pct: timePct,
-            defaultValue: "기간 경과 {{pct}}%",
+            defaultValue: '기간 경과 {{pct}}%',
           })}
         >
           <div
             className="absolute inset-y-0 left-0 rounded-full bg-bridge-accent"
             style={{ width: `${progressPct}%` }}
           />
-          {status.key !== "waiting" && (
+          {status.key !== 'waiting' && (
             <div
               className={`absolute -top-1 -bottom-1 w-0.5 rounded ${
-                status.key === "overdue" ? "bg-red-500" : "bg-bridge-secondary"
+                status.key === 'overdue' ? 'bg-red-500' : 'bg-bridge-secondary'
               }`}
               style={{ left: `calc(${timePct}% - 1px)` }}
-              title={t("milestone.detail.todayMarker", {
-                defaultValue: "오늘 (기간 경과)",
+              title={t('milestone.detail.todayMarker', {
+                defaultValue: '오늘 (기간 경과)',
               })}
             />
           )}
         </div>
         <span
           className="text-xs text-slate-400 tabular-nums whitespace-nowrap"
-          title={t("milestone.detail.progressByChecklist", {
-            defaultValue: "체크리스트 완료 기준",
+          title={t('milestone.detail.progressByChecklist', {
+            defaultValue: '체크리스트 완료 기준',
           })}
         >
-          <b className="text-sm text-foreground font-bold">{progressPct}%</b> ·{" "}
-          {progressDone}/{progressTotal}
+          <b className="text-sm text-foreground font-bold">{progressPct}%</b> · {progressDone}/
+          {progressTotal}
         </span>
-        {status.key !== "completed" && status.key !== "waiting" && (
+        {status.key !== 'completed' && status.key !== 'waiting' && (
           <span
             className={`text-xs font-bold tabular-nums whitespace-nowrap ${
               paceDelta >= 0
-                ? "text-emerald-600 dark:text-emerald-400"
+                ? 'text-emerald-600 dark:text-emerald-400'
                 : paceDelta > -15
-                  ? "text-amber-600 dark:text-amber-400"
-                  : "text-red-500"
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : 'text-red-500'
             }`}
           >
             {paceDelta >= 0
-              ? t("milestone.detail.paceAhead", { defaultValue: "순항 중" })
-              : t("milestone.detail.paceBehind", {
+              ? t('milestone.detail.paceAhead', { defaultValue: '순항 중' })
+              : t('milestone.detail.paceBehind', {
                   delta: -paceDelta,
-                  defaultValue: "페이스 {{delta}}%p 부족",
+                  defaultValue: '페이스 {{delta}}%p 부족',
                 })}
           </span>
         )}
@@ -969,8 +924,8 @@ export function MilestoneDetailView({
           >
             <Columns3 className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">
-              {t("milestone.detail.viewInKanban", {
-                defaultValue: "칸반에서 보기",
+              {t('milestone.detail.viewInKanban', {
+                defaultValue: '칸반에서 보기',
               })}
             </span>
           </button>
@@ -979,7 +934,7 @@ export function MilestoneDetailView({
           <button
             onClick={() => onEditMilestone(milestone)}
             className="p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-            aria-label={t("common.edit", { defaultValue: "수정" })}
+            aria-label={t('common.edit', { defaultValue: '수정' })}
           >
             <Pencil className="h-3.5 w-3.5" />
           </button>
@@ -990,75 +945,75 @@ export function MilestoneDetailView({
       <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-foreground/[0.04] border-b border-foreground/[0.06]">
           <span className="text-xs md:text-sm font-bold text-foreground">
-            {layoutMode === "table"
-              ? t("milestone.table.title", {
-                  defaultValue: "피처 · 태스크 · 체크리스트",
+            {layoutMode === 'table'
+              ? t('milestone.table.title', {
+                  defaultValue: '피처 · 태스크 · 체크리스트',
                 })
-              : groupMode === "sprint"
-                ? t("milestone.detail.bySprintTitle", {
-                    defaultValue: "스프린트별 진행 · 이 마일스톤 기준",
+              : groupMode === 'sprint'
+                ? t('milestone.detail.bySprintTitle', {
+                    defaultValue: '스프린트별 진행 · 이 마일스톤 기준',
                   })
-                : t("milestone.detail.byFeatureTitle", {
-                    defaultValue: "피처별 진행 · 이 마일스톤 기준",
+                : t('milestone.detail.byFeatureTitle', {
+                    defaultValue: '피처별 진행 · 이 마일스톤 기준',
                   })}
           </span>
           <div className="flex items-center gap-2">
-            {layoutMode === "board" && sprintEnabled && (
+            {layoutMode === 'board' && sprintEnabled && (
               <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/5 border border-foreground/[0.08]">
                 <button
-                  onClick={() => setGroupMode("feature")}
+                  onClick={() => setGroupMode('feature')}
                   className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
-                    groupMode === "feature"
-                      ? "bg-bridge-accent text-white font-bold"
-                      : "text-slate-400 hover:text-foreground"
+                    groupMode === 'feature'
+                      ? 'bg-bridge-accent text-white font-bold'
+                      : 'text-slate-400 hover:text-foreground'
                   }`}
                 >
-                  {t("milestone.detail.byFeature", {
-                    defaultValue: "피처별",
+                  {t('milestone.detail.byFeature', {
+                    defaultValue: '피처별',
                   })}
                 </button>
                 <button
-                  onClick={() => setGroupMode("sprint")}
+                  onClick={() => setGroupMode('sprint')}
                   className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
-                    groupMode === "sprint"
-                      ? "bg-bridge-accent text-white font-bold"
-                      : "text-slate-400 hover:text-foreground"
+                    groupMode === 'sprint'
+                      ? 'bg-bridge-accent text-white font-bold'
+                      : 'text-slate-400 hover:text-foreground'
                   }`}
                 >
-                  {t("milestone.detail.bySprint", {
-                    defaultValue: "스프린트별",
+                  {t('milestone.detail.bySprint', {
+                    defaultValue: '스프린트별',
                   })}
                 </button>
               </div>
             )}
             <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/5 border border-foreground/[0.08]">
               <button
-                onClick={() => changeLayout("board")}
+                onClick={() => changeLayout('board')}
                 className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
-                  layoutMode === "board"
-                    ? "bg-bridge-accent text-white font-bold"
-                    : "text-slate-400 hover:text-foreground"
+                  layoutMode === 'board'
+                    ? 'bg-bridge-accent text-white font-bold'
+                    : 'text-slate-400 hover:text-foreground'
                 }`}
               >
-                {t("milestone.table.layoutBoard", { defaultValue: "보드" })}
+                {t('milestone.table.layoutBoard', { defaultValue: '보드' })}
               </button>
               <button
-                onClick={() => changeLayout("table")}
+                onClick={() => changeLayout('table')}
                 className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
-                  layoutMode === "table"
-                    ? "bg-bridge-accent text-white font-bold"
-                    : "text-slate-400 hover:text-foreground"
+                  layoutMode === 'table'
+                    ? 'bg-bridge-accent text-white font-bold'
+                    : 'text-slate-400 hover:text-foreground'
                 }`}
               >
-                {t("milestone.table.layoutTable", {
-                  defaultValue: "테이블",
+                {t('milestone.table.layoutTable', {
+                  defaultValue: '테이블',
                 })}
               </button>
             </div>
           </div>
         </div>
 
-        {layoutMode === "table" ? (
+        {layoutMode === 'table' ? (
           <MilestoneTableView
             boardId={boardId}
             milestone={milestone}
@@ -1081,8 +1036,8 @@ export function MilestoneDetailView({
           <div className="flex flex-col items-center py-12 text-slate-500">
             <Layers className="h-6 w-6 mb-2" />
             <span className="text-xs">
-              {t("milestone.detail.noTasks", {
-                defaultValue: "이 마일스톤에 배정된 태스크가 없습니다",
+              {t('milestone.detail.noTasks', {
+                defaultValue: '이 마일스톤에 배정된 태스크가 없습니다',
               })}
             </span>
           </div>
@@ -1090,17 +1045,11 @@ export function MilestoneDetailView({
           <div className="flex gap-3 overflow-x-auto custom-scrollbar p-3 items-start">
             {columns.map((col, index) => {
               const pct =
-                col.tasks.length > 0
-                  ? Math.round((col.completed / col.tasks.length) * 100)
-                  : 0;
+                col.tasks.length > 0 ? Math.round((col.completed / col.tasks.length) * 100) : 0;
               const showAll = showAllColumns.has(col.key);
               const sorted = [...col.tasks].sort((a, b) => {
-                if (a.completed !== b.completed)
-                  return Number(a.completed) - Number(b.completed);
-                return (
-                  (a.feature_position ?? a.position) -
-                  (b.feature_position ?? b.position)
-                );
+                if (a.completed !== b.completed) return Number(a.completed) - Number(b.completed);
+                return (a.feature_position ?? a.position) - (b.feature_position ?? b.position);
               });
               const visible = showAll ? sorted : sorted.slice(0, TASK_LIMIT);
               return (
@@ -1115,9 +1064,7 @@ export function MilestoneDetailView({
                   <div className="px-1 pb-2 border-b border-foreground/[0.07]">
                     <div
                       className={`flex items-center gap-2${
-                        col.feature && onFeatureClick
-                          ? " cursor-pointer group/fh"
-                          : ""
+                        col.feature && onFeatureClick ? ' cursor-pointer group/fh' : ''
                       }`}
                       onClick={
                         col.feature && onFeatureClick
@@ -1148,8 +1095,8 @@ export function MilestoneDetailView({
                       {(col.splitCount ?? 0) > 0 && (
                         <span
                           className="flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent whitespace-nowrap"
-                          title={t("milestone.board.splitTip", {
-                            defaultValue: "다른 마일스톤으로 갈라진 태스크",
+                          title={t('milestone.board.splitTip', {
+                            defaultValue: '다른 마일스톤으로 갈라진 태스크',
                           })}
                         >
                           <GitBranch className="h-3 w-3" />
@@ -1180,14 +1127,10 @@ export function MilestoneDetailView({
                         currentSeq={currentSeq}
                         sprintEnabled={sprintEnabled}
                         showFeature={
-                          groupMode === "sprint"
+                          groupMode === 'sprint'
                             ? {
-                                title:
-                                  featureById.get(tk.feature_id)?.title ??
-                                  tk.feature_title,
-                                color:
-                                  featureById.get(tk.feature_id)?.color ??
-                                  tk.feature_color,
+                                title: featureById.get(tk.feature_id)?.title ?? tk.feature_title,
+                                color: featureById.get(tk.feature_id)?.color ?? tk.feature_color,
                               }
                             : null
                         }
@@ -1195,9 +1138,7 @@ export function MilestoneDetailView({
                         checklist={cached?.items}
                         checklistLoading={cached?.loading ?? false}
                         onToggle={() => toggleTask(tk.id)}
-                        onTitleClick={
-                          onTaskClick ? () => onTaskClick(tk) : undefined
-                        }
+                        onTitleClick={onTaskClick ? () => onTaskClick(tk) : undefined}
                       />
                     );
                   })}
@@ -1207,12 +1148,12 @@ export function MilestoneDetailView({
                       className="w-full text-left px-1.5 py-1 text-xs text-slate-500 hover:text-foreground transition-colors"
                     >
                       {showAll
-                        ? t("milestone.detail.showLess", {
-                            defaultValue: "접기",
+                        ? t('milestone.detail.showLess', {
+                            defaultValue: '접기',
                           })
-                        : t("milestone.detail.showMore", {
+                        : t('milestone.detail.showMore', {
                             count: sorted.length - TASK_LIMIT,
-                            defaultValue: "외 {{count}}개 모두 보기",
+                            defaultValue: '외 {{count}}개 모두 보기',
                           })}
                     </button>
                   )}

@@ -1,15 +1,10 @@
-import { Download, Link2, X } from "lucide-react";
-import { MotionModal } from "../ui/MotionModal";
-import { ZoomableImage } from "../ui/ZoomableImage";
-import type { StorageFileItem, StoragePreviewInfo } from "../../utils/api";
-import {
-  formatBytes,
-  fileIconFor,
-  isSpreadsheetFile,
-  isConvertibleDocument,
-} from "./storageUtils";
-import { SpreadsheetPreview } from "./SpreadsheetPreview";
-import { DocumentPreview } from "./DocumentPreview";
+import { Download, Link2, X } from 'lucide-react';
+import { MotionModal } from '../ui/MotionModal';
+import { ZoomableImage } from '../ui/ZoomableImage';
+import type { StorageFileItem, StoragePreviewInfo } from '../../utils/api';
+import { formatBytes, fileIconFor, isSpreadsheetFile, isConvertibleDocument } from './storageUtils';
+import { SpreadsheetPreview } from './SpreadsheetPreview';
+import { DocumentPreview } from './DocumentPreview';
 
 interface StoragePreviewModalProps {
   file: StorageFileItem | null;
@@ -43,10 +38,7 @@ export function StoragePreviewModal({
       className="w-full sm:max-w-3xl bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-foreground/10 shadow-2xl"
     >
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
-        <p
-          className="text-sm font-bold text-foreground truncate"
-          title={file.original_filename}
-        >
+        <p className="text-sm font-bold text-foreground truncate" title={file.original_filename}>
           {file.original_filename}
         </p>
         <button
@@ -69,24 +61,12 @@ export function StoragePreviewModal({
             />
           ) : file.is_video ? (
             <video src={file.url} controls className="max-h-[60vh] w-full" />
-          ) : file.content_type === "application/pdf" ? (
-            <iframe
-              src={file.url}
-              title={file.original_filename}
-              className="w-full h-[60vh]"
-            />
+          ) : file.content_type === 'application/pdf' ? (
+            <iframe src={file.url} title={file.original_filename} className="w-full h-[60vh]" />
           ) : isSpreadsheetFile(file) ? (
-            <SpreadsheetPreview
-              file={file}
-              loadBlob={onLoadBlob}
-              heightClass="h-[60vh]"
-            />
+            <SpreadsheetPreview file={file} loadBlob={onLoadBlob} heightClass="h-[60vh]" />
           ) : isConvertibleDocument(file) ? (
-            <DocumentPreview
-              file={file}
-              loadPreview={onLoadPreview}
-              heightClass="h-[60vh]"
-            />
+            <DocumentPreview file={file} loadPreview={onLoadPreview} heightClass="h-[60vh]" />
           ) : (
             <div className="flex flex-col items-center gap-3 py-16 text-slate-500">
               <Icon className="w-16 h-16" />
@@ -97,21 +77,19 @@ export function StoragePreviewModal({
       </div>
 
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-xs text-slate-500">
-          {formatBytes(file.file_size)}
-        </span>
+        <span className="text-xs text-slate-500">{formatBytes(file.file_size)}</span>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => onToggleShare(file)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
               file.is_shared
-                ? "bg-bridge-accent/15 text-bridge-accent"
-                : "bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10"
+                ? 'bg-bridge-accent/15 text-bridge-accent'
+                : 'bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10'
             }`}
           >
             <Link2 className="w-3.5 h-3.5" />
-            {file.is_shared ? "공유 중" : "공유"}
+            {file.is_shared ? '공유 중' : '공유'}
           </button>
           <button
             type="button"

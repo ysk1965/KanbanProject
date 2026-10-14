@@ -38,7 +38,12 @@ const FEATURE_LABELS: Record<string, string> = {
   STANDUP: 'Standup',
 };
 
-export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }: MonitoringChartsProps) {
+export function MonitoringCharts({
+  dashboard,
+  history,
+  aiUsage,
+  openAIBilling,
+}: MonitoringChartsProps) {
   const { t } = useTranslation();
 
   const tooltipStyle = {
@@ -86,7 +91,8 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
                   contentStyle={tooltipStyle}
                   labelFormatter={(label) => `${label}`}
                   formatter={(value: number, name: string) => {
-                    if (name === 'avg_response_ms') return [value.toFixed(2) + ' ms', t('admin.monitoring.responseTime')];
+                    if (name === 'avg_response_ms')
+                      return [value.toFixed(2) + ' ms', t('admin.monitoring.responseTime')];
                     return [value, name];
                   }}
                 />
@@ -135,15 +141,27 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
                   contentStyle={tooltipStyle}
                   labelFormatter={(label) => formatTime(label)}
                   formatter={(value: number, name: string) => {
-                    if (name === 'avg_response_ms') return [value.toFixed(2) + ' ms', t('admin.monitoring.responseTime')];
-                    if (name === 'error_rate') return [value.toFixed(2) + '%', t('admin.monitoring.errorRate')];
+                    if (name === 'avg_response_ms')
+                      return [value.toFixed(2) + ' ms', t('admin.monitoring.responseTime')];
+                    if (name === 'error_rate')
+                      return [value.toFixed(2) + '%', t('admin.monitoring.errorRate')];
                     return [value, name];
                   }}
                 />
                 <Legend
                   formatter={(value: string) => {
-                    if (value === 'avg_response_ms') return <span className="text-muted-foreground text-sm">{t('admin.monitoring.responseTime')}</span>;
-                    if (value === 'error_rate') return <span className="text-muted-foreground text-sm">{t('admin.monitoring.errorRate')}</span>;
+                    if (value === 'avg_response_ms')
+                      return (
+                        <span className="text-muted-foreground text-sm">
+                          {t('admin.monitoring.responseTime')}
+                        </span>
+                      );
+                    if (value === 'error_rate')
+                      return (
+                        <span className="text-muted-foreground text-sm">
+                          {t('admin.monitoring.errorRate')}
+                        </span>
+                      );
                     return <span className="text-muted-foreground text-sm">{value}</span>;
                   }}
                 />
@@ -176,101 +194,114 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
       </div>
 
       {/* OpenAI Billing Charts */}
-      {openAIBilling && openAIBilling.connected && (openAIBilling.daily_costs.length > 0 || openAIBilling.model_usage.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Daily Cost Trend */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <CreditCard className="h-5 w-5 text-emerald-400" />
-              <h3 className="text-foreground font-bold">{t('admin.monitoring.openAIDailyCost')}</h3>
-            </div>
-            <div className="h-64">
-              {openAIBilling.daily_costs.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={openAIBilling.daily_costs}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis
-                      dataKey="date"
-                      stroke="#64748b"
-                      fontSize={11}
-                      tickFormatter={(v) => v.substring(5)}
-                    />
-                    <YAxis stroke="#64748b" fontSize={12} tickFormatter={(v) => `$${v}`} />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      formatter={(value: number) => [`$${value.toFixed(4)}`, t('admin.monitoring.openAICost')]}
-                      labelFormatter={(label) => label}
-                    />
-                    <Bar dataKey="amount_usd" fill="#10B981" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-slate-500">
-                  {t('admin.monitoring.noData')}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Model Usage Distribution */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <CreditCard className="h-5 w-5 text-emerald-400" />
-              <h3 className="text-foreground font-bold">{t('admin.monitoring.openAIModelUsage')}</h3>
-            </div>
-            <div className="h-64">
-              {openAIBilling.model_usage.length > 0 ? (
-                <div className="flex items-center h-full">
-                  <ResponsiveContainer width="50%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={openAIBilling.model_usage}
-                        dataKey="requests"
-                        nameKey="model"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        innerRadius={40}
-                      >
-                        {openAIBilling.model_usage.map((_, index) => (
-                          <Cell key={index} fill={FEATURE_COLORS[index % FEATURE_COLORS.length]} />
-                        ))}
-                      </Pie>
+      {openAIBilling &&
+        openAIBilling.connected &&
+        (openAIBilling.daily_costs.length > 0 || openAIBilling.model_usage.length > 0) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Daily Cost Trend */}
+            <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <CreditCard className="h-5 w-5 text-emerald-400" />
+                <h3 className="text-foreground font-bold">
+                  {t('admin.monitoring.openAIDailyCost')}
+                </h3>
+              </div>
+              <div className="h-64">
+                {openAIBilling.daily_costs.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={openAIBilling.daily_costs}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis
+                        dataKey="date"
+                        stroke="#64748b"
+                        fontSize={11}
+                        tickFormatter={(v) => v.substring(5)}
+                      />
+                      <YAxis stroke="#64748b" fontSize={12} tickFormatter={(v) => `$${v}`} />
                       <Tooltip
                         contentStyle={tooltipStyle}
-                        formatter={(value: number, name: string) => [
-                          `${value.toLocaleString()} requests`,
-                          name,
+                        formatter={(value: number) => [
+                          `$${value.toFixed(4)}`,
+                          t('admin.monitoring.openAICost'),
                         ]}
+                        labelFormatter={(label) => label}
                       />
-                    </PieChart>
+                      <Bar dataKey="amount_usd" fill="#10B981" radius={[4, 4, 0, 0]} />
+                    </BarChart>
                   </ResponsiveContainer>
-                  <div className="w-1/2 space-y-3">
-                    {openAIBilling.model_usage.map((m, i) => (
-                      <div key={m.model} className="space-y-1">
-                        <div className="flex items-center gap-2 text-sm">
-                          <div
-                            className="w-3 h-3 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: FEATURE_COLORS[i % FEATURE_COLORS.length] }}
-                          />
-                          <span className="text-muted-foreground truncate">{m.model}</span>
-                        </div>
-                        <div className="pl-5 text-xs text-slate-500">
-                          {m.requests.toLocaleString()} req / {((m.input_tokens + m.output_tokens) / 1000).toFixed(1)}K tokens
-                        </div>
-                      </div>
-                    ))}
+                ) : (
+                  <div className="flex items-center justify-center h-full text-slate-500">
+                    {t('admin.monitoring.noData')}
                   </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full text-slate-500">
-                  {t('admin.monitoring.noData')}
-                </div>
-              )}
+                )}
+              </div>
+            </div>
+
+            {/* Model Usage Distribution */}
+            <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <CreditCard className="h-5 w-5 text-emerald-400" />
+                <h3 className="text-foreground font-bold">
+                  {t('admin.monitoring.openAIModelUsage')}
+                </h3>
+              </div>
+              <div className="h-64">
+                {openAIBilling.model_usage.length > 0 ? (
+                  <div className="flex items-center h-full">
+                    <ResponsiveContainer width="50%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={openAIBilling.model_usage}
+                          dataKey="requests"
+                          nameKey="model"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          innerRadius={40}
+                        >
+                          {openAIBilling.model_usage.map((_, index) => (
+                            <Cell
+                              key={index}
+                              fill={FEATURE_COLORS[index % FEATURE_COLORS.length]}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={tooltipStyle}
+                          formatter={(value: number, name: string) => [
+                            `${value.toLocaleString()} requests`,
+                            name,
+                          ]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="w-1/2 space-y-3">
+                      {openAIBilling.model_usage.map((m, i) => (
+                        <div key={m.model} className="space-y-1">
+                          <div className="flex items-center gap-2 text-sm">
+                            <div
+                              className="w-3 h-3 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: FEATURE_COLORS[i % FEATURE_COLORS.length] }}
+                            />
+                            <span className="text-muted-foreground truncate">{m.model}</span>
+                          </div>
+                          <div className="pl-5 text-xs text-slate-500">
+                            {m.requests.toLocaleString()} req /{' '}
+                            {((m.input_tokens + m.output_tokens) / 1000).toFixed(1)}K tokens
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-slate-500">
+                    {t('admin.monitoring.noData')}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* CloudWatch Metrics */}
       {dashboard.cloud_watch ? (
@@ -292,8 +323,12 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
                 />
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-400">
-                <div>Network In: {(dashboard.cloud_watch.ec2.network_in / 1024 / 1024).toFixed(2)} MB</div>
-                <div>Network Out: {(dashboard.cloud_watch.ec2.network_out / 1024 / 1024).toFixed(2)} MB</div>
+                <div>
+                  Network In: {(dashboard.cloud_watch.ec2.network_in / 1024 / 1024).toFixed(2)} MB
+                </div>
+                <div>
+                  Network Out: {(dashboard.cloud_watch.ec2.network_out / 1024 / 1024).toFixed(2)} MB
+                </div>
               </div>
             </div>
           )}
@@ -317,12 +352,17 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between text-slate-400">
                   <span>{t('admin.monitoring.rdsConnections')}</span>
-                  <span className="text-foreground font-medium">{dashboard.cloud_watch.rds.database_connections}</span>
+                  <span className="text-foreground font-medium">
+                    {dashboard.cloud_watch.rds.database_connections}
+                  </span>
                 </div>
                 <div className="flex justify-between text-slate-400">
                   <span>{t('admin.monitoring.rdsIops')}</span>
                   <span className="text-foreground font-medium">
-                    {t('admin.monitoring.readIops')}: {dashboard.cloud_watch.rds.read_iops.toFixed(0)} / {t('admin.monitoring.writeIops')}: {dashboard.cloud_watch.rds.write_iops.toFixed(0)}
+                    {t('admin.monitoring.readIops')}:{' '}
+                    {dashboard.cloud_watch.rds.read_iops.toFixed(0)} /{' '}
+                    {t('admin.monitoring.writeIops')}:{' '}
+                    {dashboard.cloud_watch.rds.write_iops.toFixed(0)}
                   </span>
                 </div>
               </div>
@@ -337,7 +377,9 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
           </div>
           <div className="text-center py-8">
             <p className="text-slate-400 mb-2">{t('admin.monitoring.cloudWatchNotConnected')}</p>
-            <p className="text-slate-500 text-sm">{t('admin.monitoring.cloudWatchNotConnectedDesc')}</p>
+            <p className="text-slate-500 text-sm">
+              {t('admin.monitoring.cloudWatchNotConnectedDesc')}
+            </p>
           </div>
         </div>
       )}
@@ -363,18 +405,30 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
                       stroke="#64748b"
                       fontSize={12}
                       width={120}
-                      tickFormatter={(v) => v.length > 15 ? v.substring(0, 12) + '...' : v}
+                      tickFormatter={(v) => (v.length > 15 ? v.substring(0, 12) + '...' : v)}
                     />
                     <Tooltip
                       contentStyle={tooltipStyle}
                       formatter={(value: number, name: string) => {
-                        if (name === 'input_tokens') return [value.toLocaleString(), 'Input Tokens'];
-                        if (name === 'output_tokens') return [value.toLocaleString(), 'Output Tokens'];
+                        if (name === 'input_tokens')
+                          return [value.toLocaleString(), 'Input Tokens'];
+                        if (name === 'output_tokens')
+                          return [value.toLocaleString(), 'Output Tokens'];
                         return [value, name];
                       }}
                     />
-                    <Bar dataKey="input_tokens" fill="#6366F1" stackId="tokens" radius={[0, 0, 0, 0]} />
-                    <Bar dataKey="output_tokens" fill="#8B5CF6" stackId="tokens" radius={[0, 4, 4, 0]} />
+                    <Bar
+                      dataKey="input_tokens"
+                      fill="#6366F1"
+                      stackId="tokens"
+                      radius={[0, 0, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="output_tokens"
+                      fill="#8B5CF6"
+                      stackId="tokens"
+                      radius={[0, 4, 4, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -389,7 +443,9 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
           <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
             <div className="flex items-center gap-2 mb-4">
               <Bot className="h-5 w-5 text-purple-400" />
-              <h3 className="text-foreground font-bold">{t('admin.monitoring.aiUsageByFeature')}</h3>
+              <h3 className="text-foreground font-bold">
+                {t('admin.monitoring.aiUsageByFeature')}
+              </h3>
             </div>
             <div className="h-64">
               {aiUsage.by_feature.length > 0 ? (
@@ -426,7 +482,9 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
                           className="w-3 h-3 rounded-full"
                           style={{ backgroundColor: FEATURE_COLORS[i % FEATURE_COLORS.length] }}
                         />
-                        <span className="text-muted-foreground">{FEATURE_LABELS[f.feature_type] || f.feature_type}</span>
+                        <span className="text-muted-foreground">
+                          {FEATURE_LABELS[f.feature_type] || f.feature_type}
+                        </span>
                         <span className="ml-auto text-slate-400">{f.call_count}</span>
                       </div>
                     ))}

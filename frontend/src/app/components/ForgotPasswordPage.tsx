@@ -70,7 +70,8 @@ export function ForgotPasswordPage() {
 
             {/* Description */}
             <p className="text-slate-400 text-center mb-8 leading-relaxed">
-              {t('forgotPassword.description1')}<br />
+              {t('forgotPassword.description1')}
+              <br />
               {t('forgotPassword.description2')}
             </p>
 
@@ -149,10 +150,10 @@ export function ForgotPasswordPage() {
                   <span className="text-sm">&#x23F0;</span>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium mb-1">{t('forgotPassword.linkValidity')}</p>
-                  <p className="text-xs text-slate-400">
-                    {t('forgotPassword.linkValidityDesc')}
+                  <p className="text-sm text-muted-foreground font-medium mb-1">
+                    {t('forgotPassword.linkValidity')}
                   </p>
+                  <p className="text-xs text-slate-400">{t('forgotPassword.linkValidityDesc')}</p>
                 </div>
               </div>
             </div>
@@ -175,7 +176,10 @@ export function ForgotPasswordPage() {
 
         {/* Footer */}
         <div className="mt-8 pt-6 border-t border-bridge-border">
-          <Link to="/" className="block text-center text-sm text-slate-400 hover:text-foreground transition-colors">
+          <Link
+            to="/"
+            className="block text-center text-sm text-slate-400 hover:text-foreground transition-colors"
+          >
             {t('forgotPassword.backToHome')}
           </Link>
         </div>

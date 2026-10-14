@@ -1,18 +1,11 @@
-import { useRef, useState, useMemo, useCallback, useEffect, memo } from "react";
-import { Task, Feature, ChecklistItem } from "../types";
-import {
-  Calendar,
-  Clock,
-  ChevronDown,
-  ChevronUp,
-  CheckSquare,
-  Check,
-} from "lucide-react";
-import { checklistAPI } from "../utils/api";
-import { useTaskDragState, useDragActions } from "../contexts/DragContext";
-import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
-import { useTranslation } from "react-i18next";
-import { CompletionParticles } from "./CompletionParticles";
+import { useRef, useState, useMemo, useCallback, useEffect, memo } from 'react';
+import { Task, Feature, ChecklistItem } from '../types';
+import { Calendar, Clock, ChevronDown, ChevronUp, CheckSquare, Check } from 'lucide-react';
+import { checklistAPI } from '../utils/api';
+import { useTaskDragState, useDragActions } from '../contexts/DragContext';
+import { getAssigneeHex, getInitials } from '../utils/assigneeColor';
+import { useTranslation } from 'react-i18next';
+import { CompletionParticles } from './CompletionParticles';
 
 // 클릭으로 인정할 최대 이동 거리 (픽셀)
 const CLICK_THRESHOLD = 5;
@@ -21,8 +14,8 @@ const CLICK_THRESHOLD = 5;
 const formatDueDate = (dateString: string) => {
   const date = new Date(dateString);
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
   return `${year}. ${month}. ${day}.`;
 };
 
@@ -45,10 +38,10 @@ const isDueSoon = (dateString: string) => {
 
 // Task 이름만 추출 (Feature이름 - Task이름 형식인 경우)
 const getTaskOnlyTitle = (title: string, linkedFeature?: Feature) => {
-  if (linkedFeature && title.includes(" - ")) {
-    const parts = title.split(" - ");
+  if (linkedFeature && title.includes(' - ')) {
+    const parts = title.split(' - ');
     if (parts.length > 1) {
-      return parts.slice(1).join(" - "); // Feature이름 이후 부분만 반환
+      return parts.slice(1).join(' - '); // Feature이름 이후 부분만 반환
     }
   }
   return title;
@@ -93,9 +86,7 @@ export const DraggableCard = memo(function DraggableCard({
 }: DraggableCardProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
-  const [localChecklistItems, setLocalChecklistItems] = useState<
-    ChecklistItem[]
-  >([]);
+  const [localChecklistItems, setLocalChecklistItems] = useState<ChecklistItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [cascadePulse, setCascadePulse] = useState(false);
@@ -123,7 +114,7 @@ export const DraggableCard = memo(function DraggableCard({
   // 마우스 다운 - 시작 위치 기록
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     // 버튼 클릭은 무시
-    if ((e.target as HTMLElement).closest("button")) return;
+    if ((e.target as HTMLElement).closest('button')) return;
 
     mouseStartRef.current = { x: e.clientX, y: e.clientY };
     wasDraggedRef.current = false;
@@ -132,14 +123,14 @@ export const DraggableCard = memo(function DraggableCard({
   // 드래그 시작
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     // 버튼에서 시작된 드래그는 취소
-    if ((e.target as HTMLElement).closest("button")) {
+    if ((e.target as HTMLElement).closest('button')) {
       e.preventDefault();
       return;
     }
 
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("application/task", task.id);
-    e.dataTransfer.setData("text/plain", task.id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('application/task', task.id);
+    e.dataTransfer.setData('text/plain', task.id);
 
     if (ref.current) {
       e.dataTransfer.setDragImage(ref.current, 20, 20);
@@ -162,7 +153,7 @@ export const DraggableCard = memo(function DraggableCard({
   // 클릭 처리 - 드래그가 아닌 경우에만
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // 버튼 클릭은 무시
-    if ((e.target as HTMLElement).closest("button")) return;
+    if ((e.target as HTMLElement).closest('button')) return;
 
     // 드래그였으면 클릭 무시
     if (wasDraggedRef.current) {
@@ -190,7 +181,7 @@ export const DraggableCard = memo(function DraggableCard({
   const linkedFeature = feature;
 
   // Feature 색상 (기본값: indigo)
-  const featureColor = linkedFeature?.color || "#6366F1";
+  const featureColor = linkedFeature?.color || '#6366F1';
 
   const displayTitle = getTaskOnlyTitle(task.title, linkedFeature);
 
@@ -220,7 +211,7 @@ export const DraggableCard = memo(function DraggableCard({
       }));
       setLocalChecklistItems(items);
     } catch (error) {
-      console.error("Failed to load checklist:", error);
+      console.error('Failed to load checklist:', error);
     } finally {
       setIsLoading(false);
     }
@@ -243,20 +234,16 @@ export const DraggableCard = memo(function DraggableCard({
 
     // 낙관적 업데이트
     setLocalChecklistItems((prev) =>
-      prev.map((item) =>
-        item.id === itemId ? { ...item, completed: !item.completed } : item,
-      ),
+      prev.map((item) => (item.id === itemId ? { ...item, completed: !item.completed } : item)),
     );
 
     try {
       await checklistAPI.toggleItem(boardId, task.id, itemId);
     } catch (error) {
-      console.error("Failed to toggle checklist item:", error);
+      console.error('Failed to toggle checklist item:', error);
       // 롤백
       setLocalChecklistItems((prev) =>
-        prev.map((item) =>
-          item.id === itemId ? { ...item, completed: !item.completed } : item,
-        ),
+        prev.map((item) => (item.id === itemId ? { ...item, completed: !item.completed } : item)),
       );
     }
   };
@@ -266,12 +253,11 @@ export const DraggableCard = memo(function DraggableCard({
   const matchesAssigneeFilter = useCallback(
     (item: ChecklistItem) => {
       if (!assigneeFilter || assigneeFilter.length === 0) return true;
-      const hasNoAssigneeFilter = assigneeFilter.includes("__no_members__");
-      const memberNames = assigneeFilter.filter((m) => m !== "__no_members__");
+      const hasNoAssigneeFilter = assigneeFilter.includes('__no_members__');
+      const memberNames = assigneeFilter.filter((m) => m !== '__no_members__');
       const name = item.assignee?.name;
       const matchesNoAssignee = hasNoAssigneeFilter && !name;
-      const matchesMember =
-        !!name && memberNames.length > 0 && memberNames.includes(name);
+      const matchesMember = !!name && memberNames.length > 0 && memberNames.includes(name);
       return matchesNoAssignee || matchesMember;
     },
     [assigneeFilter],
@@ -279,20 +265,13 @@ export const DraggableCard = memo(function DraggableCard({
 
   // 필터 적용된 체크리스트 (담당자 필터 활성 시 해당 담당자 항목만)
   const visibleChecklistItems = useMemo(
-    () =>
-      isAssigneeFiltered
-        ? checklistItems.filter(matchesAssigneeFilter)
-        : checklistItems,
+    () => (isAssigneeFiltered ? checklistItems.filter(matchesAssigneeFilter) : checklistItems),
     [checklistItems, isAssigneeFiltered, matchesAssigneeFilter],
   );
 
-  const completedCount = visibleChecklistItems.filter(
-    (item) => item.completed,
-  ).length;
+  const completedCount = visibleChecklistItems.filter((item) => item.completed).length;
   const totalCount = visibleChecklistItems.length;
-  const hasChecklist = isAssigneeFiltered
-    ? totalCount > 0
-    : (task.checklist_total ?? 0) > 0;
+  const hasChecklist = isAssigneeFiltered ? totalCount > 0 : (task.checklist_total ?? 0) > 0;
 
   // position 순 정렬 (state 배열 in-place 변형 방지)
   const sortedChecklistItems = useMemo(
@@ -348,12 +327,12 @@ export const DraggableCard = memo(function DraggableCard({
       draggable={!shouldDisablePointerEvents}
       className={`group relative bg-bridge-surface-hover rounded-xl border px-2.5 py-[7px] cursor-pointer overflow-hidden select-none ${
         isDragging || isThisCardDragging
-          ? "opacity-30 scale-95 border-2 border-dashed border-bridge-secondary transition-all"
+          ? 'opacity-30 scale-95 border-2 border-dashed border-bridge-secondary transition-all'
           : justCompleted
-            ? "card-complete-burst border-green-500/60 shadow-card hover:shadow-card-hover hover:border-foreground/[0.12] hover:-translate-y-0.5 transition-all duration-200 ease-out"
-            : "border-foreground/[0.08] shadow-card hover:shadow-card-hover hover:border-foreground/[0.12] hover:-translate-y-0.5 transition-all duration-200 ease-out"
-      } ${task.completed && !justCompleted ? "opacity-60" : ""} ${
-        shouldDisablePointerEvents ? "pointer-events-none" : ""
+            ? 'card-complete-burst border-green-500/60 shadow-card hover:shadow-card-hover hover:border-foreground/[0.12] hover:-translate-y-0.5 transition-all duration-200 ease-out'
+            : 'border-foreground/[0.08] shadow-card hover:shadow-card-hover hover:border-foreground/[0.12] hover:-translate-y-0.5 transition-all duration-200 ease-out'
+      } ${task.completed && !justCompleted ? 'opacity-60' : ''} ${
+        shouldDisablePointerEvents ? 'pointer-events-none' : ''
       }`}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
@@ -361,11 +340,11 @@ export const DraggableCard = memo(function DraggableCard({
       onDragEnd={handleDragEnd}
       onDragEnter={(e) => {
         e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
+        e.dataTransfer.dropEffect = 'move';
       }}
       onDragOver={(e) => {
         e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
+        e.dataTransfer.dropEffect = 'move';
       }}
       onDrop={(e) => {
         e.preventDefault();
@@ -384,11 +363,9 @@ export const DraggableCard = memo(function DraggableCard({
 
       {/* 완료 체크 배지 */}
       {task.completed && (
-        <div
-          className={`absolute top-2 right-2 ${justCompleted ? "z-20" : ""}`}
-        >
+        <div className={`absolute top-2 right-2 ${justCompleted ? 'z-20' : ''}`}>
           <div
-            className={`relative w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-[0_0_8px_rgba(34,197,94,0.4)] ${justCompleted ? "card-check-pop" : ""}`}
+            className={`relative w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-[0_0_8px_rgba(34,197,94,0.4)] ${justCompleted ? 'card-check-pop' : ''}`}
           >
             <Check className="w-3 h-3 text-white" strokeWidth={3} />
           </div>
@@ -437,7 +414,7 @@ export const DraggableCard = memo(function DraggableCard({
             <div
               className="w-1.5 h-1.5 rounded-full flex-shrink-0"
               style={{
-                backgroundColor: task.completed ? "#22c55e" : featureColor,
+                backgroundColor: task.completed ? '#22c55e' : featureColor,
               }}
             />
             <h4 className="font-bold text-foreground text-xs leading-snug group-hover:text-bridge-secondary transition-colors truncate">
@@ -452,18 +429,18 @@ export const DraggableCard = memo(function DraggableCard({
         <div className="mb-1 pl-2">
           <span
             className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${
-              task.qa_state === "VERIFIED"
-                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                : task.qa_state === "REJECTED"
-                  ? "bg-rose-500/15 text-rose-600 dark:text-rose-400"
-                  : "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+              task.qa_state === 'VERIFIED'
+                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                : task.qa_state === 'REJECTED'
+                  ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                  : 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
             }`}
           >
-            {task.qa_state === "VERIFIED"
-              ? "✓ QA 완료"
-              : task.qa_state === "REJECTED"
-                ? "↩ 반려됨"
-                : "QA 검토중"}
+            {task.qa_state === 'VERIFIED'
+              ? '✓ QA 완료'
+              : task.qa_state === 'REJECTED'
+                ? '↩ 반려됨'
+                : 'QA 검토중'}
           </span>
         </div>
       )}
@@ -494,19 +471,19 @@ export const DraggableCard = memo(function DraggableCard({
             size={12}
             className={`${
               isOverdue(task.due_date)
-                ? "text-red-400"
+                ? 'text-red-400'
                 : isDueSoon(task.due_date)
-                  ? "text-amber-400"
-                  : "text-amber-400"
+                  ? 'text-amber-400'
+                  : 'text-amber-400'
             }`}
           />
           <span
             className={`text-xs font-bold ${
               isOverdue(task.due_date)
-                ? "text-red-300"
+                ? 'text-red-300'
                 : isDueSoon(task.due_date)
-                  ? "text-amber-300"
-                  : "text-amber-300"
+                  ? 'text-amber-300'
+                  : 'text-amber-300'
             }`}
           >
             {formatDueDate(task.due_date)}
@@ -520,7 +497,7 @@ export const DraggableCard = memo(function DraggableCard({
           {isScheduled && (
             <div
               className="flex items-center gap-1"
-              title={t("card.hasTimeblock", "Timeblock scheduled")}
+              title={t('card.hasTimeblock', 'Timeblock scheduled')}
             >
               <Clock size={11} className="text-teal-400" />
             </div>
@@ -534,7 +511,7 @@ export const DraggableCard = memo(function DraggableCard({
               <div className="flex items-center gap-2">
                 <div className="w-12 h-1 bg-slate-600 rounded-full overflow-hidden">
                   <div
-                    className={`h-full bg-indigo-500 rounded-full transition-all duration-300 ${cascadePulse ? "cascade-pulse" : ""}`}
+                    className={`h-full bg-indigo-500 rounded-full transition-all duration-300 ${cascadePulse ? 'cascade-pulse' : ''}`}
                     style={{
                       width: `${
                         isAssigneeFiltered || hasLoaded
@@ -542,9 +519,7 @@ export const DraggableCard = memo(function DraggableCard({
                             ? (completedCount / totalCount) * 100
                             : 0
                           : (task.checklist_total ?? 0) > 0
-                            ? ((task.checklist_completed ?? 0) /
-                                (task.checklist_total ?? 0)) *
-                              100
+                            ? ((task.checklist_completed ?? 0) / (task.checklist_total ?? 0)) * 100
                             : 0
                       }%`,
                     }}
@@ -574,10 +549,7 @@ export const DraggableCard = memo(function DraggableCard({
                   key={assignee.id}
                   className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white border-2 border-bridge-surface-hover whitespace-nowrap overflow-hidden"
                   style={{
-                    backgroundColor: getAssigneeHex(
-                      assignee.name,
-                      memberColorMap?.[assignee.id],
-                    ),
+                    backgroundColor: getAssigneeHex(assignee.name, memberColorMap?.[assignee.id]),
                     zIndex: 3 - index,
                   }}
                   title={assignee.name}
@@ -592,7 +564,7 @@ export const DraggableCard = memo(function DraggableCard({
                   title={allAssignees
                     .slice(3)
                     .map((a) => a.name)
-                    .join(", ")}
+                    .join(', ')}
                 >
                   +{allAssignees.length - 3}
                 </div>
@@ -606,7 +578,7 @@ export const DraggableCard = memo(function DraggableCard({
       {isChecklistExpanded && hasChecklist && boardId && (
         <div className="mt-1.5 pt-1.5 border-t border-foreground/[0.08] space-y-0.5 pl-2">
           {isLoading ? (
-            <div className="text-xs text-slate-400">{t("common.loading")}</div>
+            <div className="text-xs text-slate-400">{t('common.loading')}</div>
           ) : (
             sortedChecklistItems.map((item) => (
               <div
@@ -617,8 +589,8 @@ export const DraggableCard = memo(function DraggableCard({
                 <div
                   className={`w-3.5 h-3.5 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
                     item.completed
-                      ? "bg-green-500 border-green-500"
-                      : "bg-transparent border-slate-500 hover:border-slate-400"
+                      ? 'bg-green-500 border-green-500'
+                      : 'bg-transparent border-slate-500 hover:border-slate-400'
                   }`}
                 >
                   {item.completed && (
@@ -637,9 +609,7 @@ export const DraggableCard = memo(function DraggableCard({
                 </div>
                 <span
                   className={`text-xs flex-1 ${
-                    item.completed
-                      ? "text-slate-400 line-through"
-                      : "text-foreground/80"
+                    item.completed ? 'text-slate-400 line-through' : 'text-foreground/80'
                   }`}
                 >
                   {item.title}
@@ -650,9 +620,7 @@ export const DraggableCard = memo(function DraggableCard({
                     style={{
                       backgroundColor: getAssigneeHex(
                         item.assignee.name,
-                        item.assignee?.id
-                          ? memberColorMap?.[item.assignee.id]
-                          : undefined,
+                        item.assignee?.id ? memberColorMap?.[item.assignee.id] : undefined,
                       ),
                     }}
                     title={item.assignee.name}

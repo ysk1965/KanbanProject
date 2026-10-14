@@ -72,21 +72,25 @@ export function ChecklistDragItem({
       className={`relative flex items-stretch rounded-lg border
         bg-bridge-dark overflow-hidden select-none
         transition-all group
-        ${isHighlighted
-          ? 'border-amber-400/50 ring-2 ring-amber-400 bg-amber-400/5'
-          : 'border-foreground/[0.08] hover:border-foreground/[0.12]'}
-        ${isScheduled
-          ? 'opacity-40 cursor-pointer hover:opacity-60'
-          : `cursor-grab ${isDragging ? 'opacity-50' : 'opacity-100'}`}`}
-      onMouseDown={(e) => { if (!isScheduled) onMouseDown(e, item); }}
-      onClick={() => { if (isScheduled) onScheduledClick?.(); }}
+        ${
+          isHighlighted
+            ? 'border-amber-400/50 ring-2 ring-amber-400 bg-amber-400/5'
+            : 'border-foreground/[0.08] hover:border-foreground/[0.12]'
+        }
+        ${
+          isScheduled
+            ? 'opacity-40 cursor-pointer hover:opacity-60'
+            : `cursor-grab ${isDragging ? 'opacity-50' : 'opacity-100'}`
+        }`}
+      onMouseDown={(e) => {
+        if (!isScheduled) onMouseDown(e, item);
+      }}
+      onClick={() => {
+        if (isScheduled) onScheduledClick?.();
+      }}
     >
       {/* Feature color bar (4px left accent) */}
-      <div
-        className="w-1 shrink-0"
-        style={{ backgroundColor: featureColor }}
-        aria-hidden="true"
-      />
+      <div className="w-1 shrink-0" style={{ backgroundColor: featureColor }} aria-hidden="true" />
 
       {/* Content area */}
       <div className="flex items-start gap-2 px-2 py-2 flex-1 min-w-0">
@@ -133,9 +137,7 @@ export function ChecklistDragItem({
                   <span className="text-slate-400 truncate">{assignee.name}</span>
                 </span>
               )}
-              {assignee && subtitle && (
-                <span className="text-slate-600 shrink-0">·</span>
-              )}
+              {assignee && subtitle && <span className="text-slate-600 shrink-0">·</span>}
               {subtitle && <span className="truncate">{subtitle}</span>}
             </p>
           )}

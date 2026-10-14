@@ -84,10 +84,7 @@ export class CollabProvider {
         this.startAutoSave();
       }
       // Broadcast local awareness so others know we joined
-      const update = awarenessProtocol.encodeAwarenessUpdate(
-        this.awareness,
-        [this.doc.clientID],
-      );
+      const update = awarenessProtocol.encodeAwarenessUpdate(this.awareness, [this.doc.clientID]);
       this.send(MSG_AWARENESS, update);
     };
 
@@ -270,7 +267,11 @@ export class CollabProvider {
     this.scheduleFullStatePersist();
   };
 
-  private handleAwarenessUpdate = ({ added, updated, removed }: {
+  private handleAwarenessUpdate = ({
+    added,
+    updated,
+    removed,
+  }: {
     added: number[];
     updated: number[];
     removed: number[];

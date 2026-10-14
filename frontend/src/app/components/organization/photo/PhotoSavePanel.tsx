@@ -1,7 +1,7 @@
-import { useTranslation } from "react-i18next";
-import { motion, AnimatePresence } from "framer-motion";
-import { Check, Download, Loader2, X } from "lucide-react";
-import type { PhotoSaveState } from "../../../hooks/usePhotoSaver";
+import { useTranslation } from 'react-i18next';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Check, Download, Loader2, X } from 'lucide-react';
+import type { PhotoSaveState } from '../../../hooks/usePhotoSaver';
 
 interface PhotoSavePanelProps {
   state: PhotoSaveState;
@@ -21,7 +21,7 @@ export function PhotoSavePanel({ state, onSave, onCancel }: PhotoSavePanelProps)
 
   return (
     <AnimatePresence>
-      {phase !== "idle" && (
+      {phase !== 'idle' && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -35,32 +35,32 @@ export function PhotoSavePanel({ state, onSave, onCancel }: PhotoSavePanelProps)
             <div className="px-4 py-3 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0">
-                  {phase === "done" ? (
+                  {phase === 'done' ? (
                     <Check size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  ) : phase === "cancelled" ? (
+                  ) : phase === 'cancelled' ? (
                     <X size={16} className="text-slate-400 shrink-0" />
-                  ) : phase === "preparing" ? (
+                  ) : phase === 'preparing' ? (
                     <Loader2 size={16} className="animate-spin text-bridge-accent shrink-0" />
                   ) : (
                     <Download size={16} className="text-bridge-accent shrink-0" />
                   )}
                   <span className="text-xs font-bold text-foreground truncate">
-                    {phase === "preparing" &&
-                      t("photoSave.preparing", { current: prepared, total: chunkSize })}
-                    {(phase === "ready" || phase === "sharing") &&
-                      t("photoSave.ready", { count: chunkSize })}
-                    {phase === "done" && t("photoSave.done", { count: savedCount })}
-                    {phase === "cancelled" && t("photoSave.cancelled")}
+                    {phase === 'preparing' &&
+                      t('photoSave.preparing', { current: prepared, total: chunkSize })}
+                    {(phase === 'ready' || phase === 'sharing') &&
+                      t('photoSave.ready', { count: chunkSize })}
+                    {phase === 'done' && t('photoSave.done', { count: savedCount })}
+                    {phase === 'cancelled' && t('photoSave.cancelled')}
                   </span>
                 </div>
-                {multiChunk && phase !== "done" && phase !== "cancelled" && (
+                {multiChunk && phase !== 'done' && phase !== 'cancelled' && (
                   <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent shrink-0">
-                    {t("photoSave.chunk", { current: chunkIndex + 1, total: chunkCount })}
+                    {t('photoSave.chunk', { current: chunkIndex + 1, total: chunkCount })}
                   </span>
                 )}
               </div>
 
-              {phase === "preparing" && (
+              {phase === 'preparing' && (
                 <div className="h-1.5 bg-foreground/[0.06] rounded-full overflow-hidden">
                   <motion.div
                     className="h-full rounded-full bg-bridge-accent"
@@ -71,34 +71,34 @@ export function PhotoSavePanel({ state, onSave, onCancel }: PhotoSavePanelProps)
                 </div>
               )}
 
-              {(phase === "ready" || phase === "sharing") && (
+              {(phase === 'ready' || phase === 'sharing') && (
                 <button
                   onClick={onSave}
-                  disabled={phase === "sharing"}
+                  disabled={phase === 'sharing'}
                   className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-bridge-accent text-white rounded-xl text-sm font-bold hover:bg-bridge-accent/90 disabled:opacity-60 transition-all"
                 >
                   <Download size={16} />
-                  {t("photoSave.saveButton")}
+                  {t('photoSave.saveButton')}
                 </button>
               )}
 
-              {(phase === "ready" || phase === "sharing") && (
-                <p className="text-xs text-slate-500">{t("photoSave.hint")}</p>
+              {(phase === 'ready' || phase === 'sharing') && (
+                <p className="text-xs text-slate-500">{t('photoSave.hint')}</p>
               )}
 
               {failedCount > 0 && (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
-                  {t("photoSave.failed", { count: failedCount })}
+                  {t('photoSave.failed', { count: failedCount })}
                 </p>
               )}
 
-              {(phase === "preparing" || phase === "ready") && (
+              {(phase === 'preparing' || phase === 'ready') && (
                 <div className="flex justify-end">
                   <button
                     onClick={onCancel}
                     className="text-xs font-bold text-slate-400 hover:text-foreground transition-colors"
                   >
-                    {t("common.cancel", "Cancel")}
+                    {t('common.cancel', 'Cancel')}
                   </button>
                 </div>
               )}

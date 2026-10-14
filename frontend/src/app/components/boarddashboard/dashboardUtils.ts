@@ -1,5 +1,5 @@
-import type { Task } from "../../types";
-import { getTodayDateString, toDateInputValue } from "../../utils/dateUtils";
+import type { Task } from '../../types';
+import { getTodayDateString, toDateInputValue } from '../../utils/dateUtils';
 
 /**
  * 워크로드(간트) 카드의 **기본** 높이.
@@ -54,8 +54,7 @@ export const BACKLOG_STALE_DAYS = 7;
  * 태스크의 진행 상태 구분. KPI(지연 건수)와 필터에서 쓴다.
  * 앞 2개는 마감일 파생, 그다음은 진행 상태, 마지막은 "날짜가 아직 없는 것".
  */
-export type TaskBucket =
-  "overdue" | "today" | "doing" | "upcoming" | "unscheduled";
+export type TaskBucket = 'overdue' | 'today' | 'doing' | 'upcoming' | 'unscheduled';
 
 /**
  * 태스크가 속할 구간을 파생한다. 완료된 태스크는 어디에도 담기지 않는다(null).
@@ -70,19 +69,16 @@ export type TaskBucket =
  * 날짜를 안 채우는 팀도 있어서 시작일만으로는 "진행 중"이 늘 비어 버린다.
  * 체크리스트가 일부라도 완료됐으면 착수한 것으로 본다.
  */
-export function resolveTaskBucket(
-  task: Task,
-  today: string,
-): TaskBucket | null {
+export function resolveTaskBucket(task: Task, today: string): TaskBucket | null {
   if (task.completed) return null;
   if (task.due_date) {
-    if (task.due_date < today) return "overdue";
-    if (task.due_date === today) return "today";
+    if (task.due_date < today) return 'overdue';
+    if (task.due_date === today) return 'today';
   }
-  if (task.start_date && task.start_date <= today) return "doing";
-  if ((task.checklist_completed ?? 0) > 0) return "doing";
-  if (task.start_date || task.due_date) return "upcoming";
-  return "unscheduled";
+  if (task.start_date && task.start_date <= today) return 'doing';
+  if ((task.checklist_completed ?? 0) > 0) return 'doing';
+  if (task.start_date || task.due_date) return 'upcoming';
+  return 'unscheduled';
 }
 
 /** 로그인 사용자가 담당(체크리스트 담당자)으로 걸린 태스크인지. */
@@ -94,7 +90,7 @@ export function isAssignedTo(task: Task, userId: string | undefined): boolean {
 /** "HH:mm:ss" | "HH:mm" → 자정 기준 분. 파싱 실패 시 null. */
 export function timeToMinutes(time: string | null | undefined): number | null {
   if (!time) return null;
-  const parts = time.split(":");
+  const parts = time.split(':');
   if (parts.length < 2) return null;
   const h = Number(parts[0]);
   const m = Number(parts[1]);
@@ -104,7 +100,7 @@ export function timeToMinutes(time: string | null | undefined): number | null {
 
 /** "HH:mm:ss" → "HH:mm" */
 export function formatTime(time: string | null | undefined): string {
-  if (!time) return "";
+  if (!time) return '';
   return time.slice(0, 5);
 }
 

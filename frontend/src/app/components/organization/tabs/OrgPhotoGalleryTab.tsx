@@ -16,7 +16,14 @@ import {
 import { toast } from 'sonner';
 import { orgPhotoService } from '../../../utils/services';
 import { isNative } from '../../../utils/platform';
-import { saveToDevice, downloadPhoto, downloadPhotosBatch, getDownloadedIds, markAsDownloaded, markManyAsDownloaded } from '../../../utils/nativeDownload';
+import {
+  saveToDevice,
+  downloadPhoto,
+  downloadPhotosBatch,
+  getDownloadedIds,
+  markAsDownloaded,
+  markManyAsDownloaded,
+} from '../../../utils/nativeDownload';
 import type { BatchDownloadProgress } from '../../../utils/nativeDownload';
 import { MotionModal } from '../../ui/MotionModal';
 import { IconButton } from '../../ui/IconButton';
@@ -27,11 +34,13 @@ import { PhotoUploadModal } from '../photo/PhotoUploadModal';
 import { AlbumCreateModal } from '../photo/AlbumCreateModal';
 import { AlbumShareManagerModal } from '../photo/AlbumShareManagerModal';
 import { PhotoUploadProgress } from '../photo/PhotoUploadProgress';
-import { getOrgPhotoUploadQueue, usePhotoUploadConfirmed } from '../../../hooks/usePhotoUploadQueue';
+import {
+  getOrgPhotoUploadQueue,
+  usePhotoUploadConfirmed,
+} from '../../../hooks/usePhotoUploadQueue';
 import { usePhotoSaver } from '../../../hooks/usePhotoSaver';
 import { PhotoSavePanel } from '../photo/PhotoSavePanel';
 import type { OrgPhotoTab, OrgPhoto, OrgPhotoPage } from '../../../types';
-
 
 interface OrgPhotoGalleryTabProps {
   orgId: string;
@@ -191,7 +200,12 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
     async (photo: OrgPhoto) => {
       if (
         startPhotoSave([
-          { id: photo.id, url: photo.url, filename: photo.original_filename, size: photo.file_size },
+          {
+            id: photo.id,
+            url: photo.url,
+            filename: photo.original_filename,
+            size: photo.file_size,
+          },
         ])
       ) {
         return;
@@ -222,7 +236,12 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
     const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
     if (
       startPhotoSave(
-        selectedPhotos.map((p) => ({ id: p.id, url: p.url, filename: p.original_filename, size: p.file_size })),
+        selectedPhotos.map((p) => ({
+          id: p.id,
+          url: p.url,
+          filename: p.original_filename,
+          size: p.file_size,
+        })),
       )
     ) {
       return;
@@ -383,7 +402,10 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
       const prevAlbums = albums;
       setAlbums(reorderedAlbums);
       try {
-        await orgPhotoService.reorderTabs(orgId, reorderedAlbums.map((a) => a.id));
+        await orgPhotoService.reorderTabs(
+          orgId,
+          reorderedAlbums.map((a) => a.id),
+        );
       } catch (error) {
         console.warn('Failed to reorder albums:', error);
         setAlbums(prevAlbums);
@@ -407,10 +429,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
       {albumsLoading ? (
         <div className="flex items-center gap-2 py-3">
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-8 w-20 bg-foreground/5 rounded-lg animate-pulse"
-            />
+            <div key={i} className="h-8 w-20 bg-foreground/5 rounded-lg animate-pulse" />
           ))}
         </div>
       ) : (
@@ -496,13 +515,12 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
                     'photoGallery.emptyAdminDescription',
                     'Upload photos to share with your organization members.',
                   )
-                : t(
-                    'photoGallery.emptyDescription',
-                    'Photos uploaded by admins will appear here.',
-                  )}
+                : t('photoGallery.emptyDescription', 'Photos uploaded by admins will appear here.')}
             </p>
             <p className="text-xs text-slate-500 mb-6">
-              {t('photoGallery.uploadFormats', 'JPG, PNG, WebP, GIF - max {{max}} files', { max: 1000 })}
+              {t('photoGallery.uploadFormats', 'JPG, PNG, WebP, GIF - max {{max}} files', {
+                max: 1000,
+              })}
             </p>
             {isAdmin && (
               <button
@@ -596,9 +614,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
                 <div className="h-1.5 bg-foreground/[0.06] rounded-full overflow-hidden">
                   <motion.div
                     className={`h-full rounded-full ${
-                      batchProgress.phase === 'cancelled'
-                        ? 'bg-slate-400'
-                        : 'bg-bridge-accent'
+                      batchProgress.phase === 'cancelled' ? 'bg-slate-400' : 'bg-bridge-accent'
                     }`}
                     initial={{ width: 0 }}
                     animate={{
@@ -721,8 +737,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
                 {showDeleteAlbumConfirm.name}
               </span>
               <span className="text-xs text-slate-500 ml-2">
-                {showDeleteAlbumConfirm.photo_count}{' '}
-                {t('photoGallery.photosUnit', 'photos')}
+                {showDeleteAlbumConfirm.photo_count} {t('photoGallery.photosUnit', 'photos')}
               </span>
             </div>
           )}
@@ -738,9 +753,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
               {t('common.cancel', 'Cancel')}
             </button>
             <button
-              onClick={() =>
-                showDeleteAlbumConfirm && handleDeleteAlbum(showDeleteAlbumConfirm)
-              }
+              onClick={() => showDeleteAlbumConfirm && handleDeleteAlbum(showDeleteAlbumConfirm)}
               disabled={deletingAlbum}
               className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >

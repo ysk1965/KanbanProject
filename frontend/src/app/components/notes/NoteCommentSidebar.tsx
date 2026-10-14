@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useTranslation } from "react-i18next";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   MessageSquarePlus,
   X,
@@ -9,24 +9,20 @@ import {
   ChevronUp,
   Hash,
   Highlighter,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   noteCommentService,
   orgNoteCommentService,
   myNoteCommentService,
-} from "../../utils/services";
-import { memberAPI, mentionGroupAPI } from "../../utils/api";
-import type { MentionGroupDetail } from "../../utils/api";
-import { wsManager } from "../../utils/websocket";
-import { CLIENT_ID } from "../../utils/clientId";
-import type { BoardWebSocketEvent } from "../../types";
-import { NoteCommentThread } from "./NoteCommentThread";
-import { NoteCommentInput } from "./NoteCommentInput";
-import type {
-  NoteCommentDetail,
-  NoteCommentListResponse,
-  MemberResponse,
-} from "../../utils/api";
+} from '../../utils/services';
+import { memberAPI, mentionGroupAPI } from '../../utils/api';
+import type { MentionGroupDetail } from '../../utils/api';
+import { wsManager } from '../../utils/websocket';
+import { CLIENT_ID } from '../../utils/clientId';
+import type { BoardWebSocketEvent } from '../../types';
+import { NoteCommentThread } from './NoteCommentThread';
+import { NoteCommentInput } from './NoteCommentInput';
+import type { NoteCommentDetail, NoteCommentListResponse, MemberResponse } from '../../utils/api';
 
 interface NoteCommentSidebarProps {
   boardId?: string;
@@ -49,7 +45,7 @@ interface NoteCommentSidebarProps {
    * "rail"   — full-height column docked to the right of the note (default in
    *            NoteEditor): the host supplies the border and background.
    */
-  variant?: "bottom" | "rail";
+  variant?: 'bottom' | 'rail';
 }
 
 export function NoteCommentSidebar({
@@ -65,15 +61,11 @@ export function NoteCommentSidebar({
   activeCommentId,
   refreshKey = 0,
   onJumpToAnchor,
-  variant = "bottom",
+  variant = 'bottom',
 }: NoteCommentSidebarProps) {
-  const isRail = variant === "rail";
-  const svc = personal
-    ? myNoteCommentService
-    : orgId
-      ? orgNoteCommentService
-      : noteCommentService;
-  const scopeId = personal ? "me" : boardId || orgId || "";
+  const isRail = variant === 'rail';
+  const svc = personal ? myNoteCommentService : orgId ? orgNoteCommentService : noteCommentService;
+  const scopeId = personal ? 'me' : boardId || orgId || '';
   // 개인 노트는 단일 사용자이므로 백엔드가 발행하지 않는 per-note 토픽 (구독 무해).
   const wsTopic = personal
     ? `/topic/note/${noteId}`
@@ -86,20 +78,17 @@ export function NoteCommentSidebar({
   const [mentionGroups, setMentionGroups] = useState<MentionGroupDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewComment, setShowNewComment] = useState(false);
-  const [filter, setFilter] = useState<"all" | "inline" | "open" | "resolved">("all");
+  const [filter, setFilter] = useState<'all' | 'inline' | 'open' | 'resolved'>('all');
   const [collapsed, setCollapsed] = useState(false);
   const expanded = isRail || !collapsed;
   const newCommentRef = useRef<HTMLDivElement>(null);
 
   const loadComments = useCallback(async () => {
     try {
-      const data: NoteCommentListResponse = await svc.getComments(
-        scopeId,
-        noteId,
-      );
+      const data: NoteCommentListResponse = await svc.getComments(scopeId, noteId);
       setThreads(data.threads);
     } catch (err) {
-      console.error("Failed to load note comments:", err);
+      console.error('Failed to load note comments:', err);
     } finally {
       setLoading(false);
     }
@@ -111,7 +100,7 @@ export function NoteCommentSidebar({
       const data = await memberAPI.getMembers(boardId);
       setMembers(data.members || []);
     } catch (err) {
-      console.error("Failed to load members:", err);
+      console.error('Failed to load members:', err);
     }
   }, [boardId]);
 
@@ -141,12 +130,12 @@ export function NoteCommentSidebar({
   useEffect(() => {
     if (!activeCommentId) return;
     setCollapsed(false);
-    setFilter((f) => (f === "resolved" || f === "open" ? "all" : f));
+    setFilter((f) => (f === 'resolved' || f === 'open' ? 'all' : f));
     const timer = setTimeout(() => {
       const el = listRef.current?.querySelector<HTMLElement>(
         `[data-thread-id="${CSS.escape(activeCommentId)}"]`,
       );
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 80);
     return () => clearTimeout(timer);
   }, [activeCommentId, threads.length]);
@@ -154,11 +143,11 @@ export function NoteCommentSidebar({
   // ========== WebSocket: real-time comment sync ==========
 
   const NOTE_COMMENT_EVENTS = [
-    "NOTE_COMMENT_CREATED",
-    "NOTE_COMMENT_UPDATED",
-    "NOTE_COMMENT_DELETED",
-    "NOTE_COMMENT_RESOLVED",
-    "NOTE_COMMENT_REACTION_TOGGLED",
+    'NOTE_COMMENT_CREATED',
+    'NOTE_COMMENT_UPDATED',
+    'NOTE_COMMENT_DELETED',
+    'NOTE_COMMENT_RESOLVED',
+    'NOTE_COMMENT_REACTION_TOGGLED',
   ];
 
   useEffect(() => {
@@ -181,9 +170,7 @@ export function NoteCommentSidebar({
   // Emit block IDs with comments to parent
   useEffect(() => {
     if (!onBlockIdsChange) return;
-    const blockIds = new Set(
-      threads.filter((t) => t.block_id).map((t) => t.block_id!),
-    );
+    const blockIds = new Set(threads.filter((t) => t.block_id).map((t) => t.block_id!));
     onBlockIdsChange(blockIds);
   }, [threads, onBlockIdsChange]);
 
@@ -195,8 +182,8 @@ export function NoteCommentSidebar({
       setCollapsed(false);
       setTimeout(() => {
         newCommentRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
+          behavior: 'smooth',
+          block: 'center',
         });
       }, 100);
     }
@@ -256,9 +243,9 @@ export function NoteCommentSidebar({
   );
 
   const filteredThreads = threads.filter((thread) => {
-    if (filter === "open") return !thread.is_resolved;
-    if (filter === "resolved") return thread.is_resolved;
-    if (filter === "inline") return !!thread.anchor;
+    if (filter === 'open') return !thread.is_resolved;
+    if (filter === 'resolved') return thread.is_resolved;
+    if (filter === 'inline') return !!thread.anchor;
     return true;
   });
 
@@ -277,23 +264,23 @@ export function NoteCommentSidebar({
 
   const FILTERS = [
     {
-      key: "all" as const,
-      label: t("notes.comment.filterAll", "전체"),
+      key: 'all' as const,
+      label: t('notes.comment.filterAll', '전체'),
       count: threads.length,
     },
     {
-      key: "inline" as const,
-      label: t("notes.inlineMemo.filter", "인라인 메모"),
+      key: 'inline' as const,
+      label: t('notes.inlineMemo.filter', '인라인 메모'),
       count: inlineCount,
     },
     {
-      key: "open" as const,
-      label: t("notes.comment.filterOpen", "열림"),
+      key: 'open' as const,
+      label: t('notes.comment.filterOpen', '열림'),
       count: openCount,
     },
     {
-      key: "resolved" as const,
-      label: t("notes.comment.filterResolved", "해결"),
+      key: 'resolved' as const,
+      label: t('notes.comment.filterResolved', '해결'),
       count: resolvedCount,
     },
   ];
@@ -302,16 +289,14 @@ export function NoteCommentSidebar({
     <div
       className={
         isRail
-          ? "flex flex-col min-h-0 flex-1"
-          : "border-t border-foreground/10 bg-bridge-dark/80 backdrop-blur-sm"
+          ? 'flex flex-col min-h-0 flex-1'
+          : 'border-t border-foreground/10 bg-bridge-dark/80 backdrop-blur-sm'
       }
     >
       {/* Header */}
       <div
         className={`flex items-center justify-between ${
-          isRail
-            ? "px-4 py-3 border-b border-foreground/[0.08]"
-            : "px-6 py-2.5"
+          isRail ? 'px-4 py-3 border-b border-foreground/[0.08]' : 'px-6 py-2.5'
         }`}
       >
         <button
@@ -319,12 +304,8 @@ export function NoteCommentSidebar({
           className="flex items-center gap-2 text-sm font-bold text-foreground hover:text-bridge-accent transition-colors"
         >
           {!isRail &&
-            (collapsed ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            ))}
-          {t("notes.comment.title", "댓글")}
+            (collapsed ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+          {t('notes.comment.title', '댓글')}
           <span className="text-xs bg-bridge-accent/20 text-bridge-accent px-1.5 py-0.5 rounded-full font-bold">
             {openCount}
           </span>
@@ -341,8 +322,8 @@ export function NoteCommentSidebar({
                   onClick={() => setFilter(f.key)}
                   className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
                     filter === f.key
-                      ? "bg-bridge-accent/20 text-bridge-accent font-bold"
-                      : "text-slate-500 hover:text-slate-300 hover:bg-foreground/5"
+                      ? 'bg-bridge-accent/20 text-bridge-accent font-bold'
+                      : 'text-slate-500 hover:text-slate-300 hover:bg-foreground/5'
                   }`}
                 >
                   {f.label} ({f.count})
@@ -354,7 +335,7 @@ export function NoteCommentSidebar({
           <button
             onClick={onClose}
             className="p-1 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
-            aria-label={t("common.close", "닫기")}
+            aria-label={t('common.close', '닫기')}
           >
             <X className="h-4 w-4" />
           </button>
@@ -371,8 +352,8 @@ export function NoteCommentSidebar({
               onClick={() => setFilter(f.key)}
               className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
                 filter === f.key
-                  ? "bg-bridge-accent/20 text-bridge-accent font-bold"
-                  : "text-slate-500 hover:text-slate-300 hover:bg-foreground/5"
+                  ? 'bg-bridge-accent/20 text-bridge-accent font-bold'
+                  : 'text-slate-500 hover:text-slate-300 hover:bg-foreground/5'
               }`}
             >
               {f.label} ({f.count})
@@ -383,17 +364,11 @@ export function NoteCommentSidebar({
 
       {/* Collapsible body */}
       {expanded && (
-        <div
-          className={isRail ? "flex flex-col min-h-0 flex-1" : "contents"}
-        >
+        <div className={isRail ? 'flex flex-col min-h-0 flex-1' : 'contents'}>
           {/* New comment input */}
           {canEdit && (
             <div
-              className={
-                isRail
-                  ? "px-4 py-3"
-                  : "px-6 py-2 border-t border-foreground/5"
-              }
+              className={isRail ? 'px-4 py-3' : 'px-6 py-2 border-t border-foreground/5'}
               ref={newCommentRef}
             >
               {showNewComment ? (
@@ -402,7 +377,7 @@ export function NoteCommentSidebar({
                     <div className="flex items-center gap-1.5 mb-2 text-xs text-slate-500">
                       <Hash className="h-3 w-3" />
                       <span>
-                        {t("notes.comment.blockComment", "블록 댓글")}:{" "}
+                        {t('notes.comment.blockComment', '블록 댓글')}:{' '}
                         {activeBlockId.substring(0, 8)}
                       </span>
                     </div>
@@ -424,7 +399,7 @@ export function NoteCommentSidebar({
                     hover:text-foreground hover:bg-foreground/5 hover:border-foreground/10 transition-all"
                 >
                   <MessageSquarePlus className="h-3.5 w-3.5" />
-                  {t("notes.comment.new", "새 댓글 작성")}
+                  {t('notes.comment.new', '새 댓글 작성')}
                 </button>
               )}
             </div>
@@ -434,9 +409,7 @@ export function NoteCommentSidebar({
           <div
             ref={listRef}
             className={`overflow-y-auto space-y-3 custom-scrollbar ${
-              isRail
-                ? "flex-1 min-h-0 px-4 pb-4"
-                : "max-h-80 px-6 py-3"
+              isRail ? 'flex-1 min-h-0 px-4 pb-4' : 'max-h-80 px-6 py-3'
             }`}
           >
             {loading ? (
@@ -447,12 +420,9 @@ export function NoteCommentSidebar({
               <div className="text-center py-6">
                 <MessageSquarePlus className="h-6 w-6 mx-auto text-slate-600 mb-2" />
                 <p className="text-xs text-slate-500">
-                  {filter === "all"
-                    ? t("notes.comment.empty", "아직 댓글이 없습니다")
-                    : t(
-                        "notes.comment.emptyFilter",
-                        "해당 필터에 댓글이 없습니다",
-                      )}
+                  {filter === 'all'
+                    ? t('notes.comment.empty', '아직 댓글이 없습니다')
+                    : t('notes.comment.emptyFilter', '해당 필터에 댓글이 없습니다')}
                 </p>
               </div>
             ) : (
@@ -463,7 +433,7 @@ export function NoteCommentSidebar({
                     {groupCount > 1 && (
                       <p className="text-xs font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1">
                         <Highlighter className="h-3 w-3" />
-                        {t("notes.inlineMemo.section", "인라인 메모")}
+                        {t('notes.inlineMemo.section', '인라인 메모')}
                       </p>
                     )}
                     {inlineThreads.map((thread) => (
@@ -493,7 +463,7 @@ export function NoteCommentSidebar({
                     {groupCount > 1 && (
                       <p className="text-xs font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1">
                         <Hash className="h-3 w-3" />
-                        {t("notes.comment.blockComments", "블록 댓글")}
+                        {t('notes.comment.blockComments', '블록 댓글')}
                       </p>
                     )}
                     {blockThreads.map((thread) => (
@@ -520,7 +490,7 @@ export function NoteCommentSidebar({
                   <div className="space-y-2">
                     {groupCount > 1 && (
                       <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-2">
-                        {t("notes.comment.generalComments", "일반 댓글")}
+                        {t('notes.comment.generalComments', '일반 댓글')}
                       </p>
                     )}
                     {generalThreads.map((thread) => (

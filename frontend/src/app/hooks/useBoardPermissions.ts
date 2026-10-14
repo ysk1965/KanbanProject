@@ -9,28 +9,25 @@ export function useBoardPermissions(
   board: Board | null,
   hideBilling: boolean,
   isSystemAdmin: boolean,
-  isTester: boolean
+  isTester: boolean,
 ) {
   const canAccessSchedule = hideBilling || (tierInfo?.can_access_schedule ?? true);
   const canAccessMilestone = hideBilling || (tierInfo?.can_access_milestone ?? true);
   const canAccessSlack = hideBilling || (tierInfo?.can_access_slack ?? true);
   const canAccessStatistics = hideBilling || (tierInfo?.can_access_statistics ?? true);
 
-  const isAdminOrOwner = boardMembersData?.some(
-    (m) => m.userId === currentUser?.id && (m.role === 'owner' || m.role === 'admin')
-  ) ?? false;
+  const isAdminOrOwner =
+    boardMembersData?.some(
+      (m) => m.userId === currentUser?.id && (m.role === 'owner' || m.role === 'admin'),
+    ) ?? false;
 
   const canViewStatistics = canAccessStatistics && (isAdminOrOwner || isSystemAdmin);
 
-  const memberRole = boardMembersData?.find(
-    (m) => m.userId === currentUser?.id
-  )?.role;
+  const memberRole = boardMembersData?.find((m) => m.userId === currentUser?.id)?.role;
 
-  const currentUserRole = memberRole ?? (
-    isSystemAdmin && board?.my_role
-      ? board.my_role.toLowerCase() as MemberRole
-      : undefined
-  );
+  const currentUserRole =
+    memberRole ??
+    (isSystemAdmin && board?.my_role ? (board.my_role.toLowerCase() as MemberRole) : undefined);
 
   const isViewer = currentUserRole === 'viewer';
   const isOwner = currentUserRole === 'owner';

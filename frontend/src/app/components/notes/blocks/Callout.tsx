@@ -2,7 +2,7 @@ import { createReactBlockSpec } from '@blocknote/react';
 import { defaultProps } from '@blocknote/core';
 
 const CALLOUT_TYPES = ['info', 'warning', 'success', 'error'] as const;
-type CalloutType = typeof CALLOUT_TYPES[number];
+type CalloutType = (typeof CALLOUT_TYPES)[number];
 
 const CALLOUT_ICONS: Record<CalloutType, string> = {
   info: 'ℹ️',
@@ -63,5 +63,5 @@ export const Callout = createReactBlockSpec(
       }
       return undefined;
     },
-  }
+  },
 );

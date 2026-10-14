@@ -1,21 +1,44 @@
 export type AssigneeColorName = 'indigo' | 'purple' | 'teal' | 'rose' | 'amber' | 'emerald';
 
 export const ASSIGNEE_COLOR_NAMES: AssigneeColorName[] = [
-  'indigo', 'purple', 'teal', 'rose', 'amber', 'emerald',
+  'indigo',
+  'purple',
+  'teal',
+  'rose',
+  'amber',
+  'emerald',
 ];
 
-const COLOR_MAP: Record<AssigneeColorName, {
-  hex: string;
-  bg: string;
-  bgLight: string;
-  text: string;
-}> = {
-  indigo:  { hex: '#6366F1', bg: 'bg-indigo-500',  bgLight: 'bg-indigo-500/20',  text: 'text-indigo-300' },
-  purple:  { hex: '#8B5CF6', bg: 'bg-purple-500',  bgLight: 'bg-purple-500/20',  text: 'text-purple-300' },
-  teal:    { hex: '#14B8A6', bg: 'bg-teal-500',    bgLight: 'bg-teal-500/20',    text: 'text-teal-300' },
-  rose:    { hex: '#F43F5E', bg: 'bg-rose-500',    bgLight: 'bg-rose-500/20',    text: 'text-rose-300' },
-  amber:   { hex: '#F59E0B', bg: 'bg-amber-500',   bgLight: 'bg-amber-500/20',   text: 'text-amber-300' },
-  emerald: { hex: '#10B981', bg: 'bg-emerald-500', bgLight: 'bg-emerald-500/20', text: 'text-emerald-300' },
+const COLOR_MAP: Record<
+  AssigneeColorName,
+  {
+    hex: string;
+    bg: string;
+    bgLight: string;
+    text: string;
+  }
+> = {
+  indigo: {
+    hex: '#6366F1',
+    bg: 'bg-indigo-500',
+    bgLight: 'bg-indigo-500/20',
+    text: 'text-indigo-300',
+  },
+  purple: {
+    hex: '#8B5CF6',
+    bg: 'bg-purple-500',
+    bgLight: 'bg-purple-500/20',
+    text: 'text-purple-300',
+  },
+  teal: { hex: '#14B8A6', bg: 'bg-teal-500', bgLight: 'bg-teal-500/20', text: 'text-teal-300' },
+  rose: { hex: '#F43F5E', bg: 'bg-rose-500', bgLight: 'bg-rose-500/20', text: 'text-rose-300' },
+  amber: { hex: '#F59E0B', bg: 'bg-amber-500', bgLight: 'bg-amber-500/20', text: 'text-amber-300' },
+  emerald: {
+    hex: '#10B981',
+    bg: 'bg-emerald-500',
+    bgLight: 'bg-emerald-500/20',
+    text: 'text-emerald-300',
+  },
 };
 
 function hashName(name: string): number {
@@ -52,7 +75,7 @@ export function getAssigneeClasses(name: string, customColor?: string | null) {
   if (isCustomHex(customColor)) {
     return {
       hex: customColor,
-      bg: '',           // inline style 필요
+      bg: '', // inline style 필요
       bgLight: '',
       text: '',
     };

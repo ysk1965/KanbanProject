@@ -188,7 +188,9 @@ export function AdminAnalyticsTab() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-bridge-accent" />
-              <h3 className="text-lg font-bold text-foreground">{t('admin.analytics.signupTrend')}</h3>
+              <h3 className="text-lg font-bold text-foreground">
+                {t('admin.analytics.signupTrend')}
+              </h3>
               <span className="text-sm text-slate-400 ml-2">
                 {t('admin.analytics.totalCount', { count: signupTrend.total })}
               </span>
@@ -200,12 +202,7 @@ export function AdminAnalyticsTab() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={signupTrend.data}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={formatDate}
-                  stroke="#64748b"
-                  fontSize={12}
-                />
+                <XAxis dataKey="date" tickFormatter={formatDate} stroke="#64748b" fontSize={12} />
                 <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} />
                 <Tooltip
                   contentStyle={tooltipStyle}
@@ -224,7 +221,11 @@ export function AdminAnalyticsTab() {
                       email_count: t('admin.analytics.emailSignup'),
                       google_count: t('admin.analytics.googleSignup'),
                     };
-                    return <span className="text-muted-foreground text-sm">{labels[value] || value}</span>;
+                    return (
+                      <span className="text-muted-foreground text-sm">
+                        {labels[value] || value}
+                      </span>
+                    );
                   }}
                 />
                 <Bar dataKey="email_count" stackId="a" fill="#6366F1" radius={[0, 0, 0, 0]} />
@@ -250,12 +251,7 @@ export function AdminAnalyticsTab() {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={activeUserStats.trend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={formatDate}
-                  stroke="#64748b"
-                  fontSize={12}
-                />
+                <XAxis dataKey="date" tickFormatter={formatDate} stroke="#64748b" fontSize={12} />
                 <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} />
                 <Tooltip
                   contentStyle={tooltipStyle}
@@ -281,7 +277,9 @@ export function AdminAnalyticsTab() {
         <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 md:p-6">
           <div className="flex items-center gap-2 mb-6">
             <ArrowUpRight className="h-5 w-5 text-amber-400" />
-            <h3 className="text-lg font-bold text-foreground">{t('admin.analytics.conversionRate')}</h3>
+            <h3 className="text-lg font-bold text-foreground">
+              {t('admin.analytics.conversionRate')}
+            </h3>
           </div>
 
           {/* Conversion Summary Cards */}
@@ -314,7 +312,9 @@ export function AdminAnalyticsTab() {
           {/* Conversion Funnel Visual */}
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-sm text-slate-400">{t('admin.analytics.conversionFunnel')}</span>
+              <span className="text-sm text-slate-400">
+                {t('admin.analytics.conversionFunnel')}
+              </span>
             </div>
             <ConversionFunnel
               total={conversionStats.total_trial_started}
@@ -327,7 +327,9 @@ export function AdminAnalyticsTab() {
           {/* Monthly Conversion Trend */}
           {conversionStats.trend.length > 0 && (
             <div>
-              <h4 className="text-sm font-medium text-slate-400 mb-4">{t('admin.analytics.monthlyConversionTrend')}</h4>
+              <h4 className="text-sm font-medium text-slate-400 mb-4">
+                {t('admin.analytics.monthlyConversionTrend')}
+              </h4>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={conversionStats.trend}>
@@ -350,7 +352,11 @@ export function AdminAnalyticsTab() {
                           trial_started: t('admin.analytics.trialStarted'),
                           converted: t('admin.analytics.converted'),
                         };
-                        return <span className="text-muted-foreground text-sm">{labels[value] || value}</span>;
+                        return (
+                          <span className="text-muted-foreground text-sm">
+                            {labels[value] || value}
+                          </span>
+                        );
                       }}
                     />
                     <Bar dataKey="trial_started" fill="#6366F1" radius={[4, 4, 0, 0]} />
@@ -368,7 +374,9 @@ export function AdminAnalyticsTab() {
         <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 md:p-6">
           <div className="flex items-center gap-2 mb-6">
             <ArrowRightLeft className="h-5 w-5 text-bridge-secondary" />
-            <h3 className="text-lg font-bold text-foreground">{t('admin.analytics.pbConversion', 'Personal Board Conversion')}</h3>
+            <h3 className="text-lg font-bold text-foreground">
+              {t('admin.analytics.pbConversion', 'Personal Board Conversion')}
+            </h3>
           </div>
 
           {/* Conversion Summary */}
@@ -399,20 +407,31 @@ export function AdminAnalyticsTab() {
               <div className="space-y-2">
                 <div className="h-4 bg-foreground/5 rounded-full overflow-hidden flex">
                   {bothPct > 0 && (
-                    <div className="h-full bg-bridge-secondary transition-all duration-500" style={{ width: `${bothPct}%` }} />
+                    <div
+                      className="h-full bg-bridge-secondary transition-all duration-500"
+                      style={{ width: `${bothPct}%` }}
+                    />
                   )}
                   {personalPct > 0 && (
-                    <div className="h-full bg-purple-500/60 transition-all duration-500" style={{ width: `${personalPct}%` }} />
+                    <div
+                      className="h-full bg-purple-500/60 transition-all duration-500"
+                      style={{ width: `${personalPct}%` }}
+                    />
                   )}
                 </div>
                 <div className="flex gap-4 text-xs">
                   <span className="flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-bridge-secondary" />
-                    <span className="text-slate-400">{t('admin.analytics.personalAndTeam', 'Personal + Team')} {bothPct.toFixed(1)}%</span>
+                    <span className="text-slate-400">
+                      {t('admin.analytics.personalAndTeam', 'Personal + Team')} {bothPct.toFixed(1)}
+                      %
+                    </span>
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-purple-500/60" />
-                    <span className="text-slate-400">{t('admin.analytics.personalOnly', 'Personal Only')} {personalPct.toFixed(1)}%</span>
+                    <span className="text-slate-400">
+                      {t('admin.analytics.personalOnly', 'Personal Only')} {personalPct.toFixed(1)}%
+                    </span>
                   </span>
                 </div>
               </div>
@@ -567,15 +586,21 @@ function ConversionFunnel({
       <div className="flex gap-4 text-xs">
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-          <span className="text-slate-400">{t('admin.analytics.funnelConverted')} {convertedPct.toFixed(1)}%</span>
+          <span className="text-slate-400">
+            {t('admin.analytics.funnelConverted')} {convertedPct.toFixed(1)}%
+          </span>
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-bridge-accent" />
-          <span className="text-slate-400">{t('admin.analytics.funnelInProgress')} {inProgressPct.toFixed(1)}%</span>
+          <span className="text-slate-400">
+            {t('admin.analytics.funnelInProgress')} {inProgressPct.toFixed(1)}%
+          </span>
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
-          <span className="text-slate-400">{t('admin.analytics.funnelExpired')} {expiredPct.toFixed(1)}%</span>
+          <span className="text-slate-400">
+            {t('admin.analytics.funnelExpired')} {expiredPct.toFixed(1)}%
+          </span>
         </span>
       </div>
     </div>

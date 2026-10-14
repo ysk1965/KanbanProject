@@ -14,13 +14,7 @@ interface AlbumCreateModalProps {
   onSaved: () => void;
 }
 
-export function AlbumCreateModal({
-  open,
-  onClose,
-  orgId,
-  album,
-  onSaved,
-}: AlbumCreateModalProps) {
+export function AlbumCreateModal({ open, onClose, orgId, album, onSaved }: AlbumCreateModalProps) {
   const { t } = useTranslation();
   const isEdit = !!album;
   const [name, setName] = useState('');
@@ -121,9 +115,7 @@ export function AlbumCreateModal({
 
       {/* 4) Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-xs text-slate-600">
-          Esc {t('common.close', 'Close')}
-        </span>
+        <span className="text-xs text-slate-600">Esc {t('common.close', 'Close')}</span>
         <div className="flex gap-2">
           <button
             onClick={onClose}

@@ -22,11 +22,7 @@ interface OrgMigrationWizardProps {
 
 type BillingCycle = 'MONTHLY' | 'YEARLY';
 
-export function OrgMigrationWizard({
-  orgId,
-  onComplete,
-  onCancel,
-}: OrgMigrationWizardProps) {
+export function OrgMigrationWizard({ orgId, onComplete, onCancel }: OrgMigrationWizardProps) {
   const { t } = useTranslation();
   const [step, setStep] = useState(1);
 
@@ -61,9 +57,7 @@ export function OrgMigrationWizard({
 
   const toggleBoard = (boardId: string) => {
     setSelectedBoardIds((prev) =>
-      prev.includes(boardId)
-        ? prev.filter((id) => id !== boardId)
-        : [...prev, boardId],
+      prev.includes(boardId) ? prev.filter((id) => id !== boardId) : [...prev, boardId],
     );
   };
 
@@ -118,17 +112,13 @@ export function OrgMigrationWizard({
           <div key={s} className="flex items-center gap-2">
             <div
               className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-                s <= step
-                  ? 'bg-bridge-accent text-white'
-                  : 'bg-foreground/[0.06] text-slate-400'
+                s <= step ? 'bg-bridge-accent text-white' : 'bg-foreground/[0.06] text-slate-400'
               }`}
             >
               {s < step ? <Check size={12} /> : s}
             </div>
             <span
-              className={`text-xs font-bold ${
-                s === step ? 'text-foreground' : 'text-slate-500'
-              }`}
+              className={`text-xs font-bold ${s === step ? 'text-foreground' : 'text-slate-500'}`}
             >
               {s === 1 && t('orgSubscription.migration.step1', 'Select Boards')}
               {s === 2 && t('orgSubscription.migration.step2', 'Cost Preview')}

@@ -1,9 +1,9 @@
-import { Table2, ListMusic, ClipboardCheck } from "lucide-react";
-import type { PersonalFeature } from "./types";
-import { TIMETABLE_SCHEMA_VER } from "./types";
-import { TimetableEditor } from "./timetable/TimetableEditor";
-import { TimetablePrintSheet } from "./timetable/TimetablePrintSheet";
-import { createDefaultTimetable } from "./timetable/timetableModel";
+import { Table2, ListMusic, ClipboardCheck } from 'lucide-react';
+import type { PersonalFeature } from './types';
+import { TIMETABLE_SCHEMA_VER } from './types';
+import { TimetableEditor } from './timetable/TimetableEditor';
+import { TimetablePrintSheet } from './timetable/TimetablePrintSheet';
+import { createDefaultTimetable } from './timetable/timetableModel';
 
 /**
  * 마이 스페이스 「기능」 탭 레지스트리.
@@ -19,33 +19,33 @@ const SoonEditor = () => null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const PERSONAL_FEATURES: PersonalFeature<any>[] = [
   {
-    key: "timetable",
-    labelKey: "personal.features.timetable",
-    newDocLabelKey: "personal.features.timetable_new",
-    defaultTitleKey: "personal.features.timetable_default_title",
+    key: 'timetable',
+    labelKey: 'personal.features.timetable',
+    newDocLabelKey: 'personal.features.timetable_new',
+    defaultTitleKey: 'personal.features.timetable_default_title',
     icon: Table2,
-    status: "ready",
+    status: 'ready',
     createDefault: createDefaultTimetable,
     Editor: TimetableEditor,
     PrintSheet: TimetablePrintSheet,
   },
   {
-    key: "songlist",
-    labelKey: "personal.features.songlist",
-    newDocLabelKey: "personal.features.songlist",
-    defaultTitleKey: "personal.features.songlist",
+    key: 'songlist',
+    labelKey: 'personal.features.songlist',
+    newDocLabelKey: 'personal.features.songlist',
+    defaultTitleKey: 'personal.features.songlist',
     icon: ListMusic,
-    status: "soon",
+    status: 'soon',
     createDefault: () => ({}),
     Editor: SoonEditor,
   },
   {
-    key: "attendance",
-    labelKey: "personal.features.attendance",
-    newDocLabelKey: "personal.features.attendance",
-    defaultTitleKey: "personal.features.attendance",
+    key: 'attendance',
+    labelKey: 'personal.features.attendance',
+    newDocLabelKey: 'personal.features.attendance',
+    defaultTitleKey: 'personal.features.attendance',
     icon: ClipboardCheck,
-    status: "soon",
+    status: 'soon',
     createDefault: () => ({}),
     Editor: SoonEditor,
   },

@@ -98,5 +98,13 @@ export function useAudioRecorder() {
     };
   }, []);
 
-  return { isRecording, recordingDuration, recordingSize, audioBlob, startRecording, stopRecording, clearRecording };
+  return {
+    isRecording,
+    recordingDuration,
+    recordingSize,
+    audioBlob,
+    startRecording,
+    stopRecording,
+    clearRecording,
+  };
 }

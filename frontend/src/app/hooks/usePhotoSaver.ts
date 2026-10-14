@@ -48,7 +48,10 @@ function buildChunks(items: PhotoSaveItem[]): Chunk[] {
   let bytes = 0;
   for (const item of items) {
     const size = item.size || UNKNOWN_SIZE;
-    if (current.length > 0 && (current.length >= MAX_CHUNK_COUNT || bytes + size > MAX_CHUNK_BYTES)) {
+    if (
+      current.length > 0 &&
+      (current.length >= MAX_CHUNK_COUNT || bytes + size > MAX_CHUNK_BYTES)
+    ) {
       chunks.push({ items: current });
       current = [];
       bytes = 0;
@@ -164,7 +167,12 @@ export function usePhotoSaver(onSaved?: (ids: string[]) => void) {
       abortRef.current?.abort();
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       chunksRef.current = buildChunks(items);
-      setState({ ...IDLE, phase: 'preparing', chunkCount: chunksRef.current.length, total: items.length });
+      setState({
+        ...IDLE,
+        phase: 'preparing',
+        chunkCount: chunksRef.current.length,
+        total: items.length,
+      });
       void prepareChunk(0);
       return true;
     },
@@ -190,7 +198,10 @@ export function usePhotoSaver(onSaved?: (ids: string[]) => void) {
 
       if (outcome === 'failed' && files.length > 1) {
         // Some browsers reject multi-file shares — retry one photo per tap, no re-fetch
-        const singles: Chunk[] = chunk.items.map((item, i) => ({ items: [item], files: [files[i]] }));
+        const singles: Chunk[] = chunk.items.map((item, i) => ({
+          items: [item],
+          files: [files[i]],
+        }));
         chunksRef.current.splice(index, 1, ...singles);
         void prepareChunk(index);
         return;

@@ -2,7 +2,7 @@
 // 사용자 타입
 // ========================================
 
-export type SystemRole = "USER" | "TESTER" | "ADMIN";
+export type SystemRole = 'USER' | 'TESTER' | 'ADMIN';
 
 export interface User {
   id: string;
@@ -10,8 +10,8 @@ export interface User {
   name: string;
   profile_image?: string | null;
   email_verified?: boolean;
-  theme?: "dark" | "light";
-  provider?: "email" | "google";
+  theme?: 'dark' | 'light';
+  provider?: 'email' | 'google';
   system_role?: SystemRole;
   personal_space_enabled?: boolean;
 }
@@ -114,24 +114,23 @@ export interface AdminSubscription {
 // 역할 타입
 // ========================================
 
-export type BoardRole = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+export type BoardRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 /** @deprecated Use BoardRole instead */
 export type Role = BoardRole;
 
-export type BoardType = "TEAM" | "PERSONAL";
+export type BoardType = 'TEAM' | 'PERSONAL';
 
 // ========================================
 // 구독 관련 타입
 // ========================================
 
-export type SubscriptionStatus =
-  "TRIAL" | "ACTIVE" | "PAST_DUE" | "SUSPENDED" | "CANCELED";
+export type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'CANCELED';
 
 export interface Subscription {
   id?: string;
   status: SubscriptionStatus;
   plan: string | null;
-  billing_cycle?: "MONTHLY" | "YEARLY" | null;
+  billing_cycle?: 'MONTHLY' | 'YEARLY' | null;
   price?: number | null;
   seat_count?: number;
   price_per_seat?: number | null;
@@ -152,7 +151,7 @@ export interface Subscription {
 // 보드 관련 타입
 // ========================================
 
-export type BoardTier = "TRIAL" | "STANDARD" | "PREMIUM" | "ORG_MANAGED";
+export type BoardTier = 'TRIAL' | 'STANDARD' | 'PREMIUM' | 'ORG_MANAGED';
 
 export interface OrgBoardCandidate {
   user_id: string;
@@ -213,7 +212,7 @@ export interface Board {
   updated_at?: string;
 }
 
-export type JoinRequestStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type JoinRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface BoardJoinRequest {
   id: string;
@@ -302,7 +301,7 @@ export interface ContractorInfo {
   // 전체 계약 기간 이력 (start_date ASC)
   periods?: ContractorPeriod[];
   // 파생 상태: active / upcoming / expired / none
-  status?: "active" | "upcoming" | "expired" | "none" | string;
+  status?: 'active' | 'upcoming' | 'expired' | 'none' | string;
   manager_member_id?: string | null;
   manager_name?: string | null;
   job_role?: JobRoleInfo | null;
@@ -321,8 +320,8 @@ export interface BoardContractor extends ContractorInfo {
 // 블록 타입
 // ========================================
 
-export type BlockType = "FIXED" | "CUSTOM";
-export type FixedBlockType = "FEATURE" | "TASK" | "DONE" | null;
+export type BlockType = 'FIXED' | 'CUSTOM';
+export type FixedBlockType = 'FEATURE' | 'TASK' | 'DONE' | null;
 
 export interface Block {
   id: string;
@@ -364,7 +363,7 @@ export interface Assignee {
 // Feature 타입
 // ========================================
 
-export type FeatureStatus = "ACTIVE" | "COMPLETED";
+export type FeatureStatus = 'ACTIVE' | 'COMPLETED';
 
 export interface Feature {
   id: string;
@@ -405,7 +404,7 @@ export interface FeatureDeleteRequest {
  */
 export interface MindMapNode {
   id: string;
-  kind: "feature" | "memo";
+  kind: 'feature' | 'memo';
   x: number;
   y: number;
   feature_id?: string;
@@ -500,7 +499,7 @@ export interface SharedMindMapSnapshot {
  */
 export interface MiniKanbanNode {
   id: string;
-  kind: "block" | "task";
+  kind: 'block' | 'task';
   x: number;
   y: number;
   block_id?: string;
@@ -552,7 +551,7 @@ export interface Task {
   updated_at?: string;
   completed_at?: string | null;
   /** JIRA에서 pull된 QA 상태 (읽기전용). null=QA 흐름 밖(개발 소유) */
-  qa_state?: "REVIEW" | "VERIFIED" | "REJECTED" | null;
+  qa_state?: 'REVIEW' | 'VERIFIED' | 'REJECTED' | null;
   /** 살아있는 JIRA 이슈 링크가 있으면 그 키(TBTRP-294). 설명은 JIRA가 소유 → 읽기 전용 */
   jira_issue_key?: string | null;
   /** 이 태스크에 적용된 체크리스트 프리셋 (해제하면 null, 항목은 유지) */
@@ -619,7 +618,7 @@ export interface Milestone {
 // 마일스톤 인원 할당 타입
 // ========================================
 
-export type MilestoneAllocationStatus = "OVER" | "UNDER" | "NORMAL";
+export type MilestoneAllocationStatus = 'OVER' | 'UNDER' | 'NORMAL';
 
 export interface MilestoneAllocation {
   id: string;
@@ -700,9 +699,9 @@ export interface ChecklistPreset {
 // 스프린트 타입 (마일스톤 안의 선택형 스프린트)
 // ========================================
 
-export type SprintColumnKind = "START" | "MIDDLE" | "END";
+export type SprintColumnKind = 'START' | 'MIDDLE' | 'END';
 /** 스프린트 상태는 저장되지 않는다 — 오늘 날짜와 버킷 기간으로 서버가 파생한다. */
-export type SprintState = "PAST" | "CURRENT" | "FUTURE";
+export type SprintState = 'PAST' | 'CURRENT' | 'FUTURE';
 
 // 카드 안쪽에 나열되는 체크리스트 한 줄. 담기 대상이 아니라 표시·토글 대상이다.
 export interface SprintChecklistLine {
@@ -776,7 +775,7 @@ export interface SprintItemCard {
   foreign_line_counts?: SprintSliceCount[]; // 홈 카드 전용
   // ── JIRA 뷰 전용 (컬럼=JIRA 상태 그루핑용) ──
   block_id?: string | null; // 부모 Task의 현재 칸반 블록 = 매핑된 JIRA 상태(push 시 최신)
-  qa_state?: "REVIEW" | "VERIFIED" | "REJECTED" | null; // JIRA pull QA 상태 (읽기전용)
+  qa_state?: 'REVIEW' | 'VERIFIED' | 'REJECTED' | null; // JIRA pull QA 상태 (읽기전용)
   jira_issue_key?: string | null; // 연동된 JIRA 이슈 키(QASA-123), 미연동이면 null
   jira_status_id?: string | null; // 마지막 pull 시점의 실제 JIRA 상태 id (미러링 컬럼 배치용)
   // 대표 담당자 = 체크리스트 담당자 중 첫 번째. 담당자가 여럿이면 assignees를 쓴다.
@@ -842,7 +841,7 @@ export interface SprintJiraTask {
   task_id: string;
   task_title: string | null;
   jira_issue_key: string; // 연동 이슈 키 (항상 존재 — 링크된 Task만 내려옴)
-  qa_state?: "REVIEW" | "VERIFIED" | "REJECTED" | null; // JIRA pull QA 상태 (읽기전용)
+  qa_state?: 'REVIEW' | 'VERIFIED' | 'REJECTED' | null; // JIRA pull QA 상태 (읽기전용)
   block_id: string | null; // 현재 칸반 블록(미러 컬럼 배치 키)
   jira_status_id: string | null; // 마지막 pull 시점의 JIRA 상태 id (매뉴얼 매핑 배치 키)
   feature_id: string | null; // 피쳐 칩 필터용
@@ -863,7 +862,7 @@ export interface SprintFeatureInfo {
   id: string;
   title: string;
   color: string | null;
-  status: "ACTIVE" | "COMPLETED" | null;
+  status: 'ACTIVE' | 'COMPLETED' | null;
   created_at: string | null; // 생성 순서 정렬용
 }
 
@@ -904,7 +903,7 @@ export interface SprintBoard {
 export interface InviteLink {
   id: string;
   code: string;
-  role: "ADMIN" | "MEMBER" | "VIEWER";
+  role: 'ADMIN' | 'MEMBER' | 'VIEWER';
   max_uses: number | null;
   used_count: number;
   expires_at: string | null;
@@ -918,7 +917,7 @@ export interface InviteLink {
 // ========================================
 
 export interface InviteResult {
-  type: "DIRECT_ADD" | "EMAIL_SENT";
+  type: 'DIRECT_ADD' | 'EMAIL_SENT';
   member?: BoardMember; // DIRECT_ADD인 경우
   email?: string; // EMAIL_SENT인 경우
   role?: string; // EMAIL_SENT인 경우
@@ -1003,40 +1002,40 @@ export interface TaskCommentListResponse {
 // ========================================
 
 export type ActivityAction =
-  | "BOARD_CREATED"
-  | "BOARD_UPDATED"
-  | "BLOCK_CREATED"
-  | "BLOCK_UPDATED"
-  | "BLOCK_DELETED"
-  | "BLOCK_REORDERED"
-  | "FEATURE_CREATED"
-  | "FEATURE_UPDATED"
-  | "FEATURE_DELETED"
-  | "FEATURE_COMPLETED"
-  | "TASK_CREATED"
-  | "TASK_UPDATED"
-  | "TASK_DELETED"
-  | "TASK_MOVED"
-  | "TASK_COMPLETED"
-  | "TASK_REOPENED"
-  | "CHECKLIST_CREATED"
-  | "CHECKLIST_CHECKED"
-  | "CHECKLIST_RENAMED"
-  | "CHECKLIST_REASSIGNED"
-  | "CHECKLIST_RESCHEDULED"
-  | "CHECKLIST_MOVED"
-  | "CHECKLIST_MERGED"
-  | "CHECKLIST_DELETED"
-  | "TAG_CREATED"
-  | "TAG_DELETED"
-  | "MEMBER_INVITED"
-  | "MEMBER_JOINED"
-  | "MEMBER_LEFT"
-  | "MEMBER_REMOVED"
-  | "MEMBER_ROLE_CHANGED"
-  | "SUBSCRIPTION_STARTED"
-  | "SUBSCRIPTION_PLAN_CHANGED"
-  | "SUBSCRIPTION_CANCELED";
+  | 'BOARD_CREATED'
+  | 'BOARD_UPDATED'
+  | 'BLOCK_CREATED'
+  | 'BLOCK_UPDATED'
+  | 'BLOCK_DELETED'
+  | 'BLOCK_REORDERED'
+  | 'FEATURE_CREATED'
+  | 'FEATURE_UPDATED'
+  | 'FEATURE_DELETED'
+  | 'FEATURE_COMPLETED'
+  | 'TASK_CREATED'
+  | 'TASK_UPDATED'
+  | 'TASK_DELETED'
+  | 'TASK_MOVED'
+  | 'TASK_COMPLETED'
+  | 'TASK_REOPENED'
+  | 'CHECKLIST_CREATED'
+  | 'CHECKLIST_CHECKED'
+  | 'CHECKLIST_RENAMED'
+  | 'CHECKLIST_REASSIGNED'
+  | 'CHECKLIST_RESCHEDULED'
+  | 'CHECKLIST_MOVED'
+  | 'CHECKLIST_MERGED'
+  | 'CHECKLIST_DELETED'
+  | 'TAG_CREATED'
+  | 'TAG_DELETED'
+  | 'MEMBER_INVITED'
+  | 'MEMBER_JOINED'
+  | 'MEMBER_LEFT'
+  | 'MEMBER_REMOVED'
+  | 'MEMBER_ROLE_CHANGED'
+  | 'SUBSCRIPTION_STARTED'
+  | 'SUBSCRIPTION_PLAN_CHANGED'
+  | 'SUBSCRIPTION_CANCELED';
 
 export interface ActivityLog {
   id: string;
@@ -1056,8 +1055,7 @@ export interface ActivityLog {
 // 알림(Notification) 타입
 // ========================================
 
-export type NotificationType =
-  "COMMENT_MENTION" | "CHECKLIST_ASSIGNED" | "TASK_COMMENT";
+export type NotificationType = 'COMMENT_MENTION' | 'CHECKLIST_ASSIGNED' | 'TASK_COMMENT';
 
 export interface NotificationItem {
   id: string;
@@ -1169,13 +1167,13 @@ export interface FilterOptions {
 // ========================================
 
 export interface DragItem {
-  type: "task";
+  type: 'task';
   taskId: string;
   currentBlock: string;
 }
 
 export interface BlockDragItem {
-  type: "block";
+  type: 'block';
   blockId: string;
   position: number;
 }
@@ -1193,52 +1191,52 @@ export interface ApiError {
 // 에러 코드 상수
 export const ERROR_CODES = {
   // 공통
-  C001: "잘못된 입력값",
-  C002: "서버 오류",
+  C001: '잘못된 입력값',
+  C002: '서버 오류',
   // 인증
-  A001: "이미 사용 중인 이메일",
-  A002: "이메일/비밀번호 불일치",
-  A003: "유효하지 않은 토큰",
-  A004: "만료된 토큰",
-  A005: "인증 필요",
+  A001: '이미 사용 중인 이메일',
+  A002: '이메일/비밀번호 불일치',
+  A003: '유효하지 않은 토큰',
+  A004: '만료된 토큰',
+  A005: '인증 필요',
   // 사용자
-  U001: "사용자 없음",
+  U001: '사용자 없음',
   // 보드
-  B001: "보드 없음",
-  B002: "보드 접근 권한 없음",
-  B003: "보드 정지 상태",
-  B004: "Premium 기능 필요",
+  B001: '보드 없음',
+  B002: '보드 접근 권한 없음',
+  B003: '보드 정지 상태',
+  B004: 'Premium 기능 필요',
   // 블록
-  BL001: "블록 없음",
-  BL002: "고정 블록 삭제 불가",
-  BL003: "고정 블록 수정 불가",
+  BL001: '블록 없음',
+  BL002: '고정 블록 삭제 불가',
+  BL003: '고정 블록 수정 불가',
   // Feature
-  F001: "Feature 없음",
+  F001: 'Feature 없음',
   // Task
-  T001: "Task 없음",
-  T002: "Task 이동 불가 블록",
-  T003: "Task 제한 초과 (Standard 보드 10개 제한)",
+  T001: 'Task 없음',
+  T002: 'Task 이동 불가 블록',
+  T003: 'Task 제한 초과 (Standard 보드 10개 제한)',
   // 태그
-  TG001: "태그 없음",
-  TG002: "이미 존재하는 태그",
+  TG001: '태그 없음',
+  TG002: '이미 존재하는 태그',
   // 체크리스트
-  CL001: "체크리스트 항목 없음",
+  CL001: '체크리스트 항목 없음',
   // 멤버
-  M001: "멤버 없음",
-  M002: "이미 멤버임",
-  M003: "Owner 내보내기 불가",
-  M004: "Owner 역할 변경 불가",
+  M001: '멤버 없음',
+  M002: '이미 멤버임',
+  M003: 'Owner 내보내기 불가',
+  M004: 'Owner 역할 변경 불가',
   // 초대
-  I001: "초대 링크 없음",
-  I002: "만료된 초대 링크",
-  I003: "유효하지 않은 초대 링크",
+  I001: '초대 링크 없음',
+  I002: '만료된 초대 링크',
+  I003: '유효하지 않은 초대 링크',
   // 구독
-  S001: "구독 정보 없음",
-  S002: "체험 기간 만료",
-  S003: "결제 필요",
-  S004: "멤버 수 제한 초과",
+  S001: '구독 정보 없음',
+  S002: '체험 기간 만료',
+  S003: '결제 필요',
+  S004: '멤버 수 제한 초과',
   // 알림
-  N001: "알림 없음",
+  N001: '알림 없음',
 } as const;
 
 // ========================================
@@ -1490,18 +1488,18 @@ export interface PersonalStatistics {
  * 통계 뷰 타입
  */
 export type StatisticsViewType =
-  | "overview" // 요약 대시보드
-  | "individual" // 개인 생산성
-  | "team" // 팀 생산성
-  | "work" // 작업 분석
-  | "impact" // 임팩트 분석
-  | "management"; // 관리 대시보드
+  | 'overview' // 요약 대시보드
+  | 'individual' // 개인 생산성
+  | 'team' // 팀 생산성
+  | 'work' // 작업 분석
+  | 'impact' // 임팩트 분석
+  | 'management'; // 관리 대시보드
 
 // ========================================
 // AI 주간 보고서 타입
 // ========================================
 
-export type ReportType = "TEAM" | "PERSONAL";
+export type ReportType = 'TEAM' | 'PERSONAL';
 
 export interface WeeklyReport {
   id: string;
@@ -1654,7 +1652,7 @@ export interface WeeklyReportListItem {
  * - PINNED : 기간과 무관하게 사용자가 그 날로 당겨온 항목
  * - ADHOC  : 원본 체크리스트 없이 그 날만 존재하는 임시 항목
  */
-export type DailyChecklistSource = "DERIVED" | "OVERDUE" | "PINNED" | "ADHOC";
+export type DailyChecklistSource = 'DERIVED' | 'OVERDUE' | 'PINNED' | 'ADHOC';
 
 /**
  * 오늘의 체크리스트 항목
@@ -1715,12 +1713,12 @@ export interface DailyChecklistResponse {
 /**
  * 마일스톤 헬스 상태
  */
-export type MilestoneHealthStatus = "ON_TRACK" | "SLOW" | "AT_RISK" | "OVERDUE";
+export type MilestoneHealthStatus = 'ON_TRACK' | 'SLOW' | 'AT_RISK' | 'OVERDUE';
 
 /**
  * 멤버 생산성 상태
  */
-export type MemberProductivityStatus = "NORMAL" | "OVERWORKED" | "RELAXED";
+export type MemberProductivityStatus = 'NORMAL' | 'OVERWORKED' | 'RELAXED';
 
 /**
  * 마일스톤 정보
@@ -2031,7 +2029,7 @@ export interface ManagementStatistics {
 // 문의사항 타입
 // ========================================
 
-export type InquiryStatus = "PENDING" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+export type InquiryStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
 
 export interface InquiryAttachment {
   id: string;
@@ -2042,7 +2040,7 @@ export interface InquiryAttachment {
   file_size: number;
 }
 
-export type InquiryReplyType = "ADMIN" | "USER";
+export type InquiryReplyType = 'ADMIN' | 'USER';
 
 export interface InquiryReply {
   id: string;
@@ -2109,54 +2107,54 @@ export interface InquiryListResponse {
 // ========================================
 
 export type BoardEventType =
-  | "FEATURE_CREATED"
-  | "FEATURE_UPDATED"
-  | "FEATURE_DELETED"
-  | "FEATURE_RESTORED"
-  | "FEATURES_REORDERED"
-  | "TASK_CREATED"
-  | "TASK_UPDATED"
-  | "TASK_DELETED"
-  | "TASK_MOVED"
-  | "TASK_RESTORED"
-  | "TASKS_REORDERED"
-  | "BLOCK_CREATED"
-  | "BLOCK_UPDATED"
-  | "BLOCK_DELETED"
-  | "BLOCKS_REORDERED"
-  | "BLOCK_VISIBILITY_CHANGED"
-  | "JOB_ROLE_UPDATED"
-  | "COMMENT_CREATED"
-  | "COMMENT_UPDATED"
-  | "COMMENT_DELETED"
-  | "COMMENT_REACTION_TOGGLED"
-  | "CHECKLIST_CREATED"
-  | "CHECKLIST_UPDATED"
-  | "CHECKLIST_DELETED"
-  | "CHECKLIST_RESTORED"
-  | "CHECKLIST_TOGGLED"
-  | "CHECKLIST_MOVED"
-  | "SPRINT_UPDATED"
-  | "SCHEDULE_CREATED"
-  | "SCHEDULE_UPDATED"
-  | "SCHEDULE_DELETED"
-  | "MEETING_CREATED"
-  | "MEETING_UPDATED"
-  | "MEETING_DELETED"
-  | "TRANSCRIPTION_PROGRESS"
-  | "BOARD_UPDATED"
-  | "MEMBER_JOINED"
-  | "MEMBER_LEFT"
-  | "MEMBER_UPDATED"
-  | "NOTIFICATION_CREATED"
-  | "INQUIRY_REPLIED"
-  | "NOTE_COMMENT_CREATED"
-  | "NOTE_COMMENT_UPDATED"
-  | "NOTE_COMMENT_DELETED"
-  | "NOTE_COMMENT_RESOLVED"
-  | "NOTE_COMMENT_REACTION_TOGGLED"
-  | "PRESENCE_JOINED"
-  | "PRESENCE_LEFT";
+  | 'FEATURE_CREATED'
+  | 'FEATURE_UPDATED'
+  | 'FEATURE_DELETED'
+  | 'FEATURE_RESTORED'
+  | 'FEATURES_REORDERED'
+  | 'TASK_CREATED'
+  | 'TASK_UPDATED'
+  | 'TASK_DELETED'
+  | 'TASK_MOVED'
+  | 'TASK_RESTORED'
+  | 'TASKS_REORDERED'
+  | 'BLOCK_CREATED'
+  | 'BLOCK_UPDATED'
+  | 'BLOCK_DELETED'
+  | 'BLOCKS_REORDERED'
+  | 'BLOCK_VISIBILITY_CHANGED'
+  | 'JOB_ROLE_UPDATED'
+  | 'COMMENT_CREATED'
+  | 'COMMENT_UPDATED'
+  | 'COMMENT_DELETED'
+  | 'COMMENT_REACTION_TOGGLED'
+  | 'CHECKLIST_CREATED'
+  | 'CHECKLIST_UPDATED'
+  | 'CHECKLIST_DELETED'
+  | 'CHECKLIST_RESTORED'
+  | 'CHECKLIST_TOGGLED'
+  | 'CHECKLIST_MOVED'
+  | 'SPRINT_UPDATED'
+  | 'SCHEDULE_CREATED'
+  | 'SCHEDULE_UPDATED'
+  | 'SCHEDULE_DELETED'
+  | 'MEETING_CREATED'
+  | 'MEETING_UPDATED'
+  | 'MEETING_DELETED'
+  | 'TRANSCRIPTION_PROGRESS'
+  | 'BOARD_UPDATED'
+  | 'MEMBER_JOINED'
+  | 'MEMBER_LEFT'
+  | 'MEMBER_UPDATED'
+  | 'NOTIFICATION_CREATED'
+  | 'INQUIRY_REPLIED'
+  | 'NOTE_COMMENT_CREATED'
+  | 'NOTE_COMMENT_UPDATED'
+  | 'NOTE_COMMENT_DELETED'
+  | 'NOTE_COMMENT_RESOLVED'
+  | 'NOTE_COMMENT_REACTION_TOGGLED'
+  | 'PRESENCE_JOINED'
+  | 'PRESENCE_LEFT';
 
 export interface BoardWebSocketEvent {
   type: BoardEventType;
@@ -2333,7 +2331,7 @@ export interface AiCredits {
   purchased_credits: number;
   total_available: number;
   reset_date: string | null;
-  warning_level: "LOW" | "CRITICAL" | "EXHAUSTED" | null;
+  warning_level: 'LOW' | 'CRITICAL' | 'EXHAUSTED' | null;
 }
 
 export interface AiCreditPurchaseRequest {
@@ -2383,21 +2381,20 @@ export interface PersonalEvent {
   recurrence_group_id?: string | null;
   recurrence_end_date?: string | null;
   recurrence_days_of_week?: string | null;
-  event_type: "CALENDAR" | "SCHEDULE";
+  event_type: 'CALENDAR' | 'SCHEDULE';
   created_at: string;
   updated_at?: string;
 }
 
 // ─── Personal Task (v9.0 MySpace) ───
 
-export type PersonalTaskStatus = "TODO" | "IN_PROGRESS" | "DONE" | "ARCHIVED";
-export type PersonalTaskPriority =
-  "NONE" | "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+export type PersonalTaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE' | 'ARCHIVED';
+export type PersonalTaskPriority = 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
 /** 백로그 항목이 무엇으로 승격됐는지 */
-export type PersonalTaskPromotionType = "TIMEBLOCK" | "TASK" | "CHECKLIST_ITEM";
-export type HabitFrequency = "DAILY" | "WEEKDAY" | "WEEKEND" | "CUSTOM";
-export type HabitImportance = "HIGH" | "MEDIUM";
+export type PersonalTaskPromotionType = 'TIMEBLOCK' | 'TASK' | 'CHECKLIST_ITEM';
+export type HabitFrequency = 'DAILY' | 'WEEKDAY' | 'WEEKEND' | 'CUSTOM';
+export type HabitImportance = 'HIGH' | 'MEDIUM';
 
 export interface PersonalTask {
   id: string;
@@ -2515,12 +2512,12 @@ export interface PersonalDashboardToday {
 // Organization (조직)
 // ========================================
 
-export type OrgRole = "OWNER" | "ADMIN" | "MEMBER";
-export type ContractType = "FULL_TIME" | "CONTRACT" | "INTERN" | "PART_TIME";
-export type WorkStatus = "ACTIVE" | "ON_LEAVE" | "RESIGNED";
-export type LeaveCategory = "ANNUAL" | "SICK" | "REFRESH" | "OTHER";
-export type LeaveDurationType = "FULL_DAY" | "AM_HALF" | "PM_HALF";
-export type LeaveStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELED";
+export type OrgRole = 'OWNER' | 'ADMIN' | 'MEMBER';
+export type ContractType = 'FULL_TIME' | 'CONTRACT' | 'INTERN' | 'PART_TIME';
+export type WorkStatus = 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED';
+export type LeaveCategory = 'ANNUAL' | 'SICK' | 'REFRESH' | 'OTHER';
+export type LeaveDurationType = 'FULL_DAY' | 'AM_HALF' | 'PM_HALF';
+export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELED';
 
 export interface OrganizationOwnerInfo {
   id: string;
@@ -2703,7 +2700,7 @@ export interface OrgMemberHistoryItem {
   effective_end_date: string | null;
   duration_months: number | null;
   description: string | null;
-  source: "AUTO" | "MANUAL";
+  source: 'AUTO' | 'MANUAL';
   created_by_id: string | null;
   created_at: string;
 }
@@ -2728,7 +2725,7 @@ export interface OrgMemberPageResponse {
 }
 
 export interface OrgMemberInviteResult {
-  type: "direct_add" | "email_sent";
+  type: 'direct_add' | 'email_sent';
   member?: OrgMemberSimple;
   email?: string;
   role?: OrgRole;
@@ -2813,16 +2810,16 @@ export interface OrgAnnouncementCommentListResponse {
 }
 
 export type OrgActivityType =
-  | "MEMBER_JOINED"
-  | "MEMBER_LEFT"
-  | "MEMBER_ROLE_CHANGED"
-  | "BOARD_ADDED"
-  | "BOARD_REMOVED"
-  | "BOARD_CREATED"
-  | "LEAVE_APPROVED"
-  | "LEAVE_REJECTED"
-  | "ANNOUNCEMENT_POSTED"
-  | "ANNIVERSARY_CELEBRATED";
+  | 'MEMBER_JOINED'
+  | 'MEMBER_LEFT'
+  | 'MEMBER_ROLE_CHANGED'
+  | 'BOARD_ADDED'
+  | 'BOARD_REMOVED'
+  | 'BOARD_CREATED'
+  | 'LEAVE_APPROVED'
+  | 'LEAVE_REJECTED'
+  | 'ANNOUNCEMENT_POSTED'
+  | 'ANNIVERSARY_CELEBRATED';
 
 export interface OrgActivity {
   id: string;
@@ -2945,8 +2942,7 @@ export interface LeaveRequestPageResponse {
 
 // ─── Leave Balance Adjustments ───
 
-export type LeaveAdjustmentType =
-  "GRANT" | "REVOKE" | "MANUAL_ADJUST" | "ANNUAL_INIT";
+export type LeaveAdjustmentType = 'GRANT' | 'REVOKE' | 'MANUAL_ADJUST' | 'ANNUAL_INIT';
 
 export interface LeaveBalanceAdjustmentResponse {
   id: string;
@@ -3173,9 +3169,9 @@ export interface OrgBoardResourceResponse {
 
 // ─── Organization Anniversary & Celebrations ───
 
-export type AnniversaryType = "BIRTHDAY" | "HIRE_ANNIVERSARY";
-export type NotifyTiming = "SAME_DAY" | "DAY_BEFORE" | "THREE_DAYS_BEFORE";
-export type AnniversaryDashboardRange = "THIS_WEEK" | "THIS_MONTH";
+export type AnniversaryType = 'BIRTHDAY' | 'HIRE_ANNIVERSARY';
+export type NotifyTiming = 'SAME_DAY' | 'DAY_BEFORE' | 'THREE_DAYS_BEFORE';
+export type AnniversaryDashboardRange = 'THIS_WEEK' | 'THIS_MONTH';
 
 export interface AnniversaryItem {
   member_id: string;
@@ -3212,7 +3208,7 @@ export interface AnniversarySettings {
 
 // ─── Organization 1:1 Meeting Notes ───
 
-export type OneOnOneRecurrenceType = "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "NONE";
+export type OneOnOneRecurrenceType = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'NONE';
 
 export interface OneOnOneMemberInfo {
   id: string;
@@ -3272,7 +3268,7 @@ export interface OneOnOneOpenActionItem {
 // ─── Organization Attendance & Time Tracking ───
 
 export type AttendanceStatus =
-  "PRESENT" | "ABSENT" | "ON_LEAVE" | "HALF_DAY" | "WEEKEND" | "HOLIDAY";
+  'PRESENT' | 'ABSENT' | 'ON_LEAVE' | 'HALF_DAY' | 'WEEKEND' | 'HOLIDAY';
 
 export interface AttendanceRecordDetail {
   id: string;
@@ -3385,7 +3381,7 @@ export interface AttendanceLeaveMember {
   name: string;
   profile_image: string | null;
   department_name: string | null;
-  duration_type: "FULL_DAY" | "AM_HALF" | "PM_HALF";
+  duration_type: 'FULL_DAY' | 'AM_HALF' | 'PM_HALF';
 }
 
 export interface AttendanceTodayMembers {
@@ -3400,7 +3396,7 @@ export interface AttendanceTodayMembers {
 
 // Feature #2: 통합 투데이 뷰
 export interface BoardTaskItem {
-  type: "CHECKLIST" | "DAILY_CHECKLIST" | "MEETING";
+  type: 'CHECKLIST' | 'DAILY_CHECKLIST' | 'MEETING';
   checklist_item_id?: string;
   daily_checklist_id?: string;
   meeting_id?: string;
@@ -3431,7 +3427,7 @@ export interface BoardTasksData {
 
 // Feature #3: 크로스 캘린더
 export interface UnifiedCalendarEvent {
-  source: "MEETING" | "SCHEDULE_BLOCK" | "ANNIVERSARY" | "LEAVE";
+  source: 'MEETING' | 'SCHEDULE_BLOCK' | 'ANNIVERSARY' | 'LEAVE';
   board_id?: string;
   board_name?: string;
   org_id?: string;
@@ -3462,7 +3458,7 @@ export interface CelebrationItem {
   member_user_id: string;
   member_name: string;
   member_profile_image?: string | null;
-  type: "BIRTHDAY" | "HIRE_ANNIVERSARY";
+  type: 'BIRTHDAY' | 'HIRE_ANNIVERSARY';
   message_template: string;
   can_send_message: boolean;
   already_sent: boolean;
@@ -3553,7 +3549,7 @@ export interface OkrTreeData {
 
 // ===== Org Subscription Types =====
 
-export type OrgPlan = "FREE" | "TEAM";
+export type OrgPlan = 'FREE' | 'TEAM';
 
 export interface OrgSubscription {
   id: string;
@@ -3584,7 +3580,7 @@ export interface OrgSubscription {
   monthly_credits_used?: number;
   total_available_credits?: number;
   credits_reset_date?: string | null;
-  credit_warning_level?: "LOW" | "CRITICAL" | "EXHAUSTED" | null;
+  credit_warning_level?: 'LOW' | 'CRITICAL' | 'EXHAUSTED' | null;
 }
 
 export interface MigrationPreview {
@@ -3597,8 +3593,8 @@ export interface MigrationPreview {
 
 // ===== Photo Gallery (v14.0) =====
 
-export type PhotoShareLinkType = "VIEW" | "UPLOAD";
-export type PhotoShareLinkStatus = "ACTIVE" | "EXPIRED" | "REVOKED";
+export type PhotoShareLinkType = 'VIEW' | 'UPLOAD';
+export type PhotoShareLinkStatus = 'ACTIVE' | 'EXPIRED' | 'REVOKED';
 
 export interface PhotoShareLink {
   id: string;

@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Loader2, Lock } from "lucide-react";
-import { MotionModal } from "./ui/MotionModal";
-import { BoardMiniPreview, type PreviewZone } from "./BoardMiniPreview";
-import type { BoardUiConfig } from "../hooks/useBoardUiConfig";
-import type { BoardUiLevel, BoardUiOption } from "../hooks/useBoardFeatures";
+import { useEffect, useRef, useState } from 'react';
+import { ChevronDown, Loader2, Lock } from 'lucide-react';
+import { MotionModal } from './ui/MotionModal';
+import { BoardMiniPreview, type PreviewZone } from './BoardMiniPreview';
+import type { BoardUiConfig } from '../hooks/useBoardUiConfig';
+import type { BoardUiLevel, BoardUiOption } from '../hooks/useBoardFeatures';
 
 /**
  * 기능 서랍 — 이 보드가 무엇을 쓰는지 한 곳에서 보고 바꾼다.
@@ -35,26 +35,26 @@ interface LevelSpec {
 const LEVELS: LevelSpec[] = [
   {
     level: 1,
-    name: "안 묶음",
-    depth: "0겹",
-    desc: "할 일을 적고 하나씩 지웁니다. 마감도 담기도 없습니다.",
+    name: '안 묶음',
+    depth: '0겹',
+    desc: '할 일을 적고 하나씩 지웁니다. 마감도 담기도 없습니다.',
     adds: [],
-    hides: ["주기 바", "단계 레일", "로드맵 · 간트"],
+    hides: ['주기 바', '단계 레일', '로드맵 · 간트'],
   },
   {
     level: 2,
-    name: "주기",
-    depth: "1겹",
-    desc: "이번 주기에 할 것만 담고 종료일에 끊습니다. 못 끝낸 건 다음 주기로 넘어갑니다.",
-    adds: ["주기 바 · 종료일"],
-    hides: ["단계 레일", "로드맵 · 간트"],
+    name: '주기',
+    depth: '1겹',
+    desc: '이번 주기에 할 것만 담고 종료일에 끊습니다. 못 끝낸 건 다음 주기로 넘어갑니다.',
+    adds: ['주기 바 · 종료일'],
+    hides: ['단계 레일', '로드맵 · 간트'],
   },
   {
     level: 3,
-    name: "단계 ▸ 주기",
-    depth: "2겹",
-    desc: "여러 주기를 단계로 묶습니다. 로드맵과 간트가 여기서 제 값을 합니다.",
-    adds: ["단계 레일", "주기 바 · 종료일", "로드맵 · 간트"],
+    name: '단계 ▸ 주기',
+    depth: '2겹',
+    desc: '여러 주기를 단계로 묶습니다. 로드맵과 간트가 여기서 제 값을 합니다.',
+    adds: ['단계 레일', '주기 바 · 종료일', '로드맵 · 간트'],
     hides: [],
   },
 ];
@@ -72,36 +72,34 @@ interface OptionSpec {
 
 const OPTIONS: OptionSpec[] = [
   {
-    key: "members",
-    name: "구성원별 보기",
-    summary: "컬럼을 사람으로 세웁니다",
+    key: 'members',
+    name: '구성원별 보기',
+    summary: '컬럼을 사람으로 세웁니다',
     detail:
-      "한 작업을 여러 명이 나눠 밀기 때문에 같은 카드가 여러 컬럼에 섭니다. 켜고 끄는 버튼은 스프린트 헤더 오른쪽에 섭니다.",
-    target: "cols",
+      '한 작업을 여러 명이 나눠 밀기 때문에 같은 카드가 여러 컬럼에 섭니다. 켜고 끄는 버튼은 스프린트 헤더 오른쪽에 섭니다.',
+    target: 'cols',
   },
   {
-    key: "review",
-    name: "리뷰 단계",
-    summary: "끝내기 전 확인 칸을 세웁니다",
+    key: 'review',
+    name: '리뷰 단계',
+    summary: '끝내기 전 확인 칸을 세웁니다',
     detail:
-      "끝내기 전에 누가 봐줘야 하는 일을 따로 세웁니다. 끄면 진행 → 완료 두 칸이 되고 카드 호버 액션도 함께 줄어듭니다.",
-    target: "cols",
+      '끝내기 전에 누가 봐줘야 하는 일을 따로 세웁니다. 끄면 진행 → 완료 두 칸이 되고 카드 호버 액션도 함께 줄어듭니다.',
+    target: 'cols',
   },
   {
-    key: "timeblock",
-    name: "개인 시간 블록",
-    summary: "할 일마다 개인 캘린더에 시간을 잡습니다",
-    detail:
-      "팀 마감이 아니라 개인 일정입니다. 카드 안 할 일 줄에 시간 칩이 붙습니다.",
-    target: "card",
+    key: 'timeblock',
+    name: '개인 시간 블록',
+    summary: '할 일마다 개인 캘린더에 시간을 잡습니다',
+    detail: '팀 마감이 아니라 개인 일정입니다. 카드 안 할 일 줄에 시간 칩이 붙습니다.',
+    target: 'card',
   },
   {
-    key: "jira",
-    name: "JIRA 연동 화면",
-    summary: "JIRA 이슈를 카드로 가져옵니다",
-    detail:
-      "연동이 붙어 있어야 화면이 뜹니다. 보드 화면 선택 줄에 탭이 하나 늘어납니다.",
-    target: "tabs",
+    key: 'jira',
+    name: 'JIRA 연동 화면',
+    summary: 'JIRA 이슈를 카드로 가져옵니다',
+    detail: '연동이 붙어 있어야 화면이 뜹니다. 보드 화면 선택 줄에 탭이 하나 늘어납니다.',
+    target: 'tabs',
   },
 ];
 
@@ -110,9 +108,9 @@ const OPTIONS: OptionSpec[] = [
  * 같은 목록 안에 잠긴 행으로 세운다.
  */
 const LOCKED: { name: string; summary: string }[] = [
-  { name: "완료(Done) 컬럼", summary: "끝난 일이 갈 곳" },
-  { name: "묶음 ▸ 작업 ▸ 할 일", summary: "모든 레벨의 공통 바닥" },
-  { name: "할 일 줄 담당자", summary: "레벨과 무관하게 항상" },
+  { name: '완료(Done) 컬럼', summary: '끝난 일이 갈 곳' },
+  { name: '묶음 ▸ 작업 ▸ 할 일', summary: '모든 레벨의 공통 바닥' },
+  { name: '할 일 줄 담당자', summary: '레벨과 무관하게 항상' },
 ];
 
 interface FeatureDrawerProps {
@@ -124,12 +122,7 @@ interface FeatureDrawerProps {
   canEdit: boolean;
 }
 
-export function FeatureDrawer({
-  open,
-  onClose,
-  uiConfig,
-  canEdit,
-}: FeatureDrawerProps) {
+export function FeatureDrawer({ open, onClose, uiConfig, canEdit }: FeatureDrawerProps) {
   const { features, pending: saving } = uiConfig;
 
   const [expanded, setExpanded] = useState<Set<BoardUiOption>>(new Set());
@@ -168,7 +161,7 @@ export function FeatureDrawer({
   const setLevel = (level: BoardUiLevel) => {
     if (!canEdit || level === features.level) return;
     uiConfig.setLevel(level);
-    setFlashZone(level >= 2 ? "sprint" : "cols");
+    setFlashZone(level >= 2 ? 'sprint' : 'cols');
   };
 
   const toggleOption = (spec: OptionSpec) => {
@@ -243,7 +236,7 @@ export function FeatureDrawer({
             >
               <ChevronDown
                 className={`w-3.5 h-3.5 text-bridge-secondary transition-transform motion-reduce:transition-none ${
-                  showMobilePreview ? "rotate-180" : "-rotate-90"
+                  showMobilePreview ? 'rotate-180' : '-rotate-90'
                 }`}
               />
               이 설정의 보드 보기
@@ -274,9 +267,9 @@ export function FeatureDrawer({
                     onClick={() => setLevel(spec.level)}
                     className={`flex flex-col items-center gap-1 px-2 py-2.5 border-r border-foreground/10 last:border-r-0 transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-bridge-accent/50 ${
                       active
-                        ? "bg-bridge-accent/15"
-                        : "hover:bg-foreground/5 disabled:hover:bg-transparent"
-                    } ${!canEdit ? "opacity-40 cursor-not-allowed" : "disabled:cursor-not-allowed"}`}
+                        ? 'bg-bridge-accent/15'
+                        : 'hover:bg-foreground/5 disabled:hover:bg-transparent'
+                    } ${!canEdit ? 'opacity-40 cursor-not-allowed' : 'disabled:cursor-not-allowed'}`}
                   >
                     {/* 겹 수를 막대로 — 3이 2를 포함한다는 걸 숫자보다 빨리 말한다 */}
                     <span className="flex items-end gap-0.5 h-[7px]" aria-hidden="true">
@@ -285,14 +278,14 @@ export function FeatureDrawer({
                           key={h}
                           style={{ height: `${h}px` }}
                           className={`w-3 rounded-sm ${
-                            active ? "bg-bridge-accent" : "bg-foreground/20"
+                            active ? 'bg-bridge-accent' : 'bg-foreground/20'
                           }`}
                         />
                       ))}
                     </span>
                     <span
                       className={`text-xs font-bold ${
-                        active ? "text-bridge-accent" : "text-slate-400"
+                        active ? 'text-bridge-accent' : 'text-slate-400'
                       }`}
                     >
                       {spec.name}
@@ -300,18 +293,14 @@ export function FeatureDrawer({
                     {busy ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-bridge-accent" />
                     ) : (
-                      <span className="text-xs text-slate-500 tabular-nums">
-                        {spec.depth}
-                      </span>
+                      <span className="text-xs text-slate-500 tabular-nums">{spec.depth}</span>
                     )}
                   </button>
                 );
               })}
             </div>
 
-            <p className="mt-2 text-xs text-slate-500 leading-relaxed">
-              {current.desc}
-            </p>
+            <p className="mt-2 text-xs text-slate-500 leading-relaxed">{current.desc}</p>
             {(current.adds.length > 0 || current.hides.length > 0) && (
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {current.adds.map((a) => (
@@ -355,7 +344,7 @@ export function FeatureDrawer({
                     <span
                       aria-hidden="true"
                       className={`self-stretch transition-colors ${
-                        on ? "bg-bridge-accent" : "bg-transparent"
+                        on ? 'bg-bridge-accent' : 'bg-transparent'
                       }`}
                     />
                     <button
@@ -368,13 +357,13 @@ export function FeatureDrawer({
                         {spec.name}
                         <ChevronDown
                           className={`w-3 h-3 text-slate-500 transition-transform motion-reduce:transition-none ${
-                            isOpen ? "rotate-180" : ""
+                            isOpen ? 'rotate-180' : ''
                           }`}
                         />
                       </span>
                       <span
                         className={`block text-xs text-slate-500 leading-relaxed ${
-                          isOpen ? "" : "truncate"
+                          isOpen ? '' : 'truncate'
                         }`}
                       >
                         {spec.summary}
@@ -394,12 +383,12 @@ export function FeatureDrawer({
                         disabled={!canEdit || !!saving}
                         onClick={() => toggleOption(spec)}
                         className={`relative block w-11 h-6 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
-                          on ? "bg-bridge-accent" : "bg-foreground/15"
+                          on ? 'bg-bridge-accent' : 'bg-foreground/15'
                         }`}
                       >
                         <span
                           className={`absolute left-0 top-1 w-4 h-4 rounded-full bg-white transition-transform motion-reduce:transition-none ${
-                            on ? "translate-x-6" : "translate-x-1"
+                            on ? 'translate-x-6' : 'translate-x-1'
                           }`}
                         />
                         {busy && (
@@ -446,8 +435,8 @@ export function FeatureDrawer({
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed mt-2">
-              <b className="font-bold text-slate-500">always</b> 표시는 끌 수 없습니다. 끝난
-              일이 갈 곳이 없으면 컬럼이 무한정 길어지기 때문입니다.
+              <b className="font-bold text-slate-500">always</b> 표시는 끌 수 없습니다. 끝난 일이 갈
+              곳이 없으면 컬럼이 무한정 길어지기 때문입니다.
             </p>
           </div>
         </div>
@@ -456,9 +445,9 @@ export function FeatureDrawer({
         <aside className="hidden md:block border-l border-foreground/[0.08] bg-bridge-dark px-4 pt-4 pb-5">
           {preview}
           <p className="text-xs text-slate-600 leading-relaxed mt-3 pt-3 border-t border-foreground/[0.08]">
-            끄면 화면에서 사라질 뿐{" "}
-            <b className="font-bold text-slate-500">데이터는 그대로 남습니다</b>. 다시 켜면
-            있던 그대로 돌아옵니다.
+            끄면 화면에서 사라질 뿐{' '}
+            <b className="font-bold text-slate-500">데이터는 그대로 남습니다</b>. 다시 켜면 있던
+            그대로 돌아옵니다.
           </p>
         </aside>
       </div>
@@ -466,10 +455,7 @@ export function FeatureDrawer({
       <div className="flex items-center gap-3 px-5 py-3 border-t border-foreground/[0.08]">
         <span className="text-xs text-slate-600">Esc 닫기</span>
         {justSaved && (
-          <span
-            role="status"
-            className="text-xs text-emerald-600 dark:text-emerald-400"
-          >
+          <span role="status" className="text-xs text-emerald-600 dark:text-emerald-400">
             저장됨
           </span>
         )}

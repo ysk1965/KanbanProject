@@ -1,7 +1,32 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Columns, Calendar, Clock, CheckCircle2, TrendingDown, Users2, ShieldAlert, Hash, AtSign, Bell, MessageSquare, ListChecks, GripVertical, ChevronRight, Sparkles, FileText, ListTodo, Home, Flame, LayoutGrid, Flag, Archive, CalendarClock, Zap } from 'lucide-react';
+import {
+  Columns,
+  Calendar,
+  Clock,
+  CheckCircle2,
+  TrendingDown,
+  Users2,
+  ShieldAlert,
+  Hash,
+  AtSign,
+  Bell,
+  MessageSquare,
+  ListChecks,
+  GripVertical,
+  ChevronRight,
+  Sparkles,
+  FileText,
+  ListTodo,
+  Home,
+  Flame,
+  LayoutGrid,
+  Flag,
+  Archive,
+  CalendarClock,
+  Zap,
+} from 'lucide-react';
 
 // --- RESOURCE PULSE DIAGRAM (PM Dashboard View) ---
 export const ResourcePulseDiagram: React.FC = () => {
@@ -20,7 +45,9 @@ export const ResourcePulseDiagram: React.FC = () => {
         </h3>
         <div className="flex items-center gap-3 px-4 py-2 bg-red-400/10 border border-red-400/20 rounded-full">
           <ShieldAlert size={14} className="text-red-400 animate-pulse" />
-          <span className="text-[10px] font-extrabold text-red-400 uppercase tracking-widest">Bottlenecks detected</span>
+          <span className="text-[10px] font-extrabold text-red-400 uppercase tracking-widest">
+            Bottlenecks detected
+          </span>
         </div>
       </div>
 
@@ -30,7 +57,11 @@ export const ResourcePulseDiagram: React.FC = () => {
             <div className="flex justify-between items-end">
               <div>
                 <span className="text-lg font-bold text-white block mb-1">{member.name}</span>
-                <span className={`text-[10px] font-extrabold uppercase tracking-[0.2em] ${member.color}`}>{member.status}</span>
+                <span
+                  className={`text-[10px] font-extrabold uppercase tracking-[0.2em] ${member.color}`}
+                >
+                  {member.status}
+                </span>
               </div>
               <span className="text-xs font-mono text-slate-400">{member.load}% Load</span>
             </div>
@@ -38,10 +69,13 @@ export const ResourcePulseDiagram: React.FC = () => {
               <motion.div
                 initial={{ width: 0 }}
                 whileInView={{ width: `${member.load}%` }}
-                transition={{ duration: 1.5, delay: i * 0.2, ease: "circOut" }}
+                transition={{ duration: 1.5, delay: i * 0.2, ease: 'circOut' }}
                 className={`h-full rounded-full ${
-                  member.status === 'Overheat' ? 'bg-red-400 shadow-[0_0_15px_rgba(248,113,113,0.3)]' :
-                  member.status === 'Normal' ? 'bg-indigo-400' : 'bg-bridge-secondary shadow-[0_0_15px_rgba(45,212,191,0.3)]'
+                  member.status === 'Overheat'
+                    ? 'bg-red-400 shadow-[0_0_15px_rgba(248,113,113,0.3)]'
+                    : member.status === 'Normal'
+                      ? 'bg-indigo-400'
+                      : 'bg-bridge-secondary shadow-[0_0_15px_rgba(45,212,191,0.3)]'
                 }`}
               />
             </div>
@@ -51,17 +85,27 @@ export const ResourcePulseDiagram: React.FC = () => {
 
       <div className="mt-12 pt-8 border-t border-white/15 grid grid-cols-2 gap-4">
         <div className="p-5 bg-white/5 rounded-3xl border border-white/15">
-          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-2">Sprint Health</span>
+          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-2">
+            Sprint Health
+          </span>
           <div className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full bg-bridge-secondary shadow-[0_0_10px_rgba(45,212,191,0.5)]" />
-            <span className="text-2xl font-jakarta font-extrabold text-white tracking-tighter">94.2%</span>
+            <span className="text-2xl font-jakarta font-extrabold text-white tracking-tighter">
+              94.2%
+            </span>
           </div>
         </div>
         <div className="p-5 bg-white/5 rounded-3xl border border-red-400/10">
-          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-2 text-red-400/80">Risk Level</span>
+          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-2 text-red-400/80">
+            Risk Level
+          </span>
           <div className="flex items-center gap-2">
-             <span className="text-2xl font-jakarta font-extrabold text-red-400 tracking-tighter">Low</span>
-             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">3 Alerts</span>
+            <span className="text-2xl font-jakarta font-extrabold text-red-400 tracking-tighter">
+              Low
+            </span>
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+              3 Alerts
+            </span>
           </div>
         </div>
       </div>
@@ -88,14 +132,18 @@ export const PriceComparisonDiagram: React.FC = () => {
         ].map((item, i) => (
           <div key={i} className="space-y-3">
             <div className="flex justify-between text-[11px] font-extrabold uppercase tracking-[0.15em]">
-              <span className={item.highlight ? 'text-bridge-secondary' : 'text-slate-400'}>{item.name}</span>
-              <span className={item.highlight ? 'text-white' : 'text-slate-400'}>${item.cost} / Year</span>
+              <span className={item.highlight ? 'text-bridge-secondary' : 'text-slate-400'}>
+                {item.name}
+              </span>
+              <span className={item.highlight ? 'text-white' : 'text-slate-400'}>
+                ${item.cost} / Year
+              </span>
             </div>
             <div className="h-4 bg-white/5 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 whileInView={{ width: `${(item.cost / 80) * 100}%` }}
-                transition={{ duration: 1.5, delay: i * 0.2, ease: "circOut" }}
+                transition={{ duration: 1.5, delay: i * 0.2, ease: 'circOut' }}
                 className={`h-full rounded-full ${item.color} ${item.highlight ? 'shadow-[0_0_20px_rgba(45,212,191,0.4)]' : ''}`}
               />
             </div>
@@ -104,7 +152,9 @@ export const PriceComparisonDiagram: React.FC = () => {
       </div>
 
       <div className="mt-12 p-6 bg-bridge-secondary/5 rounded-2xl border border-bridge-secondary/10 text-center">
-        <p className="text-sm text-bridge-secondary font-semibold font-jakarta italic">"Market disruption: Zero cost for core kanban features."</p>
+        <p className="text-sm text-bridge-secondary font-semibold font-jakarta italic">
+          "Market disruption: Zero cost for core kanban features."
+        </p>
       </div>
     </div>
   );
@@ -113,21 +163,38 @@ export const PriceComparisonDiagram: React.FC = () => {
 // --- KANBAN BOARD DIAGRAM ---
 export const KanbanDiagram: React.FC = () => {
   const [tasks, setTasks] = useState([
-    { id: 1, title: 'Identity System', status: 'Task', color: 'bg-indigo-600/30 border-indigo-500/50' },
-    { id: 2, title: 'API Flow Engine', status: 'In Progress', color: 'bg-indigo-600 border-indigo-500' },
+    {
+      id: 1,
+      title: 'Identity System',
+      status: 'Task',
+      color: 'bg-indigo-600/30 border-indigo-500/50',
+    },
+    {
+      id: 2,
+      title: 'API Flow Engine',
+      status: 'In Progress',
+      color: 'bg-indigo-600 border-indigo-500',
+    },
     { id: 3, title: 'Security Audit', status: 'Review', color: 'bg-teal-600 border-teal-500' },
-    { id: 4, title: 'UI Core Render', status: 'Done', color: 'bg-bridge-secondary border-bridge-secondary text-bridge-dark' },
+    {
+      id: 4,
+      title: 'UI Core Render',
+      status: 'Done',
+      color: 'bg-bridge-secondary border-bridge-secondary text-bridge-dark',
+    },
   ]);
 
   const moveTask = (id: number) => {
     const statuses = ['Task', 'In Progress', 'Review', 'Done'];
-    setTasks(prev => prev.map(t => {
-      if (t.id === id) {
-        const nextIdx = (statuses.indexOf(t.status) + 1) % statuses.length;
-        return { ...t, status: statuses[nextIdx] };
-      }
-      return t;
-    }));
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id === id) {
+          const nextIdx = (statuses.indexOf(t.status) + 1) % statuses.length;
+          return { ...t, status: statuses[nextIdx] };
+        }
+        return t;
+      }),
+    );
   };
 
   return (
@@ -138,28 +205,41 @@ export const KanbanDiagram: React.FC = () => {
       </h3>
 
       <div className="grid grid-cols-4 gap-3 w-full">
-        {['Task', 'In Progress', 'Review', 'Done'].map(status => (
-          <div key={status} className={`flex flex-col gap-3 min-h-[180px] p-3 rounded-2xl border transition-all ${
-            ['Task', 'In Progress', 'Done'].includes(status) ? 'bg-white/5 border-white/20' : 'bg-bridge-accent/5 border-bridge-accent/20'
-          }`}>
-            <span className={`text-[10px] font-extrabold uppercase tracking-[0.2em] text-center mb-2 ${
-              ['Task', 'In Progress', 'Done'].includes(status) ? 'text-slate-400' : 'text-bridge-accent'
-            }`}>{status}</span>
+        {['Task', 'In Progress', 'Review', 'Done'].map((status) => (
+          <div
+            key={status}
+            className={`flex flex-col gap-3 min-h-[180px] p-3 rounded-2xl border transition-all ${
+              ['Task', 'In Progress', 'Done'].includes(status)
+                ? 'bg-white/5 border-white/20'
+                : 'bg-bridge-accent/5 border-bridge-accent/20'
+            }`}
+          >
+            <span
+              className={`text-[10px] font-extrabold uppercase tracking-[0.2em] text-center mb-2 ${
+                ['Task', 'In Progress', 'Done'].includes(status)
+                  ? 'text-slate-400'
+                  : 'text-bridge-accent'
+              }`}
+            >
+              {status}
+            </span>
             <AnimatePresence mode="popLayout">
-              {tasks.filter(t => t.status === status).map(task => (
-                <motion.div
-                  key={task.id}
-                  layoutId={String(task.id)}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  onClick={() => moveTask(task.id)}
-                  className={`p-3 rounded-xl shadow-xl border cursor-pointer ${task.color} text-[11px] font-bold tracking-tight hover:brightness-110 transition-all flex justify-between items-center group font-jakarta`}
-                >
-                  <span className="truncate pr-1">{task.title}</span>
-                  {status === 'Done' && <CheckCircle2 size={12} className="flex-shrink-0" />}
-                </motion.div>
-              ))}
+              {tasks
+                .filter((t) => t.status === status)
+                .map((task) => (
+                  <motion.div
+                    key={task.id}
+                    layoutId={String(task.id)}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    onClick={() => moveTask(task.id)}
+                    className={`p-3 rounded-xl shadow-xl border cursor-pointer ${task.color} text-[11px] font-bold tracking-tight hover:brightness-110 transition-all flex justify-between items-center group font-jakarta`}
+                  >
+                    <span className="truncate pr-1">{task.title}</span>
+                    {status === 'Done' && <CheckCircle2 size={12} className="flex-shrink-0" />}
+                  </motion.div>
+                ))}
             </AnimatePresence>
           </div>
         ))}
@@ -179,9 +259,13 @@ export const GanttDiagram: React.FC = () => {
 
       <div className="flex flex-col gap-5">
         <div className="grid grid-cols-8 gap-1.5 border-b border-white/15 pb-5">
-          <div className="col-span-2 text-[10px] text-stone-600 font-extrabold uppercase tracking-widest">Milestone</div>
+          <div className="col-span-2 text-[10px] text-stone-600 font-extrabold uppercase tracking-widest">
+            Milestone
+          </div>
           {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
-            <div key={i} className="text-center text-[10px] text-stone-600 font-extrabold">{day}</div>
+            <div key={i} className="text-center text-[10px] text-stone-600 font-extrabold">
+              {day}
+            </div>
           ))}
         </div>
 
@@ -191,17 +275,25 @@ export const GanttDiagram: React.FC = () => {
           { name: 'Security Audit', color: 'bg-bridge-secondary', start: 3, span: 4, type: 'task' },
         ].map((item, i) => (
           <div key={i} className="grid grid-cols-8 gap-1.5 items-center">
-            <div className={`col-span-2 text-[11px] ${item.type === 'task' ? 'pl-4 text-stone-500 font-medium' : 'font-bold text-stone-300'}`}>
-              {item.type === 'task' ? '- ' : '* '}{item.name}
+            <div
+              className={`col-span-2 text-[11px] ${item.type === 'task' ? 'pl-4 text-stone-500 font-medium' : 'font-bold text-stone-300'}`}
+            >
+              {item.type === 'task' ? '- ' : '* '}
+              {item.name}
             </div>
             <div className="col-span-6 h-6 relative bg-white/5 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
-                whileInView={{ width: `${(item.span / 6) * 100}%`, left: `${(item.start / 6) * 100}%` }}
-                transition={{ duration: 1.2, delay: i * 0.15, ease: "circOut" }}
+                whileInView={{
+                  width: `${(item.span / 6) * 100}%`,
+                  left: `${(item.start / 6) * 100}%`,
+                }}
+                transition={{ duration: 1.2, delay: i * 0.15, ease: 'circOut' }}
                 className={`absolute top-1 bottom-1 rounded-full ${item.color} ${item.type === 'feature' ? 'opacity-30 border border-white/20' : 'shadow-[0_0_15px_rgba(99,102,241,0.2)]'}`}
               >
-                {item.type === 'task' && <div className="absolute right-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-white rounded-full opacity-60 shadow-[0_0_8px_white]" />}
+                {item.type === 'task' && (
+                  <div className="absolute right-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-white rounded-full opacity-60 shadow-[0_0_8px_white]" />
+                )}
               </motion.div>
             </div>
           </div>
@@ -232,7 +324,9 @@ export const DailyScheduleDiagram: React.FC = () => {
             whileInView={{ x: 0, opacity: 1 }}
             className="h-16 bg-indigo-500/10 border-l-2 border-indigo-500 p-3 rounded-r-lg flex flex-col justify-center"
           >
-            <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Logic Alignment</span>
+            <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">
+              Logic Alignment
+            </span>
             <span className="text-[9px] text-indigo-300/60 font-mono">09:00 - 10:15</span>
           </motion.div>
           <motion.div
@@ -241,7 +335,9 @@ export const DailyScheduleDiagram: React.FC = () => {
             transition={{ delay: 0.1 }}
             className="h-12 bg-white/5 border-l-2 border-stone-700 p-3 rounded-r-lg flex flex-col justify-center"
           >
-            <span className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Focused Build</span>
+            <span className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">
+              Focused Build
+            </span>
             <span className="text-[9px] text-stone-600 font-mono">10:15 - 11:30</span>
           </motion.div>
           <motion.div
@@ -250,7 +346,9 @@ export const DailyScheduleDiagram: React.FC = () => {
             transition={{ delay: 0.2 }}
             className="h-12 bg-bridge-secondary/10 border-l-2 border-bridge-secondary p-3 rounded-r-lg flex flex-col justify-center"
           >
-            <span className="text-[10px] font-bold text-bridge-secondary uppercase tracking-widest mb-1">Unified Review</span>
+            <span className="text-[10px] font-bold text-bridge-secondary uppercase tracking-widest mb-1">
+              Unified Review
+            </span>
             <span className="text-[9px] text-bridge-secondary/60 font-mono">11:30 - 12:30</span>
           </motion.div>
         </div>
@@ -271,9 +369,7 @@ export const DailyChecklistDiagram: React.FC = () => {
   ]);
 
   const toggleItem = (id: number) => {
-    setItems(prev => prev.map(item =>
-      item.id === id ? { ...item, done: !item.done } : item
-    ));
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, done: !item.done } : item)));
   };
 
   const members = ['Alice', 'Bob'];
@@ -286,33 +382,45 @@ export const DailyChecklistDiagram: React.FC = () => {
       </h3>
 
       <div className="grid grid-cols-2 gap-4">
-        {members.map(member => (
+        {members.map((member) => (
           <div key={member} className="space-y-2">
-            <div className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400 mb-3 text-center">{member}</div>
-            {items.filter(i => i.member === member).map((item, idx) => (
-              <motion.div
-                key={item.id}
-                initial={{ x: 20, opacity: 0 }}
-                whileInView={{ x: 0, opacity: 1 }}
-                transition={{ delay: idx * 0.08 }}
-                onClick={() => toggleItem(item.id)}
-                className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer transition-all group ${
-                  item.done
-                    ? 'bg-bridge-secondary/5 border-bridge-secondary/20'
-                    : 'bg-white/5 border-white/10 hover:bg-white/10'
-                }`}
-              >
-                <GripVertical size={10} className="text-slate-700 flex-shrink-0" />
-                <div className={`w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                  item.done ? 'bg-bridge-secondary border-bridge-secondary' : 'border-slate-600 group-hover:border-slate-400'
-                }`}>
-                  {item.done && <CheckCircle2 size={10} className="text-bridge-dark" />}
-                </div>
-                <span className={`text-[10px] font-medium truncate transition-all ${
-                  item.done ? 'text-slate-600 line-through' : 'text-slate-300'
-                }`}>{item.text}</span>
-              </motion.div>
-            ))}
+            <div className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400 mb-3 text-center">
+              {member}
+            </div>
+            {items
+              .filter((i) => i.member === member)
+              .map((item, idx) => (
+                <motion.div
+                  key={item.id}
+                  initial={{ x: 20, opacity: 0 }}
+                  whileInView={{ x: 0, opacity: 1 }}
+                  transition={{ delay: idx * 0.08 }}
+                  onClick={() => toggleItem(item.id)}
+                  className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer transition-all group ${
+                    item.done
+                      ? 'bg-bridge-secondary/5 border-bridge-secondary/20'
+                      : 'bg-white/5 border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  <GripVertical size={10} className="text-slate-700 flex-shrink-0" />
+                  <div
+                    className={`w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                      item.done
+                        ? 'bg-bridge-secondary border-bridge-secondary'
+                        : 'border-slate-600 group-hover:border-slate-400'
+                    }`}
+                  >
+                    {item.done && <CheckCircle2 size={10} className="text-bridge-dark" />}
+                  </div>
+                  <span
+                    className={`text-[10px] font-medium truncate transition-all ${
+                      item.done ? 'text-slate-600 line-through' : 'text-slate-300'
+                    }`}
+                  >
+                    {item.text}
+                  </span>
+                </motion.div>
+              ))}
           </div>
         ))}
       </div>
@@ -324,9 +432,27 @@ export const DailyChecklistDiagram: React.FC = () => {
 export const SlackNotificationDiagram: React.FC = () => {
   const { t } = useTranslation();
   const triggers = [
-    { icon: AtSign, label: '@Mention', desc: t('diagrams.slackMention'), color: 'text-bridge-accent', bg: 'bg-bridge-accent/10 border-bridge-accent/20' },
-    { icon: ListChecks, label: 'Assigned', desc: t('diagrams.slackAssigned'), color: 'text-bridge-secondary', bg: 'bg-bridge-secondary/10 border-bridge-secondary/20' },
-    { icon: MessageSquare, label: 'Comment', desc: t('diagrams.slackComment'), color: 'text-cyan-400', bg: 'bg-cyan-400/10 border-cyan-400/20' },
+    {
+      icon: AtSign,
+      label: '@Mention',
+      desc: t('diagrams.slackMention'),
+      color: 'text-bridge-accent',
+      bg: 'bg-bridge-accent/10 border-bridge-accent/20',
+    },
+    {
+      icon: ListChecks,
+      label: 'Assigned',
+      desc: t('diagrams.slackAssigned'),
+      color: 'text-bridge-secondary',
+      bg: 'bg-bridge-secondary/10 border-bridge-secondary/20',
+    },
+    {
+      icon: MessageSquare,
+      label: 'Comment',
+      desc: t('diagrams.slackComment'),
+      color: 'text-cyan-400',
+      bg: 'bg-cyan-400/10 border-cyan-400/20',
+    },
   ];
 
   const [prefs, setPrefs] = useState({ inApp: true, slack: true, mention: true });
@@ -402,9 +528,12 @@ export const SlackNotificationDiagram: React.FC = () => {
                   <span className="text-[8px] text-slate-600">12:34 PM</span>
                 </div>
                 <p className="text-[10px] text-slate-400 leading-relaxed">
-                  <span className="text-bridge-accent font-semibold">@Alice</span> mentioned you in <span className="text-white font-medium">API Flow Engine</span>
+                  <span className="text-bridge-accent font-semibold">@Alice</span> mentioned you in{' '}
+                  <span className="text-white font-medium">API Flow Engine</span>
                 </p>
-                <p className="text-[9px] text-slate-600 mt-1 italic">"{t('diagrams.slackQuote')}"</p>
+                <p className="text-[9px] text-slate-600 mt-1 italic">
+                  "{t('diagrams.slackQuote')}"
+                </p>
               </div>
             </div>
           </div>
@@ -414,25 +543,31 @@ export const SlackNotificationDiagram: React.FC = () => {
       {/* Preference Toggles */}
       <div className="pt-8 border-t border-white/10">
         <div className="flex items-center gap-2 mb-5">
-          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Per-Board Preferences</span>
+          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
+            Per-Board Preferences
+          </span>
         </div>
         <div className="grid grid-cols-3 gap-3">
           {[
             { key: 'inApp' as const, label: 'In-App', active: prefs.inApp },
             { key: 'slack' as const, label: 'Slack', active: prefs.slack },
             { key: 'mention' as const, label: '@Mention', active: prefs.mention },
-          ].map(pref => (
+          ].map((pref) => (
             <button
               key={pref.key}
-              onClick={() => setPrefs(p => ({ ...p, [pref.key]: !p[pref.key] }))}
+              onClick={() => setPrefs((p) => ({ ...p, [pref.key]: !p[pref.key] }))}
               className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-[10px] font-bold transition-all ${
                 pref.active
                   ? 'bg-bridge-accent/10 border-bridge-accent/30 text-bridge-accent'
                   : 'bg-white/5 border-white/10 text-slate-600'
               }`}
             >
-              <div className={`w-6 h-3.5 rounded-full relative transition-all ${pref.active ? 'bg-bridge-accent' : 'bg-slate-700'}`}>
-                <div className={`absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white transition-all ${pref.active ? 'right-0.5' : 'left-0.5'}`} />
+              <div
+                className={`w-6 h-3.5 rounded-full relative transition-all ${pref.active ? 'bg-bridge-accent' : 'bg-slate-700'}`}
+              >
+                <div
+                  className={`absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white transition-all ${pref.active ? 'right-0.5' : 'left-0.5'}`}
+                />
               </div>
               {pref.label}
             </button>
@@ -448,22 +583,58 @@ export const AIReportDiagram: React.FC = () => {
   const [reportTab, setReportTab] = useState<'personal' | 'team'>('personal');
 
   const dataSources = [
-    { icon: ListTodo, label: 'Tasks', metric: '24 completed', color: 'text-bridge-accent', bg: 'bg-bridge-accent/10 border-bridge-accent/20' },
-    { icon: Clock, label: 'Time Blocks', metric: '38.5 hours', color: 'text-bridge-secondary', bg: 'bg-bridge-secondary/10 border-bridge-secondary/20' },
-    { icon: CheckCircle2, label: 'Checklists', metric: '89% done', color: 'text-emerald-400', bg: 'bg-emerald-400/10 border-emerald-400/20' },
-    { icon: MessageSquare, label: 'Comments', metric: '47 threads', color: 'text-cyan-400', bg: 'bg-cyan-400/10 border-cyan-400/20' },
+    {
+      icon: ListTodo,
+      label: 'Tasks',
+      metric: '24 completed',
+      color: 'text-bridge-accent',
+      bg: 'bg-bridge-accent/10 border-bridge-accent/20',
+    },
+    {
+      icon: Clock,
+      label: 'Time Blocks',
+      metric: '38.5 hours',
+      color: 'text-bridge-secondary',
+      bg: 'bg-bridge-secondary/10 border-bridge-secondary/20',
+    },
+    {
+      icon: CheckCircle2,
+      label: 'Checklists',
+      metric: '89% done',
+      color: 'text-emerald-400',
+      bg: 'bg-emerald-400/10 border-emerald-400/20',
+    },
+    {
+      icon: MessageSquare,
+      label: 'Comments',
+      metric: '47 threads',
+      color: 'text-cyan-400',
+      bg: 'bg-cyan-400/10 border-cyan-400/20',
+    },
   ];
 
   const personalReport = [
     { type: 'feature', text: 'Authentication Sprint' },
-    { type: 'narrative', text: 'Your focus shifted from API design (Mon-Tue) to security hardening (Wed-Fri), indicating a natural progression from architecture to resilience.' },
-    { type: 'insight', text: 'The 6-hour gap between Identity Engine and Security Audit suggests a dependency bottleneck worth addressing next sprint.' },
+    {
+      type: 'narrative',
+      text: 'Your focus shifted from API design (Mon-Tue) to security hardening (Wed-Fri), indicating a natural progression from architecture to resilience.',
+    },
+    {
+      type: 'insight',
+      text: 'The 6-hour gap between Identity Engine and Security Audit suggests a dependency bottleneck worth addressing next sprint.',
+    },
   ];
 
   const teamReport = [
     { type: 'feature', text: 'Team Dynamics Overview' },
-    { type: 'narrative', text: "Alice carried 42% of the sprint load while Bob's contributions dropped 30% mid-week — likely blocked by the pending API review." },
-    { type: 'insight', text: 'Cross-functional handoffs between Design and Dev averaged 1.8 days. Reducing this to < 1 day could accelerate delivery by ~20%.' },
+    {
+      type: 'narrative',
+      text: "Alice carried 42% of the sprint load while Bob's contributions dropped 30% mid-week — likely blocked by the pending API review.",
+    },
+    {
+      type: 'insight',
+      text: 'Cross-functional handoffs between Design and Dev averaged 1.8 days. Reducing this to < 1 day could accelerate delivery by ~20%.',
+    },
   ];
 
   const activeReport = reportTab === 'personal' ? personalReport : teamReport;
@@ -507,9 +678,11 @@ export const AIReportDiagram: React.FC = () => {
           <Sparkles size={18} className="text-bridge-accent animate-pulse" />
           <div className="absolute inset-0 bg-bridge-accent/20 blur-xl rounded-full" />
         </div>
-        <span className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-bridge-accent font-jakarta">Claude AI Analyzing</span>
+        <span className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-bridge-accent font-jakarta">
+          Claude AI Analyzing
+        </span>
         <div className="flex gap-1">
-          {[0, 1, 2].map(i => (
+          {[0, 1, 2].map((i) => (
             <motion.div
               key={i}
               animate={{ opacity: [0.3, 1, 0.3] }}
@@ -557,7 +730,10 @@ export const AIReportDiagram: React.FC = () => {
           className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4"
         >
           <div className="flex items-center gap-2 mb-1">
-            <FileText size={14} className={reportTab === 'personal' ? 'text-bridge-accent' : 'text-bridge-secondary'} />
+            <FileText
+              size={14}
+              className={reportTab === 'personal' ? 'text-bridge-accent' : 'text-bridge-secondary'}
+            />
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 font-jakarta">
               {reportTab === 'personal' ? 'Personal Report' : 'Team Report'} — Feb 3-9, 2026
             </span>
@@ -571,23 +747,27 @@ export const AIReportDiagram: React.FC = () => {
               transition={{ delay: i * 0.1 }}
             >
               {item.type === 'feature' && (
-                <div className={`text-[11px] font-bold font-jakarta pl-3 border-l-2 ${
-                  reportTab === 'personal' ? 'text-bridge-accent border-bridge-accent' : 'text-bridge-secondary border-bridge-secondary'
-                }`}>
+                <div
+                  className={`text-[11px] font-bold font-jakarta pl-3 border-l-2 ${
+                    reportTab === 'personal'
+                      ? 'text-bridge-accent border-bridge-accent'
+                      : 'text-bridge-secondary border-bridge-secondary'
+                  }`}
+                >
                   {item.text}
                 </div>
               )}
               {item.type === 'narrative' && (
-                <p className="text-[11px] text-slate-400 leading-relaxed pl-3">
-                  {item.text}
-                </p>
+                <p className="text-[11px] text-slate-400 leading-relaxed pl-3">{item.text}</p>
               )}
               {item.type === 'insight' && (
-                <div className={`text-[10px] leading-relaxed p-3 rounded-lg border-l-2 ${
-                  reportTab === 'personal'
-                    ? 'bg-bridge-accent/5 border-bridge-accent/50 text-slate-300'
-                    : 'bg-bridge-secondary/5 border-bridge-secondary/50 text-slate-300'
-                }`}>
+                <div
+                  className={`text-[10px] leading-relaxed p-3 rounded-lg border-l-2 ${
+                    reportTab === 'personal'
+                      ? 'bg-bridge-accent/5 border-bridge-accent/50 text-slate-300'
+                      : 'bg-bridge-secondary/5 border-bridge-secondary/50 text-slate-300'
+                  }`}
+                >
                   {item.text}
                 </div>
               )}
@@ -610,11 +790,18 @@ export const MySpaceOverviewDiagram: React.FC = () => {
 
       <div className="grid grid-cols-2 gap-3">
         {/* Schedule Widget */}
-        <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0 }}
-          className="p-4 bg-white/5 rounded-2xl border border-white/10">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0 }}
+          className="p-4 bg-white/5 rounded-2xl border border-white/10"
+        >
           <div className="flex items-center gap-2 mb-3">
             <Clock size={14} className="text-bridge-secondary" />
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Today</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              Today
+            </span>
           </div>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -634,34 +821,54 @@ export const MySpaceOverviewDiagram: React.FC = () => {
         </motion.div>
 
         {/* Deadlines Widget */}
-        <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.08 }}
-          className="p-4 bg-white/5 rounded-2xl border border-white/10">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.08 }}
+          className="p-4 bg-white/5 rounded-2xl border border-white/10"
+        >
           <div className="flex items-center gap-2 mb-3">
             <Flag size={14} className="text-red-400" />
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Deadlines</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              Deadlines
+            </span>
           </div>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="text-[8px] font-bold text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded flex-shrink-0">D-2</span>
+              <span className="text-[8px] font-bold text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded flex-shrink-0">
+                D-2
+              </span>
               <span className="text-[10px] text-slate-300 truncate">Design Review</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[8px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded flex-shrink-0">D-5</span>
+              <span className="text-[8px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded flex-shrink-0">
+                D-5
+              </span>
               <span className="text-[10px] text-slate-300 truncate">API Spec</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[8px] font-bold text-slate-400 bg-white/5 px-1.5 py-0.5 rounded flex-shrink-0">D-12</span>
+              <span className="text-[8px] font-bold text-slate-400 bg-white/5 px-1.5 py-0.5 rounded flex-shrink-0">
+                D-12
+              </span>
               <span className="text-[10px] text-slate-300 truncate">Sprint Review</span>
             </div>
           </div>
         </motion.div>
 
         {/* Habits Widget */}
-        <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.16 }}
-          className="p-4 bg-white/5 rounded-2xl border border-white/10">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.16 }}
+          className="p-4 bg-white/5 rounded-2xl border border-white/10"
+        >
           <div className="flex items-center gap-2 mb-3">
             <Flame size={14} className="text-purple-400" />
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Habits</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              Habits
+            </span>
           </div>
           <div className="flex items-center gap-1.5 mb-2">
             {['bg-purple-500', 'bg-indigo-500', 'bg-emerald-500'].map((c, i) => (
@@ -692,20 +899,60 @@ export const EisenhowerDiagram: React.FC = () => {
   const quadrants = ['q1', 'q2', 'q3', 'q4'];
 
   const cycleTask = (id: number) => {
-    setTasks(prev => prev.map(t => {
-      if (t.id === id) {
-        const next = (quadrants.indexOf(t.quadrant) + 1) % 4;
-        return { ...t, quadrant: quadrants[next] };
-      }
-      return t;
-    }));
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id === id) {
+          const next = (quadrants.indexOf(t.quadrant) + 1) % 4;
+          return { ...t, quadrant: quadrants[next] };
+        }
+        return t;
+      }),
+    );
   };
 
-  const quadrantConfig: Record<string, { label: string; sublabel: string; icon: React.ElementType; color: string; border: string; bg: string }> = {
-    q1: { label: 'Do First', sublabel: 'Urgent & Important', icon: Flame, color: 'text-red-400', border: 'border-red-500/20', bg: 'bg-red-500/5' },
-    q2: { label: 'Schedule', sublabel: 'Important', icon: CalendarClock, color: 'text-bridge-accent', border: 'border-bridge-accent/20', bg: 'bg-bridge-accent/5' },
-    q3: { label: 'Delegate', sublabel: 'Urgent', icon: Zap, color: 'text-amber-400', border: 'border-amber-500/20', bg: 'bg-amber-500/5' },
-    q4: { label: 'Eliminate', sublabel: 'Neither', icon: Archive, color: 'text-slate-400', border: 'border-white/10', bg: 'bg-white/5' },
+  const quadrantConfig: Record<
+    string,
+    {
+      label: string;
+      sublabel: string;
+      icon: React.ElementType;
+      color: string;
+      border: string;
+      bg: string;
+    }
+  > = {
+    q1: {
+      label: 'Do First',
+      sublabel: 'Urgent & Important',
+      icon: Flame,
+      color: 'text-red-400',
+      border: 'border-red-500/20',
+      bg: 'bg-red-500/5',
+    },
+    q2: {
+      label: 'Schedule',
+      sublabel: 'Important',
+      icon: CalendarClock,
+      color: 'text-bridge-accent',
+      border: 'border-bridge-accent/20',
+      bg: 'bg-bridge-accent/5',
+    },
+    q3: {
+      label: 'Delegate',
+      sublabel: 'Urgent',
+      icon: Zap,
+      color: 'text-amber-400',
+      border: 'border-amber-500/20',
+      bg: 'bg-amber-500/5',
+    },
+    q4: {
+      label: 'Eliminate',
+      sublabel: 'Neither',
+      icon: Archive,
+      color: 'text-slate-400',
+      border: 'border-white/10',
+      bg: 'bg-white/5',
+    },
   };
 
   return (
@@ -715,7 +962,7 @@ export const EisenhowerDiagram: React.FC = () => {
         Eisenhower Matrix
       </h3>
       <div className="grid grid-cols-2 gap-3">
-        {quadrants.map(q => {
+        {quadrants.map((q) => {
           const cfg = quadrantConfig[q];
           const Icon = cfg.icon;
           return (
@@ -723,31 +970,45 @@ export const EisenhowerDiagram: React.FC = () => {
               <div className="flex items-center gap-2 mb-3">
                 <Icon size={14} className={cfg.color} />
                 <div>
-                  <span className={`text-[10px] font-extrabold uppercase tracking-[0.15em] ${cfg.color}`}>{cfg.label}</span>
+                  <span
+                    className={`text-[10px] font-extrabold uppercase tracking-[0.15em] ${cfg.color}`}
+                  >
+                    {cfg.label}
+                  </span>
                   <span className="text-[8px] text-slate-600 block">{cfg.sublabel}</span>
                 </div>
               </div>
               <AnimatePresence mode="popLayout">
-                {tasks.filter(t => t.quadrant === q).map(task => (
-                  <motion.div
-                    key={task.id}
-                    layoutId={`eisenhower-${task.id}`}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    onClick={() => cycleTask(task.id)}
-                    className="flex items-center justify-between gap-2 p-2 mb-1.5 rounded-xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 transition-all"
-                  >
-                    <span className="text-[10px] font-medium text-slate-300 truncate">{task.title}</span>
-                    {task.dday && (
-                      <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${
-                        task.dday === 'D-0' ? 'bg-red-500/15 text-red-400' :
-                        task.dday === 'D-1' || task.dday === 'D-2' ? 'bg-orange-500/15 text-orange-400' :
-                        'bg-white/5 text-slate-400'
-                      }`}>{task.dday}</span>
-                    )}
-                  </motion.div>
-                ))}
+                {tasks
+                  .filter((t) => t.quadrant === q)
+                  .map((task) => (
+                    <motion.div
+                      key={task.id}
+                      layoutId={`eisenhower-${task.id}`}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      onClick={() => cycleTask(task.id)}
+                      className="flex items-center justify-between gap-2 p-2 mb-1.5 rounded-xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 transition-all"
+                    >
+                      <span className="text-[10px] font-medium text-slate-300 truncate">
+                        {task.title}
+                      </span>
+                      {task.dday && (
+                        <span
+                          className={`text-[8px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${
+                            task.dday === 'D-0'
+                              ? 'bg-red-500/15 text-red-400'
+                              : task.dday === 'D-1' || task.dday === 'D-2'
+                                ? 'bg-orange-500/15 text-orange-400'
+                                : 'bg-white/5 text-slate-400'
+                          }`}
+                        >
+                          {task.dday}
+                        </span>
+                      )}
+                    </motion.div>
+                  ))}
               </AnimatePresence>
             </div>
           );
@@ -761,21 +1022,43 @@ export const EisenhowerDiagram: React.FC = () => {
 export const HabitTrackerDiagram: React.FC = () => {
   const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   const [habits, setHabits] = useState([
-    { name: '🏃 Running', color: '#8B5CF6', streak: 12, completions: [true, true, true, false, true, true, false] },
-    { name: '📚 Reading', color: '#6366F1', streak: 8, completions: [true, true, false, true, true, false, false] },
-    { name: '💧 Water 2L', color: '#10B981', streak: 23, completions: [true, true, true, true, true, true, true] },
-    { name: '🧘 Meditate', color: '#EC4899', streak: 5, completions: [true, false, true, true, false, false, false] },
+    {
+      name: '🏃 Running',
+      color: '#8B5CF6',
+      streak: 12,
+      completions: [true, true, true, false, true, true, false],
+    },
+    {
+      name: '📚 Reading',
+      color: '#6366F1',
+      streak: 8,
+      completions: [true, true, false, true, true, false, false],
+    },
+    {
+      name: '💧 Water 2L',
+      color: '#10B981',
+      streak: 23,
+      completions: [true, true, true, true, true, true, true],
+    },
+    {
+      name: '🧘 Meditate',
+      color: '#EC4899',
+      streak: 5,
+      completions: [true, false, true, true, false, false, false],
+    },
   ]);
 
   const toggleDay = (habitIdx: number, dayIdx: number) => {
-    setHabits(prev => prev.map((h, i) => {
-      if (i === habitIdx) {
-        const newCompletions = [...h.completions];
-        newCompletions[dayIdx] = !newCompletions[dayIdx];
-        return { ...h, completions: newCompletions };
-      }
-      return h;
-    }));
+    setHabits((prev) =>
+      prev.map((h, i) => {
+        if (i === habitIdx) {
+          const newCompletions = [...h.completions];
+          newCompletions[dayIdx] = !newCompletions[dayIdx];
+          return { ...h, completions: newCompletions };
+        }
+        return h;
+      }),
+    );
   };
 
   return (
@@ -789,9 +1072,13 @@ export const HabitTrackerDiagram: React.FC = () => {
       <div className="grid grid-cols-[1fr_repeat(7,_minmax(0,_1fr))_auto] gap-2 mb-3 items-center">
         <div />
         {days.map((d, i) => (
-          <div key={i} className="text-center text-[9px] font-extrabold text-slate-600 uppercase">{d}</div>
+          <div key={i} className="text-center text-[9px] font-extrabold text-slate-600 uppercase">
+            {d}
+          </div>
         ))}
-        <div className="text-[9px] font-extrabold text-slate-600 uppercase text-center w-12">Streak</div>
+        <div className="text-[9px] font-extrabold text-slate-600 uppercase text-center w-12">
+          Streak
+        </div>
       </div>
 
       {/* Habit rows */}
@@ -813,9 +1100,7 @@ export const HabitTrackerDiagram: React.FC = () => {
             >
               <div
                 className={`w-5 h-5 rounded-md transition-all flex items-center justify-center ${
-                  done
-                    ? 'shadow-[0_0_8px_rgba(0,0,0,0.2)]'
-                    : 'bg-white/5 border border-white/10'
+                  done ? 'shadow-[0_0_8px_rgba(0,0,0,0.2)]' : 'bg-white/5 border border-white/10'
                 }`}
                 style={done ? { backgroundColor: habit.color } : {}}
               >

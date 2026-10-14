@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { useTranslation } from "react-i18next";
+import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Send,
   Loader2,
@@ -10,12 +10,8 @@ import {
   ExternalLink,
   Link2,
   UserCheck,
-} from "lucide-react";
-import {
-  discordAPI,
-  DiscordBotConfig,
-  DiscordUserLinkStatus,
-} from "../utils/api";
+} from 'lucide-react';
+import { discordAPI, DiscordBotConfig, DiscordUserLinkStatus } from '../utils/api';
 
 interface DiscordSettingsPanelProps {
   boardId: string;
@@ -43,7 +39,7 @@ export function DiscordSettingsPanel({
     message: string;
   } | null>(null);
   const [oauthMessage, setOauthMessage] = useState<{
-    type: "success" | "error";
+    type: 'success' | 'error';
     text: string;
   } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -51,23 +47,23 @@ export function DiscordSettingsPanel({
   // Check URL params for OAuth callback result
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.has("discord")) {
-      const result = params.get("discord");
-      if (result === "success") {
+    if (params.has('discord')) {
+      const result = params.get('discord');
+      if (result === 'success') {
         setOauthMessage({
-          type: "success",
-          text: t("discordBot.oauthSuccess"),
+          type: 'success',
+          text: t('discordBot.oauthSuccess'),
         });
-      } else if (result === "error") {
+      } else if (result === 'error') {
         setOauthMessage({
-          type: "error",
-          text: t("discordBot.oauthError"),
+          type: 'error',
+          text: t('discordBot.oauthError'),
         });
       }
       // Clean up URL params
       const url = new URL(window.location.href);
-      url.searchParams.delete("discord");
-      window.history.replaceState({}, "", url.toString());
+      url.searchParams.delete('discord');
+      window.history.replaceState({}, '', url.toString());
       // Auto-dismiss after 5s
       setTimeout(() => setOauthMessage(null), 5000);
     }
@@ -81,9 +77,7 @@ export function DiscordSettingsPanel({
       ]);
       setConfig(configData);
       setUserLink(linkData);
-      onDiscordStatusChange?.(
-        !!configData?.bot_connected && !!linkData?.linked,
-      );
+      onDiscordStatusChange?.(!!configData?.bot_connected && !!linkData?.linked);
     } catch {
       setConfig(null);
       setUserLink(null);
@@ -101,13 +95,11 @@ export function DiscordSettingsPanel({
     setErrorMessage(null);
     setIsRedirecting(true);
     try {
-      const data = await discordAPI.getOAuthUrl(boardId, "bot_install");
+      const data = await discordAPI.getOAuthUrl(boardId, 'bot_install');
       window.location.href = data.oauth_url;
     } catch {
       setIsRedirecting(false);
-      setErrorMessage(
-        t("discordBot.installFailed", "Failed to start bot installation"),
-      );
+      setErrorMessage(t('discordBot.installFailed', 'Failed to start bot installation'));
     }
   };
 
@@ -115,13 +107,11 @@ export function DiscordSettingsPanel({
     setErrorMessage(null);
     setIsRedirecting(true);
     try {
-      const data = await discordAPI.getOAuthUrl(boardId, "user_link");
+      const data = await discordAPI.getOAuthUrl(boardId, 'user_link');
       window.location.href = data.oauth_url;
     } catch {
       setIsRedirecting(false);
-      setErrorMessage(
-        t("discordBot.linkFailed", "Failed to start account linking"),
-      );
+      setErrorMessage(t('discordBot.linkFailed', 'Failed to start account linking'));
     }
   };
 
@@ -137,16 +127,14 @@ export function DiscordSettingsPanel({
       });
       onDiscordStatusChange?.(false);
     } catch {
-      setErrorMessage(
-        t("discordBot.unlinkFailed", "Failed to unlink Discord account"),
-      );
+      setErrorMessage(t('discordBot.unlinkFailed', 'Failed to unlink Discord account'));
     } finally {
       setIsUnlinking(false);
     }
   };
 
   const handleDisconnectBot = async () => {
-    if (!window.confirm(t("discordBot.disconnectConfirm"))) return;
+    if (!window.confirm(t('discordBot.disconnectConfirm'))) return;
     setErrorMessage(null);
     setIsDisconnecting(true);
     try {
@@ -155,9 +143,7 @@ export function DiscordSettingsPanel({
       setUserLink(null);
       onDiscordStatusChange?.(false);
     } catch {
-      setErrorMessage(
-        t("discordBot.disconnectFailed", "Failed to disconnect bot"),
-      );
+      setErrorMessage(t('discordBot.disconnectFailed', 'Failed to disconnect bot'));
     } finally {
       setIsDisconnecting(false);
     }
@@ -173,7 +159,7 @@ export function DiscordSettingsPanel({
     } catch {
       setTestResult({
         success: false,
-        message: t("discordBot.testFailed"),
+        message: t('discordBot.testFailed'),
       });
     } finally {
       setIsTesting(false);
@@ -189,9 +175,7 @@ export function DiscordSettingsPanel({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
             <Lock size={12} className="text-bridge-accent" />
-            <span className="text-xs font-medium text-bridge-accent">
-              {t("discordBot.title")}
-            </span>
+            <span className="text-xs font-medium text-bridge-accent">{t('discordBot.title')}</span>
           </div>
           {onUpgrade && (
             <button
@@ -199,13 +183,11 @@ export function DiscordSettingsPanel({
               className="flex items-center gap-1 px-2 py-1 text-xs text-white bg-bridge-accent hover:bg-bridge-accent/90 rounded-md transition-all"
             >
               <Rocket size={11} />
-              {t("discordBot.upgradeButton")}
+              {t('discordBot.upgradeButton')}
             </button>
           )}
         </div>
-        <p className="text-xs text-slate-400 leading-relaxed">
-          {t("discordBot.premiumRequired")}
-        </p>
+        <p className="text-xs text-slate-400 leading-relaxed">{t('discordBot.premiumRequired')}</p>
       </div>
     );
   }
@@ -214,16 +196,12 @@ export function DiscordSettingsPanel({
   const oauthBanner = oauthMessage && (
     <div
       className={`flex items-center gap-1.5 mb-2 px-2.5 py-1.5 rounded-lg text-xs ${
-        oauthMessage.type === "success"
-          ? "bg-emerald-500/10 text-emerald-400"
-          : "bg-red-500/10 text-red-400"
+        oauthMessage.type === 'success'
+          ? 'bg-emerald-500/10 text-emerald-400'
+          : 'bg-red-500/10 text-red-400'
       }`}
     >
-      {oauthMessage.type === "success" ? (
-        <Check size={12} />
-      ) : (
-        <AlertCircle size={12} />
-      )}
+      {oauthMessage.type === 'success' ? <Check size={12} /> : <AlertCircle size={12} />}
       {oauthMessage.text}
     </div>
   );
@@ -245,9 +223,7 @@ export function DiscordSettingsPanel({
         {oauthBanner}
         {errorBanner}
         <div className="text-center py-2">
-          <p className="text-xs text-slate-400 mb-3">
-            {t("discordBot.installDesc")}
-          </p>
+          <p className="text-xs text-slate-400 mb-3">{t('discordBot.installDesc')}</p>
           <button
             onClick={handleInstallBot}
             disabled={isRedirecting}
@@ -258,7 +234,7 @@ export function DiscordSettingsPanel({
             ) : (
               <ExternalLink size={13} />
             )}
-            {t("discordBot.installButton")}
+            {t('discordBot.installButton')}
           </button>
         </div>
       </div>
@@ -276,7 +252,7 @@ export function DiscordSettingsPanel({
         <div className="flex items-center gap-1.5">
           <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
           <span className="text-xs font-medium text-green-400">
-            {t("discordBot.guildConnected")}
+            {t('discordBot.guildConnected')}
           </span>
         </div>
         <button
@@ -287,7 +263,7 @@ export function DiscordSettingsPanel({
           {isDisconnecting ? (
             <Loader2 size={11} className="animate-spin" />
           ) : (
-            t("discordBot.disconnectButton", "Disconnect")
+            t('discordBot.disconnectButton', 'Disconnect')
           )}
         </button>
       </div>
@@ -295,30 +271,24 @@ export function DiscordSettingsPanel({
       {/* Guild info */}
       <div className="space-y-1.5 mb-3">
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-slate-500">
-            {t("discordBot.serverLabel", "Server")}:
-          </span>
-          <span className="text-xs text-foreground font-medium">
-            {config.guild_name}
-          </span>
+          <span className="text-xs text-slate-500">{t('discordBot.serverLabel', 'Server')}:</span>
+          <span className="text-xs text-foreground font-medium">{config.guild_name}</span>
         </div>
       </div>
 
       {/* User link section */}
       <div className="border-t border-foreground/[0.08] pt-3 mt-3">
         <label className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-1.5 block">
-          {t("discordBot.personalLink", "My Discord Account")}
+          {t('discordBot.personalLink', 'My Discord Account')}
         </label>
         {userLink?.linked ? (
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <UserCheck size={12} className="text-green-400" />
-                <span className="text-xs text-foreground">
-                  {userLink.discord_username}
-                </span>
+                <span className="text-xs text-foreground">{userLink.discord_username}</span>
                 <span className="text-xs text-slate-500">
-                  ({t("discordBot.dmEnabled", "DM enabled")})
+                  ({t('discordBot.dmEnabled', 'DM enabled')})
                 </span>
               </div>
               <button
@@ -329,7 +299,7 @@ export function DiscordSettingsPanel({
                 {isUnlinking ? (
                   <Loader2 size={11} className="animate-spin" />
                 ) : (
-                  t("discordBot.unlinkButton")
+                  t('discordBot.unlinkButton')
                 )}
               </button>
             </div>
@@ -341,48 +311,32 @@ export function DiscordSettingsPanel({
                 disabled={isTesting}
                 className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-muted-foreground bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-all disabled:opacity-50"
               >
-                {isTesting ? (
-                  <Loader2 size={11} className="animate-spin" />
-                ) : (
-                  <Send size={11} />
-                )}
-                {t("discordBot.testButton")}
+                {isTesting ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+                {t('discordBot.testButton')}
               </button>
             </div>
 
             {testResult && (
               <div
                 className={`flex items-center gap-1.5 text-xs ${
-                  testResult.success ? "text-green-400" : "text-red-400"
+                  testResult.success ? 'text-green-400' : 'text-red-400'
                 }`}
               >
-                {testResult.success ? (
-                  <Check size={12} />
-                ) : (
-                  <AlertCircle size={12} />
-                )}
-                {testResult.success
-                  ? t("discordBot.testSuccess")
-                  : testResult.message}
+                {testResult.success ? <Check size={12} /> : <AlertCircle size={12} />}
+                {testResult.success ? t('discordBot.testSuccess') : testResult.message}
               </div>
             )}
           </div>
         ) : (
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500">
-              {t("discordBot.linkDesc")}
-            </span>
+            <span className="text-xs text-slate-500">{t('discordBot.linkDesc')}</span>
             <button
               onClick={handleLinkAccount}
               disabled={isRedirecting}
               className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-all disabled:opacity-50"
             >
-              {isRedirecting ? (
-                <Loader2 size={10} className="animate-spin" />
-              ) : (
-                <Link2 size={10} />
-              )}
-              {t("discordBot.linkButton")}
+              {isRedirecting ? <Loader2 size={10} className="animate-spin" /> : <Link2 size={10} />}
+              {t('discordBot.linkButton')}
             </button>
           </div>
         )}

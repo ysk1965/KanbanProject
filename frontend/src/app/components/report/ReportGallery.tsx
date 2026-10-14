@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
   AlertCircle,
   ArrowRight,
@@ -9,39 +9,35 @@ import {
   Settings,
   Trash2,
   X,
-} from "lucide-react";
+} from 'lucide-react';
 
-import {
-  autoReportAPI,
-  type AutoReport,
-  type ReportConfig,
-} from "../../utils/api";
-import { formatDate, formatRelativeTime } from "../../utils/dateUtils";
-import { AutoReportView } from "../AutoReportView";
-import { IconButton } from "../ui/IconButton";
-import { MotionModal } from "../ui/MotionModal";
-import { DeliveryHistoryPanel, PagerButton } from "./DeliveryHistoryPanel";
-import { ReportThumbnail, fetchReportBody } from "./ReportThumbnail";
+import { autoReportAPI, type AutoReport, type ReportConfig } from '../../utils/api';
+import { formatDate, formatRelativeTime } from '../../utils/dateUtils';
+import { AutoReportView } from '../AutoReportView';
+import { IconButton } from '../ui/IconButton';
+import { MotionModal } from '../ui/MotionModal';
+import { DeliveryHistoryPanel, PagerButton } from './DeliveryHistoryPanel';
+import { ReportThumbnail, fetchReportBody } from './ReportThumbnail';
 
-type Filter = "all" | "daily" | "weekly";
+type Filter = 'all' | 'daily' | 'weekly';
 
 const FILTERS: Array<{ key: Filter; label: string }> = [
-  { key: "all", label: "전체" },
-  { key: "daily", label: "일일" },
-  { key: "weekly", label: "주간" },
+  { key: 'all', label: '전체' },
+  { key: 'daily', label: '일일' },
+  { key: 'weekly', label: '주간' },
 ];
 
 const SOURCE_LABEL: Record<string, string> = {
-  GITHUB: "GitHub",
-  KANBAN: "칸반",
-  CONFLUENCE: "Confluence",
+  GITHUB: 'GitHub',
+  KANBAN: '칸반',
+  CONFLUENCE: 'Confluence',
 };
 
-const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
+const DAY_LABELS = ['월', '화', '수', '목', '금', '토', '일'];
 
 const PAGE_SIZE = 10;
 
-const pad2 = (n: number) => String(n).padStart(2, "0");
+const pad2 = (n: number) => String(n).padStart(2, '0');
 
 interface ReportGalleryProps {
   boardId: string;
@@ -68,8 +64,8 @@ export function ReportGallery({
 }: ReportGalleryProps) {
   const [reports, setReports] = useState<AutoReport[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<Filter>("all");
-  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<Filter>('all');
+  const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
 
   const [selected, setSelected] = useState<AutoReport | null>(null);
@@ -88,7 +84,7 @@ export function ReportGallery({
       setReports(list);
       onLoaded?.(list);
     } catch {
-      setError("보고서 목록을 불러오지 못했습니다.");
+      setError('보고서 목록을 불러오지 못했습니다.');
       setReports([]);
       onLoaded?.([]);
     }
@@ -107,7 +103,7 @@ export function ReportGallery({
       try {
         setDetail(await fetchReportBody(boardId, report.id));
       } catch {
-        setDetailError("보고서를 불러오지 못했습니다.");
+        setDetailError('보고서를 불러오지 못했습니다.');
       } finally {
         setDetailLoading(false);
       }
@@ -130,7 +126,7 @@ export function ReportGallery({
       setSelected((cur) => (cur?.id === pendingDelete.id ? null : cur));
       setPendingDelete(null);
     } catch {
-      setDeleteError("보고서를 삭제하지 못했습니다.");
+      setDeleteError('보고서를 삭제하지 못했습니다.');
     } finally {
       setDeleting(false);
     }
@@ -140,17 +136,17 @@ export function ReportGallery({
     if (!reports) return [];
     const q = query.trim().toLowerCase();
     return reports.filter((r) => {
-      const isWeekly = r.report_type === "WEEKLY_INTEGRATED";
-      if (filter === "daily" && isWeekly) return false;
-      if (filter === "weekly" && !isWeekly) return false;
+      const isWeekly = r.report_type === 'WEEKLY_INTEGRATED';
+      if (filter === 'daily' && isWeekly) return false;
+      if (filter === 'weekly' && !isWeekly) return false;
       if (!q) return true;
       const haystack = [
-        isWeekly ? "주간 통합 보고서" : "일일 개발 보고서",
+        isWeekly ? '주간 통합 보고서' : '일일 개발 보고서',
         r.period_start,
         r.period_end,
         r.board_name,
       ]
-        .join(" ")
+        .join(' ')
         .toLowerCase();
       return haystack.includes(q);
     });
@@ -171,12 +167,7 @@ export function ReportGallery({
 
   return (
     <div className="flex flex-col gap-4">
-      {onOpenSettings && (
-        <SettingsBanner
-          config={config ?? null}
-          onOpenSettings={onOpenSettings}
-        />
-      )}
+      {onOpenSettings && <SettingsBanner config={config ?? null} onOpenSettings={onOpenSettings} />}
 
       {/* 발송 이력 — 크론 실행/실패/진행 상황. 관리자에게만. */}
       {canManage && <DeliveryHistoryPanel boardId={boardId} />}
@@ -199,8 +190,8 @@ export function ReportGallery({
                   onClick={() => setFilter(f.key)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                     filter === f.key
-                      ? "bg-foreground/[0.08] text-foreground"
-                      : "text-slate-400 hover:text-foreground"
+                      ? 'bg-foreground/[0.08] text-foreground'
+                      : 'text-slate-400 hover:text-foreground'
                   }`}
                 >
                   {f.label}
@@ -236,13 +227,13 @@ export function ReportGallery({
               <div>
                 <p className="text-sm font-bold text-foreground">
                   {reports.length === 0
-                    ? "아직 발행된 보고서가 없어요"
-                    : "조건에 맞는 보고서가 없어요"}
+                    ? '아직 발행된 보고서가 없어요'
+                    : '조건에 맞는 보고서가 없어요'}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
                   {reports.length === 0
-                    ? "일일·주간 보고서가 발행되면 여기에 HTML로 쌓입니다."
-                    : "필터나 검색어를 바꿔 보세요."}
+                    ? '일일·주간 보고서가 발행되면 여기에 HTML로 쌓입니다.'
+                    : '필터나 검색어를 바꿔 보세요.'}
                 </p>
               </div>
             </motion.div>
@@ -280,11 +271,7 @@ export function ReportGallery({
                       ‹
                     </PagerButton>
                     {Array.from({ length: totalPages }, (_, n) => (
-                      <PagerButton
-                        key={n}
-                        active={n === safePage}
-                        onClick={() => setPage(n)}
-                      >
+                      <PagerButton key={n} active={n === safePage} onClick={() => setPage(n)}>
                         {n + 1}
                       </PagerButton>
                     ))}
@@ -314,9 +301,9 @@ export function ReportGallery({
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
           <FileText className="w-4 h-4 text-bridge-accent" />
           <span className="text-sm font-bold text-foreground flex-1">
-            {selected?.report_type === "WEEKLY_INTEGRATED"
-              ? "주간 통합 보고서"
-              : "일일 개발 보고서"}
+            {selected?.report_type === 'WEEKLY_INTEGRATED'
+              ? '주간 통합 보고서'
+              : '일일 개발 보고서'}
           </span>
           <button
             onClick={() => setSelected(null)}
@@ -337,10 +324,7 @@ export function ReportGallery({
               <span className="text-xs text-slate-400">{detailError}</span>
             </div>
           ) : detail ? (
-            <AutoReportView
-              report={detail}
-              className="px-5 py-6 flex flex-col gap-5"
-            />
+            <AutoReportView report={detail} className="px-5 py-6 flex flex-col gap-5" />
           ) : null}
         </div>
       </MotionModal>
@@ -356,22 +340,19 @@ export function ReportGallery({
       >
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
           <Trash2 className="w-4 h-4 text-rose-500" />
-          <span className="text-sm font-bold text-foreground flex-1">
-            보고서 삭제
-          </span>
+          <span className="text-sm font-bold text-foreground flex-1">보고서 삭제</span>
         </div>
         <div className="px-5 pb-5 pt-4 flex flex-col gap-4">
           <p className="text-sm text-slate-400 leading-relaxed">
-            이 보고서를 삭제하면 되돌릴 수 없어요. 보관된 HTML 본문이 영구
-            삭제됩니다.
+            이 보고서를 삭제하면 되돌릴 수 없어요. 보관된 HTML 본문이 영구 삭제됩니다.
           </p>
           <p className="text-xs text-slate-500 leading-relaxed">
-            이 보고서가 모아 온 이미지·썸네일 폴더도 자료실 휴지통으로
-            이동합니다. 필요하면 휴지통에서 되살릴 수 있어요.
+            이 보고서가 모아 온 이미지·썸네일 폴더도 자료실 휴지통으로 이동합니다. 필요하면
+            휴지통에서 되살릴 수 있어요.
           </p>
           <p className="text-xs text-slate-500 leading-relaxed">
-            슬랙 채널에 발송된 이 보고서 메시지도 함께 회수됩니다. (이 기능
-            적용 전에 발송된 보고서는 슬랙에서 직접 삭제해야 해요.)
+            슬랙 채널에 발송된 이 보고서 메시지도 함께 회수됩니다. (이 기능 적용 전에 발송된
+            보고서는 슬랙에서 직접 삭제해야 해요.)
           </p>
           {deleteError && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20">
@@ -417,20 +398,20 @@ function SettingsBanner({
   onOpenSettings: () => void;
 }) {
   const sources: Array<{ label: string; on: boolean }> = [
-    { label: "칸반", on: config?.source_kanban_enabled ?? false },
-    { label: "GitHub", on: config?.source_github_enabled ?? false },
-    { label: "Confluence", on: config?.source_confluence_enabled ?? false },
-    { label: "Slack", on: config?.source_slack_enabled ?? false },
+    { label: '칸반', on: config?.source_kanban_enabled ?? false },
+    { label: 'GitHub', on: config?.source_github_enabled ?? false },
+    { label: 'Confluence', on: config?.source_confluence_enabled ?? false },
+    { label: 'Slack', on: config?.source_slack_enabled ?? false },
   ];
 
   const dailyLabel = config?.daily_enabled
     ? `${pad2(config.daily_hour)}:${pad2(config.daily_minute)}`
-    : "꺼짐";
+    : '꺼짐';
   const weeklyLabel = config?.weekly_enabled
     ? `${DAY_LABELS[(config.weekly_day_of_week - 1 + 7) % 7]} ${pad2(
         config.weekly_hour,
       )}:${pad2(config.weekly_minute)}`
-    : "꺼짐";
+    : '꺼짐';
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-bridge-obsidian border border-foreground/[0.08]">
@@ -441,9 +422,7 @@ function SettingsBanner({
           <Settings className="w-5 h-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-bold text-foreground">
-            보고서 발송 · 소스 연결 설정
-          </div>
+          <div className="text-sm font-bold text-foreground">보고서 발송 · 소스 연결 설정</div>
           {config ? (
             <div className="mt-2 flex items-center gap-1.5 flex-wrap">
               {sources.map((s) => (
@@ -477,9 +456,7 @@ function SettingsBanner({
 function SourceChip({ label, on }: { label: string; on: boolean }) {
   return (
     <span className="inline-flex items-center gap-1.5 pl-2 pr-2.5 py-1 rounded-full text-xs font-bold text-slate-300 bg-foreground/[0.06] border border-foreground/[0.08]">
-      <span
-        className={`w-1.5 h-1.5 rounded-full ${on ? "bg-emerald-400" : "bg-amber-400"}`}
-      />
+      <span className={`w-1.5 h-1.5 rounded-full ${on ? 'bg-emerald-400' : 'bg-amber-400'}`} />
       {label}
     </span>
   );
@@ -487,12 +464,10 @@ function SourceChip({ label, on }: { label: string; on: boolean }) {
 
 /** 발송 스케줄 칩 — 라벨(일일/주간) + 발송 시각 또는 '꺼짐' */
 function ScheduleChip({ label, value }: { label: string; value: string }) {
-  const off = value === "꺼짐";
+  const off = value === '꺼짐';
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-slate-400 border border-foreground/10">
-      <span
-        className={`w-1.5 h-1.5 rounded-full ${off ? "bg-slate-500" : "bg-emerald-400"}`}
-      />
+      <span className={`w-1.5 h-1.5 rounded-full ${off ? 'bg-slate-500' : 'bg-emerald-400'}`} />
       <span className="text-slate-500">{label}</span>
       {value}
     </span>
@@ -514,7 +489,7 @@ function ReportCard({
   onOpen: () => void;
   onDelete: () => void;
 }) {
-  const isWeekly = report.report_type === "WEEKLY_INTEGRATED";
+  const isWeekly = report.report_type === 'WEEKLY_INTEGRATED';
   const sources = (report.source_status ?? []).filter((s) => s.has_data);
   const hasFailure = (report.source_status ?? []).some((s) => !s.success);
 
@@ -545,11 +520,11 @@ function ReportCard({
             <span
               className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
                 isWeekly
-                  ? "bg-bridge-secondary/15 text-bridge-secondary"
-                  : "bg-bridge-accent/15 text-bridge-accent"
+                  ? 'bg-bridge-secondary/15 text-bridge-secondary'
+                  : 'bg-bridge-accent/15 text-bridge-accent'
               }`}
             >
-              {isWeekly ? "주간" : "일일"}
+              {isWeekly ? '주간' : '일일'}
             </span>
             {report.created_at && (
               <span className="ml-auto text-xs text-slate-500">
@@ -558,7 +533,7 @@ function ReportCard({
             )}
           </div>
           <div className="text-sm font-bold text-foreground truncate">
-            {isWeekly ? "주간 통합 보고서" : "일일 개발 보고서"}
+            {isWeekly ? '주간 통합 보고서' : '일일 개발 보고서'}
           </div>
           <div className="text-xs text-slate-500">
             {formatDate(report.period_start)} ~ {formatDate(report.period_end)}

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Minus, Plus, Split } from "lucide-react";
-import { MotionModal } from "./ui/MotionModal";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2, Minus, Plus, Split } from 'lucide-react';
+import { MotionModal } from './ui/MotionModal';
 import {
   addDays,
   diffDays,
@@ -10,13 +10,13 @@ import {
   isMonday,
   parseDay,
   toDayString,
-} from "../utils/sprintDates";
+} from '../utils/sprintDates';
 
 /** 스프린트 하나가 가질 수 있는 최소 일수. 이보다 짧으면 담을 시간이 없다. */
 const MIN_DAYS = 3;
 const MAX_COUNT = 6;
 
-export type TaskDistribution = "keep" | "unassign" | "by_date";
+export type TaskDistribution = 'keep' | 'unassign' | 'by_date';
 
 interface SprintSplitModalProps {
   open: boolean;
@@ -92,12 +92,12 @@ export function SprintSplitModal({
 
   const [count, setCount] = useState(1);
   const [bounds, setBounds] = useState<number[]>([]);
-  const [distribution, setDistribution] = useState<TaskDistribution>("unassign");
+  const [distribution, setDistribution] = useState<TaskDistribution>('unassign');
   const sliderRef = useRef<HTMLDivElement>(null);
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
 
   // 경계 배열은 호출부에서 매 렌더 새로 만들어질 수 있어 문자열 키로 안정화한다.
-  const boundaryKey = (currentBoundaries ?? []).map((b) => b ?? "").join("|");
+  const boundaryKey = (currentBoundaries ?? []).map((b) => b ?? '').join('|');
 
   // 열릴 때마다 현재 분할 상태에서 시작한다 — 열자마자 사용자의 기존 설정이 지워지면 안 된다.
   useEffect(() => {
@@ -107,11 +107,11 @@ export function SprintSplitModal({
     const restored = restoreBounds(
       start,
       totalDays,
-      boundaryKey ? boundaryKey.split("|") : [],
+      boundaryKey ? boundaryKey.split('|') : [],
       initial,
     );
     setBounds(restored ?? equalBounds(totalDays, initial));
-    setDistribution(currentCount > 1 ? "keep" : "unassign");
+    setDistribution(currentCount > 1 ? 'keep' : 'unassign');
   }, [open, currentCount, maxCount, totalDays, start, boundaryKey]);
 
   const applyCount = (n: number) => {
@@ -125,8 +125,7 @@ export function SprintSplitModal({
     (idx: number, day: number) => {
       setBounds((prev) => {
         const lo = (idx === 0 ? 0 : prev[idx - 1]) + MIN_DAYS;
-        const hi =
-          (idx === prev.length - 1 ? totalDays : prev[idx + 1]) - MIN_DAYS;
+        const hi = (idx === prev.length - 1 ? totalDays : prev[idx + 1]) - MIN_DAYS;
         const clamped = Math.max(lo, Math.min(hi, day));
         if (clamped === prev[idx]) return prev;
         const next = prev.slice();
@@ -151,13 +150,13 @@ export function SprintSplitModal({
     };
     const onUp = () => {
       setDraggingIdx(null);
-      target.removeEventListener("pointermove", onMove);
-      target.removeEventListener("pointerup", onUp);
-      target.removeEventListener("pointercancel", onUp);
+      target.removeEventListener('pointermove', onMove);
+      target.removeEventListener('pointerup', onUp);
+      target.removeEventListener('pointercancel', onUp);
     };
-    target.addEventListener("pointermove", onMove);
-    target.addEventListener("pointerup", onUp);
-    target.addEventListener("pointercancel", onUp);
+    target.addEventListener('pointermove', onMove);
+    target.addEventListener('pointerup', onUp);
+    target.addEventListener('pointercancel', onUp);
   };
 
   // 세그먼트별 범위(일 오프셋) — bounds에서 파생
@@ -206,16 +205,13 @@ export function SprintSplitModal({
           <Split className="w-4 h-4" />
         </span>
         <div className="min-w-0">
-          <h4
-            id="sprint-split-title"
-            className="text-sm font-bold text-foreground"
-          >
+          <h4 id="sprint-split-title" className="text-sm font-bold text-foreground">
             스프린트 나누기
           </h4>
           <p className="text-xs text-slate-500 truncate">
             {start && end
               ? `${formatMD(start)} – ${formatMD(end)} · ${totalDays}일을 몇 개로 나눌지 정합니다`
-              : "마일스톤 기간이 없어 나눌 수 없습니다"}
+              : '마일스톤 기간이 없어 나눌 수 없습니다'}
           </p>
         </div>
       </div>
@@ -223,8 +219,8 @@ export function SprintSplitModal({
       <div className="px-5 pb-5 pt-4 flex flex-col gap-5">
         {!canSplit ? (
           <p className="text-sm text-slate-400 leading-relaxed">
-            마일스톤에 시작일과 종료일을 먼저 지정해 주세요. 스프린트는 그
-            기간을 나눈 버킷이라 기간이 없으면 만들 수 없습니다.
+            마일스톤에 시작일과 종료일을 먼저 지정해 주세요. 스프린트는 그 기간을 나눈 버킷이라
+            기간이 없으면 만들 수 없습니다.
           </p>
         ) : (
           <>
@@ -256,8 +252,7 @@ export function SprintSplitModal({
                   <Plus className="w-4 h-4" />
                 </button>
                 <span className="text-xs text-slate-500">
-                  1 ~ {maxCount}개 · 1개 = 나누지 않음 (스프린트당 최소{" "}
-                  {MIN_DAYS}일)
+                  1 ~ {maxCount}개 · 1개 = 나누지 않음 (스프린트당 최소 {MIN_DAYS}일)
                 </span>
               </div>
             </div>
@@ -281,10 +276,7 @@ export function SprintSplitModal({
                 </button>
               </div>
 
-              <div
-                ref={sliderRef}
-                className="relative flex items-stretch select-none touch-none"
-              >
+              <div ref={sliderRef} className="relative flex items-stretch select-none touch-none">
                 {/* 월요일 줄무늬 — 경계를 주 시작에 맞추고 싶을 때의 눈 안내선 */}
                 {mondays.map((d) => (
                   <span
@@ -300,16 +292,12 @@ export function SprintSplitModal({
                       style={{ flexGrow: seg.days, flexBasis: 0 }}
                       className="min-w-0 overflow-hidden mx-0.5 rounded-xl border border-bridge-accent/30 bg-bridge-accent/15 px-1.5 py-2.5 flex flex-col items-center justify-center gap-0.5 text-center"
                     >
-                      <span className="text-xs font-bold text-foreground">
-                        S{i + 1}
-                      </span>
+                      <span className="text-xs font-bold text-foreground">S{i + 1}</span>
                       <span className="text-xs text-foreground tabular-nums whitespace-nowrap truncate max-w-full">
-                        {start && formatMDW(addDays(start, seg.startDay))} –{" "}
+                        {start && formatMDW(addDays(start, seg.startDay))} –{' '}
                         {start && formatMDW(addDays(start, seg.endDay - 1))}
                       </span>
-                      <span className="text-xs text-slate-400 tabular-nums">
-                        {seg.days}일
-                      </span>
+                      <span className="text-xs text-slate-400 tabular-nums">{seg.days}일</span>
                     </div>
                     {i < segments.length - 1 && (
                       <button
@@ -326,10 +314,10 @@ export function SprintSplitModal({
                         }
                         onPointerDown={onHandlePointerDown(i)}
                         onKeyDown={(e) => {
-                          if (e.key === "ArrowLeft") {
+                          if (e.key === 'ArrowLeft') {
                             e.preventDefault();
                             moveBound(i, bounds[i] - 1);
-                          } else if (e.key === "ArrowRight") {
+                          } else if (e.key === 'ArrowRight') {
                             e.preventDefault();
                             moveBound(i, bounds[i] + 1);
                           }
@@ -339,20 +327,20 @@ export function SprintSplitModal({
                         <span
                           className={`w-[5px] h-9 rounded-[3px] border border-bridge-obsidian transition-colors ${
                             draggingIdx === i
-                              ? "bg-bridge-accent shadow-[0_0_10px_rgba(99,102,241,0.6)]"
-                              : "bg-slate-500 group-hover:bg-bridge-accent group-focus-visible:bg-bridge-accent group-focus-visible:shadow-[0_0_0_3px_rgba(99,102,241,0.35)]"
+                              ? 'bg-bridge-accent shadow-[0_0_10px_rgba(99,102,241,0.6)]'
+                              : 'bg-slate-500 group-hover:bg-bridge-accent group-focus-visible:bg-bridge-accent group-focus-visible:shadow-[0_0_0_3px_rgba(99,102,241,0.35)]'
                           }`}
                         />
                         {start && (
                           <span
                             className={`absolute bottom-[calc(100%+7px)] left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-md bg-bridge-dark border border-foreground/15 text-xs font-bold text-foreground tabular-nums whitespace-nowrap pointer-events-none z-[5] ${
                               draggingIdx === i
-                                ? "block"
-                                : "hidden group-hover:block group-focus-visible:block"
+                                ? 'block'
+                                : 'hidden group-hover:block group-focus-visible:block'
                             }`}
                           >
-                            ~{formatMDW(addDays(start, bounds[i] - 1))} | S
-                            {i + 2} 시작 {formatMDW(addDays(start, bounds[i]))}
+                            ~{formatMDW(addDays(start, bounds[i] - 1))} | S{i + 2} 시작{' '}
+                            {formatMDW(addDays(start, bounds[i]))}
                           </span>
                         )}
                       </button>
@@ -397,26 +385,23 @@ export function SprintSplitModal({
                 {(
                   [
                     {
-                      key: "unassign",
-                      label: "모두 미배정으로 두기",
-                      hint: "업무 리스트에서 직접 담습니다",
+                      key: 'unassign',
+                      label: '모두 미배정으로 두기',
+                      hint: '업무 리스트에서 직접 담습니다',
                     },
                     {
-                      key: "by_date",
-                      label: "기간순 자동 배분",
-                      hint: "태스크 시작일이 속한 스프린트로 자동 배치",
+                      key: 'by_date',
+                      label: '기간순 자동 배분',
+                      hint: '태스크 시작일이 속한 스프린트로 자동 배치',
                     },
                     {
-                      key: "keep",
-                      label: "기존 배정 유지",
-                      hint: "지금 담긴 스프린트를 그대로 둡니다",
+                      key: 'keep',
+                      label: '기존 배정 유지',
+                      hint: '지금 담긴 스프린트를 그대로 둡니다',
                     },
                   ] as const
                 ).map((opt) => (
-                  <label
-                    key={opt.key}
-                    className="flex items-start gap-2.5 text-sm cursor-pointer"
-                  >
+                  <label key={opt.key} className="flex items-start gap-2.5 text-sm cursor-pointer">
                     <input
                       type="radio"
                       name="sprint-split-distribution"
@@ -425,12 +410,8 @@ export function SprintSplitModal({
                       className="mt-1 accent-bridge-accent focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                     />
                     <span className="min-w-0">
-                      <span className="block text-xs font-bold text-foreground">
-                        {opt.label}
-                      </span>
-                      <span className="block text-xs text-slate-500">
-                        {opt.hint}
-                      </span>
+                      <span className="block text-xs font-bold text-foreground">{opt.label}</span>
+                      <span className="block text-xs text-slate-500">{opt.hint}</span>
                     </span>
                   </label>
                 ))}
@@ -457,7 +438,7 @@ export function SprintSplitModal({
             className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-40 transition-colors"
           >
             {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            {count === 1 ? "하나로 합치기" : `${count}개로 나누기`}
+            {count === 1 ? '하나로 합치기' : `${count}개로 나누기`}
           </button>
         </div>
       </div>

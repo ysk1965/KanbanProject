@@ -16,9 +16,9 @@
 // ORIGINAL string is returned unchanged so callers can keep their
 // "cleaned === html → delegate to default paste" fast path.
 
-const CARD_CONTAINER_TAGS = new Set(["DIV", "SECTION", "UL", "OL", "ARTICLE"]);
-const CARD_TAGS = new Set(["DIV", "SECTION", "ARTICLE", "LI", "DD", "A"]);
-const DISQUALIFYING_INSIDE_CARD = "table, ul, ol, img, video, iframe, pre";
+const CARD_CONTAINER_TAGS = new Set(['DIV', 'SECTION', 'UL', 'OL', 'ARTICLE']);
+const CARD_TAGS = new Set(['DIV', 'SECTION', 'ARTICLE', 'LI', 'DD', 'A']);
+const DISQUALIFYING_INSIDE_CARD = 'table, ul, ol, img, video, iframe, pre';
 const MAX_SEGMENTS_PER_CARD = 4;
 const MAX_SEGMENT_CHARS = 48;
 const MIN_CARDS = 3;
@@ -36,14 +36,14 @@ interface Card {
 // "6/30 70" rather than "6/3070" (textContent concatenates without spacing).
 function textOf(node: Node): string {
   if (node.nodeType === Node.TEXT_NODE) {
-    return (node.textContent ?? "").replace(/\s+/g, " ").trim();
+    return (node.textContent ?? '').replace(/\s+/g, ' ').trim();
   }
   const parts: string[] = [];
   node.childNodes.forEach((c) => {
     const t = textOf(c);
     if (t) parts.push(t);
   });
-  return parts.join(" ");
+  return parts.join(' ');
 }
 
 function isNumericLike(text: string): boolean {
@@ -72,11 +72,9 @@ function collectSegments(el: Element): string[] | null {
   const segments: string[] = [];
   const walk = (node: Element): boolean => {
     const elementChildren = Array.from(node.children).filter(
-      (c) => !["BR", "SVG", "PATH"].includes(c.tagName),
+      (c) => !['BR', 'SVG', 'PATH'].includes(c.tagName),
     );
-    const hasBlockChildren = elementChildren.some(
-      (c) => !isInlineTag(c.tagName),
-    );
+    const hasBlockChildren = elementChildren.some((c) => !isInlineTag(c.tagName));
     if (!hasBlockChildren) {
       segments.push(...leafSegments(node));
       return segments.length <= MAX_SEGMENTS_PER_CARD;
@@ -98,19 +96,19 @@ function collectSegments(el: Element): string[] | null {
 
 function isInlineTag(tag: string): boolean {
   return [
-    "SPAN",
-    "STRONG",
-    "B",
-    "EM",
-    "I",
-    "SMALL",
-    "SUP",
-    "SUB",
-    "CODE",
-    "LABEL",
-    "ABBR",
-    "TIME",
-    "MARK",
+    'SPAN',
+    'STRONG',
+    'B',
+    'EM',
+    'I',
+    'SMALL',
+    'SUP',
+    'SUB',
+    'CODE',
+    'LABEL',
+    'ABBR',
+    'TIME',
+    'MARK',
   ].includes(tag);
 }
 
@@ -130,7 +128,7 @@ function detectCardGrid(container: Element): Card[] | null {
   if (!CARD_CONTAINER_TAGS.has(container.tagName)) return null;
   const children = Array.from(container.childNodes).filter((n) => {
     if (n.nodeType === Node.ELEMENT_NODE) return true;
-    return n.nodeType === Node.TEXT_NODE && textOf(n) !== "";
+    return n.nodeType === Node.TEXT_NODE && textOf(n) !== '';
   });
   if (children.length < MIN_CARDS) return null;
   const cards: Card[] = [];
@@ -150,23 +148,23 @@ function detectCardGrid(container: Element): Card[] | null {
 
 function escapeHtml(text: string): string {
   return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function buildTable(doc: Document, cards: Card[]): Element {
-  const table = doc.createElement("table");
+  const table = doc.createElement('table');
   const allSingle = cards.every((c) => c.segments.length === 1);
   const allPairs = cards.every((c) => c.segments.length === 2);
 
   if (allSingle) {
     // Heatmap-like cells: one compact row.
-    const tbody = doc.createElement("tbody");
-    const tr = doc.createElement("tr");
+    const tbody = doc.createElement('tbody');
+    const tr = doc.createElement('tr');
     for (const c of cards) {
-      const td = doc.createElement("td");
+      const td = doc.createElement('td');
       td.textContent = c.segments[0];
       tr.appendChild(td);
     }
@@ -192,18 +190,18 @@ function buildTable(doc: Document, cards: Card[]): Element {
         values.push(a);
       }
     }
-    const thead = doc.createElement("thead");
-    const hr = doc.createElement("tr");
+    const thead = doc.createElement('thead');
+    const hr = doc.createElement('tr');
     for (const l of labels) {
-      const th = doc.createElement("th");
+      const th = doc.createElement('th');
       th.textContent = l;
       hr.appendChild(th);
     }
     thead.appendChild(hr);
-    const tbody = doc.createElement("tbody");
-    const vr = doc.createElement("tr");
+    const tbody = doc.createElement('tbody');
+    const vr = doc.createElement('tr');
     for (const v of values) {
-      const td = doc.createElement("td");
+      const td = doc.createElement('td');
       td.textContent = v;
       vr.appendChild(td);
     }
@@ -215,12 +213,12 @@ function buildTable(doc: Document, cards: Card[]): Element {
 
   // Generic: one row per card, one column per segment (padded).
   const width = Math.max(...cards.map((c) => c.segments.length));
-  const tbody = doc.createElement("tbody");
+  const tbody = doc.createElement('tbody');
   for (const c of cards) {
-    const tr = doc.createElement("tr");
+    const tr = doc.createElement('tr');
     for (let i = 0; i < width; i++) {
-      const td = doc.createElement("td");
-      td.textContent = c.segments[i] ?? "";
+      const td = doc.createElement('td');
+      td.textContent = c.segments[i] ?? '';
       tr.appendChild(td);
     }
     tbody.appendChild(tr);
@@ -247,8 +245,8 @@ function convertCardGrids(doc: Document): boolean {
 
 function collapseSvgs(doc: Document): boolean {
   let changed = false;
-  doc.querySelectorAll("svg").forEach((svg) => {
-    const labels = Array.from(svg.querySelectorAll("text"))
+  doc.querySelectorAll('svg').forEach((svg) => {
+    const labels = Array.from(svg.querySelectorAll('text'))
       .map((t) => textOf(t))
       .filter(Boolean);
     if (labels.length > 0) {
@@ -265,15 +263,15 @@ function collapseSvgs(doc: Document): boolean {
           pairs.push(cur);
         }
       }
-      const p = doc.createElement("p");
-      p.innerHTML = pairs.map(escapeHtml).join(" · ");
+      const p = doc.createElement('p');
+      p.innerHTML = pairs.map(escapeHtml).join(' · ');
       svg.replaceWith(p);
     } else {
       svg.remove();
     }
     changed = true;
   });
-  doc.querySelectorAll("canvas, style, script, noscript").forEach((el) => {
+  doc.querySelectorAll('canvas, style, script, noscript').forEach((el) => {
     el.remove();
     changed = true;
   });
@@ -286,14 +284,14 @@ function collapseSvgs(doc: Document): boolean {
  * no pattern matched.
  */
 export function normalizeLayoutHtml(html: string): string {
-  if (!html || typeof DOMParser === "undefined") return html;
+  if (!html || typeof DOMParser === 'undefined') return html;
   // Cheap pre-check: nothing to do for plain prose markup.
   if (!/<(div|section|ul|ol|article|svg|canvas|style|script)\b/i.test(html)) {
     return html;
   }
   let doc: Document;
   try {
-    doc = new DOMParser().parseFromString(html, "text/html");
+    doc = new DOMParser().parseFromString(html, 'text/html');
   } catch {
     return html;
   }

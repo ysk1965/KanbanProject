@@ -1,11 +1,18 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Sparkles, Loader2, Star, ChevronRight, ArrowRight,
-  CheckSquare, Square as SquareIcon,
+  Sparkles,
+  Loader2,
+  Star,
+  ChevronRight,
+  ArrowRight,
+  CheckSquare,
+  Square as SquareIcon,
 } from 'lucide-react';
 import type {
-  NoteAISuggestionResponse, NoteAIApplyResult, AIApplyRequest,
+  NoteAISuggestionResponse,
+  NoteAIApplyResult,
+  AIApplyRequest,
   AIFeatureSuggestion,
 } from '../../utils/api';
 import { noteAPI, featureAPI, taskAPI } from '../../utils/api';
@@ -80,10 +87,10 @@ export function NoteAIInlineSection({
         const existingTasks = tasksRes.tasks;
 
         const featureTitleToId = new Map<string, string>();
-        existingFeatures.forEach(f => featureTitleToId.set(f.title.trim().toLowerCase(), f.id));
+        existingFeatures.forEach((f) => featureTitleToId.set(f.title.trim().toLowerCase(), f.id));
 
         const tasksByFeatureId = new Map<string, Set<string>>();
-        existingTasks.forEach(t => {
+        existingTasks.forEach((t) => {
           if (!tasksByFeatureId.has(t.feature_id)) tasksByFeatureId.set(t.feature_id, new Set());
           tasksByFeatureId.get(t.feature_id)!.add(t.title.trim().toLowerCase());
         });
@@ -113,24 +120,39 @@ export function NoteAIInlineSection({
     })();
   }, [suggestions, boardId]);
 
-  const isTaskLocked = useCallback((fi: number, ti: number) => !!lockedItems.tasks[`${fi}-${ti}`], [lockedItems]);
-  const isFeatureAllLocked = useCallback((fi: number) => {
-    if (!suggestions) return false;
-    return suggestions.features[fi].tasks.every((_, ti) => isTaskLocked(fi, ti));
-  }, [suggestions, isTaskLocked]);
+  const isTaskLocked = useCallback(
+    (fi: number, ti: number) => !!lockedItems.tasks[`${fi}-${ti}`],
+    [lockedItems],
+  );
+  const isFeatureAllLocked = useCallback(
+    (fi: number) => {
+      if (!suggestions) return false;
+      return suggestions.features[fi].tasks.every((_, ti) => isTaskLocked(fi, ti));
+    },
+    [suggestions, isTaskLocked],
+  );
 
   const toggleFeature = (fi: number) => {
     if (isFeatureAllLocked(fi)) return;
     const newVal = !selection.features[fi];
-    setSelection(prev => {
-      const next = { ...prev, features: { ...prev.features, [fi]: newVal }, tasks: { ...prev.tasks }, checklists: { ...prev.checklists } };
+    setSelection((prev) => {
+      const next = {
+        ...prev,
+        features: { ...prev.features, [fi]: newVal },
+        tasks: { ...prev.tasks },
+        checklists: { ...prev.checklists },
+      };
       suggestions!.features[fi].tasks.forEach((task, ti) => {
         if (!isTaskLocked(fi, ti)) {
           next.tasks[`${fi}-${ti}`] = newVal;
-          task.checklists.forEach((_, ci) => { next.checklists[`${fi}-${ti}-${ci}`] = newVal; });
+          task.checklists.forEach((_, ci) => {
+            next.checklists[`${fi}-${ti}-${ci}`] = newVal;
+          });
         }
       });
-      const anyChecked = suggestions!.features[fi].tasks.some((_, idx) => next.tasks[`${fi}-${idx}`]);
+      const anyChecked = suggestions!.features[fi].tasks.some(
+        (_, idx) => next.tasks[`${fi}-${idx}`],
+      );
       next.features[fi] = anyChecked;
       return next;
     });
@@ -140,8 +162,12 @@ export function NoteAIInlineSection({
     if (isTaskLocked(fi, ti)) return;
     const key = `${fi}-${ti}`;
     const newVal = !selection.tasks[key];
-    setSelection(prev => {
-      const next = { ...prev, tasks: { ...prev.tasks, [key]: newVal }, checklists: { ...prev.checklists } };
+    setSelection((prev) => {
+      const next = {
+        ...prev,
+        tasks: { ...prev.tasks, [key]: newVal },
+        checklists: { ...prev.checklists },
+      };
       suggestions!.features[fi].tasks[ti].checklists.forEach((_, ci) => {
         next.checklists[`${fi}-${ti}-${ci}`] = newVal;
       });
@@ -158,7 +184,7 @@ export function NoteAIInlineSection({
     if (isTaskLocked(fi, ti)) return;
     const key = `${fi}-${ti}-${ci}`;
     const newVal = !selection.checklists[key];
-    setSelection(prev => {
+    setSelection((prev) => {
       const next = { ...prev, checklists: { ...prev.checklists, [key]: newVal } };
       const taskKey = `${fi}-${ti}`;
       const anyClChecked = suggestions!.features[fi].tasks[ti].checklists.some((_, idx) => {
@@ -190,7 +216,9 @@ export function NoteAIInlineSection({
       feature.tasks.forEach((task, ti) => {
         const locked = isTaskLocked(fi, ti);
         taskSel[`${fi}-${ti}`] = locked ? true : newVal;
-        task.checklists.forEach((_, ci) => { checklistSel[`${fi}-${ti}-${ci}`] = locked ? true : newVal; });
+        task.checklists.forEach((_, ci) => {
+          checklistSel[`${fi}-${ti}-${ci}`] = locked ? true : newVal;
+        });
       });
       const anyChecked = feature.tasks.some((_, idx) => taskSel[`${fi}-${idx}`]);
       featureSel[fi] = anyChecked;
@@ -200,8 +228,12 @@ export function NoteAIInlineSection({
 
   const selectedCount = useMemo(() => {
     let count = 0;
-    Object.entries(selection.features).forEach(([, v]) => { if (v) count++; });
-    Object.entries(selection.tasks).forEach(([key, v]) => { if (v && !lockedItems.tasks[key]) count++; });
+    Object.entries(selection.features).forEach(([, v]) => {
+      if (v) count++;
+    });
+    Object.entries(selection.tasks).forEach(([key, v]) => {
+      if (v && !lockedItems.tasks[key]) count++;
+    });
     Object.entries(selection.checklists).forEach(([key, v]) => {
       if (v) {
         const parts = key.split('-');
@@ -227,8 +259,12 @@ export function NoteAIInlineSection({
                 if (lockedItems.tasks[`${fi}-${ti}`]) return null;
                 const checklists = task.checklists
                   .filter((_, ci) => selection.checklists[`${fi}-${ti}-${ci}`])
-                  .map(cl => ({ title: cl.title }));
-                return { title: task.title, description: task.description ?? undefined, checklists };
+                  .map((cl) => ({ title: cl.title }));
+                return {
+                  title: task.title,
+                  description: task.description ?? undefined,
+                  checklists,
+                };
               })
               .filter((t): t is NonNullable<typeof t> => t !== null);
             if (tasks.length === 0) return null;
@@ -382,14 +418,21 @@ export function NoteAIInlineSection({
                   )}
                 </div>
                 {/* Structured summary: decisions / discussions / action_items */}
-                {(topic.decisions?.length || topic.discussions?.length || topic.action_items?.length) ? (
+                {topic.decisions?.length ||
+                topic.discussions?.length ||
+                topic.action_items?.length ? (
                   <div className="space-y-2">
                     {topic.decisions && topic.decisions.length > 0 && (
                       <div>
-                        <span className="text-xs font-bold uppercase tracking-widest text-green-400">{t('notes.aiDecisions', 'Decisions')}</span>
+                        <span className="text-xs font-bold uppercase tracking-widest text-green-400">
+                          {t('notes.aiDecisions', 'Decisions')}
+                        </span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.decisions.map((d, j) => (
-                            <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <li
+                              key={j}
+                              className="flex items-start gap-2 text-sm text-muted-foreground"
+                            >
                               <span className="text-green-400 mt-1 text-xs">✓</span>
                               <span className="font-normal">{d}</span>
                             </li>
@@ -399,10 +442,15 @@ export function NoteAIInlineSection({
                     )}
                     {topic.discussions && topic.discussions.length > 0 && (
                       <div>
-                        <span className="text-xs font-bold uppercase tracking-widest text-blue-400">{t('notes.aiDiscussions', 'Discussions')}</span>
+                        <span className="text-xs font-bold uppercase tracking-widest text-blue-400">
+                          {t('notes.aiDiscussions', 'Discussions')}
+                        </span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.discussions.map((d, j) => (
-                            <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <li
+                              key={j}
+                              className="flex items-start gap-2 text-sm text-muted-foreground"
+                            >
                               <span className="text-blue-400 mt-1 text-xs">–</span>
                               <span className="font-normal">{d}</span>
                             </li>
@@ -412,10 +460,15 @@ export function NoteAIInlineSection({
                     )}
                     {topic.action_items && topic.action_items.length > 0 && (
                       <div>
-                        <span className="text-xs font-bold uppercase tracking-widest text-amber-400">{t('notes.aiActionItems', 'Action Items')}</span>
+                        <span className="text-xs font-bold uppercase tracking-widest text-amber-400">
+                          {t('notes.aiActionItems', 'Action Items')}
+                        </span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.action_items.map((a, j) => (
-                            <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <li
+                              key={j}
+                              className="flex items-start gap-2 text-sm text-muted-foreground"
+                            >
                               <span className="text-amber-400 mt-1 text-xs">→</span>
                               <span className="font-normal">{a}</span>
                             </li>
@@ -474,7 +527,7 @@ export function NoteAIInlineSection({
                     </button>
                   )}
                   <button
-                    onClick={() => setExpandedFeatures(prev => ({ ...prev, [fi]: !prev[fi] }))}
+                    onClick={() => setExpandedFeatures((prev) => ({ ...prev, [fi]: !prev[fi] }))}
                     className="flex-shrink-0 text-slate-400 hover:text-foreground transition-colors"
                   >
                     <ChevronRight
@@ -482,9 +535,14 @@ export function NoteAIInlineSection({
                     />
                   </button>
                   {feature.type === 'NEW' && feature.color && (
-                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: feature.color }} />
+                    <div
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: feature.color }}
+                    />
                   )}
-                  <span className="text-sm font-medium text-foreground truncate flex-1">{feature.title}</span>
+                  <span className="text-sm font-medium text-foreground truncate flex-1">
+                    {feature.title}
+                  </span>
                   {renderFeatureLabel(feature)}
                 </div>
 
@@ -493,7 +551,9 @@ export function NoteAIInlineSection({
                   <div className="border-t border-foreground/5">
                     {feature.tasks.map((task, ti) => (
                       <div key={ti}>
-                        <div className={`flex items-center gap-2 px-4 py-2.5 pl-10 ${isTaskLocked(fi, ti) ? 'opacity-60' : ''}`}>
+                        <div
+                          className={`flex items-center gap-2 px-4 py-2.5 pl-10 ${isTaskLocked(fi, ti) ? 'opacity-60' : ''}`}
+                        >
                           {isTaskLocked(fi, ti) ? (
                             <span className="flex-shrink-0 cursor-not-allowed">
                               {renderCheckbox(true, true)}
@@ -505,9 +565,13 @@ export function NoteAIInlineSection({
                           )}
                           <ArrowRight className="h-3 w-3 text-slate-500 flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <span className="text-sm text-muted-foreground truncate block">{task.title}</span>
+                            <span className="text-sm text-muted-foreground truncate block">
+                              {task.title}
+                            </span>
                             {task.description && (
-                              <span className="text-xs text-slate-500 truncate block mt-0.5">{task.description}</span>
+                              <span className="text-xs text-slate-500 truncate block mt-0.5">
+                                {task.description}
+                              </span>
                             )}
                           </div>
                           {isTaskLocked(fi, ti) && (
@@ -517,17 +581,25 @@ export function NoteAIInlineSection({
                           )}
                         </div>
                         {task.checklists.map((checklist, ci) => (
-                          <div key={ci} className={`flex items-center gap-2 px-4 py-2 pl-16 ${isTaskLocked(fi, ti) ? 'opacity-60' : ''}`}>
+                          <div
+                            key={ci}
+                            className={`flex items-center gap-2 px-4 py-2 pl-16 ${isTaskLocked(fi, ti) ? 'opacity-60' : ''}`}
+                          >
                             {isTaskLocked(fi, ti) ? (
                               <span className="flex-shrink-0 cursor-not-allowed">
                                 {renderCheckbox(true, true)}
                               </span>
                             ) : (
-                              <button onClick={() => toggleChecklist(fi, ti, ci)} className="flex-shrink-0">
+                              <button
+                                onClick={() => toggleChecklist(fi, ti, ci)}
+                                className="flex-shrink-0"
+                              >
                                 {renderCheckbox(!!selection.checklists[`${fi}-${ti}-${ci}`])}
                               </button>
                             )}
-                            <span className="text-xs text-slate-400 truncate">{checklist.title}</span>
+                            <span className="text-xs text-slate-400 truncate">
+                              {checklist.title}
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -558,9 +630,7 @@ export function NoteAIInlineSection({
               )}
             </button>
           </div>
-          {applyError && (
-            <p className="text-xs text-red-400 text-center">{applyError}</p>
-          )}
+          {applyError && <p className="text-xs text-red-400 text-center">{applyError}</p>}
         </div>
       )}
 
@@ -583,12 +653,13 @@ export function NoteAIInlineSection({
       )}
 
       {/* No suggestions */}
-      {suggestions.features.length === 0 && (!suggestions.summary || suggestions.summary.length === 0) && (
-        <div className="bg-white/[0.02] rounded-xl border border-foreground/5 p-6 text-center">
-          <Sparkles className="h-6 w-6 text-slate-500 mx-auto mb-2" />
-          <p className="text-sm text-slate-400">{t('notes.aiNoSuggestions')}</p>
-        </div>
-      )}
+      {suggestions.features.length === 0 &&
+        (!suggestions.summary || suggestions.summary.length === 0) && (
+          <div className="bg-white/[0.02] rounded-xl border border-foreground/5 p-6 text-center">
+            <Sparkles className="h-6 w-6 text-slate-500 mx-auto mb-2" />
+            <p className="text-sm text-slate-400">{t('notes.aiNoSuggestions')}</p>
+          </div>
+        )}
     </div>
   );
 }

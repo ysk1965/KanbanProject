@@ -1,21 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
-import { publicMindMapAPI } from "../utils/api";
-import { formatDateTime } from "../utils/dateUtils";
-import type { Feature, Milestone, SharedMindMapSnapshot, Task } from "../types";
-import { MindMapView, type FeatureMilestoneRef } from "../views/MindMapView";
+import { useEffect, useMemo, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
+import { publicMindMapAPI } from '../utils/api';
+import { formatDateTime } from '../utils/dateUtils';
+import type { Feature, Milestone, SharedMindMapSnapshot, Task } from '../types';
+import { MindMapView, type FeatureMilestoneRef } from '../views/MindMapView';
 
 function useSystemTheme() {
   const [isDark, setIsDark] = useState(
-    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+    () => window.matchMedia('(prefers-color-scheme: dark)').matches,
   );
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, []);
   return isDark;
 }
@@ -33,18 +33,18 @@ export function SharedMindMapPage() {
   // Bridge CSS 변수(bridge-dark 등)가 시스템 테마를 따르도록 html 클래스 적용
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(isDark ? "dark" : "light");
+    root.classList.remove('light', 'dark');
+    root.classList.add(isDark ? 'dark' : 'light');
     return () => {
-      root.classList.remove("light", "dark");
+      root.classList.remove('light', 'dark');
     };
   }, [isDark]);
 
   // 공개 링크 페이지는 검색엔진 인덱싱 차단
   useEffect(() => {
-    const meta = document.createElement("meta");
-    meta.name = "robots";
-    meta.content = "noindex";
+    const meta = document.createElement('meta');
+    meta.name = 'robots';
+    meta.content = 'noindex';
     document.head.appendChild(meta);
     return () => {
       document.head.removeChild(meta);
@@ -81,7 +81,7 @@ export function SharedMindMapPage() {
       color: f.color,
       status: f.status,
       assignee: f.assignee
-        ? { id: f.assignee.id, name: f.assignee.name, email: "", profile_image: null }
+        ? { id: f.assignee.id, name: f.assignee.name, email: '', profile_image: null }
         : null,
       start_date: null,
       due_date: null,
@@ -101,9 +101,9 @@ export function SharedMindMapPage() {
       return {
         id: task.id,
         feature_id: task.feature_id,
-        feature_title: feature?.title ?? "",
-        feature_color: feature?.color ?? "#6366F1",
-        block_id: "",
+        feature_title: feature?.title ?? '',
+        feature_color: feature?.color ?? '#6366F1',
+        block_id: '',
         milestone_id: task.milestone_id ?? null,
         title: task.title,
         start_date: null,
@@ -129,22 +129,21 @@ export function SharedMindMapPage() {
       .map((ms) => ({
         id: ms.id,
         title: ms.title,
-        start_date: "",
-        end_date: "",
+        start_date: '',
+        end_date: '',
         feature_count: 0,
         progress_percentage: 0,
       }));
   }, [snapshot]);
 
-  const featureMilestonesMap: Record<string, FeatureMilestoneRef[]> =
-    useMemo(() => {
-      if (!snapshot) return {};
-      const map: Record<string, FeatureMilestoneRef[]> = {};
-      snapshot.features.forEach((f) => {
-        if (f.milestones.length > 0) map[f.id] = f.milestones;
-      });
-      return map;
-    }, [snapshot]);
+  const featureMilestonesMap: Record<string, FeatureMilestoneRef[]> = useMemo(() => {
+    if (!snapshot) return {};
+    const map: Record<string, FeatureMilestoneRef[]> = {};
+    snapshot.features.forEach((f) => {
+      if (f.milestones.length > 0) map[f.id] = f.milestones;
+    });
+    return map;
+  }, [snapshot]);
 
   if (loading) {
     return (
@@ -162,20 +161,17 @@ export function SharedMindMapPage() {
             <AlertCircle size={28} className="text-rose-400" />
           </div>
           <h2 className="text-xl font-bold text-foreground mb-2">
-            {t("mindmap.shareNotAvailable", "마인드맵을 볼 수 없습니다")}
+            {t('mindmap.shareNotAvailable', '마인드맵을 볼 수 없습니다')}
           </h2>
           <p className="text-slate-400 text-sm mb-6">
-            {t(
-              "mindmap.shareNotAvailableDesc",
-              "이 공유 링크는 만료되었거나 비활성화되었습니다.",
-            )}
+            {t('mindmap.shareNotAvailableDesc', '이 공유 링크는 만료되었거나 비활성화되었습니다.')}
           </p>
           <Link
             to="/"
             className="inline-flex items-center gap-2 px-4 py-2 bg-bridge-accent text-white rounded-xl text-sm font-medium hover:bg-bridge-accent/90 transition-colors"
           >
             <ArrowLeft size={14} />
-            {t("notes.shareGoHome", "홈으로 이동")}
+            {t('notes.shareGoHome', '홈으로 이동')}
           </Link>
         </div>
       </div>
@@ -192,9 +188,7 @@ export function SharedMindMapPage() {
             className="flex items-center gap-2 shrink-0 text-slate-400 hover:text-foreground transition-colors"
           >
             <img src="/BridgeSpotsIcon.png" alt="BRIDGE" className="h-6 w-6" />
-            <span className="text-sm font-bold text-foreground hidden sm:inline">
-              BRIDGE
-            </span>
+            <span className="text-sm font-bold text-foreground hidden sm:inline">BRIDGE</span>
           </Link>
           <span className="text-slate-600" aria-hidden="true">
             /
@@ -203,12 +197,12 @@ export function SharedMindMapPage() {
             {snapshot.board_name}
           </span>
           <span className="hidden md:inline text-xs text-slate-500">
-            {t("mindmap.shareGeneratedAt", "{{time}} 기준", {
+            {t('mindmap.shareGeneratedAt', '{{time}} 기준', {
               time: formatDateTime(snapshot.generated_at),
             })}
           </span>
           <span className="shrink-0 text-xs font-bold px-2.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
-            {t("mindmap.readOnly", "읽기 전용")}
+            {t('mindmap.readOnly', '읽기 전용')}
           </span>
         </div>
       </header>

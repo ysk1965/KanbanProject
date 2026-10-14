@@ -1,16 +1,16 @@
-import { useMemo, useRef, useEffect, useState, Suspense, lazy } from "react";
-import { useTranslation } from "react-i18next";
-import DOMPurify from "dompurify";
-import { Loader2 } from "lucide-react";
-import htmldiff from "node-htmldiff";
-import { useCreateBlockNote } from "@blocknote/react";
-import { useTheme } from "../../contexts/ThemeContext";
-import { computeSceneDiff, DIFF_COLORS } from "../../utils/excalidrawDiff";
-import { contentToHtml } from "../../utils/blocknoteContent";
-import { noteSchema } from "./blocks/schema";
+import { useMemo, useRef, useEffect, useState, Suspense, lazy } from 'react';
+import { useTranslation } from 'react-i18next';
+import DOMPurify from 'dompurify';
+import { Loader2 } from 'lucide-react';
+import htmldiff from 'node-htmldiff';
+import { useCreateBlockNote } from '@blocknote/react';
+import { useTheme } from '../../contexts/ThemeContext';
+import { computeSceneDiff, DIFF_COLORS } from '../../utils/excalidrawDiff';
+import { contentToHtml } from '../../utils/blocknoteContent';
+import { noteSchema } from './blocks/schema';
 
 const ExcalidrawLazy = lazy(async () => {
-  const mod = await import("@excalidraw/excalidraw");
+  const mod = await import('@excalidraw/excalidraw');
   return { default: mod.Excalidraw };
 });
 
@@ -34,35 +34,30 @@ export function NoteVersionDiffView({
   const titleDiffHtml = useMemo(() => {
     if (previousTitle === currentTitle) return null;
     try {
-      const prev = escapeHtml(previousTitle || "");
-      const curr = escapeHtml(currentTitle || "");
+      const prev = escapeHtml(previousTitle || '');
+      const curr = escapeHtml(currentTitle || '');
       return DOMPurify.sanitize(htmldiff(prev, curr), {
-        ADD_TAGS: ["ins", "del"],
-        ADD_ATTR: ["data-diff-node", "data-operation-index"],
+        ADD_TAGS: ['ins', 'del'],
+        ADD_ATTR: ['data-diff-node', 'data-operation-index'],
       });
     } catch {
       return null;
     }
   }, [previousTitle, currentTitle]);
 
-  if (noteType === "BOARD") {
+  if (noteType === 'BOARD') {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         {titleDiffHtml && (
           <div className="px-4 py-2 border-b border-foreground/5 text-xs text-slate-500">
-            <span className="mr-2">
-              {t("notes.diff.titleChanged", "제목 변경")}:
-            </span>
+            <span className="mr-2">{t('notes.diff.titleChanged', '제목 변경')}:</span>
             <span
               className="note-diff inline"
               dangerouslySetInnerHTML={{ __html: titleDiffHtml }}
             />
           </div>
         )}
-        <BoardDiffCanvas
-          previousContent={previousContent}
-          currentContent={currentContent}
-        />
+        <BoardDiffCanvas previousContent={previousContent} currentContent={currentContent} />
       </div>
     );
   }
@@ -91,8 +86,8 @@ function DocumentDiffBody({
   // htmldiff. Live for the lifetime of this diff view. Created once with the
   // full note schema so custom blocks (Callout, Embed, etc.) resolve.
   const converter = useCreateBlockNote({ schema: noteSchema } as any);
-  const [prevHtml, setPrevHtml] = useState<string>("");
-  const [currHtml, setCurrHtml] = useState<string>("");
+  const [prevHtml, setPrevHtml] = useState<string>('');
+  const [currHtml, setCurrHtml] = useState<string>('');
 
   useEffect(() => {
     let cancelled = false;
@@ -115,8 +110,8 @@ function DocumentDiffBody({
     try {
       const diffed = htmldiff(prevHtml, currHtml);
       return DOMPurify.sanitize(diffed, {
-        ADD_TAGS: ["ins", "del"],
-        ADD_ATTR: ["data-diff-node", "data-operation-index"],
+        ADD_TAGS: ['ins', 'del'],
+        ADD_ATTR: ['data-diff-node', 'data-operation-index'],
       });
     } catch {
       return DOMPurify.sanitize(currHtml);
@@ -129,13 +124,8 @@ function DocumentDiffBody({
     <div className="flex-1 overflow-y-auto p-4 note-diff">
       {titleDiffHtml && (
         <div className="mb-3 pb-2 border-b border-foreground/5 text-xs">
-          <span className="text-slate-500 mr-2">
-            {t("notes.diff.titleChanged", "제목 변경")}:
-          </span>
-          <span
-            className="inline"
-            dangerouslySetInnerHTML={{ __html: titleDiffHtml }}
-          />
+          <span className="text-slate-500 mr-2">{t('notes.diff.titleChanged', '제목 변경')}:</span>
+          <span className="inline" dangerouslySetInnerHTML={{ __html: titleDiffHtml }} />
         </div>
       )}
       {hasDiff ? (
@@ -145,7 +135,7 @@ function DocumentDiffBody({
         />
       ) : (
         <div className="text-center text-slate-500 text-xs py-8">
-          {t("notes.diff.noChanges", "변경 사항이 없습니다")}
+          {t('notes.diff.noChanges', '변경 사항이 없습니다')}
         </div>
       )}
     </div>
@@ -168,7 +158,7 @@ function BoardDiffCanvas({
     [previousContent, currentContent],
   );
 
-  const bgColor = isDark ? "#1e1e1e" : "#ffffff";
+  const bgColor = isDark ? '#1e1e1e' : '#ffffff';
 
   const initialData = useMemo(
     () => ({
@@ -186,16 +176,13 @@ function BoardDiffCanvas({
   useEffect(() => {
     if (!containerRef.current) return;
     const ro = new ResizeObserver(() => {
-      window.dispatchEvent(new Event("resize"));
+      window.dispatchEvent(new Event('resize'));
     });
     ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, []);
 
-  const noChanges =
-    diff.stats.added === 0 &&
-    diff.stats.removed === 0 &&
-    diff.stats.modified === 0;
+  const noChanges = diff.stats.added === 0 && diff.stats.removed === 0 && diff.stats.modified === 0;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -205,9 +192,7 @@ function BoardDiffCanvas({
             className="inline-block w-2 h-2 rounded-full"
             style={{ background: DIFF_COLORS.added }}
           />
-          <span className="text-slate-400">
-            {t("notes.diff.added", "추가")}
-          </span>
+          <span className="text-slate-400">{t('notes.diff.added', '추가')}</span>
           <span className="text-foreground font-bold">{diff.stats.added}</span>
         </span>
         <span className="flex items-center gap-1">
@@ -215,30 +200,22 @@ function BoardDiffCanvas({
             className="inline-block w-2 h-2 rounded-full"
             style={{ background: DIFF_COLORS.removed }}
           />
-          <span className="text-slate-400">
-            {t("notes.diff.removed", "삭제")}
-          </span>
-          <span className="text-foreground font-bold">
-            {diff.stats.removed}
-          </span>
+          <span className="text-slate-400">{t('notes.diff.removed', '삭제')}</span>
+          <span className="text-foreground font-bold">{diff.stats.removed}</span>
         </span>
         <span className="flex items-center gap-1">
           <span
             className="inline-block w-2 h-2 rounded-full"
             style={{ background: DIFF_COLORS.modified }}
           />
-          <span className="text-slate-400">
-            {t("notes.diff.modified", "변경")}
-          </span>
-          <span className="text-foreground font-bold">
-            {diff.stats.modified}
-          </span>
+          <span className="text-slate-400">{t('notes.diff.modified', '변경')}</span>
+          <span className="text-foreground font-bold">{diff.stats.modified}</span>
         </span>
       </div>
       <div ref={containerRef} className="flex-1 relative">
         {noChanges ? (
           <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-xs">
-            {t("notes.diff.noChanges", "변경 사항이 없습니다")}
+            {t('notes.diff.noChanges', '변경 사항이 없습니다')}
           </div>
         ) : (
           <Suspense
@@ -251,7 +228,7 @@ function BoardDiffCanvas({
             <ExcalidrawLazy
               initialData={initialData}
               viewModeEnabled
-              theme={isDark ? "dark" : "light"}
+              theme={isDark ? 'dark' : 'light'}
               UIOptions={{
                 canvasActions: {
                   changeViewBackgroundColor: false,
@@ -273,9 +250,9 @@ function BoardDiffCanvas({
 
 function escapeHtml(s: string): string {
   return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

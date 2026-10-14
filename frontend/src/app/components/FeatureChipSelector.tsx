@@ -32,7 +32,10 @@ function useCompletionPulse(progressPercent: number, totalTasks: number) {
       const clearTimer = setTimeout(() => {
         setJustCompleted(false);
       }, 450 + 1500);
-      return () => { clearTimeout(arriveTimer); clearTimeout(clearTimer); };
+      return () => {
+        clearTimeout(arriveTimer);
+        clearTimeout(clearTimer);
+      };
     }
   }, [progressPercent, totalTasks]);
 
@@ -69,18 +72,30 @@ const FeatureChip = memo(function FeatureChip({
           ? 'border-2 shadow-lg'
           : 'border border-bridge-border hover:border-zinc-600 opacity-60 hover:opacity-90'
       }`}
-      style={isSelected ? {
-        backgroundColor: justCompleted ? 'rgba(34, 197, 94, 0.08)' : `${featureColor}10`,
-        borderColor: justCompleted ? 'rgba(34, 197, 94, 0.6)' : `${featureColor}66`,
-        boxShadow: justCompleted ? '0 0 20px rgba(34, 197, 94, 0.2)' : `0 0 16px ${featureColor}15`,
-      } : {
-        backgroundColor: 'var(--bridge-surface-hover)',
-      }}
+      style={
+        isSelected
+          ? {
+              backgroundColor: justCompleted ? 'rgba(34, 197, 94, 0.08)' : `${featureColor}10`,
+              borderColor: justCompleted ? 'rgba(34, 197, 94, 0.6)' : `${featureColor}66`,
+              boxShadow: justCompleted
+                ? '0 0 20px rgba(34, 197, 94, 0.2)'
+                : `0 0 16px ${featureColor}15`,
+            }
+          : {
+              backgroundColor: 'var(--bridge-surface-hover)',
+            }
+      }
     >
       {/* 좌측 컬러 바 */}
       <div
         className="w-1 flex-shrink-0 transition-colors duration-500"
-        style={{ backgroundColor: isCompleted ? '#22c55e' : isSelected ? featureColor : `${featureColor}40` }}
+        style={{
+          backgroundColor: isCompleted
+            ? '#22c55e'
+            : isSelected
+              ? featureColor
+              : `${featureColor}40`,
+        }}
       />
 
       {/* 메인 영역 (클릭 = 상세 보기) */}
@@ -96,9 +111,11 @@ const FeatureChip = memo(function FeatureChip({
                 className="w-2 h-2 rounded-full flex-shrink-0 transition-colors duration-500"
                 style={{ backgroundColor: isCompleted ? '#22c55e' : featureColor }}
               />
-              <span className={`font-bold text-[12px] max-w-[130px] truncate ${
-                isSelected ? 'text-foreground' : 'text-zinc-400'
-              }`}>
+              <span
+                className={`font-bold text-[12px] max-w-[130px] truncate ${
+                  isSelected ? 'text-foreground' : 'text-zinc-400'
+                }`}
+              >
                 {feature.title}
               </span>
             </div>
@@ -115,30 +132,46 @@ const FeatureChip = memo(function FeatureChip({
                 />
                 <CompletionParticles active={justCompleted} count={8} variant="chip" />
               </div>
-              <span className={`text-xs font-medium flex items-center gap-0.5 ${
-                isCompleted ? 'text-green-400' : isSelected ? 'text-foreground/80' : 'text-zinc-500'
-              } ${justCompleted ? 'progress-text-bounce' : ''}`}>
+              <span
+                className={`text-xs font-medium flex items-center gap-0.5 ${
+                  isCompleted
+                    ? 'text-green-400'
+                    : isSelected
+                      ? 'text-foreground/80'
+                      : 'text-zinc-500'
+                } ${justCompleted ? 'progress-text-bounce' : ''}`}
+              >
                 {feature.completed_tasks}/{feature.total_tasks}
                 {isCompleted && (
-                  <Check size={10} className={`text-green-400 ${justCompleted ? 'progress-check-pop' : ''}`} strokeWidth={3} />
+                  <Check
+                    size={10}
+                    className={`text-green-400 ${justCompleted ? 'progress-check-pop' : ''}`}
+                    strokeWidth={3}
+                  />
                 )}
               </span>
             </div>
           </button>
         </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={8} className="bg-bridge-obsidian border border-foreground/10 text-foreground px-3 py-2.5 rounded-xl shadow-xl">
+        <TooltipContent
+          side="bottom"
+          sideOffset={8}
+          className="bg-bridge-obsidian border border-foreground/10 text-foreground px-3 py-2.5 rounded-xl shadow-xl"
+        >
           <div className="flex flex-col gap-1.5 text-xs">
             <div className="flex items-center gap-1.5">
               <ListTodo size={12} className="text-bridge-accent" />
               <span className="font-medium">
-                Task {feature.completed_tasks}/{feature.total_tasks} {t('featureChip.tooltipCompleted', { defaultValue: '완료' })}
+                Task {feature.completed_tasks}/{feature.total_tasks}{' '}
+                {t('featureChip.tooltipCompleted', { defaultValue: '완료' })}
               </span>
             </div>
             {(feature.start_date || feature.due_date) && (
               <div className="flex items-center gap-1.5 text-slate-400">
                 <Calendar size={12} />
                 <span>
-                  {feature.start_date ? formatDate(feature.start_date) : '–'} ~ {feature.due_date ? formatDate(feature.due_date) : '–'}
+                  {feature.start_date ? formatDate(feature.start_date) : '–'} ~{' '}
+                  {feature.due_date ? formatDate(feature.due_date) : '–'}
                 </span>
               </div>
             )}

@@ -1,6 +1,6 @@
-import { useCallback, useRef } from "react";
-import { usePersistentSplit } from "./usePersistentSplit";
-import { WORKLOAD_CARD_HEIGHT } from "./dashboardUtils";
+import { useCallback, useRef } from 'react';
+import { usePersistentSplit } from './usePersistentSplit';
+import { WORKLOAD_CARD_HEIGHT } from './dashboardUtils';
 
 /**
  * 대시보드의 세 배분 — 좌우 둘(타임블록 │ 큐 열 │ 백로그)과 상하 하나(워크로드 │ 배치 대기).
@@ -37,8 +37,8 @@ export const MIN_PLACEMENT_HEIGHT = 140;
  */
 export function useWorkloadSplit() {
   return usePersistentSplit({
-    storageKey: "bridge:dashboard:workloadHeight:v1",
-    axis: "y",
+    storageKey: 'bridge:dashboard:workloadHeight:v1',
+    axis: 'y',
     defaultSize: WORKLOAD_CARD_HEIGHT,
     minSize: MIN_WORKLOAD_HEIGHT,
     minOtherSize: MIN_PLACEMENT_HEIGHT,
@@ -61,7 +61,7 @@ export const BACKLOG_COLLAPSED_WIDTH = 40;
 export const MIN_QUEUE_COLUMN_WIDTH = 520;
 
 /** 백로그 열 폭이 담기는 CSS 변수 — 드래그 중에는 이 값만 갈아 끼운다 */
-export const BACKLOG_WIDTH_VAR = "--dash-backlog-w";
+export const BACKLOG_WIDTH_VAR = '--dash-backlog-w';
 
 /**
  * 백로그 열 폭을 잡는다 — 큐 열은 남는 만큼이다.
@@ -81,9 +81,9 @@ export function useBacklogColumnSplit() {
   }, []);
 
   return usePersistentSplit({
-    storageKey: "bridge:dashboard:backlogWidth:v1",
-    axis: "x",
-    anchor: "end",
+    storageKey: 'bridge:dashboard:backlogWidth:v1',
+    axis: 'x',
+    anchor: 'end',
     defaultSize: DEFAULT_BACKLOG_WIDTH,
     minSize: MIN_BACKLOG_WIDTH,
     minOtherSize: MIN_QUEUE_COLUMN_WIDTH,
@@ -106,7 +106,7 @@ export const MIN_RIGHT_COLUMNS_WIDTH =
   MIN_QUEUE_COLUMN_WIDTH + SPLIT_HANDLE_SIZE + MIN_BACKLOG_WIDTH;
 
 /** 그리드 열 폭이 담기는 CSS 변수 — 드래그 중에는 이 값만 갈아 끼운다 */
-export const TIMEBLOCK_WIDTH_VAR = "--dash-timeblock-w";
+export const TIMEBLOCK_WIDTH_VAR = '--dash-timeblock-w';
 
 /**
  * 왼쪽(타임블록) 열 폭을 잡는다 — 오른쪽은 남는 만큼이다.
@@ -124,8 +124,8 @@ export function useTimeblockColumnSplit() {
 
   // 컨테이너 = 그리드 자신이다 (열 폭을 재는 기준이자 변수를 들고 있는 노드)
   return usePersistentSplit({
-    storageKey: "bridge:dashboard:timeblockWidth:v1",
-    axis: "x",
+    storageKey: 'bridge:dashboard:timeblockWidth:v1',
+    axis: 'x',
     defaultSize: DEFAULT_TIMEBLOCK_WIDTH,
     minSize: MIN_TIMEBLOCK_WIDTH,
     minOtherSize: MIN_RIGHT_COLUMNS_WIDTH,

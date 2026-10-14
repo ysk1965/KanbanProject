@@ -1,6 +1,6 @@
-import { useEffect, useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
+import { useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { X } from 'lucide-react';
 
 interface SelectedPhotoGridProps {
   files: File[];
@@ -18,7 +18,7 @@ export function SelectedPhotoGrid({
   files,
   onRemove,
   maxPreview = 48,
-  className = "grid grid-cols-3 sm:grid-cols-4 gap-2",
+  className = 'grid grid-cols-3 sm:grid-cols-4 gap-2',
 }: SelectedPhotoGridProps) {
   const { t } = useTranslation();
   const shown = useMemo(() => files.slice(0, maxPreview), [files, maxPreview]);
@@ -48,7 +48,7 @@ export function SelectedPhotoGrid({
               e.stopPropagation();
               onRemove(i);
             }}
-            aria-label={t("photoGallery.removeSelected", "Remove")}
+            aria-label={t('photoGallery.removeSelected', 'Remove')}
             className="absolute top-0 right-0 w-11 h-11 flex items-start justify-end p-1"
           >
             <span className="p-0.5 rounded-full bg-black/60 hover:bg-black/80 transition-colors">
@@ -60,7 +60,7 @@ export function SelectedPhotoGrid({
       {hidden > 0 && (
         <div className="aspect-square rounded-lg border border-foreground/[0.08] bg-foreground/[0.03] flex items-center justify-center text-center px-1">
           <span className="text-xs font-bold text-slate-400">
-            {t("photoGallery.moreSelected", "+{{count}} more", { count: hidden })}
+            {t('photoGallery.moreSelected', '+{{count}} more', { count: hidden })}
           </span>
         </div>
       )}

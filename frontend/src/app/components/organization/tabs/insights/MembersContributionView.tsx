@@ -65,7 +65,10 @@ export function MembersContributionView({
     return (
       <div className="space-y-3">
         {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="h-16 bg-bridge-obsidian rounded-xl border border-black/5 dark:border-white/5 animate-pulse" />
+          <div
+            key={i}
+            className="h-16 bg-bridge-obsidian rounded-xl border border-black/5 dark:border-white/5 animate-pulse"
+          />
         ))}
       </div>
     );
@@ -82,12 +85,19 @@ export function MembersContributionView({
             onChange={(e) => setDepartmentFilter(e.target.value)}
             className="appearance-none bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg px-3 py-1.5 pr-7 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
           >
-            <option value="">{t('organization.insights.members.allDepartments', 'All Departments')}</option>
+            <option value="">
+              {t('organization.insights.members.allDepartments', 'All Departments')}
+            </option>
             {departments.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
             ))}
           </select>
-          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <ChevronDown
+            size={12}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+          />
         </div>
 
         {/* Job group filter */}
@@ -97,12 +107,19 @@ export function MembersContributionView({
             onChange={(e) => setJobGroupFilter(e.target.value)}
             className="appearance-none bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg px-3 py-1.5 pr-7 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
           >
-            <option value="">{t('organization.insights.members.allJobGroups', 'All Job Groups')}</option>
+            <option value="">
+              {t('organization.insights.members.allJobGroups', 'All Job Groups')}
+            </option>
             {jobGroups.map((jg) => (
-              <option key={jg.id} value={jg.id}>{jg.name}</option>
+              <option key={jg.id} value={jg.id}>
+                {jg.name}
+              </option>
             ))}
           </select>
-          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <ChevronDown
+            size={12}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+          />
         </div>
 
         {/* Sort */}
@@ -112,11 +129,20 @@ export function MembersContributionView({
             onChange={(e) => setSortBy(e.target.value)}
             className="appearance-none bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg px-3 py-1.5 pr-7 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
           >
-            <option value="work_minutes">{t('organization.insights.members.sortByHours', 'By Hours')}</option>
-            <option value="completed_tasks">{t('organization.insights.members.sortByTasks', 'By Tasks')}</option>
-            <option value="activity_count">{t('organization.insights.members.sortByActivity', 'By Activity')}</option>
+            <option value="work_minutes">
+              {t('organization.insights.members.sortByHours', 'By Hours')}
+            </option>
+            <option value="completed_tasks">
+              {t('organization.insights.members.sortByTasks', 'By Tasks')}
+            </option>
+            <option value="activity_count">
+              {t('organization.insights.members.sortByActivity', 'By Activity')}
+            </option>
           </select>
-          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <ChevronDown
+            size={12}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+          />
         </div>
 
         {/* Search */}
@@ -183,14 +209,22 @@ export function MembersContributionView({
                 {/* Member */}
                 <div className="flex items-center gap-3 min-w-0">
                   {m.member.profile_image ? (
-                    <img src={m.member.profile_image} alt={m.member.name} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                    <img
+                      src={m.member.profile_image}
+                      alt={m.member.name}
+                      className="w-8 h-8 rounded-full object-cover shrink-0"
+                    />
                   ) : (
                     <div className="w-8 h-8 rounded-full bg-bridge-accent/20 flex items-center justify-center shrink-0">
-                      <span className="text-xs font-bold text-bridge-accent">{m.member.name.charAt(0).toUpperCase()}</span>
+                      <span className="text-xs font-bold text-bridge-accent">
+                        {m.member.name.charAt(0).toUpperCase()}
+                      </span>
                     </div>
                   )}
                   <div className="min-w-0">
-                    <span className="text-sm text-slate-900 dark:text-white font-medium block truncate">{m.member.name}</span>
+                    <span className="text-sm text-slate-900 dark:text-white font-medium block truncate">
+                      {m.member.name}
+                    </span>
                     {(m.member.department || m.member.job_title) && (
                       <span className="text-xs text-slate-400 block truncate">
                         {[m.member.department, m.member.job_title].filter(Boolean).join(' / ')}
@@ -201,26 +235,35 @@ export function MembersContributionView({
 
                 {/* Hours */}
                 <div className="flex flex-col items-end justify-center">
-                  <span className="text-sm font-medium text-slate-900 dark:text-white">{formatMinutesToHours(m.total_work_minutes)}</span>
+                  <span className="text-sm font-medium text-slate-900 dark:text-white">
+                    {formatMinutesToHours(m.total_work_minutes)}
+                  </span>
                   {m.change_percentage !== 0 && (
-                    <span className={`text-xs font-bold ${
-                      m.change_percentage > 0
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-rose-600 dark:text-rose-400'
-                    }`}>
-                      {m.change_percentage > 0 ? '+' : ''}{Math.round(m.change_percentage)}% {m.change_percentage > 0 ? '▲' : '▼'}
+                    <span
+                      className={`text-xs font-bold ${
+                        m.change_percentage > 0
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-rose-600 dark:text-rose-400'
+                      }`}
+                    >
+                      {m.change_percentage > 0 ? '+' : ''}
+                      {Math.round(m.change_percentage)}% {m.change_percentage > 0 ? '▲' : '▼'}
                     </span>
                   )}
                 </div>
 
                 {/* Completed Tasks */}
                 <div className="flex items-center justify-end">
-                  <span className="text-sm font-medium text-slate-900 dark:text-white">{m.completed_tasks}</span>
+                  <span className="text-sm font-medium text-slate-900 dark:text-white">
+                    {m.completed_tasks}
+                  </span>
                 </div>
 
                 {/* Activities */}
                 <div className="flex items-center justify-end">
-                  <span className="text-sm font-medium text-slate-900 dark:text-white">{m.activity_count}</span>
+                  <span className="text-sm font-medium text-slate-900 dark:text-white">
+                    {m.activity_count}
+                  </span>
                 </div>
 
                 {/* Primary Board */}
@@ -239,7 +282,13 @@ export function MembersContributionView({
                       <div
                         key={b.board_id}
                         title={`${b.board_name}: ${b.percentage.toFixed(0)}%`}
-                        style={{ width: `${b.percentage}%`, backgroundColor: b.board_id === '__others__' ? '#64748B' : INSIGHT_CHART_COLORS[i % INSIGHT_CHART_COLORS.length] }}
+                        style={{
+                          width: `${b.percentage}%`,
+                          backgroundColor:
+                            b.board_id === '__others__'
+                              ? '#64748B'
+                              : INSIGHT_CHART_COLORS[i % INSIGHT_CHART_COLORS.length],
+                        }}
                         className="h-full rounded-full first:rounded-l-full last:rounded-r-full"
                       />
                     ))}
@@ -254,14 +303,22 @@ export function MembersContributionView({
               <div className="md:hidden px-4 py-3">
                 <div className="flex items-center gap-3 mb-2">
                   {m.member.profile_image ? (
-                    <img src={m.member.profile_image} alt={m.member.name} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                    <img
+                      src={m.member.profile_image}
+                      alt={m.member.name}
+                      className="w-8 h-8 rounded-full object-cover shrink-0"
+                    />
                   ) : (
                     <div className="w-8 h-8 rounded-full bg-bridge-accent/20 flex items-center justify-center shrink-0">
-                      <span className="text-xs font-bold text-bridge-accent">{m.member.name.charAt(0).toUpperCase()}</span>
+                      <span className="text-xs font-bold text-bridge-accent">
+                        {m.member.name.charAt(0).toUpperCase()}
+                      </span>
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <span className="text-sm text-slate-900 dark:text-white font-medium block truncate">{m.member.name}</span>
+                    <span className="text-sm text-slate-900 dark:text-white font-medium block truncate">
+                      {m.member.name}
+                    </span>
                     {(m.member.department || m.member.job_title) && (
                       <span className="text-xs text-slate-400 block truncate">
                         {[m.member.department, m.member.job_title].filter(Boolean).join(' / ')}
@@ -269,21 +326,31 @@ export function MembersContributionView({
                     )}
                   </div>
                   <div className="text-right shrink-0">
-                    <span className="text-sm font-bold text-slate-900 dark:text-white">{formatMinutesToHours(m.total_work_minutes)}</span>
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">
+                      {formatMinutesToHours(m.total_work_minutes)}
+                    </span>
                     {m.change_percentage !== 0 && (
-                      <span className={`text-xs font-bold block ${
-                        m.change_percentage > 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-rose-600 dark:text-rose-400'
-                      }`}>
-                        {m.change_percentage > 0 ? '+' : ''}{Math.round(m.change_percentage)}% {m.change_percentage > 0 ? '▲' : '▼'}
+                      <span
+                        className={`text-xs font-bold block ${
+                          m.change_percentage > 0
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-rose-600 dark:text-rose-400'
+                        }`}
+                      >
+                        {m.change_percentage > 0 ? '+' : ''}
+                        {Math.round(m.change_percentage)}% {m.change_percentage > 0 ? '▲' : '▼'}
                       </span>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-4 text-xs text-slate-400">
-                  <span>{m.completed_tasks} {t('organization.insights.members.detail.tasks', 'tasks')}</span>
-                  <span>{m.activity_count} {t('organization.insights.members.activityCount', 'activities')}</span>
+                  <span>
+                    {m.completed_tasks} {t('organization.insights.members.detail.tasks', 'tasks')}
+                  </span>
+                  <span>
+                    {m.activity_count}{' '}
+                    {t('organization.insights.members.activityCount', 'activities')}
+                  </span>
                   {m.primary_board && <span className="truncate">{m.primary_board.name}</span>}
                 </div>
                 {m.board_breakdown.length > 0 && (
@@ -291,7 +358,13 @@ export function MembersContributionView({
                     {groupBreakdownTopN(m.board_breakdown).map((b, i) => (
                       <div
                         key={b.board_id}
-                        style={{ width: `${b.percentage}%`, backgroundColor: b.board_id === '__others__' ? '#64748B' : INSIGHT_CHART_COLORS[i % INSIGHT_CHART_COLORS.length] }}
+                        style={{
+                          width: `${b.percentage}%`,
+                          backgroundColor:
+                            b.board_id === '__others__'
+                              ? '#64748B'
+                              : INSIGHT_CHART_COLORS[i % INSIGHT_CHART_COLORS.length],
+                        }}
                         className="h-full rounded-full"
                       />
                     ))}

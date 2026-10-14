@@ -1,21 +1,21 @@
-import { useState, useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { Tag as TagIcon, Plus, X, Check } from "lucide-react";
-import { noteService, orgNoteService, myNoteService } from "../../utils/services";
-import { ColorPickerPopover } from "../ui/ColorPickerPopover";
-import type { NoteTagInfo } from "../../utils/api";
+import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Tag as TagIcon, Plus, X, Check } from 'lucide-react';
+import { noteService, orgNoteService, myNoteService } from '../../utils/services';
+import { ColorPickerPopover } from '../ui/ColorPickerPopover';
+import type { NoteTagInfo } from '../../utils/api';
 
 const TAG_COLORS = [
-  "#ef4444",
-  "#f97316",
-  "#eab308",
-  "#22c55e",
-  "#14b8a6",
-  "#3b82f6",
-  "#6366f1",
-  "#8b5cf6",
-  "#ec4899",
-  "#f43f5e",
+  '#ef4444',
+  '#f97316',
+  '#eab308',
+  '#22c55e',
+  '#14b8a6',
+  '#3b82f6',
+  '#6366f1',
+  '#8b5cf6',
+  '#ec4899',
+  '#f43f5e',
 ];
 
 interface NoteTagManagerProps {
@@ -46,7 +46,7 @@ export function NoteTagManager({
   const scopeId = personal ? 'me' : boardId || orgId || '';
   const [isOpen, setIsOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [newTagName, setNewTagName] = useState("");
+  const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
 
   const currentTagIds = new Set(noteTags.map((t) => t.id));
@@ -76,10 +76,10 @@ export function NoteTagManager({
       const newIds = new Set(currentTagIds);
       newIds.add(created.id);
       onSave(Array.from(newIds));
-      setNewTagName("");
+      setNewTagName('');
       setCreating(false);
     } catch (err) {
-      console.error("Failed to create tag:", err);
+      console.error('Failed to create tag:', err);
     }
   }, [scopeId, newTagName, newTagColor, currentTagIds, onSave, onTagsChange, svc]);
 
@@ -92,7 +92,7 @@ export function NoteTagManager({
         newIds.delete(tagId);
         onSave(Array.from(newIds));
       } catch (err) {
-        console.error("Failed to delete tag:", err);
+        console.error('Failed to delete tag:', err);
       }
     },
     [scopeId, currentTagIds, onSave, onTagsChange, svc],
@@ -105,11 +105,9 @@ export function NoteTagManager({
         className="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded transition-colors"
       >
         <TagIcon size={10} />
-        <span className="hidden lg:inline">{t("notes.tags", "태그")}</span>
+        <span className="hidden lg:inline">{t('notes.tags', '태그')}</span>
         {noteTags.length > 0 && (
-          <span className="text-bridge-accent font-medium">
-            {noteTags.length}
-          </span>
+          <span className="text-bridge-accent font-medium">{noteTags.length}</span>
         )}
       </button>
 
@@ -125,7 +123,7 @@ export function NoteTagManager({
           <div className="absolute right-0 top-full mt-1 z-50 bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl w-56 overflow-hidden">
             <div className="p-2 border-b border-foreground/5">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                {t("notes.tags", "태그")}
+                {t('notes.tags', '태그')}
               </span>
             </div>
 
@@ -133,7 +131,7 @@ export function NoteTagManager({
             <div className="max-h-48 overflow-y-auto p-1">
               {allTags.length === 0 && !creating ? (
                 <p className="text-center text-xs text-slate-500 py-4">
-                  {t("notes.noTags", "태그가 없습니다")}
+                  {t('notes.noTags', '태그가 없습니다')}
                 </p>
               ) : (
                 allTags.map((tag) => (
@@ -149,19 +147,13 @@ export function NoteTagManager({
                       <div
                         className="w-3 h-3 rounded-sm flex-shrink-0 flex items-center justify-center"
                         style={{
-                          backgroundColor: currentTagIds.has(tag.id)
-                            ? tag.color
-                            : "transparent",
+                          backgroundColor: currentTagIds.has(tag.id) ? tag.color : 'transparent',
                           border: `1.5px solid ${tag.color}`,
                         }}
                       >
-                        {currentTagIds.has(tag.id) && (
-                          <Check size={8} className="text-white" />
-                        )}
+                        {currentTagIds.has(tag.id) && <Check size={8} className="text-white" />}
                       </div>
-                      <span className="text-xs text-muted-foreground truncate">
-                        {tag.name}
-                      </span>
+                      <span className="text-xs text-muted-foreground truncate">{tag.name}</span>
                     </button>
                     {canEdit && (
                       <button
@@ -185,9 +177,9 @@ export function NoteTagManager({
                       value={newTagName}
                       onChange={(e) => setNewTagName(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") handleCreateTag();
+                        if (e.key === 'Enter') handleCreateTag();
                       }}
-                      placeholder={t("notes.tagName", "태그 이름")}
+                      placeholder={t('notes.tagName', '태그 이름')}
                       className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-2.5 py-1.5 text-xs text-foreground placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                       autoFocus
                     />
@@ -205,16 +197,16 @@ export function NoteTagManager({
                         disabled={!newTagName.trim()}
                         className="flex-1 px-2 py-1 bg-bridge-accent text-white rounded text-xs font-medium hover:bg-bridge-accent/90 disabled:opacity-50"
                       >
-                        {t("notes.createTag", "만들기")}
+                        {t('notes.createTag', '만들기')}
                       </button>
                       <button
                         onClick={() => {
                           setCreating(false);
-                          setNewTagName("");
+                          setNewTagName('');
                         }}
                         className="px-2 py-1 text-slate-400 hover:text-foreground text-xs"
                       >
-                        {t("common.cancel", "취소")}
+                        {t('common.cancel', '취소')}
                       </button>
                     </div>
                   </div>
@@ -224,7 +216,7 @@ export function NoteTagManager({
                     className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
                   >
                     <Plus size={12} />
-                    {t("notes.addTag", "태그 추가")}
+                    {t('notes.addTag', '태그 추가')}
                   </button>
                 )}
               </div>

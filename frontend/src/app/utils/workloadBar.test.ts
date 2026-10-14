@@ -67,7 +67,13 @@ describe('isWorkingDay priority', () => {
 
   it('member absence wins over everything', () => {
     expect(
-      isWorkingDay({ weekend: false, holiday: false, forcedWorkday: true, memberHolidayWork: true, memberAbsent: true }),
+      isWorkingDay({
+        weekend: false,
+        holiday: false,
+        forcedWorkday: true,
+        memberHolidayWork: true,
+        memberAbsent: true,
+      }),
     ).toBe(false);
   });
 

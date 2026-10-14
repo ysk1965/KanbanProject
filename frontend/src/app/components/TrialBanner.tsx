@@ -16,7 +16,18 @@ interface TrialBannerProps {
   hideBilling?: boolean;
 }
 
-export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits, onTrialEnding, onUpdatePayment, tier, trialEndsAt, daysPastDue, daysUntilSuspension, hideBilling }: TrialBannerProps) {
+export function TrialBanner({
+  status,
+  onOpenSubscription,
+  onOpenPremiumBenefits,
+  onTrialEnding,
+  onUpdatePayment,
+  tier,
+  trialEndsAt,
+  daysPastDue,
+  daysUntilSuspension,
+  hideBilling,
+}: TrialBannerProps) {
   const { t } = useTranslation();
 
   // TESTER/ADMIN 사용자 또는 milkyway.pe.kr 도메인은 과금 배너 숨김
@@ -28,7 +39,10 @@ export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits,
   // TRIAL 상태: 남은 일수 카운트다운 배너
   if (status === 'TRIAL' && tier !== 'PREMIUM') {
     const daysRemaining = trialEndsAt
-      ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+      ? Math.max(
+          0,
+          Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+        )
       : 0;
 
     // 남은 일수에 따라 긴급도 분기
@@ -47,11 +61,7 @@ export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits,
         ? 'text-amber-200'
         : 'text-bridge-accent';
 
-    const descClass = isExpiring
-      ? 'text-red-300'
-      : isUrgent
-        ? 'text-amber-300'
-        : 'text-slate-400';
+    const descClass = isExpiring ? 'text-red-300' : isUrgent ? 'text-amber-300' : 'text-slate-400';
 
     const buttonClass = isExpiring
       ? 'bg-red-500 hover:bg-red-600'
@@ -74,7 +84,11 @@ export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits,
           <Button
             size="sm"
             className={`h-7 text-xs ${buttonClass}`}
-            onClick={isUrgent ? (onTrialEnding || onOpenPremiumBenefits || onOpenSubscription) : (onOpenPremiumBenefits || onOpenSubscription)}
+            onClick={
+              isUrgent
+                ? onTrialEnding || onOpenPremiumBenefits || onOpenSubscription
+                : onOpenPremiumBenefits || onOpenSubscription
+            }
           >
             {t('trial.upgradeToPremium')}
           </Button>
@@ -90,9 +104,7 @@ export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits,
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-2">
             <Crown className="h-4 w-4 text-amber-400" />
-            <span className="text-sm text-slate-400">
-              {t('trial.standardPlan')}
-            </span>
+            <span className="text-sm text-slate-400">{t('trial.standardPlan')}</span>
           </div>
           <Button
             size="sm"
@@ -115,7 +127,9 @@ export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits,
     const isUrgent = days >= 4; // Day 4-6: 긴급 경고
 
     return (
-      <div className={`${isUrgent ? 'bg-red-900/80 border-b border-red-800' : 'bg-amber-900/80 border-b border-amber-800'} px-6 py-2.5`}>
+      <div
+        className={`${isUrgent ? 'bg-red-900/80 border-b border-red-800' : 'bg-amber-900/80 border-b border-amber-800'} px-6 py-2.5`}
+      >
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-2">
             <AlertTriangle className={`h-4 w-4 ${isUrgent ? 'text-red-400' : 'text-amber-400'}`} />
@@ -130,9 +144,7 @@ export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits,
             className={`h-7 text-xs ${isUrgent ? 'bg-red-500 hover:bg-red-600' : 'bg-amber-500 hover:bg-amber-600 text-slate-900'}`}
             onClick={onUpdatePayment || onOpenSubscription}
           >
-            {isUrgent
-              ? t('subscription.updatePaymentNow')
-              : t('subscription.updatePayment')}
+            {isUrgent ? t('subscription.updatePaymentNow') : t('subscription.updatePayment')}
           </Button>
         </div>
       </div>
@@ -146,23 +158,19 @@ export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits,
           <div className="flex items-center gap-2">
             <span className="text-2xl">🔒</span>
             <div>
-              <span className="font-bold text-white">
-                {t('trial.boardSuspended')}
-              </span>
-              <span className="text-red-200 ml-2">
-                {t('trial.suspendedDesc')}
-              </span>
+              <span className="font-bold text-white">{t('trial.boardSuspended')}</span>
+              <span className="text-red-200 ml-2">{t('trial.suspendedDesc')}</span>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button
-              size="sm"
-              className="bg-red-500 hover:bg-red-600"
-              onClick={onOpenSubscription}
-            >
+            <Button size="sm" className="bg-red-500 hover:bg-red-600" onClick={onOpenSubscription}>
               {t('trial.subscribe')}
             </Button>
-            <Button variant="outline" size="sm" className="border-red-400 text-white hover:bg-red-800">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-red-400 text-white hover:bg-red-800"
+            >
               {t('trial.exportData')}
             </Button>
           </div>

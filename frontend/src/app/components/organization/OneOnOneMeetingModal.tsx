@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import { Plus, Trash2 } from "lucide-react";
-import { IconButton } from "../ui/IconButton";
-import { MotionModal } from "../ui/MotionModal";
-import { organizationService } from "../../utils/services";
-import { getTodayDateString } from "../../utils/dateUtils";
-import type { OneOnOneMeetingDetail, OneOnOneMemberInfo } from "../../types";
+import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Plus, Trash2 } from 'lucide-react';
+import { IconButton } from '../ui/IconButton';
+import { MotionModal } from '../ui/MotionModal';
+import { organizationService } from '../../utils/services';
+import { getTodayDateString } from '../../utils/dateUtils';
+import type { OneOnOneMeetingDetail, OneOnOneMemberInfo } from '../../types';
 
 interface OneOnOneMeetingModalProps {
   open: boolean;
@@ -38,8 +38,8 @@ export function OneOnOneMeetingModal({
 }: OneOnOneMeetingModalProps) {
   const { t } = useTranslation();
   const [meetingDate, setMeetingDate] = useState(getTodayDateString());
-  const [agenda, setAgenda] = useState("");
-  const [notes, setNotes] = useState("");
+  const [agenda, setAgenda] = useState('');
+  const [notes, setNotes] = useState('');
   const [actionItems, setActionItems] = useState<ActionItemDraft[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -47,35 +47,28 @@ export function OneOnOneMeetingModal({
     if (!open) return;
     if (editing) {
       setMeetingDate(editing.meeting_date);
-      setAgenda(editing.agenda || "");
-      setNotes(editing.notes || "");
+      setAgenda(editing.agenda || '');
+      setNotes(editing.notes || '');
       setActionItems(
         editing.action_items.map((ai) => ({
           key: ai.id,
           title: ai.title,
-          assignee_id: ai.assignee_id || "",
+          assignee_id: ai.assignee_id || '',
         })),
       );
     } else {
       setMeetingDate(getTodayDateString());
-      setAgenda("");
-      setNotes("");
+      setAgenda('');
+      setNotes('');
       setActionItems([]);
     }
   }, [open, editing]);
 
   const addActionItem = () => {
-    setActionItems((prev) => [
-      ...prev,
-      { key: `new-${Date.now()}`, title: "", assignee_id: "" },
-    ]);
+    setActionItems((prev) => [...prev, { key: `new-${Date.now()}`, title: '', assignee_id: '' }]);
   };
 
-  const updateActionItem = (
-    index: number,
-    field: keyof ActionItemDraft,
-    value: string,
-  ) => {
+  const updateActionItem = (index: number, field: keyof ActionItemDraft, value: string) => {
     setActionItems((prev) =>
       prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)),
     );
@@ -96,17 +89,12 @@ export function OneOnOneMeetingModal({
         }));
 
       if (editing) {
-        await organizationService.updateOneOnOneMeeting(
-          orgId,
-          oneOnOneId,
-          editing.id,
-          {
-            meeting_date: meetingDate,
-            agenda: agenda || undefined,
-            notes: notes || undefined,
-            action_items: validActions,
-          },
-        );
+        await organizationService.updateOneOnOneMeeting(orgId, oneOnOneId, editing.id, {
+          meeting_date: meetingDate,
+          agenda: agenda || undefined,
+          notes: notes || undefined,
+          action_items: validActions,
+        });
       } else {
         await organizationService.createOneOnOneMeeting(orgId, oneOnOneId, {
           meeting_date: meetingDate,
@@ -118,7 +106,7 @@ export function OneOnOneMeetingModal({
       onSaved();
       onClose();
     } catch (err) {
-      console.warn("Failed to save meeting:", err);
+      console.warn('Failed to save meeting:', err);
     } finally {
       setSaving(false);
     }
@@ -140,12 +128,10 @@ export function OneOnOneMeetingModal({
         <div>
           <h2 className="text-sm font-bold text-foreground">
             {editing
-              ? t("organization.oneOnOne.editMeeting", "Edit Meeting")
-              : t("organization.oneOnOne.newMeetingTitle", "1:1 Meeting")}
+              ? t('organization.oneOnOne.editMeeting', 'Edit Meeting')
+              : t('organization.oneOnOne.newMeetingTitle', '1:1 Meeting')}
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {otherMemberName}
-          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">{otherMemberName}</p>
         </div>
       </div>
 
@@ -154,7 +140,7 @@ export function OneOnOneMeetingModal({
         {/* Date */}
         <div>
           <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
-            {t("organization.oneOnOne.meetingDate", "Meeting Date")}
+            {t('organization.oneOnOne.meetingDate', 'Meeting Date')}
           </label>
           <input
             type="date"
@@ -167,15 +153,12 @@ export function OneOnOneMeetingModal({
         {/* Agenda */}
         <div>
           <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
-            {t("organization.oneOnOne.agenda", "Agenda")}
+            {t('organization.oneOnOne.agenda', 'Agenda')}
           </label>
           <textarea
             value={agenda}
             onChange={(e) => setAgenda(e.target.value)}
-            placeholder={t(
-              "organization.oneOnOne.agendaPlaceholder",
-              "Topics to discuss...",
-            )}
+            placeholder={t('organization.oneOnOne.agendaPlaceholder', 'Topics to discuss...')}
             rows={3}
             className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 resize-none transition-all"
           />
@@ -184,15 +167,12 @@ export function OneOnOneMeetingModal({
         {/* Notes */}
         <div>
           <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
-            {t("organization.oneOnOne.notes", "Notes")}
+            {t('organization.oneOnOne.notes', 'Notes')}
           </label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder={t(
-              "organization.oneOnOne.notesPlaceholder",
-              "Meeting notes...",
-            )}
+            placeholder={t('organization.oneOnOne.notesPlaceholder', 'Meeting notes...')}
             rows={4}
             className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 resize-none transition-all"
           />
@@ -202,7 +182,7 @@ export function OneOnOneMeetingModal({
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              {t("organization.oneOnOne.actionItems", "Action Items")}
+              {t('organization.oneOnOne.actionItems', 'Action Items')}
             </label>
             <button
               type="button"
@@ -210,7 +190,7 @@ export function OneOnOneMeetingModal({
               className="flex items-center gap-1 text-xs font-bold text-bridge-accent hover:text-bridge-accent/80 transition-colors"
             >
               <Plus size={10} />
-              {t("organization.oneOnOne.addAction", "Add")}
+              {t('organization.oneOnOne.addAction', 'Add')}
             </button>
           </div>
 
@@ -220,7 +200,7 @@ export function OneOnOneMeetingModal({
               onClick={addActionItem}
               className="w-full py-3 border border-dashed border-foreground/10 rounded-xl text-xs text-muted-foreground hover:border-foreground/20 hover:text-foreground transition-all"
             >
-              {t("organization.oneOnOne.addActionItem", "+ Add action item")}
+              {t('organization.oneOnOne.addActionItem', '+ Add action item')}
             </button>
           ) : (
             <div className="space-y-2">
@@ -229,24 +209,20 @@ export function OneOnOneMeetingModal({
                   <div className="flex-1 space-y-1.5">
                     <input
                       value={item.title}
-                      onChange={(e) =>
-                        updateActionItem(index, "title", e.target.value)
-                      }
+                      onChange={(e) => updateActionItem(index, 'title', e.target.value)}
                       placeholder={t(
-                        "organization.oneOnOne.actionTitlePlaceholder",
-                        "Action item...",
+                        'organization.oneOnOne.actionTitlePlaceholder',
+                        'Action item...',
                       )}
                       className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg py-2 px-3 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                     />
                     <select
                       value={item.assignee_id}
-                      onChange={(e) =>
-                        updateActionItem(index, "assignee_id", e.target.value)
-                      }
+                      onChange={(e) => updateActionItem(index, 'assignee_id', e.target.value)}
                       className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1.5 px-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                     >
                       <option value="">
-                        {t("organization.oneOnOne.noAssignee", "No assignee")}
+                        {t('organization.oneOnOne.noAssignee', 'No assignee')}
                       </option>
                       {members.map((m) => (
                         <option key={m.id} value={m.id}>
@@ -271,15 +247,13 @@ export function OneOnOneMeetingModal({
 
       {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08] shrink-0">
-        <span className="text-xs text-slate-500">
-          Esc {t("common.close", "닫기")}
-        </span>
+        <span className="text-xs text-slate-500">Esc {t('common.close', '닫기')}</span>
         <button
           onClick={handleSave}
           disabled={saving || !meetingDate}
           className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50 transition-all"
         >
-          {saving ? t("common.saving", "Saving...") : t("common.save", "Save")}
+          {saving ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
         </button>
       </div>
     </MotionModal>

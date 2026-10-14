@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { motion } from "framer-motion";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 
-import { autoReportAPI } from "../utils/api";
-import type { AutoReport } from "../utils/api";
-import { AutoReportView } from "../components/AutoReportView";
+import { autoReportAPI } from '../utils/api';
+import type { AutoReport } from '../utils/api';
+import { AutoReportView } from '../components/AutoReportView';
 
 export default function AutoReportPage() {
   const { shareToken, boardId, reportId } = useParams();
@@ -23,9 +23,7 @@ export default function AutoReportPage() {
         : await autoReportAPI.getForMember(boardId!, reportId!);
       setReport(data);
     } catch (e) {
-      const message =
-        (e as { message?: string })?.message ??
-        "보고서를 불러오지 못했습니다.";
+      const message = (e as { message?: string })?.message ?? '보고서를 불러오지 못했습니다.';
       setError(message);
     } finally {
       setLoading(false);
@@ -57,7 +55,7 @@ export default function AutoReportPage() {
             보고서를 열 수 없습니다
           </h1>
           <p className="text-xs text-slate-500">
-            {error ?? "링크가 만료되었거나 삭제된 보고서입니다."}
+            {error ?? '링크가 만료되었거나 삭제된 보고서입니다.'}
           </p>
         </motion.div>
       </div>

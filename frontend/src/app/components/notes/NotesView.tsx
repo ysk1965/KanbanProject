@@ -7,10 +7,10 @@ import {
   useRef,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
-} from "react";
-import { useSearchParams } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+} from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import {
   FileText,
   FolderPlus,
@@ -26,27 +26,27 @@ import {
   HardDrive,
   ChevronDown,
   LayoutTemplate,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-} from "../ui/dropdown-menu";
-import { NOTE_TEMPLATES, type NoteTemplate } from "../../utils/noteTemplates";
-import { NoteTreeSidebar } from "./NoteTreeSidebar";
-import { lazyWithRetry } from "../../utils/lazyWithRetry";
+} from '../ui/dropdown-menu';
+import { NOTE_TEMPLATES, type NoteTemplate } from '../../utils/noteTemplates';
+import { NoteTreeSidebar } from './NoteTreeSidebar';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
 // BlockNote/ProseMirror/Yjs 를 끌고 오는 에디터는 노트를 실제로 열 때만 청크를 내려받는다.
 const NoteEditor = lazyWithRetry(
-  () => import("./NoteEditor").then((m) => ({ default: m.NoteEditor })),
-  "NoteEditor",
+  () => import('./NoteEditor').then((m) => ({ default: m.NoteEditor })),
+  'NoteEditor',
 );
-import { NoteListView } from "./NoteListView";
-import { NoteTrashModal } from "./NoteTrashModal";
-import { LibraryFilePane } from "../library/LibraryFilePane";
-import { LibraryTrashModal } from "../library/LibraryTrashModal";
-import { ReportArchiveSection } from "../library/ReportArchiveSection";
+import { NoteListView } from './NoteListView';
+import { NoteTrashModal } from './NoteTrashModal';
+import { LibraryFilePane } from '../library/LibraryFilePane';
+import { LibraryTrashModal } from '../library/LibraryTrashModal';
+import { ReportArchiveSection } from '../library/ReportArchiveSection';
 import {
   buildLibraryTree,
   fileIdFromNodeId,
@@ -56,25 +56,21 @@ import {
   isFileNodeId,
   isStorageFolderNodeId,
   storageFolderIdFromNodeId,
-} from "../library/libraryTree";
-import { StorageUsageDetailModal } from "../storage/StorageUsageDetailModal";
-import { formatBytes, publicFileLink } from "../storage/storageUtils";
-import {
-  noteService,
-  orgNoteService,
-  myNoteService,
-} from "../../utils/services";
+} from '../library/libraryTree';
+import { StorageUsageDetailModal } from '../storage/StorageUsageDetailModal';
+import { formatBytes, publicFileLink } from '../storage/storageUtils';
+import { noteService, orgNoteService, myNoteService } from '../../utils/services';
 import {
   makeBoardStorageAPI,
   makeOrgStorageAPI,
   myStorageAPI,
   type StorageApi,
-} from "../../utils/api";
-import { useAuth } from "../../contexts/AuthContext";
-import { useCollaboration } from "../../hooks/useCollaboration";
-import { getAssigneeHex } from "../../utils/assigneeColor";
-import { Sheet, SheetContent, SheetTitle } from "../ui/sheet";
-import { IconButton } from "../ui/IconButton";
+} from '../../utils/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCollaboration } from '../../hooks/useCollaboration';
+import { getAssigneeHex } from '../../utils/assigneeColor';
+import { Sheet, SheetContent, SheetTitle } from '../ui/sheet';
+import { IconButton } from '../ui/IconButton';
 import type {
   NoteTreeItem,
   NoteDetail,
@@ -86,11 +82,11 @@ import type {
   StorageFileItem,
   StorageFolderTree,
   StorageUsage,
-} from "../../utils/api";
-import type { BreadcrumbItem } from "./NoteEditor";
+} from '../../utils/api';
+import type { BreadcrumbItem } from './NoteEditor';
 
 /** 보고서 아카이브 패널 높이 — 드래그로 조절한 값을 로컬에 기억한다 */
-const ARCHIVE_HEIGHT_KEY = "library.archiveHeight";
+const ARCHIVE_HEIGHT_KEY = 'library.archiveHeight';
 const ARCHIVE_DEFAULT_HEIGHT = 240;
 const ARCHIVE_MIN_HEIGHT = 130;
 
@@ -195,7 +191,7 @@ function TemplateMenu({
         className="bg-bridge-obsidian border-foreground/10 rounded-lg shadow-xl min-w-[220px]"
       >
         <DropdownMenuLabel className="text-xs font-bold uppercase tracking-widest text-slate-400">
-          {t("notes.templates.title", "템플릿으로 만들기")}
+          {t('notes.templates.title', '템플릿으로 만들기')}
         </DropdownMenuLabel>
         {NOTE_TEMPLATES.map((template) => (
           <DropdownMenuItem
@@ -203,10 +199,7 @@ function TemplateMenu({
             onClick={() => onPick(template)}
             className="flex items-start gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground cursor-pointer"
           >
-            <LayoutTemplate
-              size={14}
-              className="mt-0.5 flex-shrink-0 text-bridge-accent"
-            />
+            <LayoutTemplate size={14} className="mt-0.5 flex-shrink-0 text-bridge-accent" />
             <span className="flex flex-col min-w-0">
               <span className="font-medium text-foreground">
                 {t(template.labelKey, template.defaultLabel)}
@@ -232,49 +225,40 @@ export function NotesView({
   const { t } = useTranslation();
   const { currentUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const urlNoteId = searchParams.get("note");
-  const urlNoteBoard = searchParams.get("noteBoard");
+  const urlNoteId = searchParams.get('note');
+  const urlNoteBoard = searchParams.get('noteBoard');
   const [tree, setTree] = useState<NoteTreeItem[]>([]);
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(
-    urlNoteId,
-  );
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(urlNoteId);
   const [selectedNote, setSelectedNote] = useState<NoteDetail | null>(null);
   const [tags, setTags] = useState<NoteTagInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [noteLoading, setNoteLoading] = useState(false);
-  const [viewType, setViewType] = useState<"tree" | "list">("tree");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [viewType, setViewType] = useState<'tree' | 'list'>('tree');
+  const [searchQuery, setSearchQuery] = useState('');
   // 서버 본문 검색 — 트리의 제목·태그 필터와 별개로 300ms 디바운스 후 호출
   const [searchResults, setSearchResults] = useState<NoteSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   // 응답이 늦게 돌아온 이전 검색어의 결과를 버리기 위한 시퀀스
   const searchSeqRef = useRef(0);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [boardNoteSections, setBoardNoteSections] = useState<
-    BoardNoteSection[]
-  >([]);
+  const [boardNoteSections, setBoardNoteSections] = useState<BoardNoteSection[]>([]);
   // Track which scope the selected note belongs to (org notes vs board notes vs personal)
   const [selectedNoteScope, setSelectedNoteScope] = useState<{
-    type: "org" | "board" | "personal";
+    type: 'org' | 'board' | 'personal';
     id: string;
   } | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
   // Determine scope
-  const scopeId = personal ? "me" : boardId || orgId || "";
-  const scopeType = personal ? "personal" : orgId ? "org" : "board";
-  const svc = personal
-    ? myNoteService
-    : scopeType === "org"
-      ? orgNoteService
-      : noteService;
+  const scopeId = personal ? 'me' : boardId || orgId || '';
+  const scopeType = personal ? 'personal' : orgId ? 'org' : 'board';
+  const svc = personal ? myNoteService : scopeType === 'org' ? orgNoteService : noteService;
 
-  const isViewer = currentUserRole === "viewer";
+  const isViewer = currentUserRole === 'viewer';
   const canEdit = !isViewer;
   const normalizedRole = currentUserRole?.toLowerCase();
-  const canManageTrash =
-    normalizedRole === "admin" || normalizedRole === "owner";
+  const canManageTrash = normalizedRole === 'admin' || normalizedRole === 'owner';
 
-  const userName = currentUser?.name || "Anonymous";
+  const userName = currentUser?.name || 'Anonymous';
   const userColor = useMemo(() => getAssigneeHex(userName), [userName]);
 
   // Bumped after draft discard to force a fresh Y.Doc/provider/editor so the
@@ -287,12 +271,11 @@ export function NotesView({
 
   // Real-time collaboration for the selected note
   const collaboration = useCollaboration({
-    noteId: selectedNoteId || "",
+    noteId: selectedNoteId || '',
     userName,
     userColor,
     enabled:
-      !!selectedNoteId &&
-      (selectedNote?.type === "DOCUMENT" || selectedNote?.type === "BOARD"),
+      !!selectedNoteId && (selectedNote?.type === 'DOCUMENT' || selectedNote?.type === 'BOARD'),
     resetCounter: collabResetCounter,
   });
 
@@ -312,7 +295,7 @@ export function NotesView({
       const parent = flatMap.get(current.parent_id);
       if (!parent) break;
       // FILE은 자료실 합성 노드라 노트 경로에 등장하지 않는다.
-      if (parent.type !== "FILE") {
+      if (parent.type !== 'FILE') {
         chain.unshift({
           id: parent.id,
           title: parent.title,
@@ -329,7 +312,7 @@ export function NotesView({
       const data = await svc.getTree(scopeId);
       setTree(data);
     } catch (err) {
-      console.error("Failed to load note tree:", err);
+      console.error('Failed to load note tree:', err);
     } finally {
       setLoading(false);
     }
@@ -340,7 +323,7 @@ export function NotesView({
       const data = await svc.getTags(scopeId);
       setTags(data);
     } catch (err) {
-      console.error("Failed to load note tags:", err);
+      console.error('Failed to load note tags:', err);
     }
   }, [scopeId, svc]);
 
@@ -351,7 +334,7 @@ export function NotesView({
       const data = await orgNoteService.getBoardNotes(orgId);
       setBoardNoteSections(data);
     } catch (err) {
-      console.error("Failed to load board notes:", err);
+      console.error('Failed to load board notes:', err);
     }
   }, [orgId]);
 
@@ -378,7 +361,7 @@ export function NotesView({
         setSearchResults(results);
       } catch (err) {
         if (seq !== searchSeqRef.current) return;
-        console.error("Failed to search notes:", err);
+        console.error('Failed to search notes:', err);
         setSearchResults([]);
       } finally {
         if (seq === searchSeqRef.current) setSearching(false);
@@ -393,8 +376,7 @@ export function NotesView({
     if (!urlNoteId) return;
     if (selectedNote?.id === urlNoteId) return;
 
-    const targetBoard =
-      urlNoteBoard && urlNoteBoard !== scopeId ? urlNoteBoard : null;
+    const targetBoard = urlNoteBoard && urlNoteBoard !== scopeId ? urlNoteBoard : null;
     let cancelled = false;
 
     (async () => {
@@ -404,7 +386,7 @@ export function NotesView({
           const detail = await noteService.getDetail(targetBoard, urlNoteId);
           if (cancelled) return;
           setSelectedNoteId(urlNoteId);
-          setSelectedNoteScope({ type: "board", id: targetBoard });
+          setSelectedNoteScope({ type: 'board', id: targetBoard });
           setSelectedNote(detail);
         } else {
           const detail = await svc.getDetail(scopeId, urlNoteId);
@@ -412,19 +394,19 @@ export function NotesView({
           setSelectedNoteId(urlNoteId);
           setSelectedNoteScope(
             personal
-              ? { type: "personal", id: "me" }
+              ? { type: 'personal', id: 'me' }
               : orgId
-                ? { type: "org", id: orgId }
-                : { type: "board", id: boardId || "" },
+                ? { type: 'org', id: orgId }
+                : { type: 'board', id: boardId || '' },
           );
           setSelectedNote(detail);
         }
       } catch (err) {
         if (cancelled) return;
-        console.error("Failed to restore note from URL:", err);
+        console.error('Failed to restore note from URL:', err);
         const next = new URLSearchParams(searchParams);
-        next.delete("note");
-        next.delete("noteBoard");
+        next.delete('note');
+        next.delete('noteBoard');
         setSearchParams(next, { replace: true });
         setSelectedNoteId(null);
         setSelectedNote(null);
@@ -445,34 +427,24 @@ export function NotesView({
 
       setSelectedNoteId(noteId);
       setSelectedNoteScope(
-        orgId
-          ? { type: "org", id: orgId }
-          : { type: "board", id: boardId || "" },
+        orgId ? { type: 'org', id: orgId } : { type: 'board', id: boardId || '' },
       );
       setNoteLoading(true);
       setMobileSidebarOpen(false);
       const next = new URLSearchParams(searchParams);
-      next.set("note", noteId);
-      next.delete("noteBoard");
+      next.set('note', noteId);
+      next.delete('noteBoard');
       setSearchParams(next, { replace: true });
       try {
         const detail = await svc.getDetail(scopeId, noteId);
         setSelectedNote(detail);
       } catch (err) {
-        console.error("Failed to load note detail:", err);
+        console.error('Failed to load note detail:', err);
       } finally {
         setNoteLoading(false);
       }
     },
-    [
-      scopeId,
-      svc,
-      selectedNoteId,
-      orgId,
-      boardId,
-      searchParams,
-      setSearchParams,
-    ],
+    [scopeId, svc, selectedNoteId, orgId, boardId, searchParams, setSearchParams],
   );
 
   // Handle selecting a board note from within org view
@@ -481,18 +453,18 @@ export function NotesView({
       if (noteId === selectedNoteId) return;
 
       setSelectedNoteId(noteId);
-      setSelectedNoteScope({ type: "board", id: noteBoardId });
+      setSelectedNoteScope({ type: 'board', id: noteBoardId });
       setNoteLoading(true);
       setMobileSidebarOpen(false);
       const next = new URLSearchParams(searchParams);
-      next.set("note", noteId);
-      next.set("noteBoard", noteBoardId);
+      next.set('note', noteId);
+      next.set('noteBoard', noteBoardId);
       setSearchParams(next, { replace: true });
       try {
         const detail = await noteService.getDetail(noteBoardId, noteId);
         setSelectedNote(detail);
       } catch (err) {
-        console.error("Failed to load board note detail:", err);
+        console.error('Failed to load board note detail:', err);
       } finally {
         setNoteLoading(false);
       }
@@ -504,15 +476,15 @@ export function NotesView({
     async (parentId?: string | null) => {
       if (!canEdit) return;
       try {
-        const title = t("notes.newFolder", "새 폴더");
+        const title = t('notes.newFolder', '새 폴더');
         await svc.create(scopeId, {
           title,
-          type: "FOLDER",
+          type: 'FOLDER',
           parentId: parentId || null,
         });
         await loadTree();
       } catch (err) {
-        console.error("Failed to create folder:", err);
+        console.error('Failed to create folder:', err);
       }
     },
     [scopeId, svc, canEdit, loadTree, t],
@@ -524,10 +496,10 @@ export function NotesView({
       if (!canEdit) return;
       try {
         const built = template?.build(t);
-        const title = built?.title ?? t("notes.newDocument", "새 문서");
+        const title = built?.title ?? t('notes.newDocument', '새 문서');
         const created = await svc.create(scopeId, {
           title,
-          type: "DOCUMENT",
+          type: 'DOCUMENT',
           parentId: parentId || null,
           content: built?.content,
         });
@@ -535,7 +507,7 @@ export function NotesView({
 
         handleSelectNote(created.id);
       } catch (err) {
-        console.error("Failed to create document:", err);
+        console.error('Failed to create document:', err);
       }
     },
     [scopeId, svc, canEdit, loadTree, handleSelectNote, t],
@@ -545,17 +517,17 @@ export function NotesView({
     async (parentId?: string | null) => {
       if (!canEdit) return;
       try {
-        const title = t("notes.newBoard", "새 보드");
+        const title = t('notes.newBoard', '새 보드');
         const created = await svc.create(scopeId, {
           title,
-          type: "BOARD",
+          type: 'BOARD',
           parentId: parentId || null,
         });
         await loadTree();
 
         handleSelectNote(created.id);
       } catch (err) {
-        console.error("Failed to create board:", err);
+        console.error('Failed to create board:', err);
       }
     },
     [scopeId, svc, canEdit, loadTree, handleSelectNote, t],
@@ -567,18 +539,18 @@ export function NotesView({
       try {
         const detail = await svc.getDetail(scopeId, noteId);
         const created = await svc.create(scopeId, {
-          title: `${detail.title} (${t("notes.copy", "사본")})`,
-          type: detail.type as "FOLDER" | "DOCUMENT" | "BOARD",
+          title: `${detail.title} (${t('notes.copy', '사본')})`,
+          type: detail.type as 'FOLDER' | 'DOCUMENT' | 'BOARD',
           parentId: detail.parent_id || null,
           content: detail.content || undefined,
           tagIds: detail.tags?.map((tag: NoteTagInfo) => tag.id),
         });
         await loadTree();
-        if (created.type !== "FOLDER") {
+        if (created.type !== 'FOLDER') {
           handleSelectNote(created.id);
         }
       } catch (err) {
-        console.error("Failed to duplicate note:", err);
+        console.error('Failed to duplicate note:', err);
       }
     },
     [scopeId, svc, canEdit, loadTree, handleSelectNote, t],
@@ -592,13 +564,13 @@ export function NotesView({
           setSelectedNoteId(null);
           setSelectedNote(null);
           const next = new URLSearchParams(searchParams);
-          next.delete("note");
-          next.delete("noteBoard");
+          next.delete('note');
+          next.delete('noteBoard');
           setSearchParams(next, { replace: true });
         }
         await loadTree();
       } catch (err) {
-        console.error("Failed to delete note:", err);
+        console.error('Failed to delete note:', err);
       }
     },
     [scopeId, svc, selectedNoteId, loadTree, searchParams, setSearchParams],
@@ -613,41 +585,28 @@ export function NotesView({
           setSelectedNote({ ...selectedNote, title: newTitle });
         }
       } catch (err) {
-        console.error("Failed to rename note:", err);
+        console.error('Failed to rename note:', err);
       }
     },
     [scopeId, svc, selectedNoteId, selectedNote, loadTree],
   );
 
   const handleSaveNote = useCallback(
-    async (
-      noteId: string,
-      data: NoteUpdateData,
-      createVersion = true,
-      discardDraft = true,
-    ) => {
+    async (noteId: string, data: NoteUpdateData, createVersion = true, discardDraft = true) => {
       try {
         // Use the correct service based on which scope the note belongs to
         const saveSvc =
-          selectedNoteScope?.type === "board" && selectedNoteScope.id !== orgId
-            ? noteService
-            : svc;
+          selectedNoteScope?.type === 'board' && selectedNoteScope.id !== orgId ? noteService : svc;
         const saveId =
-          selectedNoteScope?.type === "board" && selectedNoteScope.id !== orgId
+          selectedNoteScope?.type === 'board' && selectedNoteScope.id !== orgId
             ? selectedNoteScope.id
             : scopeId;
-        const updated = await saveSvc.update(
-          saveId,
-          noteId,
-          data,
-          createVersion,
-          discardDraft,
-        );
+        const updated = await saveSvc.update(saveId, noteId, data, createVersion, discardDraft);
         setSelectedNote(updated);
         await loadTree();
-        if (selectedNoteScope?.type === "board") await loadBoardNotes();
+        if (selectedNoteScope?.type === 'board') await loadBoardNotes();
       } catch (err) {
-        console.error("Failed to save note:", err);
+        console.error('Failed to save note:', err);
       }
     },
     [scopeId, svc, loadTree, loadBoardNotes, selectedNoteScope, orgId],
@@ -661,8 +620,8 @@ export function NotesView({
         await svc.move(scopeId, noteId, { parentId, position });
         await loadTree();
       } catch (err) {
-        console.error("Failed to move note:", err);
-        toast.error(t("notes.moveFailed", "노트 이동에 실패했습니다"));
+        console.error('Failed to move note:', err);
+        toast.error(t('notes.moveFailed', '노트 이동에 실패했습니다'));
         await loadTree();
       }
     },
@@ -676,17 +635,15 @@ export function NotesView({
   const storageApi: StorageApi = useMemo(() => {
     if (personal) return myStorageAPI;
     if (orgId) return makeOrgStorageAPI(orgId);
-    return makeBoardStorageAPI(boardId || "");
+    return makeBoardStorageAPI(boardId || '');
   }, [personal, orgId, boardId]);
 
   const [storageFolders, setStorageFolders] = useState<StorageFolderTree[]>([]);
-  const [filesByFolder, setFilesByFolder] = useState<
-    Map<string | null, StorageFileItem[]>
-  >(() => new Map());
-  const [usage, setUsage] = useState<StorageUsage | null>(null);
-  const [selectedFileNodeId, setSelectedFileNodeId] = useState<string | null>(
-    null,
+  const [filesByFolder, setFilesByFolder] = useState<Map<string | null, StorageFileItem[]>>(
+    () => new Map(),
   );
+  const [usage, setUsage] = useState<StorageUsage | null>(null);
+  const [selectedFileNodeId, setSelectedFileNodeId] = useState<string | null>(null);
   // 자료실 다중 선택 — 체크한 파일·노트 노드 id 집합
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -699,9 +656,7 @@ export function NotesView({
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiveHeight, setArchiveHeight] = useState<number>(() => {
     const saved = Number(localStorage.getItem(ARCHIVE_HEIGHT_KEY));
-    return Number.isFinite(saved) && saved >= ARCHIVE_MIN_HEIGHT
-      ? saved
-      : ARCHIVE_DEFAULT_HEIGHT;
+    return Number.isFinite(saved) && saved >= ARCHIVE_MIN_HEIGHT ? saved : ARCHIVE_DEFAULT_HEIGHT;
   });
 
   const handleArchiveResizeStart = useCallback(
@@ -723,16 +678,16 @@ export function NotesView({
         setArchiveHeight(next);
       };
       const onUp = () => {
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onUp);
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
         localStorage.setItem(ARCHIVE_HEIGHT_KEY, String(next));
       };
-      document.body.style.cursor = "row-resize";
-      document.body.style.userSelect = "none";
-      window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", onUp);
+      document.body.style.cursor = 'row-resize';
+      document.body.style.userSelect = 'none';
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
     },
     [archiveHeight],
   );
@@ -768,7 +723,7 @@ export function NotesView({
       setFilesByFolder(nextFiles);
       setUsage(nextUsage);
     } catch (err) {
-      console.error("Failed to load library storage:", err);
+      console.error('Failed to load library storage:', err);
     }
   }, [withFiles, storageApi]);
 
@@ -816,9 +771,7 @@ export function NotesView({
    * 업로드 목적지 스토리지 폴더. 노트 폴더에 짝이 없으면 같은 이름·같은 계층으로
    * 만들어 짝을 맞춘다 (이름 병합 규칙과 동일).
    */
-  const resolveUploadFolderId = useCallback(async (): Promise<
-    string | null
-  > => {
+  const resolveUploadFolderId = useCallback(async (): Promise<string | null> => {
     const anchor = selectedFileNodeId ?? selectedNoteId;
     const folderNode = folderNodeOf(library.tree, anchor);
     if (!folderNode) return null;
@@ -829,9 +782,7 @@ export function NotesView({
     let parentId: string | null = null;
     for (const title of folderTitlePath(library.tree, folderNode.id)) {
       const existing = findStorageChild(storageFolders, parentId, title);
-      parentId = existing
-        ? existing.id
-        : (await storageApi.createFolder(title, parentId)).id;
+      parentId = existing ? existing.id : (await storageApi.createFolder(title, parentId)).id;
     }
     return parentId;
   }, [selectedFileNodeId, selectedNoteId, library, storageFolders, storageApi]);
@@ -845,7 +796,7 @@ export function NotesView({
       try {
         folderId = await resolveUploadFolderId();
       } catch (err) {
-        console.error("Failed to prepare upload folder:", err);
+        console.error('Failed to prepare upload folder:', err);
       }
 
       for (const file of files) {
@@ -858,10 +809,10 @@ export function NotesView({
         } catch (err: unknown) {
           const code = (err as { code?: string })?.code;
           toast.error(
-            code === "ST003"
-              ? t("library.quotaExceeded", "스토리지 용량이 부족합니다")
+            code === 'ST003'
+              ? t('library.quotaExceeded', '스토리지 용량이 부족합니다')
               : ((err as { message?: string })?.message ??
-                  t("library.uploadFailed", "업로드에 실패했습니다")),
+                  t('library.uploadFailed', '업로드에 실패했습니다')),
           );
         } finally {
           setUploads((prev) => {
@@ -883,15 +834,13 @@ export function NotesView({
       onDownload: (file: StorageFileItem) => {
         void storageApi
           .downloadAndSave(file.id, file.original_filename)
-          .catch(() =>
-            toast.error(t("library.downloadFailed", "다운로드에 실패했습니다")),
-          );
+          .catch(() => toast.error(t('library.downloadFailed', '다운로드에 실패했습니다')));
       },
       onToggleShare: async (file: StorageFileItem) => {
         try {
           if (file.is_shared) {
             await storageApi.disableFileShare(file.id);
-            toast.success(t("library.unshared", "공유가 해제되었습니다"));
+            toast.success(t('library.unshared', '공유가 해제되었습니다'));
           } else {
             const updated = await storageApi.enableFileShare(file.id);
             if (updated.share_code) {
@@ -899,11 +848,11 @@ export function NotesView({
                 ?.writeText(publicFileLink(updated.share_code))
                 .catch(() => {});
             }
-            toast.success(t("library.shared", "공유 링크가 복사되었습니다"));
+            toast.success(t('library.shared', '공유 링크가 복사되었습니다'));
           }
           await loadStorage();
         } catch (err) {
-          console.error("Failed to toggle file share:", err);
+          console.error('Failed to toggle file share:', err);
         }
       },
       onDelete: async (file: StorageFileItem) => {
@@ -914,7 +863,7 @@ export function NotesView({
           );
           await loadStorage();
         } catch (err) {
-          console.error("Failed to delete file:", err);
+          console.error('Failed to delete file:', err);
         }
       },
     }),
@@ -953,13 +902,9 @@ export function NotesView({
     if (ids.length === 0) return;
     if (
       !window.confirm(
-        t(
-          "library.bulkDeleteConfirm",
-          "선택한 {{count}}개 항목을 휴지통으로 옮길까요?",
-          {
-            count: ids.length,
-          },
-        ),
+        t('library.bulkDeleteConfirm', '선택한 {{count}}개 항목을 휴지통으로 옮길까요?', {
+          count: ids.length,
+        }),
       )
     )
       return;
@@ -977,14 +922,12 @@ export function NotesView({
         }
       } catch (err) {
         failed += 1;
-        console.error("Failed to bulk-delete node:", id, err);
+        console.error('Failed to bulk-delete node:', id, err);
       }
     }
 
     // 삭제된 항목이 현재 열려 있으면 상세 패널을 닫는다.
-    setSelectedFileNodeId((prev) =>
-      prev && selectedIds.has(prev) ? null : prev,
-    );
+    setSelectedFileNodeId((prev) => (prev && selectedIds.has(prev) ? null : prev));
     if (selectedNoteId && selectedIds.has(selectedNoteId)) {
       setSelectedNoteId(null);
       setSelectedNote(null);
@@ -995,23 +938,15 @@ export function NotesView({
 
     if (failed > 0) {
       toast.error(
-        t(
-          "library.bulkDeletePartial",
-          "{{count}}개 항목을 삭제하지 못했습니다",
-          {
-            count: failed,
-          },
-        ),
+        t('library.bulkDeletePartial', '{{count}}개 항목을 삭제하지 못했습니다', {
+          count: failed,
+        }),
       );
     } else {
       toast.success(
-        t(
-          "library.bulkDeleteDone",
-          "{{count}}개 항목을 휴지통으로 옮겼습니다",
-          {
-            count: ids.length,
-          },
-        ),
+        t('library.bulkDeleteDone', '{{count}}개 항목을 휴지통으로 옮겼습니다', {
+          count: ids.length,
+        }),
       );
     }
   }, [
@@ -1041,22 +976,20 @@ export function NotesView({
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-bold text-foreground flex items-center gap-2">
             <FileText size={18} className="text-bridge-accent" />
-            {withFiles
-              ? t("library.title", "자료실")
-              : t("notes.title", "노트")}
+            {withFiles ? t('library.title', '자료실') : t('notes.title', '노트')}
           </h3>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setViewType("tree")}
-              className={`p-1.5 rounded transition-colors ${viewType === "tree" ? "text-bridge-accent bg-bridge-accent/10" : "text-slate-400 hover:text-foreground"}`}
-              title={t("notes.treeView", "트리 뷰")}
+              onClick={() => setViewType('tree')}
+              className={`p-1.5 rounded transition-colors ${viewType === 'tree' ? 'text-bridge-accent bg-bridge-accent/10' : 'text-slate-400 hover:text-foreground'}`}
+              title={t('notes.treeView', '트리 뷰')}
             >
               <FolderTree size={16} />
             </button>
             <button
-              onClick={() => setViewType("list")}
-              className={`p-1.5 rounded transition-colors ${viewType === "list" ? "text-bridge-accent bg-bridge-accent/10" : "text-slate-400 hover:text-foreground"}`}
-              title={t("notes.listView", "리스트 뷰")}
+              onClick={() => setViewType('list')}
+              className={`p-1.5 rounded transition-colors ${viewType === 'list' ? 'text-bridge-accent bg-bridge-accent/10' : 'text-slate-400 hover:text-foreground'}`}
+              title={t('notes.listView', '리스트 뷰')}
             >
               <List size={16} />
             </button>
@@ -1064,18 +997,15 @@ export function NotesView({
         </div>
         {/* Search */}
         <div className="relative">
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-          />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={
               withFiles
-                ? t("library.searchPlaceholder", "노트 · 파일 · 본문 검색")
-                : t("notes.searchPlaceholder", "제목 · 태그 · 본문 검색")
+                ? t('library.searchPlaceholder', '노트 · 파일 · 본문 검색')
+                : t('notes.searchPlaceholder', '제목 · 태그 · 본문 검색')
             }
             className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 pl-9 pr-3 text-sm text-foreground placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 transition-all"
           />
@@ -1090,16 +1020,14 @@ export function NotesView({
                 className="flex-1 min-w-0 flex items-center justify-center gap-2 px-3 py-2 text-sm font-bold text-white bg-bridge-accent rounded-l-lg hover:bg-bridge-accent/90 transition-colors"
               >
                 <FilePlus size={15} />
-                <span className="truncate">
-                  {t("notes.newDocument", "새 문서")}
-                </span>
+                <span className="truncate">{t('notes.newDocument', '새 문서')}</span>
               </button>
               <TemplateMenu
                 onPick={(template) => handleCreateDocument(null, template)}
                 trigger={
                   <button
-                    aria-label={t("notes.templates.title", "템플릿으로 만들기")}
-                    title={t("notes.templates.title", "템플릿으로 만들기")}
+                    aria-label={t('notes.templates.title', '템플릿으로 만들기')}
+                    title={t('notes.templates.title', '템플릿으로 만들기')}
                     className="flex items-center justify-center w-8 text-white bg-bridge-accent border-l border-white/20 rounded-r-lg hover:bg-bridge-accent/90 transition-colors"
                   >
                     <ChevronDown size={14} />
@@ -1110,8 +1038,8 @@ export function NotesView({
             {withFiles ? (
               <button
                 onClick={() => fileInputRef.current?.click()}
-                aria-label={t("library.upload", "파일 업로드")}
-                title={t("library.upload", "파일 업로드")}
+                aria-label={t('library.upload', '파일 업로드')}
+                title={t('library.upload', '파일 업로드')}
                 className="flex items-center justify-center w-9 text-bridge-secondary bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-colors"
               >
                 <Upload size={16} />
@@ -1119,8 +1047,8 @@ export function NotesView({
             ) : (
               <button
                 onClick={() => handleCreateBoard(null)}
-                aria-label={t("notes.newBoard", "새 보드")}
-                title={t("notes.newBoard", "새 보드")}
+                aria-label={t('notes.newBoard', '새 보드')}
+                title={t('notes.newBoard', '새 보드')}
                 className="flex items-center justify-center w-9 text-bridge-secondary bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-colors"
               >
                 <PenTool size={16} />
@@ -1128,8 +1056,8 @@ export function NotesView({
             )}
             <button
               onClick={() => handleCreateFolder(null)}
-              aria-label={t("notes.newFolder", "새 폴더")}
-              title={t("notes.newFolder", "새 폴더")}
+              aria-label={t('notes.newFolder', '새 폴더')}
+              title={t('notes.newFolder', '새 폴더')}
               className="flex items-center justify-center w-9 text-bridge-accent bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-colors"
             >
               <FolderPlus size={16} />
@@ -1161,7 +1089,7 @@ export function NotesView({
       {withFiles && canEdit && selectedIds.size > 0 && (
         <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-foreground/5 bg-bridge-accent/5 flex-shrink-0">
           <span className="text-xs font-bold text-foreground">
-            {t("library.selectedCount", "{{count}}개 선택됨", {
+            {t('library.selectedCount', '{{count}}개 선택됨', {
               count: selectedIds.size,
             })}
           </span>
@@ -1170,19 +1098,15 @@ export function NotesView({
               onClick={clearSelection}
               className="px-2.5 py-1 text-xs font-medium text-slate-400 hover:text-foreground rounded-lg hover:bg-foreground/5 transition-colors"
             >
-              {t("common.cancel", "취소")}
+              {t('common.cancel', '취소')}
             </button>
             <button
               onClick={handleBulkDelete}
               disabled={bulkDeleting}
               className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-white bg-rose-500 rounded-lg hover:bg-rose-600 transition-colors disabled:opacity-50"
             >
-              {bulkDeleting ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <Trash2 size={13} />
-              )}
-              {t("common.delete", "삭제")}
+              {bulkDeleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+              {t('common.delete', '삭제')}
             </button>
           </div>
         </div>
@@ -1191,7 +1115,7 @@ export function NotesView({
       {/* Tree or List Content — 아카이브와 상하 분할 */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         <div className="flex-1 min-h-0 overflow-y-auto p-3">
-          {viewType === "tree" ? (
+          {viewType === 'tree' ? (
             <NoteTreeSidebar
               tree={library.tree}
               selectedNoteId={selectedFileNodeId ?? selectedNoteId}
@@ -1231,7 +1155,7 @@ export function NotesView({
                 onPointerDown={handleArchiveResizeStart}
                 role="separator"
                 aria-orientation="horizontal"
-                aria-label={t("library.archiveResize", "아카이브 크기 조절")}
+                aria-label={t('library.archiveResize', '아카이브 크기 조절')}
                 className="group flex-shrink-0 flex items-center h-2 -my-[3px] cursor-row-resize touch-none z-20"
               >
                 <div className="w-full h-px bg-foreground/[0.08] group-hover:h-[3px] group-hover:bg-bridge-accent/50 transition-all" />
@@ -1241,13 +1165,9 @@ export function NotesView({
             )}
             <div
               className={`flex-shrink-0 px-3 pb-2 ${
-                archiveOpen ? "overflow-y-auto custom-scrollbar" : ""
-              } ${archiveOpen && searchQuery ? "max-h-[50%]" : ""}`}
-              style={
-                archiveOpen && !searchQuery
-                  ? { height: archiveHeight }
-                  : undefined
-              }
+                archiveOpen ? 'overflow-y-auto custom-scrollbar' : ''
+              } ${archiveOpen && searchQuery ? 'max-h-[50%]' : ''}`}
+              style={archiveOpen && !searchQuery ? { height: archiveHeight } : undefined}
             >
               <ReportArchiveSection
                 groups={library.reportArchive}
@@ -1277,9 +1197,7 @@ export function NotesView({
             >
               <span className="flex items-center gap-2 text-xs text-slate-400">
                 <HardDrive size={13} />
-                <span className="font-bold text-foreground">
-                  {formatBytes(usage.used)}
-                </span>
+                <span className="font-bold text-foreground">{formatBytes(usage.used)}</span>
                 <span>/ {formatBytes(usage.quota)}</span>
                 <span className="ml-auto">자세히 ›</span>
               </span>
@@ -1288,9 +1206,7 @@ export function NotesView({
                   className="block h-full rounded-full bg-gradient-to-r from-bridge-secondary to-bridge-accent"
                   style={{
                     width: `${
-                      usage.quota > 0
-                        ? Math.min(100, (usage.used / usage.quota) * 100)
-                        : 0
+                      usage.quota > 0 ? Math.min(100, (usage.used / usage.quota) * 100) : 0
                     }%`,
                   }}
                 />
@@ -1303,9 +1219,7 @@ export function NotesView({
               className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
             >
               <Trash2 size={14} />
-              <span className="flex-1 text-left">
-                {t("notes.trash.title", "휴지통")}
-              </span>
+              <span className="flex-1 text-left">{t('notes.trash.title', '휴지통')}</span>
             </button>
           )}
         </div>
@@ -1326,9 +1240,7 @@ export function NotesView({
           side="left"
           className="w-72 p-0 bg-bridge-dark border-foreground/10 flex flex-col"
         >
-          <SheetTitle className="sr-only">
-            {t("notes.title", "노트")}
-          </SheetTitle>
+          <SheetTitle className="sr-only">{t('notes.title', '노트')}</SheetTitle>
           {sidebarContent}
         </SheetContent>
       </Sheet>
@@ -1375,9 +1287,8 @@ export function NotesView({
             multiple
             hidden
             onChange={(e) => {
-              if (e.target.files?.length)
-                void handleUploadFiles(e.target.files);
-              e.target.value = "";
+              if (e.target.files?.length) void handleUploadFiles(e.target.files);
+              e.target.value = '';
             }}
           />
         </>
@@ -1386,7 +1297,7 @@ export function NotesView({
       {/* Right Content - Editor / File */}
       <div
         className={`flex-1 flex flex-col overflow-hidden bg-bridge-dark ${
-          dragOverMain ? "ring-2 ring-inset ring-bridge-secondary" : ""
+          dragOverMain ? 'ring-2 ring-inset ring-bridge-secondary' : ''
         }`}
         onDragOver={
           withFiles && canEdit
@@ -1424,10 +1335,7 @@ export function NotesView({
           <>
             {/* Mobile top bar with sidebar toggle */}
             <div className="flex md:hidden items-center gap-2 px-3 py-2 border-b border-foreground/5">
-              <IconButton
-                onClick={() => setMobileSidebarOpen(true)}
-                aria-label="사이드바 열기"
-              >
+              <IconButton onClick={() => setMobileSidebarOpen(true)} aria-label="사이드바 열기">
                 <Menu />
               </IconButton>
               <span className="text-sm text-foreground font-medium truncate">
@@ -1441,40 +1349,35 @@ export function NotesView({
                 </div>
               }
             >
-            <NoteEditor
-              boardId={
-                selectedNoteScope?.type === "board"
-                  ? selectedNoteScope.id
-                  : boardId
-              }
-              orgId={
-                selectedNoteScope?.type === "org"
-                  ? selectedNoteScope.id
-                  : selectedNoteScope?.type === "board"
-                    ? undefined
-                    : orgId
-              }
-              personal={personal}
-              note={selectedNote}
-              tags={tags}
-              loading={noteLoading}
-              canEdit={
-                selectedNoteScope?.type === "board" && orgId
-                  ? boardNoteSections.find(
-                      (s) => s.board_id === selectedNoteScope.id,
-                    )?.user_role !== "VIEWER"
-                  : canEdit
-              }
-              onSave={handleSaveNote}
-              onTagsChange={loadTags}
-              onNoteUpdate={(updated) => setSelectedNote(updated)}
-              onCollabReset={handleCollabReset}
-              collaboration={collaboration}
-              currentUserName={userName}
-              currentUserColor={userColor}
-              breadcrumbs={breadcrumbs}
-              onBreadcrumbClick={handleSelectNote}
-            />
+              <NoteEditor
+                boardId={selectedNoteScope?.type === 'board' ? selectedNoteScope.id : boardId}
+                orgId={
+                  selectedNoteScope?.type === 'org'
+                    ? selectedNoteScope.id
+                    : selectedNoteScope?.type === 'board'
+                      ? undefined
+                      : orgId
+                }
+                personal={personal}
+                note={selectedNote}
+                tags={tags}
+                loading={noteLoading}
+                canEdit={
+                  selectedNoteScope?.type === 'board' && orgId
+                    ? boardNoteSections.find((s) => s.board_id === selectedNoteScope.id)
+                        ?.user_role !== 'VIEWER'
+                    : canEdit
+                }
+                onSave={handleSaveNote}
+                onTagsChange={loadTags}
+                onNoteUpdate={(updated) => setSelectedNote(updated)}
+                onCollabReset={handleCollabReset}
+                collaboration={collaboration}
+                currentUserName={userName}
+                currentUserColor={userColor}
+                breadcrumbs={breadcrumbs}
+                onBreadcrumbClick={handleSelectNote}
+              />
             </Suspense>
           </>
         ) : (
@@ -1490,13 +1393,10 @@ export function NotesView({
             <p className="text-sm">
               {withFiles
                 ? t(
-                    "library.selectOrCreate",
-                    "왼쪽에서 노트나 파일을 고르세요. 파일은 여기에 끌어다 놓아도 됩니다",
+                    'library.selectOrCreate',
+                    '왼쪽에서 노트나 파일을 고르세요. 파일은 여기에 끌어다 놓아도 됩니다',
                   )
-                : t(
-                    "notes.selectOrCreate",
-                    "문서를 선택하거나 새로 만들어주세요",
-                  )}
+                : t('notes.selectOrCreate', '문서를 선택하거나 새로 만들어주세요')}
             </p>
             {canEdit && (
               <div className="mt-4 flex items-center gap-2">
@@ -1506,17 +1406,14 @@ export function NotesView({
                     className="px-4 py-2 bg-bridge-accent text-white rounded-l-xl text-xs font-bold hover:bg-bridge-accent/90 transition-all"
                   >
                     <FilePlus size={14} className="inline mr-1.5" />
-                    {t("notes.createFirstDocument", "첫 문서 만들기")}
+                    {t('notes.createFirstDocument', '첫 문서 만들기')}
                   </button>
                   <TemplateMenu
                     onPick={(template) => handleCreateDocument(null, template)}
                     trigger={
                       <button
-                        aria-label={t(
-                          "notes.templates.title",
-                          "템플릿으로 만들기",
-                        )}
-                        title={t("notes.templates.title", "템플릿으로 만들기")}
+                        aria-label={t('notes.templates.title', '템플릿으로 만들기')}
+                        title={t('notes.templates.title', '템플릿으로 만들기')}
                         className="px-2 py-2 bg-bridge-accent text-white rounded-r-xl border-l border-white/20 hover:bg-bridge-accent/90 transition-all"
                       >
                         <ChevronDown size={14} />
@@ -1530,7 +1427,7 @@ export function NotesView({
                     className="px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl text-xs font-bold hover:bg-foreground/10 transition-all"
                   >
                     <Upload size={14} className="inline mr-1.5" />
-                    {t("library.upload", "파일 업로드")}
+                    {t('library.upload', '파일 업로드')}
                   </button>
                 )}
               </div>

@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { useTranslation } from "react-i18next";
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ChevronLeft,
   ChevronRight,
@@ -8,8 +8,8 @@ import {
   Loader2,
   Clock,
   CheckSquare,
-} from "lucide-react";
-import { Button } from "./ui/button";
+} from 'lucide-react';
+import { Button } from './ui/button';
 import {
   format,
   addDays,
@@ -20,23 +20,20 @@ import {
   addWeeks,
   subWeeks,
   eachDayOfInterval,
-} from "date-fns";
-import { formatDate, getTodayDateString } from "../utils/dateUtils";
-import { useHolidays } from "../hooks/useHolidays";
-import { BoardMember } from "./ShareBoardModal";
-import { ScheduleBlock } from "./ScheduleBlock";
-import { ScheduleDetailPanel } from "./ScheduleDetailPanel";
-import { ChecklistCreateModal } from "./ChecklistCreateModal";
-import {
-  ScheduleSettingsModal,
-  ScheduleDisplayMode,
-} from "./ScheduleSettingsModal";
-import { WeeklySummaryModal } from "./WeeklySummaryModal";
-import { DailySummaryModal } from "./DailySummaryModal";
-import { EmbeddedDailyChecklist } from "./EmbeddedDailyChecklist";
-import { AddDailyChecklistModal } from "./AddDailyChecklistModal";
-import { useNavigate } from "react-router-dom";
-import { meetingAPI, MeetingSummary } from "../utils/api";
+} from 'date-fns';
+import { formatDate, getTodayDateString } from '../utils/dateUtils';
+import { useHolidays } from '../hooks/useHolidays';
+import { BoardMember } from './ShareBoardModal';
+import { ScheduleBlock } from './ScheduleBlock';
+import { ScheduleDetailPanel } from './ScheduleDetailPanel';
+import { ChecklistCreateModal } from './ChecklistCreateModal';
+import { ScheduleSettingsModal, ScheduleDisplayMode } from './ScheduleSettingsModal';
+import { WeeklySummaryModal } from './WeeklySummaryModal';
+import { DailySummaryModal } from './DailySummaryModal';
+import { EmbeddedDailyChecklist } from './EmbeddedDailyChecklist';
+import { AddDailyChecklistModal } from './AddDailyChecklistModal';
+import { useNavigate } from 'react-router-dom';
+import { meetingAPI, MeetingSummary } from '../utils/api';
 import {
   scheduleAPI,
   dailyChecklistAPI,
@@ -45,11 +42,11 @@ import {
   ScheduleColumnInfo,
   ScheduleSettingsResponse,
   DailyChecklistColumnResponse,
-} from "../utils/api";
-import { getInitials, getAssigneeHex } from "../utils/assigneeColor";
-import type { MilestoneColorMap } from "../utils/milestoneColor";
-import { BoardWebSocketEvent, ChecklistItem } from "../types";
-import { PLACEMENT_DRAG_TYPE } from "./boarddashboard/PlacementRail";
+} from '../utils/api';
+import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
+import type { MilestoneColorMap } from '../utils/milestoneColor';
+import { BoardWebSocketEvent, ChecklistItem } from '../types';
+import { PLACEMENT_DRAG_TYPE } from './boarddashboard/PlacementRail';
 import {
   dispatchAxisDrop,
   endAxisDrag,
@@ -58,7 +55,7 @@ import {
   useTimeblockRequest,
   type AxisItem,
   type AxisZone,
-} from "../utils/axisTransfer";
+} from '../utils/axisTransfer';
 
 interface DailyScheduleViewProps {
   boardId: string;
@@ -117,11 +114,11 @@ const DROP_SLOT_SPAN = 2;
  * 레일에 내려놓은 뒤 거기서 다시 내리면 되므로 경로가 없어지지도 않는다.
  * 모듈 상수인 이유는 참조가 매 렌더 바뀌면 드래그 중인 블록이 값을 다시 읽기 때문이다.
  */
-const BLOCK_AXIS_TARGETS: AxisZone[] = ["placement"];
+const BLOCK_AXIS_TARGETS: AxisZone[] = ['placement'];
 
 // 시간 문자열 → 분 단위 (예: "14:30" → 870)
 const timeToMin = (time: string): number => {
-  const [h, m] = time.split(":").map(Number);
+  const [h, m] = time.split(':').map(Number);
   return h * 60 + m;
 };
 
@@ -129,7 +126,7 @@ const timeToMin = (time: string): number => {
 const minToTime = (min: number): string => {
   const h = Math.floor(min / 60);
   const m = min % 60;
-  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 };
 
 // 시간 슬롯 생성 (30분 단위, 24시까지 지원)
@@ -139,19 +136,17 @@ const generateTimeSlots = (startHour: number, endHour: number) => {
   for (let min = Math.floor(startHour) * 60; min < endMinutes; min += 30) {
     const h = Math.floor(min / 60);
     const m = min % 60;
-    slots.push(
-      `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`,
-    );
+    slots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
   }
   return slots;
 };
 
 // 시간 문자열에서 시간만 추출 (예: "09:00" 또는 "09:00:00" -> 9)
 const parseHour = (time: string): number => {
-  return parseInt(time.split(":")[0], 10);
+  return parseInt(time.split(':')[0], 10);
 };
 
-type ScheduleViewMode = "day" | "week";
+type ScheduleViewMode = 'day' | 'week';
 
 export function DailyScheduleView({
   boardId,
@@ -175,29 +170,24 @@ export function DailyScheduleView({
   const { holidayMap } = useHolidays(i18n.language, new Date().getFullYear());
   // viewer 역할 제외한 멤버 목록
   const activeMembers = useMemo(
-    () => boardMembers.filter((m) => m.role !== "viewer"),
+    () => boardMembers.filter((m) => m.role !== 'viewer'),
     [boardMembers],
   );
   // 임베드 모드: 슬롯을 낮추고, 멤버 열은 고정폭 대신 남는 폭을 채운다
   const slotH: number = embedded ? EMBED_SLOT_HEIGHT : SLOT_HEIGHT;
-  const memberColClass = embedded
-    ? "flex-1 min-w-0"
-    : "w-36 md:w-48 flex-shrink-0";
-  const dayWrapClass = embedded ? "min-w-full" : "min-w-max";
+  const memberColClass = embedded ? 'flex-1 min-w-0' : 'w-36 md:w-48 flex-shrink-0';
+  const dayWrapClass = embedded ? 'min-w-full' : 'min-w-max';
   // 회의 오버레이 데이터
   const [overlayMeetings, setOverlayMeetings] = useState<MeetingSummary[]>([]);
   // 체크리스트 펼침 상태 (멤버별)
-  const [expandedChecklists, setExpandedChecklists] = useState<Set<string>>(
-    new Set(),
-  );
+  const [expandedChecklists, setExpandedChecklists] = useState<Set<string>>(new Set());
 
   // W 단축키: bridge:toggleExpandCollapse 이벤트 리스너
   useEffect(() => {
     const handler = () => {
       setExpandedChecklists((prev) => {
         const allMemberIds = activeMembers.map((m) => m.userId);
-        const allExpanded =
-          allMemberIds.length > 0 && allMemberIds.every((id) => prev.has(id));
+        const allExpanded = allMemberIds.length > 0 && allMemberIds.every((id) => prev.has(id));
         if (allExpanded) {
           return new Set<string>();
         } else {
@@ -205,30 +195,21 @@ export function DailyScheduleView({
         }
       });
     };
-    window.addEventListener("bridge:toggleExpandCollapse", handler);
-    return () =>
-      window.removeEventListener("bridge:toggleExpandCollapse", handler);
+    window.addEventListener('bridge:toggleExpandCollapse', handler);
+    return () => window.removeEventListener('bridge:toggleExpandCollapse', handler);
   }, [activeMembers]);
 
-  const [viewMode, setViewMode] = useState<ScheduleViewMode>("day");
-  const [selectedDate, setSelectedDate] = useState<Date>(
-    startOfDay(new Date()),
-  );
+  const [viewMode, setViewMode] = useState<ScheduleViewMode>('day');
+  const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
   const [isLoading, setIsLoading] = useState(false);
   const [columns, setColumns] = useState<ScheduleColumnInfo[]>([]);
   /** columns에 실제로 실려 있는 날짜 (일 단위 뷰) */
   const [loadedDate, setLoadedDate] = useState<string | null>(null);
-  const [weeklyData, setWeeklyData] = useState<
-    Map<string, ScheduleColumnInfo[]>
-  >(new Map());
-  const [settings, setSettings] = useState<ScheduleSettingsResponse | null>(
-    null,
-  );
+  const [weeklyData, setWeeklyData] = useState<Map<string, ScheduleColumnInfo[]>>(new Map());
+  const [settings, setSettings] = useState<ScheduleSettingsResponse | null>(null);
 
   // 데일리 체크리스트 데이터
-  const [dailyChecklists, setDailyChecklists] = useState<
-    DailyChecklistColumnResponse[]
-  >([]);
+  const [dailyChecklists, setDailyChecklists] = useState<DailyChecklistColumnResponse[]>([]);
 
   // 드래그 선택 상태
   const [dragState, setDragState] = useState<{
@@ -246,15 +227,14 @@ export function DailyScheduleView({
   } | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);
   // 드래그를 못 쓰는 환경의 「지금」 요청 — 오늘 데이터가 도착한 뒤 처리한다
-  const [pendingTimeblockItem, setPendingTimeblockItem] =
-    useState<AxisItem | null>(null);
+  const [pendingTimeblockItem, setPendingTimeblockItem] = useState<AxisItem | null>(null);
 
   // 터치 드래그 refs (모바일 long-press → 멀티슬롯 선택)
   const timeGridRef = useRef<HTMLDivElement>(null);
   const isTouchRef = useRef(false);
   const touchDragRef = useRef({
     timer: null as ReturnType<typeof setTimeout> | null,
-    startUserId: "",
+    startUserId: '',
     startSlotIndex: -1,
     endSlotIndex: -1,
     startX: 0,
@@ -263,9 +243,7 @@ export function DailyScheduleView({
   });
 
   // 선택된 블록 (상세 패널용)
-  const [selectedBlock, setSelectedBlock] = useState<ScheduleBlockInfo | null>(
-    null,
-  );
+  const [selectedBlock, setSelectedBlock] = useState<ScheduleBlockInfo | null>(null);
 
   // 대기 중인 블록 생성 (Action Choice 모달용)
   const [pendingBlock, setPendingBlock] = useState<{
@@ -282,8 +260,7 @@ export function DailyScheduleView({
 
   // 데일리 체크리스트 추가 모달 상태
   const [showAddChecklistModal, setShowAddChecklistModal] = useState(false);
-  const [addChecklistAssigneeId, setAddChecklistAssigneeId] =
-    useState<string>("");
+  const [addChecklistAssigneeId, setAddChecklistAssigneeId] = useState<string>('');
 
   // 설정 모달 상태
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -293,24 +270,22 @@ export function DailyScheduleView({
 
   // 설정에서 표시 모드 가져오기 (TIME -> time, BLOCK -> block)
   const displayMode: ScheduleDisplayMode =
-    settings?.schedule_display_mode === "BLOCK" ? "block" : "time";
+    settings?.schedule_display_mode === 'BLOCK' ? 'block' : 'time';
 
   // 설정에서 시간 범위 계산
   const workStartHour = settings ? parseHour(settings.work_start_time) : 9;
-  const workEndHour = settings
-    ? workStartHour + settings.work_hours_per_day
-    : 19;
+  const workEndHour = settings ? workStartHour + settings.work_hours_per_day : 19;
 
   // 점심시간 계산
   const breakStartMinutes = settings?.break_start_time
     ? (() => {
-        const [h, m] = settings.break_start_time.split(":").map(Number);
+        const [h, m] = settings.break_start_time.split(':').map(Number);
         return h * 60 + m;
       })()
     : null;
   const breakEndMinutes = settings?.break_end_time
     ? (() => {
-        const [h, m] = settings.break_end_time.split(":").map(Number);
+        const [h, m] = settings.break_end_time.split(':').map(Number);
         return h * 60 + m;
       })()
     : null;
@@ -319,7 +294,7 @@ export function DailyScheduleView({
   const isBreakSlot = useCallback(
     (slotTime: string): boolean => {
       if (!hasBreak) return false;
-      const [h, m] = slotTime.split(":").map(Number);
+      const [h, m] = slotTime.split(':').map(Number);
       const minutes = h * 60 + m;
       return minutes >= breakStartMinutes! && minutes < breakEndMinutes!;
     },
@@ -344,9 +319,9 @@ export function DailyScheduleView({
 
     setIsLoading(true);
     try {
-      const dateStr = format(selectedDate, "yyyy-MM-dd");
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
-      if (viewMode === "day") {
+      if (viewMode === 'day') {
         // 통합 API로 스케줄 + 데일리 체크리스트 1회 로드 (기존 2회 → 1회)
         const response = await scheduleAPI.getDailyFull(
           boardId,
@@ -360,16 +335,14 @@ export function DailyScheduleView({
         // (예전에는 여기서 by-assignee를 따로 불러 가상 항목으로 합쳤고,
         //  그 목록을 타임블록 모달이 몰라서 두 화면이 어긋났다)
         setDailyChecklists(response.daily_checklists || []);
-        setOverlayMeetings(
-          (response.meetings || []).filter((m) => m.start_time && m.end_time),
-        );
+        setOverlayMeetings((response.meetings || []).filter((m) => m.start_time && m.end_time));
         // 지금 화면에 실린 블록이 며칠 것인지 — 겹침 판정을 이 날짜에만 걸기 위한 표식.
         // selectedDate는 요청 직후 이미 새 날짜지만 columns는 아직 옛 날짜다.
         setLoadedDate(dateStr);
       } else {
         // 주 단위: 통합 API로 7일치 데이터 1회 로드 (기존 7회 → 1회)
-        const startDateStr = format(weekDays[0], "yyyy-MM-dd");
-        const endDateStr = format(weekDays[weekDays.length - 1], "yyyy-MM-dd");
+        const startDateStr = format(weekDays[0], 'yyyy-MM-dd');
+        const endDateStr = format(weekDays[weekDays.length - 1], 'yyyy-MM-dd');
 
         const response = await scheduleAPI.getWeeklySchedule(
           boardId,
@@ -387,7 +360,7 @@ export function DailyScheduleView({
         setWeeklyData(newWeeklyData);
       }
     } catch (error) {
-      console.error("Failed to load schedule:", error);
+      console.error('Failed to load schedule:', error);
     } finally {
       setIsLoading(false);
     }
@@ -407,7 +380,7 @@ export function DailyScheduleView({
       task_id?: string;
     };
 
-    if (type === "CHECKLIST_TOGGLED" || type === "CHECKLIST_UPDATED") {
+    if (type === 'CHECKLIST_TOGGLED' || type === 'CHECKLIST_UPDATED') {
       const item = eventData.item;
       if (!item) return;
       // 스케줄 블록의 체크리스트 완료 상태 업데이트
@@ -432,9 +405,7 @@ export function DailyScheduleView({
         prev.map((col) => ({
           ...col,
           items: col.items.map((i) =>
-            i.checklist_item_id === item.id
-              ? { ...i, completed: item.completed }
-              : i,
+            i.checklist_item_id === item.id ? { ...i, completed: item.completed } : i,
           ),
         })),
       );
@@ -457,14 +428,14 @@ export function DailyScheduleView({
 
   // 날짜 네비게이션
   const handlePrev = () => {
-    if (viewMode === "day") {
+    if (viewMode === 'day') {
       setSelectedDate(subDays(selectedDate, 1));
     } else {
       setSelectedDate(subWeeks(selectedDate, 1));
     }
   };
   const handleNext = () => {
-    if (viewMode === "day") {
+    if (viewMode === 'day') {
       setSelectedDate(addDays(selectedDate, 1));
     } else {
       setSelectedDate(addWeeks(selectedDate, 1));
@@ -472,11 +443,10 @@ export function DailyScheduleView({
   };
   const handleToday = () => setSelectedDate(startOfDay(new Date()));
 
-  const dayOfWeek = formatDate(selectedDate, "EEEE");
-  const isToday =
-    format(selectedDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
+  const dayOfWeek = formatDate(selectedDate, 'EEEE');
+  const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
   const isTodayInWeek = weekDays.some(
-    (d) => format(d, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd"),
+    (d) => format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd'),
   );
 
   // 멤버별 블록 매핑
@@ -493,8 +463,7 @@ export function DailyScheduleView({
   const selectedBlockOwnerId = useMemo(() => {
     if (!selectedBlock) return null;
     return (
-      columns.find((col) => col.blocks.some((b) => b.id === selectedBlock.id))
-        ?.user.id ?? null
+      columns.find((col) => col.blocks.some((b) => b.id === selectedBlock.id))?.user.id ?? null
     );
   }, [columns, selectedBlock]);
 
@@ -530,8 +499,7 @@ export function DailyScheduleView({
         })
         .sort((a, b) => timeToMin(a.start_time) - timeToMin(b.start_time));
 
-      if (overlapping.length === 0)
-        return { startTime: rangeStartTime, endTime: rangeEndTime };
+      if (overlapping.length === 0) return { startTime: rangeStartTime, endTime: rangeEndTime };
 
       // 빈 시간 갭 수집
       const gaps: Array<{ start: number; end: number }> = [];
@@ -700,14 +668,10 @@ export function DailyScheduleView({
   );
 
   // Viewer 권한 여부
-  const isViewer = currentUserRole === "viewer";
+  const isViewer = currentUserRole === 'viewer';
 
   // 드래그 시작
-  const handleMouseDown = (
-    e: React.MouseEvent,
-    userId: string,
-    slotIndex: number,
-  ) => {
+  const handleMouseDown = (e: React.MouseEvent, userId: string, slotIndex: number) => {
     // Viewer는 타임블록 생성 불가
     if (isViewer) return;
     // 터치 이벤트 진행 중이면 합성 마우스 이벤트 무시
@@ -820,7 +784,7 @@ export function DailyScheduleView({
     if (!pendingBlock) return;
 
     try {
-      const dateStr = format(selectedDate, "yyyy-MM-dd");
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
       const segments = pendingBlock.splitBlocks || [
         { startTime: pendingBlock.startTime, endTime: pendingBlock.endTime },
       ];
@@ -836,7 +800,7 @@ export function DailyScheduleView({
       }
       await loadSchedule();
     } catch (error) {
-      console.error("Failed to create block with checklist item:", error);
+      console.error('Failed to create block with checklist item:', error);
     }
     setShowChecklistModal(false);
     setPendingBlock(null);
@@ -847,7 +811,7 @@ export function DailyScheduleView({
     if (!pendingBlock) return;
 
     try {
-      const dateStr = format(selectedDate, "yyyy-MM-dd");
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
       const segments = pendingBlock.splitBlocks || [
         { startTime: pendingBlock.startTime, endTime: pendingBlock.endTime },
       ];
@@ -870,10 +834,7 @@ export function DailyScheduleView({
       }
       await loadSchedule();
     } catch (error) {
-      console.error(
-        "Failed to add board checklist item and create block:",
-        error,
-      );
+      console.error('Failed to add board checklist item and create block:', error);
     }
     setShowChecklistModal(false);
     setPendingBlock(null);
@@ -884,7 +845,7 @@ export function DailyScheduleView({
     if (!pendingBlock) return;
 
     try {
-      const dateStr = format(selectedDate, "yyyy-MM-dd");
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
       const segments = pendingBlock.splitBlocks || [
         { startTime: pendingBlock.startTime, endTime: pendingBlock.endTime },
       ];
@@ -900,7 +861,7 @@ export function DailyScheduleView({
       }
       await loadSchedule();
     } catch (error) {
-      console.error("Failed to create block with meeting:", error);
+      console.error('Failed to create block with meeting:', error);
     }
     setShowChecklistModal(false);
     setPendingBlock(null);
@@ -911,14 +872,14 @@ export function DailyScheduleView({
     if (!pendingBlock) return;
 
     try {
-      const dateStr = format(selectedDate, "yyyy-MM-dd");
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
       const segments = pendingBlock.splitBlocks || [
         { startTime: pendingBlock.startTime, endTime: pendingBlock.endTime },
       ];
 
       for (const seg of segments) {
         await scheduleAPI.createBlock(boardId, {
-          block_type: "CUSTOM",
+          block_type: 'CUSTOM',
           title,
           color,
           assignee_id: pendingBlock.userId,
@@ -932,7 +893,7 @@ export function DailyScheduleView({
       setShowChecklistModal(false);
       await loadSchedule();
     } catch (error) {
-      console.error("Failed to create custom block:", error);
+      console.error('Failed to create custom block:', error);
     }
   };
 
@@ -948,12 +909,11 @@ export function DailyScheduleView({
      블록 생성이 성공했을 때만 축 이동 이벤트를 쏘므로 "블록만 있고 미배치인" 상태가 안 생긴다. */
 
   // 존 등록용. 실제 드롭은 시간 칸이 받는다(몇 시인지는 칸만 안다).
-  const { active: axisDragActive, zoneProps: timeblockZoneProps } =
-    useAxisDropZone({
-      zone: "timeblock",
-      accepts: ["placement", "workload"],
-      disabled: isViewer,
-    });
+  const { active: axisDragActive, zoneProps: timeblockZoneProps } = useAxisDropZone({
+    zone: 'timeblock',
+    accepts: ['placement', 'workload'],
+    disabled: isViewer,
+  });
 
   const placeDroppedItem = useCallback(
     async (
@@ -961,24 +921,20 @@ export function DailyScheduleView({
       userId: string,
       startSlotIndex: number,
       /** 어디서 온 항목인지 — 뒤이어 날짜를 잡는 쪽이 되돌리기 문구를 고르는 데 쓴다 */
-      from: AxisZone = "placement",
+      from: AxisZone = 'placement',
     ) => {
       if (!item.task_id) return;
 
-      const dateStr = format(selectedDate, "yyyy-MM-dd");
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
       const startTime = timeSlots[startSlotIndex];
       // 마지막 슬롯에 놓으면 다음 슬롯이 없다 — 근무 종료로 닫는다
-      const endTime =
-        timeSlots[startSlotIndex + DROP_SLOT_SPAN] ??
-        minToTime(workEndHour * 60);
+      const endTime = timeSlots[startSlotIndex + DROP_SLOT_SPAN] ?? minToTime(workEndHour * 60);
       if (!startTime) return;
 
       // 기존 블록·점심시간 회피는 빈 곳 드래그와 같은 규칙을 그대로 쓴다
       const segments = computeSegments(userId, startTime, endTime);
       if (!segments) {
-        setDropError(
-          t("schedule.dropNoRoom", "그 시간에는 빈자리가 없습니다."),
-        );
+        setDropError(t('schedule.dropNoRoom', '그 시간에는 빈자리가 없습니다.'));
         return;
       }
 
@@ -1010,25 +966,17 @@ export function DailyScheduleView({
         // targetDate가 실려 있다는 것이 "블록은 이미 만들었다"는 표시다(아래 수신부 참고).
         dispatchAxisDrop({
           from,
-          to: "timeblock",
+          to: 'timeblock',
           targetDate: dateStr,
           item,
         });
         await loadSchedule();
       } catch (error) {
-        console.error("Failed to place dropped checklist item:", error);
-        setDropError(t("schedule.dropFailed", "타임블록에 넣지 못했습니다."));
+        console.error('Failed to place dropped checklist item:', error);
+        setDropError(t('schedule.dropFailed', '타임블록에 넣지 못했습니다.'));
       }
     },
-    [
-      boardId,
-      computeSegments,
-      loadSchedule,
-      selectedDate,
-      t,
-      timeSlots,
-      workEndHour,
-    ],
+    [boardId, computeSegments, loadSchedule, selectedDate, t, timeSlots, workEndHour],
   );
 
   const handleSlotDragOver = useCallback(
@@ -1036,12 +984,12 @@ export function DailyScheduleView({
       if (isViewer) return;
       if (!e.dataTransfer.types.includes(PLACEMENT_DRAG_TYPE)) return;
       // 점심시간은 빈 곳 드래그로도 못 만드는 자리다 — 받는 척하지 않는다
-      if (isBreakSlot(timeSlots[slotIndex] ?? "")) {
+      if (isBreakSlot(timeSlots[slotIndex] ?? '')) {
         setDropPreview(null);
         return;
       }
       e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
+      e.dataTransfer.dropEffect = 'move';
       // dragover는 쉬지 않고 들어온다 — 자리가 그대로면 상태를 건드리지 않는다
       setDropPreview((prev) =>
         prev?.userId === userId && prev.startSlotIndex === slotIndex
@@ -1049,10 +997,7 @@ export function DailyScheduleView({
           : {
               userId,
               startSlotIndex: slotIndex,
-              endSlotIndex: Math.min(
-                slotIndex + DROP_SLOT_SPAN - 1,
-                timeSlots.length - 1,
-              ),
+              endSlotIndex: Math.min(slotIndex + DROP_SLOT_SPAN - 1, timeSlots.length - 1),
             },
       );
     },
@@ -1071,10 +1016,8 @@ export function DailyScheduleView({
       endAxisDrag();
 
       // 존 루트가 그리드 전체에 드롭을 허용하므로 점심 칸에도 떨어질 수 있다
-      if (isBreakSlot(timeSlots[slotIndex] ?? "")) {
-        setDropError(
-          t("schedule.dropOnBreak", "점심시간에는 넣을 수 없습니다."),
-        );
+      if (isBreakSlot(timeSlots[slotIndex] ?? '')) {
+        setDropError(t('schedule.dropOnBreak', '점심시간에는 넣을 수 없습니다.'));
         return;
       }
 
@@ -1115,23 +1058,17 @@ export function DailyScheduleView({
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (!axisDragActive || isViewer) return;
 
-      const cell = (e.target as HTMLElement).closest(
-        "[data-slotinfo]",
-      ) as HTMLElement | null;
+      const cell = (e.target as HTMLElement).closest('[data-slotinfo]') as HTMLElement | null;
       const info = cell?.dataset.slotinfo;
       if (!info) {
         clearMouseDropSlot();
         return;
       }
 
-      const [userId, slotIndexStr] = info.split(":");
+      const [userId, slotIndexStr] = info.split(':');
       const slotIndex = parseInt(slotIndexStr, 10);
       // 점심시간은 빈 곳 드래그로도 못 만드는 자리다 — 받는 척하지 않는다
-      if (
-        !userId ||
-        Number.isNaN(slotIndex) ||
-        isBreakSlot(timeSlots[slotIndex] ?? "")
-      ) {
+      if (!userId || Number.isNaN(slotIndex) || isBreakSlot(timeSlots[slotIndex] ?? '')) {
         clearMouseDropSlot();
         return;
       }
@@ -1143,10 +1080,7 @@ export function DailyScheduleView({
           : {
               userId,
               startSlotIndex: slotIndex,
-              endSlotIndex: Math.min(
-                slotIndex + DROP_SLOT_SPAN - 1,
-                timeSlots.length - 1,
-              ),
+              endSlotIndex: Math.min(slotIndex + DROP_SLOT_SPAN - 1, timeSlots.length - 1),
             },
       );
     },
@@ -1154,7 +1088,7 @@ export function DailyScheduleView({
   );
 
   useAxisTransfer((detail) => {
-    if (detail.to !== "timeblock" || detail.from !== "workload") return;
+    if (detail.to !== 'timeblock' || detail.from !== 'workload') return;
     // targetDate가 실린 건 블록을 만든 뒤 우리가 되쏜 이벤트다 — 되받으면 블록이 두 번 생긴다
     if (detail.targetDate) return;
 
@@ -1164,12 +1098,7 @@ export function DailyScheduleView({
     // 시간 칸이 아닌 곳(시간 라벨 열 등)에서 놓았다면 몇 시인지 알 수 없다.
     // 이때는 아무것도 하지 않는다 — 이벤트를 안 쏘므로 바의 날짜도 그대로다.
     if (isViewer || !slot) return;
-    void placeDroppedItem(
-      detail.item,
-      slot.userId,
-      slot.startSlotIndex,
-      "workload",
-    );
+    void placeDroppedItem(detail.item, slot.userId, slot.startSlotIndex, 'workload');
   });
 
   /* ── 타임블록 → 배치 레일 ─────────────────────────────
@@ -1186,15 +1115,12 @@ export function DailyScheduleView({
       // 회의·커스텀 블록은 체크리스트 항목이 없어 돌아갈 자리(레일)가 없다
       if (!item || !taskId) {
         setDropError(
-          t(
-            "schedule.unplaceNotChecklist",
-            "체크리스트가 연결된 블록만 미배치로 뺄 수 있습니다.",
-          ),
+          t('schedule.unplaceNotChecklist', '체크리스트가 연결된 블록만 미배치로 뺄 수 있습니다.'),
         );
         return false;
       }
 
-      const dateStr = format(selectedDate, "yyyy-MM-dd");
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
       // 점심시간을 피하느라 쪼개진 조각까지 한 번에 지운다.
       // 하나만 지우면 나머지 조각이 남아 "뺐는데 아직 있는" 상태가 된다.
       const siblings = (blocksByUser.get(userId) ?? []).filter(
@@ -1221,8 +1147,8 @@ export function DailyScheduleView({
 
         setDropError(null);
         dispatchAxisDrop({
-          from: "timeblock",
-          to: "placement",
+          from: 'timeblock',
+          to: 'placement',
           item: {
             id: item.id,
             task_id: taskId,
@@ -1235,8 +1161,8 @@ export function DailyScheduleView({
         await loadSchedule();
         return true;
       } catch (error) {
-        console.error("Failed to unplace block:", error);
-        setDropError(t("schedule.unplaceFailed", "미배치로 빼지 못했습니다."));
+        console.error('Failed to unplace block:', error);
+        setDropError(t('schedule.unplaceFailed', '미배치로 빼지 못했습니다.'));
         // 조각을 지우다 중간에 실패했을 수 있다 — 남은 것을 그대로 보여 준다
         await loadSchedule();
         return false;
@@ -1266,9 +1192,7 @@ export function DailyScheduleView({
     const targetUserId =
       activeMembers.length === 1
         ? activeMembers[0].userId
-        : activeMembers.find(
-            (m) => m.userId === pendingTimeblockItem.assignee_id,
-          )?.userId;
+        : activeMembers.find((m) => m.userId === pendingTimeblockItem.assignee_id)?.userId;
 
     const item = pendingTimeblockItem;
     setPendingTimeblockItem(null);
@@ -1295,10 +1219,7 @@ export function DailyScheduleView({
   // 안 그러면 한참 뒤 다른 맥락에서 갑자기 블록이 생긴다.
   useEffect(() => {
     if (!pendingTimeblockItem) return;
-    const timer = window.setTimeout(
-      () => setPendingTimeblockItem(null),
-      15_000,
-    );
+    const timer = window.setTimeout(() => setPendingTimeblockItem(null), 15_000);
     return () => window.clearTimeout(timer);
   }, [pendingTimeblockItem]);
 
@@ -1336,12 +1257,11 @@ export function DailyScheduleView({
 
   // 현재 시간의 Y 위치 계산 (px) - 가변 슬롯 높이 반영
   const currentTimeTop = useMemo(() => {
-    if (!isToday || viewMode !== "day") return null;
+    if (!isToday || viewMode !== 'day') return null;
     const h = now.getHours();
     const m = now.getMinutes();
     const totalMin = h * 60 + m;
-    if (totalMin < workStartHour * 60 || totalMin > workEndHour * 60)
-      return null;
+    if (totalMin < workStartHour * 60 || totalMin > workEndHour * 60) return null;
     return minutesToPx(totalMin);
   }, [now, isToday, viewMode, workStartHour, workEndHour, minutesToPx]);
 
@@ -1350,23 +1270,19 @@ export function DailyScheduleView({
   const gridScrollRef = useRef<HTMLDivElement>(null);
   const hasScrolledRef = useRef(false);
   useEffect(() => {
-    if (
-      currentTimeTop != null &&
-      timeIndicatorRef.current &&
-      !hasScrolledRef.current
-    ) {
+    if (currentTimeTop != null && timeIndicatorRef.current && !hasScrolledRef.current) {
       if (embedded && gridScrollRef.current) {
         // 임베드(대시보드 위젯)에서는 scrollIntoView를 쓰면 상위 페이지까지 끌려 올라간다.
         // 그리드 컨테이너의 scrollTop만 직접 옮겨 위젯 안에서만 스크롤되게 한다.
         const el = gridScrollRef.current;
         el.scrollTo({
           top: Math.max(0, currentTimeTop - el.clientHeight / 2),
-          behavior: "smooth",
+          behavior: 'smooth',
         });
       } else {
         timeIndicatorRef.current.scrollIntoView({
-          block: "center",
-          behavior: "smooth",
+          block: 'center',
+          behavior: 'smooth',
         });
       }
       hasScrolledRef.current = true;
@@ -1380,15 +1296,15 @@ export function DailyScheduleView({
   // 모바일 터치 드래그 (long-press 400ms → 멀티슬롯 선택)
   useEffect(() => {
     const el = timeGridRef.current;
-    if (!el || isViewer || viewMode !== "day") return;
+    if (!el || isViewer || viewMode !== 'day') return;
 
     const handleTouchStart = (e: TouchEvent) => {
       const touch = e.touches[0];
       const target = e.target as HTMLElement;
-      const cell = target.closest("[data-slotinfo]") as HTMLElement | null;
+      const cell = target.closest('[data-slotinfo]') as HTMLElement | null;
       if (!cell) return;
 
-      const [userId, slotIndexStr] = cell.dataset.slotinfo!.split(":");
+      const [userId, slotIndexStr] = cell.dataset.slotinfo!.split(':');
       const slotIndex = parseInt(slotIndexStr, 10);
       const slotTime = timeSlots[slotIndex];
       if (isBreakSlot(slotTime)) return;
@@ -1424,8 +1340,7 @@ export function DailyScheduleView({
         // 긴 누르기 전에 움직이면 타이머 취소 (스크롤 허용)
         if (
           d.timer &&
-          (Math.abs(touch.clientX - d.startX) > 10 ||
-            Math.abs(touch.clientY - d.startY) > 10)
+          (Math.abs(touch.clientX - d.startX) > 10 || Math.abs(touch.clientY - d.startY) > 10)
         ) {
           clearTimeout(d.timer);
           d.timer = null;
@@ -1437,13 +1352,10 @@ export function DailyScheduleView({
       e.preventDefault();
       e.stopPropagation();
 
-      const target = document.elementFromPoint(
-        touch.clientX,
-        touch.clientY,
-      ) as HTMLElement | null;
-      const cell = target?.closest("[data-slotinfo]") as HTMLElement | null;
+      const target = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null;
+      const cell = target?.closest('[data-slotinfo]') as HTMLElement | null;
       if (cell && cell.dataset.slotinfo) {
-        const [userId, slotIndexStr] = cell.dataset.slotinfo.split(":");
+        const [userId, slotIndexStr] = cell.dataset.slotinfo.split(':');
         const slotIndex = parseInt(slotIndexStr, 10);
 
         // 같은 멤버 컬럼 내에서만 드래그 허용
@@ -1474,11 +1386,7 @@ export function DailyScheduleView({
           const rawEndTime = timeSlots[maxIndex + 1] || `${workEndHour}:00`;
 
           // 기존 블록 시간 제외 + 점심시간 분할
-          const segments = computeSegmentsRef.current(
-            d.startUserId,
-            rawStartTime,
-            rawEndTime,
-          );
+          const segments = computeSegmentsRef.current(d.startUserId, rawStartTime, rawEndTime);
           if (segments) {
             setPendingBlock({
               userId: d.startUserId,
@@ -1494,7 +1402,7 @@ export function DailyScheduleView({
       }
 
       d.active = false;
-      d.startUserId = "";
+      d.startUserId = '';
       d.startSlotIndex = -1;
       d.endSlotIndex = -1;
       setIsDragging(false);
@@ -1506,14 +1414,14 @@ export function DailyScheduleView({
       }, 300);
     };
 
-    el.addEventListener("touchstart", handleTouchStart, { passive: true });
-    el.addEventListener("touchmove", handleTouchMove, { passive: false });
-    el.addEventListener("touchend", handleTouchEnd, { passive: true });
+    el.addEventListener('touchstart', handleTouchStart, { passive: true });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEnd, { passive: true });
 
     return () => {
-      el.removeEventListener("touchstart", handleTouchStart);
-      el.removeEventListener("touchmove", handleTouchMove);
-      el.removeEventListener("touchend", handleTouchEnd);
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
       if (touchDragRef.current.timer) {
         clearTimeout(touchDragRef.current.timer);
       }
@@ -1534,9 +1442,7 @@ export function DailyScheduleView({
         prev.map((col) => ({
           ...col,
           blocks: col.blocks.map((b) =>
-            b.id === blockId
-              ? { ...b, start_time: startTime, end_time: endTime }
-              : b,
+            b.id === blockId ? { ...b, start_time: startTime, end_time: endTime } : b,
           ),
         })),
       );
@@ -1557,7 +1463,7 @@ export function DailyScheduleView({
           end_time: endTime,
         });
       } catch (error) {
-        console.error("[Schedule] Failed to update block:", error);
+        console.error('[Schedule] Failed to update block:', error);
       } finally {
         // 성공/실패 모두 서버 데이터로 동기화 (에러 시 원래 상태 복구)
         await loadSchedule();
@@ -1568,10 +1474,7 @@ export function DailyScheduleView({
 
   // 블록 분할 리사이즈/이동 처리 (점심시간을 걸칠 때)
   const handleBlockSplitResize = useCallback(
-    async (
-      blockId: string,
-      segments: Array<{ startTime: string; endTime: string }>,
-    ) => {
+    async (blockId: string, segments: Array<{ startTime: string; endTime: string }>) => {
       if (segments.length === 0) return;
 
       // 대상 블록과 사용자 찾기
@@ -1588,7 +1491,7 @@ export function DailyScheduleView({
       if (!targetBlock || !targetUserId) return;
 
       try {
-        const dateStr = format(selectedDate, "yyyy-MM-dd");
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
         // 첫 번째 세그먼트: 기존 블록 업데이트
         await scheduleAPI.updateBlock(boardId, blockId, {
@@ -1617,7 +1520,7 @@ export function DailyScheduleView({
           }
         }
       } catch (error) {
-        console.error("[Schedule] Failed to split block:", error);
+        console.error('[Schedule] Failed to split block:', error);
       } finally {
         await loadSchedule();
       }
@@ -1640,40 +1543,36 @@ export function DailyScheduleView({
       <div
         className={
           embedded
-            ? "flex items-center justify-between px-3 py-1.5 border-b border-foreground/[0.08] gap-2"
-            : "flex items-center justify-between px-3 md:px-6 py-2 md:py-3 bg-bridge-surface border-b border-bridge-border gap-2"
+            ? 'flex items-center justify-between px-3 py-1.5 border-b border-foreground/[0.08] gap-2'
+            : 'flex items-center justify-between px-3 md:px-6 py-2 md:py-3 bg-bridge-surface border-b border-bridge-border gap-2'
         }
       >
         <div
           className={
             embedded
-              ? "flex items-center gap-1 min-w-0 w-full"
-              : "flex items-center gap-2 md:gap-4 flex-wrap min-w-0"
+              ? 'flex items-center gap-1 min-w-0 w-full'
+              : 'flex items-center gap-2 md:gap-4 flex-wrap min-w-0'
           }
         >
           {/* 일/주 토글 — 임베드 모드에선 "오늘" 하루만 다루므로 감춘다 */}
           {!embedded && (
             <div
               className="flex bg-bridge-dark rounded-lg p-1 cursor-pointer"
-              onClick={() => setViewMode(viewMode === "day" ? "week" : "day")}
+              onClick={() => setViewMode(viewMode === 'day' ? 'week' : 'day')}
             >
               <span
                 className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                  viewMode === "day"
-                    ? "bg-bridge-surface-hover text-foreground"
-                    : "text-zinc-400"
+                  viewMode === 'day' ? 'bg-bridge-surface-hover text-foreground' : 'text-zinc-400'
                 }`}
               >
-                {t("dailySchedule.day")}
+                {t('dailySchedule.day')}
               </span>
               <span
                 className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                  viewMode === "week"
-                    ? "bg-bridge-surface-hover text-foreground"
-                    : "text-zinc-400"
+                  viewMode === 'week' ? 'bg-bridge-surface-hover text-foreground' : 'text-zinc-400'
                 }`}
               >
-                {t("dailySchedule.week")}
+                {t('dailySchedule.week')}
               </span>
             </div>
           )}
@@ -1690,15 +1589,15 @@ export function DailyScheduleView({
             <span
               className={
                 embedded
-                  ? "text-xs font-bold text-foreground text-center whitespace-nowrap"
-                  : "text-sm md:text-lg font-bold text-foreground min-w-0 sm:min-w-[280px] text-center whitespace-nowrap"
+                  ? 'text-xs font-bold text-foreground text-center whitespace-nowrap'
+                  : 'text-sm md:text-lg font-bold text-foreground min-w-0 sm:min-w-[280px] text-center whitespace-nowrap'
               }
             >
               {embedded
-                ? `${formatDate(selectedDate, "M/d")} (${dayOfWeek})`
-                : viewMode === "day"
-                  ? `${formatDate(selectedDate, t("dailySchedule.dateFormatDay"))} (${dayOfWeek})`
-                  : `${formatDate(weekDays[0], t("dailySchedule.dateFormatWeek"))} - ${formatDate(weekDays[6], t("dailySchedule.dateFormatWeek"))}`}
+                ? `${formatDate(selectedDate, 'M/d')} (${dayOfWeek})`
+                : viewMode === 'day'
+                  ? `${formatDate(selectedDate, t('dailySchedule.dateFormatDay'))} (${dayOfWeek})`
+                  : `${formatDate(weekDays[0], t('dailySchedule.dateFormatWeek'))} - ${formatDate(weekDays[6], t('dailySchedule.dateFormatWeek'))}`}
             </span>
             <Button
               variant="ghost"
@@ -1710,39 +1609,30 @@ export function DailyScheduleView({
             </Button>
           </div>
           <Button
-            variant={
-              (viewMode === "day" ? isToday : isTodayInWeek)
-                ? "default"
-                : "outline"
-            }
+            variant={(viewMode === 'day' ? isToday : isTodayInWeek) ? 'default' : 'outline'}
             size="sm"
             onClick={handleToday}
             className={`${
-              (viewMode === "day" ? isToday : isTodayInWeek)
-                ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white"
-                : "border-bridge-border text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-            } ${embedded ? "ml-auto h-6 px-2.5 text-xs" : ""}`}
+              (viewMode === 'day' ? isToday : isTodayInWeek)
+                ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white'
+                : 'border-bridge-border text-muted-foreground hover:bg-foreground/5 hover:text-foreground'
+            } ${embedded ? 'ml-auto h-6 px-2.5 text-xs' : ''}`}
           >
-            {t("dailySchedule.today")}
+            {t('dailySchedule.today')}
           </Button>
-          {isLoading && (
-            <Loader2 className="h-4 w-4 text-zinc-400 animate-spin" />
-          )}
+          {isLoading && <Loader2 className="h-4 w-4 text-zinc-400 animate-spin" />}
         </div>
-        {!embedded &&
-          (currentUserRole === "owner" || currentUserRole === "admin") && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSettingsModal(true)}
-              className="border-bridge-border text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-            >
-              <Settings className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">
-                {t("dailySchedule.settings")}
-              </span>
-            </Button>
-          )}
+        {!embedded && (currentUserRole === 'owner' || currentUserRole === 'admin') && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSettingsModal(true)}
+            className="border-bridge-border text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+          >
+            <Settings className="h-4 w-4 md:mr-2" />
+            <span className="hidden md:inline">{t('dailySchedule.settings')}</span>
+          </Button>
+        )}
       </div>
 
       {/*
@@ -1757,29 +1647,22 @@ export function DailyScheduleView({
           role="status"
           className="flex-none flex items-center gap-2 px-4 py-2 border-b border-foreground/[0.08] bg-foreground/[0.03]"
         >
-          <p className="text-xs truncate text-rose-600 dark:text-rose-400">
-            {dropError}
-          </p>
+          <p className="text-xs truncate text-rose-600 dark:text-rose-400">{dropError}</p>
         </div>
       )}
 
       {/* 타임블록 스케줄 그리드 + 상세 패널 */}
       <div className="flex-1 flex min-h-0">
-        <div
-          ref={gridScrollRef}
-          className="flex-1 overflow-auto custom-scrollbar min-w-0"
-        >
-          {viewMode === "day" ? (
+        <div ref={gridScrollRef} className="flex-1 overflow-auto custom-scrollbar min-w-0">
+          {viewMode === 'day' ? (
             /* 일 단위 뷰 */
             <div className={dayWrapClass}>
               {/* 헤더: 시간/블록 + 멤버 컬럼 — 임베드 모드는 내 열 하나뿐이라 감춘다 */}
               <div
-                className={`flex sticky top-0 bg-bridge-surface z-10 border-b border-bridge-border ${embedded ? "hidden" : ""}`}
+                className={`flex sticky top-0 bg-bridge-surface z-10 border-b border-bridge-border ${embedded ? 'hidden' : ''}`}
               >
                 <div className="w-14 md:w-20 flex-shrink-0 p-2 md:p-3 text-xs md:text-sm font-medium text-zinc-400 border-r border-bridge-border">
-                  {displayMode === "block"
-                    ? t("dailySchedule.block")
-                    : t("dailySchedule.time")}
+                  {displayMode === 'block' ? t('dailySchedule.block') : t('dailySchedule.time')}
                 </div>
                 {activeMembers.map((member) => (
                   <div
@@ -1790,10 +1673,7 @@ export function DailyScheduleView({
                       <div
                         className="w-8 h-8 rounded-full flex items-center justify-center text-sm text-white font-medium"
                         style={{
-                          backgroundColor: getAssigneeHex(
-                            member.name,
-                            member.assigneeColor,
-                          ),
+                          backgroundColor: getAssigneeHex(member.name, member.assigneeColor),
                         }}
                       >
                         {getInitials(member.name)}
@@ -1807,28 +1687,25 @@ export function DailyScheduleView({
                             <span
                               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0"
                               style={{
-                                backgroundColor: `${member.jobRole.color || "#6366F1"}26`,
-                                color: member.jobRole.color || "#6366F1",
+                                backgroundColor: `${member.jobRole.color || '#6366F1'}26`,
+                                color: member.jobRole.color || '#6366F1',
                               }}
-                              title={t("jobRole.title")}
+                              title={t('jobRole.title')}
                             >
                               <span
                                 className="w-1.5 h-1.5 rounded-full"
                                 style={{
-                                  backgroundColor:
-                                    member.jobRole.color || "#6366F1",
+                                  backgroundColor: member.jobRole.color || '#6366F1',
                                 }}
                               />
-                              <span className="truncate max-w-[80px]">
-                                {member.jobRole.name}
-                              </span>
+                              <span className="truncate max-w-[80px]">{member.jobRole.name}</span>
                             </span>
                           )}
                           <button
                             onClick={() => setSummaryMember(member)}
                             className="text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors shrink-0"
                           >
-                            {t("dailySummary.summaryButton")}
+                            {t('dailySummary.summaryButton')}
                           </button>
                         </div>
                       </div>
@@ -1837,7 +1714,7 @@ export function DailyScheduleView({
                 ))}
                 {activeMembers.length === 0 && (
                   <div className="flex-1 p-3 text-zinc-400 text-sm">
-                    {t("dailySchedule.noMembers")}
+                    {t('dailySchedule.noMembers')}
                   </div>
                 )}
               </div>
@@ -1867,26 +1744,18 @@ export function DailyScheduleView({
                           onToggleExpand={() => {
                             setExpandedChecklists((prev) => {
                               const next = new Set(prev);
-                              if (next.has(member.userId))
-                                next.delete(member.userId);
+                              if (next.has(member.userId)) next.delete(member.userId);
                               else next.add(member.userId);
                               return next;
                             });
                           }}
-                          onToggle={async (
-                            itemId,
-                            checklistItemId,
-                            taskId,
-                            newCompleted,
-                          ) => {
+                          onToggle={async (itemId, checklistItemId, taskId, newCompleted) => {
                             // 낙관적 업데이트 - 체크리스트
                             setDailyChecklists((prev) =>
                               prev.map((col) => ({
                                 ...col,
                                 items: col.items.map((i) =>
-                                  i.id === itemId
-                                    ? { ...i, completed: newCompleted }
-                                    : i,
+                                  i.id === itemId ? { ...i, completed: newCompleted } : i,
                                 ),
                               })),
                             );
@@ -1895,8 +1764,7 @@ export function DailyScheduleView({
                               prev.map((col) => ({
                                 ...col,
                                 blocks: col.blocks.map((b) =>
-                                  b.checklist_item &&
-                                  b.checklist_item.id === checklistItemId
+                                  b.checklist_item && b.checklist_item.id === checklistItemId
                                     ? {
                                         ...b,
                                         checklist_item: {
@@ -1909,20 +1777,14 @@ export function DailyScheduleView({
                               })),
                             );
                             try {
-                              await checklistAPI.toggleItem(
-                                boardId,
-                                taskId,
-                                checklistItemId,
-                              );
+                              await checklistAPI.toggleItem(boardId, taskId, checklistItemId);
                             } catch {
                               // 실패 시 원복
                               setDailyChecklists((prev) =>
                                 prev.map((col) => ({
                                   ...col,
                                   items: col.items.map((i) =>
-                                    i.id === itemId
-                                      ? { ...i, completed: !newCompleted }
-                                      : i,
+                                    i.id === itemId ? { ...i, completed: !newCompleted } : i,
                                   ),
                                 })),
                               );
@@ -1930,8 +1792,7 @@ export function DailyScheduleView({
                                 prev.map((col) => ({
                                   ...col,
                                   blocks: col.blocks.map((b) =>
-                                    b.checklist_item &&
-                                    b.checklist_item.id === checklistItemId
+                                    b.checklist_item && b.checklist_item.id === checklistItemId
                                       ? {
                                           ...b,
                                           checklist_item: {
@@ -1943,7 +1804,7 @@ export function DailyScheduleView({
                                   ),
                                 })),
                               );
-                              throw new Error("Toggle failed");
+                              throw new Error('Toggle failed');
                             }
                           }}
                           onRefresh={loadSchedule}
@@ -1974,32 +1835,26 @@ export function DailyScheduleView({
                   return (
                     <div
                       key={time}
-                      className={`flex border-b border-bridge-border ${isBreak ? "bg-amber-900/5" : ""}`}
+                      className={`flex border-b border-bridge-border ${isBreak ? 'bg-amber-900/5' : ''}`}
                       style={{
                         height: `${slotHeightData.heights[slotIndex]}px`,
                       }}
                     >
                       {/* 시간/블록 라벨 */}
                       <div
-                        className={`w-14 md:w-20 flex-shrink-0 p-2 text-[13px] font-medium border-r border-bridge-border bg-bridge-dark ${isBreak ? "text-amber-500/50" : "text-slate-400"}`}
+                        className={`w-14 md:w-20 flex-shrink-0 p-2 text-[13px] font-medium border-r border-bridge-border bg-bridge-dark ${isBreak ? 'text-amber-500/50' : 'text-slate-400'}`}
                       >
-                        {displayMode === "block"
+                        {displayMode === 'block'
                           ? `${slotIndex + 1}`
-                          : time.endsWith(":00")
+                          : time.endsWith(':00')
                             ? time
-                            : ""}
+                            : ''}
                       </div>
                       {/* 멤버별 시간 셀 */}
                       {activeMembers.map((member) => {
-                        const isSelected = isSlotSelected(
-                          member.userId,
-                          slotIndex,
-                        );
+                        const isSelected = isSlotSelected(member.userId, slotIndex);
                         // 미배치 항목이 놓일 자리 — 선택 하이라이트와 구분되게 액센트로 칠한다
-                        const isDropTarget = isDropPreviewSlot(
-                          member.userId,
-                          slotIndex,
-                        );
+                        const isDropTarget = isDropPreviewSlot(member.userId, slotIndex);
                         return (
                           <div
                             key={`${member.userId}-${time}`}
@@ -2007,42 +1862,36 @@ export function DailyScheduleView({
                             className={`${memberColClass} border-r border-bridge-border transition-colors group relative h-full ${
                               isBreak
                                 ? isDragging
-                                  ? "cursor-pointer"
-                                  : "cursor-not-allowed"
+                                  ? 'cursor-pointer'
+                                  : 'cursor-not-allowed'
                                 : isViewer
-                                  ? "cursor-default"
-                                  : "cursor-pointer"
+                                  ? 'cursor-default'
+                                  : 'cursor-pointer'
                             } ${
                               isDropTarget
-                                ? "bg-bridge-accent/20"
+                                ? 'bg-bridge-accent/20'
                                 : isBreak
                                   ? isSelected
-                                    ? "bg-bridge-secondary/5"
-                                    : ""
+                                    ? 'bg-bridge-secondary/5'
+                                    : ''
                                   : isSelected
-                                    ? "bg-bridge-secondary/20"
+                                    ? 'bg-bridge-secondary/20'
                                     : isViewer
-                                      ? ""
-                                      : "hover:bg-foreground/5"
+                                      ? ''
+                                      : 'hover:bg-foreground/5'
                             }`}
                             onMouseDown={
                               isBreak
                                 ? undefined
-                                : (e) =>
-                                    handleMouseDown(e, member.userId, slotIndex)
+                                : (e) => handleMouseDown(e, member.userId, slotIndex)
                             }
                             onMouseEnter={
                               isBreak && !isDragging
                                 ? undefined
-                                : () =>
-                                    handleMouseEnter(member.userId, slotIndex)
+                                : () => handleMouseEnter(member.userId, slotIndex)
                             }
-                            onDragOver={(e) =>
-                              handleSlotDragOver(e, member.userId, slotIndex)
-                            }
-                            onDrop={(e) =>
-                              handleSlotDrop(e, member.userId, slotIndex)
-                            }
+                            onDragOver={(e) => handleSlotDragOver(e, member.userId, slotIndex)}
+                            onDrop={(e) => handleSlotDrop(e, member.userId, slotIndex)}
                           >
                             {/* 점심시간 빗금 오버레이 */}
                             {isBreak && (
@@ -2050,7 +1899,7 @@ export function DailyScheduleView({
                                 className="absolute inset-0 opacity-20 pointer-events-none"
                                 style={{
                                   backgroundImage:
-                                    "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(245,158,11,0.15) 4px, rgba(245,158,11,0.15) 8px)",
+                                    'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(245,158,11,0.15) 4px, rgba(245,158,11,0.15) 8px)',
                                 }}
                               />
                             )}
@@ -2080,8 +1929,8 @@ export function DailyScheduleView({
                     {/* 왼쪽 시간 라벨 */}
                     <div className="w-14 md:w-20 flex-shrink-0 flex justify-end pr-1">
                       <span className="text-xs font-bold text-red-400 bg-red-500/20 px-1 rounded">
-                        {now.getHours().toString().padStart(2, "0")}:
-                        {now.getMinutes().toString().padStart(2, "0")}
+                        {now.getHours().toString().padStart(2, '0')}:
+                        {now.getMinutes().toString().padStart(2, '0')}
                       </span>
                     </div>
                     {/* 빨간 선 */}
@@ -2101,14 +1950,13 @@ export function DailyScheduleView({
                 */}
                 <div
                   className={`absolute top-0 left-14 md:left-20 right-0 pointer-events-none ${
-                    axisDragActive ? "[&_*]:pointer-events-none" : ""
+                    axisDragActive ? '[&_*]:pointer-events-none' : ''
                   }`}
                 >
                   <div className="flex">
                     {activeMembers.map((member) => {
                       const blocks = blocksByUser.get(member.userId) || [];
-                      const orgBlocks =
-                        orgBlocksByUser.get(member.userId) || [];
+                      const orgBlocks = orgBlocksByUser.get(member.userId) || [];
                       return (
                         <div
                           key={member.userId}
@@ -2132,13 +1980,9 @@ export function DailyScheduleView({
                               onResize={handleBlockResize}
                               onMove={handleBlockResize}
                               onSplitResize={handleBlockSplitResize}
-                              axisTargets={
-                                canUnplace && !isViewer
-                                  ? BLOCK_AXIS_TARGETS
-                                  : undefined
-                              }
+                              axisTargets={canUnplace && !isViewer ? BLOCK_AXIS_TARGETS : undefined}
                               onAxisDragOut={(zone) => {
-                                if (zone !== "placement") return;
+                                if (zone !== 'placement') return;
                                 void unplaceBlock(block, member.userId);
                               }}
                             />
@@ -2169,21 +2013,16 @@ export function DailyScheduleView({
                 {overlayMeetings.length > 0 && (
                   <div className="absolute top-0 left-14 md:left-20 right-0 pointer-events-none z-[5]">
                     {overlayMeetings.map((meeting) => {
-                      const startParts = meeting.start_time!.split(":");
-                      const endParts = meeting.end_time!.split(":");
-                      const startMinutes =
-                        parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
-                      let endMinutes =
-                        parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+                      const startParts = meeting.start_time!.split(':');
+                      const endParts = meeting.end_time!.split(':');
+                      const startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+                      let endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
                       // Overnight: cap to work end
                       if (endMinutes < startMinutes) {
                         endMinutes = workEndHour * 60;
                       }
                       const top = minutesToPx(startMinutes);
-                      const height = Math.max(
-                        minutesToPx(endMinutes) - top,
-                        slotH,
-                      );
+                      const height = Math.max(minutesToPx(endMinutes) - top, slotH);
 
                       if (top < 0) return null;
 
@@ -2197,11 +2036,7 @@ export function DailyScheduleView({
                             backgroundColor: `${meeting.color}15`,
                             borderColor: `${meeting.color}50`,
                           }}
-                          onClick={() =>
-                            navigate(
-                              `?view=meeting&date=${meeting.meeting_date}`,
-                            )
-                          }
+                          onClick={() => navigate(`?view=meeting&date=${meeting.meeting_date}`)}
                         >
                           <div className="flex items-center gap-1.5 px-3 py-1 overflow-hidden">
                             <div
@@ -2239,27 +2074,26 @@ export function DailyScheduleView({
                   멤버
                 </div>
                 {weekDays.map((day) => {
-                  const dateStr = format(day, "yyyy-MM-dd");
-                  const isCurrentDay =
-                    dateStr === format(new Date(), "yyyy-MM-dd");
+                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const isCurrentDay = dateStr === format(new Date(), 'yyyy-MM-dd');
                   const isHoliday = holidayMap.has(dateStr);
                   const dayOfWeek = day.getDay();
                   return (
                     <div
                       key={dateStr}
                       className={`w-28 md:w-36 flex-shrink-0 p-2 md:p-3 border-r border-bridge-border text-center ${
-                        isCurrentDay ? "bg-bridge-secondary/10" : ""
+                        isCurrentDay ? 'bg-bridge-secondary/10' : ''
                       }`}
                     >
                       <div
-                        className={`text-sm font-medium ${isCurrentDay ? "text-bridge-secondary" : isHoliday || dayOfWeek === 0 ? "text-red-400" : "text-foreground"}`}
+                        className={`text-sm font-medium ${isCurrentDay ? 'text-bridge-secondary' : isHoliday || dayOfWeek === 0 ? 'text-red-400' : 'text-foreground'}`}
                       >
-                        {formatDate(day, "E")}
+                        {formatDate(day, 'E')}
                       </div>
                       <div
-                        className={`text-xs ${isCurrentDay ? "text-bridge-secondary" : isHoliday || dayOfWeek === 0 ? "text-red-400" : "text-zinc-400"}`}
+                        className={`text-xs ${isCurrentDay ? 'text-bridge-secondary' : isHoliday || dayOfWeek === 0 ? 'text-red-400' : 'text-zinc-400'}`}
                       >
-                        {formatDate(day, "M/d")}
+                        {formatDate(day, 'M/d')}
                       </div>
                     </div>
                   );
@@ -2268,20 +2102,14 @@ export function DailyScheduleView({
 
               {/* 멤버별 행 */}
               {activeMembers.map((member) => (
-                <div
-                  key={member.userId}
-                  className="flex border-b border-bridge-border"
-                >
+                <div key={member.userId} className="flex border-b border-bridge-border">
                   {/* 멤버 정보 */}
                   <div className="w-24 md:w-32 flex-shrink-0 p-2 md:p-3 border-r border-bridge-border bg-bridge-dark">
                     <div className="flex items-center gap-2">
                       <div
                         className="w-8 h-8 rounded-full flex items-center justify-center text-sm text-white font-medium"
                         style={{
-                          backgroundColor: getAssigneeHex(
-                            member.name,
-                            member.assigneeColor,
-                          ),
+                          backgroundColor: getAssigneeHex(member.name, member.assigneeColor),
                         }}
                       >
                         {getInitials(member.name)}
@@ -2295,21 +2123,18 @@ export function DailyScheduleView({
                             <span
                               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0"
                               style={{
-                                backgroundColor: `${member.jobRole.color || "#6366F1"}26`,
-                                color: member.jobRole.color || "#6366F1",
+                                backgroundColor: `${member.jobRole.color || '#6366F1'}26`,
+                                color: member.jobRole.color || '#6366F1',
                               }}
-                              title={t("jobRole.title")}
+                              title={t('jobRole.title')}
                             >
                               <span
                                 className="w-1.5 h-1.5 rounded-full"
                                 style={{
-                                  backgroundColor:
-                                    member.jobRole.color || "#6366F1",
+                                  backgroundColor: member.jobRole.color || '#6366F1',
                                 }}
                               />
-                              <span className="truncate max-w-[60px]">
-                                {member.jobRole.name}
-                              </span>
+                              <span className="truncate max-w-[60px]">{member.jobRole.name}</span>
                             </span>
                           )}
                           <button
@@ -2324,13 +2149,10 @@ export function DailyScheduleView({
                   </div>
                   {/* 요일별 블록들 */}
                   {weekDays.map((day) => {
-                    const dateStr = format(day, "yyyy-MM-dd");
-                    const isCurrentDay =
-                      dateStr === format(new Date(), "yyyy-MM-dd");
+                    const dateStr = format(day, 'yyyy-MM-dd');
+                    const isCurrentDay = dateStr === format(new Date(), 'yyyy-MM-dd');
                     const dayColumns = weeklyData.get(dateStr) || [];
-                    const memberColumn = dayColumns.find(
-                      (col) => col.user.id === member.userId,
-                    );
+                    const memberColumn = dayColumns.find((col) => col.user.id === member.userId);
                     const blocks = memberColumn?.blocks || [];
                     const orgBlocks = memberColumn?.org_blocks || [];
 
@@ -2338,19 +2160,18 @@ export function DailyScheduleView({
                       <div
                         key={dateStr}
                         className={`w-28 md:w-36 flex-shrink-0 p-2 border-r border-bridge-border min-h-[100px] ${
-                          isCurrentDay ? "bg-bridge-secondary/8" : ""
+                          isCurrentDay ? 'bg-bridge-secondary/8' : ''
                         }`}
                       >
                         <div className="space-y-1">
                           {blocks.map((block) => {
-                            const isCustom = block.block_type === "CUSTOM";
+                            const isCustom = block.block_type === 'CUSTOM';
                             const hasMeeting = !!block.meeting;
                             const blockTitle = isCustom
-                              ? block.title || t("scheduleBlock.custom")
+                              ? block.title || t('scheduleBlock.custom')
                               : hasMeeting
                                 ? block.meeting!.title
-                                : block.checklist_item?.title ||
-                                  t("scheduleBlock.unlinked");
+                                : block.checklist_item?.title || t('scheduleBlock.unlinked');
                             const isCompleted = isCustom
                               ? false
                               : (block.checklist_item?.completed ?? false);
@@ -2362,36 +2183,34 @@ export function DailyScheduleView({
                             const threeDaysLater = new Date(today);
                             threeDaysLater.setDate(today.getDate() + 3);
 
-                            let blockBg = "bg-blue-500/30 hover:bg-blue-500/50";
-                            let timeColor = "text-blue-700 dark:text-blue-200";
+                            let blockBg = 'bg-blue-500/30 hover:bg-blue-500/50';
+                            let timeColor = 'text-blue-700 dark:text-blue-200';
                             let inlineStyle: Record<string, string> = {};
                             if (isCustom) {
-                              const color = block.color || "#F59E0B";
-                              blockBg = "hover:opacity-80";
-                              timeColor = "text-foreground/60";
+                              const color = block.color || '#F59E0B';
+                              blockBg = 'hover:opacity-80';
+                              timeColor = 'text-foreground/60';
                               inlineStyle = {
                                 backgroundColor: `${color}33`,
                                 borderLeft: `3px solid ${color}`,
                               };
                             } else if (hasMeeting && block.meeting?.color) {
                               const color = block.meeting.color;
-                              blockBg = "hover:opacity-80";
-                              timeColor = "text-foreground/60";
+                              blockBg = 'hover:opacity-80';
+                              timeColor = 'text-foreground/60';
                               inlineStyle = {
                                 backgroundColor: `${color}33`,
                                 borderLeft: `3px solid ${color}`,
                               };
                             } else if (isCompleted) {
-                              blockBg = "bg-green-500/30 hover:bg-green-500/50";
-                              timeColor = "text-green-700 dark:text-green-200";
+                              blockBg = 'bg-green-500/30 hover:bg-green-500/50';
+                              timeColor = 'text-green-700 dark:text-green-200';
                             } else if (dueDate && dueDate < today) {
-                              blockBg = "bg-red-500/30 hover:bg-red-500/50";
-                              timeColor = "text-red-700 dark:text-red-200";
+                              blockBg = 'bg-red-500/30 hover:bg-red-500/50';
+                              timeColor = 'text-red-700 dark:text-red-200';
                             } else if (dueDate && dueDate <= threeDaysLater) {
-                              blockBg =
-                                "bg-yellow-500/30 hover:bg-yellow-500/50";
-                              timeColor =
-                                "text-yellow-700 dark:text-yellow-200";
+                              blockBg = 'bg-yellow-500/30 hover:bg-yellow-500/50';
+                              timeColor = 'text-yellow-700 dark:text-yellow-200';
                             }
 
                             return (
@@ -2406,16 +2225,15 @@ export function DailyScheduleView({
                                 style={inlineStyle}
                               >
                                 <div
-                                  className={`text-xs text-foreground font-medium truncate ${isCompleted ? "line-through opacity-70" : ""}`}
+                                  className={`text-xs text-foreground font-medium truncate ${isCompleted ? 'line-through opacity-70' : ''}`}
                                 >
                                   {blockTitle}
                                 </div>
                                 <div className={`text-xs ${timeColor}`}>
-                                  {block.start_time.slice(0, 5)} -{" "}
-                                  {block.end_time.slice(0, 5)}
+                                  {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
                                   {block.end_time < block.start_time && (
                                     <span className="text-bridge-accent ml-0.5">
-                                      ({t("scheduleBlock.nextDay")})
+                                      ({t('scheduleBlock.nextDay')})
                                     </span>
                                   )}
                                 </div>
@@ -2425,12 +2243,11 @@ export function DailyScheduleView({
                           {/* Cross-board org schedule blocks (read-only, weekly view) */}
                           {orgBlocks.map((block) => {
                             const blockTitle =
-                              block.block_type === "CUSTOM"
-                                ? block.title || t("scheduleBlock.custom")
+                              block.block_type === 'CUSTOM'
+                                ? block.title || t('scheduleBlock.custom')
                                 : block.meeting
                                   ? block.meeting.title
-                                  : block.checklist_item?.title ||
-                                    t("scheduleBlock.unlinked");
+                                  : block.checklist_item?.title || t('scheduleBlock.unlinked');
 
                             return (
                               <div
@@ -2439,7 +2256,7 @@ export function DailyScheduleView({
                               >
                                 {block.board_name && (
                                   <span className="text-xs font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent truncate inline-block max-w-full mb-0.5">
-                                    {t("scheduleBlock.orgScheduleLabel", {
+                                    {t('scheduleBlock.orgScheduleLabel', {
                                       boardName: block.board_name,
                                     })}
                                   </span>
@@ -2448,16 +2265,13 @@ export function DailyScheduleView({
                                   {blockTitle}
                                 </div>
                                 <div className="text-xs text-slate-400">
-                                  {block.start_time.slice(0, 5)} -{" "}
-                                  {block.end_time.slice(0, 5)}
+                                  {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
                                 </div>
                               </div>
                             );
                           })}
                           {blocks.length === 0 && orgBlocks.length === 0 && (
-                            <div className="text-xs text-slate-400 text-center py-4">
-                              -
-                            </div>
+                            <div className="text-xs text-slate-400 text-center py-4">-</div>
                           )}
                         </div>
                       </div>
@@ -2466,9 +2280,7 @@ export function DailyScheduleView({
                 </div>
               ))}
               {activeMembers.length === 0 && (
-                <div className="p-6 text-slate-400 text-center">
-                  {t("dailySchedule.noMembers")}
-                </div>
+                <div className="p-6 text-slate-400 text-center">{t('dailySchedule.noMembers')}</div>
               )}
             </div>
           )}
@@ -2492,10 +2304,7 @@ export function DailyScheduleView({
                     // 먼저 끝내고 닫는다 — 패널이 먼저 사라지면 버튼의 진행 표시가 보이지 않는다.
                     // 블록이 지워져도 패널은 스스로 닫히지 않으므로 여기서 닫아 준다.
                     // 실패하면 열어 둔다 — 안내는 그리드 위 배너가 한다.
-                    const ok = await unplaceBlock(
-                      selectedBlock,
-                      selectedBlockOwnerId,
-                    );
+                    const ok = await unplaceBlock(selectedBlock, selectedBlockOwnerId);
                     if (ok) handleClosePanel();
                   }
             }
@@ -2513,10 +2322,10 @@ export function DailyScheduleView({
       <div className="px-3 md:px-6 py-2 md:py-3 bg-bridge-surface border-t border-bridge-border">
         <p className="text-sm text-slate-400">
           {isViewer
-            ? t("dailySchedule.viewerGuide")
-            : viewMode === "day"
-              ? t("dailySchedule.dragGuide")
-              : t("dailySchedule.clickGuide")}
+            ? t('dailySchedule.viewerGuide')
+            : viewMode === 'day'
+              ? t('dailySchedule.dragGuide')
+              : t('dailySchedule.clickGuide')}
         </p>
       </div>
 
@@ -2528,7 +2337,7 @@ export function DailyScheduleView({
           assigneeId={pendingBlock.userId}
           startTime={pendingBlock.startTime}
           endTime={pendingBlock.endTime}
-          selectedDate={format(selectedDate, "yyyy-MM-dd")}
+          selectedDate={format(selectedDate, 'yyyy-MM-dd')}
           displayMode={displayMode}
           startBlockIndex={pendingBlock.startSlotIndex}
           endBlockIndex={pendingBlock.endSlotIndex}
@@ -2558,15 +2367,15 @@ export function DailyScheduleView({
         <AddDailyChecklistModal
           boardId={boardId}
           assigneeId={addChecklistAssigneeId}
-          assignedDate={format(selectedDate, "yyyy-MM-dd")}
+          assignedDate={format(selectedDate, 'yyyy-MM-dd')}
           onAdd={() => {
             loadSchedule();
             setShowAddChecklistModal(false);
-            setAddChecklistAssigneeId("");
+            setAddChecklistAssigneeId('');
           }}
           onClose={() => {
             setShowAddChecklistModal(false);
-            setAddChecklistAssigneeId("");
+            setAddChecklistAssigneeId('');
           }}
         />
       )}
@@ -2579,26 +2388,19 @@ export function DailyScheduleView({
           currentDisplayMode={displayMode}
           currentBreakStartTime={settings.break_start_time}
           currentBreakEndTime={settings.break_end_time}
-          onSave={async (
-            startTime,
-            workHours,
-            newDisplayMode,
-            breakStart,
-            breakEnd,
-          ) => {
+          onSave={async (startTime, workHours, newDisplayMode, breakStart, breakEnd) => {
             try {
               await scheduleAPI.updateSettings(boardId, {
                 work_start_time: startTime,
                 work_hours_per_day: workHours,
-                schedule_display_mode:
-                  newDisplayMode === "block" ? "BLOCK" : "TIME",
+                schedule_display_mode: newDisplayMode === 'block' ? 'BLOCK' : 'TIME',
                 break_start_time: breakStart,
                 break_end_time: breakEnd,
               });
               await loadSchedule();
               setShowSettingsModal(false);
             } catch (error) {
-              console.error("Failed to update settings:", error);
+              console.error('Failed to update settings:', error);
             }
           }}
           onClose={() => setShowSettingsModal(false)}
@@ -2606,7 +2408,7 @@ export function DailyScheduleView({
       )}
 
       {/* 주간 요약 모달 */}
-      {summaryMember && viewMode === "week" && (
+      {summaryMember && viewMode === 'week' && (
         <WeeklySummaryModal
           boardId={boardId}
           member={summaryMember}
@@ -2617,7 +2419,7 @@ export function DailyScheduleView({
       )}
 
       {/* 일일 요약 모달 */}
-      {summaryMember && viewMode === "day" && (
+      {summaryMember && viewMode === 'day' && (
         <DailySummaryModal
           boardId={boardId}
           member={summaryMember}

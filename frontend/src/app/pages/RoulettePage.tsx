@@ -71,8 +71,8 @@ function RouletteContent() {
 
     try {
       const groups: ParticipantGroup[] = JSON.parse(savedGroups);
-      const matchingGroup = groups.find(group =>
-        arraysHaveSameElements(group.participants, participantList)
+      const matchingGroup = groups.find((group) =>
+        arraysHaveSameElements(group.participants, participantList),
       );
       return matchingGroup?.id || null;
     } catch {
@@ -204,7 +204,10 @@ function RouletteContent() {
       });
     } else {
       const text = encodeURIComponent(getShareMessage());
-      window.open(`https://story.kakao.com/share?url=${encodeURIComponent(siteUrl)}&text=${text}`, '_blank');
+      window.open(
+        `https://story.kakao.com/share?url=${encodeURIComponent(siteUrl)}&text=${text}`,
+        '_blank',
+      );
     }
   };
 
@@ -250,7 +253,9 @@ function RouletteContent() {
 
           <div className="flex items-center justify-center gap-2 sm:gap-3 mb-4">
             <Coffee className="w-8 h-8 sm:w-12 sm:h-12 text-amber-600 dark:text-amber-400" />
-            <h1 className="text-3xl sm:text-5xl font-bold text-gray-800 dark:text-gray-100">{t('appTitle')}</h1>
+            <h1 className="text-3xl sm:text-5xl font-bold text-gray-800 dark:text-gray-100">
+              {t('appTitle')}
+            </h1>
           </div>
           <p className="text-gray-600 dark:text-gray-400 text-base sm:text-lg">
             {t('appDescription')}
@@ -281,7 +286,9 @@ function RouletteContent() {
 
             {/* 사용 방법 */}
             <Card className="p-4 sm:p-6 bg-white/60 dark:bg-gray-800/60 backdrop-blur border-0 dark:border dark:border-gray-700 order-3 lg:order-2">
-              <h3 className="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3">{t('howToUse')}</h3>
+              <h3 className="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3">
+                {t('howToUse')}
+              </h3>
               <ol className="list-decimal list-inside space-y-1 sm:space-y-2 text-sm sm:text-base text-gray-700 dark:text-gray-300">
                 <li>{t('step1')}</li>
                 <li>{t('step2')}</li>
@@ -362,7 +369,9 @@ function RouletteContent() {
                     <p className="text-3xl sm:text-4xl font-bold mb-2">{winner}</p>
                     <p className="text-base sm:text-lg">{t('winnerAnnouncement')}</p>
                   </div>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">{t('coffeeRequest')}</p>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
+                    {t('coffeeRequest')}
+                  </p>
 
                   {/* 공유 버튼 */}
                   <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
@@ -402,17 +411,21 @@ function RouletteContent() {
                         const savedGroups = localStorage.getItem(STORAGE_KEY);
                         if (!savedGroups) return null;
                         const groups: ParticipantGroup[] = JSON.parse(savedGroups);
-                        const activeGroup = groups.find(g => g.id === activeGroupId);
-                        if (!activeGroup?.stats || Object.keys(activeGroup.stats).length === 0) return null;
+                        const activeGroup = groups.find((g) => g.id === activeGroupId);
+                        if (!activeGroup?.stats || Object.keys(activeGroup.stats).length === 0)
+                          return null;
 
-                        const sortedStats = Object.entries(activeGroup.stats)
-                          .sort(([, a], [, b]) => b - a);
+                        const sortedStats = Object.entries(activeGroup.stats).sort(
+                          ([, a], [, b]) => b - a,
+                        );
                         const totalWins = sortedStats.reduce((sum, [, count]) => sum + count, 0);
 
                         return (
                           <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-700">
                             <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 text-center font-medium">
-                              {activeGroup.name} {t('winRecordTitle')} ({t('totalRoundsLabel')} {totalWins}{t('roundsUnit')})
+                              {activeGroup.name} {t('winRecordTitle')} ({t('totalRoundsLabel')}{' '}
+                              {totalWins}
+                              {t('roundsUnit')})
                             </p>
                             <div className="flex flex-wrap gap-1 justify-center">
                               {sortedStats.map(([name, count]) => (
@@ -424,7 +437,8 @@ function RouletteContent() {
                                       : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600'
                                   }`}
                                 >
-                                  {name}: {count}{t('roundsUnit')}
+                                  {name}: {count}
+                                  {t('roundsUnit')}
                                 </span>
                               ))}
                             </div>
@@ -460,18 +474,28 @@ function RouletteContent() {
                   </p>
 
                   <div className="bg-amber-50 dark:bg-amber-900/30 rounded-lg p-4 mb-4 space-y-2">
-                    <p className="text-sm text-amber-800 dark:text-amber-200">{t('saveGroupPromptBenefit1')}</p>
-                    <p className="text-sm text-amber-800 dark:text-amber-200">{t('saveGroupPromptBenefit2')}</p>
-                    <p className="text-sm text-amber-800 dark:text-amber-200">{t('saveGroupPromptBenefit3')}</p>
+                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                      {t('saveGroupPromptBenefit1')}
+                    </p>
+                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                      {t('saveGroupPromptBenefit2')}
+                    </p>
+                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                      {t('saveGroupPromptBenefit3')}
+                    </p>
                   </div>
 
                   <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 mb-4">
                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                      {t('currentParticipants')}: {participants.length}{t('participants')}
+                      {t('currentParticipants')}: {participants.length}
+                      {t('participants')}
                     </p>
                     <div className="flex flex-wrap gap-1">
                       {participants.map((p, i) => (
-                        <span key={i} className="text-xs bg-white dark:bg-gray-600 px-2 py-1 rounded text-gray-700 dark:text-gray-200">
+                        <span
+                          key={i}
+                          className="text-xs bg-white dark:bg-gray-600 px-2 py-1 rounded text-gray-700 dark:text-gray-200"
+                        >
                           {p}
                         </span>
                       ))}

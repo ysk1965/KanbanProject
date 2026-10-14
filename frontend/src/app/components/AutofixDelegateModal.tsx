@@ -1,19 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, ClipboardEvent } from "react";
-import {
-  AlertTriangle,
-  Check,
-  FileVideo,
-  ImagePlus,
-  Loader2,
-  Sparkles,
-  X,
-} from "lucide-react";
-import { MotionModal } from "./ui/MotionModal";
-import { fileAPI, jiraAutofixAPI, JiraAutofixJob } from "../utils/api";
-import { ChecklistItem } from "../types";
-import { useAutofixRunnerStatus } from "../hooks/useAutofixRunnerStatus";
-import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ChangeEvent, ClipboardEvent } from 'react';
+import { AlertTriangle, Check, FileVideo, ImagePlus, Loader2, Sparkles, X } from 'lucide-react';
+import { MotionModal } from './ui/MotionModal';
+import { fileAPI, jiraAutofixAPI, JiraAutofixJob } from '../utils/api';
+import { ChecklistItem } from '../types';
+import { useAutofixRunnerStatus } from '../hooks/useAutofixRunnerStatus';
+import { getAssigneeHex, getInitials } from '../utils/assigneeColor';
 
 /**
  * 태스크나 체크리스트 항목을 맥(자동수정 러너)에 맡기는 모달.
@@ -42,7 +34,7 @@ interface AutofixDelegateModalProps {
 }
 
 /** 아직 결과가 정해지지 않은 상태 = 지금 맡길 수 없는 항목. */
-const LIVE_STATUSES = new Set(["QUEUED", "DISPATCHED"]);
+const LIVE_STATUSES = new Set(['QUEUED', 'DISPATCHED']);
 
 /**
  * 함께 보낼 자료의 상한. 서버(autofix.max-delegate-*)와 같은 값을 둔다 —
@@ -76,7 +68,7 @@ export function AutofixDelegateModal({
   onDelegated,
 }: AutofixDelegateModalProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [instruction, setInstruction] = useState("");
+  const [instruction, setInstruction] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<DelegateAttachment[]>([]);
@@ -94,7 +86,7 @@ export function AutofixDelegateModal({
   useEffect(() => {
     if (!open) return;
     setSelected(new Set(initialItemId ? [initialItemId] : []));
-    setInstruction("");
+    setInstruction('');
     setError(null);
     attachmentsRef.current.forEach((a) => URL.revokeObjectURL(a.previewUrl));
     setAttachments([]);
@@ -152,8 +144,8 @@ export function AutofixDelegateModal({
 
     for (const file of picked) {
       if (accepted.length >= room) break;
-      const isImage = file.type.startsWith("image/");
-      const isVideo = file.type.startsWith("video/");
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
       if (!isImage && !isVideo) {
         notMedia = true;
         continue;
@@ -181,7 +173,7 @@ export function AutofixDelegateModal({
       tooLarge
         ? `${MAX_FILE_MB}MB가 넘는 파일은 빼고 올렸습니다`
         : notMedia
-          ? "이미지나 영상만 올릴 수 있습니다"
+          ? '이미지나 영상만 올릴 수 있습니다'
           : picked.length > room
             ? `${MAX_FILES}개까지만 올릴 수 있어 나머지는 뺐습니다`
             : null,
@@ -195,19 +187,13 @@ export function AutofixDelegateModal({
         .smartUpload(file)
         .then(({ tempKey }) =>
           setAttachments((prev) =>
-            prev.map((a) =>
-              a.localId === att.localId
-                ? { ...a, tempKey, uploading: false }
-                : a,
-            ),
+            prev.map((a) => (a.localId === att.localId ? { ...a, tempKey, uploading: false } : a)),
           ),
         )
         .catch(() =>
           setAttachments((prev) =>
             prev.map((a) =>
-              a.localId === att.localId
-                ? { ...a, uploading: false, failed: true }
-                : a,
+              a.localId === att.localId ? { ...a, uploading: false, failed: true } : a,
             ),
           ),
         );
@@ -218,7 +204,7 @@ export function AutofixDelegateModal({
     (e: ChangeEvent<HTMLInputElement>) => {
       addFiles(Array.from(e.target.files ?? []));
       // 같은 파일을 지웠다가 다시 고를 수 있어야 한다 — 비우지 않으면 change가 안 뜬다.
-      e.target.value = "";
+      e.target.value = '';
     },
     [addFiles],
   );
@@ -259,9 +245,7 @@ export function AutofixDelegateModal({
     setSubmitting(true);
     setError(null);
     try {
-      const fileKeys = attachments
-        .map((a) => a.tempKey)
-        .filter((k): k is string => !!k);
+      const fileKeys = attachments.map((a) => a.tempKey).filter((k): k is string => !!k);
 
       const result = await jiraAutofixAPI.delegate(boardId, {
         task_id: taskId,
@@ -272,7 +256,7 @@ export function AutofixDelegateModal({
       onDelegated?.(result.queued);
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "맡기지 못했습니다");
+      setError(e instanceof Error ? e.message : '맡기지 못했습니다');
     } finally {
       setSubmitting(false);
     }
@@ -288,7 +272,7 @@ export function AutofixDelegateModal({
     onClose,
   ]);
 
-  const submitLabel = wholeTask ? "맡기기" : `${selected.size}건 맡기기`;
+  const submitLabel = wholeTask ? '맡기기' : `${selected.size}건 맡기기`;
 
   return (
     <MotionModal
@@ -326,9 +310,7 @@ export function AutofixDelegateModal({
             맥락으로 함께 나갑니다
           </p>
           <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] px-3 py-2.5">
-            <p className="text-xs font-medium text-foreground line-clamp-2">
-              {taskTitle}
-            </p>
+            <p className="text-xs font-medium text-foreground line-clamp-2">{taskTitle}</p>
             {runner.status?.repo_full_name && (
               <p className="text-xs text-slate-500 mt-1 break-all">
                 {runner.status.repo_full_name}
@@ -344,7 +326,7 @@ export function AutofixDelegateModal({
                 무엇을 맡길까요
               </p>
               <span className="ml-auto text-xs text-bridge-accent font-bold tabular-nums">
-                {wholeTask ? "태스크 전체" : `${selected.size}개 선택`}
+                {wholeTask ? '태스크 전체' : `${selected.size}개 선택`}
               </span>
             </div>
 
@@ -353,9 +335,7 @@ export function AutofixDelegateModal({
                 const locked = lockedIds.has(item.id);
                 const pending = pendingByChecklistItem?.get(item.id);
                 const on = selected.has(item.id);
-                const hex = item.assignee
-                  ? getAssigneeHex(item.assignee.name)
-                  : null;
+                const hex = item.assignee ? getAssigneeHex(item.assignee.name) : null;
 
                 return (
                   <button
@@ -366,27 +346,23 @@ export function AutofixDelegateModal({
                     aria-pressed={on}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 text-left border-b border-foreground/[0.06] last:border-b-0 transition-colors ${
                       locked
-                        ? "opacity-50 cursor-default"
+                        ? 'opacity-50 cursor-default'
                         : on
-                          ? "bg-bridge-accent/[0.07] hover:bg-bridge-accent/10"
-                          : "hover:bg-foreground/5"
+                          ? 'bg-bridge-accent/[0.07] hover:bg-bridge-accent/10'
+                          : 'hover:bg-foreground/5'
                     }`}
                   >
                     <span
                       className={`w-3.5 h-3.5 rounded shrink-0 border grid place-items-center ${
-                        on
-                          ? "bg-bridge-accent border-bridge-accent"
-                          : "border-slate-500"
-                      } ${locked ? "invisible" : ""}`}
+                        on ? 'bg-bridge-accent border-bridge-accent' : 'border-slate-500'
+                      } ${locked ? 'invisible' : ''}`}
                     >
                       {on && <Check className="w-2.5 h-2.5 text-white" />}
                     </span>
 
                     <span
                       className={`text-xs truncate ${
-                        item.completed
-                          ? "text-slate-500 line-through"
-                          : "text-foreground"
+                        item.completed ? 'text-slate-500 line-through' : 'text-foreground'
                       }`}
                     >
                       {item.title}
@@ -400,9 +376,7 @@ export function AutofixDelegateModal({
                       )}
                       {locked && (
                         <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
-                          {pending?.status === "DISPATCHED"
-                            ? "맥 작업 중"
-                            : "맥 대기"}
+                          {pending?.status === 'DISPATCHED' ? '맥 작업 중' : '맥 대기'}
                         </span>
                       )}
                       {/* 담당자는 대개 맡기는 사람 자신이다. 막지 않고 보여주기만 한다. */}
@@ -447,13 +421,11 @@ export function AutofixDelegateModal({
             <p className="text-xs text-slate-500 leading-relaxed">
               {selected.size > 1
                 ? `선택한 ${selected.size}개 항목에 같은 지시${
-                    attachments.length > 0 ? "와 자료가" : "가"
+                    attachments.length > 0 ? '와 자료가' : '가'
                   } 전달됩니다.`
-                : ""}
+                : ''}
             </p>
-            <span className="text-xs text-slate-500 tabular-nums">
-              {instruction.length} / 4000
-            </span>
+            <span className="text-xs text-slate-500 tabular-nums">{instruction.length} / 4000</span>
           </div>
         </div>
 
@@ -476,7 +448,7 @@ export function AutofixDelegateModal({
               <div
                 key={att.localId}
                 className={`relative w-20 h-20 rounded-xl overflow-hidden border ${
-                  att.failed ? "border-rose-500/50" : "border-foreground/10"
+                  att.failed ? 'border-rose-500/50' : 'border-foreground/10'
                 } bg-foreground/[0.03]`}
               >
                 {att.isVideo ? (
@@ -484,11 +456,7 @@ export function AutofixDelegateModal({
                     <FileVideo className="w-6 h-6" />
                   </div>
                 ) : (
-                  <img
-                    src={att.previewUrl}
-                    alt={att.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={att.previewUrl} alt={att.name} className="w-full h-full object-cover" />
                 )}
 
                 {/* 올라가는 중과 실패를 타일 위에 덮는다. 목록 밖에 적으면 어느 파일인지 알 수 없다. */}
@@ -550,7 +518,7 @@ export function AutofixDelegateModal({
 
           <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
             {failedFiles
-              ? "올리지 못한 첨부가 있습니다. 빼거나 다시 올려주세요."
+              ? '올리지 못한 첨부가 있습니다. 빼거나 다시 올려주세요.'
               : `스크린샷은 지시문 칸에 붙여넣어도 됩니다. 영상은 장면을 뽑아 함께 봅니다 (파일당 ${MAX_FILE_MB}MB).`}
           </p>
         </div>
@@ -581,15 +549,13 @@ export function AutofixDelegateModal({
         {!wholeTask && selected.size > 1 && (
           <div className="flex gap-2 items-start px-3 py-2.5 rounded-xl bg-foreground/[0.03] text-slate-400">
             <p className="text-xs leading-relaxed">
-              항목마다 <b className="text-foreground">PR이 따로</b> 열립니다.
-              하나가 실패해도 나머지는 그대로 진행됩니다.
+              항목마다 <b className="text-foreground">PR이 따로</b> 열립니다. 하나가 실패해도
+              나머지는 그대로 진행됩니다.
             </p>
           </div>
         )}
 
-        {error && (
-          <p className="text-xs text-rose-500 leading-relaxed">{error}</p>
-        )}
+        {error && <p className="text-xs text-rose-500 leading-relaxed">{error}</p>}
       </div>
 
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
@@ -597,7 +563,7 @@ export function AutofixDelegateModal({
         <div className="flex items-center gap-2.5">
           {/* 버튼이 꺼져 있는 이유를 옆에 둔다 — 이유 없이 눌리지 않는 버튼은 고장으로 읽힌다. */}
           <span className="text-xs text-slate-600">
-            {uploadingFiles ? "첨부 올리는 중" : "PR까지만 만듭니다"}
+            {uploadingFiles ? '첨부 올리는 중' : 'PR까지만 만듭니다'}
           </span>
           <button
             type="button"

@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { motion } from "framer-motion";
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
 import {
   Target,
   Building2,
@@ -12,13 +12,13 @@ import {
   Loader2,
   BarChart3,
   type LucideIcon,
-} from "lucide-react";
-import { MotionModal } from "../../ui/MotionModal";
-import { okrService } from "../../../utils/services";
-import type { OkrObjective, OkrKeyResult, OkrCheckIn } from "../../../types";
-import { OkrProgressBar } from "./OkrProgressBar";
-import { OkrConfidenceBadge } from "./OkrConfidenceBadge";
-import { formatRelativeTime } from "../../../utils/dateUtils";
+} from 'lucide-react';
+import { MotionModal } from '../../ui/MotionModal';
+import { okrService } from '../../../utils/services';
+import type { OkrObjective, OkrKeyResult, OkrCheckIn } from '../../../types';
+import { OkrProgressBar } from './OkrProgressBar';
+import { OkrConfidenceBadge } from './OkrConfidenceBadge';
+import { formatRelativeTime } from '../../../utils/dateUtils';
 
 interface OkrObjectiveModalProps {
   open: boolean;
@@ -38,10 +38,7 @@ const levelIcons: Record<string, LucideIcon> = {
   INDIVIDUAL: User,
 };
 
-function findObjective(
-  objectives: OkrObjective[],
-  id: string,
-): OkrObjective | null {
+function findObjective(objectives: OkrObjective[], id: string): OkrObjective | null {
   for (const obj of objectives) {
     if (obj.id === id) return obj;
     if (obj.children) {
@@ -81,7 +78,7 @@ export function OkrObjectiveModal({
       const data = await okrService.getCheckIns(orgId, krId);
       setCheckIns((prev) => ({ ...prev, [krId]: data }));
     } catch (e) {
-      console.warn("Failed to load check-ins:", e);
+      console.warn('Failed to load check-ins:', e);
     } finally {
       setLoadingCheckIns(null);
     }
@@ -89,17 +86,14 @@ export function OkrObjectiveModal({
 
   // Delete objective
   const handleDelete = async () => {
-    if (
-      !confirm(t("okr.confirmDelete", "Are you sure you want to delete?"))
-    )
-      return;
+    if (!confirm(t('okr.confirmDelete', 'Are you sure you want to delete?'))) return;
     setDeleting(true);
     try {
       await okrService.deleteObjective(orgId, objectiveId);
       onRefresh();
       onClose();
     } catch (e) {
-      console.warn("Failed to delete objective:", e);
+      console.warn('Failed to delete objective:', e);
     } finally {
       setDeleting(false);
     }
@@ -113,17 +107,11 @@ export function OkrObjectiveModal({
           <LevelIcon size={18} className="text-bridge-accent" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-bold text-foreground truncate">
-            {objective.title}
-          </div>
+          <div className="text-sm font-bold text-foreground truncate">{objective.title}</div>
           <div className="text-xs text-slate-400">
             {objective.department_name ||
-              t(
-                `okr.level.${objective.level.toLowerCase()}`,
-                objective.level,
-              )}
-            {objective.owner &&
-              ` · ${t("okr.owner", "Owner")}: ${objective.owner.user_name}`}
+              t(`okr.level.${objective.level.toLowerCase()}`, objective.level)}
+            {objective.owner && ` · ${t('okr.owner', 'Owner')}: ${objective.owner.user_name}`}
           </div>
         </div>
         <OkrConfidenceBadge confidence={objective.confidence} size="md" />
@@ -135,7 +123,7 @@ export function OkrObjectiveModal({
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              {t("okr.progress", "Progress")}
+              {t('okr.progress', 'Progress')}
             </span>
             <span className="text-sm font-bold text-foreground">
               {Math.round(objective.progress)}%
@@ -145,15 +133,12 @@ export function OkrObjectiveModal({
         </div>
 
         {/* Description */}
-        {objective.description && (
-          <p className="text-sm text-slate-400">{objective.description}</p>
-        )}
+        {objective.description && <p className="text-sm text-slate-400">{objective.description}</p>}
 
         {/* Key Results */}
         <div>
           <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
-            {t("okr.keyResult", "Key Results")} (
-            {objective.key_results?.length || 0})
+            {t('okr.keyResult', 'Key Results')} ({objective.key_results?.length || 0})
           </div>
           <div className="space-y-3">
             {objective.key_results?.map((kr, idx) => (
@@ -171,7 +156,7 @@ export function OkrObjectiveModal({
             ))}
             {(!objective.key_results || objective.key_results.length === 0) && (
               <div className="text-xs text-slate-500 text-center py-4">
-                {t("okr.noKeyResults", "No key results")}
+                {t('okr.noKeyResults', 'No key results')}
               </div>
             )}
           </div>
@@ -181,8 +166,7 @@ export function OkrObjectiveModal({
         {objective.children && objective.children.length > 0 && (
           <div>
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
-              {t("okr.childObjectives", "Child Objectives")} (
-              {objective.children.length})
+              {t('okr.childObjectives', 'Child Objectives')} ({objective.children.length})
             </div>
             <div className="space-y-2">
               {objective.children.map((child) => {
@@ -193,10 +177,7 @@ export function OkrObjectiveModal({
                     className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-foreground/5 cursor-pointer transition-colors"
                   >
                     <div className="w-6 h-6 rounded-full bg-bridge-accent/10 flex items-center justify-center shrink-0">
-                      <ChildIcon
-                        size={10}
-                        className="text-bridge-accent"
-                      />
+                      <ChildIcon size={10} className="text-bridge-accent" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-bold text-foreground truncate">
@@ -209,10 +190,7 @@ export function OkrObjectiveModal({
                     <span className="text-xs font-bold text-foreground">
                       {Math.round(child.progress)}%
                     </span>
-                    <OkrConfidenceBadge
-                      confidence={child.confidence}
-                      size="sm"
-                    />
+                    <OkrConfidenceBadge confidence={child.confidence} size="sm" />
                   </div>
                 );
               })}
@@ -223,9 +201,7 @@ export function OkrObjectiveModal({
 
       {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-xs text-slate-500">
-          Esc {t("okr.cancel", "Cancel")}
-        </span>
+        <span className="text-xs text-slate-500">Esc {t('okr.cancel', 'Cancel')}</span>
         <div className="flex items-center gap-2">
           {isAdmin && (
             <>
@@ -234,11 +210,7 @@ export function OkrObjectiveModal({
                 disabled={deleting}
                 className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
               >
-                {deleting ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Trash2 size={14} />
-                )}
+                {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
               </button>
               <button
                 onClick={() => {
@@ -249,7 +221,7 @@ export function OkrObjectiveModal({
                   bg-foreground/5 hover:bg-foreground/10 rounded-lg transition-colors"
               >
                 <Edit3 size={12} />
-                {t("okr.editObjective", "Edit")}
+                {t('okr.editObjective', 'Edit')}
               </button>
             </>
           )}
@@ -289,9 +261,7 @@ function KrDetailCard({
           100,
           Math.max(
             0,
-            ((kr.current_value - kr.start_value) /
-              (kr.target_value - kr.start_value)) *
-              100,
+            ((kr.current_value - kr.start_value) / (kr.target_value - kr.start_value)) * 100,
           ),
         );
 
@@ -305,17 +275,14 @@ function KrDetailCard({
       <div className="flex items-center justify-between mb-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <BarChart3
-              size={12}
-              className="text-bridge-secondary shrink-0"
-            />
+            <BarChart3 size={12} className="text-bridge-secondary shrink-0" />
             <span className="text-xs font-bold text-foreground truncate">
               {idx + 1}. {kr.title}
             </span>
           </div>
           {kr.owner && (
             <div className="text-xs text-slate-400 mt-0.5">
-              {t("okr.owner", "Owner")}: {kr.owner.user_name}
+              {t('okr.owner', 'Owner')}: {kr.owner.user_name}
             </div>
           )}
         </div>
@@ -326,7 +293,7 @@ function KrDetailCard({
               hover:bg-bridge-accent/10 rounded-lg transition-colors shrink-0"
           >
             <PlusCircle size={12} />
-            {t("okr.addCheckin", "Check-in")}
+            {t('okr.addCheckin', 'Check-in')}
           </button>
         )}
       </div>
@@ -336,7 +303,7 @@ function KrDetailCard({
         <OkrProgressBar progress={progress} size="md" animated />
         <span className="text-xs font-bold text-bridge-accent shrink-0">
           {kr.current_value}/{kr.target_value}
-          {kr.unit ? ` ${kr.unit}` : ""}
+          {kr.unit ? ` ${kr.unit}` : ''}
         </span>
       </div>
 
@@ -347,12 +314,10 @@ function KrDetailCard({
           className="text-xs text-slate-400 hover:text-foreground transition-colors"
         >
           {checkIns
-            ? `${t("okr.checkinHistory", "Check-in History")} (${checkIns.length})`
-            : t("okr.checkinHistory", "Check-in History")}
+            ? `${t('okr.checkinHistory', 'Check-in History')} (${checkIns.length})`
+            : t('okr.checkinHistory', 'Check-in History')}
         </button>
-        {loadingCheckIns && (
-          <Loader2 className="w-3 h-3 animate-spin text-bridge-accent" />
-        )}
+        {loadingCheckIns && <Loader2 className="w-3 h-3 animate-spin text-bridge-accent" />}
       </div>
 
       {/* Check-in list */}
@@ -360,21 +325,13 @@ function KrDetailCard({
         <div className="mt-2 space-y-1 border-t border-foreground/[0.06] pt-2">
           {checkIns.map((ci) => (
             <div key={ci.id} className="flex items-center gap-2 text-xs">
-              <span className="text-slate-500 shrink-0">
-                {formatRelativeTime(ci.created_at)}
-              </span>
-              <span className="text-foreground font-medium">
-                {ci.author.user_name}
-              </span>
+              <span className="text-slate-500 shrink-0">{formatRelativeTime(ci.created_at)}</span>
+              <span className="text-foreground font-medium">{ci.author.user_name}</span>
               <span className="text-slate-400">
                 {ci.previous_value} &rarr; {ci.new_value}
               </span>
               <OkrConfidenceBadge confidence={ci.confidence} size="sm" />
-              {ci.note && (
-                <span className="text-slate-500 truncate">
-                  &ldquo;{ci.note}&rdquo;
-                </span>
-              )}
+              {ci.note && <span className="text-slate-500 truncate">&ldquo;{ci.note}&rdquo;</span>}
             </div>
           ))}
         </div>

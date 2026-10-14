@@ -92,7 +92,10 @@ export function NightShutdownPage({ onRetry }: NightShutdownPageProps) {
       {/* Night Sky Background */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-indigo-900/30 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-bridge-secondary/10 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
+        <div
+          className="absolute bottom-1/4 -right-32 w-96 h-96 bg-bridge-secondary/10 rounded-full blur-[120px] animate-pulse"
+          style={{ animationDelay: '1s' }}
+        />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[150px]" />
 
         {/* Stars */}
@@ -123,10 +126,22 @@ export function NightShutdownPage({ onRetry }: NightShutdownPageProps) {
         {/* Moon Icon */}
         <div className="relative inline-flex items-center justify-center mb-10">
           <svg className="w-32 h-32 -rotate-90">
-            <circle cx="64" cy="64" r="58" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4" />
             <circle
-              cx="64" cy="64" r="58" fill="none"
-              stroke="url(#nightGradient)" strokeWidth="4" strokeLinecap="round"
+              cx="64"
+              cy="64"
+              r="58"
+              fill="none"
+              stroke="rgba(255,255,255,0.05)"
+              strokeWidth="4"
+            />
+            <circle
+              cx="64"
+              cy="64"
+              r="58"
+              fill="none"
+              stroke="url(#nightGradient)"
+              strokeWidth="4"
+              strokeLinecap="round"
               strokeDasharray={`${2 * Math.PI * 58}`}
               strokeDashoffset={`${2 * Math.PI * 58 * (1 - progress / 100)}`}
               className="transition-all duration-1000 ease-out"
@@ -170,25 +185,37 @@ export function NightShutdownPage({ onRetry }: NightShutdownPageProps) {
               <>
                 <div className="flex flex-col items-center">
                   <div className="bg-gradient-to-b from-white/10 to-white/5 rounded-xl px-4 py-3 min-w-[72px] border border-foreground/10">
-                    <span className="text-3xl font-bold text-foreground font-mono">{pad(countdown.hours)}</span>
+                    <span className="text-3xl font-bold text-foreground font-mono">
+                      {pad(countdown.hours)}
+                    </span>
                   </div>
-                  <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">{t('nightShutdown.hours')}</span>
+                  <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">
+                    {t('nightShutdown.hours')}
+                  </span>
                 </div>
                 <span className="text-2xl text-slate-600 font-normal mb-5">:</span>
               </>
             )}
             <div className="flex flex-col items-center">
               <div className="bg-gradient-to-b from-white/10 to-white/5 rounded-xl px-4 py-3 min-w-[72px] border border-foreground/10">
-                <span className="text-3xl font-bold text-white font-mono">{pad(countdown.minutes)}</span>
+                <span className="text-3xl font-bold text-white font-mono">
+                  {pad(countdown.minutes)}
+                </span>
               </div>
-              <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">{t('nightShutdown.minutes')}</span>
+              <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">
+                {t('nightShutdown.minutes')}
+              </span>
             </div>
             <span className="text-2xl text-slate-600 font-normal mb-5">:</span>
             <div className="flex flex-col items-center">
               <div className="bg-gradient-to-b from-white/10 to-white/5 rounded-xl px-4 py-3 min-w-[72px] border border-foreground/10">
-                <span className="text-3xl font-bold text-bridge-secondary font-mono">{pad(countdown.seconds)}</span>
+                <span className="text-3xl font-bold text-bridge-secondary font-mono">
+                  {pad(countdown.seconds)}
+                </span>
               </div>
-              <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">{t('nightShutdown.seconds')}</span>
+              <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">
+                {t('nightShutdown.seconds')}
+              </span>
             </div>
           </div>
 
@@ -203,7 +230,9 @@ export function NightShutdownPage({ onRetry }: NightShutdownPageProps) {
 
           {/* Schedule Bar */}
           <div className="mt-6 pt-5 border-t border-foreground/[0.08]">
-            <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">{t('nightShutdown.schedule')}</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">
+              {t('nightShutdown.schedule')}
+            </p>
             <div className="relative h-6 bg-foreground/5 rounded-full overflow-hidden">
               {/* Active period: 08:30~다음날 03:30 (점검 03:30~08:30 제외) */}
               <div
@@ -215,8 +244,12 @@ export function NightShutdownPage({ onRetry }: NightShutdownPageProps) {
                 style={{ left: '35.417%', width: '64.583%' }}
               />
               {/* Labels (점검 시작/종료) */}
-              <span className="absolute left-[14.583%] -translate-x-1/2 top-full mt-1 text-xs text-slate-500">03:30</span>
-              <span className="absolute left-[35.417%] -translate-x-1/2 top-full mt-1 text-xs text-slate-500">08:30</span>
+              <span className="absolute left-[14.583%] -translate-x-1/2 top-full mt-1 text-xs text-slate-500">
+                03:30
+              </span>
+              <span className="absolute left-[35.417%] -translate-x-1/2 top-full mt-1 text-xs text-slate-500">
+                08:30
+              </span>
               {/* Current time marker */}
               <div
                 className="absolute top-0 h-full w-0.5 bg-red-400/80"
@@ -239,7 +272,9 @@ export function NightShutdownPage({ onRetry }: NightShutdownPageProps) {
           className="group inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-bridge-accent to-bridge-secondary text-white rounded-2xl font-bold text-lg
             hover:shadow-[0_0_40px_rgba(45,212,191,0.3)] hover:scale-105 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          <RefreshCw className={`h-5 w-5 transition-transform ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180'}`} />
+          <RefreshCw
+            className={`h-5 w-5 transition-transform ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180'}`}
+          />
           {isRefreshing ? t('nightShutdown.checking') : t('nightShutdown.checkNow')}
         </button>
 

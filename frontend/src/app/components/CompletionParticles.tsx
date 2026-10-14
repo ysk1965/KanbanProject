@@ -13,7 +13,11 @@ function rand(min: number, max: number) {
   return Math.random() * (max - min) + min;
 }
 
-export function CompletionParticles({ active, count = 16, variant = 'bar' }: CompletionParticlesProps) {
+export function CompletionParticles({
+  active,
+  count = 16,
+  variant = 'bar',
+}: CompletionParticlesProps) {
   const reduced = useReducedMotion();
   const particles = useMemo(() => {
     if (!active) return [];
@@ -36,7 +40,7 @@ export function CompletionParticles({ active, count = 16, variant = 'bar' }: Com
 
       return { id: i, px, py, size, delay, duration, color };
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, count, variant]);
 
   if (reduced || !active || particles.length === 0) return null;
@@ -57,16 +61,18 @@ export function CompletionParticles({ active, count = 16, variant = 'bar' }: Com
         <div
           key={p.id}
           className="completion-particle"
-          style={{
-            '--px': `${p.px}px`,
-            '--py': `${p.py}px`,
-            '--size': `${p.size}px`,
-            '--delay': `${p.delay}s`,
-            '--duration': `${p.duration}s`,
-            '--x': '100%',
-            '--y': '50%',
-            '--particle-color': p.color,
-          } as React.CSSProperties}
+          style={
+            {
+              '--px': `${p.px}px`,
+              '--py': `${p.py}px`,
+              '--size': `${p.size}px`,
+              '--delay': `${p.delay}s`,
+              '--duration': `${p.duration}s`,
+              '--x': '100%',
+              '--y': '50%',
+              '--particle-color': p.color,
+            } as React.CSSProperties
+          }
         />
       ))}
     </div>

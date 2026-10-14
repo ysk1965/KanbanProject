@@ -1,30 +1,20 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import {
-  Upload,
-  Loader2,
-  ImagePlus,
-  AlertCircle,
-  Trash2,
-  Images,
-} from "lucide-react";
-import { motion } from "framer-motion";
-import { publicUploadAPI, resolveFileUrl } from "../utils/api";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { Upload, Loader2, ImagePlus, AlertCircle, Trash2, Images } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { publicUploadAPI, resolveFileUrl } from '../utils/api';
 import {
   PhotoUploadQueue,
   PHOTO_ACCEPTED_TYPES,
   PHOTO_UPLOAD_MAX_FILES,
   validatePhotoFile,
   type PhotoUploadTarget,
-} from "../utils/photoUploadQueue";
-import {
-  usePhotoUploadQueue,
-  usePhotoUploadConfirmed,
-} from "../hooks/usePhotoUploadQueue";
-import { PhotoUploadProgress } from "../components/organization/photo/PhotoUploadProgress";
-import { SelectedPhotoGrid } from "../components/organization/photo/SelectedPhotoGrid";
-import type { SharedPhotoItem, UploadAlbumInfo } from "../types";
+} from '../utils/photoUploadQueue';
+import { usePhotoUploadQueue, usePhotoUploadConfirmed } from '../hooks/usePhotoUploadQueue';
+import { PhotoUploadProgress } from '../components/organization/photo/PhotoUploadProgress';
+import { SelectedPhotoGrid } from '../components/organization/photo/SelectedPhotoGrid';
+import type { SharedPhotoItem, UploadAlbumInfo } from '../types';
 
 const PHOTO_PAGE_SIZE = 30;
 
@@ -62,7 +52,7 @@ export function PublicUploadPage() {
         const info = await publicUploadAPI.getUploadAlbumInfo(uploadToken);
         setAlbumInfo(info);
       } catch {
-        setError("This upload link is invalid or has expired.");
+        setError('This upload link is invalid or has expired.');
       } finally {
         setLoading(false);
       }
@@ -84,7 +74,7 @@ export function PublicUploadPage() {
         setHasNext(data.has_next);
         setTotalCount(data.total_count);
       } catch {
-        console.warn("Failed to fetch upload link photos");
+        console.warn('Failed to fetch upload link photos');
       } finally {
         setPhotosLoading(false);
       }
@@ -106,7 +96,7 @@ export function PublicUploadPage() {
           fetchPhotos(nextCursor);
         }
       },
-      { rootMargin: "200px" },
+      { rootMargin: '200px' },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
@@ -149,7 +139,7 @@ export function PublicUploadPage() {
         setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
         setTotalCount((prev) => Math.max(0, prev - 1));
       } catch {
-        setNotice(t("photoGallery.deleteError", "Failed to delete photo"));
+        setNotice(t('photoGallery.deleteError', 'Failed to delete photo'));
       } finally {
         setDeletingPhotoId(null);
       }
@@ -164,8 +154,8 @@ export function PublicUploadPage() {
       setNotice(
         skipped > 0
           ? t(
-              "photoGallery.filesSkipped",
-              "{{count}} files skipped (unsupported format or over 30MB)",
+              'photoGallery.filesSkipped',
+              '{{count}} files skipped (unsupported format or over 30MB)',
               { count: skipped },
             )
           : null,
@@ -174,7 +164,7 @@ export function PublicUploadPage() {
         const remaining = PHOTO_UPLOAD_MAX_FILES - prev.length;
         if (remaining < valid.length) {
           setNotice(
-            t("photoGallery.maxFiles", "Maximum {{max}} files", {
+            t('photoGallery.maxFiles', 'Maximum {{max}} files', {
               max: PHOTO_UPLOAD_MAX_FILES,
             }),
           );
@@ -214,15 +204,10 @@ export function PublicUploadPage() {
   }, [uploadToken, files, queue]);
 
   // Expiry info
-  const expiresAt = albumInfo?.expires_at
-    ? new Date(albumInfo.expires_at)
-    : null;
+  const expiresAt = albumInfo?.expires_at ? new Date(albumInfo.expires_at) : null;
   const now = new Date();
   const hoursLeft = expiresAt
-    ? Math.max(
-        0,
-        Math.floor((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60)),
-      )
+    ? Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60)))
     : 0;
   const daysLeft = Math.floor(hoursLeft / 24);
 
@@ -249,11 +234,9 @@ export function PublicUploadPage() {
           <div className="w-16 h-16 rounded-2xl bg-red-500/15 flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-8 h-8 text-red-400" />
           </div>
-          <h1 className="text-xl font-bold text-foreground mb-2">
-            Link Expired
-          </h1>
+          <h1 className="text-xl font-bold text-foreground mb-2">Link Expired</h1>
           <p className="text-sm text-slate-400">
-            {error || "This upload link is no longer valid."}
+            {error || 'This upload link is no longer valid.'}
           </p>
         </motion.div>
       </div>
@@ -268,7 +251,7 @@ export function PublicUploadPage() {
           {albumInfo.organization_logo_url ? (
             <img
               src={albumInfo.organization_logo_url}
-              alt={albumInfo.organization_name || "조직 로고"}
+              alt={albumInfo.organization_name || '조직 로고'}
               className="w-8 h-8 rounded-lg object-cover"
             />
           ) : (
@@ -277,12 +260,8 @@ export function PublicUploadPage() {
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <h1 className="text-sm font-bold text-foreground truncate">
-              {albumInfo.album_name}
-            </h1>
-            <p className="text-xs text-slate-500">
-              {albumInfo.organization_name}
-            </p>
+            <h1 className="text-sm font-bold text-foreground truncate">{albumInfo.album_name}</h1>
+            <p className="text-xs text-slate-500">{albumInfo.organization_name}</p>
           </div>
           <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary shrink-0">
             {daysLeft > 0 ? `${daysLeft}d left` : `${hoursLeft}h left`}
@@ -292,10 +271,7 @@ export function PublicUploadPage() {
 
       {/* Upload Area */}
       <div className="max-w-2xl mx-auto px-4 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
           {/* Drop zone */}
           <div
             onDragOver={(e) => {
@@ -307,8 +283,8 @@ export function PublicUploadPage() {
             onClick={() => fileInputRef.current?.click()}
             className={`border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all ${
               dragOver
-                ? "border-bridge-accent bg-bridge-accent/5"
-                : "border-foreground/[0.12] hover:border-foreground/[0.2] hover:bg-foreground/[0.02]"
+                ? 'border-bridge-accent bg-bridge-accent/5'
+                : 'border-foreground/[0.12] hover:border-foreground/[0.2] hover:bg-foreground/[0.02]'
             }`}
           >
             <div className="w-12 h-12 rounded-2xl bg-bridge-accent/15 flex items-center justify-center mx-auto mb-4">
@@ -318,33 +294,27 @@ export function PublicUploadPage() {
               Drop photos here or click to browse
             </p>
             <p className="text-xs text-slate-500">
-              {t(
-                "photoGallery.uploadFormats",
-                "JPG, PNG, WebP, GIF - max {{max}} files",
-                { max: PHOTO_UPLOAD_MAX_FILES },
-              )}
+              {t('photoGallery.uploadFormats', 'JPG, PNG, WebP, GIF - max {{max}} files', {
+                max: PHOTO_UPLOAD_MAX_FILES,
+              })}
             </p>
           </div>
 
           <input
             ref={fileInputRef}
             type="file"
-            accept={PHOTO_ACCEPTED_TYPES.join(",")}
+            accept={PHOTO_ACCEPTED_TYPES.join(',')}
             multiple
             className="hidden"
             onChange={(e) => {
               if (e.target.files) {
                 addFiles(Array.from(e.target.files));
-                e.target.value = "";
+                e.target.value = '';
               }
             }}
           />
 
-          {notice && (
-            <p className="mt-4 text-xs text-amber-600 dark:text-amber-400">
-              {notice}
-            </p>
-          )}
+          {notice && <p className="mt-4 text-xs text-amber-600 dark:text-amber-400">{notice}</p>}
 
           {/* Upload progress (실패 시 실패분만 다시 시도) */}
           {snap.total > 0 && (
@@ -358,7 +328,7 @@ export function PublicUploadPage() {
             <div className="mt-6 space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                  {files.length} photo{files.length !== 1 ? "s" : ""} selected
+                  {files.length} photo{files.length !== 1 ? 's' : ''} selected
                 </span>
                 <button
                   onClick={() => setFiles([])}
@@ -377,14 +347,14 @@ export function PublicUploadPage() {
                 {uploading ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    {t("photoGallery.addToQueue", "Add {{count}} to upload", {
+                    {t('photoGallery.addToQueue', 'Add {{count}} to upload', {
                       count: files.length,
                     })}
                   </>
                 ) : (
                   <>
                     <Upload size={16} />
-                    Upload {files.length} Photo{files.length !== 1 ? "s" : ""}
+                    Upload {files.length} Photo{files.length !== 1 ? 's' : ''}
                   </>
                 )}
               </button>
@@ -396,7 +366,7 @@ export function PublicUploadPage() {
         <section className="mt-10">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-              {t("photoGallery.uploadedPhotos", "Photos in this album")}
+              {t('photoGallery.uploadedPhotos', 'Photos in this album')}
             </span>
             <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
               {totalCount}
@@ -438,11 +408,11 @@ export function PublicUploadPage() {
                         disabled={isDeleting}
                         aria-label={
                           isPending
-                            ? t("photoGallery.confirmDeletePhoto", "Tap again to delete")
-                            : t("photoGallery.deletePhoto", "Delete photo")
+                            ? t('photoGallery.confirmDeletePhoto', 'Tap again to delete')
+                            : t('photoGallery.deletePhoto', 'Delete photo')
                         }
                         className={`pointer-events-auto min-w-[44px] min-h-[44px] px-2 flex items-center justify-center gap-1 rounded-md transition-colors shrink-0 ${
-                          isPending ? "bg-red-500 text-white" : "text-white hover:bg-red-500/30"
+                          isPending ? 'bg-red-500 text-white' : 'text-white hover:bg-red-500/30'
                         }`}
                       >
                         {isDeleting ? (
@@ -452,7 +422,7 @@ export function PublicUploadPage() {
                         )}
                         {isPending && (
                           <span className="text-xs font-bold">
-                            {t("photoGallery.confirmDeleteShort", "Delete?")}
+                            {t('photoGallery.confirmDeleteShort', 'Delete?')}
                           </span>
                         )}
                       </button>
@@ -473,7 +443,7 @@ export function PublicUploadPage() {
             <div className="text-center py-8">
               <Images size={28} className="mx-auto mb-2 text-slate-500/50" />
               <p className="text-sm text-slate-500">
-                {t("photoGallery.emptyTitle", "No photos yet")}
+                {t('photoGallery.emptyTitle', 'No photos yet')}
               </p>
             </div>
           )}

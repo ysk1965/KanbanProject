@@ -1,6 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, ChevronLeft, ChevronRight, Building2, Users, Folder, Calendar, Filter, Trash2, RotateCcw, Loader2 } from 'lucide-react';
+import {
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Building2,
+  Users,
+  Folder,
+  Calendar,
+  Filter,
+  Trash2,
+  RotateCcw,
+  Loader2,
+} from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { OrgListResponse } from '../../utils/api';
 import { AdminOrgDetailModal } from './AdminOrgDetailModal';
@@ -115,15 +127,22 @@ export function AdminOrganizationsTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-foreground mb-2">{t('admin.organizations.title')}</h2>
-          <p className="text-slate-400">{t('admin.organizations.subtitle', 'Manage all organizations')}</p>
+          <h2 className="text-2xl font-bold text-foreground mb-2">
+            {t('admin.organizations.title')}
+          </h2>
+          <p className="text-slate-400">
+            {t('admin.organizations.subtitle', 'Manage all organizations')}
+          </p>
         </div>
       </div>
 
       {/* Tab Toggle: Active / Deleted */}
       <div className="flex items-center gap-2">
         <button
-          onClick={() => { setShowDeleted(false); setPage(0); }}
+          onClick={() => {
+            setShowDeleted(false);
+            setPage(0);
+          }}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             !showDeleted
               ? 'bg-bridge-accent text-white'
@@ -134,7 +153,10 @@ export function AdminOrganizationsTab() {
           {t('admin.organizations.activeOrgs', 'Active Organizations')}
         </button>
         <button
-          onClick={() => { setShowDeleted(true); setPage(0); }}
+          onClick={() => {
+            setShowDeleted(true);
+            setPage(0);
+          }}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             showDeleted
               ? 'bg-red-500/20 text-red-400'
@@ -233,10 +255,11 @@ export function AdminOrganizationsTab() {
                       {t('admin.organizations.table.boards')}
                     </th>
                     <th className="text-left px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                      {showDeleted ? t('admin.organizations.deleted.deletedAt') : t('admin.organizations.table.created')}
+                      {showDeleted
+                        ? t('admin.organizations.deleted.deletedAt')
+                        : t('admin.organizations.table.created')}
                     </th>
-                    <th className="text-right px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    </th>
+                    <th className="text-right px-3 py-3 md:px-6 md:py-4 text-xs font-bold text-slate-400 uppercase tracking-widest"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -250,13 +273,19 @@ export function AdminOrganizationsTab() {
                     >
                       <td className="px-3 py-3 md:px-6 md:py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            showDeleted ? 'bg-red-500/20' : 'bg-bridge-accent/20'
-                          }`}>
+                          <div
+                            className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                              showDeleted ? 'bg-red-500/20' : 'bg-bridge-accent/20'
+                            }`}
+                          >
                             {showDeleted ? (
                               <Trash2 className="h-5 w-5 text-red-400" />
                             ) : org.logo_url ? (
-                              <img src={org.logo_url} alt={org.name || '조직 로고'} className="w-10 h-10 rounded-lg object-cover" />
+                              <img
+                                src={org.logo_url}
+                                alt={org.name || '조직 로고'}
+                                className="w-10 h-10 rounded-lg object-cover"
+                              />
                             ) : (
                               <Building2 className="h-5 w-5 text-bridge-accent" />
                             )}
@@ -278,12 +307,16 @@ export function AdminOrganizationsTab() {
                         </div>
                       </td>
                       <td className="px-3 py-3 md:px-6 md:py-4">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getPlanStyle(org.plan)}`}>
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getPlanStyle(org.plan)}`}
+                        >
                           {org.plan}
                         </span>
                       </td>
                       <td className="px-3 py-3 md:px-6 md:py-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${getStatusStyle(org.subscription_status)}`}>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${getStatusStyle(org.subscription_status)}`}
+                        >
                           {org.subscription_status || '-'}
                         </span>
                       </td>
@@ -322,7 +355,9 @@ export function AdminOrganizationsTab() {
                               disabled:opacity-50 disabled:cursor-not-allowed
                               transition-all"
                           >
-                            <RotateCcw className={`h-3.5 w-3.5 ${isRestoring === org.id ? 'animate-spin' : ''}`} />
+                            <RotateCcw
+                              className={`h-3.5 w-3.5 ${isRestoring === org.id ? 'animate-spin' : ''}`}
+                            />
                             {t('admin.organizations.actions.restore')}
                           </button>
                         )}

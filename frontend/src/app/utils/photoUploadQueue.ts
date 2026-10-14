@@ -7,23 +7,18 @@
  * 순서로 처리한다. 파일 단위로 상태를 추적하므로 실패한 파일만 다시 보낼 수 있고, 성공분은 재전송하지 않는다.
  * presign 이 mode="direct"(로컬 등 S3 미지원)를 돌려주면 기존 multipart 엔드포인트로 100MB/20장씩 보낸다.
  */
-import type { OrgPhoto } from "../types";
+import type { OrgPhoto } from '../types';
 import {
   splitFilesIntoChunks,
   type PhotoConfirmItem,
   type PhotoConfirmResponse,
   type PhotoPresignFile,
   type PhotoPresignResponse,
-} from "./api";
+} from './api';
 
 export const PHOTO_UPLOAD_MAX_FILES = 3000;
 export const PHOTO_MAX_FILE_SIZE = 30 * 1024 * 1024;
-export const PHOTO_ACCEPTED_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-];
+export const PHOTO_ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 const PRESIGN_BATCH = 100;
 const CONFIRM_BATCH = 50;
@@ -45,12 +40,7 @@ export interface PhotoUploadTarget {
 }
 
 export type PhotoUploadStatus =
-  | "queued"
-  | "uploading"
-  | "uploaded"
-  | "confirming"
-  | "confirmed"
-  | "failed";
+  'queued' | 'uploading' | 'uploaded' | 'confirming' | 'confirmed' | 'failed';
 
 export interface PhotoUploadFailure {
   id: string;
@@ -71,10 +61,7 @@ export interface PhotoUploadSnapshot {
   failures: PhotoUploadFailure[];
 }
 
-export type PhotoUploadConfirmedListener = (
-  targetKey: string,
-  photos: OrgPhoto[],
-) => void;
+export type PhotoUploadConfirmedListener = (targetKey: string, photos: OrgPhoto[]) => void;
 
 interface TargetState {
   target: PhotoUploadTarget;
@@ -128,7 +115,7 @@ const nextId = () => `f${Date.now().toString(36)}_${(idSeq++).toString(36)}`;
 
 function defaultConcurrency(): number {
   try {
-    if (window.matchMedia?.("(pointer: coarse)").matches) return 3;
+    if (window.matchMedia?.('(pointer: coarse)').matches) return 3;
   } catch {
     /* noop */
   }
@@ -137,7 +124,7 @@ function defaultConcurrency(): number {
 
 /** 서버 오류 → 재시도 여부 + 사유 코드 */
 function classify(err: unknown): { retryable: boolean; reason: string } {
-  if (err instanceof TypeError) return { retryable: true, reason: "NETWORK" };
+  if (err instanceof TypeError) return { retryable: true, reason: 'NETWORK' };
   const e = err as {
     status?: number;
     code?: string;
@@ -145,14 +132,14 @@ function classify(err: unknown): { retryable: boolean; reason: string } {
   } | null;
   const code = e?.error?.code ?? e?.code;
   const status = e?.status;
-  if (typeof status === "number") {
+  if (typeof status === 'number') {
     if (status >= 500 || status === 429 || status === 408) {
-      return { retryable: true, reason: code || "SERVER_ERROR" };
+      return { retryable: true, reason: code || 'SERVER_ERROR' };
     }
     return { retryable: false, reason: code || `HTTP_${status}` };
   }
   if (code) return { retryable: false, reason: code };
-  return { retryable: true, reason: "NETWORK" };
+  return { retryable: true, reason: 'NETWORK' };
 }
 
 function xhrPut(
@@ -163,17 +150,15 @@ function xhrPut(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("PUT", url);
-    xhr.setRequestHeader("Content-Type", contentType);
+    xhr.open('PUT', url);
+    xhr.setRequestHeader('Content-Type', contentType);
     if (onProgress) {
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) onProgress(e.loaded);
       };
     }
     xhr.onload = () =>
-      xhr.status >= 200 && xhr.status < 300
-        ? resolve()
-        : reject(new UploadHttpError(xhr.status));
+      xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new UploadHttpError(xhr.status));
     xhr.onerror = () => reject(new UploadHttpError(0));
     xhr.onabort = () => reject(new UploadHttpError(0));
     xhr.ontimeout = () => reject(new UploadHttpError(0));
@@ -185,7 +170,7 @@ function xhrPut(
 async function makeThumbnail(
   file: File,
 ): Promise<{ blob: Blob | null; width: number | null; height: number | null }> {
-  if (typeof createImageBitmap !== "function") {
+  if (typeof createImageBitmap !== 'function') {
     return { blob: null, width: null, height: null };
   }
   let bmp: ImageBitmap | undefined;
@@ -196,27 +181,25 @@ async function makeThumbnail(
     const w = Math.max(1, Math.round(width * scale));
     const h = Math.max(1, Math.round(height * scale));
     let blob: Blob | null = null;
-    if (typeof OffscreenCanvas !== "undefined") {
+    if (typeof OffscreenCanvas !== 'undefined') {
       const canvas = new OffscreenCanvas(w, h);
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.fillStyle = "#ffffff";
+        ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, w, h);
         ctx.drawImage(bmp, 0, 0, w, h);
-        blob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.8 });
+        blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
       }
     } else {
-      const canvas = document.createElement("canvas");
+      const canvas = document.createElement('canvas');
       canvas.width = w;
       canvas.height = h;
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.fillStyle = "#ffffff";
+        ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, w, h);
         ctx.drawImage(bmp, 0, 0, w, h);
-        blob = await new Promise<Blob | null>((res) =>
-          canvas.toBlob(res, "image/jpeg", 0.8),
-        );
+        blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.8));
       }
     }
     return { blob, width, height };
@@ -229,8 +212,8 @@ async function makeThumbnail(
 
 /** 클라이언트 선검증 — 통과 못 하면 사유 코드, 통과하면 null */
 export function validatePhotoFile(file: File): string | null {
-  if (!PHOTO_ACCEPTED_TYPES.includes(file.type)) return "UNSUPPORTED_TYPE";
-  if (file.size > PHOTO_MAX_FILE_SIZE) return "FILE_TOO_LARGE";
+  if (!PHOTO_ACCEPTED_TYPES.includes(file.type)) return 'UNSUPPORTED_TYPE';
+  if (file.size > PHOTO_MAX_FILE_SIZE) return 'FILE_TOO_LARGE';
   return null;
 }
 
@@ -288,7 +271,7 @@ export class PhotoUploadQueue {
         file,
         contentType: file.type,
         ts,
-        status: invalid ? "failed" : "queued",
+        status: invalid ? 'failed' : 'queued',
         reason: invalid ?? undefined,
         attempts: 0,
         confirmAttempts: 0,
@@ -307,9 +290,9 @@ export class PhotoUploadQueue {
   /** 실패한 파일만 처음부터 다시 보낸다 (성공분은 건드리지 않음) */
   retryFailed(): void {
     for (const it of this.items) {
-      if (it.status !== "failed") continue;
+      if (it.status !== 'failed') continue;
       if (validatePhotoFile(it.file)) continue; // 형식/용량 문제는 다시 보내도 실패
-      it.status = "queued";
+      it.status = 'queued';
       it.reason = undefined;
       it.attempts = 0;
       it.confirmAttempts = 0;
@@ -326,9 +309,7 @@ export class PhotoUploadQueue {
 
   /** 끝난 항목(성공·실패)을 비운다. 진행 중인 항목은 유지 */
   clearFinished(): void {
-    this.items = this.items.filter(
-      (i) => i.status !== "confirmed" && i.status !== "failed",
-    );
+    this.items = this.items.filter((i) => i.status !== 'confirmed' && i.status !== 'failed');
     for (const [key, ts] of this.targets) {
       if (!this.items.some((i) => i.ts === ts)) this.targets.delete(key);
     }
@@ -358,26 +339,22 @@ export class PhotoUploadQueue {
 
       if (ts.direct) {
         if (!ts.directBusy) {
-          const ready = mine.filter(
-            (i) => i.status === "queued" && i.notBefore <= now,
-          );
+          const ready = mine.filter((i) => i.status === 'queued' && i.notBefore <= now);
           if (ready.length > 0) {
             const chunk = splitFilesIntoChunks(ready.map((i) => i.file))[0];
             void this.runDirect(ts, ready.slice(0, chunk.length));
           }
         }
-        mine.forEach((i) => i.status === "queued" && noteWake(i.notBefore));
+        mine.forEach((i) => i.status === 'queued' && noteWake(i.notBefore));
         continue;
       }
 
       // presign — 서명된 대기분이 넉넉하면 미룬다 (URL 만료 방지)
       if (!ts.presigning) {
-        const signedWaiting = mine.filter(
-          (i) => i.status === "queued" && i.uploadUrl,
-        ).length;
+        const signedWaiting = mine.filter((i) => i.status === 'queued' && i.uploadUrl).length;
         if (signedWaiting < this.concurrency * 2) {
           const needSign = mine.filter(
-            (i) => i.status === "queued" && !i.uploadUrl && i.notBefore <= now,
+            (i) => i.status === 'queued' && !i.uploadUrl && i.notBefore <= now,
           );
           if (needSign.length > 0) {
             void this.presign(ts, needSign.slice(0, PRESIGN_BATCH));
@@ -387,30 +364,21 @@ export class PhotoUploadQueue {
 
       // confirm — 50개가 모였거나 이 대상의 전송이 모두 끝났을 때
       if (!ts.confirming) {
-        const uploaded = mine.filter((i) => i.status === "uploaded");
+        const uploaded = mine.filter((i) => i.status === 'uploaded');
         const readyToConfirm = uploaded.filter((i) => i.notBefore <= now);
-        const drained = !mine.some(
-          (i) => i.status === "queued" || i.status === "uploading",
-        );
-        if (
-          readyToConfirm.length >= CONFIRM_BATCH ||
-          (drained && readyToConfirm.length > 0)
-        ) {
+        const drained = !mine.some((i) => i.status === 'queued' || i.status === 'uploading');
+        if (readyToConfirm.length >= CONFIRM_BATCH || (drained && readyToConfirm.length > 0)) {
           void this.confirm(ts, readyToConfirm.slice(0, CONFIRM_BATCH));
         }
         uploaded.forEach((i) => noteWake(i.notBefore));
       }
-      mine.forEach((i) => i.status === "queued" && noteWake(i.notBefore));
+      mine.forEach((i) => i.status === 'queued' && noteWake(i.notBefore));
     }
 
     // S3 PUT 워커 채우기
     while (this.active < this.concurrency) {
       const next = this.items.find(
-        (i) =>
-          i.status === "queued" &&
-          i.uploadUrl &&
-          !i.ts.direct &&
-          i.notBefore <= now,
+        (i) => i.status === 'queued' && i.uploadUrl && !i.ts.direct && i.notBefore <= now,
       );
       if (!next) break;
       if (next.presignedAt && now - next.presignedAt > URL_MAX_AGE_MS) {
@@ -445,10 +413,10 @@ export class PhotoUploadQueue {
   private retryLater(it: Item, reason: string, retryable: boolean): void {
     it.attempts += 1;
     if (retryable && it.attempts <= MAX_RETRIES) {
-      it.status = "queued";
+      it.status = 'queued';
       it.notBefore = Date.now() + BACKOFF_MS[it.attempts - 1];
     } else {
-      it.status = "failed";
+      it.status = 'failed';
       it.reason = reason;
     }
     it.loaded = 0;
@@ -467,14 +435,12 @@ export class PhotoUploadQueue {
           size: i.file.size,
         })),
       );
-      if (res.mode === "direct") {
+      if (res.mode === 'direct') {
         ts.direct = true;
         return;
       }
       const signed = new Map(res.items.map((x) => [x.client_id, x]));
-      const rejected = new Map(
-        (res.rejected ?? []).map((x) => [x.client_id, x.reason]),
-      );
+      const rejected = new Map((res.rejected ?? []).map((x) => [x.client_id, x.reason]));
       const at = Date.now();
       for (const it of batch) {
         const s = signed.get(it.id);
@@ -484,8 +450,8 @@ export class PhotoUploadQueue {
           it.thumbUrl = s.thumbnail_upload_url;
           it.presignedAt = at;
         } else {
-          it.status = "failed";
-          it.reason = rejected.get(it.id) ?? "PRESIGN_FAILED";
+          it.status = 'failed';
+          it.reason = rejected.get(it.id) ?? 'PRESIGN_FAILED';
         }
       }
     } catch (err) {
@@ -498,7 +464,7 @@ export class PhotoUploadQueue {
   }
 
   private async runUpload(it: Item): Promise<void> {
-    it.status = "uploading";
+    it.status = 'uploading';
     it.loaded = 0;
     this.active += 1;
     try {
@@ -516,14 +482,14 @@ export class PhotoUploadQueue {
       it.hasThumb = false;
       if (it.thumbUrl && it.thumbBlob) {
         try {
-          await xhrPut(it.thumbUrl, it.thumbBlob, "image/jpeg");
+          await xhrPut(it.thumbUrl, it.thumbBlob, 'image/jpeg');
           it.hasThumb = true;
         } catch {
           // 썸네일 실패는 치명적이지 않다 — 서버가 원본에서 생성
         }
       }
       it.thumbBlob = undefined;
-      it.status = "uploaded";
+      it.status = 'uploaded';
       it.loaded = it.file.size;
       it.notBefore = 0;
     } catch (err) {
@@ -535,7 +501,7 @@ export class PhotoUploadQueue {
         it.s3Key = undefined;
       }
       const retryable = status === 0 || status === 403 || status >= 500;
-      this.retryLater(it, status ? `S3_${status}` : "NETWORK", retryable);
+      this.retryLater(it, status ? `S3_${status}` : 'NETWORK', retryable);
     } finally {
       this.active -= 1;
       this.kick();
@@ -544,7 +510,7 @@ export class PhotoUploadQueue {
 
   private async confirm(ts: TargetState, batch: Item[]): Promise<void> {
     ts.confirming = true;
-    batch.forEach((i) => (i.status = "confirming"));
+    batch.forEach((i) => (i.status = 'confirming'));
     try {
       const res = await ts.target.confirm(
         batch.map((i) => ({
@@ -562,11 +528,11 @@ export class PhotoUploadQueue {
       for (const it of batch) {
         const photo = ok.get(it.s3Key!);
         if (photo) {
-          it.status = "confirmed";
+          it.status = 'confirmed';
           photos.push(photo);
         } else {
-          it.status = "failed";
-          it.reason = bad.get(it.s3Key!) ?? "CONFIRM_FAILED";
+          it.status = 'failed';
+          it.reason = bad.get(it.s3Key!) ?? 'CONFIRM_FAILED';
         }
       }
       if (photos.length > 0) this.emitConfirmed(ts.target.key, photos);
@@ -575,10 +541,10 @@ export class PhotoUploadQueue {
       for (const it of batch) {
         it.confirmAttempts += 1;
         if (retryable && it.confirmAttempts <= MAX_RETRIES) {
-          it.status = "uploaded";
+          it.status = 'uploaded';
           it.notBefore = Date.now() + BACKOFF_MS[it.confirmAttempts - 1];
         } else {
-          it.status = "failed";
+          it.status = 'failed';
           it.reason = reason;
         }
       }
@@ -590,11 +556,11 @@ export class PhotoUploadQueue {
 
   private async runDirect(ts: TargetState, batch: Item[]): Promise<void> {
     ts.directBusy = true;
-    batch.forEach((i) => (i.status = "uploading"));
+    batch.forEach((i) => (i.status = 'uploading'));
     try {
       const photos = await ts.target.uploadDirect(batch.map((i) => i.file));
       batch.forEach((i) => {
-        i.status = "confirmed";
+        i.status = 'confirmed';
         i.loaded = i.file.size;
       });
       this.emitConfirmed(ts.target.key, photos);
@@ -614,7 +580,7 @@ export class PhotoUploadQueue {
       try {
         l(key, photos);
       } catch (e) {
-        console.warn("photo upload confirmed listener failed", e);
+        console.warn('photo upload confirmed listener failed', e);
       }
     });
   }
@@ -638,19 +604,15 @@ export class PhotoUploadQueue {
     let bytesDone = 0;
     const failures: PhotoUploadFailure[] = [];
     for (const it of this.items) {
-      if (it.status === "failed") {
+      if (it.status === 'failed') {
         failed += 1;
-        failures.push({ id: it.id, name: it.file.name, reason: it.reason ?? "" });
+        failures.push({ id: it.id, name: it.file.name, reason: it.reason ?? '' });
         continue;
       }
       bytesTotal += it.file.size;
-      if (it.status === "confirmed") confirmed += 1;
+      if (it.status === 'confirmed') confirmed += 1;
       bytesDone +=
-        it.status === "queued"
-          ? 0
-          : it.status === "uploading"
-            ? it.loaded
-            : it.file.size;
+        it.status === 'queued' ? 0 : it.status === 'uploading' ? it.loaded : it.file.size;
     }
     const total = this.items.length;
     const pending = total - confirmed - failed;
@@ -671,16 +633,14 @@ export class PhotoUploadQueue {
   // 업로드 중 새로고침/탭 닫기 경고
   private handleBeforeUnload = (e: BeforeUnloadEvent) => {
     e.preventDefault();
-    e.returnValue = "";
+    e.returnValue = '';
   };
 
   private updateUnloadGuard(): void {
-    const active = this.items.some(
-      (i) => i.status !== "confirmed" && i.status !== "failed",
-    );
+    const active = this.items.some((i) => i.status !== 'confirmed' && i.status !== 'failed');
     if (active === this.unloadGuard) return;
     this.unloadGuard = active;
-    if (active) window.addEventListener("beforeunload", this.handleBeforeUnload);
-    else window.removeEventListener("beforeunload", this.handleBeforeUnload);
+    if (active) window.addEventListener('beforeunload', this.handleBeforeUnload);
+    else window.removeEventListener('beforeunload', this.handleBeforeUnload);
   }
 }

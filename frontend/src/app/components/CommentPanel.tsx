@@ -1,14 +1,6 @@
-import {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-  useMemo,
-  Suspense,
-  memo,
-} from "react";
-import { useTranslation } from "react-i18next";
-import { createPortal } from "react-dom";
+import { useState, useEffect, useRef, useCallback, useMemo, Suspense, memo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { createPortal } from 'react-dom';
 import {
   TaskComment,
   CommentAttachment,
@@ -16,7 +8,7 @@ import {
   User,
   BoardCustomEmoji,
   BoardWebSocketEvent,
-} from "../types";
+} from '../types';
 import {
   commentAPI,
   checklistAPI,
@@ -26,13 +18,13 @@ import {
   CommentAISummaryResponse,
   mentionGroupAPI,
   MentionGroupDetail,
-} from "../utils/api";
-import { BoardMember } from "./ShareBoardModal";
-import { getAssigneeClasses, getInitials } from "../utils/assigneeColor";
-import { formatDate } from "../utils/dateUtils";
-import { escStack } from "../hooks/useEscClose";
-import { MotionModal } from "./ui/MotionModal";
-import { ZoomableImage } from "./ui/ZoomableImage";
+} from '../utils/api';
+import { BoardMember } from './ShareBoardModal';
+import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
+import { formatDate } from '../utils/dateUtils';
+import { escStack } from '../hooks/useEscClose';
+import { MotionModal } from './ui/MotionModal';
+import { ZoomableImage } from './ui/ZoomableImage';
 import {
   ListChecks,
   MessageSquare,
@@ -56,15 +48,15 @@ import {
   Users,
   Reply,
   Download,
-} from "lucide-react";
-import { VideoThumbnail } from "./VideoThumbnail";
-import { MentionGroupModal } from "./MentionGroupModal";
+} from 'lucide-react';
+import { VideoThumbnail } from './VideoThumbnail';
+import { MentionGroupModal } from './MentionGroupModal';
 
-import { lazyWithRetry } from "../utils/lazyWithRetry";
-import { downloadPhoto } from "../utils/nativeDownload";
+import { lazyWithRetry } from '../utils/lazyWithRetry';
+import { downloadPhoto } from '../utils/nativeDownload';
 const VideoLightbox = lazyWithRetry(
-  () => import("./VideoLightbox").then((m) => ({ default: m.VideoLightbox })),
-  "VideoLightbox",
+  () => import('./VideoLightbox').then((m) => ({ default: m.VideoLightbox })),
+  'VideoLightbox',
 );
 
 // ========== 상수 & 유틸 ==========
@@ -73,75 +65,61 @@ const MAX_FILES = 5;
 const MAX_FILE_SIZE_IMAGE = 30 * 1024 * 1024; // 30MB
 const MAX_FILE_SIZE_VIDEO = 50 * 1024 * 1024; // 50MB
 const MAX_FILE_SIZE_DOC = 30 * 1024 * 1024; // 30MB
-const ALLOWED_IMAGE_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-];
-const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
 const ALLOWED_DOC_TYPES = [
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "text/plain",
-  "text/markdown",
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'text/markdown',
 ];
-const ALLOWED_TYPES = [
-  ...ALLOWED_IMAGE_TYPES,
-  ...ALLOWED_VIDEO_TYPES,
-  ...ALLOWED_DOC_TYPES,
-];
+const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES, ...ALLOWED_DOC_TYPES];
 
-const isVideoType = (type: string) => type?.startsWith("video/");
-const isVideoAttachment = (att: CommentAttachment) =>
-  att.content_type?.startsWith("video/");
+const isVideoType = (type: string) => type?.startsWith('video/');
+const isVideoAttachment = (att: CommentAttachment) => att.content_type?.startsWith('video/');
 const isDocType = (type: string) => ALLOWED_DOC_TYPES.includes(type);
-const isDocAttachment = (att: CommentAttachment) =>
-  isDocType(att.content_type || "");
+const isDocAttachment = (att: CommentAttachment) => isDocType(att.content_type || '');
 
-const DOC_ACCEPT = ALLOWED_DOC_TYPES.join(",");
+const DOC_ACCEPT = ALLOWED_DOC_TYPES.join(',');
 const FILE_ACCEPT = `image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime,${DOC_ACCEPT}`;
 
 const getDocIcon = (type: string): string => {
-  if (type === "application/pdf") return "PDF";
-  if (type.includes("word") || type === "application/msword") return "DOC";
-  if (type.includes("spreadsheet") || type === "application/vnd.ms-excel")
-    return "XLS";
-  if (type.includes("presentation") || type === "application/vnd.ms-powerpoint")
-    return "PPT";
-  if (type === "text/plain" || type === "text/markdown") return "TXT";
-  return "FILE";
+  if (type === 'application/pdf') return 'PDF';
+  if (type.includes('word') || type === 'application/msword') return 'DOC';
+  if (type.includes('spreadsheet') || type === 'application/vnd.ms-excel') return 'XLS';
+  if (type.includes('presentation') || type === 'application/vnd.ms-powerpoint') return 'PPT';
+  if (type === 'text/plain' || type === 'text/markdown') return 'TXT';
+  return 'FILE';
 };
 
 const getDocColor = (type: string): string => {
-  if (type === "application/pdf") return "bg-red-500/15 text-red-400";
-  if (type.includes("word") || type === "application/msword")
-    return "bg-blue-500/15 text-blue-400";
-  if (type.includes("spreadsheet") || type === "application/vnd.ms-excel")
-    return "bg-emerald-500/15 text-emerald-400";
-  if (type.includes("presentation") || type === "application/vnd.ms-powerpoint")
-    return "bg-orange-500/15 text-orange-400";
-  return "bg-slate-500/15 text-slate-400";
+  if (type === 'application/pdf') return 'bg-red-500/15 text-red-400';
+  if (type.includes('word') || type === 'application/msword') return 'bg-blue-500/15 text-blue-400';
+  if (type.includes('spreadsheet') || type === 'application/vnd.ms-excel')
+    return 'bg-emerald-500/15 text-emerald-400';
+  if (type.includes('presentation') || type === 'application/vnd.ms-powerpoint')
+    return 'bg-orange-500/15 text-orange-400';
+  return 'bg-slate-500/15 text-slate-400';
 };
 
 function formatRelativeTime(dateStr: string): string {
-  const date = new Date(dateStr.endsWith("Z") ? dateStr : dateStr + "Z");
+  const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMinutes = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMinutes < 1) return "just now";
+  if (diffMinutes < 1) return 'just now';
   if (diffMinutes < 60) return `${diffMinutes}m`;
   if (diffHours < 24) return `${diffHours}h`;
   if (diffDays < 7) return `${diffDays}d`;
-  return formatDate(dateStr, "M월 d일");
+  return formatDate(dateStr, 'M월 d일');
 }
 
 function formatFileSize(bytes: number): string {
@@ -150,20 +128,7 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
-const REACTION_EMOJIS = [
-  "👍",
-  "❤️",
-  "😄",
-  "🎉",
-  "🤔",
-  "👀",
-  "👏",
-  "🔥",
-  "✅",
-  "🙏",
-  "💯",
-  "😢",
-];
+const REACTION_EMOJIS = ['👍', '❤️', '😄', '🎉', '🤔', '👀', '👏', '🔥', '✅', '🙏', '💯', '😢'];
 
 const URL_PATTERN = /(https?:\/\/[^\s<]+)/g;
 
@@ -189,12 +154,12 @@ function renderTextWithLinks(text: string, keyPrefix: string) {
 
 function cleanMarkdownArtifacts(text: string): string {
   return text
-    .replace(/\\\n/g, "\n")
-    .replace(/\\$/gm, "")
-    .replace(/\*\*(.*?)\*\*/g, "$1")
-    .replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, "$1")
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/`([^`]+)`/g, "$1");
+    .replace(/\\\n/g, '\n')
+    .replace(/\\$/gm, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/`([^`]+)`/g, '$1');
 }
 
 function renderContent(
@@ -209,14 +174,14 @@ function renderContent(
   const mentionPattern =
     allNames.length > 0
       ? new RegExp(
-          `(@(?:${allNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")}))(?=\\s|$)`,
-          "g",
+          `(@(?:${allNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}))(?=\\s|$)`,
+          'g',
         )
       : null;
-  if (!mentionPattern) return renderTextWithLinks(cleaned, "root");
+  if (!mentionPattern) return renderTextWithLinks(cleaned, 'root');
   const parts = cleaned.split(mentionPattern);
   return parts.map((part, i) => {
-    if (part.startsWith("@")) {
+    if (part.startsWith('@')) {
       const name = part.slice(1);
       const member = boardMembers.find((m) => m.name === name);
       if (member) {
@@ -266,7 +231,7 @@ interface CommentPanelProps {
    */
   checklistItemId?: string | null;
   /** 디테일 모달 안에 들어갈 때. 자체 헤더·AI 요약·닫기 버튼을 접는다. */
-  variant?: "panel" | "embedded";
+  variant?: 'panel' | 'embedded';
   /** 체크리스트 칩 클릭 — 그 항목 디테일을 연다. 없으면 칩은 표시만 한다. */
   onOpenChecklistItem?: (itemId: string) => void;
   /** 댓글 수가 바뀌었을 때(작성·삭제·실시간 수신) 부모가 행 뱃지를 갱신하도록 알린다. */
@@ -307,25 +272,23 @@ const ChecklistOriginChip = memo(function ChecklistOriginChip({
   onOpen?: (itemId: string) => void;
 }) {
   const { t } = useTranslation();
-  const label = title || t("checklistDetail.unknownItem", "삭제된 항목");
+  const label = title || t('checklistDetail.unknownItem', '삭제된 항목');
   const clickable = !!onOpen && !deleted;
 
   const inner = (
     <>
       <ListChecks className="h-3 w-3 flex-shrink-0" />
-      <span className={`truncate ${deleted ? "line-through" : ""}`}>
-        {t("checklistDetail.chip", "체크리스트 · {{title}}", { title: label })}
+      <span className={`truncate ${deleted ? 'line-through' : ''}`}>
+        {t('checklistDetail.chip', '체크리스트 · {{title}}', { title: label })}
       </span>
     </>
   );
 
   const base =
-    "inline-flex items-center gap-1 max-w-full mb-1 px-2 py-0.5 rounded-full text-xs font-bold bg-bridge-accent/15 text-bridge-accent";
+    'inline-flex items-center gap-1 max-w-full mb-1 px-2 py-0.5 rounded-full text-xs font-bold bg-bridge-accent/15 text-bridge-accent';
 
   if (!clickable) {
-    return (
-      <span className={`${base} ${deleted ? "opacity-70" : ""}`}>{inner}</span>
-    );
+    return <span className={`${base} ${deleted ? 'opacity-70' : ''}`}>{inner}</span>;
   }
 
   return (
@@ -365,13 +328,11 @@ const AttachmentGrid = memo(function AttachmentGrid({
               className="flex items-center gap-2 px-3 py-2 rounded-lg border border-foreground/[0.08] hover:border-foreground/[0.12] bg-foreground/[0.03] transition-colors max-w-[220px]"
             >
               <span
-                className={`text-xs font-bold px-1.5 py-0.5 rounded ${getDocColor(att.content_type || "")}`}
+                className={`text-xs font-bold px-1.5 py-0.5 rounded ${getDocColor(att.content_type || '')}`}
               >
-                {getDocIcon(att.content_type || "")}
+                {getDocIcon(att.content_type || '')}
               </span>
-              <span className="text-xs text-foreground truncate">
-                {att.file_name}
-              </span>
+              <span className="text-xs text-foreground truncate">{att.file_name}</span>
             </a>
           );
         }
@@ -385,9 +346,7 @@ const AttachmentGrid = memo(function AttachmentGrid({
             {isVideo ? (
               <VideoThumbnail
                 videoUrl={resolveFileUrl(att.url)}
-                serverThumbnailUrl={
-                  att.thumbnail_url ? resolveFileUrl(att.thumbnail_url) : null
-                }
+                serverThumbnailUrl={att.thumbnail_url ? resolveFileUrl(att.thumbnail_url) : null}
                 className="h-20 w-[120px] max-w-[160px] object-cover"
                 alt={att.file_name}
               />
@@ -439,8 +398,7 @@ const FilePreviewList = memo(function FilePreviewList({
   onRemoveExisting?: (attId: string) => void;
 }) {
   const { t } = useTranslation();
-  const keptExisting =
-    existingAttachments?.filter((a) => keepIds?.includes(a.id)) || [];
+  const keptExisting = existingAttachments?.filter((a) => keepIds?.includes(a.id)) || [];
   if (keptExisting.length === 0 && files.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-2 mb-2">
@@ -450,21 +408,17 @@ const FilePreviewList = memo(function FilePreviewList({
           {isDocAttachment(att) ? (
             <div className="flex items-center gap-1.5 h-16 px-2.5 rounded-md border border-bridge-border bg-foreground/[0.03]">
               <span
-                className={`text-xs font-bold px-1 py-0.5 rounded ${getDocColor(att.content_type || "")}`}
+                className={`text-xs font-bold px-1 py-0.5 rounded ${getDocColor(att.content_type || '')}`}
               >
-                {getDocIcon(att.content_type || "")}
+                {getDocIcon(att.content_type || '')}
               </span>
-              <span className="text-xs text-foreground truncate max-w-[80px]">
-                {att.file_name}
-              </span>
+              <span className="text-xs text-foreground truncate max-w-[80px]">{att.file_name}</span>
             </div>
           ) : isVideoAttachment(att) ? (
             <div className="relative h-16 w-[90px]">
               <VideoThumbnail
                 videoUrl={resolveFileUrl(att.url)}
-                serverThumbnailUrl={
-                  att.thumbnail_url ? resolveFileUrl(att.thumbnail_url) : null
-                }
+                serverThumbnailUrl={att.thumbnail_url ? resolveFileUrl(att.thumbnail_url) : null}
                 className="h-16 w-[90px] object-cover rounded-md border border-bridge-border"
                 alt={att.file_name}
               />
@@ -492,29 +446,27 @@ const FilePreviewList = memo(function FilePreviewList({
         <div key={pf.id} className="relative group/preview">
           {isDocType(pf.file.type) ? (
             <div
-              className={`flex items-center gap-1.5 h-16 px-2.5 rounded-md border ${pf.error ? "border-red-500/50" : "border-bridge-border"} bg-foreground/[0.03]`}
+              className={`flex items-center gap-1.5 h-16 px-2.5 rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'} bg-foreground/[0.03]`}
             >
               <span
                 className={`text-xs font-bold px-1 py-0.5 rounded ${getDocColor(pf.file.type)}`}
               >
                 {getDocIcon(pf.file.type)}
               </span>
-              <span className="text-xs text-foreground truncate max-w-[80px]">
-                {pf.file.name}
-              </span>
+              <span className="text-xs text-foreground truncate max-w-[80px]">{pf.file.name}</span>
             </div>
           ) : isVideoType(pf.file.type) ? (
             <video
               src={pf.previewUrl}
               muted
               preload="metadata"
-              className={`h-16 w-[90px] object-cover rounded-md border ${pf.error ? "border-red-500/50" : "border-bridge-border"}`}
+              className={`h-16 w-[90px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'}`}
             />
           ) : (
             <img
               src={pf.previewUrl}
               alt={pf.file.name}
-              className={`h-16 w-auto max-w-[120px] object-cover rounded-md border ${pf.error ? "border-red-500/50" : "border-bridge-border"}`}
+              className={`h-16 w-auto max-w-[120px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'}`}
             />
           )}
           {pf.uploading && (
@@ -524,9 +476,7 @@ const FilePreviewList = memo(function FilePreviewList({
           )}
           {pf.error && (
             <div className="absolute inset-0 bg-red-500/20 rounded-md flex items-center justify-center">
-              <span className="text-xs text-red-300 font-medium">
-                {t("comment.failed")}
-              </span>
+              <span className="text-xs text-red-300 font-medium">{t('comment.failed')}</span>
             </div>
           )}
           {isVideoType(pf.file.type) && !pf.uploading && !pf.error && (
@@ -569,25 +519,21 @@ const ReactionBar = memo(function ReactionBar({
       {reactions.map((reaction) => {
         const isMyReaction = reaction.users.some((u) => u.id === currentUserId);
         const tooltipNames = reaction.users
-          .map((u) =>
-            u.id === currentUserId ? t("comment.reaction.you") : u.name,
-          )
-          .join(", ");
+          .map((u) => (u.id === currentUserId ? t('comment.reaction.you') : u.name))
+          .join(', ');
 
         return (
           <button
             key={reaction.emoji}
-            onClick={() =>
-              canEdit && onToggleReaction(comment.id, reaction.emoji)
-            }
+            onClick={() => canEdit && onToggleReaction(comment.id, reaction.emoji)}
             disabled={!canEdit}
             className={`group/reaction relative inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all
               ${
                 isMyReaction
-                  ? "bg-bridge-accent/20 border border-bridge-accent/50 text-bridge-accent hover:bg-bridge-accent/30"
-                  : "bg-foreground/5 border border-foreground/10 text-slate-400 hover:bg-foreground/10 hover:text-muted-foreground"
+                  ? 'bg-bridge-accent/20 border border-bridge-accent/50 text-bridge-accent hover:bg-bridge-accent/30'
+                  : 'bg-foreground/5 border border-foreground/10 text-slate-400 hover:bg-foreground/10 hover:text-muted-foreground'
               }
-              ${!canEdit ? "cursor-default" : "cursor-pointer"}
+              ${!canEdit ? 'cursor-default' : 'cursor-pointer'}
             `}
             title={tooltipNames}
           >
@@ -642,8 +588,7 @@ const InlineMentionDropdown = memo(function InlineMentionDropdown({
 }) {
   const { t } = useTranslation();
   const totalItems = filteredGroups.length + filteredMembers.length;
-  if (!show || forEdit !== isEdit || (totalItems === 0 && !isAdminOrOwner))
-    return null;
+  if (!show || forEdit !== isEdit || (totalItems === 0 && !isAdminOrOwner)) return null;
   const hasGroups = filteredGroups.length > 0;
   const hasMembers = filteredMembers.length > 0;
   let itemIdx = 0;
@@ -661,11 +606,9 @@ const InlineMentionDropdown = memo(function InlineMentionDropdown({
             className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-bridge-accent hover:bg-foreground/5 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            <span>{t("mentionGroup.create", "멘션 그룹 만들기")}</span>
+            <span>{t('mentionGroup.create', '멘션 그룹 만들기')}</span>
           </button>
-          {(hasGroups || hasMembers) && (
-            <div className="border-t border-foreground/[0.08] my-1" />
-          )}
+          {(hasGroups || hasMembers) && <div className="border-t border-foreground/[0.08] my-1" />}
         </>
       )}
       {/* 그룹 섹션 */}
@@ -681,24 +624,20 @@ const InlineMentionDropdown = memo(function InlineMentionDropdown({
                   onInsertGroupMention(group, isEdit);
                 }}
                 onMouseEnter={() => onMentionIndexChange(idx)}
-                className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${idx === mentionIndex ? "bg-foreground/10" : "hover:bg-foreground/5"}`}
+                className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${idx === mentionIndex ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`}
               >
                 <div className="w-5 h-5 rounded-full bg-bridge-secondary/20 flex items-center justify-center">
                   <Users className="w-3 h-3 text-bridge-secondary" />
                 </div>
-                <span className={idx === mentionIndex ? "text-foreground" : ""}>
-                  {group.name}
-                </span>
+                <span className={idx === mentionIndex ? 'text-foreground' : ''}>{group.name}</span>
                 <span className="text-xs text-slate-500 ml-auto">
                   {group.members.length}
-                  {t("mentionGroup.memberCountSuffix", "명")}
+                  {t('mentionGroup.memberCountSuffix', '명')}
                 </span>
               </button>
             );
           })}
-          {hasMembers && (
-            <div className="border-t border-foreground/[0.08] my-1" />
-          )}
+          {hasMembers && <div className="border-t border-foreground/[0.08] my-1" />}
         </>
       )}
       {/* 개별 멤버 섹션 */}
@@ -713,20 +652,16 @@ const InlineMentionDropdown = memo(function InlineMentionDropdown({
               onInsertMention(member, isEdit);
             }}
             onMouseEnter={() => onMentionIndexChange(idx)}
-            className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${idx === mentionIndex ? "bg-foreground/10" : "hover:bg-foreground/5"}`}
+            className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${idx === mentionIndex ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`}
           >
             <div
               className={`w-5 h-5 rounded-full ${color.bg} flex items-center justify-center text-xs font-bold text-white whitespace-nowrap overflow-hidden`}
             >
               {getInitials(member.name)}
             </div>
-            <span className={idx === mentionIndex ? "text-foreground" : ""}>
-              {member.name}
-            </span>
+            <span className={idx === mentionIndex ? 'text-foreground' : ''}>{member.name}</span>
             {member.userId === currentUserId && (
-              <span className="text-xs text-slate-400">
-                ({t("mentionGroup.me", "나")})
-              </span>
+              <span className="text-xs text-slate-400">({t('mentionGroup.me', '나')})</span>
             )}
           </button>
         );
@@ -782,7 +717,7 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
       ref={pickerRef}
       data-emoji-picker
       style={{
-        position: "fixed",
+        position: 'fixed',
         top: position.top,
         left: position.left,
         zIndex: 9999,
@@ -793,7 +728,7 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
     >
       {/* 기본 이모지 */}
       <div className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">
-        {t("comment.customEmoji.default", "기본")}
+        {t('comment.customEmoji.default', '기본')}
       </div>
       <div className="grid grid-cols-4 gap-1">
         {REACTION_EMOJIS.map((emoji) => (
@@ -812,7 +747,7 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
         <>
           <div className="border-t border-foreground/10 my-1.5" />
           <div className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">
-            {t("comment.customEmoji.title", "커스텀")}
+            {t('comment.customEmoji.title', '커스텀')}
           </div>
           <div className="grid grid-cols-4 gap-1">
             {customEmojis.map((ce) => (
@@ -835,7 +770,7 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
                       onDeleteCustomEmoji(ce.id);
                     }}
                     className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-white items-center justify-center text-xs leading-none hidden group-hover/ce:flex"
-                    title={t("comment.customEmoji.deleteConfirm", "삭제")}
+                    title={t('comment.customEmoji.deleteConfirm', '삭제')}
                   >
                     ×
                   </button>
@@ -846,7 +781,7 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
               <button
                 onClick={() => onShowEmojiUploadChange(!showEmojiUpload)}
                 className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-foreground/10 transition-all text-slate-400 hover:text-muted-foreground border border-dashed border-foreground/10"
-                title={t("comment.customEmoji.add", "이모지 추가")}
+                title={t('comment.customEmoji.add', '이모지 추가')}
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
@@ -862,8 +797,8 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
                   disabled={isUploadingEmoji}
                   className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                     selectedEmojiFile
-                      ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
-                      : "bg-bridge-accent/20 text-bridge-accent hover:bg-bridge-accent/30"
+                      ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                      : 'bg-bridge-accent/20 text-bridge-accent hover:bg-bridge-accent/30'
                   }`}
                 >
                   {isUploadingEmoji ? (
@@ -873,19 +808,19 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
                   )}
                   {selectedEmojiFile
                     ? selectedEmojiFile.name.length > 12
-                      ? selectedEmojiFile.name.slice(0, 12) + "…"
+                      ? selectedEmojiFile.name.slice(0, 12) + '…'
                       : selectedEmojiFile.name
-                    : t("comment.customEmoji.selectFile", "파일 선택")}
+                    : t('comment.customEmoji.selectFile', '파일 선택')}
                 </button>
                 <button
                   onClick={() => {
                     onShowEmojiUploadChange(false);
-                    onEmojiUploadNameChange("");
+                    onEmojiUploadNameChange('');
                     onSelectedEmojiFileChange(null);
                   }}
                   className="px-2 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-muted-foreground hover:bg-foreground/5 transition-all"
                 >
-                  {t("common.cancel", "취소")}
+                  {t('common.cancel', '취소')}
                 </button>
               </div>
               {selectedEmojiFile && (
@@ -896,13 +831,9 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
                     value={emojiUploadName}
                     onChange={(e) => onEmojiUploadNameChange(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && emojiUploadName.trim())
-                        onUploadCustomEmoji();
+                      if (e.key === 'Enter' && emojiUploadName.trim()) onUploadCustomEmoji();
                     }}
-                    placeholder={t(
-                      "comment.customEmoji.namePlaceholder",
-                      "이모지 이름",
-                    )}
+                    placeholder={t('comment.customEmoji.namePlaceholder', '이모지 이름')}
                     className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1 text-xs text-foreground placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                     maxLength={50}
                     autoFocus
@@ -912,18 +843,13 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
                     disabled={!emojiUploadName.trim() || isUploadingEmoji}
                     className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-bold rounded-lg bg-bridge-accent text-white hover:bg-bridge-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                   >
-                    {isUploadingEmoji && (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    )}
-                    {t("comment.customEmoji.upload", "업로드")}
+                    {isUploadingEmoji && <Loader2 className="w-3 h-3 animate-spin" />}
+                    {t('comment.customEmoji.upload', '업로드')}
                   </button>
                 </>
               )}
               <p className="text-xs text-slate-500">
-                {t(
-                  "comment.customEmoji.maxSize",
-                  "PNG, GIF, WebP · 128KB 이하",
-                )}
+                {t('comment.customEmoji.maxSize', 'PNG, GIF, WebP · 128KB 이하')}
               </p>
               <input
                 ref={emojiFileInputRef}
@@ -936,7 +862,7 @@ const EmojiPickerPopup = memo(function EmojiPickerPopup({
                     onSelectedEmojiFileChange(file);
                     setTimeout(() => emojiNameInputRef.current?.focus(), 50);
                   }
-                  e.target.value = "";
+                  e.target.value = '';
                 }}
               />
             </div>
@@ -960,23 +886,21 @@ export function CommentPanel({
   wsCommentEvent,
   onClose,
   checklistItemId = null,
-  variant = "panel",
+  variant = 'panel',
   onOpenChecklistItem,
   onChecklistCommentCountChange,
   onScopedCommentsChange,
   reloadToken = 0,
 }: CommentPanelProps) {
   const { t, i18n } = useTranslation();
-  const isEmbedded = variant === "embedded";
+  const isEmbedded = variant === 'embedded';
   // 댓글 목록
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // AI 요약
-  const [aiSummary, setAiSummary] = useState<CommentAISummaryResponse | null>(
-    null,
-  );
+  const [aiSummary, setAiSummary] = useState<CommentAISummaryResponse | null>(null);
   const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
 
   // 답글 대상
@@ -986,7 +910,7 @@ export function CommentPanel({
   } | null>(null);
 
   // 새 댓글 입력
-  const [newComment, setNewComment] = useState("");
+  const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingMentions, setPendingMentions] = useState<string[]>([]);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
@@ -995,18 +919,14 @@ export function CommentPanel({
 
   // 수정 모드
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState("");
+  const [editContent, setEditContent] = useState('');
   const [editMentions, setEditMentions] = useState<string[]>([]);
-  const [editKeepAttachmentIds, setEditKeepAttachmentIds] = useState<string[]>(
-    [],
-  );
+  const [editKeepAttachmentIds, setEditKeepAttachmentIds] = useState<string[]>([]);
   const [editNewFiles, setEditNewFiles] = useState<PendingFile[]>([]);
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
 
   // 이모지 리액션
-  const [emojiPickerCommentId, setEmojiPickerCommentId] = useState<
-    string | null
-  >(null);
+  const [emojiPickerCommentId, setEmojiPickerCommentId] = useState<string | null>(null);
   const [emojiPickerPos, setEmojiPickerPos] = useState<{
     top: number;
     left: number;
@@ -1016,7 +936,7 @@ export function CommentPanel({
   // 커스텀 이모지
   const [customEmojis, setCustomEmojis] = useState<BoardCustomEmoji[]>([]);
   const [customEmojisLoaded, setCustomEmojisLoaded] = useState(false);
-  const [emojiUploadName, setEmojiUploadName] = useState("");
+  const [emojiUploadName, setEmojiUploadName] = useState('');
   const [isUploadingEmoji, setIsUploadingEmoji] = useState(false);
   const [showEmojiUpload, setShowEmojiUpload] = useState(false);
   const [selectedEmojiFile, setSelectedEmojiFile] = useState<File | null>(null);
@@ -1025,12 +945,10 @@ export function CommentPanel({
 
   // 삭제 / 라이트박스
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [lightboxAttachmentId, setLightboxAttachmentId] = useState<
-    string | null
-  >(null);
+  const [lightboxAttachmentId, setLightboxAttachmentId] = useState<string | null>(null);
 
   // 멘션 드롭다운
-  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionQuery, setMentionQuery] = useState('');
   const [showInlineMention, setShowInlineMention] = useState(false);
   const [inlineMentionForEdit, setInlineMentionForEdit] = useState(false);
   const [mentionIndex, setMentionIndex] = useState(0);
@@ -1057,7 +975,7 @@ export function CommentPanel({
         const response = await commentAPI.getComments(boardId, taskId);
         setComments(response.comments);
       } catch (error) {
-        console.error("Failed to load comments:", error);
+        console.error('Failed to load comments:', error);
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
@@ -1073,9 +991,7 @@ export function CommentPanel({
    */
   const visibleComments = useMemo(
     () =>
-      checklistItemId
-        ? comments.filter((c) => c.checklist_item_id === checklistItemId)
-        : comments,
+      checklistItemId ? comments.filter((c) => c.checklist_item_id === checklistItemId) : comments,
     [comments, checklistItemId],
   );
 
@@ -1115,42 +1031,35 @@ export function CommentPanel({
     const { type, data } = wsCommentEvent;
 
     switch (type) {
-      case "COMMENT_CREATED": {
+      case 'COMMENT_CREATED': {
         const comment = data as TaskComment;
         if (comment.task_id !== taskId) return;
-        setComments((prev) =>
-          prev.some((c) => c.id === comment.id) ? prev : [...prev, comment],
-        );
+        setComments((prev) => (prev.some((c) => c.id === comment.id) ? prev : [...prev, comment]));
         break;
       }
-      case "COMMENT_UPDATED": {
+      case 'COMMENT_UPDATED': {
         const comment = data as TaskComment;
         if (comment.task_id !== taskId) return;
-        setComments((prev) =>
-          prev.map((c) => (c.id === comment.id ? comment : c)),
-        );
+        setComments((prev) => prev.map((c) => (c.id === comment.id ? comment : c)));
         break;
       }
-      case "COMMENT_DELETED": {
+      case 'COMMENT_DELETED': {
         const { id, task_id } = data as { id: string; task_id: string };
         if (task_id !== taskId) return;
         setComments((prev) => prev.filter((c) => c.id !== id));
         break;
       }
-      case "COMMENT_REACTION_TOGGLED": {
+      case 'COMMENT_REACTION_TOGGLED': {
         const comment = data as TaskComment;
         if (comment.task_id !== taskId) return;
-        setComments((prev) =>
-          prev.map((c) => (c.id === comment.id ? comment : c)),
-        );
+        setComments((prev) => prev.map((c) => (c.id === comment.id ? comment : c)));
         break;
       }
     }
   }, [wsCommentEvent, taskId]);
 
   useEffect(() => {
-    if (scrollRef.current)
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     // 화면에 실제로 그려지는 목록 기준. 스코프가 걸린 상태에서 다른 항목 댓글이 늘었다고
     // 내가 보던 스레드가 아래로 튀면 안 된다.
   }, [visibleComments.length]);
@@ -1177,7 +1086,7 @@ export function CommentPanel({
   const allMedia = useMemo(() => {
     const items: {
       url: string;
-      type: "image" | "video";
+      type: 'image' | 'video';
       attachmentId: string;
       fileName: string;
     }[] = [];
@@ -1186,7 +1095,7 @@ export function CommentPanel({
         if (isDocAttachment(att)) continue;
         items.push({
           url: resolveFileUrl(att.url),
-          type: isVideoAttachment(att) ? "video" : "image",
+          type: isVideoAttachment(att) ? 'video' : 'image',
           attachmentId: att.id,
           fileName: att.file_name,
         });
@@ -1197,10 +1106,7 @@ export function CommentPanel({
 
   // 보고 있는 첨부가 더 이상 존재하지 않으면 라이트박스 자동 닫기
   useEffect(() => {
-    if (
-      lightboxAttachmentId &&
-      !allMedia.some((m) => m.attachmentId === lightboxAttachmentId)
-    ) {
+    if (lightboxAttachmentId && !allMedia.some((m) => m.attachmentId === lightboxAttachmentId)) {
       setLightboxAttachmentId(null);
     }
   }, [allMedia, lightboxAttachmentId]);
@@ -1219,8 +1125,8 @@ export function CommentPanel({
         setEmojiPickerPos(null);
       }
     };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, [emojiPickerCommentId]);
 
   const openEmojiPicker = (commentId: string, buttonEl: HTMLButtonElement) => {
@@ -1245,28 +1151,19 @@ export function CommentPanel({
     }
     setEmojiPickerPos({ top, left });
     setEmojiPickerCommentId(commentId);
-    (
-      emojiTriggerRef as React.MutableRefObject<HTMLButtonElement | null>
-    ).current = buttonEl;
+    (emojiTriggerRef as React.MutableRefObject<HTMLButtonElement | null>).current = buttonEl;
   };
 
   // ========== 이모지 리액션 ==========
 
   const handleToggleReaction = async (commentId: string, emoji: string) => {
     try {
-      const response = await commentAPI.toggleReaction(
-        boardId,
-        taskId,
-        commentId,
-        emoji,
-      );
+      const response = await commentAPI.toggleReaction(boardId, taskId, commentId, emoji);
       setComments((prev) =>
-        prev.map((c) =>
-          c.id === commentId ? { ...c, reactions: response.reactions } : c,
-        ),
+        prev.map((c) => (c.id === commentId ? { ...c, reactions: response.reactions } : c)),
       );
     } catch (error) {
-      console.error("Failed to toggle reaction:", error);
+      console.error('Failed to toggle reaction:', error);
     }
     setEmojiPickerCommentId(null);
     setEmojiPickerPos(null);
@@ -1288,7 +1185,7 @@ export function CommentPanel({
       );
       setCustomEmojisLoaded(true);
     } catch (err) {
-      console.error("Failed to load custom emojis:", err);
+      console.error('Failed to load custom emojis:', err);
     }
   }, [boardId, customEmojisLoaded]);
 
@@ -1304,11 +1201,7 @@ export function CommentPanel({
     if (!emojiUploadName.trim() || !uploadFile) return;
     setIsUploadingEmoji(true);
     try {
-      const res = await customEmojiAPI.uploadEmoji(
-        boardId,
-        emojiUploadName.trim(),
-        uploadFile,
-      );
+      const res = await customEmojiAPI.uploadEmoji(boardId, emojiUploadName.trim(), uploadFile);
       setCustomEmojis((prev) => [
         ...prev,
         {
@@ -1318,11 +1211,11 @@ export function CommentPanel({
           content_type: res.content_type,
         },
       ]);
-      setEmojiUploadName("");
+      setEmojiUploadName('');
       setSelectedEmojiFile(null);
       setShowEmojiUpload(false);
     } catch (err) {
-      console.error("Failed to upload custom emoji:", err);
+      console.error('Failed to upload custom emoji:', err);
     } finally {
       setIsUploadingEmoji(false);
     }
@@ -1340,7 +1233,7 @@ export function CommentPanel({
         })),
       );
     } catch (err) {
-      console.error("Failed to delete custom emoji:", err);
+      console.error('Failed to delete custom emoji:', err);
     }
   };
 
@@ -1350,26 +1243,16 @@ export function CommentPanel({
     pf: PendingFile,
     setter: React.Dispatch<React.SetStateAction<PendingFile[]>>,
   ) => {
-    setter((prev) =>
-      prev.map((f) => (f.id === pf.id ? { ...f, uploading: true } : f)),
-    );
+    setter((prev) => prev.map((f) => (f.id === pf.id ? { ...f, uploading: true } : f)));
     try {
       const result = await fileAPI.smartUpload(pf.file);
       setter((prev) =>
-        prev.map((f) =>
-          f.id === pf.id
-            ? { ...f, uploading: false, tempKey: result.tempKey }
-            : f,
-        ),
+        prev.map((f) => (f.id === pf.id ? { ...f, uploading: false, tempKey: result.tempKey } : f)),
       );
     } catch (err) {
-      console.error("Upload failed:", err);
+      console.error('Upload failed:', err);
       setter((prev) =>
-        prev.map((f) =>
-          f.id === pf.id
-            ? { ...f, uploading: false, error: "upload_failed" }
-            : f,
-        ),
+        prev.map((f) => (f.id === pf.id ? { ...f, uploading: false, error: 'upload_failed' } : f)),
       );
     }
   };
@@ -1387,11 +1270,11 @@ export function CommentPanel({
 
     for (const file of files) {
       if (totalCurrent + newFiles.length >= MAX_FILES) {
-        setFileError("comment.maxFilesError");
+        setFileError('comment.maxFilesError');
         break;
       }
       if (!ALLOWED_TYPES.includes(file.type)) {
-        setFileError("comment.fileTypeError");
+        setFileError('comment.fileTypeError');
         continue;
       }
       const maxSize = isVideoType(file.type)
@@ -1402,10 +1285,10 @@ export function CommentPanel({
       if (file.size > maxSize) {
         setFileError(
           isVideoType(file.type)
-            ? "comment.videoFileSizeError"
+            ? 'comment.videoFileSizeError'
             : isDocType(file.type)
-              ? "comment.docFileSizeError"
-              : "comment.fileSizeError",
+              ? 'comment.docFileSizeError'
+              : 'comment.fileSizeError',
         );
         continue;
       }
@@ -1437,10 +1320,7 @@ export function CommentPanel({
 
   // ========== 이벤트 핸들러 ==========
 
-  const handleFileSelect = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    isEdit: boolean,
-  ) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
     if (!e.target.files) return;
     if (isEdit) {
       validateAndAddFiles(
@@ -1452,7 +1332,7 @@ export function CommentPanel({
     } else {
       validateAndAddFiles(e.target.files, pendingFiles, setPendingFiles);
     }
-    e.target.value = "";
+    e.target.value = '';
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -1478,11 +1358,7 @@ export function CommentPanel({
           editKeepAttachmentIds.length,
         );
       } else {
-        validateAndAddFiles(
-          e.dataTransfer.files,
-          pendingFiles,
-          setPendingFiles,
-        );
+        validateAndAddFiles(e.dataTransfer.files, pendingFiles, setPendingFiles);
       }
     }
   };
@@ -1492,8 +1368,8 @@ export function CommentPanel({
     for (let i = 0; i < e.clipboardData.items.length; i++) {
       const item = e.clipboardData.items[i];
       if (
-        item.type.startsWith("image/") ||
-        item.type.startsWith("video/") ||
+        item.type.startsWith('image/') ||
+        item.type.startsWith('video/') ||
         ALLOWED_DOC_TYPES.includes(item.type)
       ) {
         const file = item.getAsFile();
@@ -1517,10 +1393,7 @@ export function CommentPanel({
 
   // ========== 멘션 ==========
 
-  const detectMentionQuery = (
-    text: string,
-    cursorPos: number,
-  ): string | null => {
+  const detectMentionQuery = (text: string, cursorPos: number): string | null => {
     const before = text.slice(0, cursorPos);
     const match = before.match(/@(\S*)$/);
     return match ? match[1] : null;
@@ -1541,7 +1414,7 @@ export function CommentPanel({
       setMentionIndex(0);
     } else {
       setShowInlineMention(false);
-      setMentionQuery("");
+      setMentionQuery('');
     }
   };
 
@@ -1555,9 +1428,7 @@ export function CommentPanel({
 
     if (isEdit) {
       setEditContent(replaced + after);
-      setEditMentions((prev) =>
-        prev.includes(member.userId) ? prev : [...prev, member.userId],
-      );
+      setEditMentions((prev) => (prev.includes(member.userId) ? prev : [...prev, member.userId]));
     } else {
       setNewComment(replaced + after);
       setPendingMentions((prev) =>
@@ -1566,7 +1437,7 @@ export function CommentPanel({
     }
 
     setShowInlineMention(false);
-    setMentionQuery("");
+    setMentionQuery('');
     mentionJustSelected.current = true;
 
     requestAnimationFrame(() => {
@@ -1597,7 +1468,7 @@ export function CommentPanel({
     }
 
     setShowInlineMention(false);
-    setMentionQuery("");
+    setMentionQuery('');
     mentionJustSelected.current = true;
 
     requestAnimationFrame(() => {
@@ -1611,8 +1482,7 @@ export function CommentPanel({
   };
 
   type MentionItem =
-    | { type: "member"; member: BoardMember }
-    | { type: "group"; group: MentionGroupDetail };
+    { type: 'member'; member: BoardMember } | { type: 'group'; group: MentionGroupDetail };
 
   const filteredMembers = boardMembers.filter((m) =>
     m.name.toLowerCase().includes(mentionQuery.toLowerCase()),
@@ -1623,8 +1493,8 @@ export function CommentPanel({
   );
 
   const filteredItems: MentionItem[] = [
-    ...filteredGroups.map((g) => ({ type: "group" as const, group: g })),
-    ...filteredMembers.map((m) => ({ type: "member" as const, member: m })),
+    ...filteredGroups.map((g) => ({ type: 'group' as const, group: g })),
+    ...filteredMembers.map((m) => ({ type: 'member' as const, member: m })),
   ];
 
   // ========== CRUD ==========
@@ -1637,12 +1507,12 @@ export function CommentPanel({
     // 모든 파일이 업로드 완료될 때까지 대기
     const uploading = pendingFiles.some((pf) => pf.uploading);
     if (uploading) {
-      setFileError("comment.uploadInProgress");
+      setFileError('comment.uploadInProgress');
       return;
     }
     const hasError = pendingFiles.some((pf) => pf.error);
     if (hasError) {
-      setFileError("comment.uploadFailedRetry");
+      setFileError('comment.uploadFailedRetry');
       return;
     }
 
@@ -1650,7 +1520,7 @@ export function CommentPanel({
     try {
       const fileKeys = pendingFiles.map((pf) => pf.tempKey!).filter(Boolean);
       const response = await commentAPI.createComment(boardId, taskId, {
-        content: newComment.trim() || "",
+        content: newComment.trim() || '',
         mentions: pendingMentions,
         fileKeys: fileKeys.length > 0 ? fileKeys : undefined,
         parentId: replyTo?.id,
@@ -1660,14 +1530,14 @@ export function CommentPanel({
       if (checklistItemId) {
         onChecklistCommentCountChange?.(checklistItemId, 1);
       }
-      setNewComment("");
+      setNewComment('');
       setReplyTo(null);
       setPendingMentions([]);
       pendingFiles.forEach((pf) => URL.revokeObjectURL(pf.previewUrl));
       setPendingFiles([]);
       setFileError(null);
     } catch (error) {
-      console.error("Failed to create comment:", error);
+      console.error('Failed to create comment:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -1685,7 +1555,7 @@ export function CommentPanel({
   const cancelEditing = () => {
     editNewFiles.forEach((pf) => URL.revokeObjectURL(pf.previewUrl));
     setEditingId(null);
-    setEditContent("");
+    setEditContent('');
     setEditMentions([]);
     setEditKeepAttachmentIds([]);
     setEditNewFiles([]);
@@ -1697,30 +1567,23 @@ export function CommentPanel({
 
     const uploading = editNewFiles.some((pf) => pf.uploading);
     if (uploading) {
-      setFileError("comment.uploadInProgress");
+      setFileError('comment.uploadInProgress');
       return;
     }
 
     setIsEditSubmitting(true);
     try {
       const newFileKeys = editNewFiles.map((pf) => pf.tempKey!).filter(Boolean);
-      const response = await commentAPI.updateComment(
-        boardId,
-        taskId,
-        commentId,
-        {
-          content: editContent.trim(),
-          mentions: editMentions,
-          keepAttachmentIds: editKeepAttachmentIds,
-          newFileKeys: newFileKeys.length > 0 ? newFileKeys : undefined,
-        },
-      );
-      setComments((prev) =>
-        prev.map((c) => (c.id === commentId ? response : c)),
-      );
+      const response = await commentAPI.updateComment(boardId, taskId, commentId, {
+        content: editContent.trim(),
+        mentions: editMentions,
+        keepAttachmentIds: editKeepAttachmentIds,
+        newFileKeys: newFileKeys.length > 0 ? newFileKeys : undefined,
+      });
+      setComments((prev) => prev.map((c) => (c.id === commentId ? response : c)));
       cancelEditing();
     } catch (error) {
-      console.error("Failed to update comment:", error);
+      console.error('Failed to update comment:', error);
     } finally {
       setIsEditSubmitting(false);
     }
@@ -1729,16 +1592,14 @@ export function CommentPanel({
   const handleDelete = async (commentId: string) => {
     try {
       // 지우기 전에 소속 항목을 확인해 둔다 — 지운 뒤에는 어느 행의 뱃지를 줄일지 알 수 없다.
-      const removedItemId = comments.find(
-        (c) => c.id === commentId,
-      )?.checklist_item_id;
+      const removedItemId = comments.find((c) => c.id === commentId)?.checklist_item_id;
       await commentAPI.deleteComment(boardId, taskId, commentId);
       setComments((prev) => prev.filter((c) => c.id !== commentId));
       if (removedItemId) {
         onChecklistCommentCountChange?.(removedItemId, -1);
       }
     } catch (error) {
-      console.error("Failed to delete comment:", error);
+      console.error('Failed to delete comment:', error);
     } finally {
       setDeleteTarget(null);
     }
@@ -1751,26 +1612,24 @@ export function CommentPanel({
     isEdit: boolean,
   ): boolean => {
     if (!showInlineMention || filteredItems.length === 0) return false;
-    if (e.key === "ArrowDown") {
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
       setMentionIndex((prev) => (prev + 1) % filteredItems.length);
       return true;
     }
-    if (e.key === "ArrowUp") {
+    if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setMentionIndex(
-        (prev) => (prev - 1 + filteredItems.length) % filteredItems.length,
-      );
+      setMentionIndex((prev) => (prev - 1 + filteredItems.length) % filteredItems.length);
       return true;
     }
-    if (e.key === "Enter" || e.key === "Tab") {
+    if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
       const item = filteredItems[mentionIndex];
-      if (item.type === "group") insertGroupMention(item.group, isEdit);
+      if (item.type === 'group') insertGroupMention(item.group, isEdit);
       else insertMention(item.member, isEdit);
       return true;
     }
-    if (e.key === "Escape") {
+    if (e.key === 'Escape') {
       e.preventDefault();
       setShowInlineMention(false);
       return true;
@@ -1781,7 +1640,7 @@ export function CommentPanel({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.nativeEvent.isComposing) return;
     if (handleMentionNav(e, false)) return;
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey) {
       if (mentionJustSelected.current) {
         e.preventDefault();
         mentionJustSelected.current = false;
@@ -1794,13 +1653,10 @@ export function CommentPanel({
     }
   };
 
-  const handleEditKeyDown = (
-    e: React.KeyboardEvent<HTMLTextAreaElement>,
-    commentId: string,
-  ) => {
+  const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, commentId: string) => {
     if (e.nativeEvent.isComposing) return;
     if (handleMentionNav(e, true)) return;
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey) {
       if (mentionJustSelected.current) {
         e.preventDefault();
         mentionJustSelected.current = false;
@@ -1808,7 +1664,7 @@ export function CommentPanel({
       }
       e.preventDefault();
       handleUpdate(commentId);
-    } else if (e.key === "Escape") {
+    } else if (e.key === 'Escape') {
       cancelEditing();
     } else {
       mentionJustSelected.current = false;
@@ -1819,9 +1675,7 @@ export function CommentPanel({
 
   // ========== 메인 렌더 ==========
 
-  const currentComment = editingId
-    ? comments.find((c) => c.id === editingId)
-    : null;
+  const currentComment = editingId ? comments.find((c) => c.id === editingId) : null;
 
   return (
     <div
@@ -1835,9 +1689,7 @@ export function CommentPanel({
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-bridge-accent/10 border-2 border-dashed border-bridge-accent rounded-lg pointer-events-none">
           <div className="flex flex-col items-center gap-2 text-bridge-accent">
             <Paperclip className="h-8 w-8" />
-            <span className="text-sm font-medium">
-              {t("comment.dropFileHere")}
-            </span>
+            <span className="text-sm font-medium">{t('comment.dropFileHere')}</span>
           </div>
         </div>
       )}
@@ -1847,9 +1699,7 @@ export function CommentPanel({
         <div className="flex items-center px-4 py-3 border-b border-bridge-border">
           <div className="flex items-center gap-2 flex-1">
             <MessageSquare className="h-4 w-4 text-slate-400" />
-            <span className="text-sm font-medium text-foreground">
-              {t("comment.title")}
-            </span>
+            <span className="text-sm font-medium text-foreground">{t('comment.title')}</span>
             {comments.length > 0 && (
               <span className="text-xs text-slate-400">{comments.length}</span>
             )}
@@ -1857,11 +1707,9 @@ export function CommentPanel({
               onClick={() => loadComments(false)}
               disabled={isRefreshing}
               className="p-0.5 text-slate-400 hover:text-foreground transition-colors disabled:opacity-50"
-              title={t("comment.refresh")}
+              title={t('comment.refresh')}
             >
-              <RefreshCw
-                className={`h-3 w-3 ${isRefreshing ? "animate-spin" : ""}`}
-              />
+              <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
           </div>
           {comments.length >= 3 && canEdit && (
@@ -1869,11 +1717,7 @@ export function CommentPanel({
               onClick={async () => {
                 setAiSummaryLoading(true);
                 try {
-                  const result = await commentAPI.aiSummarize(
-                    boardId,
-                    taskId,
-                    i18n.language,
-                  );
+                  const result = await commentAPI.aiSummarize(boardId, taskId, i18n.language);
                   setAiSummary(result);
                 } catch {
                   /* ignore */
@@ -1889,7 +1733,7 @@ export function CommentPanel({
               ) : (
                 <Sparkles className="h-3 w-3" />
               )}
-              {t("comment.aiSummarize")}
+              {t('comment.aiSummarize')}
             </button>
           )}
           {onClose && (
@@ -1905,10 +1749,7 @@ export function CommentPanel({
       )}
 
       {/* 댓글 목록 */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto px-4 py-3 space-y-4 custom-scrollbar"
-      >
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-4 custom-scrollbar">
         {/* AI 요약 카드 */}
         {aiSummary && (
           <div className="mb-2 bg-bridge-accent/5 border border-bridge-accent/20 rounded-xl p-4 space-y-3">
@@ -1916,7 +1757,7 @@ export function CommentPanel({
               <div className="flex items-center gap-1.5">
                 <Sparkles className="h-3.5 w-3.5 text-bridge-accent" />
                 <span className="text-xs font-bold uppercase tracking-widest text-bridge-accent">
-                  {t("comment.aiSummaryTitle")}
+                  {t('comment.aiSummaryTitle')}
                 </span>
               </div>
               <button
@@ -1932,14 +1773,11 @@ export function CommentPanel({
             {aiSummary.decisions.length > 0 && (
               <div>
                 <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">
-                  {t("comment.aiDecisions")}
+                  {t('comment.aiDecisions')}
                 </span>
                 <ul className="mt-1 space-y-0.5">
                   {aiSummary.decisions.map((d, i) => (
-                    <li
-                      key={i}
-                      className="text-xs text-muted-foreground flex items-start gap-1.5"
-                    >
+                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
                       <CheckCircle2 className="h-3 w-3 text-emerald-400 mt-0.5 flex-shrink-0" />
                       {d}
                     </li>
@@ -1951,14 +1789,11 @@ export function CommentPanel({
             {aiSummary.open_questions.length > 0 && (
               <div>
                 <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">
-                  {t("comment.aiOpenQuestions")}
+                  {t('comment.aiOpenQuestions')}
                 </span>
                 <ul className="mt-1 space-y-0.5">
                   {aiSummary.open_questions.map((q, i) => (
-                    <li
-                      key={i}
-                      className="text-xs text-muted-foreground flex items-start gap-1.5"
-                    >
+                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
                       <HelpCircle className="h-3 w-3 text-amber-400 mt-0.5 flex-shrink-0" />
                       {q}
                     </li>
@@ -1970,7 +1805,7 @@ export function CommentPanel({
             {aiSummary.action_items.length > 0 && (
               <div>
                 <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">
-                  {t("comment.aiActionItems")}
+                  {t('comment.aiActionItems')}
                 </span>
                 <ul className="mt-1 space-y-1">
                   {aiSummary.action_items.map((item, i) => (
@@ -1982,9 +1817,7 @@ export function CommentPanel({
                         <ListChecks className="h-3 w-3 text-blue-400 flex-shrink-0" />
                         {item.title}
                         {item.assignee_hint && (
-                          <span className="text-xs text-slate-500">
-                            @{item.assignee_hint}
-                          </span>
+                          <span className="text-xs text-slate-500">@{item.assignee_hint}</span>
                         )}
                       </span>
                       <button
@@ -1999,7 +1832,7 @@ export function CommentPanel({
                         }}
                         className="text-xs text-bridge-accent hover:text-bridge-accent/80 px-1.5 py-0.5 rounded bg-bridge-accent/10 hover:bg-bridge-accent/20 transition-all whitespace-nowrap ml-2"
                       >
-                        + {t("comment.checklist")}
+                        + {t('comment.checklist')}
                       </button>
                     </li>
                   ))}
@@ -2018,25 +1851,20 @@ export function CommentPanel({
             <MessageSquare className="h-8 w-8 text-slate-400 mb-2" />
             <p className="text-sm text-slate-400">
               {checklistItemId
-                ? t("checklistDetail.empty", "아직 대화가 없습니다")
-                : t("comment.noComments")}
+                ? t('checklistDetail.empty', '아직 대화가 없습니다')
+                : t('comment.noComments')}
             </p>
             <p className="text-xs text-slate-400 mt-1">
               {checklistItemId
-                ? t("checklistDetail.emptyHint", "첫 댓글을 남겨보세요")
-                : t("comment.beFirstComment")}
+                ? t('checklistDetail.emptyHint', '첫 댓글을 남겨보세요')
+                : t('comment.beFirstComment')}
             </p>
           </div>
         ) : (
           visibleComments.map((comment) => {
             const isAuthor = currentUser?.id === comment.author.id;
-            const authorMember = boardMembers.find(
-              (m) => m.userId === comment.author.id,
-            );
-            const color = getAssigneeClasses(
-              comment.author.name,
-              authorMember?.assigneeColor,
-            );
+            const authorMember = boardMembers.find((m) => m.userId === comment.author.id);
+            const color = getAssigneeClasses(comment.author.name, authorMember?.assigneeColor);
             const isEdited = comment.created_at !== comment.updated_at;
             const isBeingEdited = editingId === comment.id;
 
@@ -2055,16 +1883,14 @@ export function CommentPanel({
                       </span>
                       <span className="text-xs text-slate-400">
                         {formatRelativeTime(comment.created_at)}
-                        {isEdited && ` (${t("comment.edited")})`}
+                        {isEdited && ` (${t('comment.edited')})`}
                       </span>
                       {canEdit && !isBeingEdited && (
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
                           <button
-                            onClick={(e) =>
-                              openEmojiPicker(comment.id, e.currentTarget)
-                            }
+                            onClick={(e) => openEmojiPicker(comment.id, e.currentTarget)}
                             className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground"
-                            title={t("comment.reaction.addReaction")}
+                            title={t('comment.reaction.addReaction')}
                           >
                             <SmilePlus className="h-3 w-3" />
                           </button>
@@ -2097,7 +1923,7 @@ export function CommentPanel({
                               textareaRef.current?.focus();
                             }}
                             className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground"
-                            title={t("comment.reply")}
+                            title={t('comment.reply')}
                           >
                             <Reply className="h-3 w-3" />
                           </button>
@@ -2121,32 +1947,26 @@ export function CommentPanel({
                       )}
                     </div>
 
-                    {!isBeingEdited &&
-                      comment.parent_id &&
-                      comment.parent_author_name && (
-                        <div className="flex items-center gap-1 mb-1 text-xs text-slate-400">
-                          <Reply className="h-2.5 w-2.5 flex-shrink-0" />
-                          <span className="truncate">
-                            @{comment.parent_author_name}
-                          </span>
-                        </div>
-                      )}
+                    {!isBeingEdited && comment.parent_id && comment.parent_author_name && (
+                      <div className="flex items-center gap-1 mb-1 text-xs text-slate-400">
+                        <Reply className="h-2.5 w-2.5 flex-shrink-0" />
+                        <span className="truncate">@{comment.parent_author_name}</span>
+                      </div>
+                    )}
 
                     {/*
                       어느 체크리스트 항목의 댓글인지 밝히는 칩.
                       항목 스코프에서는 이미 제목이 모달 헤더에 있으므로 붙이지 않는다 — 같은 말을 두 번 하는 셈이다.
                       삭제된 항목이면 취소선만 긋고 클릭은 막는다(열 화면이 없다).
                     */}
-                    {!isBeingEdited &&
-                      !checklistItemId &&
-                      comment.checklist_item_id && (
-                        <ChecklistOriginChip
-                          itemId={comment.checklist_item_id}
-                          title={comment.checklist_item_title}
-                          deleted={!!comment.checklist_item_deleted}
-                          onOpen={onOpenChecklistItem}
-                        />
-                      )}
+                    {!isBeingEdited && !checklistItemId && comment.checklist_item_id && (
+                      <ChecklistOriginChip
+                        itemId={comment.checklist_item_id}
+                        title={comment.checklist_item_title}
+                        deleted={!!comment.checklist_item_deleted}
+                        onOpen={onOpenChecklistItem}
+                      />
+                    )}
 
                     {isBeingEdited ? (
                       <div className="space-y-2">
@@ -2155,18 +1975,12 @@ export function CommentPanel({
                           files={editNewFiles}
                           existingAttachments={comment.attachments}
                           keepIds={editKeepAttachmentIds}
-                          onRemoveFile={(id) =>
-                            removePendingFile(id, setEditNewFiles)
-                          }
+                          onRemoveFile={(id) => removePendingFile(id, setEditNewFiles)}
                           onRemoveExisting={(attId) =>
-                            setEditKeepAttachmentIds((prev) =>
-                              prev.filter((id) => id !== attId),
-                            )
+                            setEditKeepAttachmentIds((prev) => prev.filter((id) => id !== attId))
                           }
                         />
-                        {fileError && (
-                          <p className="text-xs text-red-400">{t(fileError)}</p>
-                        )}
+                        {fileError && <p className="text-xs text-red-400">{t(fileError)}</p>}
 
                         <div className="relative">
                           <InlineMentionDropdown
@@ -2182,22 +1996,16 @@ export function CommentPanel({
                             onInsertMention={insertMention}
                             onInsertGroupMention={insertGroupMention}
                             currentUserId={currentUser?.id}
-                            onShowMentionGroupModal={() =>
-                              setShowMentionGroupModal(true)
-                            }
+                            onShowMentionGroupModal={() => setShowMentionGroupModal(true)}
                             onHideMention={() => setShowInlineMention(false)}
                           />
                           <textarea
                             ref={editTextareaRef}
                             value={editContent}
-                            onChange={(e) =>
-                              handleTextChange(e.target.value, true)
-                            }
+                            onChange={(e) => handleTextChange(e.target.value, true)}
                             onKeyDown={(e) => handleEditKeyDown(e, comment.id)}
                             onPaste={(e) => handlePaste(e, true)}
-                            onBlur={() =>
-                              setTimeout(() => setShowInlineMention(false), 150)
-                            }
+                            onBlur={() => setTimeout(() => setShowInlineMention(false), 150)}
                             className="w-full text-xs bg-foreground/5 border border-bridge-border rounded-lg px-3 py-2 text-foreground placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
                             rows={3}
                             autoFocus
@@ -2215,12 +2023,10 @@ export function CommentPanel({
                           <button
                             onClick={() => editFileInputRef.current?.click()}
                             disabled={
-                              editKeepAttachmentIds.length +
-                                editNewFiles.length >=
-                              MAX_FILES
+                              editKeepAttachmentIds.length + editNewFiles.length >= MAX_FILES
                             }
                             className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-foreground/10 disabled:opacity-30 transition-colors"
-                            title={t("comment.addFile")}
+                            title={t('comment.addFile')}
                           >
                             <Paperclip className="h-3.5 w-3.5" />
                           </button>
@@ -2250,11 +2056,7 @@ export function CommentPanel({
                       <>
                         {comment.content && comment.content.trim() && (
                           <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">
-                            {renderContent(
-                              comment.content,
-                              boardMembers,
-                              mentionGroups,
-                            )}
+                            {renderContent(comment.content, boardMembers, mentionGroups)}
                           </p>
                         )}
                         <AttachmentGrid
@@ -2284,7 +2086,7 @@ export function CommentPanel({
             <div className="flex items-center gap-2 px-1 py-1.5 mb-1.5 rounded-lg bg-bridge-accent/10 border border-bridge-accent/20">
               <Reply className="h-3 w-3 text-bridge-accent flex-shrink-0" />
               <span className="text-xs text-bridge-accent font-medium truncate">
-                {t("comment.replyingTo", { name: replyTo.authorName })}
+                {t('comment.replyingTo', { name: replyTo.authorName })}
               </span>
               <button
                 onClick={() => setReplyTo(null)}
@@ -2299,9 +2101,7 @@ export function CommentPanel({
             onRemoveFile={(id) => removePendingFile(id, setPendingFiles)}
           />
 
-          {fileError && !editingId && (
-            <p className="text-xs text-red-400 mb-1">{t(fileError)}</p>
-          )}
+          {fileError && !editingId && <p className="text-xs text-red-400 mb-1">{t(fileError)}</p>}
 
           <div className="relative">
             <InlineMentionDropdown
@@ -2330,8 +2130,8 @@ export function CommentPanel({
               // 지금 쓰는 글이 어디로 가는지 화면에 적혀 있어야 한다
               placeholder={
                 checklistItemId
-                  ? t("checklistDetail.placeholder", "이 항목에 댓글 남기기…")
-                  : t("comment.inputPlaceholder")
+                  ? t('checklistDetail.placeholder', '이 항목에 댓글 남기기…')
+                  : t('comment.inputPlaceholder')
               }
               className="w-full text-xs bg-foreground/5 border border-bridge-border rounded-lg pl-3 pr-20 py-2.5 text-foreground placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
               rows={2}
@@ -2349,7 +2149,7 @@ export function CommentPanel({
                 onClick={() => fileInputRef.current?.click()}
                 disabled={pendingFiles.length >= MAX_FILES}
                 className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-foreground/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                title={t("comment.attachFile")}
+                title={t('comment.attachFile')}
               >
                 <Paperclip className="h-3.5 w-3.5" />
               </button>
@@ -2370,13 +2170,11 @@ export function CommentPanel({
               </button>
             </div>
           </div>
-          <p className="text-xs text-slate-400 mt-1">{t("comment.fileHelp")}</p>
+          <p className="text-xs text-slate-400 mt-1">{t('comment.fileHelp')}</p>
         </div>
       ) : (
         <div className="px-4 py-3 border-t border-bridge-border">
-          <p className="text-xs text-slate-400 text-center">
-            {t("comment.viewerReadOnly")}
-          </p>
+          <p className="text-xs text-slate-400 text-center">{t('comment.viewerReadOnly')}</p>
         </div>
       )}
 
@@ -2384,20 +2182,16 @@ export function CommentPanel({
       {lightboxAttachmentId &&
         createPortal(
           (() => {
-            const index = allMedia.findIndex(
-              (m) => m.attachmentId === lightboxAttachmentId,
-            );
+            const index = allMedia.findIndex((m) => m.attachmentId === lightboxAttachmentId);
             if (index < 0) return null;
             const current = allMedia[index];
             const total = allMedia.length;
             const hasPrev = index > 0;
             const hasNext = index < total - 1;
             const goPrev = () =>
-              hasPrev &&
-              setLightboxAttachmentId(allMedia[index - 1].attachmentId);
+              hasPrev && setLightboxAttachmentId(allMedia[index - 1].attachmentId);
             const goNext = () =>
-              hasNext &&
-              setLightboxAttachmentId(allMedia[index + 1].attachmentId);
+              hasNext && setLightboxAttachmentId(allMedia[index + 1].attachmentId);
             const close = () => setLightboxAttachmentId(null);
 
             const navChrome = (
@@ -2430,8 +2224,8 @@ export function CommentPanel({
                     downloadPhoto(current.url, current.fileName).catch(() => {});
                   }}
                   className="absolute top-4 right-16 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10 pointer-events-auto"
-                  aria-label={t("comment.download", "다운로드")}
-                  title={t("comment.download", "다운로드")}
+                  aria-label={t('comment.download', '다운로드')}
+                  title={t('comment.download', '다운로드')}
                 >
                   <Download className="h-5 w-5" />
                 </button>
@@ -2443,7 +2237,7 @@ export function CommentPanel({
               </>
             );
 
-            return current.type === "video" ? (
+            return current.type === 'video' ? (
               <>
                 <Suspense
                   fallback={
@@ -2455,19 +2249,15 @@ export function CommentPanel({
                     </div>
                   }
                 >
-                  <VideoLightbox
-                    key={current.attachmentId}
-                    url={current.url}
-                    onClose={close}
-                  />
+                  <VideoLightbox key={current.attachmentId} url={current.url} onClose={close} />
                 </Suspense>
                 <div
                   className="fixed inset-0 z-[10000] pointer-events-none"
                   onKeyDown={(e) => {
-                    if (e.key === "ArrowLeft") {
+                    if (e.key === 'ArrowLeft') {
                       e.stopPropagation();
                       goPrev();
-                    } else if (e.key === "ArrowRight") {
+                    } else if (e.key === 'ArrowRight') {
                       e.stopPropagation();
                       goNext();
                     }
@@ -2489,10 +2279,10 @@ export function CommentPanel({
                   close();
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === "ArrowLeft") {
+                  if (e.key === 'ArrowLeft') {
                     e.stopPropagation();
                     goPrev();
-                  } else if (e.key === "ArrowRight") {
+                  } else if (e.key === 'ArrowRight') {
                     e.stopPropagation();
                     goNext();
                   }
@@ -2512,7 +2302,7 @@ export function CommentPanel({
                 {navChrome}
                 <ZoomableImage
                   src={current.url}
-                  alt={t("comment.attachedFile")}
+                  alt={t('comment.attachedFile')}
                   className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
                 />
               </div>
@@ -2527,22 +2317,20 @@ export function CommentPanel({
         onClose={() => setDeleteTarget(null)}
         className="sm:max-w-sm p-6"
       >
-        <h3 className="text-lg font-bold text-foreground">
-          {t("comment.deleteTitle")}
-        </h3>
-        <p className="text-sm text-slate-400 mt-1">{t("comment.deleteDesc")}</p>
+        <h3 className="text-lg font-bold text-foreground">{t('comment.deleteTitle')}</h3>
+        <p className="text-sm text-slate-400 mt-1">{t('comment.deleteDesc')}</p>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
           <button
             onClick={() => setDeleteTarget(null)}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-bridge-border text-foreground hover:bg-foreground/10"
           >
-            {t("common.cancel")}
+            {t('common.cancel')}
           </button>
           <button
             onClick={() => deleteTarget && handleDelete(deleteTarget)}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-500 hover:bg-red-600 text-white"
           >
-            {t("common.delete")}
+            {t('common.delete')}
           </button>
         </div>
       </MotionModal>

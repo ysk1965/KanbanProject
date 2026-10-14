@@ -18,9 +18,7 @@ export function AnnouncementDisplay() {
     loadAnnouncements();
   }, []);
 
-  const banners = announcements.filter(
-    (a) => a.type === 'BANNER' && !dismissedBanners.has(a.id)
-  );
+  const banners = announcements.filter((a) => a.type === 'BANNER' && !dismissedBanners.has(a.id));
 
   // 자동 롤링 타이머
   const startTimer = useCallback(() => {
@@ -59,9 +57,7 @@ export function AnnouncementDisplay() {
       const dismissed = JSON.parse(localStorage.getItem(todayKey) || '[]') as string[];
 
       // 팝업 공지 중 아직 닫지 않은 것 찾기
-      const popup = data.find(
-        (a) => a.type === 'POPUP' && !dismissed.includes(a.id)
-      );
+      const popup = data.find((a) => a.type === 'POPUP' && !dismissed.includes(a.id));
       if (popup) {
         setPopupAnnouncement(popup);
       }
@@ -121,7 +117,9 @@ export function AnnouncementDisplay() {
             {/* 이전 버튼 */}
             {banners.length > 1 && (
               <button
-                onClick={() => goToBanner((currentBannerIndex - 1 + banners.length) % banners.length)}
+                onClick={() =>
+                  goToBanner((currentBannerIndex - 1 + banners.length) % banners.length)
+                }
                 className="p-0.5 text-white/40 hover:text-foreground transition-colors flex-shrink-0"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
@@ -130,16 +128,11 @@ export function AnnouncementDisplay() {
 
             {/* 배너 텍스트 (마퀴 효과) */}
             <div className="flex-1 min-w-0 overflow-hidden">
-              <div
-                key={currentBanner.id}
-                className="animate-slide-in-banner"
-              >
+              <div key={currentBanner.id} className="animate-slide-in-banner">
                 <p className="text-sm text-white font-medium whitespace-nowrap overflow-hidden text-ellipsis">
                   {currentBanner.title}
                   {currentBanner.content && (
-                    <span className="text-white/70 ml-2 font-normal">
-                      {currentBanner.content}
-                    </span>
+                    <span className="text-white/70 ml-2 font-normal">{currentBanner.content}</span>
                   )}
                 </p>
               </div>

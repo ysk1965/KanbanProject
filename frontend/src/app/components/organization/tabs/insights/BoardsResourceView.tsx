@@ -13,7 +13,12 @@ interface BoardsResourceViewProps {
   onDataLoaded?: (data: OrgBoardResourceResponse | null) => void;
 }
 
-export function BoardsResourceView({ orgId, startDate, endDate, onDataLoaded }: BoardsResourceViewProps) {
+export function BoardsResourceView({
+  orgId,
+  startDate,
+  endDate,
+  onDataLoaded,
+}: BoardsResourceViewProps) {
   const { t } = useTranslation();
   const [boards, setBoards] = useState<OrgBoardResource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +53,10 @@ export function BoardsResourceView({ orgId, startDate, endDate, onDataLoaded }: 
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-56 bg-bridge-obsidian rounded-2xl border border-black/5 dark:border-white/5 animate-pulse" />
+            <div
+              key={i}
+              className="h-56 bg-bridge-obsidian rounded-2xl border border-black/5 dark:border-white/5 animate-pulse"
+            />
           ))}
         </div>
       </div>
@@ -65,11 +73,20 @@ export function BoardsResourceView({ orgId, startDate, endDate, onDataLoaded }: 
             onChange={(e) => setSortBy(e.target.value)}
             className="appearance-none bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg px-3 py-1.5 pr-7 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
           >
-            <option value="work_minutes">{t('organization.insights.boards.sortByHours', 'By Hours')}</option>
-            <option value="contributor_count">{t('organization.insights.boards.sortByContributors', 'By Contributors')}</option>
-            <option value="completed_tasks">{t('organization.insights.boards.sortByTasks', 'By Tasks')}</option>
+            <option value="work_minutes">
+              {t('organization.insights.boards.sortByHours', 'By Hours')}
+            </option>
+            <option value="contributor_count">
+              {t('organization.insights.boards.sortByContributors', 'By Contributors')}
+            </option>
+            <option value="completed_tasks">
+              {t('organization.insights.boards.sortByTasks', 'By Tasks')}
+            </option>
           </select>
-          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <ChevronDown
+            size={12}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+          />
         </div>
       </div>
 
@@ -95,11 +112,21 @@ export function BoardsResourceView({ orgId, startDate, endDate, onDataLoaded }: 
             >
               {/* Board Header */}
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${INSIGHT_CHART_COLORS[index % INSIGHT_CHART_COLORS.length]}20` }}>
-                  <LayoutGrid size={14} style={{ color: INSIGHT_CHART_COLORS[index % INSIGHT_CHART_COLORS.length] }} />
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center"
+                  style={{
+                    backgroundColor: `${INSIGHT_CHART_COLORS[index % INSIGHT_CHART_COLORS.length]}20`,
+                  }}
+                >
+                  <LayoutGrid
+                    size={14}
+                    style={{ color: INSIGHT_CHART_COLORS[index % INSIGHT_CHART_COLORS.length] }}
+                  />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="text-sm font-medium text-slate-900 dark:text-white block truncate">{board.board.name}</span>
+                  <span className="text-sm font-medium text-slate-900 dark:text-white block truncate">
+                    {board.board.name}
+                  </span>
                   <span className="text-xs text-slate-400">{board.board.owner_name}</span>
                 </div>
               </div>
@@ -109,22 +136,34 @@ export function BoardsResourceView({ orgId, startDate, endDate, onDataLoaded }: 
                 <div className="flex items-center gap-1.5">
                   <Clock size={12} className="text-slate-400" />
                   <div>
-                    <span className="text-sm font-bold text-slate-900 dark:text-white">{formatMinutesToHours(board.total_work_minutes)}</span>
-                    <span className="text-xs text-slate-400 block">{t('organization.insights.boards.totalHours', 'Total Hours')}</span>
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">
+                      {formatMinutesToHours(board.total_work_minutes)}
+                    </span>
+                    <span className="text-xs text-slate-400 block">
+                      {t('organization.insights.boards.totalHours', 'Total Hours')}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Users size={12} className="text-slate-400" />
                   <div>
-                    <span className="text-sm font-bold text-slate-900 dark:text-white">{board.contributor_count}</span>
-                    <span className="text-xs text-slate-400 block">{t('organization.insights.boards.contributors', 'Contributors')}</span>
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">
+                      {board.contributor_count}
+                    </span>
+                    <span className="text-xs text-slate-400 block">
+                      {t('organization.insights.boards.contributors', 'Contributors')}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <CheckSquare size={12} className="text-slate-400" />
                   <div>
-                    <span className="text-sm font-bold text-slate-900 dark:text-white">{board.completed_tasks}</span>
-                    <span className="text-xs text-slate-400 block">{t('organization.insights.boards.completedTasks', 'Completed')}</span>
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">
+                      {board.completed_tasks}
+                    </span>
+                    <span className="text-xs text-slate-400 block">
+                      {t('organization.insights.boards.completedTasks', 'Completed')}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -132,8 +171,12 @@ export function BoardsResourceView({ orgId, startDate, endDate, onDataLoaded }: 
               {/* Feature Progress */}
               <div className="mb-4">
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-slate-400">{t('organization.insights.boards.featureProgress', 'Feature Progress')}</span>
-                  <span className="font-bold text-slate-900 dark:text-white">{board.feature_progress}%</span>
+                  <span className="text-slate-400">
+                    {t('organization.insights.boards.featureProgress', 'Feature Progress')}
+                  </span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {board.feature_progress}%
+                  </span>
                 </div>
                 <div className="h-1.5 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
                   <div
@@ -146,8 +189,12 @@ export function BoardsResourceView({ orgId, startDate, endDate, onDataLoaded }: 
               {/* Org Share */}
               <div className="mb-4">
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-slate-400">{t('organization.insights.boards.orgShare', 'Org Share')}</span>
-                  <span className="font-bold text-slate-900 dark:text-white">{board.org_share_percentage.toFixed(1)}%</span>
+                  <span className="text-slate-400">
+                    {t('organization.insights.boards.orgShare', 'Org Share')}
+                  </span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {board.org_share_percentage.toFixed(1)}%
+                  </span>
                 </div>
                 <div className="h-2 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
                   <div
@@ -167,10 +214,16 @@ export function BoardsResourceView({ orgId, startDate, endDate, onDataLoaded }: 
                     {board.top_contributors.slice(0, 3).map((c) => (
                       <div key={c.member_id} className="flex items-center gap-1.5">
                         {c.profile_image ? (
-                          <img src={c.profile_image} alt={c.name} className="w-5 h-5 rounded-full object-cover" />
+                          <img
+                            src={c.profile_image}
+                            alt={c.name}
+                            className="w-5 h-5 rounded-full object-cover"
+                          />
                         ) : (
                           <div className="w-5 h-5 rounded-full bg-bridge-accent/20 flex items-center justify-center">
-                            <span className="text-xs font-bold text-bridge-accent">{c.name.charAt(0).toUpperCase()}</span>
+                            <span className="text-xs font-bold text-bridge-accent">
+                              {c.name.charAt(0).toUpperCase()}
+                            </span>
                           </div>
                         )}
                         <span className="text-xs text-slate-400">{c.name}</span>

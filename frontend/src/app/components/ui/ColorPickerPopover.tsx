@@ -83,9 +83,7 @@ export function ColorPickerPopover({
 
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        {children || defaultTrigger}
-      </PopoverTrigger>
+      <PopoverTrigger asChild>{children || defaultTrigger}</PopoverTrigger>
       <PopoverContent
         className="w-auto p-3 bg-bridge-obsidian border-foreground/10"
         align={align}
@@ -115,7 +113,10 @@ export function ColorPickerPopover({
           {showCustomColor && (
             <div className="border-t border-foreground/10 pt-3">
               <label className="flex items-center gap-2 cursor-pointer group">
-                <Pipette size={14} className="text-slate-400 group-hover:text-foreground transition-colors" />
+                <Pipette
+                  size={14}
+                  className="text-slate-400 group-hover:text-foreground transition-colors"
+                />
                 <span className="text-xs text-slate-400 group-hover:text-foreground transition-colors">
                   {label}
                 </span>

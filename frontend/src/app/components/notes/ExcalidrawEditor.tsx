@@ -1,12 +1,5 @@
-import {
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-  Suspense,
-  lazy,
-} from "react";
-import { useTranslation } from "react-i18next";
+import { useState, useCallback, useEffect, useRef, Suspense, lazy } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Save,
   Clock,
@@ -19,42 +12,42 @@ import {
   Eye,
   DoorOpen,
   Users,
-} from "lucide-react";
-import { NoteTagManager } from "./NoteTagManager";
-import { NoteVersionHistory } from "./NoteVersionHistory";
-import { NoteShareButton } from "./NoteShareButton";
-import { CollabPresence } from "./CollabPresence";
-import { NoteBottomComments } from "./NoteBottomComments";
-import { IconButton } from "../ui/IconButton";
-import { useAuth } from "../../contexts/AuthContext";
-import { useTheme } from "../../contexts/ThemeContext";
-import { formatDateTime } from "../../utils/dateUtils";
-import type { NoteDetail, NoteTagInfo } from "../../utils/api";
-import type { CollaborationState } from "../../hooks/useCollaboration";
-import * as Y from "yjs";
+} from 'lucide-react';
+import { NoteTagManager } from './NoteTagManager';
+import { NoteVersionHistory } from './NoteVersionHistory';
+import { NoteShareButton } from './NoteShareButton';
+import { CollabPresence } from './CollabPresence';
+import { NoteBottomComments } from './NoteBottomComments';
+import { IconButton } from '../ui/IconButton';
+import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import { formatDateTime } from '../../utils/dateUtils';
+import type { NoteDetail, NoteTagInfo } from '../../utils/api';
+import type { CollaborationState } from '../../hooks/useCollaboration';
+import * as Y from 'yjs';
 
 // Excalidraw CSS
-import "@excalidraw/excalidraw/index.css";
+import '@excalidraw/excalidraw/index.css';
 
 let CaptureUpdateActionRef: any = null;
 
 const ExcalidrawLazy = lazy(async () => {
-  const mod = await import("@excalidraw/excalidraw");
+  const mod = await import('@excalidraw/excalidraw');
   CaptureUpdateActionRef = mod.CaptureUpdateAction;
   return { default: mod.Excalidraw };
 });
 
 const LANG_MAP: Record<string, string> = {
-  ko: "ko-KR",
-  ja: "ja-JP",
-  zh: "zh-CN",
-  "zh-TW": "zh-TW",
-  vi: "vi-VN",
-  es: "es-ES",
-  "pt-BR": "pt-BR",
-  hi: "hi-IN",
-  th: "th-TH",
-  en: "en",
+  ko: 'ko-KR',
+  ja: 'ja-JP',
+  zh: 'zh-CN',
+  'zh-TW': 'zh-TW',
+  vi: 'vi-VN',
+  es: 'es-ES',
+  'pt-BR': 'pt-BR',
+  hi: 'hi-IN',
+  th: 'th-TH',
+  en: 'en',
 };
 
 interface ExcalidrawEditorProps {
@@ -98,22 +91,22 @@ export default function ExcalidrawEditor({
   const [saving, setSaving] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [gridEnabled, setGridEnabled] = useState(false);
-  const [mode, setMode] = useState<"view" | "edit">("view");
+  const [mode, setMode] = useState<'view' | 'edit'>('view');
 
   // Reset to view whenever the note changes
   useEffect(() => {
-    setMode("view");
+    setMode('view');
   }, [note.id]);
 
   // Sync collab readOnly + awareness mode to the active mode
   useEffect(() => {
     if (!collaboration) return;
-    collaboration.provider.setReadOnly(mode === "view");
-    collaboration.provider.awareness.setLocalStateField("mode", mode);
+    collaboration.provider.setReadOnly(mode === 'view');
+    collaboration.provider.awareness.setLocalStateField('mode', mode);
   }, [mode, collaboration]);
 
   const editorPeers = collaboration
-    ? collaboration.connectedUsers.filter((u) => u.mode === "edit")
+    ? collaboration.connectedUsers.filter((u) => u.mode === 'edit')
     : [];
 
   // When a peer hits Save while we're in View mode, refetch the published
@@ -122,17 +115,16 @@ export default function ExcalidrawEditor({
   useEffect(() => {
     if (!collaboration) return;
     return collaboration.provider.onSnapshotUpdated(async () => {
-      if (mode !== "view") return;
+      if (mode !== 'view') return;
       try {
-        const { noteService, orgNoteService, myNoteService } =
-          await import("../../utils/services");
+        const { noteService, orgNoteService, myNoteService } = await import('../../utils/services');
         const updated = personal
-          ? await myNoteService.getDetail("me", note.id)
+          ? await myNoteService.getDetail('me', note.id)
           : boardId
-          ? await noteService.getDetail(boardId, note.id)
-          : orgId
-            ? await orgNoteService.getDetail(orgId, note.id)
-            : null;
+            ? await noteService.getDetail(boardId, note.id)
+            : orgId
+              ? await orgNoteService.getDetail(orgId, note.id)
+              : null;
         if (!updated) return;
         onNoteUpdate?.(updated);
         setTitle(updated.title);
@@ -141,19 +133,14 @@ export default function ExcalidrawEditor({
             const parsed = JSON.parse(updated.content);
             excalidrawAPIRef.current.updateScene({
               elements: parsed.elements || [],
-              ...(CaptureUpdateActionRef
-                ? { captureUpdate: CaptureUpdateActionRef.NEVER }
-                : {}),
+              ...(CaptureUpdateActionRef ? { captureUpdate: CaptureUpdateActionRef.NEVER } : {}),
             });
           } catch {
             // ignore parse errors
           }
         }
       } catch (err) {
-        console.error(
-          "Failed to refetch board note after snapshot update:",
-          err,
-        );
+        console.error('Failed to refetch board note after snapshot update:', err);
       }
     });
   }, [collaboration, mode, note.id, boardId, orgId, personal, onNoteUpdate]);
@@ -172,10 +159,10 @@ export default function ExcalidrawEditor({
     ey: number;
     tool: string;
     active: boolean;
-  }>({ sx: 0, sy: 0, ex: 0, ey: 0, tool: "", active: false });
+  }>({ sx: 0, sy: 0, ex: 0, ey: 0, tool: '', active: false });
 
-  const bgColor = isDark ? "#1e1e1e" : "#ffffff";
-  const defaultStrokeColor = isDark ? "#e2e8f0" : "#1e1e1e";
+  const bgColor = isDark ? '#1e1e1e' : '#ffffff';
+  const defaultStrokeColor = isDark ? '#e2e8f0' : '#1e1e1e';
 
   const initialDataRef = useRef<any>(null);
   if (!initialDataRef.current) {
@@ -186,8 +173,7 @@ export default function ExcalidrawEditor({
           elements: parsed.elements || [],
           appState: {
             viewBackgroundColor: bgColor,
-            currentItemStrokeColor:
-              parsed.appState?.currentItemStrokeColor || defaultStrokeColor,
+            currentItemStrokeColor: parsed.appState?.currentItemStrokeColor || defaultStrokeColor,
           },
           files: parsed.files || {},
         };
@@ -209,8 +195,7 @@ export default function ExcalidrawEditor({
           elements: parsed.elements || [],
           appState: {
             viewBackgroundColor: bgColor,
-            currentItemStrokeColor:
-              parsed.appState?.currentItemStrokeColor || defaultStrokeColor,
+            currentItemStrokeColor: parsed.appState?.currentItemStrokeColor || defaultStrokeColor,
           },
           files: parsed.files || {},
         };
@@ -228,14 +213,12 @@ export default function ExcalidrawEditor({
         viewBackgroundColor: bgColor,
         currentItemStrokeColor: defaultStrokeColor,
       },
-      ...(CaptureUpdateActionRef
-        ? { captureUpdate: CaptureUpdateActionRef.NEVER }
-        : {}),
+      ...(CaptureUpdateActionRef ? { captureUpdate: CaptureUpdateActionRef.NEVER } : {}),
     });
   }, [isDark]);
 
   const handleTitleChange = (newTitle: string) => {
-    if (mode !== "edit") return;
+    if (mode !== 'edit') return;
     setTitle(newTitle);
     setHasChanges(true);
   };
@@ -248,24 +231,22 @@ export default function ExcalidrawEditor({
       yMapRef.current = null;
       return;
     }
-    const yMap = collaboration.doc.getMap("excalidraw-elements");
+    const yMap = collaboration.doc.getMap('excalidraw-elements');
     yMapRef.current = yMap;
 
     const observer = () => {
       if (isLocalUpdateRef.current) return;
       if (!excalidrawAPIRef.current) return;
-      if (mode !== "edit") return;
+      if (mode !== 'edit') return;
       isRemoteUpdateRef.current = true;
       const elements: any[] = [];
       yMap.forEach((value, _key) => {
         if (value) elements.push(value);
       });
-      elements.sort((a, b) => (a.index || "").localeCompare(b.index || ""));
+      elements.sort((a, b) => (a.index || '').localeCompare(b.index || ''));
       excalidrawAPIRef.current.updateScene({
         elements,
-        ...(CaptureUpdateActionRef
-          ? { captureUpdate: CaptureUpdateActionRef.NEVER }
-          : {}),
+        ...(CaptureUpdateActionRef ? { captureUpdate: CaptureUpdateActionRef.NEVER } : {}),
       });
       requestAnimationFrame(() => {
         isRemoteUpdateRef.current = false;
@@ -273,7 +254,7 @@ export default function ExcalidrawEditor({
     };
 
     yMap.observe(observer);
-    if (yMap.size > 0 && excalidrawAPIRef.current && mode === "edit") {
+    if (yMap.size > 0 && excalidrawAPIRef.current && mode === 'edit') {
       observer();
     }
     return () => {
@@ -284,7 +265,7 @@ export default function ExcalidrawEditor({
   // View-mode scene sync: whenever notes.content changes (or we enter view
   // mode), display the saved snapshot — NOT the live Yjs state.
   useEffect(() => {
-    if (mode !== "view") return;
+    if (mode !== 'view') return;
     if (!excalidrawAPIRef.current) return;
     let elements: any[] = [];
     if (note.content?.trim()) {
@@ -298,9 +279,7 @@ export default function ExcalidrawEditor({
     isRemoteUpdateRef.current = true;
     excalidrawAPIRef.current.updateScene({
       elements,
-      ...(CaptureUpdateActionRef
-        ? { captureUpdate: CaptureUpdateActionRef.NEVER }
-        : {}),
+      ...(CaptureUpdateActionRef ? { captureUpdate: CaptureUpdateActionRef.NEVER } : {}),
     });
     requestAnimationFrame(() => {
       isRemoteUpdateRef.current = false;
@@ -310,7 +289,7 @@ export default function ExcalidrawEditor({
   // Entering Edit mode: pull the current Yjs state onto the canvas so the user
   // sees whatever unsaved progress was left behind by a previous editor.
   useEffect(() => {
-    if (mode !== "edit") return;
+    if (mode !== 'edit') return;
     const yMap = yMapRef.current;
     if (!yMap || !excalidrawAPIRef.current) return;
     if (yMap.size === 0) return;
@@ -319,12 +298,10 @@ export default function ExcalidrawEditor({
     yMap.forEach((value) => {
       if (value) elements.push(value);
     });
-    elements.sort((a, b) => (a.index || "").localeCompare(b.index || ""));
+    elements.sort((a, b) => (a.index || '').localeCompare(b.index || ''));
     excalidrawAPIRef.current.updateScene({
       elements,
-      ...(CaptureUpdateActionRef
-        ? { captureUpdate: CaptureUpdateActionRef.NEVER }
-        : {}),
+      ...(CaptureUpdateActionRef ? { captureUpdate: CaptureUpdateActionRef.NEVER } : {}),
     });
     requestAnimationFrame(() => {
       isRemoteUpdateRef.current = false;
@@ -338,7 +315,7 @@ export default function ExcalidrawEditor({
         initializedRef.current = true;
         return;
       }
-      if (mode !== "edit") return;
+      if (mode !== 'edit') return;
 
       setHasChanges(true);
       if (!collaboration || !yMapRef.current) return;
@@ -368,17 +345,17 @@ export default function ExcalidrawEditor({
   const handlePointerUpdate = useCallback(
     (payload: any) => {
       if (collaboration) {
-        collaboration.provider.awareness.setLocalStateField("pointer", {
+        collaboration.provider.awareness.setLocalStateField('pointer', {
           x: payload.pointer.x,
           y: payload.pointer.y,
           tool: payload.pointer.tool,
         });
       }
       const drag = dragRef.current;
-      if (payload.button === "down") {
+      if (payload.button === 'down') {
         if (!drag.active) {
           const api = excalidrawAPIRef.current;
-          drag.tool = api?.getAppState()?.activeTool?.type || "";
+          drag.tool = api?.getAppState()?.activeTool?.type || '';
           drag.sx = payload.pointer.x;
           drag.sy = payload.pointer.y;
           drag.active = true;
@@ -399,20 +376,20 @@ export default function ExcalidrawEditor({
 
     const onPointerUp = () => {
       const drag = dragRef.current;
-      const SHAPES = ["rectangle", "ellipse", "diamond"];
+      const SHAPES = ['rectangle', 'ellipse', 'diamond'];
       if (!SHAPES.includes(drag.tool)) {
-        console.log("[ExFix] skip: tool=", drag.tool);
+        console.log('[ExFix] skip: tool=', drag.tool);
         return;
       }
 
       const w = Math.abs(drag.ex - drag.sx);
       const h = Math.abs(drag.ey - drag.sy);
       console.log(
-        "[ExFix] pointerup tool:",
+        '[ExFix] pointerup tool:',
         drag.tool,
-        "canvas size:",
+        'canvas size:',
         Math.round(w),
-        "x",
+        'x',
         Math.round(h),
       );
       if (w < 10 || h < 10) return;
@@ -428,30 +405,27 @@ export default function ExcalidrawEditor({
         const textIds = new Set<string>();
 
         console.log(
-          "[ExFix] attempt",
+          '[ExFix] attempt',
           attempts,
-          "elements:",
+          'elements:',
           els
-            .map(
-              (e: any) =>
-                `${e.type}(${Math.round(e.width)}x${Math.round(e.height)})`,
-            )
-            .join(", "),
+            .map((e: any) => `${e.type}(${Math.round(e.width)}x${Math.round(e.height)})`)
+            .join(', '),
         );
 
         const patched = els.map((el: any) => {
           if (SHAPES.includes(el.type) && el.width < 10 && el.height < 10) {
             fixed = true;
             console.log(
-              "[ExFix] FIXING",
+              '[ExFix] FIXING',
               el.id.slice(0, 8),
-              "→",
+              '→',
               Math.round(w),
-              "x",
+              'x',
               Math.round(h),
             );
             el.boundElements?.forEach((b: any) => {
-              if (b.type === "text") textIds.add(b.id);
+              if (b.type === 'text') textIds.add(b.id);
             });
             return {
               ...el,
@@ -469,9 +443,7 @@ export default function ExcalidrawEditor({
           isFixingResizeRef.current = true;
           api.updateScene({
             elements: cleaned,
-            ...(CaptureUpdateActionRef
-              ? { captureUpdate: CaptureUpdateActionRef.NEVER }
-              : {}),
+            ...(CaptureUpdateActionRef ? { captureUpdate: CaptureUpdateActionRef.NEVER } : {}),
           });
           setTimeout(() => {
             isFixingResizeRef.current = false;
@@ -483,12 +455,12 @@ export default function ExcalidrawEditor({
       setTimeout(tryFix, 50);
     };
 
-    container.addEventListener("pointerup", onPointerUp, true);
-    return () => container.removeEventListener("pointerup", onPointerUp, true);
+    container.addEventListener('pointerup', onPointerUp, true);
+    return () => container.removeEventListener('pointerup', onPointerUp, true);
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (!canEdit || mode !== "edit") return;
+    if (!canEdit || mode !== 'edit') return;
     setSaving(true);
     try {
       const api = excalidrawAPIRef.current;
@@ -497,9 +469,9 @@ export default function ExcalidrawEditor({
       const appState = api.getAppState();
       const files = api.getFiles();
       const content = JSON.stringify({
-        type: "excalidraw",
+        type: 'excalidraw',
         version: 2,
-        source: "bridge-notes",
+        source: 'bridge-notes',
         elements: sceneElements,
         appState: { viewBackgroundColor: appState.viewBackgroundColor },
         files: files || {},
@@ -518,48 +490,39 @@ export default function ExcalidrawEditor({
     } finally {
       setSaving(false);
     }
-  }, [
-    canEdit,
-    mode,
-    onSave,
-    note.id,
-    note.title,
-    note.tags,
-    title,
-    collaboration,
-  ]);
+  }, [canEdit, mode, onSave, note.id, note.title, note.tags, title, collaboration]);
 
   const handleEnterEdit = useCallback(() => {
     if (!canEdit) return;
-    setMode("edit");
+    setMode('edit');
   }, [canEdit]);
 
   const handleExitEdit = useCallback(() => {
     if (collaboration) collaboration.provider.sendFullState();
-    setMode("view");
+    setMode('view');
     setHasChanges(false);
   }, [collaboration]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
         handleSave();
       }
       const tag = (e.target as HTMLElement)?.tagName;
       if (
-        e.code === "KeyG" &&
+        e.code === 'KeyG' &&
         !e.metaKey &&
         !e.ctrlKey &&
         !e.altKey &&
-        tag !== "INPUT" &&
-        tag !== "TEXTAREA"
+        tag !== 'INPUT' &&
+        tag !== 'TEXTAREA'
       ) {
         setGridEnabled((v) => !v);
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleSave]);
 
   // Remap IME keys (e.g. Korean ㄱ→r) so Excalidraw built-in shortcuts work
@@ -567,40 +530,36 @@ export default function ExcalidrawEditor({
     const el = containerRef.current;
     if (!el) return;
     const CODE_TO_KEY: Record<string, string> = {
-      KeyA: "a",
-      KeyB: "b",
-      KeyC: "c",
-      KeyD: "d",
-      KeyE: "e",
-      KeyF: "f",
-      KeyG: "g",
-      KeyH: "h",
-      KeyI: "i",
-      KeyJ: "j",
-      KeyK: "k",
-      KeyL: "l",
-      KeyM: "m",
-      KeyN: "n",
-      KeyO: "o",
-      KeyP: "p",
-      KeyQ: "q",
-      KeyR: "r",
-      KeyS: "s",
-      KeyT: "t",
-      KeyU: "u",
-      KeyV: "v",
-      KeyW: "w",
-      KeyX: "x",
-      KeyY: "y",
-      KeyZ: "z",
+      KeyA: 'a',
+      KeyB: 'b',
+      KeyC: 'c',
+      KeyD: 'd',
+      KeyE: 'e',
+      KeyF: 'f',
+      KeyG: 'g',
+      KeyH: 'h',
+      KeyI: 'i',
+      KeyJ: 'j',
+      KeyK: 'k',
+      KeyL: 'l',
+      KeyM: 'm',
+      KeyN: 'n',
+      KeyO: 'o',
+      KeyP: 'p',
+      KeyQ: 'q',
+      KeyR: 'r',
+      KeyS: 's',
+      KeyT: 't',
+      KeyU: 'u',
+      KeyV: 'v',
+      KeyW: 'w',
+      KeyX: 'x',
+      KeyY: 'y',
+      KeyZ: 'z',
     };
     const remap = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      )
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
         return;
       const expected = CODE_TO_KEY[e.code];
       if (!expected) return;
@@ -621,15 +580,15 @@ export default function ExcalidrawEditor({
         }),
       );
     };
-    el.addEventListener("keydown", remap, true);
-    el.addEventListener("keyup", remap, true);
+    el.addEventListener('keydown', remap, true);
+    el.addEventListener('keyup', remap, true);
     return () => {
-      el.removeEventListener("keydown", remap, true);
-      el.removeEventListener("keyup", remap, true);
+      el.removeEventListener('keydown', remap, true);
+      el.removeEventListener('keyup', remap, true);
     };
   }, []);
 
-  const langCode = LANG_MAP[i18n.language] || "en";
+  const langCode = LANG_MAP[i18n.language] || 'en';
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -640,8 +599,8 @@ export default function ExcalidrawEditor({
             value={title}
             onChange={(e) => handleTitleChange(e.target.value)}
             className="bg-transparent text-sm font-bold text-foreground focus:outline-none placeholder-slate-500 min-w-0 flex-1"
-            placeholder={t("notes.titlePlaceholder", "제목을 입력하세요")}
-            readOnly={mode !== "edit" || !canEdit}
+            placeholder={t('notes.titlePlaceholder', '제목을 입력하세요')}
+            readOnly={mode !== 'edit' || !canEdit}
           />
           {note.tags.length > 0 && (
             <div className="flex items-center gap-1 flex-shrink-0">
@@ -664,25 +623,25 @@ export default function ExcalidrawEditor({
             <Clock size={9} />
             {formatDateTime(note.updated_at)}
           </span>
-          {mode === "view" && editorPeers.length > 0 && (
+          {mode === 'view' && editorPeers.length > 0 && (
             <span className="text-xs flex items-center gap-1 text-emerald-500 flex-shrink-0">
               <Users size={9} />
-              {t("notes.editorsCount", {
+              {t('notes.editorsCount', {
                 count: editorPeers.length,
-                defaultValue: "{{count}}명 편집 중",
+                defaultValue: '{{count}}명 편집 중',
               })}
             </span>
           )}
-          {mode === "view" && editorPeers.length === 0 && (
+          {mode === 'view' && editorPeers.length === 0 && (
             <span className="text-xs flex items-center gap-1 text-slate-500 flex-shrink-0 hidden sm:flex">
               <Eye size={9} />
-              {t("notes.viewMode", "읽기 모드")}
+              {t('notes.viewMode', '읽기 모드')}
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          {collaboration && mode === "edit" && (
+          {collaboration && mode === 'edit' && (
             <CollabPresence
               status={collaboration.status}
               connectedUsers={editorPeers}
@@ -698,7 +657,7 @@ export default function ExcalidrawEditor({
             canEdit={canEdit}
             onNoteUpdate={onNoteUpdate}
           />
-          {mode === "edit" && (
+          {mode === 'edit' && (
             <NoteTagManager
               boardId={boardId}
               orgId={orgId}
@@ -711,7 +670,7 @@ export default function ExcalidrawEditor({
               onTagsChange={onTagsChange}
             />
           )}
-          {canEdit && mode === "edit" && (
+          {canEdit && mode === 'edit' && (
             <NoteVersionHistory
               boardId={boardId}
               orgId={orgId}
@@ -726,13 +685,13 @@ export default function ExcalidrawEditor({
                 // Serialize the live canvas (same shape as handleSave) so the
                 // pre-restore snapshot keeps unpublished scene edits.
                 const api = excalidrawAPIRef.current;
-                if (!api) return { title, content: note.content || "" };
+                if (!api) return { title, content: note.content || '' };
                 return {
                   title,
                   content: JSON.stringify({
-                    type: "excalidraw",
+                    type: 'excalidraw',
                     version: 2,
-                    source: "bridge-notes",
+                    source: 'bridge-notes',
                     elements: api.getSceneElements(),
                     appState: {
                       viewBackgroundColor: api.getAppState().viewBackgroundColor,
@@ -745,15 +704,13 @@ export default function ExcalidrawEditor({
               onRestore={async () => {
                 let updated;
                 if (personal) {
-                  const { myNoteService } = await import("../../utils/services");
-                  updated = await myNoteService.getDetail("me", note.id);
+                  const { myNoteService } = await import('../../utils/services');
+                  updated = await myNoteService.getDetail('me', note.id);
                 } else if (boardId) {
-                  const { noteService } = await import("../../utils/services");
+                  const { noteService } = await import('../../utils/services');
                   updated = await noteService.getDetail(boardId, note.id);
                 } else if (orgId) {
-                  const { orgNoteService } = await import(
-                    "../../utils/services"
-                  );
+                  const { orgNoteService } = await import('../../utils/services');
                   updated = await orgNoteService.getDetail(orgId, note.id);
                 }
                 if (!updated) return;
@@ -776,15 +733,15 @@ export default function ExcalidrawEditor({
               }}
             />
           )}
-          {mode === "edit" && (
+          {mode === 'edit' && (
             <button
               onClick={() => setGridEnabled((v) => !v)}
               className={`p-1.5 rounded-lg text-xs transition-colors ${
                 gridEnabled
-                  ? "text-bridge-accent bg-bridge-accent/10"
-                  : "text-slate-500 hover:text-foreground hover:bg-foreground/5"
+                  ? 'text-bridge-accent bg-bridge-accent/10'
+                  : 'text-slate-500 hover:text-foreground hover:bg-foreground/5'
               }`}
-              title={t("notes.grid", "그리드")}
+              title={t('notes.grid', '그리드')}
             >
               <Grid3X3 size={14} />
             </button>
@@ -794,49 +751,39 @@ export default function ExcalidrawEditor({
               onClick={() => setShowComments(!showComments)}
               className={`p-1.5 rounded-lg text-xs transition-colors ${
                 showComments
-                  ? "text-bridge-accent bg-bridge-accent/10"
-                  : "text-slate-500 hover:text-foreground hover:bg-foreground/5"
+                  ? 'text-bridge-accent bg-bridge-accent/10'
+                  : 'text-slate-500 hover:text-foreground hover:bg-foreground/5'
               }`}
-              title={t("notes.comments", "댓글")}
+              title={t('notes.comments', '댓글')}
             >
               <MessageSquare size={14} />
             </button>
           )}
-          {canEdit && mode === "view" && (
+          {canEdit && mode === 'view' && (
             <button
               onClick={handleEnterEdit}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20"
             >
               <Pencil size={12} />
-              <span className="hidden sm:inline">
-                {t("notes.editButton", "편집")}
-              </span>
+              <span className="hidden sm:inline">{t('notes.editButton', '편집')}</span>
             </button>
           )}
-          {canEdit && mode === "edit" && (
+          {canEdit && mode === 'edit' && (
             <>
               <button
                 onClick={handleSave}
                 disabled={saving}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20 disabled:opacity-60"
               >
-                {saving ? (
-                  <Loader2 size={12} className="animate-spin" />
-                ) : (
-                  <Save size={12} />
-                )}
-                <span className="hidden lg:inline">
-                  {t("notes.saveSnapshot", "저장")}
-                </span>
+                {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                <span className="hidden lg:inline">{t('notes.saveSnapshot', '저장')}</span>
               </button>
               <button
                 onClick={handleExitEdit}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all bg-foreground/5 text-slate-400 hover:text-foreground hover:bg-foreground/10"
               >
                 <DoorOpen size={12} />
-                <span className="hidden lg:inline">
-                  {t("notes.exitEdit", "편집 종료")}
-                </span>
+                <span className="hidden lg:inline">{t('notes.exitEdit', '편집 종료')}</span>
               </button>
             </>
           )}
@@ -844,11 +791,11 @@ export default function ExcalidrawEditor({
       </div>
 
       {/* Excalidraw Canvas — wrapper takes flex space, container fills it absolutely */}
-      <div style={{ flex: "1 1 0%", minHeight: 0, position: "relative" }}>
+      <div style={{ flex: '1 1 0%', minHeight: 0, position: 'relative' }}>
         <div
           ref={containerRef}
           className="excalidraw-bridge-container"
-          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
         >
           <Suspense
             fallback={
@@ -871,8 +818,8 @@ export default function ExcalidrawEditor({
               }
               onChange={handleExcalidrawChange}
               onPointerUpdate={handlePointerUpdate}
-              theme={isDark ? "dark" : "light"}
-              viewModeEnabled={!canEdit || mode !== "edit"}
+              theme={isDark ? 'dark' : 'light'}
+              viewModeEnabled={!canEdit || mode !== 'edit'}
               isCollaborating={!!collaboration}
               langCode={langCode}
               autoFocus
@@ -893,13 +840,8 @@ export default function ExcalidrawEditor({
       {currentUser && showComments && (
         <div className="border-t border-foreground/[0.08] bg-bridge-obsidian flex-shrink-0">
           <div className="flex items-center justify-between px-4 py-2 border-b border-foreground/[0.08]">
-            <span className="text-xs font-bold text-foreground">
-              {t("notes.comments", "댓글")}
-            </span>
-            <IconButton
-              onClick={() => setShowComments(false)}
-              aria-label="댓글 닫기"
-            >
+            <span className="text-xs font-bold text-foreground">{t('notes.comments', '댓글')}</span>
+            <IconButton onClick={() => setShowComments(false)} aria-label="댓글 닫기">
               <ChevronDown />
             </IconButton>
           </div>

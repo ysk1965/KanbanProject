@@ -27,9 +27,7 @@ const SUPPORTED_LANGUAGES = Object.keys(dateLocaleMap);
 
 // 나머지 8개 언어는 선택 시점에 청크로 내려받는다 (locale JSON 10개 ≈ 2.3MB가 초기 번들에서 빠진다).
 // import.meta.glob 은 빌드 시 파일별 동적 import 맵으로 치환된다.
-const localeLoaders = import.meta.glob<{ default: Record<string, unknown> }>(
-  './locales/*.json',
-);
+const localeLoaders = import.meta.glob<{ default: Record<string, unknown> }>('./locales/*.json');
 
 /**
  * i18next 백엔드 플러그인 — 번들에 없는 언어 리소스를 동적 import 로 읽는다.

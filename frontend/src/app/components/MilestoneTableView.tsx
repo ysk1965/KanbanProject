@@ -1,14 +1,6 @@
-import {
-  Fragment,
-  useState,
-  useCallback,
-  useMemo,
-  useEffect,
-  useRef,
-  type ReactNode,
-} from "react";
-import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { Fragment, useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import {
   DndContext,
   DragOverlay,
@@ -20,7 +12,7 @@ import {
   useSensors,
   type DragEndEvent,
   type DragStartEvent,
-} from "@dnd-kit/core";
+} from '@dnd-kit/core';
 import {
   Check,
   ChevronDown,
@@ -30,8 +22,8 @@ import {
   Loader2,
   Plus,
   Wrench,
-} from "lucide-react";
-import { toast } from "sonner";
+} from 'lucide-react';
+import { toast } from 'sonner';
 import type {
   BoardContractor,
   ChecklistItem,
@@ -41,22 +33,17 @@ import type {
   SprintBoard,
   SprintInfo,
   Task,
-} from "../types";
+} from '../types';
 import {
   checklistPresetService,
   checklistService,
   memberService,
   taskService,
-} from "../utils/services";
-import { checklistAPI, contractorAPI, sprintAPI } from "../utils/api";
-import {
-  SprintChip,
-  toShortDate,
-  daysUntil,
-  type TaskSprintInfo,
-} from "./MilestoneDetailView";
-import { ChecklistPresetPopover } from "./ChecklistPresetPopover";
-import { ChecklistPresetManageModal } from "./ChecklistPresetManageModal";
+} from '../utils/services';
+import { checklistAPI, contractorAPI, sprintAPI } from '../utils/api';
+import { SprintChip, toShortDate, daysUntil, type TaskSprintInfo } from './MilestoneDetailView';
+import { ChecklistPresetPopover } from './ChecklistPresetPopover';
+import { ChecklistPresetManageModal } from './ChecklistPresetManageModal';
 
 // ========================================
 // Types
@@ -98,14 +85,7 @@ export interface MilestoneTableFilters {
 }
 
 /** 공유 링크가 싣고 다니는 쿼리 — 테이블이 떠날 때 같이 걷어낸다 */
-const LINK_PARAMS = [
-  "view",
-  "milestone",
-  "mlayout",
-  "mstatus",
-  "msprint",
-  "massignee",
-] as const;
+const LINK_PARAMS = ['view', 'milestone', 'mlayout', 'mstatus', 'msprint', 'massignee'] as const;
 
 /** 줄 기간 색 표시의 기준 창 — 스프린트 필터를 걸면 그 스프린트, 아니면 마일스톤 */
 type DateWindow = {
@@ -114,8 +94,8 @@ type DateWindow = {
   end: string | null;
 };
 
-type StatusFilter = "all" | "doing" | "open";
-type TaskStatus = "done" | "doing" | "todo";
+type StatusFilter = 'all' | 'doing' | 'open';
+type TaskStatus = 'done' | 'doing' | 'todo';
 
 interface ChecklistState {
   items: ChecklistItem[];
@@ -125,8 +105,8 @@ interface ChecklistState {
 /** 담당 피커 후보 — 보드 멤버 또는 외주(BoardContractor). 둘은 서로 배타적으로 저장된다. */
 type ContractorOption = { id: string; name: string; color: string | null };
 type AssigneePick =
-  | { kind: "member"; id: string; name: string }
-  | { kind: "contractor"; id: string; name: string; color: string | null };
+  | { kind: 'member'; id: string; name: string }
+  | { kind: 'contractor'; id: string; name: string; color: string | null };
 
 /** 줄의 담당 표시 이름 — 멤버 ?? 외주. 둘 다 없으면 null(미배정). */
 function itemOwnerName(item: ChecklistItem): string | null {
@@ -160,7 +140,7 @@ function parseBatchChecklists(res: unknown): {
     return map;
   }
   // 폴백: {[taskId]: {items}} 맵 형태
-  if (res && typeof res === "object") {
+  if (res && typeof res === 'object') {
     for (const [taskId, group] of Object.entries(
       res as { [taskId: string]: { items?: ChecklistItem[] } },
     )) {
@@ -204,17 +184,13 @@ export function MilestoneTableView({
     [taskId: string]: ChecklistState;
   }>({});
   const [checklistsLoading, setChecklistsLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>(
-    initialFilters?.status ?? "all",
-  );
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialFilters?.status ?? 'all');
   const [assigneeFilter, setAssigneeFilter] = useState<string | null>(
     initialFilters?.assignee ?? null,
   );
   const [assigneeOpen, setAssigneeOpen] = useState(false);
   /** 스프린트 필터 — sprint id, "none" = 미배정(백로그), null = 전체 */
-  const [sprintFilter, setSprintFilter] = useState<string | null>(
-    initialFilters?.sprint ?? null,
-  );
+  const [sprintFilter, setSprintFilter] = useState<string | null>(initialFilters?.sprint ?? null);
   const [sprintOpen, setSprintOpen] = useState(false);
   /** 인라인 입력 활성 위치 — 태스크 추가(featureId) / 항목 추가(taskId) */
   const [addingTaskFor, setAddingTaskFor] = useState<string | null>(null);
@@ -248,7 +224,7 @@ export function MilestoneTableView({
     frozenGroupOrder.current = new Map();
     frozenItemOrder.current = new Map();
     frozenItemCount.current = new Map();
-    setStatusFilter("all");
+    setStatusFilter('all');
     setAssigneeFilter(null);
     setAssigneeOpen(false);
     setSprintFilter(null);
@@ -309,9 +285,7 @@ export function MilestoneTableView({
       .getMembers(boardId)
       .then((res) => {
         if (cancelled) return;
-        setMembers(
-          res.members.map((m) => ({ id: m.user.id, name: m.user.name })),
-        );
+        setMembers(res.members.map((m) => ({ id: m.user.id, name: m.user.name })));
       })
       .catch(() => {
         /* 실패 시 피커만 비활성 */
@@ -361,9 +335,7 @@ export function MilestoneTableView({
   }, [boardId]);
 
   // 체크 항목 크로스 태스크 드래그 센서
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   // ── 파생값 ──
   /**
@@ -381,8 +353,8 @@ export function MilestoneTableView({
         const kb = b.start_date ?? b.due_date;
         if (ka && kb) {
           if (ka !== kb) return ka < kb ? -1 : 1;
-          const da = a.due_date ?? "";
-          const db = b.due_date ?? "";
+          const da = a.due_date ?? '';
+          const db = b.due_date ?? '';
           if (da !== db) return da < db ? -1 : 1;
           return a.position - b.position;
         }
@@ -410,14 +382,12 @@ export function MilestoneTableView({
       const done = state?.loaded
         ? state.items.filter((i) => i.completed).length
         : (tk.checklist_completed ?? 0);
-      const total = state?.loaded
-        ? state.items.length
-        : (tk.checklist_total ?? 0);
+      const total = state?.loaded ? state.items.length : (tk.checklist_total ?? 0);
       if (total > 0) {
-        if (done >= total) return "done";
-        return done > 0 ? "doing" : "todo";
+        if (done >= total) return 'done';
+        return done > 0 ? 'doing' : 'todo';
       }
-      return tk.completed ? "done" : "todo";
+      return tk.completed ? 'done' : 'todo';
     },
     [checklists],
   );
@@ -429,8 +399,7 @@ export function MilestoneTableView({
       for (const a of tk.assignees ?? []) map.set(a.id, a.name);
       for (const item of checklists[tk.id]?.items ?? []) {
         if (item.assignee) map.set(item.assignee.id, item.assignee.name);
-        else if (item.contractor)
-          map.set(item.contractor.id, item.contractor.name);
+        else if (item.contractor) map.set(item.contractor.id, item.contractor.name);
       }
     }
     return [...map.entries()]
@@ -440,49 +409,37 @@ export function MilestoneTableView({
 
   const taskMatches = useCallback(
     (tk: Task): boolean => {
-      if (statusFilter === "doing" && statusOf(tk) !== "doing") return false;
+      if (statusFilter === 'doing' && statusOf(tk) !== 'doing') return false;
       const sprintId = sprintInfoByTask.get(tk.id)?.sprintId ?? null;
       // 스프린트 필터에 걸린 줄만 남긴 목록 — 담당자 판정도 이 범위로 한다
       // (S2로 걸러진 행인데 S1 줄의 담당자로 행이 서는 것 방지).
       let scoped = checklists[tk.id]?.items ?? [];
       if (sprintFilter) {
-        if (sprintFilter === "none") {
+        if (sprintFilter === 'none') {
           if (sprintId !== null) return false;
         } else {
-          scoped = scoped.filter(
-            (i) => (i.sprint_id ?? sprintId) === sprintFilter,
-          );
+          scoped = scoped.filter((i) => (i.sprint_id ?? sprintId) === sprintFilter);
           // 태스크는 다른 스프린트여도 그 스프린트로 보낸 줄이 있으면 행이 선다(줄만 걸러 보여준다).
           if (sprintId !== sprintFilter && scoped.length === 0) return false;
         }
       }
       if (assigneeFilter) {
         const mine = (i: ChecklistItem) =>
-          i.assignee?.id === assigneeFilter ||
-          i.contractor?.id === assigneeFilter;
-        const inTask = (tk.assignees ?? []).some(
-          (a) => a.id === assigneeFilter,
-        );
+          i.assignee?.id === assigneeFilter || i.contractor?.id === assigneeFilter;
+        const inTask = (tk.assignees ?? []).some((a) => a.id === assigneeFilter);
         const inChecklist = scoped.some(mine);
         if (!inTask && !inChecklist) return false;
         scoped = scoped.filter(mine);
       }
       // 미완료만 — 기준은 체크리스트 줄이다. 필터를 통과한 줄이 전부 완료면
       // 행 자체를 내린다(줄이 없거나 아직 로드 전이면 태스크 상태로 폴백).
-      if (statusFilter === "open") {
+      if (statusFilter === 'open') {
         if (scoped.length > 0) return scoped.some((i) => !i.completed);
-        return statusOf(tk) !== "done";
+        return statusOf(tk) !== 'done';
       }
       return true;
     },
-    [
-      statusFilter,
-      assigneeFilter,
-      sprintFilter,
-      statusOf,
-      sprintInfoByTask,
-      checklists,
-    ],
+    [statusFilter, assigneeFilter, sprintFilter, statusOf, sprintInfoByTask, checklists],
   );
 
   /**
@@ -496,30 +453,23 @@ export function MilestoneTableView({
   const shownItemsOf = useCallback(
     (tk: Task): ChecklistItem[] => {
       let list = itemsOf(tk.id);
-      if (sprintFilter && sprintFilter !== "none") {
+      if (sprintFilter && sprintFilter !== 'none') {
         const taskSprintId = sprintInfoByTask.get(tk.id)?.sprintId ?? null;
-        list = list.filter(
-          (it) => (it.sprint_id ?? taskSprintId) === sprintFilter,
-        );
+        list = list.filter((it) => (it.sprint_id ?? taskSprintId) === sprintFilter);
       }
       if (assigneeFilter) {
         list = list.filter(
-          (it) =>
-            it.assignee?.id === assigneeFilter ||
-            it.contractor?.id === assigneeFilter,
+          (it) => it.assignee?.id === assigneeFilter || it.contractor?.id === assigneeFilter,
         );
       }
       // 미완료만: 완료된 줄은 감춘다 — 칩 이름 그대로 "미완료" 줄만 남는다
-      if (statusFilter === "open") list = list.filter((it) => !it.completed);
+      if (statusFilter === 'open') list = list.filter((it) => !it.completed);
       return list;
     },
     [itemsOf, sprintFilter, sprintInfoByTask, assigneeFilter, statusFilter],
   );
 
-  const sprintById = useMemo(
-    () => new Map(sprints.map((sp) => [sp.id, sp])),
-    [sprints],
-  );
+  const sprintById = useMemo(() => new Map(sprints.map((sp) => [sp.id, sp])), [sprints]);
 
   /**
    * 날짜 색의 기준 창 — 스프린트 필터를 걸면 그 스프린트 기간, 안 걸면 마일스톤 기간.
@@ -530,7 +480,7 @@ export function MilestoneTableView({
    * 미배정 필터는 기준 삼을 스프린트가 없으므로 마일스톤으로 떨어진다.
    */
   const dateWindow = useMemo<DateWindow | undefined>(() => {
-    if (sprintEnabled && sprintFilter && sprintFilter !== "none") {
+    if (sprintEnabled && sprintFilter && sprintFilter !== 'none') {
       const sp = sprintById.get(sprintFilter);
       if (sp && (sp.start_date || sp.end_date))
         return { name: sp.name, start: sp.start_date, end: sp.end_date };
@@ -560,12 +510,8 @@ export function MilestoneTableView({
     }
     const result = [...byFeature.entries()].map(([featureId, list]) => {
       const sorted = [...list].sort((a, b) => {
-        if (a.completed !== b.completed)
-          return Number(a.completed) - Number(b.completed);
-        return (
-          (a.feature_position ?? a.position) -
-          (b.feature_position ?? b.position)
-        );
+        if (a.completed !== b.completed) return Number(a.completed) - Number(b.completed);
+        return (a.feature_position ?? a.position) - (b.feature_position ?? b.position);
       });
       const completed = list.filter((tk) => tk.completed).length;
       // 게이지 = 체크리스트 완료 합계 기준 (마일스톤 헤더와 동일 규칙, 없으면 태스크 폴백)
@@ -586,10 +532,8 @@ export function MilestoneTableView({
       return {
         featureId,
         feature: featureById.get(featureId),
-        title:
-          featureById.get(featureId)?.title ?? list[0]?.feature_title ?? "",
-        color:
-          featureById.get(featureId)?.color ?? list[0]?.feature_color ?? null,
+        title: featureById.get(featureId)?.title ?? list[0]?.feature_title ?? '',
+        color: featureById.get(featureId)?.color ?? list[0]?.feature_color ?? null,
         tasks: sorted,
         visibleTasks: sorted.filter(taskMatches),
         completed,
@@ -613,11 +557,8 @@ export function MilestoneTableView({
     return result;
   }, [tasks, featureById, taskMatches, checklists]);
 
-  const isFiltered =
-    statusFilter !== "all" || assigneeFilter !== null || sprintFilter !== null;
-  const visibleGroups = isFiltered
-    ? groups.filter((g) => g.visibleTasks.length > 0)
-    : groups;
+  const isFiltered = statusFilter !== 'all' || assigneeFilter !== null || sprintFilter !== null;
+  const visibleGroups = isFiltered ? groups.filter((g) => g.visibleTasks.length > 0) : groups;
 
   /**
    * 신문형 2단 분배 — 행 수(체크 항목 포함) 가중치로 순서 유지한 채 절반 분할.
@@ -664,9 +605,7 @@ export function MilestoneTableView({
           ...prev,
           [taskId]: {
             ...state,
-            items: state.items.map((i) =>
-              i.id === itemId ? { ...i, ...patch } : i,
-            ),
+            items: state.items.map((i) => (i.id === itemId ? { ...i, ...patch } : i)),
           },
         };
       });
@@ -695,18 +634,14 @@ export function MilestoneTableView({
       const prevContractor = item.contractor ?? null;
       patchLocalItem(taskId, item.id, {
         assignee:
-          pick?.kind === "member"
-            ? { id: pick.id, name: pick.name, profile_image: null }
-            : null,
+          pick?.kind === 'member' ? { id: pick.id, name: pick.name, profile_image: null } : null,
         contractor:
-          pick?.kind === "contractor"
-            ? { id: pick.id, name: pick.name, color: pick.color }
-            : null,
+          pick?.kind === 'contractor' ? { id: pick.id, name: pick.name, color: pick.color } : null,
       });
       checklistAPI
         .patchItem(boardId, taskId, item.id, {
-          assignee_id: pick?.kind === "member" ? pick.id : null,
-          contractor_id: pick?.kind === "contractor" ? pick.id : null,
+          assignee_id: pick?.kind === 'member' ? pick.id : null,
+          contractor_id: pick?.kind === 'contractor' ? pick.id : null,
         })
         .catch(() => {
           patchLocalItem(taskId, item.id, {
@@ -748,9 +683,7 @@ export function MilestoneTableView({
       };
       const taskSprintId = sprintInfoByTask.get(taskId)?.sprintId ?? null;
       const effective = sprintId ?? taskSprintId;
-      const bucket = effective
-        ? sprints.find((s) => s.id === effective)
-        : undefined;
+      const bucket = effective ? sprints.find((s) => s.id === effective) : undefined;
       patchLocalItem(taskId, item.id, {
         sprint_id: effective,
         sprint_seq: bucket?.sequence_no ?? null,
@@ -765,21 +698,13 @@ export function MilestoneTableView({
         .catch(() => {
           patchLocalItem(taskId, item.id, prev);
           toast.error(
-            t("milestone.table.lineSprintFailed", {
-              defaultValue: "항목 스프린트 변경에 실패했어요",
+            t('milestone.table.lineSprintFailed', {
+              defaultValue: '항목 스프린트 변경에 실패했어요',
             }),
           );
         });
     },
-    [
-      boardId,
-      canEdit,
-      patchLocalItem,
-      sprintInfoByTask,
-      sprints,
-      onSprintBoardChange,
-      t,
-    ],
+    [boardId, canEdit, patchLocalItem, sprintInfoByTask, sprints, onSprintBoardChange, t],
   );
 
   const handleToggleItem = useCallback(
@@ -794,9 +719,7 @@ export function MilestoneTableView({
             ...prev,
             [taskId]: {
               ...state,
-              items: state.items.map((i) =>
-                i.id === item.id ? { ...i, completed } : i,
-              ),
+              items: state.items.map((i) => (i.id === item.id ? { ...i, completed } : i)),
             },
           };
         });
@@ -862,11 +785,7 @@ export function MilestoneTableView({
   const handleApplyPreset = useCallback(
     async (taskId: string, presetId: string) => {
       try {
-        const res = await checklistPresetService.applyPreset(
-          boardId,
-          taskId,
-          presetId,
-        );
+        const res = await checklistPresetService.applyPreset(boardId, taskId, presetId);
         setChecklists((prev) => ({
           ...prev,
           [taskId]: { items: res.checklists, loaded: true },
@@ -874,17 +793,17 @@ export function MilestoneTableView({
         setPresetOverrides((prev) => ({ ...prev, [taskId]: presetId }));
         if (res.skipped_duplicates > 0) {
           toast(
-            t("milestone.preset.skippedToast", {
+            t('milestone.preset.skippedToast', {
               count: res.skipped_duplicates,
-              defaultValue: "{{count}}개는 이미 있어 건너뛰었습니다",
+              defaultValue: '{{count}}개는 이미 있어 건너뛰었습니다',
             }),
           );
         }
         onRefresh?.();
       } catch (error) {
         toast.error(
-          t("milestone.preset.applyFailed", {
-            defaultValue: "프리셋 적용에 실패했습니다",
+          t('milestone.preset.applyFailed', {
+            defaultValue: '프리셋 적용에 실패했습니다',
           }),
         );
         throw error;
@@ -902,8 +821,8 @@ export function MilestoneTableView({
         onRefresh?.();
       } catch (error) {
         toast.error(
-          t("milestone.preset.clearFailed", {
-            defaultValue: "지정 해제에 실패했습니다",
+          t('milestone.preset.clearFailed', {
+            defaultValue: '지정 해제에 실패했습니다',
           }),
         );
         throw error;
@@ -914,10 +833,7 @@ export function MilestoneTableView({
 
   /** 현재 체크 항목들을 새 프리셋으로 저장 (담당자 포함) */
   const handleSavePreset = useCallback(
-    async (
-      name: string,
-      items: { title: string; assignee_id: string | null }[],
-    ) => {
+    async (name: string, items: { title: string; assignee_id: string | null }[]) => {
       try {
         const preset = await checklistPresetService.createPreset(boardId, {
           name,
@@ -926,8 +842,8 @@ export function MilestoneTableView({
         setPresets((prev) => [...prev, preset]);
       } catch (error) {
         toast.error(
-          t("milestone.preset.saveFailed", {
-            defaultValue: "프리셋 저장에 실패했습니다",
+          t('milestone.preset.saveFailed', {
+            defaultValue: '프리셋 저장에 실패했습니다',
           }),
         );
         throw error;
@@ -943,9 +859,7 @@ export function MilestoneTableView({
     (event: DragStartEvent) => {
       const taskId = event.active.data.current?.taskId as string | undefined;
       if (!taskId) return;
-      const item = checklists[taskId]?.items.find(
-        (i) => i.id === event.active.id,
-      );
+      const item = checklists[taskId]?.items.find((i) => i.id === event.active.id);
       setDragItem(item ?? null);
     },
     [checklists],
@@ -959,12 +873,10 @@ export function MilestoneTableView({
       if (!over) return;
       const sourceTaskId = active.data.current?.taskId as string | undefined;
       const overId = String(over.id);
-      if (!sourceTaskId || !overId.startsWith("cl-")) return;
+      if (!sourceTaskId || !overId.startsWith('cl-')) return;
       const targetTaskId = overId.slice(3);
       if (targetTaskId === sourceTaskId) return;
-      const item = checklists[sourceTaskId]?.items.find(
-        (i) => i.id === active.id,
-      );
+      const item = checklists[sourceTaskId]?.items.find((i) => i.id === active.id);
       if (!item) return;
       const applyMove = (fromId: string, toId: string, moved: ChecklistItem) =>
         setChecklists((prev) => {
@@ -1012,89 +924,73 @@ export function MilestoneTableView({
   // ── CSV 내보내기 (UTF-8 BOM — 엑셀 한글 호환) ──
   const handleExport = useCallback(() => {
     const statusLabel: Record<TaskStatus, string> = {
-      done: t("milestone.table.statusDone", { defaultValue: "완료" }),
-      doing: t("milestone.table.statusDoing", { defaultValue: "진행중" }),
-      todo: t("milestone.table.statusTodo", { defaultValue: "대기" }),
+      done: t('milestone.table.statusDone', { defaultValue: '완료' }),
+      doing: t('milestone.table.statusDoing', { defaultValue: '진행중' }),
+      todo: t('milestone.table.statusTodo', { defaultValue: '대기' }),
     };
     const header = [
-      t("milestone.table.colFeature", { defaultValue: "피처" }),
-      t("milestone.table.csvFeatureProgress", { defaultValue: "피처 진행" }),
-      t("milestone.table.colTask", { defaultValue: "태스크" }),
-      t("milestone.table.csvStatus", { defaultValue: "상태" }),
-      t("milestone.table.csvSprint", { defaultValue: "스프린트" }),
-      t("milestone.table.csvDue", { defaultValue: "마감" }),
-      t("milestone.table.colChecklist", { defaultValue: "체크리스트" }),
-      t("milestone.table.csvItemPeriod", { defaultValue: "항목 기간" }),
-      t("milestone.table.csvChecked", { defaultValue: "완료" }),
-      t("milestone.table.csvAssignee", { defaultValue: "담당자" }),
+      t('milestone.table.colFeature', { defaultValue: '피처' }),
+      t('milestone.table.csvFeatureProgress', { defaultValue: '피처 진행' }),
+      t('milestone.table.colTask', { defaultValue: '태스크' }),
+      t('milestone.table.csvStatus', { defaultValue: '상태' }),
+      t('milestone.table.csvSprint', { defaultValue: '스프린트' }),
+      t('milestone.table.csvDue', { defaultValue: '마감' }),
+      t('milestone.table.colChecklist', { defaultValue: '체크리스트' }),
+      t('milestone.table.csvItemPeriod', { defaultValue: '항목 기간' }),
+      t('milestone.table.csvChecked', { defaultValue: '완료' }),
+      t('milestone.table.csvAssignee', { defaultValue: '담당자' }),
     ];
     const rows: string[][] = [header];
     for (const g of visibleGroups) {
-      const pct =
-        g.progressTotal > 0
-          ? Math.round((g.progressDone / g.progressTotal) * 100)
-          : 0;
+      const pct = g.progressTotal > 0 ? Math.round((g.progressDone / g.progressTotal) * 100) : 0;
       const progress = `${g.progressDone}/${g.progressTotal} (${pct}%)`;
       for (const tk of g.visibleTasks) {
         const info = sprintInfoByTask.get(tk.id);
         // 담긴 버킷의 회차만 남긴다 — 지남/진행 중 구분은 CSV에서 의미가 없다.
-        const sprint = info?.sprintId ? `S${info.seq ?? currentSeq ?? ""}` : "";
+        const sprint = info?.sprintId ? `S${info.seq ?? currentSeq ?? ''}` : '';
         const base = [
           g.title,
           progress,
           tk.title,
           statusLabel[statusOf(tk)],
           sprint,
-          tk.due_date ?? "",
+          tk.due_date ?? '',
         ];
         const items = shownItemsOf(tk);
         if (items.length === 0) {
-          rows.push([...base, "", "", "", ""]);
+          rows.push([...base, '', '', '', '']);
         } else {
           for (const item of items) {
             const period =
               item.start_date || item.due_date
-                ? `${item.start_date ?? ""}~${item.due_date ?? ""}`
-                : "";
+                ? `${item.start_date ?? ''}~${item.due_date ?? ''}`
+                : '';
             // 다른 스프린트로 보낸 줄은 그 줄의 스프린트로 적는다.
             const lineSprint =
-              item.sprint_overridden && item.sprint_seq != null
-                ? `S${item.sprint_seq}`
-                : sprint;
+              item.sprint_overridden && item.sprint_seq != null ? `S${item.sprint_seq}` : sprint;
             rows.push([
               ...base.slice(0, 4),
               lineSprint,
               base[5],
               item.title,
               period,
-              item.completed ? "O" : "X",
-              itemOwnerName(item) ?? "",
+              item.completed ? 'O' : 'X',
+              itemOwnerName(item) ?? '',
             ]);
           }
         }
       }
     }
-    const csv =
-      "\uFEFF" + rows.map((r) => r.map(csvField).join(",")).join("\r\n");
-    const url = URL.createObjectURL(
-      new Blob([csv], { type: "text/csv;charset=utf-8" }),
-    );
-    const a = document.createElement("a");
+    const csv = '\uFEFF' + rows.map((r) => r.map(csvField).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
     a.href = url;
     a.download = `${milestone.title}.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-  }, [
-    visibleGroups,
-    sprintInfoByTask,
-    currentSeq,
-    statusOf,
-    shownItemsOf,
-    milestone.title,
-    t,
-  ]);
+  }, [visibleGroups, sprintInfoByTask, currentSeq, statusOf, shownItemsOf, milestone.title, t]);
 
   /**
    * 주소창 동기화 — 지금 보고 있는 마일스톤·레이아웃·필터를 쿼리에 실어 둔다.
@@ -1103,16 +999,16 @@ export function MilestoneTableView({
    */
   useEffect(() => {
     const next = new URLSearchParams(window.location.search);
-    next.set("view", "milestone");
-    next.set("milestone", mid);
-    next.set("mlayout", "table");
+    next.set('view', 'milestone');
+    next.set('milestone', mid);
+    next.set('mlayout', 'table');
     const put = (key: string, value: string | null) => {
       if (value) next.set(key, value);
       else next.delete(key);
     };
-    put("mstatus", statusFilter === "all" ? null : statusFilter);
-    put("msprint", sprintFilter);
-    put("massignee", assigneeFilter);
+    put('mstatus', statusFilter === 'all' ? null : statusFilter);
+    put('msprint', sprintFilter);
+    put('massignee', assigneeFilter);
     const search = `?${next.toString()}`;
     if (search === window.location.search) return;
     navigate({ search }, { replace: true });
@@ -1129,7 +1025,7 @@ export function MilestoneTableView({
       const next = new URLSearchParams(window.location.search);
       for (const key of LINK_PARAMS) next.delete(key);
       const rest = next.toString();
-      navigate({ search: rest ? `?${rest}` : "" }, { replace: true });
+      navigate({ search: rest ? `?${rest}` : '' }, { replace: true });
     };
   }, [navigate]);
 
@@ -1141,44 +1037,42 @@ export function MilestoneTableView({
   const [linkCopied, setLinkCopied] = useState(false);
   const handleCopyLink = useCallback(async () => {
     const params = new URLSearchParams({
-      view: "milestone",
+      view: 'milestone',
       milestone: mid,
-      mlayout: "table",
+      mlayout: 'table',
     });
-    if (statusFilter !== "all") params.set("mstatus", statusFilter);
-    if (sprintFilter) params.set("msprint", sprintFilter);
-    if (assigneeFilter) params.set("massignee", assigneeFilter);
+    if (statusFilter !== 'all') params.set('mstatus', statusFilter);
+    if (sprintFilter) params.set('msprint', sprintFilter);
+    if (assigneeFilter) params.set('massignee', assigneeFilter);
     const url = `${window.location.origin}/boards/${boardId}?${params.toString()}`;
     try {
       await navigator.clipboard.writeText(url);
     } catch {
-      const input = document.createElement("input");
+      const input = document.createElement('input');
       input.value = url;
       document.body.appendChild(input);
       input.select();
-      document.execCommand("copy");
+      document.execCommand('copy');
       input.remove();
     }
     setLinkCopied(true);
-    toast.success(
-      t("share.linkCopied", { defaultValue: "링크를 복사했습니다" }),
-    );
+    toast.success(t('share.linkCopied', { defaultValue: '링크를 복사했습니다' }));
     setTimeout(() => setLinkCopied(false), 2000);
   }, [boardId, mid, statusFilter, sprintFilter, assigneeFilter, t]);
 
   // ── 렌더 ──
   const filterChips: { key: StatusFilter; label: string }[] = [
     {
-      key: "all",
-      label: t("milestone.table.filterAll", { defaultValue: "전체" }),
+      key: 'all',
+      label: t('milestone.table.filterAll', { defaultValue: '전체' }),
     },
     {
-      key: "doing",
-      label: t("milestone.table.filterDoing", { defaultValue: "진행중만" }),
+      key: 'doing',
+      label: t('milestone.table.filterDoing', { defaultValue: '진행중만' }),
     },
     {
-      key: "open",
-      label: t("milestone.table.filterOpen", { defaultValue: "미완료만" }),
+      key: 'open',
+      label: t('milestone.table.filterOpen', { defaultValue: '미완료만' }),
     },
   ];
 
@@ -1195,8 +1089,8 @@ export function MilestoneTableView({
       className="w-full max-w-[240px] bg-foreground/[0.03] border border-foreground/10 rounded-lg px-2.5 py-1 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
       onKeyDown={(e) => {
         if (e.nativeEvent.isComposing) return;
-        if (e.key === "Enter") onCommit((e.target as HTMLInputElement).value);
-        else if (e.key === "Escape") onCancel();
+        if (e.key === 'Enter') onCommit((e.target as HTMLInputElement).value);
+        else if (e.key === 'Escape') onCancel();
       }}
       onBlur={(e) => {
         if (!e.target.value.trim()) onCancel();
@@ -1206,14 +1100,14 @@ export function MilestoneTableView({
 
   // 딥링크로 들어와 아직 후보가 안 찼으면 이름이 비는데, 그때는 기본 라벨로 떨어진다
   const assigneeFilterName = assigneeFilter
-    ? (assigneeOptions.find((a) => a.id === assigneeFilter)?.name ?? "")
+    ? (assigneeOptions.find((a) => a.id === assigneeFilter)?.name ?? '')
     : null;
 
   const sprintFilterLabel =
-    sprintFilter === "none"
-      ? t("milestone.table.sprintUnassigned", { defaultValue: "미배정" })
+    sprintFilter === 'none'
+      ? t('milestone.table.sprintUnassigned', { defaultValue: '미배정' })
       : sprintFilter
-        ? (sprints.find((s) => s.id === sprintFilter)?.name ?? "")
+        ? (sprints.find((s) => s.id === sprintFilter)?.name ?? '')
         : null;
 
   /**
@@ -1221,14 +1115,14 @@ export function MilestoneTableView({
    * (예: "Sprint 2 · 민준태 몫 항목 없음") 필터가 없으면 그냥 체크리스트가 없는 태스크다.
    */
   const emptyScopeLabel =
-    [sprintFilterLabel, assigneeFilterName].filter(Boolean).join(" · ") || null;
+    [sprintFilterLabel, assigneeFilterName].filter(Boolean).join(' · ') || null;
 
-  const sprintStateLabel = (state: SprintInfo["state"]) =>
-    state === "CURRENT"
-      ? t("milestone.table.sprintCurrentMark", { defaultValue: "진행 중" })
-      : state === "PAST"
-        ? t("milestone.table.sprintPastMark", { defaultValue: "지남" })
-        : t("milestone.table.sprintUpcoming", { defaultValue: "예정" });
+  const sprintStateLabel = (state: SprintInfo['state']) =>
+    state === 'CURRENT'
+      ? t('milestone.table.sprintCurrentMark', { defaultValue: '진행 중' })
+      : state === 'PAST'
+        ? t('milestone.table.sprintPastMark', { defaultValue: '지남' })
+        : t('milestone.table.sprintUpcoming', { defaultValue: '예정' });
 
   return (
     <div>
@@ -1240,8 +1134,8 @@ export function MilestoneTableView({
             onClick={() => setStatusFilter(chip.key)}
             className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
               statusFilter === chip.key
-                ? "bg-bridge-accent/15 border-bridge-accent/40 text-bridge-accent font-bold"
-                : "bg-foreground/[0.03] border-foreground/10 text-slate-400 hover:text-foreground"
+                ? 'bg-bridge-accent/15 border-bridge-accent/40 text-bridge-accent font-bold'
+                : 'bg-foreground/[0.03] border-foreground/10 text-slate-400 hover:text-foreground'
             }`}
           >
             {chip.label}
@@ -1256,20 +1150,16 @@ export function MilestoneTableView({
               aria-expanded={sprintOpen}
               className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-colors ${
                 sprintFilter
-                  ? "bg-bridge-accent/15 border-bridge-accent/40 text-bridge-accent font-bold"
-                  : "bg-foreground/[0.03] border-foreground/10 text-slate-400 hover:text-foreground"
+                  ? 'bg-bridge-accent/15 border-bridge-accent/40 text-bridge-accent font-bold'
+                  : 'bg-foreground/[0.03] border-foreground/10 text-slate-400 hover:text-foreground'
               }`}
             >
-              {sprintFilterLabel ||
-                t("milestone.table.filterSprint", { defaultValue: "스프린트" })}
+              {sprintFilterLabel || t('milestone.table.filterSprint', { defaultValue: '스프린트' })}
               <ChevronDown className="h-3 w-3" />
             </button>
             {sprintOpen && (
               <>
-                <div
-                  className="fixed inset-0 z-30"
-                  onClick={() => setSprintOpen(false)}
-                />
+                <div className="fixed inset-0 z-30" onClick={() => setSprintOpen(false)} />
                 <div className="absolute top-full left-0 mt-1.5 z-40 w-52 max-h-56 overflow-y-auto custom-scrollbar bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1.5">
                   <button
                     onClick={() => {
@@ -1278,11 +1168,11 @@ export function MilestoneTableView({
                     }}
                     className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
                       sprintFilter === null
-                        ? "text-bridge-accent font-bold bg-bridge-accent/10"
-                        : "text-foreground hover:bg-foreground/5"
+                        ? 'text-bridge-accent font-bold bg-bridge-accent/10'
+                        : 'text-foreground hover:bg-foreground/5'
                     }`}
                   >
-                    {t("milestone.table.filterAll", { defaultValue: "전체" })}
+                    {t('milestone.table.filterAll', { defaultValue: '전체' })}
                   </button>
                   {sprints.map((s) => (
                     <button
@@ -1293,17 +1183,17 @@ export function MilestoneTableView({
                       }}
                       className={`w-full px-3 py-1.5 text-left text-xs truncate transition-colors flex items-center gap-2 ${
                         sprintFilter === s.id
-                          ? "text-bridge-accent font-bold bg-bridge-accent/10"
-                          : "text-foreground hover:bg-foreground/5"
+                          ? 'text-bridge-accent font-bold bg-bridge-accent/10'
+                          : 'text-foreground hover:bg-foreground/5'
                       }`}
                     >
                       <span
                         className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                          s.state === "CURRENT"
-                            ? "bg-bridge-accent"
-                            : s.state === "PAST"
-                              ? "bg-emerald-500"
-                              : "bg-slate-600"
+                          s.state === 'CURRENT'
+                            ? 'bg-bridge-accent'
+                            : s.state === 'PAST'
+                              ? 'bg-emerald-500'
+                              : 'bg-slate-600'
                         }`}
                       />
                       <span className="truncate">{s.name}</span>
@@ -1314,17 +1204,17 @@ export function MilestoneTableView({
                   ))}
                   <button
                     onClick={() => {
-                      setSprintFilter("none");
+                      setSprintFilter('none');
                       setSprintOpen(false);
                     }}
                     className={`w-full px-3 py-1.5 text-left text-xs transition-colors border-t border-foreground/[0.06] mt-1 pt-2 ${
-                      sprintFilter === "none"
-                        ? "text-bridge-accent font-bold bg-bridge-accent/10"
-                        : "text-slate-400 hover:bg-foreground/5 hover:text-foreground"
+                      sprintFilter === 'none'
+                        ? 'text-bridge-accent font-bold bg-bridge-accent/10'
+                        : 'text-slate-400 hover:bg-foreground/5 hover:text-foreground'
                     }`}
                   >
-                    {t("milestone.table.sprintUnassigned", {
-                      defaultValue: "미배정",
+                    {t('milestone.table.sprintUnassigned', {
+                      defaultValue: '미배정',
                     })}
                   </button>
                 </div>
@@ -1340,20 +1230,16 @@ export function MilestoneTableView({
             aria-expanded={assigneeOpen}
             className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-colors ${
               assigneeFilter
-                ? "bg-bridge-accent/15 border-bridge-accent/40 text-bridge-accent font-bold"
-                : "bg-foreground/[0.03] border-foreground/10 text-slate-400 hover:text-foreground"
+                ? 'bg-bridge-accent/15 border-bridge-accent/40 text-bridge-accent font-bold'
+                : 'bg-foreground/[0.03] border-foreground/10 text-slate-400 hover:text-foreground'
             }`}
           >
-            {assigneeFilterName ||
-              t("milestone.table.filterAssignee", { defaultValue: "담당자" })}
+            {assigneeFilterName || t('milestone.table.filterAssignee', { defaultValue: '담당자' })}
             <ChevronDown className="h-3 w-3" />
           </button>
           {assigneeOpen && (
             <>
-              <div
-                className="fixed inset-0 z-30"
-                onClick={() => setAssigneeOpen(false)}
-              />
+              <div className="fixed inset-0 z-30" onClick={() => setAssigneeOpen(false)} />
               <div className="absolute top-full left-0 mt-1.5 z-40 w-44 max-h-56 overflow-y-auto custom-scrollbar bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1.5">
                 <button
                   onClick={() => {
@@ -1362,11 +1248,11 @@ export function MilestoneTableView({
                   }}
                   className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
                     assigneeFilter === null
-                      ? "text-bridge-accent font-bold bg-bridge-accent/10"
-                      : "text-foreground hover:bg-foreground/5"
+                      ? 'text-bridge-accent font-bold bg-bridge-accent/10'
+                      : 'text-foreground hover:bg-foreground/5'
                   }`}
                 >
-                  {t("milestone.table.filterAll", { defaultValue: "전체" })}
+                  {t('milestone.table.filterAll', { defaultValue: '전체' })}
                 </button>
                 {assigneeOptions.map((a) => (
                   <button
@@ -1377,8 +1263,8 @@ export function MilestoneTableView({
                     }}
                     className={`w-full px-3 py-1.5 text-left text-xs truncate transition-colors ${
                       assigneeFilter === a.id
-                        ? "text-bridge-accent font-bold bg-bridge-accent/10"
-                        : "text-foreground hover:bg-foreground/5"
+                        ? 'text-bridge-accent font-bold bg-bridge-accent/10'
+                        : 'text-foreground hover:bg-foreground/5'
                     }`}
                   >
                     {a.name}
@@ -1390,13 +1276,11 @@ export function MilestoneTableView({
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          {checklistsLoading && (
-            <Loader2 className="w-4 h-4 animate-spin text-bridge-accent" />
-          )}
+          {checklistsLoading && <Loader2 className="w-4 h-4 animate-spin text-bridge-accent" />}
           <button
             onClick={handleCopyLink}
-            title={t("milestone.table.copyFilteredLink", {
-              defaultValue: "지금 필터 그대로 링크 복사",
+            title={t('milestone.table.copyFilteredLink', {
+              defaultValue: '지금 필터 그대로 링크 복사',
             })}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-foreground bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-all"
           >
@@ -1405,7 +1289,7 @@ export function MilestoneTableView({
             ) : (
               <LinkIcon className="h-3.5 w-3.5" />
             )}
-            {t("milestone.table.copyLink", { defaultValue: "링크 복사" })}
+            {t('milestone.table.copyLink', { defaultValue: '링크 복사' })}
           </button>
           <button
             onClick={handleExport}
@@ -1413,8 +1297,8 @@ export function MilestoneTableView({
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.2)] transition-all disabled:opacity-50 disabled:pointer-events-none"
           >
             <Download className="h-3.5 w-3.5" />
-            {t("milestone.table.exportExcel", {
-              defaultValue: "엑셀 내보내기",
+            {t('milestone.table.exportExcel', {
+              defaultValue: '엑셀 내보내기',
             })}
           </button>
         </div>
@@ -1424,11 +1308,11 @@ export function MilestoneTableView({
       {visibleGroups.length === 0 ? (
         <div className="text-xs text-slate-500 text-center py-10">
           {isFiltered
-            ? t("milestone.table.noMatch", {
-                defaultValue: "조건에 맞는 태스크가 없습니다",
+            ? t('milestone.table.noMatch', {
+                defaultValue: '조건에 맞는 태스크가 없습니다',
               })
-            : t("milestone.detail.noTasks", {
-                defaultValue: "이 마일스톤에 배정된 태스크가 없습니다",
+            : t('milestone.detail.noTasks', {
+                defaultValue: '이 마일스톤에 배정된 태스크가 없습니다',
               })}
         </div>
       ) : (
@@ -1440,31 +1324,27 @@ export function MilestoneTableView({
         >
           <div
             className={`grid grid-cols-1 gap-x-4 ${
-              groupColumns.length === 2 ? "2xl:grid-cols-2" : ""
+              groupColumns.length === 2 ? '2xl:grid-cols-2' : ''
             }`}
           >
             {groupColumns.map((colGroups, colIdx) => (
               <div key={colIdx} className="overflow-x-auto custom-scrollbar">
                 <table className="w-full min-w-[560px] border-collapse">
-                  <thead
-                    className={
-                      colIdx === 1 ? "hidden 2xl:table-header-group" : undefined
-                    }
-                  >
+                  <thead className={colIdx === 1 ? 'hidden 2xl:table-header-group' : undefined}>
                     <tr className="border-b border-bridge-border">
                       <th className="w-[21%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
-                        {t("milestone.table.colFeature", {
-                          defaultValue: "피처",
+                        {t('milestone.table.colFeature', {
+                          defaultValue: '피처',
                         })}
                       </th>
                       <th className="w-[25%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
-                        {t("milestone.table.colTask", {
-                          defaultValue: "태스크",
+                        {t('milestone.table.colTask', {
+                          defaultValue: '태스크',
                         })}
                       </th>
                       <th className="w-[54%] px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-slate-400">
-                        {t("milestone.table.colChecklist", {
-                          defaultValue: "체크리스트",
+                        {t('milestone.table.colChecklist', {
+                          defaultValue: '체크리스트',
                         })}
                       </th>
                     </tr>
@@ -1476,8 +1356,7 @@ export function MilestoneTableView({
                           ? Math.round((g.progressDone / g.progressTotal) * 100)
                           : 0;
                       const showAddRow = canEdit;
-                      const span =
-                        g.visibleTasks.length + (showAddRow ? 1 : 0) || 1;
+                      const span = g.visibleTasks.length + (showAddRow ? 1 : 0) || 1;
                       const isHome = homeByFeature.get(g.featureId) === mid;
 
                       const featureCell = (
@@ -1487,9 +1366,7 @@ export function MilestoneTableView({
                         >
                           <div
                             className={`flex items-center gap-2${
-                              g.feature && onFeatureClick
-                                ? " cursor-pointer group/f"
-                                : ""
+                              g.feature && onFeatureClick ? ' cursor-pointer group/f' : ''
                             }`}
                             onClick={
                               g.feature && onFeatureClick
@@ -1509,8 +1386,8 @@ export function MilestoneTableView({
                           </div>
                           {isHome && (
                             <span className="inline-block mt-1.5 text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
-                              {t("milestone.table.homeMilestone", {
-                                defaultValue: "기본 마일스톤",
+                              {t('milestone.table.homeMilestone', {
+                                defaultValue: '기본 마일스톤',
                               })}
                             </span>
                           )}
@@ -1518,9 +1395,7 @@ export function MilestoneTableView({
                             <div className="flex-1 max-w-[110px] h-1 rounded-full bg-foreground/10 overflow-hidden">
                               <div
                                 className={`h-full rounded-full ${
-                                  pct === 100
-                                    ? "bg-emerald-500"
-                                    : "bg-bridge-accent"
+                                  pct === 100 ? 'bg-emerald-500' : 'bg-bridge-accent'
                                 }`}
                                 style={{ width: `${pct}%` }}
                               />
@@ -1528,7 +1403,7 @@ export function MilestoneTableView({
                             <span className="text-xs text-slate-400 tabular-nums whitespace-nowrap">
                               <b className="text-foreground font-bold">
                                 {g.progressDone}/{g.progressTotal}
-                              </b>{" "}
+                              </b>{' '}
                               · {pct}%
                             </span>
                           </div>
@@ -1537,8 +1412,7 @@ export function MilestoneTableView({
 
                       const rows = g.visibleTasks.map((tk, i) => {
                         const items = itemsOf(tk.id);
-                        const taskSprintId =
-                          sprintInfoByTask.get(tk.id)?.sprintId ?? null;
+                        const taskSprintId = sprintInfoByTask.get(tk.id)?.sprintId ?? null;
                         const shownItems = shownItemsOf(tk);
                         const state = checklists[tk.id];
                         /**
@@ -1549,16 +1423,12 @@ export function MilestoneTableView({
                         const clLoaded = !!state?.loaded;
                         const noPlan = clLoaded && shownItems.length === 0;
                         const dueOver =
-                          !tk.completed &&
-                          !!tk.due_date &&
-                          daysUntil(tk.due_date) < 0;
+                          !tk.completed && !!tk.due_date && daysUntil(tk.due_date) < 0;
                         return (
                           <tr
                             key={tk.id}
                             className={`border-b border-foreground/[0.05]${
-                              i === 0
-                                ? " border-t border-t-foreground/[0.12]"
-                                : ""
+                              i === 0 ? ' border-t border-t-foreground/[0.12]' : ''
                             }`}
                           >
                             {i === 0 && featureCell}
@@ -1567,39 +1437,31 @@ export function MilestoneTableView({
                               <div className="flex items-baseline gap-1.5">
                                 <span
                                   className={`text-xs flex-shrink-0 ${
-                                    statusOf(tk) === "done"
-                                      ? "text-emerald-500"
-                                      : "text-slate-400"
+                                    statusOf(tk) === 'done' ? 'text-emerald-500' : 'text-slate-400'
                                   }`}
                                 >
-                                  {statusOf(tk) === "done"
-                                    ? "✓"
-                                    : statusOf(tk) === "doing"
-                                      ? "◐"
-                                      : "○"}
+                                  {statusOf(tk) === 'done'
+                                    ? '✓'
+                                    : statusOf(tk) === 'doing'
+                                      ? '◐'
+                                      : '○'}
                                 </span>
                                 <span
-                                  onClick={
-                                    onTaskClick
-                                      ? () => onTaskClick(tk)
-                                      : undefined
-                                  }
+                                  onClick={onTaskClick ? () => onTaskClick(tk) : undefined}
                                   className={`text-xs font-medium break-words ${
-                                    tk.completed
-                                      ? "text-slate-500 line-through"
-                                      : "text-foreground"
+                                    tk.completed ? 'text-slate-500 line-through' : 'text-foreground'
                                   }${
                                     onTaskClick
-                                      ? " cursor-pointer hover:text-bridge-accent hover:underline"
-                                      : ""
+                                      ? ' cursor-pointer hover:text-bridge-accent hover:underline'
+                                      : ''
                                   }`}
                                 >
                                   {tk.title}
                                 </span>
                                 {noPlan && (
                                   <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 whitespace-nowrap flex-shrink-0">
-                                    {t("milestone.table.noPlan", {
-                                      defaultValue: "계획 없음",
+                                    {t('milestone.table.noPlan', {
+                                      defaultValue: '계획 없음',
                                     })}
                                   </span>
                                 )}
@@ -1626,9 +1488,7 @@ export function MilestoneTableView({
                                   taskItemTitles={items.map((i) => i.title)}
                                   defaultSaveName={g.title}
                                   canEdit={canEdit}
-                                  onApply={(pid) =>
-                                    handleApplyPreset(tk.id, pid)
-                                  }
+                                  onApply={(pid) => handleApplyPreset(tk.id, pid)}
                                   onClear={() => handleClearPreset(tk.id)}
                                   onSaveCurrent={(name) =>
                                     handleSavePreset(
@@ -1644,9 +1504,7 @@ export function MilestoneTableView({
                                 {tk.due_date && (
                                   <span
                                     className={`text-xs tabular-nums ml-auto whitespace-nowrap ${
-                                      dueOver
-                                        ? "font-bold text-red-500"
-                                        : "text-slate-500"
+                                      dueOver ? 'font-bold text-red-500' : 'text-slate-500'
                                     }`}
                                   >
                                     {tk.completed
@@ -1660,21 +1518,18 @@ export function MilestoneTableView({
                             <td className="align-top px-4 py-3">
                               <ItemsDropArea taskId={tk.id} enabled={canEdit}>
                                 {!clLoaded ? (
-                                  <span className="text-xs text-slate-600">
-                                    —
-                                  </span>
+                                  <span className="text-xs text-slate-600">—</span>
                                 ) : noPlan && addingItemFor !== tk.id ? (
                                   // 빈 칸이 아니라 "채울 자리" — 왜 비었는지 말하고 바로 추가로 잇는다
                                   <div className="flex items-center gap-2 flex-wrap border border-dashed border-foreground/[0.14] rounded-lg px-3 py-2">
                                     <span className="text-xs text-slate-500">
                                       {emptyScopeLabel
-                                        ? t("milestone.table.noItemsInScope", {
-                                            defaultValue:
-                                              "{{scope}} 몫 항목 없음",
+                                        ? t('milestone.table.noItemsInScope', {
+                                            defaultValue: '{{scope}} 몫 항목 없음',
                                             scope: emptyScopeLabel,
                                           })
-                                        : t("milestone.table.noChecklist", {
-                                            defaultValue: "체크리스트 없음",
+                                        : t('milestone.table.noChecklist', {
+                                            defaultValue: '체크리스트 없음',
                                           })}
                                     </span>
                                     {canEdit && (
@@ -1683,8 +1538,8 @@ export function MilestoneTableView({
                                         className="ml-auto flex items-center gap-1 text-xs font-bold text-bridge-accent hover:text-bridge-accent/80 transition-colors"
                                       >
                                         <Plus className="h-3 w-3" />
-                                        {t("milestone.table.addItem", {
-                                          defaultValue: "항목 추가",
+                                        {t('milestone.table.addItem', {
+                                          defaultValue: '항목 추가',
                                         })}
                                       </button>
                                     )}
@@ -1706,61 +1561,39 @@ export function MilestoneTableView({
                                                 taskSprintId,
                                                 sprints,
                                                 onChange: (sid) =>
-                                                  handleLineSprint(
-                                                    tk.id,
-                                                    item,
-                                                    sid,
-                                                  ),
+                                                  handleLineSprint(tk.id, item, sid),
                                               }
                                             : undefined
                                         }
-                                        onToggle={() =>
-                                          handleToggleItem(tk.id, item)
-                                        }
-                                        onRename={(title) =>
-                                          handleRenameItem(tk.id, item, title)
-                                        }
-                                        onAssign={(m) =>
-                                          handleAssignItem(tk.id, item, m)
-                                        }
-                                        onDates={(patch) =>
-                                          handleDatesItem(tk.id, item, patch)
-                                        }
-                                        unassignedLabel={t(
-                                          "milestone.detail.unassigned",
-                                          { defaultValue: "미배정" },
-                                        )}
-                                        delayedLabel={t(
-                                          "milestone.table.delayed",
-                                          {
-                                            defaultValue: "지연",
-                                          },
-                                        )}
+                                        onToggle={() => handleToggleItem(tk.id, item)}
+                                        onRename={(title) => handleRenameItem(tk.id, item, title)}
+                                        onAssign={(m) => handleAssignItem(tk.id, item, m)}
+                                        onDates={(patch) => handleDatesItem(tk.id, item, patch)}
+                                        unassignedLabel={t('milestone.detail.unassigned', {
+                                          defaultValue: '미배정',
+                                        })}
+                                        delayedLabel={t('milestone.table.delayed', {
+                                          defaultValue: '지연',
+                                        })}
                                       />
                                     ))}
                                     {canEdit &&
                                       (addingItemFor === tk.id ? (
                                         inlineInput(
-                                          t(
-                                            "milestone.table.addItemPlaceholder",
-                                            {
-                                              defaultValue:
-                                                "체크 항목 입력 후 Enter",
-                                            },
-                                          ),
+                                          t('milestone.table.addItemPlaceholder', {
+                                            defaultValue: '체크 항목 입력 후 Enter',
+                                          }),
                                           (v) => void handleAddItem(tk.id, v),
                                           () => setAddingItemFor(null),
                                         )
                                       ) : (
                                         <button
-                                          onClick={() =>
-                                            setAddingItemFor(tk.id)
-                                          }
+                                          onClick={() => setAddingItemFor(tk.id)}
                                           className="flex items-center gap-1 text-xs text-slate-500 hover:text-bridge-secondary transition-colors pt-0.5"
                                         >
                                           <Plus className="h-3 w-3" />
-                                          {t("milestone.table.addItem", {
-                                            defaultValue: "항목 추가",
+                                          {t('milestone.table.addItem', {
+                                            defaultValue: '항목 추가',
                                           })}
                                         </button>
                                       ))}
@@ -1779,16 +1612,16 @@ export function MilestoneTableView({
                             <tr
                               className={`border-b border-foreground/[0.05]${
                                 g.visibleTasks.length === 0
-                                  ? " border-t border-t-foreground/[0.12]"
-                                  : ""
+                                  ? ' border-t border-t-foreground/[0.12]'
+                                  : ''
                               }`}
                             >
                               {g.visibleTasks.length === 0 && featureCell}
                               <td colSpan={2} className="px-4 py-2">
                                 {addingTaskFor === g.featureId ? (
                                   inlineInput(
-                                    t("milestone.table.addTaskPlaceholder", {
-                                      defaultValue: "태스크 이름 입력 후 Enter",
+                                    t('milestone.table.addTaskPlaceholder', {
+                                      defaultValue: '태스크 이름 입력 후 Enter',
                                     }),
                                     (v) => void handleAddTask(g.featureId, v),
                                     () => setAddingTaskFor(null),
@@ -1802,8 +1635,8 @@ export function MilestoneTableView({
                                     className="flex items-center gap-1 text-xs text-slate-500 hover:text-bridge-accent transition-colors"
                                   >
                                     <Plus className="h-3 w-3" />
-                                    {t("milestone.table.addTask", {
-                                      defaultValue: "태스크 추가",
+                                    {t('milestone.table.addTask', {
+                                      defaultValue: '태스크 추가',
                                     })}
                                   </button>
                                 )}
@@ -1870,10 +1703,7 @@ function SortableChecklistLine({
   onToggle: () => void;
   onRename: (title: string) => void;
   onAssign: (pick: AssigneePick | null) => void;
-  onDates: (patch: {
-    start_date?: string | null;
-    due_date?: string | null;
-  }) => void;
+  onDates: (patch: { start_date?: string | null; due_date?: string | null }) => void;
   unassignedLabel: string;
   delayedLabel: string;
   /** 날짜 색 기준 창(스프린트 필터 시 그 스프린트, 아니면 마일스톤) */
@@ -1887,14 +1717,14 @@ function SortableChecklistLine({
 }) {
   const { t } = useTranslation();
   const ownerName = itemOwnerName(item);
-  const contractorSectionLabel = t("task.contractorSection", {
-    defaultValue: "외주 작업자",
+  const contractorSectionLabel = t('task.contractorSection', {
+    defaultValue: '외주 작업자',
   });
-  const datesLabel = t("milestone.table.setDates", { defaultValue: "기간" });
-  const startLabel = t("milestone.table.dateStart", { defaultValue: "시작" });
-  const endLabel = t("milestone.table.dateEnd", { defaultValue: "마감" });
-  const clearDatesLabel = t("milestone.table.clearDates", {
-    defaultValue: "기간 지우기",
+  const datesLabel = t('milestone.table.setDates', { defaultValue: '기간' });
+  const startLabel = t('milestone.table.dateStart', { defaultValue: '시작' });
+  const endLabel = t('milestone.table.dateEnd', { defaultValue: '마감' });
+  const clearDatesLabel = t('milestone.table.clearDates', {
+    defaultValue: '기간 지우기',
   });
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(item.title);
@@ -1907,40 +1737,39 @@ function SortableChecklistLine({
    * 두 이탈은 성격이 다르므로 색을 나눈다: 마감을 넘긴 "after"는 되찾아야 할 지연이라
    * 빨강, 시작 전인 "before"는 이미 지나간 앞선 일정이라 경보색을 쓰지 않는다.
    */
-  const outOfWindow = (d?: string | null): "before" | "after" | null => {
+  const outOfWindow = (d?: string | null): 'before' | 'after' | null => {
     if (!d || !dateWindow) return null;
     const v = d.slice(0, 10);
-    if (dateWindow.start && v < dateWindow.start.slice(0, 10)) return "before";
-    if (dateWindow.end && v > dateWindow.end.slice(0, 10)) return "after";
+    if (dateWindow.start && v < dateWindow.start.slice(0, 10)) return 'before';
+    if (dateWindow.end && v > dateWindow.end.slice(0, 10)) return 'after';
     return null;
   };
   const startOut = outOfWindow(item.start_date);
   const dueOut = outOfWindow(item.due_date);
-  const overdue =
-    !item.completed && !!item.due_date && daysUntil(item.due_date) < 0;
+  const overdue = !item.completed && !!item.due_date && daysUntil(item.due_date) < 0;
   // 이탈 방향별 색 — after(오버)는 지연과 같은 빨강, before는 스카이.
-  const outClass = (dir: "before" | "after" | null) =>
-    dir === "after"
-      ? "font-bold text-red-500"
-      : dir === "before"
-        ? "font-bold text-sky-600 dark:text-sky-400"
-        : "";
+  const outClass = (dir: 'before' | 'after' | null) =>
+    dir === 'after'
+      ? 'font-bold text-red-500'
+      : dir === 'before'
+        ? 'font-bold text-sky-600 dark:text-sky-400'
+        : '';
   const outOfSprintTitle =
     dateWindow && (startOut || dueOut)
-      ? [startOut, dueOut].includes("after")
-        ? t("milestone.table.afterSprintRange", {
-            defaultValue: "{{name}} 마감({{end}})을 넘겼습니다",
+      ? [startOut, dueOut].includes('after')
+        ? t('milestone.table.afterSprintRange', {
+            defaultValue: '{{name}} 마감({{end}})을 넘겼습니다',
             name: dateWindow.name,
             end: toShortDate(dateWindow.end),
           })
-        : t("milestone.table.beforeSprintRange", {
-            defaultValue: "{{name}} 시작({{start}}) 전입니다",
+        : t('milestone.table.beforeSprintRange', {
+            defaultValue: '{{name}} 시작({{start}}) 전입니다',
             name: dateWindow.name,
             start: toShortDate(dateWindow.start),
           })
       : undefined;
-  const followLabel = t("milestone.table.lineSprintFollow", {
-    defaultValue: "태스크 따라가기",
+  const followLabel = t('milestone.table.lineSprintFollow', {
+    defaultValue: '태스크 따라가기',
   });
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: item.id,
@@ -1978,11 +1807,11 @@ function SortableChecklistLine({
         aria-label={item.title}
         className={`w-3.5 h-3.5 rounded flex-shrink-0 border flex items-center justify-center text-xs leading-none transition-colors ${
           item.completed
-            ? "bg-bridge-secondary/20 border-bridge-secondary text-bridge-secondary"
-            : "border-foreground/25"
-        }${canEdit ? " cursor-pointer hover:border-bridge-secondary" : ""}`}
+            ? 'bg-bridge-secondary/20 border-bridge-secondary text-bridge-secondary'
+            : 'border-foreground/25'
+        }${canEdit ? ' cursor-pointer hover:border-bridge-secondary' : ''}`}
       >
-        {item.completed ? "✓" : ""}
+        {item.completed ? '✓' : ''}
       </button>
 
       {/* 제목 — 클릭 시 인라인 수정 (Enter 저장 · Esc 취소 · 블러 저장) */}
@@ -1993,8 +1822,8 @@ function SortableChecklistLine({
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.nativeEvent.isComposing) return;
-            if (e.key === "Enter") commitRename();
-            else if (e.key === "Escape") {
+            if (e.key === 'Enter') commitRename();
+            else if (e.key === 'Escape') {
               setDraft(item.title);
               setEditing(false);
             }
@@ -2013,10 +1842,8 @@ function SortableChecklistLine({
               : undefined
           }
           className={`text-xs min-w-0 flex-1 break-words ${
-            item.completed
-              ? "text-slate-500 line-through"
-              : "text-foreground/80"
-          }${canEdit ? " cursor-text hover:text-foreground" : ""}`}
+            item.completed ? 'text-slate-500 line-through' : 'text-foreground/80'
+          }${canEdit ? ' cursor-text hover:text-foreground' : ''}`}
         >
           {item.title}
         </span>
@@ -2030,34 +1857,29 @@ function SortableChecklistLine({
             type="button"
             onClick={canEdit ? () => setSprintOpen((v) => !v) : undefined}
             disabled={!canEdit}
-            aria-label={t("milestone.table.lineSprint", {
-              defaultValue: "이 항목의 스프린트",
+            aria-label={t('milestone.table.lineSprint', {
+              defaultValue: '이 항목의 스프린트',
             })}
             title={
               overridden
-                ? t("milestone.table.lineSprintOverridden", {
-                    defaultValue: "태스크와 다른 스프린트로 보낸 항목",
+                ? t('milestone.table.lineSprintOverridden', {
+                    defaultValue: '태스크와 다른 스프린트로 보낸 항목',
                   })
                 : followLabel
             }
             className={`text-xs font-bold px-1.5 rounded-full leading-[18px] tabular-nums whitespace-nowrap transition-opacity focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
               overridden
-                ? "bg-bridge-secondary/15 text-bridge-secondary"
+                ? 'bg-bridge-secondary/15 text-bridge-secondary'
                 : `border border-dashed border-foreground/20 text-slate-500 ${
-                    sprintOpen
-                      ? ""
-                      : "opacity-0 group-hover/cl:opacity-100 focus:opacity-100"
+                    sprintOpen ? '' : 'opacity-0 group-hover/cl:opacity-100 focus:opacity-100'
                   }`
-            }${canEdit ? " cursor-pointer" : ""}`}
+            }${canEdit ? ' cursor-pointer' : ''}`}
           >
-            S{item.sprint_seq ?? "?"}
+            S{item.sprint_seq ?? '?'}
           </button>
           {sprintOpen && (
             <>
-              <div
-                className="fixed inset-0 z-30"
-                onClick={() => setSprintOpen(false)}
-              />
+              <div className="fixed inset-0 z-30" onClick={() => setSprintOpen(false)} />
               <div className="absolute top-full right-0 mt-1 z-40 w-56 bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl p-1">
                 <button
                   type="button"
@@ -2067,16 +1889,14 @@ function SortableChecklistLine({
                   }}
                   className={`flex items-center justify-between gap-2 w-full px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors ${
                     !overridden
-                      ? "bg-bridge-accent/15 text-foreground font-bold"
-                      : "text-slate-300 hover:bg-foreground/5"
+                      ? 'bg-bridge-accent/15 text-foreground font-bold'
+                      : 'text-slate-300 hover:bg-foreground/5'
                   }`}
                 >
                   <span>{followLabel}</span>
                   <span className="text-slate-500 tabular-nums">
-                    {sprintPick.sprints.find(
-                      (s) => s.id === sprintPick.taskSprintId,
-                    )?.name ??
-                      t("milestone.detail.backlog", { defaultValue: "백로그" })}
+                    {sprintPick.sprints.find((s) => s.id === sprintPick.taskSprintId)?.name ??
+                      t('milestone.detail.backlog', { defaultValue: '백로그' })}
                   </span>
                 </button>
                 <div className="my-1 border-t border-foreground/[0.08]" />
@@ -2092,23 +1912,21 @@ function SortableChecklistLine({
                       }}
                       className={`flex items-center justify-between gap-2 w-full px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors ${
                         selected
-                          ? "bg-bridge-accent/15 text-foreground font-bold"
-                          : sp.state === "PAST"
-                            ? "text-slate-500 hover:bg-foreground/5"
-                            : "text-slate-300 hover:bg-foreground/5"
+                          ? 'bg-bridge-accent/15 text-foreground font-bold'
+                          : sp.state === 'PAST'
+                            ? 'text-slate-500 hover:bg-foreground/5'
+                            : 'text-slate-300 hover:bg-foreground/5'
                       }`}
                     >
                       <span className="truncate">{sp.name}</span>
                       <span
                         className={`shrink-0 tabular-nums ${
-                          sp.state === "CURRENT"
-                            ? "text-bridge-secondary"
-                            : "text-slate-500"
+                          sp.state === 'CURRENT' ? 'text-bridge-secondary' : 'text-slate-500'
                         }`}
                       >
                         {sp.start_date && sp.end_date
                           ? `${toShortDate(sp.start_date)}~${toShortDate(sp.end_date)}`
-                          : ""}
+                          : ''}
                       </span>
                     </button>
                   );
@@ -2129,19 +1947,19 @@ function SortableChecklistLine({
             disabled={!canEdit}
             title={outOfSprintTitle}
             className={`text-xs tabular-nums whitespace-nowrap ${
-              overdue ? "font-bold text-red-500" : "text-slate-600"
-            }${canEdit ? " cursor-pointer hover:text-foreground hover:underline" : ""}`}
+              overdue ? 'font-bold text-red-500' : 'text-slate-600'
+            }${canEdit ? ' cursor-pointer hover:text-foreground hover:underline' : ''}`}
           >
             {item.start_date || item.due_date ? (
               <>
-                <span className={overdue ? "" : outClass(startOut)}>
-                  {item.start_date ? toShortDate(item.start_date) : ""}
+                <span className={overdue ? '' : outClass(startOut)}>
+                  {item.start_date ? toShortDate(item.start_date) : ''}
                 </span>
                 ~
-                <span className={overdue ? "" : outClass(dueOut)}>
-                  {item.due_date ? toShortDate(item.due_date) : ""}
+                <span className={overdue ? '' : outClass(dueOut)}>
+                  {item.due_date ? toShortDate(item.due_date) : ''}
                 </span>
-                {overdue ? ` ${delayedLabel}` : ""}
+                {overdue ? ` ${delayedLabel}` : ''}
               </>
             ) : (
               <span className="opacity-0 group-hover/cl:opacity-100 transition-opacity">
@@ -2151,36 +1969,25 @@ function SortableChecklistLine({
           </button>
           {dateOpen && (
             <>
-              <div
-                className="fixed inset-0 z-30"
-                onClick={() => setDateOpen(false)}
-              />
+              <div className="fixed inset-0 z-30" onClick={() => setDateOpen(false)} />
               <div className="absolute top-full right-0 mt-1 z-40 w-52 bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl p-3 space-y-2">
                 <label className="block">
-                  <span className="block text-xs text-slate-500 mb-1">
-                    {startLabel}
-                  </span>
+                  <span className="block text-xs text-slate-500 mb-1">{startLabel}</span>
                   <input
                     type="date"
-                    value={item.start_date?.slice(0, 10) ?? ""}
+                    value={item.start_date?.slice(0, 10) ?? ''}
                     max={item.due_date?.slice(0, 10) || undefined}
-                    onChange={(e) =>
-                      onDates({ start_date: e.target.value || null })
-                    }
+                    onChange={(e) => onDates({ start_date: e.target.value || null })}
                     className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                   />
                 </label>
                 <label className="block">
-                  <span className="block text-xs text-slate-500 mb-1">
-                    {endLabel}
-                  </span>
+                  <span className="block text-xs text-slate-500 mb-1">{endLabel}</span>
                   <input
                     type="date"
-                    value={item.due_date?.slice(0, 10) ?? ""}
+                    value={item.due_date?.slice(0, 10) ?? ''}
                     min={item.start_date?.slice(0, 10) || undefined}
-                    onChange={(e) =>
-                      onDates({ due_date: e.target.value || null })
-                    }
+                    onChange={(e) => onDates({ due_date: e.target.value || null })}
                     className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                   />
                 </label>
@@ -2207,18 +2014,16 @@ function SortableChecklistLine({
           onClick={canEdit ? () => setPickerOpen((v) => !v) : undefined}
           disabled={!canEdit}
           title={
-            item.contractor
-              ? `${contractorSectionLabel} · ${item.contractor.name}`
-              : undefined
+            item.contractor ? `${contractorSectionLabel} · ${item.contractor.name}` : undefined
           }
           className={`text-xs inline-flex items-center gap-1 ${
-            ownerName ? "text-slate-500" : "text-amber-600 dark:text-amber-400"
-          }${canEdit ? " cursor-pointer hover:text-foreground hover:underline" : ""}`}
+            ownerName ? 'text-slate-500' : 'text-amber-600 dark:text-amber-400'
+          }${canEdit ? ' cursor-pointer hover:text-foreground hover:underline' : ''}`}
         >
           {item.contractor && !item.assignee && (
             <Wrench
               className="w-3 h-3 shrink-0"
-              style={{ color: item.contractor.color || "#6366F1" }}
+              style={{ color: item.contractor.color || '#6366F1' }}
               aria-hidden="true"
             />
           )}
@@ -2226,10 +2031,7 @@ function SortableChecklistLine({
         </button>
         {pickerOpen && (
           <>
-            <div
-              className="fixed inset-0 z-30"
-              onClick={() => setPickerOpen(false)}
-            />
+            <div className="fixed inset-0 z-30" onClick={() => setPickerOpen(false)} />
             <div className="absolute top-full right-0 mt-1 z-40 w-40 max-h-64 overflow-y-auto custom-scrollbar bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1.5">
               <button
                 onClick={() => {
@@ -2238,8 +2040,8 @@ function SortableChecklistLine({
                 }}
                 className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
                   !ownerName
-                    ? "text-bridge-accent font-bold bg-bridge-accent/10"
-                    : "text-slate-400 hover:bg-foreground/5"
+                    ? 'text-bridge-accent font-bold bg-bridge-accent/10'
+                    : 'text-slate-400 hover:bg-foreground/5'
                 }`}
               >
                 {unassignedLabel}
@@ -2248,13 +2050,13 @@ function SortableChecklistLine({
                 <button
                   key={m.id}
                   onClick={() => {
-                    onAssign({ kind: "member", id: m.id, name: m.name });
+                    onAssign({ kind: 'member', id: m.id, name: m.name });
                     setPickerOpen(false);
                   }}
                   className={`w-full px-3 py-1.5 text-left text-xs truncate transition-colors ${
                     item.assignee?.id === m.id
-                      ? "text-bridge-accent font-bold bg-bridge-accent/10"
-                      : "text-foreground hover:bg-foreground/5"
+                      ? 'text-bridge-accent font-bold bg-bridge-accent/10'
+                      : 'text-foreground hover:bg-foreground/5'
                   }`}
                 >
                   {m.name}
@@ -2271,7 +2073,7 @@ function SortableChecklistLine({
                       key={c.id}
                       onClick={() => {
                         onAssign({
-                          kind: "contractor",
+                          kind: 'contractor',
                           id: c.id,
                           name: c.name,
                           color: c.color,
@@ -2280,13 +2082,13 @@ function SortableChecklistLine({
                       }}
                       className={`w-full px-3 py-1.5 text-left text-xs truncate transition-colors inline-flex items-center gap-1.5 ${
                         item.contractor?.id === c.id
-                          ? "text-bridge-accent font-bold bg-bridge-accent/10"
-                          : "text-foreground hover:bg-foreground/5"
+                          ? 'text-bridge-accent font-bold bg-bridge-accent/10'
+                          : 'text-foreground hover:bg-foreground/5'
                       }`}
                     >
                       <Wrench
                         className="w-3 h-3 shrink-0"
-                        style={{ color: c.color || "#6366F1" }}
+                        style={{ color: c.color || '#6366F1' }}
                         aria-hidden="true"
                       />
                       <span className="truncate">{c.name}</span>
@@ -2325,9 +2127,7 @@ function ItemsDropArea({
     <div
       ref={setNodeRef}
       className={`rounded-lg transition-shadow ${
-        highlight
-          ? "ring-1 ring-bridge-secondary/60 bg-bridge-secondary/[0.06]"
-          : ""
+        highlight ? 'ring-1 ring-bridge-secondary/60 bg-bridge-secondary/[0.06]' : ''
       }`}
     >
       {children}
@@ -2369,8 +2169,8 @@ function SprintChipMenu({
   const rowClass = (on: boolean) =>
     `w-full px-3 py-1.5 text-left text-xs block transition-colors ${
       on
-        ? "text-bridge-accent font-bold bg-bridge-accent/10"
-        : "text-foreground hover:bg-foreground/5"
+        ? 'text-bridge-accent font-bold bg-bridge-accent/10'
+        : 'text-foreground hover:bg-foreground/5'
     }`;
 
   return (
@@ -2384,31 +2184,22 @@ function SprintChipMenu({
       </button>
       {open && (
         <>
-          <span
-            className="fixed inset-0 z-30 block"
-            onClick={() => setOpen(false)}
-          />
+          <span className="fixed inset-0 z-30 block" onClick={() => setOpen(false)} />
           <span className="absolute top-full left-0 mt-1 z-40 w-52 max-h-64 overflow-y-auto custom-scrollbar bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1.5 block">
             {sprints.map((sp) => {
               const on = info?.sprintId === sp.id;
               return (
-                <button
-                  key={sp.id}
-                  onClick={() => pick(sp.id)}
-                  className={rowClass(on)}
-                >
+                <button key={sp.id} onClick={() => pick(sp.id)} className={rowClass(on)}>
                   <span className="flex items-center gap-1.5">
                     <span className="tabular-nums">S{sp.sequence_no}</span>
-                    {sp.state === "CURRENT" && (
+                    {sp.state === 'CURRENT' && (
                       <span className="text-bridge-secondary">
-                        {t("milestone.detail.sprintActive", {
-                          defaultValue: "진행 중",
+                        {t('milestone.detail.sprintActive', {
+                          defaultValue: '진행 중',
                         })}
                       </span>
                     )}
-                    {sp.state === "PAST" && (
-                      <span className="text-slate-500">✓</span>
-                    )}
+                    {sp.state === 'PAST' && <span className="text-slate-500">✓</span>}
                     {/* 어느 상자인지는 회차보다 기간으로 더 빨리 읽힌다 */}
                     <span className="ml-auto text-slate-500 tabular-nums">
                       {toShortDate(sp.start_date)}~{toShortDate(sp.end_date)}
@@ -2418,11 +2209,8 @@ function SprintChipMenu({
               );
             })}
             <span className="block border-t border-foreground/[0.08] my-1.5" />
-            <button
-              onClick={() => pick(null)}
-              className={rowClass(!info?.sprintId)}
-            >
-              {t("milestone.detail.backlog", { defaultValue: "백로그" })}
+            <button onClick={() => pick(null)} className={rowClass(!info?.sprintId)}>
+              {t('milestone.detail.backlog', { defaultValue: '백로그' })}
             </button>
           </span>
         </>

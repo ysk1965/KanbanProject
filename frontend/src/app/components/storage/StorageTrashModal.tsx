@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback } from "react";
-import { RotateCcw, Trash2, X, Loader2, Folder, FileText } from "lucide-react";
-import { MotionModal } from "../ui/MotionModal";
-import type { StorageTrashItem, StorageApi } from "../../utils/api";
-import { formatRelativeTime } from "../../utils/dateUtils";
+import { useEffect, useState, useCallback } from 'react';
+import { RotateCcw, Trash2, X, Loader2, Folder, FileText } from 'lucide-react';
+import { MotionModal } from '../ui/MotionModal';
+import type { StorageTrashItem, StorageApi } from '../../utils/api';
+import { formatRelativeTime } from '../../utils/dateUtils';
 
 interface StorageTrashModalProps {
   api: StorageApi;
@@ -12,12 +12,7 @@ interface StorageTrashModalProps {
   onChanged: () => void;
 }
 
-export function StorageTrashModal({
-  api,
-  open,
-  onClose,
-  onChanged,
-}: StorageTrashModalProps) {
+export function StorageTrashModal({ api, open, onClose, onChanged }: StorageTrashModalProps) {
   const [items, setItems] = useState<StorageTrashItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -27,7 +22,7 @@ export function StorageTrashModal({
     try {
       setItems(await api.getTrash());
     } catch (e) {
-      console.error("Failed to load trash:", e);
+      console.error('Failed to load trash:', e);
     } finally {
       setLoading(false);
     }
@@ -40,12 +35,12 @@ export function StorageTrashModal({
   const restore = async (item: StorageTrashItem) => {
     setBusy(item.id);
     try {
-      if (item.type === "FOLDER") await api.restoreFolder(item.id);
+      if (item.type === 'FOLDER') await api.restoreFolder(item.id);
       else await api.restoreFile(item.id);
       await load();
       onChanged();
     } catch (e) {
-      console.error("Restore failed:", e);
+      console.error('Restore failed:', e);
     } finally {
       setBusy(null);
     }
@@ -54,26 +49,25 @@ export function StorageTrashModal({
   const remove = async (item: StorageTrashItem) => {
     setBusy(item.id);
     try {
-      if (item.type === "FOLDER")
-        await api.permanentDeleteFolder(item.id);
+      if (item.type === 'FOLDER') await api.permanentDeleteFolder(item.id);
       else await api.permanentDeleteFile(item.id);
       await load();
       onChanged();
     } catch (e) {
-      console.error("Permanent delete failed:", e);
+      console.error('Permanent delete failed:', e);
     } finally {
       setBusy(null);
     }
   };
 
   const emptyAll = async () => {
-    setBusy("__all__");
+    setBusy('__all__');
     try {
       await api.emptyTrash();
       await load();
       onChanged();
     } catch (e) {
-      console.error("Empty trash failed:", e);
+      console.error('Empty trash failed:', e);
     } finally {
       setBusy(null);
     }
@@ -97,7 +91,7 @@ export function StorageTrashModal({
             <button
               type="button"
               onClick={emptyAll}
-              disabled={busy === "__all__"}
+              disabled={busy === '__all__'}
               className="text-xs font-bold px-2.5 py-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors disabled:opacity-50"
             >
               비우기
@@ -120,9 +114,7 @@ export function StorageTrashModal({
             <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
           </div>
         ) : items.length === 0 ? (
-          <p className="text-center text-xs text-slate-500 py-12">
-            휴지통이 비어 있습니다
-          </p>
+          <p className="text-center text-xs text-slate-500 py-12">휴지통이 비어 있습니다</p>
         ) : (
           <ul className="flex flex-col gap-1.5">
             {items.map((item) => (
@@ -130,19 +122,15 @@ export function StorageTrashModal({
                 key={`${item.type}-${item.id}`}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-foreground/[0.08] bg-foreground/[0.02]"
               >
-                {item.type === "FOLDER" ? (
+                {item.type === 'FOLDER' ? (
                   <Folder className="w-4 h-4 text-slate-400 flex-none" />
                 ) : (
                   <FileText className="w-4 h-4 text-slate-400 flex-none" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-foreground truncate">
-                    {item.name}
-                  </p>
+                  <p className="text-xs font-medium text-foreground truncate">{item.name}</p>
                   {item.deleted_at && (
-                    <p className="text-xs text-slate-500">
-                      {formatRelativeTime(item.deleted_at)}
-                    </p>
+                    <p className="text-xs text-slate-500">{formatRelativeTime(item.deleted_at)}</p>
                   )}
                 </div>
                 <button

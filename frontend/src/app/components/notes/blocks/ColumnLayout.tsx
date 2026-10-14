@@ -1,10 +1,10 @@
-import { createReactBlockSpec } from "@blocknote/react";
+import { createReactBlockSpec } from '@blocknote/react';
 
 export const Column = createReactBlockSpec(
   {
-    type: "column" as const,
+    type: 'column' as const,
     propSchema: {},
-    content: "inline",
+    content: 'inline',
   },
   {
     render: (props) => (
@@ -18,7 +18,7 @@ export const Column = createReactBlockSpec(
       </div>
     ),
     parse: (el) => {
-      if (el.getAttribute("data-block-type") === "column") return {};
+      if (el.getAttribute('data-block-type') === 'column') return {};
       return undefined;
     },
   },
@@ -32,25 +32,21 @@ export const Column = createReactBlockSpec(
 // brittle against any CSS class rename.
 export const ColumnLayout = createReactBlockSpec(
   {
-    type: "columnLayout" as const,
+    type: 'columnLayout' as const,
     propSchema: {
       columns: {
         default: 2 as const,
         values: [2, 3] as const,
       },
     },
-    content: "none",
+    content: 'none',
   },
   {
     render: ({ block, editor }) => {
       const cols = (block.props as { columns: number }).columns;
 
       return (
-        <div
-          className="bn-column-layout"
-          data-columns={cols}
-          contentEditable={false}
-        >
+        <div className="bn-column-layout" data-columns={cols} contentEditable={false}>
           <div className="bn-column-layout-header">
             <span className="bn-column-layout-label">{cols} Columns</span>
             <button
@@ -62,7 +58,7 @@ export const ColumnLayout = createReactBlockSpec(
                 });
               }}
             >
-              {cols === 2 ? "3열" : "2열"}
+              {cols === 2 ? '3열' : '2열'}
             </button>
           </div>
         </div>
@@ -74,13 +70,13 @@ export const ColumnLayout = createReactBlockSpec(
         <div
           data-block-type="columnLayout"
           data-columns={cols}
-          style={{ display: "flex", gap: "12px" }}
+          style={{ display: 'flex', gap: '12px' }}
         />
       );
     },
     parse: (el) => {
-      if (el.getAttribute("data-block-type") === "columnLayout") {
-        const cols = parseInt(el.getAttribute("data-columns") || "2", 10);
+      if (el.getAttribute('data-block-type') === 'columnLayout') {
+        const cols = parseInt(el.getAttribute('data-columns') || '2', 10);
         const columns: 2 | 3 = cols === 3 ? 3 : 2;
         return { columns };
       }

@@ -1,23 +1,12 @@
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  ClipboardCheck,
-  ChevronDown,
-  Check,
-  Circle,
-  User,
-  Calendar,
-  Loader2,
-} from 'lucide-react';
+import { ClipboardCheck, ChevronDown, Check, Circle, User, Calendar, Loader2 } from 'lucide-react';
 import { MotionModal } from '../ui/MotionModal';
 import { organizationService } from '../../utils/services';
 import { resolveFileUrl } from '../../utils/api';
 import { formatDateShort } from '../../utils/dateUtils';
-import type {
-  OnboardingInstanceSummary,
-  OnboardingInstanceItemDetail,
-} from '../../types';
+import type { OnboardingInstanceSummary, OnboardingInstanceItemDetail } from '../../types';
 
 interface OnboardingDetailModalProps {
   open: boolean;
@@ -34,9 +23,7 @@ export function OnboardingDetailModal({
 }: OnboardingDetailModalProps) {
   const { t } = useTranslation();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [itemsMap, setItemsMap] = useState<
-    Record<string, OnboardingInstanceItemDetail[]>
-  >({});
+  const [itemsMap, setItemsMap] = useState<Record<string, OnboardingInstanceItemDetail[]>>({});
   const [loadingItems, setLoadingItems] = useState<string | null>(null);
   const [togglingItem, setTogglingItem] = useState<string | null>(null);
 
@@ -60,11 +47,7 @@ export function OnboardingDetailModal({
       if (togglingItem) return;
       setTogglingItem(item.id);
       try {
-        const result = await organizationService.toggleOnboardingItem(
-          orgId,
-          instanceId,
-          item.id,
-        );
+        const result = await organizationService.toggleOnboardingItem(orgId, instanceId, item.id);
         // Update items locally
         setItemsMap((prev) => ({
           ...prev,
@@ -108,10 +91,7 @@ export function OnboardingDetailModal({
       if (!itemsMap[instanceId]) {
         setLoadingItems(instanceId);
         try {
-          const items = await organizationService.getOnboardingInstanceItems(
-            orgId,
-            instanceId,
-          );
+          const items = await organizationService.getOnboardingInstanceItems(orgId, instanceId);
           setItemsMap((prev) => ({ ...prev, [instanceId]: items }));
         } catch {
           // silently fail
@@ -163,13 +143,9 @@ export function OnboardingDetailModal({
           const items = itemsMap[inst.id];
           const isLoadingThis = loadingItems === inst.id;
           const local = progressMap[inst.id];
-          const completedItems = local
-            ? local.completed_items
-            : inst.completed_items;
+          const completedItems = local ? local.completed_items : inst.completed_items;
           const totalItems = local ? local.total_items : inst.total_items;
-          const progressPercent = local
-            ? local.progress_percent
-            : inst.progress_percent;
+          const progressPercent = local ? local.progress_percent : inst.progress_percent;
 
           return (
             <motion.div
@@ -202,14 +178,10 @@ export function OnboardingDetailModal({
                     <span className="text-xs font-bold text-foreground truncate">
                       {inst.member_name}
                     </span>
-                    <span className="text-xs font-bold text-emerald-500">
-                      {progressPercent}%
-                    </span>
+                    <span className="text-xs font-bold text-emerald-500">{progressPercent}%</span>
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-xs text-slate-500 truncate">
-                      {inst.template_name}
-                    </span>
+                    <span className="text-xs text-slate-500 truncate">{inst.template_name}</span>
                     <span className="text-xs text-slate-500">
                       · {completedItems}/{totalItems}
                     </span>
@@ -265,7 +237,10 @@ export function OnboardingDetailModal({
                                   </div>
                                 ) : (
                                   <div className="w-4 h-4 rounded border border-foreground/20 group-hover:border-emerald-500/50 transition-colors flex items-center justify-center">
-                                    <Circle size={6} className="text-transparent group-hover:text-emerald-500/30" />
+                                    <Circle
+                                      size={6}
+                                      className="text-transparent group-hover:text-emerald-500/30"
+                                    />
                                   </div>
                                 )}
                               </div>

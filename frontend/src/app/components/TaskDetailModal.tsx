@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useTranslation } from "react-i18next";
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Task,
   Tag,
@@ -12,7 +12,7 @@ import {
   BoardContractor,
   ContractorInfo,
   SprintBoard,
-} from "../types";
+} from '../types';
 import {
   checklistAPI,
   taskAPI,
@@ -21,31 +21,25 @@ import {
   ScheduleBlockDetailResponse,
   trashAPI,
   JiraAutofixJob,
-} from "../utils/api";
-import { toast } from "sonner";
-import { BoardMember } from "./ShareBoardModal";
-import { MotionModal } from "./ui/MotionModal";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Textarea } from "./ui/textarea";
-import { Label } from "./ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
-import { Badge } from "./ui/badge";
-import { Calendar } from "./ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+} from '../utils/api';
+import { toast } from 'sonner';
+import { BoardMember } from './ShareBoardModal';
+import { MotionModal } from './ui/MotionModal';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { Label } from './ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Badge } from './ui/badge';
+import { Calendar } from './ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-} from "./ui/dropdown-menu";
+} from './ui/dropdown-menu';
 import {
   X,
   Plus,
@@ -83,34 +77,31 @@ import {
   Search,
   Lock,
   ExternalLink,
-} from "lucide-react";
-import { TaskMoveModal } from "./TaskMoveModal";
-import { AutofixDelegateModal } from "./AutofixDelegateModal";
-import { useAutofixTaskJobs } from "../hooks/useAutofixTaskJobs";
-import { useAutofixRunnerStatus } from "../hooks/useAutofixRunnerStatus";
-import { useJiraBaseUrl } from "../hooks/useJiraBaseUrl";
-import { jiraIssueUrl } from "../utils/jira";
-import { TaskAIChecklistModal } from "./TaskAIChecklistModal";
-import { ChecklistHistoryModal } from "./ChecklistHistoryModal";
-import { ChecklistDetailModal } from "./ChecklistDetailModal";
-import { TaskHeaderActionsMenu } from "./TaskHeaderActionsMenu";
-import { BlockStatusPicker } from "./BlockStatusPicker";
-import { JiraColumnPicker } from "./JiraColumnPicker";
-import { CommentPanel } from "./CommentPanel";
-import { TagPickerPopover } from "./TagPickerPopover";
-import { getAssigneeClasses, getInitials } from "../utils/assigneeColor";
-import { ChecklistStatusBoard } from "./ChecklistStatusBoard";
-import {
-  resolveChecklistColumn,
-  type ChecklistColumn,
-} from "../utils/checklistStatus";
-import { useAuth } from "../contexts/AuthContext";
-import { Progress } from "./ui/progress";
-import { DateRange } from "react-day-picker";
-import { format } from "date-fns";
-import { ko } from "date-fns/locale";
-import { getTodayDateString, parseUTCDate } from "../utils/dateUtils";
-import { useReducedMotion } from "../hooks/useReducedMotion";
+} from 'lucide-react';
+import { TaskMoveModal } from './TaskMoveModal';
+import { AutofixDelegateModal } from './AutofixDelegateModal';
+import { useAutofixTaskJobs } from '../hooks/useAutofixTaskJobs';
+import { useAutofixRunnerStatus } from '../hooks/useAutofixRunnerStatus';
+import { useJiraBaseUrl } from '../hooks/useJiraBaseUrl';
+import { jiraIssueUrl } from '../utils/jira';
+import { TaskAIChecklistModal } from './TaskAIChecklistModal';
+import { ChecklistHistoryModal } from './ChecklistHistoryModal';
+import { ChecklistDetailModal } from './ChecklistDetailModal';
+import { TaskHeaderActionsMenu } from './TaskHeaderActionsMenu';
+import { BlockStatusPicker } from './BlockStatusPicker';
+import { JiraColumnPicker } from './JiraColumnPicker';
+import { CommentPanel } from './CommentPanel';
+import { TagPickerPopover } from './TagPickerPopover';
+import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
+import { ChecklistStatusBoard } from './ChecklistStatusBoard';
+import { resolveChecklistColumn, type ChecklistColumn } from '../utils/checklistStatus';
+import { useAuth } from '../contexts/AuthContext';
+import { Progress } from './ui/progress';
+import { DateRange } from 'react-day-picker';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { getTodayDateString, parseUTCDate } from '../utils/dateUtils';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import {
   DndContext,
   closestCenter,
@@ -119,19 +110,16 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  restrictToVerticalAxis,
-  restrictToParentElement,
-} from "@dnd-kit/modifiers";
+} from '@dnd-kit/core';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface TaskDetailModalProps {
   task: Task | null;
@@ -163,10 +151,7 @@ interface TaskDetailModalProps {
   currentMilestoneId?: string;
   availableTags: Tag[];
   onCreateTag: (name: string, color: string) => Promise<string | undefined>;
-  onUpdateTag: (
-    tagId: string,
-    data: { name?: string; color?: string },
-  ) => Promise<void>;
+  onUpdateTag: (tagId: string, data: { name?: string; color?: string }) => Promise<void>;
   onDeleteTag: (tagId: string) => Promise<void>;
   boardMembers: BoardMember[];
   contractors?: BoardContractor[];
@@ -188,10 +173,7 @@ interface TaskDetailModalProps {
  * 댓글 수는 목록 응답에만 실린다. 단건 응답(생성·수정·토글)을 그대로 스프레드하면
  * 체크 한 번에 💬 뱃지가 사라진다.
  */
-function mergeChecklistItem(
-  prev: ChecklistItem,
-  incoming: Partial<ChecklistItem>,
-): ChecklistItem {
+function mergeChecklistItem(prev: ChecklistItem, incoming: Partial<ChecklistItem>): ChecklistItem {
   const merged = { ...prev, ...incoming };
   if (incoming.comment_count == null) {
     merged.comment_count = prev.comment_count;
@@ -242,47 +224,31 @@ export function TaskDetailModal({
   const [checklistCopied, setChecklistCopied] = useState(false);
   const [showDoneDialog, setShowDoneDialog] = useState(false);
   const [showMoveFeatureDialog, setShowMoveFeatureDialog] = useState(false);
-  const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(
-    null,
-  );
+  const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(null);
   // Feature 이동: 대상 마일스톤 선택 (기본값 = "all" 전체)
-  const [moveFeatureMilestoneId, setMoveFeatureMilestoneId] = useState<
-    string | null
-  >(null);
+  const [moveFeatureMilestoneId, setMoveFeatureMilestoneId] = useState<string | null>(null);
   // Feature 이동: 이름 검색어
-  const [moveFeatureSearch, setMoveFeatureSearch] = useState("");
+  const [moveFeatureSearch, setMoveFeatureSearch] = useState('');
   const [showMoveChecklistDialog, setShowMoveChecklistDialog] = useState(false);
-  const [moveChecklistItemId, setMoveChecklistItemId] = useState<string | null>(
-    null,
-  );
-  const [selectedTargetTaskId, setSelectedTargetTaskId] = useState<
-    string | null
-  >(null);
+  const [moveChecklistItemId, setMoveChecklistItemId] = useState<string | null>(null);
+  const [selectedTargetTaskId, setSelectedTargetTaskId] = useState<string | null>(null);
   // 체크리스트 이동: 좌측 피처 선택 (기본값 = 현재 항목이 속한 피처)
-  const [selectedTargetFeatureId, setSelectedTargetFeatureId] = useState<
-    string | null
-  >(null);
+  const [selectedTargetFeatureId, setSelectedTargetFeatureId] = useState<string | null>(null);
   // 체크리스트 이동: 새 Task 인라인 생성 폼 (제목 하나만 받고, 실제 생성은 "만들고 이동" 시점)
   const [newTaskMode, setNewTaskMode] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskTitle, setNewTaskTitle] = useState('');
   const [moveBusy, setMoveBusy] = useState(false);
   const [moveError, setMoveError] = useState<string | null>(null);
   // 폼이 열린 채 피처를 바꿔 입력이 버려졌을 때 한 줄 안내
   const [newTaskDiscarded, setNewTaskDiscarded] = useState(false);
   const newTaskInputRef = useRef<HTMLInputElement>(null);
   // 체크리스트 병합: 대표 항목(시작점) + 흡수할 소스 항목 선택
-  const [mergeTargetItemId, setMergeTargetItemId] = useState<string | null>(
-    null,
-  );
-  const [mergeSelectedIds, setMergeSelectedIds] = useState<Set<string>>(
-    new Set(),
-  );
-  const [mergeTitle, setMergeTitle] = useState("");
+  const [mergeTargetItemId, setMergeTargetItemId] = useState<string | null>(null);
+  const [mergeSelectedIds, setMergeSelectedIds] = useState<Set<string>>(new Set());
+  const [mergeTitle, setMergeTitle] = useState('');
   const [mergeBusy, setMergeBusy] = useState(false);
   // 체크리스트 이동: 대상 마일스톤 선택 (기본값 = 현재 마일스톤)
-  const [moveTargetMilestoneId, setMoveTargetMilestoneId] = useState<
-    string | null
-  >(null);
+  const [moveTargetMilestoneId, setMoveTargetMilestoneId] = useState<string | null>(null);
   const [moveMilestoneTasks, setMoveMilestoneTasks] = useState<
     {
       id: string;
@@ -294,20 +260,15 @@ export function TaskDetailModal({
       completed_at?: string | null;
     }[]
   >([]);
-  const [loadingMoveMilestoneTasks, setLoadingMoveMilestoneTasks] =
-    useState(false);
+  const [loadingMoveMilestoneTasks, setLoadingMoveMilestoneTasks] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [moveCopyMode, setMoveCopyMode] = useState<"move" | "copy" | null>(
-    null,
-  );
+  const [moveCopyMode, setMoveCopyMode] = useState<'move' | 'copy' | null>(null);
   const [showAIConfirm, setShowAIConfirm] = useState(false);
   const [showAIChecklist, setShowAIChecklist] = useState(false);
 
   // 체크리스트 상태
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
-  const [checklistItemToDelete, setChecklistItemToDelete] = useState<
-    string | null
-  >(null);
+  const [checklistItemToDelete, setChecklistItemToDelete] = useState<string | null>(null);
   const [checklistTimeBlocksMap, setChecklistTimeBlocksMap] = useState<
     Record<string, ScheduleBlockDetailResponse[]>
   >({});
@@ -318,9 +279,7 @@ export function TaskDetailModal({
   const [sprintPickerOpen, setSprintPickerOpen] = useState(false);
   const [sprintColumnPickerOpen, setSprintColumnPickerOpen] = useState(false);
   /** 마일스톤의 스프린트 보드 스냅샷 — 태스크 응답엔 sprint 정보가 없어 여기서 찾는다 */
-  const [sprintBoardData, setSprintBoardData] = useState<SprintBoard | null>(
-    null,
-  );
+  const [sprintBoardData, setSprintBoardData] = useState<SprintBoard | null>(null);
   /** 디테일 모달이 열려 있는 항목. null이면 닫힌 상태 */
   const [detailItemId, setDetailItemId] = useState<string | null>(null);
   /**
@@ -347,8 +306,8 @@ export function TaskDetailModal({
     ) {
       hasScrolledToHighlightRef.current = true;
       highlightChecklistRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
+        behavior: 'smooth',
+        block: 'center',
       });
     }
   }, [highlightChecklistItemId, checklistItems, open]);
@@ -396,8 +355,7 @@ export function TaskDetailModal({
                 .getByChecklistItems(boardId!, itemIds)
                 .then((result) => {
                   // 모든 아이템에 대해 키가 존재하도록 보장 (undefined 방지)
-                  const fullMap: Record<string, ScheduleBlockDetailResponse[]> =
-                    {};
+                  const fullMap: Record<string, ScheduleBlockDetailResponse[]> = {};
                   for (const id of itemIds) {
                     fullMap[id] = result[id] || [];
                   }
@@ -405,10 +363,7 @@ export function TaskDetailModal({
                 })
                 .catch(() => {
                   // 실패 시에도 빈 배열로 초기화하여 스피너 해제
-                  const emptyMap: Record<
-                    string,
-                    ScheduleBlockDetailResponse[]
-                  > = {};
+                  const emptyMap: Record<string, ScheduleBlockDetailResponse[]> = {};
                   for (const id of itemIds) {
                     emptyMap[id] = [];
                   }
@@ -420,7 +375,7 @@ export function TaskDetailModal({
             }
           })
           .catch((error) => {
-            console.error("Failed to load checklist:", error);
+            console.error('Failed to load checklist:', error);
             setChecklistTimeBlocksMap({});
           });
       }
@@ -436,8 +391,8 @@ export function TaskDetailModal({
     if (taskId !== task.id) return;
 
     switch (type) {
-      case "CHECKLIST_TOGGLED":
-      case "CHECKLIST_UPDATED": {
+      case 'CHECKLIST_TOGGLED':
+      case 'CHECKLIST_UPDATED': {
         const item = payload.item as ChecklistItem;
         setChecklistItems((prev) => {
           const newItems = prev.map((ci) =>
@@ -453,7 +408,7 @@ export function TaskDetailModal({
         });
         break;
       }
-      case "CHECKLIST_CREATED": {
+      case 'CHECKLIST_CREATED': {
         const item = payload.item as ChecklistItem;
         setChecklistItems((prev) => {
           if (prev.some((ci) => ci.id === item.id)) return prev;
@@ -468,7 +423,7 @@ export function TaskDetailModal({
         });
         break;
       }
-      case "CHECKLIST_DELETED": {
+      case 'CHECKLIST_DELETED': {
         const deletedId = payload.id as string;
         setChecklistItems((prev) => {
           const newItems = prev.filter((ci) => ci.id !== deletedId);
@@ -491,21 +446,18 @@ export function TaskDetailModal({
    * 내가 쓴 댓글은 여기서 바로 올리고, 남이 쓴 댓글은 아래 WebSocket 훅이 올린다.
    * 자기 이벤트는 소켓에서 걸러지므로(useBoardWebSocket) 두 번 세지 않는다.
    */
-  const adjustChecklistCommentCount = useCallback(
-    (itemId: string, delta: number) => {
-      setChecklistItems((prev) =>
-        prev.map((ci) =>
-          ci.id === itemId
-            ? {
-                ...ci,
-                comment_count: Math.max(0, (ci.comment_count ?? 0) + delta),
-              }
-            : ci,
-        ),
-      );
-    },
-    [],
-  );
+  const adjustChecklistCommentCount = useCallback((itemId: string, delta: number) => {
+    setChecklistItems((prev) =>
+      prev.map((ci) =>
+        ci.id === itemId
+          ? {
+              ...ci,
+              comment_count: Math.max(0, (ci.comment_count ?? 0) + delta),
+            }
+          : ci,
+      ),
+    );
+  }, []);
 
   // 디테일로 연 항목의 마지막 모습을 붙잡아 둔다 (삭제되어도 읽기는 계속되도록)
   useEffect(() => {
@@ -525,17 +477,15 @@ export function TaskDetailModal({
     if (payload?.task_id !== task.id) return;
     if (!payload.checklist_item_id) return;
 
-    if (type === "COMMENT_CREATED") {
+    if (type === 'COMMENT_CREATED') {
       adjustChecklistCommentCount(payload.checklist_item_id, 1);
-    } else if (type === "COMMENT_DELETED") {
+    } else if (type === 'COMMENT_DELETED') {
       adjustChecklistCommentCount(payload.checklist_item_id, -1);
     }
   }, [wsCommentEvent, task, open, adjustChecklistCommentCount]);
 
   // Auto-save: 설명 debounce + 기간 즉시 저장
-  const descriptionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
+  const descriptionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const autoSaveFields = useCallback(
     (updates: Partial<Task>) => {
@@ -549,11 +499,9 @@ export function TaskDetailModal({
   const handleAssignMilestone = useCallback(
     (milestoneId: string) => {
       setMilestonePickerOpen(false);
-      const nextId = milestoneId === "" ? null : milestoneId;
-      setEditedTask((prev) =>
-        prev ? { ...prev, milestone_id: nextId } : prev,
-      );
-      onUpdate({ milestone_id: milestoneId === "" ? "" : milestoneId });
+      const nextId = milestoneId === '' ? null : milestoneId;
+      setEditedTask((prev) => (prev ? { ...prev, milestone_id: nextId } : prev));
+      onUpdate({ milestone_id: milestoneId === '' ? '' : milestoneId });
     },
     [onUpdate],
   );
@@ -601,13 +549,11 @@ export function TaskDetailModal({
       const taskId = task.id;
       void (async () => {
         let next: SprintBoard | null = null;
-        if (currentSprintId)
-          next = await sprintAPI.removeTask(boardId, currentSprintId, taskId);
-        if (toSprintId)
-          next = await sprintAPI.addTask(boardId, toSprintId, taskId);
+        if (currentSprintId) next = await sprintAPI.removeTask(boardId, currentSprintId, taskId);
+        if (toSprintId) next = await sprintAPI.addTask(boardId, toSprintId, taskId);
         if (next) setSprintBoardData(next);
       })().catch(() => {
-        toast.error(t("sprint.moveFailed", "스프린트 이동에 실패했습니다"));
+        toast.error(t('sprint.moveFailed', '스프린트 이동에 실패했습니다'));
       });
     },
     [boardId, task, currentSprintId, t],
@@ -623,9 +569,7 @@ export function TaskDetailModal({
         .moveToColumn(boardId, task.id, columnId)
         .then(setSprintBoardData)
         .catch(() => {
-          toast.error(
-            t("sprint.columnMoveFailed", "컬럼 이동에 실패했습니다"),
-          );
+          toast.error(t('sprint.columnMoveFailed', '컬럼 이동에 실패했습니다'));
         });
     },
     [boardId, task, sprintCard?.sprint_column_id, t],
@@ -634,8 +578,7 @@ export function TaskDetailModal({
   const handleDescriptionChange = useCallback(
     (value: string) => {
       setEditedTask((prev) => (prev ? { ...prev, description: value } : null));
-      if (descriptionTimerRef.current)
-        clearTimeout(descriptionTimerRef.current);
+      if (descriptionTimerRef.current) clearTimeout(descriptionTimerRef.current);
       descriptionTimerRef.current = setTimeout(() => {
         autoSaveFields({ description: value });
       }, 800);
@@ -654,8 +597,8 @@ export function TaskDetailModal({
   const handleDateRangeChange = useCallback(
     (range: DateRange | undefined) => {
       const updates = {
-        start_date: range?.from ? format(range.from, "yyyy-MM-dd") : null,
-        due_date: range?.to ? format(range.to, "yyyy-MM-dd") : null,
+        start_date: range?.from ? format(range.from, 'yyyy-MM-dd') : null,
+        due_date: range?.to ? format(range.to, 'yyyy-MM-dd') : null,
       };
       setEditedTask((prev) => (prev ? { ...prev, ...updates } : null));
       autoSaveFields(updates);
@@ -670,26 +613,19 @@ export function TaskDetailModal({
   }, [autoSaveFields]);
 
   // 체크리스트 뷰 모드 (리스트 ↔ 상태 보드) — 전역 선호값 유지
-  const [checklistViewMode, setChecklistViewMode] = useState<"list" | "board">(
-    () => {
-      const saved =
-        typeof localStorage !== "undefined"
-          ? localStorage.getItem("checklistViewMode")
-          : null;
-      return saved === "board" ? "board" : "list";
-    },
-  );
-  const handleChecklistViewModeChange = useCallback(
-    (mode: "list" | "board") => {
-      setChecklistViewMode(mode);
-      try {
-        localStorage.setItem("checklistViewMode", mode);
-      } catch {
-        /* ignore */
-      }
-    },
-    [],
-  );
+  const [checklistViewMode, setChecklistViewMode] = useState<'list' | 'board'>(() => {
+    const saved =
+      typeof localStorage !== 'undefined' ? localStorage.getItem('checklistViewMode') : null;
+    return saved === 'board' ? 'board' : 'list';
+  });
+  const handleChecklistViewModeChange = useCallback((mode: 'list' | 'board') => {
+    setChecklistViewMode(mode);
+    try {
+      localStorage.setItem('checklistViewMode', mode);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   // 체크리스트 드래그 앤 드롭 (hooks must be before early return)
   const checklistSensors = useSensors(
@@ -706,8 +642,8 @@ export function TaskDetailModal({
 
   const visibleChecklistItems = useMemo(() => {
     if (filterAssigneeIds.length === 0) return sortedChecklistItems;
-    const includesUnassigned = filterAssigneeIds.includes("__no_assignee__");
-    const realIds = filterAssigneeIds.filter((id) => id !== "__no_assignee__");
+    const includesUnassigned = filterAssigneeIds.includes('__no_assignee__');
+    const realIds = filterAssigneeIds.filter((id) => id !== '__no_assignee__');
     return sortedChecklistItems.filter(
       (item) =>
         (includesUnassigned && !item.assignee) ||
@@ -742,7 +678,7 @@ export function TaskDetailModal({
       }
     });
     const assignees = [...map.values()].sort(
-      (a, b) => b.count - a.count || a.name.localeCompare(b.name, "ko"),
+      (a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ko'),
     );
     return { assignees, unassignedCount };
   }, [checklistItems]);
@@ -762,29 +698,26 @@ export function TaskDetailModal({
     try {
       await navigator.clipboard.writeText(url);
     } catch {
-      const input = document.createElement("input");
+      const input = document.createElement('input');
       input.value = url;
       document.body.appendChild(input);
       input.select();
-      document.execCommand("copy");
+      document.execCommand('copy');
       document.body.removeChild(input);
     }
     setLinkCopied(true);
-    toast.success(t("share.linkCopied"));
+    toast.success(t('share.linkCopied'));
     setTimeout(() => setLinkCopied(false), 2000);
   }, [boardId, task, t]);
 
   // 체크리스트를 메타데이터 포함 텍스트로 복사 (현재 보이는 항목, 표시 순서)
   const handleCopyChecklistText = useCallback(async () => {
     const fmtDate = (item: ChecklistItem): string | null => {
-      const endDate =
-        item.completed && item.done_date ? item.done_date : item.due_date;
+      const endDate = item.completed && item.done_date ? item.done_date : item.due_date;
       if (item.start_date && endDate)
-        return `${format(new Date(item.start_date), "M/d", { locale: ko })} - ${format(new Date(endDate), "M/d", { locale: ko })}`;
-      if (item.start_date)
-        return `${format(new Date(item.start_date), "M/d", { locale: ko })} ~`;
-      if (endDate)
-        return `~ ${format(new Date(endDate), "M/d", { locale: ko })}`;
+        return `${format(new Date(item.start_date), 'M/d', { locale: ko })} - ${format(new Date(endDate), 'M/d', { locale: ko })}`;
+      if (item.start_date) return `${format(new Date(item.start_date), 'M/d', { locale: ko })} ~`;
+      if (endDate) return `~ ${format(new Date(endDate), 'M/d', { locale: ko })}`;
       return null;
     };
     const fmtTime = (itemId: string): string | null => {
@@ -802,7 +735,7 @@ export function TaskDetailModal({
       if (total <= 0) return null;
       const h = Math.floor(total / 60);
       const m = total % 60;
-      return h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${total}m`;
+      return h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ''}` : `${total}m`;
     };
 
     const text = visibleChecklistItems
@@ -814,26 +747,24 @@ export function TaskDetailModal({
         if (who) meta.push(who);
         const tm = fmtTime(item.id);
         if (tm) meta.push(tm);
-        return meta.length
-          ? `- ${item.title} (${meta.join(", ")})`
-          : `- ${item.title}`;
+        return meta.length ? `- ${item.title} (${meta.join(', ')})` : `- ${item.title}`;
       })
-      .join("\n");
+      .join('\n');
 
     try {
       await navigator.clipboard.writeText(text);
     } catch {
-      const ta = document.createElement("textarea");
+      const ta = document.createElement('textarea');
       ta.value = text;
       document.body.appendChild(ta);
       ta.select();
-      document.execCommand("copy");
+      document.execCommand('copy');
       document.body.removeChild(ta);
     }
     setChecklistCopied(true);
     toast.success(
-      t("task.checklistCopied", {
-        defaultValue: "체크리스트가 복사되었습니다",
+      t('task.checklistCopied', {
+        defaultValue: '체크리스트가 복사되었습니다',
       }),
     );
     setTimeout(() => setChecklistCopied(false), 2000);
@@ -846,9 +777,7 @@ export function TaskDetailModal({
     }
     const trimmed = editedTask.title.trim();
     if (!trimmed) {
-      setEditedTask((prev) =>
-        prev ? { ...prev, title: initialTask.title } : null,
-      );
+      setEditedTask((prev) => (prev ? { ...prev, title: initialTask.title } : null));
       setIsEditingTitle(false);
       return;
     }
@@ -863,9 +792,7 @@ export function TaskDetailModal({
 
   const handleTitleCancel = useCallback(() => {
     if (initialTask) {
-      setEditedTask((prev) =>
-        prev ? { ...prev, title: initialTask.title } : null,
-      );
+      setEditedTask((prev) => (prev ? { ...prev, title: initialTask.title } : null));
     }
     setIsEditingTitle(false);
   }, [initialTask]);
@@ -875,14 +802,12 @@ export function TaskDetailModal({
     if (milestones.length === 0) return null;
     if (
       currentMilestoneId &&
-      currentMilestoneId !== "all" &&
+      currentMilestoneId !== 'all' &&
       milestones.some((m) => m.id === currentMilestoneId)
     ) {
       return currentMilestoneId;
     }
-    const containing = milestones.find((m) =>
-      m.features?.some((f) => f.id === task?.feature_id),
-    );
+    const containing = milestones.find((m) => m.features?.some((f) => f.id === task?.feature_id));
     return containing?.id ?? milestones[0].id;
   }, [milestones, currentMilestoneId, task?.feature_id]);
 
@@ -958,7 +883,7 @@ export function TaskDetailModal({
   // Feature 이동 다이얼로그가 열릴 때 기본값 = 현재 Feature가 속한 마일스톤(없으면 전체)
   useEffect(() => {
     if (showMoveFeatureDialog) {
-      const preferred = currentFeatureInfo?.milestones[0]?.id ?? "all";
+      const preferred = currentFeatureInfo?.milestones[0]?.id ?? 'all';
       setMoveFeatureMilestoneId((prev) => prev ?? preferred);
     }
   }, [showMoveFeatureDialog, currentFeatureInfo]);
@@ -1025,8 +950,7 @@ export function TaskDetailModal({
     // Task가 하나도 없는 피처도 "새 Task 만들기" 진입점으로 보여야 하므로
     // 마일스톤(미선택 시 보드)의 피처 목록을 먼저 깔고 그 위에 Task를 얹는다.
     const baseFeatures = moveTargetMilestoneId
-      ? (milestones.find((m) => m.id === moveTargetMilestoneId)?.features ??
-        [])
+      ? (milestones.find((m) => m.id === moveTargetMilestoneId)?.features ?? [])
       : features;
     for (const f of baseFeatures) {
       map.set(f.id, { id: f.id, title: f.title, color: f.color, tasks: [] });
@@ -1059,8 +983,7 @@ export function TaskDetailModal({
 
   // 옮기는 체크리스트 텍스트 — 새 Task 제목 기본값 (항목 하나를 옮기면 그 텍스트가 곧 Task 제목인 경우가 대부분)
   const movingChecklistTitle = useMemo(
-    () =>
-      checklistItems.find((ci) => ci.id === moveChecklistItemId)?.title ?? "",
+    () => checklistItems.find((ci) => ci.id === moveChecklistItemId)?.title ?? '',
     [checklistItems, moveChecklistItemId],
   );
 
@@ -1074,7 +997,7 @@ export function TaskDetailModal({
 
   const closeNewTaskForm = useCallback(() => {
     setNewTaskMode(false);
-    setNewTaskTitle("");
+    setNewTaskTitle('');
     setMoveError(null);
   }, []);
 
@@ -1091,8 +1014,7 @@ export function TaskDetailModal({
   useEffect(() => {
     if (!showMoveChecklistDialog) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() !== "n" || e.metaKey || e.ctrlKey || e.altKey)
-        return;
+      if (e.key.toLowerCase() !== 'n' || e.metaKey || e.ctrlKey || e.altKey) return;
       const target = e.target as HTMLElement | null;
       if (target && /input|textarea|select/i.test(target.tagName)) return;
       if (target?.isContentEditable) return;
@@ -1100,15 +1022,9 @@ export function TaskDetailModal({
       e.preventDefault();
       openNewTaskForm();
     };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [
-    showMoveChecklistDialog,
-    selectedTargetFeatureId,
-    newTaskMode,
-    canEdit,
-    openNewTaskForm,
-  ]);
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [showMoveChecklistDialog, selectedTargetFeatureId, newTaskMode, canEdit, openNewTaskForm]);
 
   const closeMoveChecklistDialog = () => {
     setShowMoveChecklistDialog(false);
@@ -1117,7 +1033,7 @@ export function TaskDetailModal({
     setSelectedTargetFeatureId(null);
     setMoveTargetMilestoneId(null);
     setNewTaskMode(false);
-    setNewTaskTitle("");
+    setNewTaskTitle('');
     setMoveBusy(false);
     setMoveError(null);
     setNewTaskDiscarded(false);
@@ -1160,8 +1076,8 @@ export function TaskDetailModal({
         setMoveBusy(false);
         setMoveError(
           t(
-            "task.moveNewTaskFailed",
-            "Task를 만들지 못했어요. 입력한 제목은 그대로 두었으니 다시 시도해 주세요.",
+            'task.moveNewTaskFailed',
+            'Task를 만들지 못했어요. 입력한 제목은 그대로 두었으니 다시 시도해 주세요.',
           ),
         );
       }
@@ -1169,12 +1085,12 @@ export function TaskDetailModal({
     }
 
     if (!selectedTargetTaskId) return;
-    Promise.resolve(
-      onMoveChecklistToTask(itemId, sourceTask.id, selectedTargetTaskId),
-    ).catch((error) => {
-      console.error("Failed to move checklist item:", error);
-      toast.error(t("common.error", "오류가 발생했습니다"));
-    });
+    Promise.resolve(onMoveChecklistToTask(itemId, sourceTask.id, selectedTargetTaskId)).catch(
+      (error) => {
+        console.error('Failed to move checklist item:', error);
+        toast.error(t('common.error', '오류가 발생했습니다'));
+      },
+    );
     applyLocalRemoval();
     closeMoveChecklistDialog();
   };
@@ -1242,7 +1158,7 @@ export function TaskDetailModal({
         // API 호출: POST /boards/{boardId}/tasks/{taskId}/tags
         await taskAPI.addTag(boardId, task.id, tagId);
       } catch (error) {
-        console.error("Failed to add tag:", error);
+        console.error('Failed to add tag:', error);
         // 롤백
         updateEditedTask({ tags: currentTags });
       }
@@ -1260,7 +1176,7 @@ export function TaskDetailModal({
       // API 호출: DELETE /boards/{boardId}/tasks/{taskId}/tags/{tagId}
       await taskAPI.removeTag(boardId, task.id, tagId);
     } catch (error) {
-      console.error("Failed to remove tag:", error);
+      console.error('Failed to remove tag:', error);
       // 롤백
       updateEditedTask({ tags: currentTags });
     }
@@ -1327,7 +1243,7 @@ export function TaskDetailModal({
       });
       onChecklistSync?.(task.id, newItems);
     } catch (error) {
-      console.error("Failed to add checklist item:", error);
+      console.error('Failed to add checklist item:', error);
     }
   };
 
@@ -1364,23 +1280,18 @@ export function TaskDetailModal({
       });
       onChecklistSync?.(task.id, newItems);
     } catch (error) {
-      console.error("Failed to toggle checklist item:", error);
+      console.error('Failed to toggle checklist item:', error);
       // 롤백
       setChecklistItems(prevItems);
     }
   };
 
-  const handleUpdateChecklistItem = async (
-    itemId: string,
-    updates: Partial<ChecklistItem>,
-  ) => {
+  const handleUpdateChecklistItem = async (itemId: string, updates: Partial<ChecklistItem>) => {
     if (!boardId || !task) return;
 
     // 낙관적 업데이트
     setChecklistItems(
-      checklistItems.map((item) =>
-        item.id === itemId ? { ...item, ...updates } : item,
-      ),
+      checklistItems.map((item) => (item.id === itemId ? { ...item, ...updates } : item)),
     );
 
     const updatedItems = checklistItems.map((item) =>
@@ -1396,19 +1307,19 @@ export function TaskDetailModal({
       start_date?: string | null;
       due_date?: string | null;
     } = {};
-    if ("title" in updates && updates.title !== undefined) {
+    if ('title' in updates && updates.title !== undefined) {
       payload.title = updates.title;
     }
-    if ("assignee" in updates) {
+    if ('assignee' in updates) {
       payload.assignee_id = updates.assignee?.id ?? null;
     }
-    if ("contractor" in updates) {
+    if ('contractor' in updates) {
       payload.contractor_id = updates.contractor?.id ?? null;
     }
-    if ("start_date" in updates) {
+    if ('start_date' in updates) {
       payload.start_date = updates.start_date ?? null;
     }
-    if ("due_date" in updates) {
+    if ('due_date' in updates) {
       payload.due_date = updates.due_date ?? null;
     }
 
@@ -1422,16 +1333,13 @@ export function TaskDetailModal({
       onUpdate({ checklist_version: Date.now() });
       onChecklistSync?.(task.id, updatedItems);
     } catch (error) {
-      console.error("Failed to update checklist item:", error);
+      console.error('Failed to update checklist item:', error);
     }
   };
 
   // 상태 보드 열 이동 — 완료 토글 + start_date 패치를 한 번에 원자적으로 처리
   // (개별 핸들러 2회 호출 시 낙관적 setState 충돌 방지)
-  const handleMoveChecklistColumn = async (
-    item: ChecklistItem,
-    target: ChecklistColumn,
-  ) => {
+  const handleMoveChecklistColumn = async (item: ChecklistItem, target: ChecklistColumn) => {
     if (!boardId || !task || !canEdit) return;
     const today = getTodayDateString();
     if (resolveChecklistColumn(item, today) === target) return;
@@ -1442,7 +1350,7 @@ export function TaskDetailModal({
     let newDone = item.done_date;
     const apiCalls: Promise<unknown>[] = [];
 
-    if (target === "done") {
+    if (target === 'done') {
       if (!item.completed) {
         newCompleted = true;
         newDone = today;
@@ -1455,7 +1363,7 @@ export function TaskDetailModal({
         newDone = null;
         apiCalls.push(checklistAPI.toggleItem(boardId, task.id, item.id));
       }
-      const targetStart = target === "doing" ? today : null;
+      const targetStart = target === 'doing' ? today : null;
       if (item.start_date !== targetStart) {
         newStart = targetStart;
         apiCalls.push(
@@ -1491,7 +1399,7 @@ export function TaskDetailModal({
     try {
       await Promise.all(apiCalls);
     } catch (error) {
-      console.error("Failed to move checklist item column:", error);
+      console.error('Failed to move checklist item column:', error);
       // 롤백
       setChecklistItems(prevItems);
       const rolledBack = prevItems.filter((i) => i.completed).length;
@@ -1524,9 +1432,7 @@ export function TaskDetailModal({
 
     const rollback = () => {
       setChecklistItems(originalItems);
-      const rolledBackCompleted = originalItems.filter(
-        (item) => item.completed,
-      ).length;
+      const rolledBackCompleted = originalItems.filter((item) => item.completed).length;
       onUpdate({
         checklist_total: originalItems.length,
         checklist_completed: rolledBackCompleted,
@@ -1538,34 +1444,28 @@ export function TaskDetailModal({
     try {
       await checklistAPI.deleteItem(boardId, task.id, itemId);
       toast(
-        t(
-          "trash.toast.checklistDeleted",
-          '"{{title}}" 체크리스트 항목을 삭제했습니다',
-          {
-            title: deletedItem?.title || "",
-          },
-        ),
+        t('trash.toast.checklistDeleted', '"{{title}}" 체크리스트 항목을 삭제했습니다', {
+          title: deletedItem?.title || '',
+        }),
         {
           duration: 8000,
           action: {
-            label: t("trash.toast.undo", "되돌리기"),
+            label: t('trash.toast.undo', '되돌리기'),
             onClick: async () => {
               try {
                 await trashAPI.restoreChecklistItem(boardId, itemId);
                 rollback();
-                toast.success(t("trash.toast.restored", "복구되었습니다"));
+                toast.success(t('trash.toast.restored', '복구되었습니다'));
               } catch (e) {
-                console.error("Failed to restore checklist item:", e);
-                toast.error(
-                  t("trash.toast.restoreFailed", "복구에 실패했습니다"),
-                );
+                console.error('Failed to restore checklist item:', e);
+                toast.error(t('trash.toast.restoreFailed', '복구에 실패했습니다'));
               }
             },
           },
         },
       );
     } catch (error) {
-      console.error("Failed to delete checklist item:", error);
+      console.error('Failed to delete checklist item:', error);
       rollback();
     }
   };
@@ -1574,13 +1474,13 @@ export function TaskDetailModal({
     const target = checklistItems.find((ci) => ci.id === itemId);
     setMergeTargetItemId(itemId);
     setMergeSelectedIds(new Set());
-    setMergeTitle(target?.title || "");
+    setMergeTitle(target?.title || '');
   };
 
   const closeMergeChecklistDialog = () => {
     setMergeTargetItemId(null);
     setMergeSelectedIds(new Set());
-    setMergeTitle("");
+    setMergeTitle('');
   };
 
   const toggleMergeSource = (itemId: string) => {
@@ -1595,9 +1495,7 @@ export function TaskDetailModal({
   const handleMergeChecklistItems = async () => {
     if (!boardId || !task || !mergeTargetItemId) return;
     const targetId = mergeTargetItemId;
-    const sourceIds = Array.from(mergeSelectedIds).filter(
-      (id) => id !== targetId,
-    );
+    const sourceIds = Array.from(mergeSelectedIds).filter((id) => id !== targetId);
     if (sourceIds.length === 0) return;
 
     setMergeBusy(true);
@@ -1651,16 +1549,16 @@ export function TaskDetailModal({
       onChecklistSync?.(task.id, newItems);
 
       toast.success(
-        t("task.mergeChecklist.success", "{{count}}개 항목을 병합했습니다", {
+        t('task.mergeChecklist.success', '{{count}}개 항목을 병합했습니다', {
           count: sourceIds.length + 1,
         }),
       );
       closeMergeChecklistDialog();
     } catch (error) {
-      console.error("Failed to merge checklist items:", error);
+      console.error('Failed to merge checklist items:', error);
       setChecklistItems(originalItems);
       setChecklistTimeBlocksMap(originalBlocks);
-      toast.error(t("task.mergeChecklist.failed", "병합에 실패했습니다"));
+      toast.error(t('task.mergeChecklist.failed', '병합에 실패했습니다'));
     } finally {
       setMergeBusy(false);
     }
@@ -1673,23 +1571,17 @@ export function TaskDetailModal({
   ) => {
     if (!boardId || fromItemId === targetItemId) return;
     const original = checklistTimeBlocksMap;
-    const movingBlock = (original[fromItemId] || []).find(
-      (b) => b.id === blockId,
-    );
+    const movingBlock = (original[fromItemId] || []).find((b) => b.id === blockId);
     if (!movingBlock) return;
 
     // 낙관적 업데이트: 소스 → 대상으로 블록 이동
     setChecklistTimeBlocksMap((prev) => {
       const next = { ...prev };
-      next[fromItemId] = (next[fromItemId] || []).filter(
-        (b) => b.id !== blockId,
-      );
-      next[targetItemId] = [...(next[targetItemId] || []), movingBlock].sort(
-        (a, b) => {
-          const d = a.scheduled_date.localeCompare(b.scheduled_date);
-          return d !== 0 ? d : a.start_time.localeCompare(b.start_time);
-        },
-      );
+      next[fromItemId] = (next[fromItemId] || []).filter((b) => b.id !== blockId);
+      next[targetItemId] = [...(next[targetItemId] || []), movingBlock].sort((a, b) => {
+        const d = a.scheduled_date.localeCompare(b.scheduled_date);
+        return d !== 0 ? d : a.start_time.localeCompare(b.start_time);
+      });
       return next;
     });
 
@@ -1697,13 +1589,11 @@ export function TaskDetailModal({
       await scheduleAPI.reassignBlockChecklistItem(boardId, blockId, {
         checklist_item_id: targetItemId,
       });
-      toast.success(t("task.reassignBlock.success", "타임블록을 이동했습니다"));
+      toast.success(t('task.reassignBlock.success', '타임블록을 이동했습니다'));
     } catch (error) {
-      console.error("Failed to reassign time block:", error);
+      console.error('Failed to reassign time block:', error);
       setChecklistTimeBlocksMap(original);
-      toast.error(
-        t("task.reassignBlock.failed", "타임블록 이동에 실패했습니다"),
-      );
+      toast.error(t('task.reassignBlock.failed', '타임블록 이동에 실패했습니다'));
     }
   };
 
@@ -1713,12 +1603,8 @@ export function TaskDetailModal({
     // 필터 적용 중에는 reorder 비활성 (가시 항목과 전체 인덱스 불일치 위험)
     if (isChecklistFilterActive) return;
 
-    const oldIndex = sortedChecklistItems.findIndex(
-      (item) => item.id === active.id,
-    );
-    const newIndex = sortedChecklistItems.findIndex(
-      (item) => item.id === over.id,
-    );
+    const oldIndex = sortedChecklistItems.findIndex((item) => item.id === active.id);
+    const newIndex = sortedChecklistItems.findIndex((item) => item.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
     const reordered = arrayMove(sortedChecklistItems, oldIndex, newIndex);
@@ -1736,7 +1622,7 @@ export function TaskDetailModal({
         item_ids: reordered.map((item) => item.id),
       });
     } catch (error) {
-      console.error("Failed to reorder checklist items:", error);
+      console.error('Failed to reorder checklist items:', error);
       // 롤백
       setChecklistItems(checklistItems);
       onChecklistSync?.(task.id, checklistItems);
@@ -1744,9 +1630,7 @@ export function TaskDetailModal({
   };
 
   // 체크리스트 진행률 계산
-  const completedChecklistCount = checklistItems.filter(
-    (item) => item.completed,
-  ).length;
+  const completedChecklistCount = checklistItems.filter((item) => item.completed).length;
   const checklistProgress =
     checklistItems.length > 0
       ? Math.round((completedChecklistCount / checklistItems.length) * 100)
@@ -1789,7 +1673,7 @@ export function TaskDetailModal({
                       onOpenFeature(task.feature_id);
                     }
                   }}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${onOpenFeature ? "cursor-pointer hover:brightness-110 hover:shadow-sm" : "cursor-default"}`}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${onOpenFeature ? 'cursor-pointer hover:brightness-110 hover:shadow-sm' : 'cursor-default'}`}
                   style={{
                     backgroundColor: `${task.feature_color}20`,
                     color: task.feature_color,
@@ -1805,28 +1689,19 @@ export function TaskDetailModal({
                 {/* 마일스톤 배정 (피처 하위) */}
                 {milestones.length > 0 &&
                   (() => {
-                    const currentMs = milestones.find(
-                      (m) => m.id === editedTask.milestone_id,
-                    );
+                    const currentMs = milestones.find((m) => m.id === editedTask.milestone_id);
                     return (
                       <>
                         <ChevronRight className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                        <Popover
-                          open={milestonePickerOpen}
-                          onOpenChange={setMilestonePickerOpen}
-                        >
+                        <Popover open={milestonePickerOpen} onOpenChange={setMilestonePickerOpen}>
                           <PopoverTrigger asChild>
                             <button
                               disabled={!canEdit}
                               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-foreground/10 bg-foreground/5 text-foreground hover:bg-foreground/10 transition-colors disabled:cursor-default disabled:hover:bg-foreground/5"
                             >
                               <Target className="w-3 h-3 text-bridge-accent" />
-                              {currentMs
-                                ? currentMs.title
-                                : t("milestone.none", "마일스톤 없음")}
-                              {canEdit && (
-                                <ChevronDown className="w-3 h-3 opacity-60" />
-                              )}
+                              {currentMs ? currentMs.title : t('milestone.none', '마일스톤 없음')}
+                              {canEdit && <ChevronDown className="w-3 h-3 opacity-60" />}
                             </button>
                           </PopoverTrigger>
                           {canEdit && (
@@ -1835,14 +1710,14 @@ export function TaskDetailModal({
                               className="w-56 p-1 max-h-72 overflow-y-auto custom-scrollbar"
                             >
                               <button
-                                onClick={() => handleAssignMilestone("")}
+                                onClick={() => handleAssignMilestone('')}
                                 className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-foreground/10 ${
                                   !editedTask.milestone_id
-                                    ? "text-bridge-accent font-bold"
-                                    : "text-foreground"
+                                    ? 'text-bridge-accent font-bold'
+                                    : 'text-foreground'
                                 }`}
                               >
-                                {t("milestone.none", "마일스톤 없음")}
+                                {t('milestone.none', '마일스톤 없음')}
                               </button>
                               {milestones.map((m) => (
                                 <button
@@ -1850,8 +1725,8 @@ export function TaskDetailModal({
                                   onClick={() => handleAssignMilestone(m.id)}
                                   className={`w-full flex items-center gap-1.5 text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-foreground/10 ${
                                     editedTask.milestone_id === m.id
-                                      ? "text-bridge-accent font-bold"
-                                      : "text-foreground"
+                                      ? 'text-bridge-accent font-bold'
+                                      : 'text-foreground'
                                   }`}
                                 >
                                   <Target className="w-3 h-3 flex-shrink-0 text-bridge-accent" />
@@ -1890,22 +1765,15 @@ export function TaskDetailModal({
                     return (
                       <>
                         <ChevronRight className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                        <Popover
-                          open={sprintPickerOpen}
-                          onOpenChange={setSprintPickerOpen}
-                        >
+                        <Popover open={sprintPickerOpen} onOpenChange={setSprintPickerOpen}>
                           <PopoverTrigger asChild>
                             <button
                               disabled={!canEdit}
                               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-foreground/10 bg-foreground/5 text-foreground hover:bg-foreground/10 transition-colors disabled:cursor-default disabled:hover:bg-foreground/5"
                             >
                               <Layers className="w-3 h-3 text-bridge-secondary" />
-                              {currentSprint
-                                ? currentSprint.name
-                                : t("sprint.backlog", "백로그")}
-                              {canEdit && (
-                                <ChevronDown className="w-3 h-3 opacity-60" />
-                              )}
+                              {currentSprint ? currentSprint.name : t('sprint.backlog', '백로그')}
+                              {canEdit && <ChevronDown className="w-3 h-3 opacity-60" />}
                             </button>
                           </PopoverTrigger>
                           {canEdit && (
@@ -1917,11 +1785,11 @@ export function TaskDetailModal({
                                 onClick={() => handleAssignSprint(null)}
                                 className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-foreground/10 ${
                                   !currentSprintId
-                                    ? "text-bridge-accent font-bold"
-                                    : "text-foreground"
+                                    ? 'text-bridge-accent font-bold'
+                                    : 'text-foreground'
                                 }`}
                               >
-                                {t("sprint.backlog", "백로그")}
+                                {t('sprint.backlog', '백로그')}
                               </button>
                               {sprintBoardData.sprints.map((s) => (
                                 <button
@@ -1929,8 +1797,8 @@ export function TaskDetailModal({
                                   onClick={() => handleAssignSprint(s.id)}
                                   className={`w-full flex items-center gap-1.5 text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-foreground/10 ${
                                     currentSprintId === s.id
-                                      ? "text-bridge-accent font-bold"
-                                      : "text-foreground"
+                                      ? 'text-bridge-accent font-bold'
+                                      : 'text-foreground'
                                   }`}
                                 >
                                   <Layers className="w-3 h-3 flex-shrink-0 text-bridge-secondary" />
@@ -1958,15 +1826,11 @@ export function TaskDetailModal({
                                     style={{
                                       backgroundColor:
                                         currentColumn?.color ??
-                                        (currentColumn?.kind === "END"
-                                          ? "#34d399"
-                                          : "#94a3b8"),
+                                        (currentColumn?.kind === 'END' ? '#34d399' : '#94a3b8'),
                                     }}
                                   />
-                                  {currentColumn?.name ?? "—"}
-                                  {canEdit && (
-                                    <ChevronDown className="w-3 h-3 opacity-60" />
-                                  )}
+                                  {currentColumn?.name ?? '—'}
+                                  {canEdit && <ChevronDown className="w-3 h-3 opacity-60" />}
                                 </button>
                               </PopoverTrigger>
                               {canEdit && (
@@ -1980,22 +1844,19 @@ export function TaskDetailModal({
                                       onClick={() => handleMoveSprintColumn(c.id)}
                                       className={`w-full flex items-center gap-1.5 text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-foreground/10 ${
                                         currentColumn?.id === c.id
-                                          ? "text-bridge-accent font-bold"
-                                          : "text-foreground"
+                                          ? 'text-bridge-accent font-bold'
+                                          : 'text-foreground'
                                       }`}
                                     >
                                       <div
                                         className="w-2 h-2 rounded-full flex-shrink-0"
                                         style={{
                                           backgroundColor:
-                                            c.color ??
-                                            (c.kind === "END"
-                                              ? "#34d399"
-                                              : "#94a3b8"),
+                                            c.color ?? (c.kind === 'END' ? '#34d399' : '#94a3b8'),
                                         }}
                                       />
                                       <span className="truncate">{c.name}</span>
-                                      {c.kind === "END" && (
+                                      {c.kind === 'END' && (
                                         <CheckCircle2 className="w-3 h-3 ml-auto flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
                                       )}
                                     </button>
@@ -2016,9 +1877,7 @@ export function TaskDetailModal({
                         blocks={blocks}
                         currentBlockId={task.block_id}
                         currentBlockName={task.block_name}
-                        canEdit={
-                          !!canEdit && (!!onMoveToBlock || !!onMoveToDone)
-                        }
+                        canEdit={!!canEdit && (!!onMoveToBlock || !!onMoveToDone)}
                         onSelectBlock={(blockId) => {
                           if (task && onMoveToBlock) {
                             onMoveToBlock(task.id, blockId);
@@ -2036,7 +1895,7 @@ export function TaskDetailModal({
                     {task.task_key && (
                       <span
                         className="shrink-0 text-xs font-bold font-mono px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent"
-                        title={t("share.taskKey", "태스크 키")}
+                        title={t('share.taskKey', '태스크 키')}
                       >
                         {task.task_key}
                       </span>
@@ -2044,16 +1903,14 @@ export function TaskDetailModal({
                     {canEdit && isEditingTitle ? (
                       <Input
                         value={editedTask.title}
-                        onChange={(e) =>
-                          updateEditedTask({ title: e.target.value })
-                        }
+                        onChange={(e) => updateEditedTask({ title: e.target.value })}
                         onBlur={handleTitleCommit}
                         onKeyDown={(e) => {
                           if (e.nativeEvent.isComposing) return;
-                          if (e.key === "Enter") {
+                          if (e.key === 'Enter') {
                             e.preventDefault();
                             handleTitleCommit();
-                          } else if (e.key === "Escape") {
+                          } else if (e.key === 'Escape') {
                             e.preventDefault();
                             handleTitleCancel();
                           }
@@ -2063,7 +1920,7 @@ export function TaskDetailModal({
                       />
                     ) : (
                       <div
-                        className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${canEdit ? "cursor-pointer hover:bg-foreground/5" : ""}`}
+                        className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${canEdit ? 'cursor-pointer hover:bg-foreground/5' : ''}`}
                         onClick={() => canEdit && setIsEditingTitle(true)}
                       >
                         <span className="text-lg font-bold text-foreground">
@@ -2081,8 +1938,8 @@ export function TaskDetailModal({
                       size="sm"
                       onClick={handleCopyTaskLink}
                       className="text-slate-400 hover:text-foreground hover:bg-foreground/10"
-                      title={t("share.copyLink")}
-                      aria-label={t("share.copyLink")}
+                      title={t('share.copyLink')}
+                      aria-label={t('share.copyLink')}
                     >
                       {linkCopied ? (
                         <Check className="h-4 w-4 text-emerald-400" />
@@ -2093,16 +1950,13 @@ export function TaskDetailModal({
                     <TaskHeaderActionsMenu
                       canEdit={!!canEdit}
                       hasMultipleFeatures={
-                        !!onMoveToFeature &&
-                        (features.length > 1 || milestones.length > 1)
+                        !!onMoveToFeature && (features.length > 1 || milestones.length > 1)
                       }
                       onMoveFeature={() => setShowMoveFeatureDialog(true)}
-                      onMoveToBoard={() => setMoveCopyMode("move")}
-                      onCopyToBoard={() => setMoveCopyMode("copy")}
+                      onMoveToBoard={() => setMoveCopyMode('move')}
+                      onCopyToBoard={() => setMoveCopyMode('copy')}
                       onDelete={() => setShowDeleteDialog(true)}
-                      onDelegate={
-                        canDelegate ? () => openDelegate(null) : undefined
-                      }
+                      onDelegate={canDelegate ? () => openDelegate(null) : undefined}
                       delegateReady={autofixRunner.canDelegate}
                       delegateHint={
                         autofixRunner.blockedReason ??
@@ -2123,45 +1977,39 @@ export function TaskDetailModal({
                 <div className="flex items-center gap-2 flex-wrap">
                   {/* 기간 칩 */}
                   {(() => {
-                    const hasDate = !!(
-                      editedTask.start_date || editedTask.due_date
-                    );
+                    const hasDate = !!(editedTask.start_date || editedTask.due_date);
                     const dateLabel = hasDate ? (
                       <>
                         {editedTask.start_date
-                          ? format(new Date(editedTask.start_date), "M.d", {
+                          ? format(new Date(editedTask.start_date), 'M.d', {
                               locale: ko,
                             })
-                          : t("task.startDateTbd")}
-                        {" ~ "}
+                          : t('task.startDateTbd')}
+                        {' ~ '}
                         {editedTask.due_date
-                          ? format(new Date(editedTask.due_date), "M.d", {
+                          ? format(new Date(editedTask.due_date), 'M.d', {
                               locale: ko,
                             })
-                          : t("task.endDateTbd")}
+                          : t('task.endDateTbd')}
                       </>
                     ) : (
-                      t("task.selectDate")
+                      t('task.selectDate')
                     );
                     const chipClass = `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-colors ${
                       hasDate
-                        ? "bg-bridge-accent/[0.12] border-bridge-accent/35 text-foreground hover:bg-bridge-accent/20"
-                        : "bg-foreground/[0.04] border-foreground/10 text-slate-400 hover:bg-foreground/10"
+                        ? 'bg-bridge-accent/[0.12] border-bridge-accent/35 text-foreground hover:bg-bridge-accent/20'
+                        : 'bg-foreground/[0.04] border-foreground/10 text-slate-400 hover:bg-foreground/10'
                     }`;
                     const chipInner = (
                       <>
                         <CalendarIcon
-                          className={`h-3.5 w-3.5 ${hasDate ? "text-bridge-accent" : "text-slate-400"}`}
+                          className={`h-3.5 w-3.5 ${hasDate ? 'text-bridge-accent' : 'text-slate-400'}`}
                         />
                         <span>{dateLabel}</span>
                       </>
                     );
                     if (!canEdit) {
-                      return (
-                        <div className={`${chipClass} cursor-default`}>
-                          {chipInner}
-                        </div>
-                      );
+                      return <div className={`${chipClass} cursor-default`}>{chipInner}</div>;
                     }
                     return (
                       <Popover>
@@ -2180,9 +2028,7 @@ export function TaskDetailModal({
                               from: editedTask.start_date
                                 ? new Date(editedTask.start_date)
                                 : undefined,
-                              to: editedTask.due_date
-                                ? new Date(editedTask.due_date)
-                                : undefined,
+                              to: editedTask.due_date ? new Date(editedTask.due_date) : undefined,
                             }}
                             defaultMonth={
                               editedTask.start_date
@@ -2204,7 +2050,7 @@ export function TaskDetailModal({
                                 className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
                                 onClick={handleDateRangeClear}
                               >
-                                {t("task.deleteDate")}
+                                {t('task.deleteDate')}
                               </Button>
                             </div>
                           )}
@@ -2214,16 +2060,15 @@ export function TaskDetailModal({
                   })()}
 
                   {/* 담당자 안내 칩 — 체크리스트 담당자가 없을 때만 노출 */}
-                  {!isPersonal &&
-                    checklistAssigneeStats.assignees.length === 0 && (
-                      <div
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-foreground/[0.04] border border-foreground/10 text-slate-400 cursor-default"
-                        title={t("task.addAssigneeToChecklist")}
-                      >
-                        <Users className="h-3.5 w-3.5 text-slate-400" />
-                        <span>{t("task.assignee")}</span>
-                      </div>
-                    )}
+                  {!isPersonal && checklistAssigneeStats.assignees.length === 0 && (
+                    <div
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-foreground/[0.04] border border-foreground/10 text-slate-400 cursor-default"
+                      title={t('task.addAssigneeToChecklist')}
+                    >
+                      <Users className="h-3.5 w-3.5 text-slate-400" />
+                      <span>{t('task.assignee')}</span>
+                    </div>
+                  )}
 
                   {/* 태그 칩 */}
                   {taskTags.map((tag) => (
@@ -2264,33 +2109,32 @@ export function TaskDetailModal({
                   <div className="-mx-8 md:-mx-10 pt-1">
                     <div className="flex items-baseline justify-between gap-3 px-8 md:px-10 pb-2">
                       <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                        {t("task.assignee")}
+                        {t('task.assignee')}
                       </span>
                       <span className="text-xs text-slate-500 tabular-nums">
                         {isChecklistFilterActive
-                          ? t("task.checklistFilter.railSelected", {
+                          ? t('task.checklistFilter.railSelected', {
                               count: filterAssigneeIds.length,
                               visible: visibleChecklistItems.length,
-                              defaultValue:
-                                "{{count}}명 선택 · {{visible}}개 항목",
+                              defaultValue: '{{count}}명 선택 · {{visible}}개 항목',
                             })
-                          : t("task.checklistFilter.railAll", {
+                          : t('task.checklistFilter.railAll', {
                               total: checklistItems.length,
-                              defaultValue: "전체 {{total}}개 항목",
+                              defaultValue: '전체 {{total}}개 항목',
                             })}
                       </span>
                     </div>
                     <div
                       role="group"
-                      aria-label={t("task.checklistFilter.groupLabel", {
-                        defaultValue: "담당자 필터",
+                      aria-label={t('task.checklistFilter.groupLabel', {
+                        defaultValue: '담당자 필터',
                       })}
                       className="flex items-center gap-2 overflow-x-auto custom-scrollbar px-8 md:px-10 pb-2"
                       style={{
                         maskImage:
-                          "linear-gradient(90deg, transparent 0px, #000 24px, #000 calc(100% - 24px), transparent 100%)",
+                          'linear-gradient(90deg, transparent 0px, #000 24px, #000 calc(100% - 24px), transparent 100%)',
                         WebkitMaskImage:
-                          "linear-gradient(90deg, transparent 0px, #000 24px, #000 calc(100% - 24px), transparent 100%)",
+                          'linear-gradient(90deg, transparent 0px, #000 24px, #000 calc(100% - 24px), transparent 100%)',
                       }}
                     >
                       {/* 전체 칩 — 필터 초기화 겸 현재 상태 표시 */}
@@ -2300,31 +2144,22 @@ export function TaskDetailModal({
                         aria-pressed={!isChecklistFilterActive}
                         className={`flex-shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-full border text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
                           !isChecklistFilterActive
-                            ? "bg-foreground/10 border-foreground/15 text-foreground font-bold"
-                            : "bg-foreground/[0.04] border-foreground/10 text-slate-400 hover:bg-foreground/10"
+                            ? 'bg-foreground/10 border-foreground/15 text-foreground font-bold'
+                            : 'bg-foreground/[0.04] border-foreground/10 text-slate-400 hover:bg-foreground/10'
                         }`}
                       >
                         <span>
-                          {t("task.checklistFilter.all", {
-                            defaultValue: "전체",
+                          {t('task.checklistFilter.all', {
+                            defaultValue: '전체',
                           })}
                         </span>
-                        <span className="tabular-nums text-slate-500">
-                          {checklistItems.length}
-                        </span>
+                        <span className="tabular-nums text-slate-500">{checklistItems.length}</span>
                       </button>
 
                       {checklistAssigneeStats.assignees.map((assignee) => {
-                        const memberData = boardMembers.find(
-                          (m) => m.userId === assignee.id,
-                        );
-                        const color = getAssigneeClasses(
-                          assignee.name,
-                          memberData?.assigneeColor,
-                        );
-                        const isActive = filterAssigneeIds.includes(
-                          assignee.id,
-                        );
+                        const memberData = boardMembers.find((m) => m.userId === assignee.id);
+                        const color = getAssigneeClasses(assignee.name, memberData?.assigneeColor);
+                        const isActive = filterAssigneeIds.includes(assignee.id);
                         return (
                           <button
                             key={assignee.id}
@@ -2333,34 +2168,26 @@ export function TaskDetailModal({
                             aria-pressed={isActive}
                             className={`flex-shrink-0 flex items-center gap-1.5 h-8 pl-1 pr-3 rounded-full border text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
                               isActive
-                                ? "bg-bridge-accent/15 border-bridge-accent/45"
-                                : "bg-foreground/[0.04] border-foreground/10 hover:bg-foreground/10"
+                                ? 'bg-bridge-accent/15 border-bridge-accent/45'
+                                : 'bg-foreground/[0.04] border-foreground/10 hover:bg-foreground/10'
                             }`}
                           >
                             <span
                               className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white leading-none overflow-hidden whitespace-nowrap`}
-                              style={
-                                !color.bg
-                                  ? { backgroundColor: color.hex }
-                                  : undefined
-                              }
+                              style={!color.bg ? { backgroundColor: color.hex } : undefined}
                             >
                               {getInitials(assignee.name)}
                             </span>
                             <span
                               className={`whitespace-nowrap ${
-                                isActive
-                                  ? "text-bridge-accent font-bold"
-                                  : "text-foreground"
+                                isActive ? 'text-bridge-accent font-bold' : 'text-foreground'
                               }`}
                             >
                               {assignee.name}
                             </span>
                             <span
                               className={`tabular-nums ${
-                                isActive
-                                  ? "text-bridge-accent/70"
-                                  : "text-slate-500"
+                                isActive ? 'text-bridge-accent/70' : 'text-slate-500'
                               }`}
                             >
                               {assignee.count}
@@ -2376,19 +2203,16 @@ export function TaskDetailModal({
                             className="flex-shrink-0 w-px h-5 bg-foreground/10"
                           />
                           {(() => {
-                            const isActive =
-                              filterAssigneeIds.includes("__no_assignee__");
+                            const isActive = filterAssigneeIds.includes('__no_assignee__');
                             return (
                               <button
                                 type="button"
-                                onClick={() =>
-                                  toggleAssigneeFilter("__no_assignee__")
-                                }
+                                onClick={() => toggleAssigneeFilter('__no_assignee__')}
                                 aria-pressed={isActive}
                                 className={`flex-shrink-0 flex items-center gap-1.5 h-8 pl-1 pr-3 rounded-full border text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
                                   isActive
-                                    ? "bg-bridge-accent/15 border-bridge-accent/45"
-                                    : "bg-foreground/[0.04] border-foreground/10 hover:bg-foreground/10"
+                                    ? 'bg-bridge-accent/15 border-bridge-accent/45'
+                                    : 'bg-foreground/[0.04] border-foreground/10 hover:bg-foreground/10'
                                 }`}
                               >
                                 <span className="w-6 h-6 rounded-full border border-dashed border-foreground/20 flex items-center justify-center text-xs text-slate-500 leading-none">
@@ -2396,21 +2220,14 @@ export function TaskDetailModal({
                                 </span>
                                 <span
                                   className={`whitespace-nowrap ${
-                                    isActive
-                                      ? "text-bridge-accent font-bold"
-                                      : "text-slate-400"
+                                    isActive ? 'text-bridge-accent font-bold' : 'text-slate-400'
                                   }`}
                                 >
-                                  {t(
-                                    "task.checklistFilter.unassigned",
-                                    "미할당",
-                                  )}
+                                  {t('task.checklistFilter.unassigned', '미할당')}
                                 </span>
                                 <span
                                   className={`tabular-nums ${
-                                    isActive
-                                      ? "text-bridge-accent/70"
-                                      : "text-slate-500"
+                                    isActive ? 'text-bridge-accent/70' : 'text-slate-500'
                                   }`}
                                 >
                                   {checklistAssigneeStats.unassignedCount}
@@ -2429,7 +2246,7 @@ export function TaskDetailModal({
                   <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4 text-slate-400" />
                     <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                      {t("task.description")}
+                      {t('task.description')}
                     </Label>
                     {isJiraOwnedDescription &&
                       (jiraIssueHref ? (
@@ -2453,21 +2270,18 @@ export function TaskDetailModal({
                       ))}
                   </div>
                   <Textarea
-                    value={editedTask.description || ""}
-                    onChange={(e) =>
-                      canEditDescription &&
-                      handleDescriptionChange(e.target.value)
-                    }
-                    placeholder={t("task.noDescription")}
+                    value={editedTask.description || ''}
+                    onChange={(e) => canEditDescription && handleDescriptionChange(e.target.value)}
+                    placeholder={t('task.noDescription')}
                     rows={7}
                     readOnly={!canEditDescription}
-                    className={`max-h-[240px] overflow-y-auto custom-scrollbar bg-bridge-dark/50 border-bridge-border/30 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEditDescription ? "cursor-default" : ""}`}
+                    className={`max-h-[240px] overflow-y-auto custom-scrollbar bg-bridge-dark/50 border-bridge-border/30 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEditDescription ? 'cursor-default' : ''}`}
                   />
                   {isJiraOwnedDescription && canEdit && (
                     <p className="text-xs text-slate-500">
                       {t(
-                        "task.jiraDescriptionLocked",
-                        "JIRA가 관리하는 설명입니다. 수정은 JIRA 이슈에서 하세요.",
+                        'task.jiraDescriptionLocked',
+                        'JIRA가 관리하는 설명입니다. 수정은 JIRA 이슈에서 하세요.',
                       )}
                     </p>
                   )}
@@ -2481,11 +2295,9 @@ export function TaskDetailModal({
                     <div className="flex items-center gap-2">
                       <CheckSquare
                         className="h-5 w-5"
-                        style={{ color: task.feature_color || "#6366F1" }}
+                        style={{ color: task.feature_color || '#6366F1' }}
                       />
-                      <Label className="text-base font-bold text-foreground">
-                        CheckList
-                      </Label>
+                      <Label className="text-base font-bold text-foreground">CheckList</Label>
                       {canEdit && boardId && !isRestricted && (
                         <button
                           onClick={() => setShowAIConfirm(true)}
@@ -2503,11 +2315,11 @@ export function TaskDetailModal({
                           size="sm"
                           onClick={handleCopyChecklistText}
                           className="h-7 px-2 text-slate-400 hover:text-foreground hover:bg-foreground/10"
-                          title={t("task.copyChecklist", {
-                            defaultValue: "체크리스트 복사",
+                          title={t('task.copyChecklist', {
+                            defaultValue: '체크리스트 복사',
                           })}
-                          aria-label={t("task.copyChecklist", {
-                            defaultValue: "체크리스트 복사",
+                          aria-label={t('task.copyChecklist', {
+                            defaultValue: '체크리스트 복사',
                           })}
                         >
                           {checklistCopied ? (
@@ -2519,10 +2331,10 @@ export function TaskDetailModal({
                       )}
                       {isChecklistFilterActive && (
                         <span className="text-xs text-slate-500">
-                          {t("task.checklistFilter.showingCount", {
+                          {t('task.checklistFilter.showingCount', {
                             visible: visibleChecklistItems.length,
                             total: checklistItems.length,
-                            defaultValue: "{{visible}} / {{total}} 표시 중",
+                            defaultValue: '{{visible}} / {{total}} 표시 중',
                           })}
                         </span>
                       )}
@@ -2532,32 +2344,30 @@ export function TaskDetailModal({
                           {(
                             [
                               {
-                                mode: "list" as const,
+                                mode: 'list' as const,
                                 icon: List,
-                                label: t("task.checklistView.list", {
-                                  defaultValue: "리스트",
+                                label: t('task.checklistView.list', {
+                                  defaultValue: '리스트',
                                 }),
                               },
                               {
-                                mode: "board" as const,
+                                mode: 'board' as const,
                                 icon: LayoutGrid,
-                                label: t("task.checklistView.board", {
-                                  defaultValue: "보드",
+                                label: t('task.checklistView.board', {
+                                  defaultValue: '보드',
                                 }),
                               },
                             ] as const
                           ).map(({ mode, icon: Icon, label }) => (
                             <button
                               key={mode}
-                              onClick={() =>
-                                handleChecklistViewModeChange(mode)
-                              }
+                              onClick={() => handleChecklistViewModeChange(mode)}
                               aria-label={label}
                               aria-pressed={checklistViewMode === mode}
                               className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold transition-colors ${
                                 checklistViewMode === mode
-                                  ? "bg-foreground/10 text-foreground"
-                                  : "text-slate-400 hover:text-foreground"
+                                  ? 'bg-foreground/10 text-foreground'
+                                  : 'text-slate-400 hover:text-foreground'
                               }`}
                             >
                               <Icon className="h-3.5 w-3.5" />
@@ -2571,13 +2381,13 @@ export function TaskDetailModal({
                           className="h-full rounded-full transition-all duration-300"
                           style={{
                             width: `${checklistProgress}%`,
-                            backgroundColor: task.feature_color || "#6366F1",
+                            backgroundColor: task.feature_color || '#6366F1',
                           }}
                         />
                       </div>
                       <span
                         className="text-sm font-medium"
-                        style={{ color: task.feature_color || "#6366F1" }}
+                        style={{ color: task.feature_color || '#6366F1' }}
                       >
                         {checklistProgress}%
                       </span>
@@ -2591,31 +2401,26 @@ export function TaskDetailModal({
                         <div
                           className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
                           style={{
-                            backgroundColor: `${task.feature_color || "#6366F1"}15`,
+                            backgroundColor: `${task.feature_color || '#6366F1'}15`,
                           }}
                         >
-                          <Lightbulb
-                            size={14}
-                            style={{ color: task.feature_color || "#6366F1" }}
-                          />
+                          <Lightbulb size={14} style={{ color: task.feature_color || '#6366F1' }} />
                         </div>
                         <div>
                           <p className="text-xs font-medium text-foreground/80 mb-1">
-                            {t("task.addChecklistHint")}
+                            {t('task.addChecklistHint')}
                           </p>
                           <p className="text-xs text-slate-500 leading-relaxed">
-                            {t("task.addChecklistDesc")}
+                            {t('task.addChecklistDesc')}
                           </p>
                         </div>
                       </div>
                     )}
-                    {isChecklistFilterActive &&
-                    visibleChecklistItems.length === 0 ? (
+                    {isChecklistFilterActive && visibleChecklistItems.length === 0 ? (
                       <div className="py-10 text-center">
                         <p className="text-xs text-slate-500">
-                          {t("task.checklistFilter.empty", {
-                            defaultValue:
-                              "선택한 담당자의 체크리스트 항목이 없습니다.",
+                          {t('task.checklistFilter.empty', {
+                            defaultValue: '선택한 담당자의 체크리스트 항목이 없습니다.',
                           })}
                         </p>
                         <button
@@ -2623,10 +2428,10 @@ export function TaskDetailModal({
                           onClick={() => setFilterAssigneeIds([])}
                           className="mt-2 text-xs font-bold text-bridge-accent hover:underline"
                         >
-                          {t("task.clearFilter", "필터 해제")}
+                          {t('task.clearFilter', '필터 해제')}
                         </button>
                       </div>
-                    ) : checklistViewMode === "board" ? (
+                    ) : checklistViewMode === 'board' ? (
                       <ChecklistStatusBoard
                         items={visibleChecklistItems}
                         canEdit={canEdit}
@@ -2640,26 +2445,20 @@ export function TaskDetailModal({
                         onUpdateItem={handleUpdateChecklistItem}
                         onDelete={setChecklistItemToDelete}
                         onMoveToTask={
-                          onMoveChecklistToTask &&
-                          (allTasks.length > 1 || milestones.length > 1)
+                          onMoveChecklistToTask && (allTasks.length > 1 || milestones.length > 1)
                             ? (itemId) => {
                                 setMoveChecklistItemId(itemId);
                                 setShowMoveChecklistDialog(true);
                               }
                             : undefined
                         }
-                        onQuickAdd={(title) =>
-                          handleAddChecklistItem({ title })
-                        }
+                        onQuickAdd={(title) => handleAddChecklistItem({ title })}
                       />
                     ) : (
                       <DndContext
                         sensors={checklistSensors}
                         collisionDetection={closestCenter}
-                        modifiers={[
-                          restrictToVerticalAxis,
-                          restrictToParentElement,
-                        ]}
+                        modifiers={[restrictToVerticalAxis, restrictToParentElement]}
                         onDragEnd={handleChecklistDragEnd}
                       >
                         <SortableContext
@@ -2670,12 +2469,8 @@ export function TaskDetailModal({
                             <SortableChecklistItemRow
                               key={item.id}
                               item={item}
-                              onToggle={() =>
-                                handleToggleChecklistItem(item.id)
-                              }
-                              onUpdate={(updates) =>
-                                handleUpdateChecklistItem(item.id, updates)
-                              }
+                              onToggle={() => handleToggleChecklistItem(item.id)}
+                              onUpdate={(updates) => handleUpdateChecklistItem(item.id, updates)}
                               onDelete={() => setChecklistItemToDelete(item.id)}
                               onMoveToTask={
                                 onMoveChecklistToTask &&
@@ -2691,14 +2486,8 @@ export function TaskDetailModal({
                                   ? () => openMergeChecklistDialog(item.id)
                                   : undefined
                               }
-                              onDelegate={
-                                canDelegate
-                                  ? () => openDelegate(item.id)
-                                  : undefined
-                              }
-                              autofixJob={autofixJobs.byChecklistItem.get(
-                                item.id,
-                              )}
+                              onDelegate={canDelegate ? () => openDelegate(item.id) : undefined}
+                              autofixJob={autofixJobs.byChecklistItem.get(item.id)}
                               siblingItems={checklistItems
                                 .filter((ci) => ci.id !== item.id)
                                 .map((ci) => ({
@@ -2707,11 +2496,7 @@ export function TaskDetailModal({
                                   completed: ci.completed,
                                 }))}
                               onReassignBlock={(blockId, targetItemId) =>
-                                handleReassignTimeBlock(
-                                  blockId,
-                                  item.id,
-                                  targetItemId,
-                                )
+                                handleReassignTimeBlock(blockId, item.id, targetItemId)
                               }
                               boardMembers={boardMembers}
                               contractors={contractors}
@@ -2719,23 +2504,15 @@ export function TaskDetailModal({
                               canEdit={canEdit}
                               dragDisabled={isChecklistFilterActive}
                               isPersonal={isPersonal}
-                              preloadedTimeBlocks={
-                                checklistTimeBlocksMap[item.id]
-                              }
-                              isHighlighted={
-                                highlightChecklistItemId === item.id
-                              }
+                              preloadedTimeBlocks={checklistTimeBlocksMap[item.id]}
+                              isHighlighted={highlightChecklistItemId === item.id}
                               highlightRef={
                                 highlightChecklistItemId === item.id
                                   ? highlightChecklistRef
                                   : undefined
                               }
                               // 개인 스페이스는 boardId가 없어 댓글 API 자체가 없다 → 뱃지도 숨긴다
-                              onOpenDetail={
-                                boardId
-                                  ? () => setDetailItemId(item.id)
-                                  : undefined
-                              }
+                              onOpenDetail={boardId ? () => setDetailItemId(item.id) : undefined}
                             />
                           ))}
                         </SortableContext>
@@ -2793,16 +2570,11 @@ export function TaskDetailModal({
           }}
           boardId={boardId}
           taskId={task.id}
-          item={
-            checklistItems.find((ci) => ci.id === detailItemId) ??
-            lastDetailItemRef.current
-          }
+          item={checklistItems.find((ci) => ci.id === detailItemId) ?? lastDetailItemRef.current}
           itemMissing={!checklistItems.some((ci) => ci.id === detailItemId)}
           taskTitle={editedTask?.title || task.title}
           featureName={task.feature_title}
-          milestoneName={
-            milestones.find((m) => m.id === task.milestone_id)?.title
-          }
+          milestoneName={milestones.find((m) => m.id === task.milestone_id)?.title}
           boardMembers={boardMembers}
           currentUser={currentUser}
           canEdit={canEdit}
@@ -2820,16 +2592,14 @@ export function TaskDetailModal({
         onClose={() => setShowDeleteDialog(false)}
         className="sm:max-w-sm p-6"
       >
-        <h3 className="text-lg font-bold text-foreground">
-          {t("task.deleteTitle")}
-        </h3>
-        <p className="text-sm text-slate-400 mt-1">{t("task.deleteDesc")}</p>
+        <h3 className="text-lg font-bold text-foreground">{t('task.deleteTitle')}</h3>
+        <p className="text-sm text-slate-400 mt-1">{t('task.deleteDesc')}</p>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
           <button
             onClick={() => setShowDeleteDialog(false)}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10"
           >
-            {t("common.cancel")}
+            {t('common.cancel')}
           </button>
           <button
             onClick={() => {
@@ -2841,7 +2611,7 @@ export function TaskDetailModal({
             }}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-500 hover:bg-red-600 text-white"
           >
-            {t("common.delete")}
+            {t('common.delete')}
           </button>
         </div>
       </MotionModal>
@@ -2852,16 +2622,14 @@ export function TaskDetailModal({
         onClose={() => setShowDoneDialog(false)}
         className="sm:max-w-sm p-6"
       >
-        <h3 className="text-lg font-bold text-foreground">
-          {t("task.completeTitle")}
-        </h3>
-        <p className="text-sm text-slate-400 mt-1">{t("task.completeDesc")}</p>
+        <h3 className="text-lg font-bold text-foreground">{t('task.completeTitle')}</h3>
+        <p className="text-sm text-slate-400 mt-1">{t('task.completeDesc')}</p>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
           <button
             onClick={() => setShowDoneDialog(false)}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10"
           >
-            {t("common.cancel")}
+            {t('common.cancel')}
           </button>
           <button
             onClick={() => {
@@ -2873,7 +2641,7 @@ export function TaskDetailModal({
             }}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white"
           >
-            {t("task.markComplete")}
+            {t('task.markComplete')}
           </button>
         </div>
       </MotionModal>
@@ -2885,21 +2653,17 @@ export function TaskDetailModal({
           setShowMoveFeatureDialog(false);
           setSelectedFeatureId(null);
           setMoveFeatureMilestoneId(null);
-          setMoveFeatureSearch("");
+          setMoveFeatureSearch('');
         }}
         className="sm:max-w-2xl p-6"
       >
-        <h3 className="text-lg font-bold text-foreground">
-          {t("task.moveFeatureTitle")}
-        </h3>
-        <p className="text-sm text-slate-400 mt-1">
-          {t("task.moveFeatureDesc")}
-        </p>
+        <h3 className="text-lg font-bold text-foreground">{t('task.moveFeatureTitle')}</h3>
+        <p className="text-sm text-slate-400 mt-1">{t('task.moveFeatureDesc')}</p>
         {/* 지금: 현재 Task가 속한 Feature */}
         {currentFeatureInfo && (
           <div className="mt-3 flex items-center gap-2.5 flex-wrap bg-bridge-surface border border-foreground/[0.08] rounded-xl px-3.5 py-2.5">
             <span className="text-xs font-bold uppercase tracking-widest text-slate-500 flex-shrink-0">
-              {t("task.moveFeatureCurrentLabel", "지금")}
+              {t('task.moveFeatureCurrentLabel', '지금')}
             </span>
             <span
               className="w-2.5 h-2.5 rounded-full flex-shrink-0"
@@ -2930,30 +2694,24 @@ export function TaskDetailModal({
               setMoveFeatureSearch(v);
               setSelectedFeatureId(null);
               // 입력 시 전체 마일스톤으로 넓혀 검색
-              if (v.trim()) setMoveFeatureMilestoneId("all");
+              if (v.trim()) setMoveFeatureMilestoneId('all');
             }}
-            placeholder={t(
-              "task.moveFeatureSearchPlaceholder",
-              "Feature 이름으로 검색",
-            )}
+            placeholder={t('task.moveFeatureSearchPlaceholder', 'Feature 이름으로 검색')}
             className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 pl-9 pr-3 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
           />
         </div>
         {/* 2단 드릴다운: 마일스톤 → Feature */}
         {(() => {
           const query = moveFeatureSearch.trim().toLowerCase();
-          const base = moveFeatureCandidates.filter(
-            (f) => f.id !== task?.feature_id,
-          );
+          const base = moveFeatureCandidates.filter((f) => f.id !== task?.feature_id);
           const countFor = (mid: string) =>
-            mid === "all"
+            mid === 'all'
               ? base.length
-              : base.filter((f) => f.milestones.some((ms) => ms.id === mid))
-                  .length;
+              : base.filter((f) => f.milestones.some((ms) => ms.id === mid)).length;
           const featureList = base.filter((f) => {
             if (
               moveFeatureMilestoneId &&
-              moveFeatureMilestoneId !== "all" &&
+              moveFeatureMilestoneId !== 'all' &&
               !f.milestones.some((ms) => ms.id === moveFeatureMilestoneId)
             ) {
               return false;
@@ -2962,7 +2720,7 @@ export function TaskDetailModal({
             return true;
           });
           const milestoneOptions = [
-            { id: "all", title: t("task.moveFeatureAllMilestones", "전체") },
+            { id: 'all', title: t('task.moveFeatureAllMilestones', '전체') },
             ...milestones.map((m) => ({ id: m.id, title: m.title })),
           ];
           return (
@@ -2971,18 +2729,14 @@ export function TaskDetailModal({
               <div className="min-h-[300px] max-h-[340px] overflow-y-auto custom-scrollbar border-r border-foreground/[0.08] bg-foreground/[0.015]">
                 <div className="sticky top-0 z-10 bg-bridge-obsidian px-4 pt-3 pb-2">
                   <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                    {t("task.moveChecklistMilestoneLabel", "마일스톤")}
+                    {t('task.moveChecklistMilestoneLabel', '마일스톤')}
                   </span>
                 </div>
                 {milestoneOptions.map((m) => {
                   const on =
-                    moveFeatureMilestoneId === m.id ||
-                    (!moveFeatureMilestoneId && m.id === "all");
+                    moveFeatureMilestoneId === m.id || (!moveFeatureMilestoneId && m.id === 'all');
                   const isCurrent =
-                    m.id !== "all" &&
-                    !!currentFeatureInfo?.milestones.some(
-                      (ms) => ms.id === m.id,
-                    );
+                    m.id !== 'all' && !!currentFeatureInfo?.milestones.some((ms) => ms.id === m.id);
                   return (
                     <button
                       key={m.id}
@@ -2992,8 +2746,8 @@ export function TaskDetailModal({
                       }}
                       className={`w-full flex items-center gap-2.5 px-4 py-3 text-left border-l-2 transition-colors ${
                         on
-                          ? "bg-bridge-accent/15 border-bridge-accent"
-                          : "border-transparent hover:bg-foreground/5"
+                          ? 'bg-bridge-accent/15 border-bridge-accent'
+                          : 'border-transparent hover:bg-foreground/5'
                       }`}
                     >
                       <span className="flex-1 truncate text-sm font-medium text-slate-300">
@@ -3001,7 +2755,7 @@ export function TaskDetailModal({
                       </span>
                       {isCurrent && (
                         <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-bridge-secondary/15 text-bridge-secondary flex-shrink-0">
-                          {t("task.moveCurrentBadge", "현재")}
+                          {t('task.moveCurrentBadge', '현재')}
                         </span>
                       )}
                       <span className="text-xs text-slate-500 tabular-nums bg-foreground/5 px-2 py-0.5 rounded-full flex-shrink-0">
@@ -3026,21 +2780,13 @@ export function TaskDetailModal({
                     <Search className="w-8 h-8 opacity-40" />
                     <p className="text-sm">
                       {query
-                        ? t(
-                            "task.moveFeatureSearchEmpty",
-                            "검색 결과가 없습니다",
-                          )
-                        : t(
-                            "task.moveFeatureEmpty",
-                            "이동할 Feature가 없습니다",
-                          )}
+                        ? t('task.moveFeatureSearchEmpty', '검색 결과가 없습니다')
+                        : t('task.moveFeatureEmpty', '이동할 Feature가 없습니다')}
                     </p>
                   </div>
                 ) : (
                   featureList.map((feature) => {
-                    const idx = query
-                      ? feature.title.toLowerCase().indexOf(query)
-                      : -1;
+                    const idx = query ? feature.title.toLowerCase().indexOf(query) : -1;
                     const titleNode =
                       idx >= 0 ? (
                         <>
@@ -3059,7 +2805,7 @@ export function TaskDetailModal({
                         key={feature.id}
                         onClick={() => setSelectedFeatureId(feature.id)}
                         className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                          sel ? "bg-bridge-accent/15" : "hover:bg-foreground/5"
+                          sel ? 'bg-bridge-accent/15' : 'hover:bg-foreground/5'
                         }`}
                       >
                         <span
@@ -3089,9 +2835,7 @@ export function TaskDetailModal({
                         )}
                         <span
                           className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
-                            sel
-                              ? "bg-bridge-accent border-bridge-accent"
-                              : "border-foreground/20"
+                            sel ? 'bg-bridge-accent border-bridge-accent' : 'border-foreground/20'
                           }`}
                         >
                           {sel && <Check className="w-3 h-3 text-white" />}
@@ -3106,20 +2850,18 @@ export function TaskDetailModal({
         })()}
         {/* 이동 대상 미리보기 */}
         {(() => {
-          const selFeature = moveFeatureCandidates.find(
-            (f) => f.id === selectedFeatureId,
-          );
+          const selFeature = moveFeatureCandidates.find((f) => f.id === selectedFeatureId);
           const ready = !!selFeature;
           return (
             <div
               className={`mt-3 flex items-center gap-2 flex-wrap px-4 py-3 rounded-xl border text-sm ${
                 ready
-                  ? "border-bridge-accent/40 bg-bridge-accent/10"
-                  : "border-dashed border-foreground/10 bg-foreground/[0.03]"
+                  ? 'border-bridge-accent/40 bg-bridge-accent/10'
+                  : 'border-dashed border-foreground/10 bg-foreground/[0.03]'
               }`}
             >
               <span className="text-xs font-bold uppercase tracking-widest text-slate-500 flex-shrink-0">
-                {t("task.moveDestLabel", "이동 대상")}
+                {t('task.moveDestLabel', '이동 대상')}
               </span>
               {selFeature ? (
                 <>
@@ -3127,9 +2869,7 @@ export function TaskDetailModal({
                     className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: selFeature.color }}
                   />
-                  <span className="text-foreground font-bold">
-                    {selFeature.title}
-                  </span>
+                  <span className="text-foreground font-bold">{selFeature.title}</span>
                   {selFeature.milestones.slice(0, 2).map((ms) => (
                     <span
                       key={ms.id}
@@ -3141,9 +2881,7 @@ export function TaskDetailModal({
                   ))}
                 </>
               ) : (
-                <span className="text-slate-500">
-                  {t("task.moveNoDest", "아직 선택 안 됨")}
-                </span>
+                <span className="text-slate-500">{t('task.moveNoDest', '아직 선택 안 됨')}</span>
               )}
             </div>
           );
@@ -3155,11 +2893,11 @@ export function TaskDetailModal({
               setShowMoveFeatureDialog(false);
               setSelectedFeatureId(null);
               setMoveFeatureMilestoneId(null);
-              setMoveFeatureSearch("");
+              setMoveFeatureSearch('');
             }}
             className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
           >
-            {t("common.cancel")}
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={() => {
@@ -3169,18 +2907,17 @@ export function TaskDetailModal({
               setShowMoveFeatureDialog(false);
               setSelectedFeatureId(null);
               setMoveFeatureMilestoneId(null);
-              setMoveFeatureSearch("");
+              setMoveFeatureSearch('');
               onClose();
             }}
             disabled={!selectedFeatureId}
             className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50 max-w-[260px] truncate"
           >
             {selectedFeatureId
-              ? `${t("task.move")} → ${
-                  moveFeatureCandidates.find((f) => f.id === selectedFeatureId)
-                    ?.title ?? ""
+              ? `${t('task.move')} → ${
+                  moveFeatureCandidates.find((f) => f.id === selectedFeatureId)?.title ?? ''
                 }`
-              : t("task.move")}
+              : t('task.move')}
           </Button>
         </div>
       </MotionModal>
@@ -3191,17 +2928,13 @@ export function TaskDetailModal({
         onClose={closeMoveChecklistDialog}
         className="sm:max-w-2xl p-6"
       >
-        <h3 className="text-lg font-bold text-foreground">
-          {t("task.moveChecklistToTaskTitle")}
-        </h3>
-        <p className="text-sm text-slate-400 mt-1">
-          {t("task.moveChecklistToTaskDesc")}
-        </p>
+        <h3 className="text-lg font-bold text-foreground">{t('task.moveChecklistToTaskTitle')}</h3>
+        <p className="text-sm text-slate-400 mt-1">{t('task.moveChecklistToTaskDesc')}</p>
         {/* 마일스톤 선택 */}
         {milestones.length > 0 && (
           <div className="mt-3">
             <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">
-              {t("task.moveChecklistMilestoneLabel", "마일스톤")}
+              {t('task.moveChecklistMilestoneLabel', '마일스톤')}
             </div>
             <div className="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1">
               {milestones.map((m) => (
@@ -3217,8 +2950,8 @@ export function TaskDetailModal({
                   }}
                   className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
                     moveTargetMilestoneId === m.id
-                      ? "bg-bridge-accent text-white"
-                      : "bg-foreground/5 text-slate-400 hover:bg-foreground/10"
+                      ? 'bg-bridge-accent text-white'
+                      : 'bg-foreground/5 text-slate-400 hover:bg-foreground/10'
                   }`}
                 >
                   {m.title}
@@ -3233,7 +2966,7 @@ export function TaskDetailModal({
           <div className="min-h-[300px] max-h-[340px] overflow-y-auto custom-scrollbar border-r border-foreground/[0.08] bg-foreground/[0.015]">
             <div className="sticky top-0 z-10 bg-bridge-obsidian px-4 pt-3 pb-2 flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                {t("task.moveFeatureColLabel", "피처")}
+                {t('task.moveFeatureColLabel', '피처')}
               </span>
               {!loadingMoveMilestoneTasks && moveTargetFeatures.length > 0 && (
                 <span className="ml-auto text-xs text-slate-500 tabular-nums">
@@ -3247,7 +2980,7 @@ export function TaskDetailModal({
               </div>
             ) : moveTargetFeatures.length === 0 ? (
               <p className="text-xs text-slate-500 text-center py-10">
-                {t("schedule.moveToTask.noTasks", "태스크가 없습니다")}
+                {t('schedule.moveToTask.noTasks', '태스크가 없습니다')}
               </p>
             ) : (
               moveTargetFeatures.map((f) => {
@@ -3270,8 +3003,8 @@ export function TaskDetailModal({
                     }}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-left border-l-2 transition-colors ${
                       on
-                        ? "bg-bridge-accent/15 border-bridge-accent"
-                        : "border-transparent hover:bg-foreground/5"
+                        ? 'bg-bridge-accent/15 border-bridge-accent'
+                        : 'border-transparent hover:bg-foreground/5'
                     }`}
                   >
                     <span
@@ -3283,7 +3016,7 @@ export function TaskDetailModal({
                     </span>
                     {isCurrent && (
                       <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-bridge-secondary/15 text-bridge-secondary flex-shrink-0">
-                        {t("task.moveCurrentBadge", "현재")}
+                        {t('task.moveCurrentBadge', '현재')}
                       </span>
                     )}
                     <span className="text-xs text-slate-500 tabular-nums bg-foreground/5 px-2 py-0.5 rounded-full flex-shrink-0">
@@ -3298,9 +3031,7 @@ export function TaskDetailModal({
           {/* Task 컬럼 */}
           <div className="min-h-[300px] max-h-[340px] overflow-y-auto custom-scrollbar flex flex-col">
             {(() => {
-              const selFeat = moveTargetFeatures.find(
-                (f) => f.id === selectedTargetFeatureId,
-              );
+              const selFeat = moveTargetFeatures.find((f) => f.id === selectedTargetFeatureId);
               const header = (
                 <div className="sticky top-0 z-10 bg-bridge-obsidian px-4 pt-3 pb-2 flex items-center gap-2">
                   <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
@@ -3320,10 +3051,7 @@ export function TaskDetailModal({
                     <div className="flex flex-col items-center justify-center gap-3 h-[240px] px-4 text-center text-slate-500">
                       <ChevronRight className="w-8 h-8 opacity-40" />
                       <p className="text-sm">
-                        {t(
-                          "task.movePickFeatureFirst",
-                          "왼쪽에서 피처를 먼저 선택하세요",
-                        )}
+                        {t('task.movePickFeatureFirst', '왼쪽에서 피처를 먼저 선택하세요')}
                       </p>
                     </div>
                   </>
@@ -3337,36 +3065,32 @@ export function TaskDetailModal({
                 trimmedTitle.length > 0 &&
                 selFeat.tasks.some((mt) => mt.title.trim() === trimmedTitle);
               const prefilled =
-                trimmedTitle.length > 0 &&
-                trimmedTitle === movingChecklistTitle.trim();
+                trimmedTitle.length > 0 && trimmedTitle === movingChecklistTitle.trim();
               const hint = !trimmedTitle
                 ? {
-                    cls: "text-rose-600 dark:text-rose-400",
-                    text: t(
-                      "task.moveNewTaskHintEmpty",
-                      "제목을 입력해야 만들 수 있어요.",
-                    ),
+                    cls: 'text-rose-600 dark:text-rose-400',
+                    text: t('task.moveNewTaskHintEmpty', '제목을 입력해야 만들 수 있어요.'),
                   }
                 : duplicateTitle
                   ? {
-                      cls: "text-amber-600 dark:text-amber-400",
+                      cls: 'text-amber-600 dark:text-amber-400',
                       text: t(
-                        "task.moveNewTaskHintDuplicate",
-                        "같은 이름의 Task가 이 피처에 이미 있어요. 그대로 만들 수도 있고, 위 목록에서 기존 Task를 골라도 됩니다.",
+                        'task.moveNewTaskHintDuplicate',
+                        '같은 이름의 Task가 이 피처에 이미 있어요. 그대로 만들 수도 있고, 위 목록에서 기존 Task를 골라도 됩니다.',
                       ),
                     }
                   : prefilled
                     ? {
-                        cls: "text-slate-500",
+                        cls: 'text-slate-500',
                         text: t(
-                          "task.moveNewTaskHintPrefilled",
-                          "체크리스트 텍스트를 제목으로 미리 채웠어요. 고쳐 써도 됩니다.",
+                          'task.moveNewTaskHintPrefilled',
+                          '체크리스트 텍스트를 제목으로 미리 채웠어요. 고쳐 써도 됩니다.',
                         ),
                       }
                     : {
-                        cls: "text-slate-500",
+                        cls: 'text-slate-500',
                         text: t(
-                          "task.moveNewTaskHintCreate",
+                          'task.moveNewTaskHintCreate',
                           '"만들고 이동"을 누를 때 Task가 실제로 생성됩니다.',
                         ),
                       };
@@ -3374,7 +3098,7 @@ export function TaskDetailModal({
                 <div className="sticky bottom-0 z-10 bg-bridge-obsidian p-2">
                   <div
                     className={`rounded-xl border p-3 flex flex-col gap-2 bg-foreground/[0.03] ${
-                      trimmedTitle ? "border-bridge-accent" : "border-rose-500/60"
+                      trimmedTitle ? 'border-bridge-accent' : 'border-rose-500/60'
                     }`}
                   >
                     <input
@@ -3387,18 +3111,17 @@ export function TaskDetailModal({
                         if (moveError) setMoveError(null);
                       }}
                       onKeyDown={(e) => {
-                        if (e.key === "Escape") {
+                        if (e.key === 'Escape') {
                           e.preventDefault();
                           e.stopPropagation();
                           closeNewTaskForm();
-                        } else if (e.key === "Enter") {
+                        } else if (e.key === 'Enter') {
                           e.preventDefault();
-                          if (trimmedTitle && !moveBusy)
-                            void handleMoveChecklistConfirm();
+                          if (trimmedTitle && !moveBusy) void handleMoveChecklistConfirm();
                         }
                       }}
-                      placeholder={t("task.moveNewTaskPlaceholder", "Task 제목")}
-                      aria-label={t("task.moveNewTaskRow", "새 Task 만들기")}
+                      placeholder={t('task.moveNewTaskPlaceholder', 'Task 제목')}
+                      aria-label={t('task.moveNewTaskRow', '새 Task 만들기')}
                       className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 px-3 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                     />
                     <p className={`text-xs ${hint.cls}`}>{hint.text}</p>
@@ -3409,7 +3132,7 @@ export function TaskDetailModal({
                         disabled={moveBusy}
                         className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                       >
-                        {t("common.cancel")}
+                        {t('common.cancel')}
                         <kbd className="text-xs text-slate-500 border border-foreground/10 rounded px-1">
                           Esc
                         </kbd>
@@ -3426,7 +3149,7 @@ export function TaskDetailModal({
                     disabled={!canEdit}
                     title={
                       !canEdit
-                        ? t("task.moveNewTaskNoPermission", "Task 생성 권한이 없어요")
+                        ? t('task.moveNewTaskNoPermission', 'Task 생성 권한이 없어요')
                         : undefined
                     }
                     className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-dashed border-foreground/15 text-sm text-slate-400 hover:border-bridge-accent hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-foreground/15 disabled:hover:text-slate-400"
@@ -3434,7 +3157,7 @@ export function TaskDetailModal({
                     <span className="w-5 h-5 rounded-md bg-foreground/5 flex items-center justify-center text-bridge-accent flex-shrink-0">
                       <Plus className="w-3.5 h-3.5" />
                     </span>
-                    <span>{t("task.moveNewTaskRow", "새 Task 만들기")}</span>
+                    <span>{t('task.moveNewTaskRow', '새 Task 만들기')}</span>
                     <kbd className="ml-auto text-xs text-slate-500 border border-foreground/10 rounded px-1">
                       N
                     </kbd>
@@ -3451,15 +3174,12 @@ export function TaskDetailModal({
                         <Plus className="w-5 h-5" />
                       </span>
                       <p className="text-sm font-bold text-foreground">
-                        {t(
-                          "task.moveNewTaskEmptyTitle",
-                          "이 피처에는 아직 Task가 없어요",
-                        )}
+                        {t('task.moveNewTaskEmptyTitle', '이 피처에는 아직 Task가 없어요')}
                       </p>
                       <p className="text-xs text-slate-500">
                         {t(
-                          "task.moveNewTaskEmptyDesc",
-                          "새 Task를 만들면 체크리스트 항목이 그 안으로 이동합니다.",
+                          'task.moveNewTaskEmptyDesc',
+                          '새 Task를 만들면 체크리스트 항목이 그 안으로 이동합니다.',
                         )}
                       </p>
                       <button
@@ -3468,16 +3188,13 @@ export function TaskDetailModal({
                         disabled={!canEdit}
                         title={
                           !canEdit
-                            ? t(
-                                "task.moveNewTaskNoPermission",
-                                "Task 생성 권한이 없어요",
-                              )
+                            ? t('task.moveNewTaskNoPermission', 'Task 생성 권한이 없어요')
                             : undefined
                         }
                         className="mt-1 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        {t("task.moveNewTaskRow", "새 Task 만들기")}
+                        {t('task.moveNewTaskRow', '새 Task 만들기')}
                       </button>
                     </div>
                   </>
@@ -3488,10 +3205,7 @@ export function TaskDetailModal({
                   {header}
                   {newTaskDiscarded && (
                     <p className="px-4 pb-1 text-xs text-amber-600 dark:text-amber-400">
-                      {t(
-                        "task.moveNewTaskDiscarded",
-                        "피처를 바꿔서 입력한 제목이 사라졌어요.",
-                      )}
+                      {t('task.moveNewTaskDiscarded', '피처를 바꿔서 입력한 제목이 사라졌어요.')}
                     </p>
                   )}
                   <div className="flex-1">
@@ -3509,26 +3223,24 @@ export function TaskDetailModal({
                             setSelectedTargetTaskId(mt.id);
                           }}
                           className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                            sel ? "bg-bridge-accent/15" : "hover:bg-foreground/5"
-                          } ${isSource ? "opacity-40 cursor-not-allowed" : ""}`}
+                            sel ? 'bg-bridge-accent/15' : 'hover:bg-foreground/5'
+                          } ${isSource ? 'opacity-40 cursor-not-allowed' : ''}`}
                         >
                           <span
                             className={`flex-1 truncate text-sm font-medium text-foreground ${
-                              mt.completed ? "line-through text-slate-400" : ""
+                              mt.completed ? 'line-through text-slate-400' : ''
                             }`}
                           >
                             {mt.title}
                             {isSource && (
                               <span className="ml-2 text-xs font-normal text-slate-500">
-                                · {t("task.moveCurrentLocation", "현재 위치")}
+                                · {t('task.moveCurrentLocation', '현재 위치')}
                               </span>
                             )}
                           </span>
                           <span
                             className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
-                              sel
-                                ? "bg-bridge-accent border-bridge-accent"
-                                : "border-foreground/20"
+                              sel ? 'bg-bridge-accent border-bridge-accent' : 'border-foreground/20'
                             }`}
                           >
                             {sel && <Check className="w-3 h-3 text-white" />}
@@ -3545,9 +3257,7 @@ export function TaskDetailModal({
         </div>
         {/* 이동 대상 경로 미리보기 */}
         {(() => {
-          const selFeat = moveTargetFeatures.find(
-            (f) => f.id === selectedTargetFeatureId,
-          );
+          const selFeat = moveTargetFeatures.find((f) => f.id === selectedTargetFeatureId);
           const selTask = newTaskMode
             ? undefined
             : selFeat?.tasks.find((tk) => tk.id === selectedTargetTaskId);
@@ -3558,12 +3268,12 @@ export function TaskDetailModal({
             <div
               className={`mt-3 flex items-center gap-2 flex-wrap px-4 py-3 rounded-xl border text-sm ${
                 ready
-                  ? "border-bridge-accent/40 bg-bridge-accent/10"
-                  : "border-dashed border-foreground/10 bg-foreground/[0.03]"
+                  ? 'border-bridge-accent/40 bg-bridge-accent/10'
+                  : 'border-dashed border-foreground/10 bg-foreground/[0.03]'
               }`}
             >
               <span className="text-xs font-bold uppercase tracking-widest text-slate-500 flex-shrink-0">
-                {t("task.moveDestLabel", "이동 대상")}
+                {t('task.moveDestLabel', '이동 대상')}
               </span>
               {selFeat ? (
                 <>
@@ -3585,38 +3295,27 @@ export function TaskDetailModal({
                         NEW
                       </span>
                       {trimmedTitle ? (
-                        <span className="text-foreground font-bold truncate">
-                          {trimmedTitle}
-                        </span>
+                        <span className="text-foreground font-bold truncate">{trimmedTitle}</span>
                       ) : (
                         <span className="text-slate-500">
-                          {t("task.moveNewTaskTyping", "제목 입력 중")}
+                          {t('task.moveNewTaskTyping', '제목 입력 중')}
                         </span>
                       )}
                     </>
                   ) : selTask ? (
-                    <span className="text-foreground font-bold">
-                      {selTask.title}
-                    </span>
+                    <span className="text-foreground font-bold">{selTask.title}</span>
                   ) : (
-                    <span className="text-slate-500">
-                      {t("task.movePickTask", "Task 선택")}
-                    </span>
+                    <span className="text-slate-500">{t('task.movePickTask', 'Task 선택')}</span>
                   )}
                 </>
               ) : (
-                <span className="text-slate-500">
-                  {t("task.moveNoDest", "아직 선택 안 됨")}
-                </span>
+                <span className="text-slate-500">{t('task.moveNoDest', '아직 선택 안 됨')}</span>
               )}
             </div>
           );
         })()}
         {moveError && (
-          <p
-            role="alert"
-            className="mt-2 text-xs text-rose-600 dark:text-rose-400"
-          >
+          <p role="alert" className="mt-2 text-xs text-rose-600 dark:text-rose-400">
             {moveError}
           </p>
         )}
@@ -3627,27 +3326,23 @@ export function TaskDetailModal({
             onClick={closeMoveChecklistDialog}
             className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
           >
-            {t("common.cancel")}
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={() => void handleMoveChecklistConfirm()}
-            disabled={
-              moveBusy ||
-              (newTaskMode ? !newTaskTitle.trim() : !selectedTargetTaskId)
-            }
+            disabled={moveBusy || (newTaskMode ? !newTaskTitle.trim() : !selectedTargetTaskId)}
             className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
           >
             {moveBusy ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : newTaskMode ? (
-              t("task.moveCreateAndMove", "만들고 이동")
+              t('task.moveCreateAndMove', '만들고 이동')
             ) : selectedTargetTaskId ? (
-              `${t("task.move")} → ${
-                moveMilestoneTasks.find((x) => x.id === selectedTargetTaskId)
-                  ?.title ?? ""
+              `${t('task.move')} → ${
+                moveMilestoneTasks.find((x) => x.id === selectedTargetTaskId)?.title ?? ''
               }`
             ) : (
-              t("task.move")
+              t('task.move')
             )}
           </Button>
         </div>
@@ -3660,14 +3355,10 @@ export function TaskDetailModal({
         className="sm:max-w-md p-0 overflow-hidden"
       >
         {(() => {
-          const target = checklistItems.find(
-            (ci) => ci.id === mergeTargetItemId,
-          );
+          const target = checklistItems.find((ci) => ci.id === mergeTargetItemId);
           if (!target) return null;
           const candidates = checklistItems.filter((ci) => ci.id !== target.id);
-          const selected = candidates.filter((ci) =>
-            mergeSelectedIds.has(ci.id),
-          );
+          const selected = candidates.filter((ci) => mergeSelectedIds.has(ci.id));
           const mergeAll = [target, ...selected];
 
           const blockMinutes = (b: ScheduleBlockDetailResponse) =>
@@ -3705,36 +3396,32 @@ export function TaskDetailModal({
             return `${m}m`;
           };
           const fmtDate = (d: string | null) =>
-            d ? format(new Date(d), "M/d", { locale: ko }) : "—";
+            d ? format(new Date(d), 'M/d', { locale: ko }) : '—';
           const fmtRange = (s: string | null, e: string | null) =>
-            s || e ? `${fmtDate(s)} → ${fmtDate(e)}` : "—";
+            s || e ? `${fmtDate(s)} → ${fmtDate(e)}` : '—';
 
           const todayStr = getTodayDateString();
           const statusMeta = (item: ChecklistItem) => {
             const col = resolveChecklistColumn(item, todayStr);
-            if (col === "done")
+            if (col === 'done')
               return {
-                label: t("task.mergeChecklist.statusDone", "완료"),
-                cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+                label: t('task.mergeChecklist.statusDone', '완료'),
+                cls: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
               };
-            if (col === "doing")
+            if (col === 'doing')
               return {
-                label: t("task.mergeChecklist.statusDoing", "진행중"),
-                cls: "bg-bridge-accent/15 text-bridge-accent",
+                label: t('task.mergeChecklist.statusDoing', '진행중'),
+                cls: 'bg-bridge-accent/15 text-bridge-accent',
               };
             return {
-              label: t("task.mergeChecklist.statusTodo", "예정"),
-              cls: "bg-slate-500/15 text-slate-400",
+              label: t('task.mergeChecklist.statusTodo', '예정'),
+              cls: 'bg-slate-500/15 text-slate-400',
             };
           };
 
           // 병합에 참여하는 담당자(대표 + 선택) 이름 목록
           const assigneeNames = Array.from(
-            new Set(
-              mergeAll
-                .map((it) => it.assignee?.name)
-                .filter((n): n is string => !!n),
-            ),
+            new Set(mergeAll.map((it) => it.assignee?.name).filter((n): n is string => !!n)),
           );
 
           // 대표/후보 행의 공통 본문 (제목·상태·담당자·기간·블록 + 아바타)
@@ -3754,9 +3441,7 @@ export function TaskDetailModal({
                   <div className="flex items-center gap-2">
                     <span
                       className={`text-sm font-medium truncate ${
-                        ci.completed
-                          ? "line-through text-slate-500"
-                          : "text-foreground"
+                        ci.completed ? 'line-through text-slate-500' : 'text-foreground'
                       }`}
                     >
                       {ci.title}
@@ -3770,9 +3455,7 @@ export function TaskDetailModal({
                   <div className="mt-1 flex items-center gap-2 text-xs text-slate-500 flex-wrap">
                     {ci.assignee && (
                       <>
-                        <span className="truncate max-w-[7rem]">
-                          {ci.assignee.name}
-                        </span>
+                        <span className="truncate max-w-[7rem]">{ci.assignee.name}</span>
                         <span className="w-px h-2.5 bg-foreground/15 flex-none" />
                       </>
                     )}
@@ -3783,26 +3466,23 @@ export function TaskDetailModal({
                     <span className="w-px h-2.5 bg-foreground/15 flex-none" />
                     <span
                       className={`inline-flex items-center gap-1 font-mono ${
-                        blocks.length === 0 ? "text-slate-600" : ""
+                        blocks.length === 0 ? 'text-slate-600' : ''
                       }`}
                     >
                       <Layers className="h-3 w-3 opacity-70" />
                       {blocks.length > 0
-                        ? t(
-                            "task.mergeChecklist.blockInfo",
-                            "블록 {{n}} · {{dur}}",
-                            { n: blocks.length, dur: fmtDur(mins) },
-                          )
-                        : t("task.mergeChecklist.noBlocks", "블록 없음")}
+                        ? t('task.mergeChecklist.blockInfo', '블록 {{n}} · {{dur}}', {
+                            n: blocks.length,
+                            dur: fmtDur(mins),
+                          })
+                        : t('task.mergeChecklist.noBlocks', '블록 없음')}
                     </span>
                   </div>
                 </div>
                 {ci.assignee && aColor && (
                   <div
                     className={`w-7 h-7 rounded-full ${aColor.bg} flex items-center justify-center text-xs text-white flex-none`}
-                    style={
-                      !aColor.bg ? { backgroundColor: aColor.hex } : undefined
-                    }
+                    style={!aColor.bg ? { backgroundColor: aColor.hex } : undefined}
                   >
                     {getInitials(ci.assignee.name)}
                   </div>
@@ -3820,16 +3500,14 @@ export function TaskDetailModal({
                 </div>
                 <div className="min-w-0">
                   <h3 className="text-sm font-bold text-foreground">
-                    {t(
-                      "task.mergeChecklist.title",
-                      "{{count}}개 항목을 하나로 병합",
-                      { count: selected.length + 1 },
-                    )}
+                    {t('task.mergeChecklist.title', '{{count}}개 항목을 하나로 병합', {
+                      count: selected.length + 1,
+                    })}
                   </h3>
                   <p className="text-xs text-slate-500">
                     {t(
-                      "task.mergeChecklist.subtitle",
-                      "선택한 항목의 타임블록을 대표 항목으로 모읍니다",
+                      'task.mergeChecklist.subtitle',
+                      '선택한 항목의 타임블록을 대표 항목으로 모읍니다',
                     )}
                   </p>
                 </div>
@@ -3842,30 +3520,26 @@ export function TaskDetailModal({
                     <span
                       className="w-2.5 h-2.5 rounded-[3px] flex-none"
                       style={{
-                        backgroundColor: task.feature_color || "#6366F1",
+                        backgroundColor: task.feature_color || '#6366F1',
                       }}
                     />
                     <span className="text-slate-400 flex-none">
-                      {t("task.mergeChecklist.featureLabel", "피처")}
+                      {t('task.mergeChecklist.featureLabel', '피처')}
                     </span>
-                    <b className="font-bold text-foreground truncate">
-                      {task.feature_title}
-                    </b>
+                    <b className="font-bold text-foreground truncate">{task.feature_title}</b>
                   </span>
                   <ChevronRight className="h-3 w-3 text-slate-600 flex-none" />
                   <span className="inline-flex items-center gap-1.5 text-xs min-w-0">
                     <span className="text-slate-400 flex-none">
-                      {t("task.mergeChecklist.taskLabel", "태스크")}
+                      {t('task.mergeChecklist.taskLabel', '태스크')}
                     </span>
-                    <b className="font-bold text-foreground truncate">
-                      {task.title}
-                    </b>
+                    <b className="font-bold text-foreground truncate">{task.title}</b>
                   </span>
                 </div>
 
                 <div>
                   <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                    {t("task.mergeChecklist.titleField", "통합 제목")}
+                    {t('task.mergeChecklist.titleField', '통합 제목')}
                   </label>
                   <input
                     value={mergeTitle}
@@ -3877,7 +3551,7 @@ export function TaskDetailModal({
 
                 <div>
                   <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                    {t("task.mergeChecklist.selectField", "합칠 항목 선택")}
+                    {t('task.mergeChecklist.selectField', '합칠 항목 선택')}
                   </label>
 
                   {/* 대표 항목 — 나머지 항목이 여기로 모임 */}
@@ -3888,49 +3562,40 @@ export function TaskDetailModal({
                         backgroundColor: target.assignee
                           ? getAssigneeClasses(
                               target.assignee.name,
-                              boardMembers.find(
-                                (m) => m.userId === target.assignee!.id,
-                              )?.assigneeColor,
+                              boardMembers.find((m) => m.userId === target.assignee!.id)
+                                ?.assigneeColor,
                             ).hex
-                          : "#2DD4BF",
+                          : '#2DD4BF',
                       }}
                     />
                     <span className="ml-1 text-xs font-bold px-2 py-0.5 rounded-md bg-bridge-secondary/15 text-bridge-secondary flex-none">
-                      {t("task.mergeChecklist.representative", "대표")}
+                      {t('task.mergeChecklist.representative', '대표')}
                     </span>
                     {rowInner(target)}
                   </div>
 
                   {candidates.length === 0 ? (
                     <p className="mt-2 text-xs text-slate-500 py-3">
-                      {t(
-                        "task.mergeChecklist.noCandidates",
-                        "병합할 다른 항목이 없습니다",
-                      )}
+                      {t('task.mergeChecklist.noCandidates', '병합할 다른 항목이 없습니다')}
                     </p>
                   ) : (
                     <div className="mt-2 space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
                       {candidates.map((ci) => {
                         const isSel = mergeSelectedIds.has(ci.id);
                         const memberData = ci.assignee
-                          ? boardMembers.find(
-                              (m) => m.userId === ci.assignee!.id,
-                            )
+                          ? boardMembers.find((m) => m.userId === ci.assignee!.id)
                           : undefined;
                         const stripeHex = ci.assignee
-                          ? getAssigneeClasses(
-                              ci.assignee.name,
-                              memberData?.assigneeColor,
-                            ).hex
-                          : "#475569";
+                          ? getAssigneeClasses(ci.assignee.name, memberData?.assigneeColor).hex
+                          : '#475569';
                         return (
                           <button
                             key={ci.id}
                             onClick={() => toggleMergeSource(ci.id)}
                             className={`relative w-full flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-xl border text-left transition-all overflow-hidden ${
                               isSel
-                                ? "border-bridge-accent bg-bridge-accent/[0.08]"
-                                : "border-foreground/10 hover:border-foreground/[0.18] hover:bg-foreground/[0.02]"
+                                ? 'border-bridge-accent bg-bridge-accent/[0.08]'
+                                : 'border-foreground/10 hover:border-foreground/[0.18] hover:bg-foreground/[0.02]'
                             }`}
                           >
                             <span
@@ -3939,14 +3604,10 @@ export function TaskDetailModal({
                             />
                             <span
                               className={`ml-1 w-[18px] h-[18px] rounded-[5px] flex-none grid place-items-center border ${
-                                isSel
-                                  ? "bg-bridge-accent border-bridge-accent"
-                                  : "border-slate-500"
+                                isSel ? 'bg-bridge-accent border-bridge-accent' : 'border-slate-500'
                               }`}
                             >
-                              {isSel && (
-                                <Check className="h-3 w-3 text-white" />
-                              )}
+                              {isSel && <Check className="h-3 w-3 text-white" />}
                             </span>
                             {rowInner(ci)}
                           </button>
@@ -3960,7 +3621,7 @@ export function TaskDetailModal({
                   <div className="rounded-xl border border-dashed border-foreground/20 bg-foreground/[0.03] p-3 space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-slate-500">
-                        {t("task.mergeChecklist.previewPeriod", "기간")}
+                        {t('task.mergeChecklist.previewPeriod', '기간')}
                       </span>
                       <span className="font-mono text-foreground">
                         {fmtDate(spanStart)} → {fmtDate(spanEnd)}
@@ -3968,30 +3629,25 @@ export function TaskDetailModal({
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-slate-500">
-                        {t("task.mergeChecklist.previewBlocks", "타임블록")}
+                        {t('task.mergeChecklist.previewBlocks', '타임블록')}
                       </span>
                       <span className="font-mono text-foreground">
-                        {t(
-                          "task.mergeChecklist.previewBlocksValue",
-                          "{{n}}개 · {{dur}}",
-                          { n: totalBlocks, dur: fmtDur(totalMinutes) },
-                        )}
+                        {t('task.mergeChecklist.previewBlocksValue', '{{n}}개 · {{dur}}', {
+                          n: totalBlocks,
+                          dur: fmtDur(totalMinutes),
+                        })}
                       </span>
                     </div>
                     {assigneeNames.length > 0 && (
                       <div className="flex items-center justify-between text-xs gap-3">
                         <span className="text-slate-500 flex-none">
-                          {t("task.mergeChecklist.previewAssignees", "담당자")}
+                          {t('task.mergeChecklist.previewAssignees', '담당자')}
                         </span>
                         <span className="text-foreground text-right truncate">
-                          {t(
-                            "task.mergeChecklist.previewAssigneesValue",
-                            "{{names}} ({{n}}명)",
-                            {
-                              names: assigneeNames.join("·"),
-                              n: assigneeNames.length,
-                            },
-                          )}
+                          {t('task.mergeChecklist.previewAssigneesValue', '{{names}} ({{n}}명)', {
+                            names: assigneeNames.join('·'),
+                            n: assigneeNames.length,
+                          })}
                         </span>
                       </div>
                     )}
@@ -3999,10 +3655,7 @@ export function TaskDetailModal({
                       <div className="flex items-start gap-1.5 text-xs text-amber-500 pt-1">
                         <AlertCircle className="h-3.5 w-3.5 flex-none mt-0.5" />
                         <span>
-                          {t(
-                            "task.mergeChecklist.completedWarn",
-                            "완료 처리된 항목이 포함됩니다",
-                          )}
+                          {t('task.mergeChecklist.completedWarn', '완료 처리된 항목이 포함됩니다')}
                         </span>
                       </div>
                     )}
@@ -4013,15 +3666,10 @@ export function TaskDetailModal({
               <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
                 <span className="text-xs text-slate-500">
                   {selected.length > 0
-                    ? t(
-                        "task.mergeChecklist.deleteHint",
-                        "선택한 {{n}}개 항목은 삭제됩니다",
-                        { n: selected.length },
-                      )
-                    : t(
-                        "task.mergeChecklist.selectHint",
-                        "합칠 항목을 선택하세요",
-                      )}
+                    ? t('task.mergeChecklist.deleteHint', '선택한 {{n}}개 항목은 삭제됩니다', {
+                        n: selected.length,
+                      })
+                    : t('task.mergeChecklist.selectHint', '합칠 항목을 선택하세요')}
                 </span>
                 <div className="flex items-center gap-2">
                   <button
@@ -4029,7 +3677,7 @@ export function TaskDetailModal({
                     disabled={mergeBusy}
                     className="px-4 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 disabled:opacity-50"
                   >
-                    {t("common.cancel")}
+                    {t('common.cancel')}
                   </button>
                   <button
                     onClick={handleMergeChecklistItems}
@@ -4041,7 +3689,7 @@ export function TaskDetailModal({
                     ) : (
                       <GitMerge className="h-3.5 w-3.5" />
                     )}
-                    {t("task.mergeChecklist.confirm", "병합")}
+                    {t('task.mergeChecklist.confirm', '병합')}
                   </button>
                 </div>
               </div>
@@ -4056,18 +3704,14 @@ export function TaskDetailModal({
         onClose={() => setChecklistItemToDelete(null)}
         className="sm:max-w-sm p-6"
       >
-        <h3 className="text-lg font-bold text-foreground">
-          {t("task.deleteChecklistTitle")}
-        </h3>
-        <p className="text-sm text-slate-400 mt-1">
-          {t("task.deleteChecklistDesc")}
-        </p>
+        <h3 className="text-lg font-bold text-foreground">{t('task.deleteChecklistTitle')}</h3>
+        <p className="text-sm text-slate-400 mt-1">{t('task.deleteChecklistDesc')}</p>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
           <button
             onClick={() => setChecklistItemToDelete(null)}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10"
           >
-            {t("common.cancel")}
+            {t('common.cancel')}
           </button>
           <button
             onClick={() => {
@@ -4078,7 +3722,7 @@ export function TaskDetailModal({
             }}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-500 hover:bg-red-600 text-white"
           >
-            {t("common.delete")}
+            {t('common.delete')}
           </button>
         </div>
       </MotionModal>
@@ -4094,7 +3738,7 @@ export function TaskDetailModal({
           mode={moveCopyMode}
           onSuccess={() => {
             setMoveCopyMode(null);
-            if (moveCopyMode === "move") {
+            if (moveCopyMode === 'move') {
               onClose();
             }
           }}
@@ -4116,9 +3760,7 @@ export function TaskDetailModal({
           initialItemId={delegateItemId}
           pendingByChecklistItem={autofixJobs.byChecklistItem}
           onDelegated={(queued) => {
-            toast.success(
-              queued > 1 ? `${queued}건을 맥에 맡겼습니다` : "맥에 맡겼습니다",
-            );
+            toast.success(queued > 1 ? `${queued}건을 맥에 맡겼습니다` : '맥에 맡겼습니다');
             void autofixJobs.refresh();
           }}
         />
@@ -4144,7 +3786,7 @@ export function TaskDetailModal({
                     <Sparkles className="h-3.5 w-3.5 text-white" />
                   </div>
                   <h3 className="text-sm font-bold text-foreground">
-                    {t("task.aiChecklistTitle")}
+                    {t('task.aiChecklistTitle')}
                   </h3>
                 </div>
                 <button
@@ -4157,15 +3799,13 @@ export function TaskDetailModal({
 
               {/* Content */}
               <div className="px-5 py-4 space-y-3 max-h-[60dvh] overflow-y-auto">
-                <p className="text-xs text-slate-400">
-                  {t("task.aiChecklistConfirmDesc")}
-                </p>
+                <p className="text-xs text-slate-400">{t('task.aiChecklistConfirmDesc')}</p>
 
                 {/* Feature group */}
                 <div className="rounded-xl border border-foreground/5 bg-white/[0.02] p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                      {t("task.aiChecklistConfirmFeatureLabel")}
+                      {t('task.aiChecklistConfirmFeatureLabel')}
                     </span>
                     {onOpenFeature && (
                       <button
@@ -4177,7 +3817,7 @@ export function TaskDetailModal({
                         className="flex items-center gap-1 text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors"
                       >
                         <ArrowRight className="h-3 w-3" />
-                        {t("task.aiChecklistGoToFeature")}
+                        {t('task.aiChecklistGoToFeature')}
                       </button>
                     )}
                   </div>
@@ -4192,7 +3832,7 @@ export function TaskDetailModal({
                     <div className="flex items-center gap-1.5">
                       <AlertCircle className="h-3 w-3 text-amber-400 flex-shrink-0" />
                       <p className="text-xs text-amber-400/70">
-                        {t("task.aiChecklistConfirmNoDesc")}
+                        {t('task.aiChecklistConfirmNoDesc')}
                       </p>
                     </div>
                   )}
@@ -4201,24 +3841,21 @@ export function TaskDetailModal({
                 {/* Task group */}
                 <div className="rounded-xl border border-foreground/5 bg-white/[0.02] p-3 space-y-2.5">
                   <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                    {t("task.aiChecklistConfirmTaskLabel")}
+                    {t('task.aiChecklistConfirmTaskLabel')}
                   </span>
                   <input
                     type="text"
                     value={editedTask.title}
-                    onChange={(e) =>
-                      updateEditedTask({ title: e.target.value })
-                    }
+                    onChange={(e) => updateEditedTask({ title: e.target.value })}
                     className="w-full px-3 py-2 bg-white/5 rounded-lg border border-foreground/5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                   />
                   <textarea
-                    value={editedTask.description || ""}
+                    value={editedTask.description || ''}
                     onChange={(e) =>
-                      canEditDescription &&
-                      updateEditedTask({ description: e.target.value })
+                      canEditDescription && updateEditedTask({ description: e.target.value })
                     }
                     readOnly={!canEditDescription}
-                    placeholder={t("task.aiChecklistConfirmNoDesc")}
+                    placeholder={t('task.aiChecklistConfirmNoDesc')}
                     rows={3}
                     className="w-full px-3 py-2 bg-white/5 rounded-lg border border-foreground/5 text-sm text-slate-300 placeholder-amber-400/60 resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                   />
@@ -4231,7 +3868,7 @@ export function TaskDetailModal({
                   onClick={() => setShowAIConfirm(false)}
                   className="px-4 py-2 text-sm text-slate-400 hover:text-foreground transition-colors"
                 >
-                  {t("common.cancel")}
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={() => {
@@ -4241,7 +3878,7 @@ export function TaskDetailModal({
                   className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-lg hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all flex items-center gap-1.5"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
-                  {t("task.aiChecklistConfirmStart")}
+                  {t('task.aiChecklistConfirmStart')}
                 </button>
               </div>
             </MotionModal>
@@ -4284,7 +3921,7 @@ export function TaskDetailModal({
                   setChecklistItems(items);
                 })
                 .catch((error) => {
-                  console.error("Failed to reload checklist:", error);
+                  console.error('Failed to reload checklist:', error);
                 });
             }
           }}
@@ -4321,14 +3958,7 @@ function SortableChecklistItemRow(props: {
   onOpenDetail?: () => void;
 }) {
   const dragEnabled = !!props.canEdit && !props.dragDisabled;
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: props.item.id,
     disabled: !dragEnabled,
   });
@@ -4344,21 +3974,16 @@ function SortableChecklistItemRow(props: {
     setNodeRef(node);
     if (
       props.highlightRef &&
-      typeof props.highlightRef === "object" &&
+      typeof props.highlightRef === 'object' &&
       props.highlightRef !== null
     ) {
-      (
-        props.highlightRef as React.MutableRefObject<HTMLDivElement | null>
-      ).current = node;
+      (props.highlightRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
     }
   };
 
   return (
     <div ref={mergedRef} style={style} {...attributes}>
-      <ChecklistItemRow
-        {...props}
-        dragHandleProps={dragEnabled ? listeners : undefined}
-      />
+      <ChecklistItemRow {...props} dragHandleProps={dragEnabled ? listeners : undefined} />
     </div>
   );
 }
@@ -4389,15 +4014,15 @@ function AutofixSuggestionPanel({ suggestion }: { suggestion: string }) {
     try {
       await navigator.clipboard.writeText(suggestion);
     } catch {
-      const ta = document.createElement("textarea");
+      const ta = document.createElement('textarea');
       ta.value = suggestion;
       document.body.appendChild(ta);
       ta.select();
-      document.execCommand("copy");
+      document.execCommand('copy');
       document.body.removeChild(ta);
     }
     setCopied(true);
-    toast.success(t("autofix.suggestionCopied", "보고를 복사했습니다"));
+    toast.success(t('autofix.suggestionCopied', '보고를 복사했습니다'));
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -4405,13 +4030,10 @@ function AutofixSuggestionPanel({ suggestion }: { suggestion: string }) {
     <div className="ml-6 mt-1 mb-2 rounded-xl border border-foreground/[0.08] bg-foreground/[0.03] overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-foreground/[0.08]">
         <span className="text-xs font-bold text-foreground">
-          {t("autofix.suggestionTitle", "저장소 밖에서 고쳐야 합니다")}
+          {t('autofix.suggestionTitle', '저장소 밖에서 고쳐야 합니다')}
         </span>
-        <button
-          onClick={handleCopy}
-          className="ml-auto text-xs text-bridge-accent hover:underline"
-        >
-          {copied ? t("common.copied", "복사됨") : t("common.copy", "복사")}
+        <button onClick={handleCopy} className="ml-auto text-xs text-bridge-accent hover:underline">
+          {copied ? t('common.copied', '복사됨') : t('common.copy', '복사')}
         </button>
       </div>
       <pre className="px-3 py-2 text-xs text-foreground whitespace-pre-wrap break-words font-normal max-h-64 overflow-y-auto custom-scrollbar">
@@ -4419,8 +4041,8 @@ function AutofixSuggestionPanel({ suggestion }: { suggestion: string }) {
       </pre>
       <div className="px-3 pb-2 text-xs text-slate-500">
         {t(
-          "autofix.suggestionHint",
-          "확인 후 반영해야 합니다 — 에이전트가 짚은 키가 맞는지 원본에서 대조하세요.",
+          'autofix.suggestionHint',
+          '확인 후 반영해야 합니다 — 에이전트가 짚은 키가 맞는지 원본에서 대조하세요.',
         )}
       </div>
     </div>
@@ -4441,25 +4063,25 @@ function AutofixItemChip({
   const { t } = useTranslation();
 
   const style: Record<string, { cls: string; label: string }> = {
-    QUEUED: { cls: "bg-foreground/10 text-slate-400", label: "맥 대기" },
+    QUEUED: { cls: 'bg-foreground/10 text-slate-400', label: '맥 대기' },
     DISPATCHED: {
-      cls: "bg-bridge-accent/15 text-bridge-accent",
-      label: "맥 작업 중",
+      cls: 'bg-bridge-accent/15 text-bridge-accent',
+      label: '맥 작업 중',
     },
     SUCCEEDED: {
-      cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-      label: "PR 열림",
+      cls: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+      label: 'PR 열림',
     },
-    NO_CHANGE: { cls: "bg-foreground/10 text-slate-400", label: "변경 없음" },
+    NO_CHANGE: { cls: 'bg-foreground/10 text-slate-400', label: '변경 없음' },
     FAILED: {
-      cls: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
-      label: "실패",
+      cls: 'bg-rose-500/15 text-rose-600 dark:text-rose-400',
+      label: '실패',
     },
     TIMED_OUT: {
-      cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-      label: "응답 없음",
+      cls: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+      label: '응답 없음',
     },
-    CANCELLED: { cls: "bg-foreground/10 text-slate-400", label: "취소됨" },
+    CANCELLED: { cls: 'bg-foreground/10 text-slate-400', label: '취소됨' },
   };
 
   /*
@@ -4467,36 +4089,31 @@ function AutofixItemChip({
     읽히는데 실제로는 그 건의 산출물이 나와 있다 — 색과 말이 사실과 어긋나면 아무도 안 누른다.
   */
   const tone =
-    job.status === "NO_CHANGE" && job.suggestion
+    job.status === 'NO_CHANGE' && job.suggestion
       ? {
-          cls: "bg-bridge-accent/15 text-bridge-accent",
-          label: t("autofix.suggestionChip", "고칠 내용 있음"),
+          cls: 'bg-bridge-accent/15 text-bridge-accent',
+          label: t('autofix.suggestionChip', '고칠 내용 있음'),
         }
       : style[job.status];
   if (!tone) return null;
 
   const elapsed =
-    job.status === "DISPATCHED" && job.dispatched_at
+    job.status === 'DISPATCHED' && job.dispatched_at
       ? Math.max(
           0,
-          Math.round(
-            (Date.now() - (parseUTCDate(job.dispatched_at)?.getTime() ?? 0)) /
-              60000,
-          ),
+          Math.round((Date.now() - (parseUTCDate(job.dispatched_at)?.getTime() ?? 0)) / 60000),
         )
       : null;
 
   const label =
-    job.status === "SUCCEEDED" && job.pr_url
-      ? `PR #${job.pr_url.split("/").pop()}`
+    job.status === 'SUCCEEDED' && job.pr_url
+      ? `PR #${job.pr_url.split('/').pop()}`
       : elapsed !== null
         ? `${tone.label} · ${elapsed}분`
         : tone.label;
 
   const chip = (
-    <span
-      className={`text-xs font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${tone.cls}`}
-    >
+    <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${tone.cls}`}>
       {label}
     </span>
   );
@@ -4504,7 +4121,7 @@ function AutofixItemChip({
   // 맡긴 사람과 담당자가 다를 때만 위임자를 표기한다. 같으면 아무 말도 하지 않는다 —
   // 자기가 맡긴 것을 "당신이 맡겼습니다"라고 알려주는 화면은 소음이다.
   const body =
-    job.status === "SUCCEEDED" && job.pr_url ? (
+    job.status === 'SUCCEEDED' && job.pr_url ? (
       <a
         href={job.pr_url}
         target="_blank"
@@ -4525,18 +4142,13 @@ function AutofixItemChip({
           onToggle();
         }}
         aria-expanded={expanded}
-        title={t(
-          "autofix.hasSuggestion",
-          "고칠 내용을 남겼습니다 — 눌러서 보기",
-        )}
+        title={t('autofix.hasSuggestion', '고칠 내용을 남겼습니다 — 눌러서 보기')}
         className="hover:opacity-80 transition-opacity"
       >
         {chip}
       </button>
     ) : (
-      <span title={job.failure_reason ?? job.instruction ?? undefined}>
-        {chip}
-      </span>
+      <span title={job.failure_reason ?? job.instruction ?? undefined}>{chip}</span>
     );
 
   return <span className="flex items-center shrink-0">{body}</span>;
@@ -4612,7 +4224,7 @@ function ChecklistItemRow({
     : null;
 
   // 외주 담당자 (BRIDGE accent fallback)
-  const contractorColor = item.contractor?.color || "#6366F1";
+  const contractorColor = item.contractor?.color || '#6366F1';
 
   // 타임블록 총합 시간 (분)
   const totalTimeMinutes = timeBlocks.reduce((sum, block) => {
@@ -4640,17 +4252,16 @@ function ChecklistItemRow({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return;
-    if (e.key === "Enter") {
+    if (e.key === 'Enter') {
       handleSaveTitle();
-    } else if (e.key === "Escape") {
+    } else if (e.key === 'Escape') {
       setEditedTitle(item.title);
       setIsEditing(false);
     }
   };
 
   // 마감일 상태 확인
-  const isOverdue =
-    item.due_date && new Date(item.due_date) < new Date() && !item.completed;
+  const isOverdue = item.due_date && new Date(item.due_date) < new Date() && !item.completed;
   const isDueSoon =
     item.due_date &&
     new Date(item.due_date).getTime() - new Date().getTime() < 86400000 &&
@@ -4658,11 +4269,9 @@ function ChecklistItemRow({
 
   // 진행중(DOING) 상태 파생 — 미완료 & 시작일이 오늘 이하
   const todayStr = getTodayDateString();
-  const isDoing = resolveChecklistColumn(item, todayStr) === "doing";
+  const isDoing = resolveChecklistColumn(item, todayStr) === 'doing';
   // 오늘 타임블록에 실제로 배정됐는지 (진행 중) vs 기간 안이지만 오늘 미배정 (기간 중)
-  const inTodaysTimeblock = timeBlocks.some(
-    (block) => block.scheduled_date === todayStr,
-  );
+  const inTodaysTimeblock = timeBlocks.some((block) => block.scheduled_date === todayStr);
   const isActiveToday = isDoing && inTodaysTimeblock;
   const isInPeriod = isDoing && !inTodaysTimeblock;
 
@@ -4671,10 +4280,10 @@ function ChecklistItemRow({
       <div
         className={`group flex items-center gap-2 p-2 rounded hover:bg-foreground/5 border ${
           isHighlighted
-            ? "bg-purple-500/20 border-purple-500/50"
+            ? 'bg-purple-500/20 border-purple-500/50'
             : isActiveToday
-              ? "bg-gradient-to-r from-bridge-accent/10 to-transparent border-bridge-accent/20 hover:border-bridge-accent/30"
-              : "border-transparent hover:border-foreground/10"
+              ? 'bg-gradient-to-r from-bridge-accent/10 to-transparent border-bridge-accent/20 hover:border-bridge-accent/30'
+              : 'border-transparent hover:border-foreground/10'
         }`}
       >
         {/* 드래그 핸들 */}
@@ -4692,9 +4301,9 @@ function ChecklistItemRow({
           disabled={!canEdit}
           className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
             item.completed
-              ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
-              : "border-2 border-slate-500 hover:border-slate-300 bg-transparent"
-          } ${!canEdit ? "cursor-default" : ""}`}
+              ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+              : 'border-2 border-slate-500 hover:border-slate-300 bg-transparent'
+          } ${!canEdit ? 'cursor-default' : ''}`}
         >
           {item.completed && (
             <svg
@@ -4725,16 +4334,14 @@ function ChecklistItemRow({
           ) : (
             <div
               className={`text-xs truncate ${
-                item.completed
-                  ? "line-through text-slate-400"
-                  : "text-foreground"
-              } ${canEdit ? "cursor-pointer" : ""}`}
+                item.completed ? 'line-through text-slate-400' : 'text-foreground'
+              } ${canEdit ? 'cursor-pointer' : ''}`}
               onClick={() => canEdit && setIsEditing(true)}
             >
               {item.title}
               {isHighlighted && (
                 <span className="ml-2 text-xs text-purple-400 inline-block">
-                  ({t("scheduleDetail.current")})
+                  ({t('scheduleDetail.current')})
                 </span>
               )}
             </div>
@@ -4751,7 +4358,7 @@ function ChecklistItemRow({
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-bridge-accent" />
             </span>
             <span className="hidden sm:inline">
-              {t("task.checklistView.doingBadge", { defaultValue: "진행 중" })}
+              {t('task.checklistView.doingBadge', { defaultValue: '진행 중' })}
             </span>
           </span>
         )}
@@ -4761,7 +4368,7 @@ function ChecklistItemRow({
           <span className="flex items-center gap-1.5 flex-shrink-0 text-xs font-bold text-sky-600 dark:text-sky-400">
             <span className="inline-flex h-1.5 w-1.5 rounded-full border border-sky-600 dark:border-sky-400" />
             <span className="hidden sm:inline">
-              {t("task.checklistView.periodBadge", { defaultValue: "기간 중" })}
+              {t('task.checklistView.periodBadge', { defaultValue: '기간 중' })}
             </span>
           </span>
         )}
@@ -4774,50 +4381,37 @@ function ChecklistItemRow({
               <PopoverTrigger asChild>
                 <button
                   className={`flex items-center gap-1 text-xs px-1.5 py-0.5 rounded hover:bg-foreground/10 transition-colors ${
-                    isOverdue
-                      ? "text-red-400"
-                      : isDueSoon
-                        ? "text-orange-400"
-                        : "text-slate-400"
+                    isOverdue ? 'text-red-400' : isDueSoon ? 'text-orange-400' : 'text-slate-400'
                   }`}
                 >
                   <CalendarIcon className="h-3 w-3" />
                   {(() => {
                     const endDate =
-                      item.completed && item.done_date
-                        ? item.done_date
-                        : item.due_date;
+                      item.completed && item.done_date ? item.done_date : item.due_date;
                     if (item.start_date || endDate) {
                       if (item.start_date && endDate) {
                         return (
                           <>
-                            {format(new Date(item.start_date), "M/d", {
+                            {format(new Date(item.start_date), 'M/d', {
                               locale: ko,
-                            })}{" "}
-                            - {format(new Date(endDate), "M/d", { locale: ko })}
+                            })}{' '}
+                            - {format(new Date(endDate), 'M/d', { locale: ko })}
                           </>
                         );
                       } else if (item.start_date) {
                         return (
                           <>
-                            {format(new Date(item.start_date), "M/d", {
+                            {format(new Date(item.start_date), 'M/d', {
                               locale: ko,
-                            })}{" "}
+                            })}{' '}
                             ~
                           </>
                         );
                       } else {
-                        return (
-                          <>
-                            ~{" "}
-                            {format(new Date(endDate!), "M/d", { locale: ko })}
-                          </>
-                        );
+                        return <>~ {format(new Date(endDate!), 'M/d', { locale: ko })}</>;
                       }
                     }
-                    return (
-                      <span className="text-slate-400">{t("task.date")}</span>
-                    );
+                    return <span className="text-slate-400">{t('task.date')}</span>;
                   })()}
                 </button>
               </PopoverTrigger>
@@ -4828,9 +4422,7 @@ function ChecklistItemRow({
                 <Calendar
                   mode="range"
                   selected={{
-                    from: item.start_date
-                      ? new Date(item.start_date)
-                      : undefined,
+                    from: item.start_date ? new Date(item.start_date) : undefined,
                     to: item.due_date ? new Date(item.due_date) : undefined,
                   }}
                   defaultMonth={
@@ -4844,12 +4436,8 @@ function ChecklistItemRow({
                   }
                   onSelect={(range) => {
                     onUpdate({
-                      start_date: range?.from
-                        ? format(range.from, "yyyy-MM-dd")
-                        : null,
-                      due_date: range?.to
-                        ? format(range.to, "yyyy-MM-dd")
-                        : null,
+                      start_date: range?.from ? format(range.from, 'yyyy-MM-dd') : null,
+                      due_date: range?.to ? format(range.to, 'yyyy-MM-dd') : null,
                     });
                   }}
                   numberOfMonths={1}
@@ -4862,11 +4450,9 @@ function ChecklistItemRow({
                       variant="ghost"
                       size="sm"
                       className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                      onClick={() =>
-                        onUpdate({ start_date: null, due_date: null })
-                      }
+                      onClick={() => onUpdate({ start_date: null, due_date: null })}
                     >
-                      {t("task.deleteDate")}
+                      {t('task.deleteDate')}
                     </Button>
                   </div>
                 )}
@@ -4875,42 +4461,33 @@ function ChecklistItemRow({
           ) : (
             <div
               className={`flex items-center gap-1 text-xs px-1.5 py-0.5 ${
-                isOverdue
-                  ? "text-red-400"
-                  : isDueSoon
-                    ? "text-orange-400"
-                    : "text-slate-400"
+                isOverdue ? 'text-red-400' : isDueSoon ? 'text-orange-400' : 'text-slate-400'
               }`}
             >
               <CalendarIcon className="h-3 w-3" />
               {(() => {
-                const endDate =
-                  item.completed && item.done_date
-                    ? item.done_date
-                    : item.due_date;
+                const endDate = item.completed && item.done_date ? item.done_date : item.due_date;
                 if (item.start_date || endDate) {
                   if (item.start_date && endDate) {
                     return (
                       <>
-                        {format(new Date(item.start_date), "M/d", {
+                        {format(new Date(item.start_date), 'M/d', {
                           locale: ko,
-                        })}{" "}
-                        - {format(new Date(endDate), "M/d", { locale: ko })}
+                        })}{' '}
+                        - {format(new Date(endDate), 'M/d', { locale: ko })}
                       </>
                     );
                   } else if (item.start_date) {
                     return (
                       <>
-                        {format(new Date(item.start_date), "M/d", {
+                        {format(new Date(item.start_date), 'M/d', {
                           locale: ko,
-                        })}{" "}
+                        })}{' '}
                         ~
                       </>
                     );
                   } else {
-                    return (
-                      <>~ {format(new Date(endDate!), "M/d", { locale: ko })}</>
-                    );
+                    return <>~ {format(new Date(endDate!), 'M/d', { locale: ko })}</>;
                   }
                 }
                 return <span className="text-slate-400">-</span>;
@@ -4927,25 +4504,16 @@ function ChecklistItemRow({
                     <button
                       className="flex items-center gap-1 rounded-full px-1.5 py-0.5 border border-dashed hover:opacity-80 transition-opacity"
                       style={{
-                        backgroundColor: contractorColor + "15",
-                        borderColor: contractorColor + "66",
+                        backgroundColor: contractorColor + '15',
+                        borderColor: contractorColor + '66',
                       }}
                     >
-                      <Wrench
-                        className="w-3 h-3"
-                        style={{ color: contractorColor }}
-                      />
-                      <span
-                        className="text-xs font-medium"
-                        style={{ color: contractorColor }}
-                      >
+                      <Wrench className="w-3 h-3" style={{ color: contractorColor }} />
+                      <span className="text-xs font-medium" style={{ color: contractorColor }}>
                         {item.contractor.name}
                       </span>
-                      <span
-                        className="text-xs opacity-60"
-                        style={{ color: contractorColor }}
-                      >
-                        · {t("task.checklistContractorBadge", "외주")}
+                      <span className="text-xs opacity-60" style={{ color: contractorColor }}>
+                        · {t('task.checklistContractorBadge', '외주')}
                       </span>
                     </button>
                   ) : item.assignee && assigneeColor ? (
@@ -4953,27 +4521,21 @@ function ChecklistItemRow({
                       className={`flex items-center gap-1 ${assigneeColor.bgLight} rounded-full px-1.5 py-0.5 hover:opacity-80 transition-opacity`}
                       style={
                         !assigneeColor.bgLight
-                          ? { backgroundColor: assigneeColor.hex + "20" }
+                          ? { backgroundColor: assigneeColor.hex + '20' }
                           : undefined
                       }
                     >
                       <div
                         className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-xs font-bold text-white whitespace-nowrap overflow-hidden`}
                         style={
-                          !assigneeColor.bg
-                            ? { backgroundColor: assigneeColor.hex }
-                            : undefined
+                          !assigneeColor.bg ? { backgroundColor: assigneeColor.hex } : undefined
                         }
                       >
                         {getInitials(item.assignee.name)}
                       </div>
                       <span
                         className={`text-xs font-medium ${assigneeColor.text}`}
-                        style={
-                          !assigneeColor.text
-                            ? { color: assigneeColor.hex }
-                            : undefined
-                        }
+                        style={!assigneeColor.text ? { color: assigneeColor.hex } : undefined}
                       >
                         {item.assignee.name}
                       </span>
@@ -4992,22 +4554,17 @@ function ChecklistItemRow({
                 >
                   <div className="space-y-0.5">
                     <button
-                      onClick={() =>
-                        onUpdate({ assignee: null, contractor: null })
-                      }
+                      onClick={() => onUpdate({ assignee: null, contractor: null })}
                       className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-foreground/10 transition-colors ${
                         !item.assignee && !item.contractor
-                          ? "bg-foreground/10 text-foreground"
-                          : "text-muted-foreground"
+                          ? 'bg-foreground/10 text-foreground'
+                          : 'text-muted-foreground'
                       }`}
                     >
-                      {t("common.none")}
+                      {t('common.none')}
                     </button>
                     {boardMembers.map((member) => {
-                      const memberColor = getAssigneeClasses(
-                        member.name,
-                        member.assigneeColor,
-                      );
+                      const memberColor = getAssigneeClasses(member.name, member.assigneeColor);
                       return (
                         <button
                           key={member.userId}
@@ -5023,16 +4580,14 @@ function ChecklistItemRow({
                           }
                           className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-foreground/10 transition-colors ${
                             item.assignee?.id === member.userId
-                              ? "bg-foreground/10 text-foreground"
-                              : "text-muted-foreground"
+                              ? 'bg-foreground/10 text-foreground'
+                              : 'text-muted-foreground'
                           }`}
                         >
                           <div
                             className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-xs font-bold text-white whitespace-nowrap overflow-hidden`}
                             style={
-                              !memberColor.bg
-                                ? { backgroundColor: memberColor.hex }
-                                : undefined
+                              !memberColor.bg ? { backgroundColor: memberColor.hex } : undefined
                             }
                           >
                             {getInitials(member.name)}
@@ -5045,10 +4600,10 @@ function ChecklistItemRow({
                       <>
                         <div className="my-1 border-t border-foreground/[0.08]" />
                         <div className="px-2 py-1 text-xs font-bold uppercase tracking-widest text-slate-400">
-                          {t("task.contractorSection", "외주 작업자")}
+                          {t('task.contractorSection', '외주 작업자')}
                         </div>
                         {contractors.map((c) => {
-                          const color = c.color || "#6366F1";
+                          const color = c.color || '#6366F1';
                           const isSelected = item.contractor?.id === c.id;
                           return (
                             <button
@@ -5065,21 +4620,18 @@ function ChecklistItemRow({
                               }
                               className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-foreground/10 transition-colors ${
                                 isSelected
-                                  ? "bg-foreground/10 text-foreground"
-                                  : "text-muted-foreground"
+                                  ? 'bg-foreground/10 text-foreground'
+                                  : 'text-muted-foreground'
                               }`}
                             >
                               <div
                                 className="w-4 h-4 rounded-full border border-dashed flex items-center justify-center"
                                 style={{
-                                  backgroundColor: color + "15",
-                                  borderColor: color + "66",
+                                  backgroundColor: color + '15',
+                                  borderColor: color + '66',
                                 }}
                               >
-                                <Wrench
-                                  className="w-2.5 h-2.5"
-                                  style={{ color }}
-                                />
+                                <Wrench className="w-2.5 h-2.5" style={{ color }} />
                               </div>
                               {c.name}
                             </button>
@@ -5095,53 +4647,34 @@ function ChecklistItemRow({
               <div
                 className="flex items-center gap-1 rounded-full px-1.5 py-0.5 border border-dashed"
                 style={{
-                  backgroundColor: contractorColor + "15",
-                  borderColor: contractorColor + "66",
+                  backgroundColor: contractorColor + '15',
+                  borderColor: contractorColor + '66',
                 }}
               >
-                <Wrench
-                  className="w-3 h-3"
-                  style={{ color: contractorColor }}
-                />
-                <span
-                  className="text-xs font-medium"
-                  style={{ color: contractorColor }}
-                >
+                <Wrench className="w-3 h-3" style={{ color: contractorColor }} />
+                <span className="text-xs font-medium" style={{ color: contractorColor }}>
                   {item.contractor.name}
                 </span>
-                <span
-                  className="text-xs opacity-60"
-                  style={{ color: contractorColor }}
-                >
-                  · {t("task.checklistContractorBadge", "외주")}
+                <span className="text-xs opacity-60" style={{ color: contractorColor }}>
+                  · {t('task.checklistContractorBadge', '외주')}
                 </span>
               </div>
             ) : item.assignee && assigneeColor ? (
               <div
                 className={`flex items-center gap-1 ${assigneeColor.bgLight} rounded-full px-1.5 py-0.5`}
                 style={
-                  !assigneeColor.bgLight
-                    ? { backgroundColor: assigneeColor.hex + "20" }
-                    : undefined
+                  !assigneeColor.bgLight ? { backgroundColor: assigneeColor.hex + '20' } : undefined
                 }
               >
                 <div
                   className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-xs font-bold text-white whitespace-nowrap overflow-hidden`}
-                  style={
-                    !assigneeColor.bg
-                      ? { backgroundColor: assigneeColor.hex }
-                      : undefined
-                  }
+                  style={!assigneeColor.bg ? { backgroundColor: assigneeColor.hex } : undefined}
                 >
                   {getInitials(item.assignee.name)}
                 </div>
                 <span
                   className={`text-xs font-medium ${assigneeColor.text}`}
-                  style={
-                    !assigneeColor.text
-                      ? { color: assigneeColor.hex }
-                      : undefined
-                  }
+                  style={!assigneeColor.text ? { color: assigneeColor.hex } : undefined}
                 >
                   {item.assignee.name}
                 </span>
@@ -5164,11 +4697,7 @@ function ChecklistItemRow({
           <AutofixItemChip
             job={autofixJob}
             expanded={showSuggestion}
-            onToggle={
-              autofixJob.suggestion
-                ? () => setShowSuggestion((v) => !v)
-                : undefined
-            }
+            onToggle={autofixJob.suggestion ? () => setShowSuggestion((v) => !v) : undefined}
           />
         )}
 
@@ -5188,16 +4717,16 @@ function ChecklistItemRow({
                   e.stopPropagation();
                   onOpenDetail();
                 }}
-                title={t("checklistDetail.open", "디테일 열기")}
-                aria-label={t("checklistDetail.open", "디테일 열기")}
+                title={t('checklistDetail.open', '디테일 열기')}
+                aria-label={t('checklistDetail.open', '디테일 열기')}
                 className={`flex items-center gap-1 h-[22px] px-2 rounded-full text-xs font-bold tabular-nums transition-colors flex-none ${
                   count > 0
-                    ? "bg-bridge-accent/15 text-bridge-accent hover:bg-bridge-accent/25"
-                    : "text-slate-500 hover:text-bridge-accent hover:bg-foreground/5 opacity-0 group-hover:opacity-100"
+                    ? 'bg-bridge-accent/15 text-bridge-accent hover:bg-bridge-accent/25'
+                    : 'text-slate-500 hover:text-bridge-accent hover:bg-foreground/5 opacity-0 group-hover:opacity-100'
                 }`}
               >
                 <MessageSquare className="h-3 w-3" />
-                {count > 0 ? count : ""}
+                {count > 0 ? count : ''}
               </button>
             );
           })()}
@@ -5208,9 +4737,7 @@ function ChecklistItemRow({
             {(() => {
               const h = Math.floor(totalTimeMinutes / 60);
               const m = totalTimeMinutes % 60;
-              return h > 0
-                ? `${h}h ${m > 0 ? `${m}m` : ""}`
-                : `${totalTimeMinutes}m`;
+              return h > 0 ? `${h}h ${m > 0 ? `${m}m` : ''}` : `${totalTimeMinutes}m`;
             })()}
           </span>
         )}
@@ -5218,10 +4745,10 @@ function ChecklistItemRow({
           onClick={handleToggleTimeBlocks}
           className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
             showTimeBlocks || timeBlocks.length > 0
-              ? "text-bridge-accent bg-bridge-accent/10"
-              : "text-slate-400 hover:text-slate-400 hover:bg-foreground/5"
+              ? 'text-bridge-accent bg-bridge-accent/10'
+              : 'text-slate-400 hover:text-slate-400 hover:bg-foreground/5'
           }`}
-          title={t("task.viewTimeBlocks")}
+          title={t('task.viewTimeBlocks')}
         >
           {preloadedTimeBlocks === undefined ? (
             <Loader2 className="h-3 w-3 animate-spin" />
@@ -5241,15 +4768,12 @@ function ChecklistItemRow({
                   variant="ghost"
                   size="sm"
                   className="h-6 w-6 p-0 text-slate-400 hover:text-foreground hover:bg-foreground/10 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 data-[state=open]:bg-foreground/10 data-[state=open]:text-foreground transition-opacity"
-                  title={t("common.more", "더보기")}
+                  title={t('common.more', '더보기')}
                 >
                   <MoreVertical className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="bg-bridge-surface border-bridge-border"
-              >
+              <DropdownMenuContent align="end" className="bg-bridge-surface border-bridge-border">
                 {onDelegate && (
                   <>
                     <DropdownMenuItem
@@ -5257,7 +4781,7 @@ function ChecklistItemRow({
                       className="text-bridge-accent hover:bg-bridge-surface-hover hover:text-bridge-accent focus:text-bridge-accent text-xs font-bold"
                     >
                       <Sparkles className="h-3.5 w-3.5 mr-2" />
-                      {t("autofix.delegateItem", "맥에 맡기기")}
+                      {t('autofix.delegateItem', '맥에 맡기기')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator className="bg-bridge-border" />
                   </>
@@ -5268,7 +4792,7 @@ function ChecklistItemRow({
                     className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
                   >
                     <MessageSquare className="h-3.5 w-3.5 mr-2" />
-                    {t("checklistDetail.open", "디테일 열기")}
+                    {t('checklistDetail.open', '디테일 열기')}
                   </DropdownMenuItem>
                 )}
                 {boardId && (
@@ -5278,7 +4802,7 @@ function ChecklistItemRow({
                       className="text-bridge-accent hover:bg-bridge-surface-hover hover:text-bridge-accent focus:text-bridge-accent text-xs"
                     >
                       <History className="h-3.5 w-3.5 mr-2" />
-                      {t("checklistHistory.menu", "이력")}
+                      {t('checklistHistory.menu', '이력')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator className="bg-bridge-border" />
                   </>
@@ -5289,7 +4813,7 @@ function ChecklistItemRow({
                     className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
                   >
                     <GitMerge className="h-3.5 w-3.5 mr-2" />
-                    {t("task.mergeChecklist.action", "다른 항목과 병합")}
+                    {t('task.mergeChecklist.action', '다른 항목과 병합')}
                   </DropdownMenuItem>
                 )}
                 {onMoveToTask && (
@@ -5298,7 +4822,7 @@ function ChecklistItemRow({
                     className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs"
                   >
                     <ArrowRightLeft className="h-3.5 w-3.5 mr-2" />
-                    {t("task.moveChecklistToTask")}
+                    {t('task.moveChecklistToTask')}
                   </DropdownMenuItem>
                 )}
                 {(onMerge || onMoveToTask) && (
@@ -5309,7 +4833,7 @@ function ChecklistItemRow({
                   className="text-red-400 hover:bg-red-500/10 hover:text-red-300 focus:bg-red-500/10 focus:text-red-300 text-xs"
                 >
                   <Trash2 className="h-3.5 w-3.5 mr-2" />
-                  {t("common.delete")}
+                  {t('common.delete')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -5337,9 +4861,7 @@ function ChecklistItemRow({
       {showTimeBlocks && (
         <div className="ml-6 mt-1 mb-2 space-y-1">
           {timeBlocks.length === 0 ? (
-            <div className="text-xs text-slate-400 py-1 px-2">
-              {t("task.noTimeBlocks")}
-            </div>
+            <div className="text-xs text-slate-400 py-1 px-2">{t('task.noTimeBlocks')}</div>
           ) : (
             <>
               {timeBlocks.map((block) => (
@@ -5349,14 +4871,13 @@ function ChecklistItemRow({
                 >
                   <CalendarIcon className="h-3 w-3 text-slate-400" />
                   <span className="text-slate-400">
-                    {format(new Date(block.scheduled_date), "M/d (E)", {
+                    {format(new Date(block.scheduled_date), 'M/d (E)', {
                       locale: ko,
                     })}
                   </span>
                   <Clock className="h-3 w-3 text-slate-400" />
                   <span className="text-foreground font-medium">
-                    {block.start_time.slice(0, 5)} -{" "}
-                    {block.end_time.slice(0, 5)}
+                    {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
                   </span>
                   <span className="text-slate-400">
                     (
@@ -5373,10 +4894,7 @@ function ChecklistItemRow({
                         <DropdownMenuTrigger asChild>
                           <button
                             className="h-5 w-5 grid place-items-center rounded text-slate-400 hover:text-foreground hover:bg-foreground/10 opacity-0 group-hover/tb:opacity-100 data-[state=open]:opacity-100 data-[state=open]:bg-foreground/10 transition-opacity"
-                            title={t(
-                              "task.reassignBlock.action",
-                              "다른 항목으로 이동",
-                            )}
+                            title={t('task.reassignBlock.action', '다른 항목으로 이동')}
                           >
                             <ArrowRightLeft className="h-3 w-3" />
                           </button>
@@ -5386,7 +4904,7 @@ function ChecklistItemRow({
                           className="bg-bridge-surface border-bridge-border max-h-64 overflow-y-auto custom-scrollbar"
                         >
                           <div className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                            {t("task.reassignBlock.menuTitle", "이동할 항목")}
+                            {t('task.reassignBlock.menuTitle', '이동할 항목')}
                           </div>
                           {siblingItems.map((sib) => (
                             <DropdownMenuItem
@@ -5395,7 +4913,7 @@ function ChecklistItemRow({
                               className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs max-w-[240px]"
                             >
                               <span
-                                className={`truncate ${sib.completed ? "line-through text-slate-500" : ""}`}
+                                className={`truncate ${sib.completed ? 'line-through text-slate-500' : ''}`}
                               >
                                 {sib.title}
                               </span>
@@ -5433,9 +4951,9 @@ function AddChecklistItemInput({
   isPersonal?: boolean;
 }) {
   const { t } = useTranslation();
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [assigneeId, setAssigneeId] = useState("");
+  const [assigneeId, setAssigneeId] = useState('');
   const [isAdding, setIsAdding] = useState(false);
 
   // 기본값 설정: 현재 사용자를 담당자로, 오늘 날짜를 시작일로
@@ -5445,9 +4963,7 @@ function AddChecklistItemInput({
     setDateRange({ from: new Date(), to: undefined });
     // 현재 사용자가 보드 멤버인지 확인하고 기본값으로 설정
     if (currentUser) {
-      const currentMember = boardMembers.find(
-        (m) => m.userId === currentUser.id,
-      );
+      const currentMember = boardMembers.find((m) => m.userId === currentUser.id);
       if (currentMember) {
         setAssigneeId(currentUser.id);
       }
@@ -5458,44 +4974,38 @@ function AddChecklistItemInput({
     if (value.trim()) {
       onAdd({
         title: value,
-        start_date: dateRange?.from
-          ? format(dateRange.from, "yyyy-MM-dd")
-          : undefined,
-        due_date: dateRange?.to
-          ? format(dateRange.to, "yyyy-MM-dd")
-          : undefined,
+        start_date: dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined,
+        due_date: dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : undefined,
         assignee_id: assigneeId || undefined,
       });
-      setValue("");
+      setValue('');
       setDateRange(undefined);
-      setAssigneeId("");
+      setAssigneeId('');
       setIsAdding(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return;
-    if (e.key === "Enter") {
+    if (e.key === 'Enter') {
       handleAdd();
-    } else if (e.key === "Escape") {
-      setValue("");
+    } else if (e.key === 'Escape') {
+      setValue('');
       setDateRange(undefined);
-      setAssigneeId("");
+      setAssigneeId('');
       setIsAdding(false);
     }
   };
 
   const handleCancel = () => {
-    setValue("");
+    setValue('');
     setDateRange(undefined);
-    setAssigneeId("");
+    setAssigneeId('');
     setIsAdding(false);
   };
 
   // 선택된 담당자 정보 가져오기
-  const selectedMember = assigneeId
-    ? boardMembers.find((m) => m.userId === assigneeId)
-    : null;
+  const selectedMember = assigneeId ? boardMembers.find((m) => m.userId === assigneeId) : null;
 
   if (!isAdding) {
     return (
@@ -5506,7 +5016,7 @@ function AddChecklistItemInput({
         onClick={handleStartAdding}
       >
         <Plus className="h-4 w-4 mr-2" />
-        {t("task.addChecklistItem")}
+        {t('task.addChecklistItem')}
       </Button>
     );
   }
@@ -5520,7 +5030,7 @@ function AddChecklistItemInput({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={t("task.checklistItemPlaceholder")}
+            placeholder={t('task.checklistItemPlaceholder')}
             className="text-xs h-7 bg-foreground/5 border-foreground/10 text-foreground placeholder:text-slate-500"
             autoFocus
           />
@@ -5529,9 +5039,7 @@ function AddChecklistItemInput({
           <div className="flex gap-2 pt-2 border-t border-foreground/10">
             {/* 날짜 범위 선택 */}
             <div className="flex-1">
-              <label className="text-xs text-slate-400 block mb-1">
-                {t("task.period")}
-              </label>
+              <label className="text-xs text-slate-400 block mb-1">{t('task.period')}</label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -5542,16 +5050,14 @@ function AddChecklistItemInput({
                     {dateRange?.from ? (
                       dateRange.to ? (
                         <>
-                          {format(dateRange.from, "MM/dd", { locale: ko })} -{" "}
-                          {format(dateRange.to, "MM/dd", { locale: ko })}
+                          {format(dateRange.from, 'MM/dd', { locale: ko })} -{' '}
+                          {format(dateRange.to, 'MM/dd', { locale: ko })}
                         </>
                       ) : (
-                        format(dateRange.from, "MM/dd", { locale: ko })
+                        format(dateRange.from, 'MM/dd', { locale: ko })
                       )
                     ) : (
-                      <span className="text-slate-400">
-                        {t("task.selectDate")}
-                      </span>
+                      <span className="text-slate-400">{t('task.selectDate')}</span>
                     )}
                   </Button>
                 </PopoverTrigger>
@@ -5575,14 +5081,10 @@ function AddChecklistItemInput({
             {/* 담당자 — Personal Board에서는 숨김 */}
             {!isPersonal && (
               <div className="flex-1">
-                <label className="text-xs text-slate-400 block mb-1">
-                  {t("task.assignee")}
-                </label>
+                <label className="text-xs text-slate-400 block mb-1">{t('task.assignee')}</label>
                 <Select
-                  value={assigneeId || "none"}
-                  onValueChange={(val) =>
-                    setAssigneeId(val === "none" ? "" : val)
-                  }
+                  value={assigneeId || 'none'}
+                  onValueChange={(val) => setAssigneeId(val === 'none' ? '' : val)}
                 >
                   <SelectTrigger className="h-7 text-xs bg-foreground/5 border-foreground/10 text-foreground">
                     {selectedMember ? (
@@ -5595,11 +5097,7 @@ function AddChecklistItemInput({
                           <div className="flex items-center gap-1">
                             <div
                               className={`w-4 h-4 rounded-full ${selColor.bg} flex items-center justify-center text-xs text-white flex-shrink-0 whitespace-nowrap overflow-hidden`}
-                              style={
-                                !selColor.bg
-                                  ? { backgroundColor: selColor.hex }
-                                  : undefined
-                              }
+                              style={!selColor.bg ? { backgroundColor: selColor.hex } : undefined}
                             >
                               {getInitials(selectedMember.name)}
                             </div>
@@ -5608,21 +5106,15 @@ function AddChecklistItemInput({
                         );
                       })()
                     ) : (
-                      <SelectValue placeholder={t("common.none")} />
+                      <SelectValue placeholder={t('common.none')} />
                     )}
                   </SelectTrigger>
                   <SelectContent className="bg-bridge-obsidian border-foreground/10">
-                    <SelectItem
-                      value="none"
-                      className="text-foreground hover:bg-foreground/10"
-                    >
-                      <span className="text-xs">{t("common.none")}</span>
+                    <SelectItem value="none" className="text-foreground hover:bg-foreground/10">
+                      <span className="text-xs">{t('common.none')}</span>
                     </SelectItem>
                     {boardMembers.map((member) => {
-                      const memberColor = getAssigneeClasses(
-                        member.name,
-                        member.assigneeColor,
-                      );
+                      const memberColor = getAssigneeClasses(member.name, member.assigneeColor);
                       return (
                         <SelectItem
                           key={member.userId}
@@ -5633,18 +5125,14 @@ function AddChecklistItemInput({
                             <div
                               className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-xs text-white flex-shrink-0 whitespace-nowrap overflow-hidden`}
                               style={
-                                !memberColor.bg
-                                  ? { backgroundColor: memberColor.hex }
-                                  : undefined
+                                !memberColor.bg ? { backgroundColor: memberColor.hex } : undefined
                               }
                             >
                               {getInitials(member.name)}
                             </div>
                             <span className="text-xs">{member.name}</span>
                             {member.userId === currentUser?.id && (
-                              <span className="text-xs text-slate-400">
-                                (나)
-                              </span>
+                              <span className="text-xs text-slate-400">(나)</span>
                             )}
                           </div>
                         </SelectItem>
@@ -5665,7 +5153,7 @@ function AddChecklistItemInput({
           onClick={handleAdd}
           className="h-7 bg-bridge-accent hover:bg-bridge-accent/90"
         >
-          {t("common.add")}
+          {t('common.add')}
         </Button>
         <Button
           size="sm"
@@ -5673,7 +5161,7 @@ function AddChecklistItemInput({
           onClick={handleCancel}
           className="h-7 text-slate-400 hover:text-foreground hover:bg-foreground/10"
         >
-          {t("common.cancel")}
+          {t('common.cancel')}
         </Button>
       </div>
     </div>

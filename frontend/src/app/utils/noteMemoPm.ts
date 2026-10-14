@@ -16,19 +16,17 @@
  * positions when the note is published (see readMemoPositions).
  */
 
-import { Plugin, PluginKey } from "prosemirror-state";
-import type { EditorState, Transaction } from "prosemirror-state";
-import type { EditorView } from "prosemirror-view";
-import type { Node as PMNode } from "prosemirror-model";
-import { Decoration, DecorationSet } from "prosemirror-view";
-import type { NoteCommentAnchor } from "./api";
-import type { AnchorDraft } from "./noteAnchor";
-import { ANCHOR_CONTEXT_CHARS, ANCHOR_TEXT_MAX } from "./noteAnchor";
+import { Plugin, PluginKey } from 'prosemirror-state';
+import type { EditorState, Transaction } from 'prosemirror-state';
+import type { EditorView } from 'prosemirror-view';
+import type { Node as PMNode } from 'prosemirror-model';
+import { Decoration, DecorationSet } from 'prosemirror-view';
+import type { NoteCommentAnchor } from './api';
+import type { AnchorDraft } from './noteAnchor';
+import { ANCHOR_CONTEXT_CHARS, ANCHOR_TEXT_MAX } from './noteAnchor';
 
-export const MEMO_DECORATION_CLASS = "note-inline-memo";
-export const noteMemoPluginKey = new PluginKey<MemoPluginState>(
-  "noteInlineMemo",
-);
+export const MEMO_DECORATION_CLASS = 'note-inline-memo';
+export const noteMemoPluginKey = new PluginKey<MemoPluginState>('noteInlineMemo');
 
 export interface MemoSpec {
   id: string;
@@ -61,12 +59,10 @@ interface BlockText {
   runs: { pos: number; start: number; end: number }[];
 }
 
-const BLOCK_ID_TYPES = new Set(["blockContainer", "column", "columnList"]);
+const BLOCK_ID_TYPES = new Set(['blockContainer', 'column', 'columnList']);
 
 function isBlockNode(node: PMNode): boolean {
-  return (
-    BLOCK_ID_TYPES.has(node.type.name) && typeof node.attrs?.id === "string"
-  );
+  return BLOCK_ID_TYPES.has(node.type.name) && typeof node.attrs?.id === 'string';
 }
 
 /**
@@ -75,8 +71,8 @@ function isBlockNode(node: PMNode): boolean {
  * edit-mode offsets describe the same string.
  */
 function blockTextOf(block: PMNode, blockPos: number): BlockText {
-  const runs: BlockText["runs"] = [];
-  let text = "";
+  const runs: BlockText['runs'] = [];
+  let text = '';
   const walk = (node: PMNode, pos: number) => {
     node.forEach((child, offset) => {
       const childPos = pos + offset + 1;
@@ -129,8 +125,7 @@ function allBlocks(doc: PMNode): BlockText[] {
  *  offset that lands inside one clamps to the nearest run boundary. */
 function posForOffset(block: BlockText, offset: number): number | null {
   for (const run of block.runs) {
-    if (offset >= run.start && offset <= run.end)
-      return run.pos + (offset - run.start);
+    if (offset >= run.start && offset <= run.end) return run.pos + (offset - run.start);
   }
   return null;
 }
@@ -148,12 +143,7 @@ function offsetForPos(block: BlockText, pos: number): number | null {
 
 function commonSuffixLen(a: string, b: string): number {
   let n = 0;
-  while (
-    n < a.length &&
-    n < b.length &&
-    a[a.length - 1 - n] === b[b.length - 1 - n]
-  )
-    n++;
+  while (n < a.length && n < b.length && a[a.length - 1 - n] === b[b.length - 1 - n]) n++;
   return n;
 }
 function commonPrefixLen(a: string, b: string): number {
@@ -174,12 +164,8 @@ function bestOccurrence(
   let idx = hay.indexOf(text);
   while (idx !== -1) {
     const before = hay.slice(Math.max(0, idx - ANCHOR_CONTEXT_CHARS), idx);
-    const after = hay.slice(
-      idx + text.length,
-      idx + text.length + ANCHOR_CONTEXT_CHARS,
-    );
-    let score =
-      commonSuffixLen(before, prefix) + commonPrefixLen(after, suffix);
+    const after = hay.slice(idx + text.length, idx + text.length + ANCHOR_CONTEXT_CHARS);
+    let score = commonSuffixLen(before, prefix) + commonPrefixLen(after, suffix);
     if (preferNear != null) score -= Math.abs(idx - preferNear) / 1000;
     if (score > bestScore) {
       bestScore = score;
@@ -205,16 +191,12 @@ export function resolveAnchorInDoc(
   blockId: string | null,
   anchor: NoteCommentAnchor,
 ): PmResolvedAnchor | null {
-  const text = anchor.text ?? "";
+  const text = anchor.text ?? '';
   if (!text) return null;
-  const prefix = anchor.prefix ?? "";
-  const suffix = anchor.suffix ?? "";
+  const prefix = anchor.prefix ?? '';
+  const suffix = anchor.suffix ?? '';
 
-  const toResolved = (
-    block: BlockText,
-    start: number,
-    moved: boolean,
-  ): PmResolvedAnchor | null => {
+  const toResolved = (block: BlockText, start: number, moved: boolean): PmResolvedAnchor | null => {
     const from = posForOffset(block, start);
     const to = posForOffset(block, start + text.length);
     if (from == null || to == null || to <= from) return null;
@@ -239,13 +221,7 @@ export function resolveAnchorInDoc(
   }
   // 2. quote search inside the original block
   if (block) {
-    const idx = bestOccurrence(
-      block.text,
-      text,
-      prefix,
-      suffix,
-      anchor.start ?? undefined,
-    );
+    const idx = bestOccurrence(block.text, text, prefix, suffix, anchor.start ?? undefined);
     if (idx !== -1) {
       const hit = toResolved(block, idx, true);
       if (hit) return hit;
@@ -260,12 +236,8 @@ export function resolveAnchorInDoc(
     const idx = bestOccurrence(b.text, text, prefix, suffix);
     if (idx === -1) continue;
     const before = b.text.slice(Math.max(0, idx - ANCHOR_CONTEXT_CHARS), idx);
-    const after = b.text.slice(
-      idx + text.length,
-      idx + text.length + ANCHOR_CONTEXT_CHARS,
-    );
-    const score =
-      commonSuffixLen(before, prefix) + commonPrefixLen(after, suffix);
+    const after = b.text.slice(idx + text.length, idx + text.length + ANCHOR_CONTEXT_CHARS);
+    const score = commonSuffixLen(before, prefix) + commonPrefixLen(after, suffix);
     if (score > bestScore) {
       bestScore = score;
       bestBlock = b;
@@ -287,9 +259,7 @@ export function resolveAnchorInDoc(
  * block the selection starts in, then trimmed of surrounding whitespace, so it
  * matches what read mode would have produced for the same passage.
  */
-export function anchorFromEditorSelection(
-  state: EditorState,
-): AnchorDraft | null {
+export function anchorFromEditorSelection(state: EditorState): AnchorDraft | null {
   const { from, to, empty } = state.selection;
   if (empty || to <= from) return null;
 
@@ -336,12 +306,7 @@ export function selectionRect(view: EditorView): DOMRect | null {
     const right = Math.max(a.right, b.right);
     const top = Math.min(a.top, b.top);
     const bottom = Math.max(a.bottom, b.bottom);
-    return new DOMRect(
-      left,
-      top,
-      Math.max(right - left, 1),
-      Math.max(bottom - top, 1),
-    );
+    return new DOMRect(left, top, Math.max(right - left, 1), Math.max(bottom - top, 1));
   } catch {
     return null;
   }
@@ -358,13 +323,13 @@ function buildDecorations(doc: PMNode, memos: MemoSpec[]): DecorationSet {
       Decoration.inline(hit.from, hit.to, {
         class: [
           MEMO_DECORATION_CLASS,
-          memo.resolved ? "is-resolved" : "",
-          memo.active ? "is-active" : "",
+          memo.resolved ? 'is-resolved' : '',
+          memo.active ? 'is-active' : '',
         ]
           .filter(Boolean)
-          .join(" "),
-        "data-comment-id": memo.id,
-        "data-resolved": memo.resolved ? "true" : "false",
+          .join(' '),
+        'data-comment-id': memo.id,
+        'data-resolved': memo.resolved ? 'true' : 'false',
       }),
     );
   }
@@ -391,7 +356,7 @@ export function createNoteMemoPlugin(): Plugin<MemoPluginState> {
           pending = pending.map(tr.mapping, tr.doc);
         }
         if (meta?.memos) decos = buildDecorations(tr.doc, meta.memos);
-        if (meta && "pending" in meta) {
+        if (meta && 'pending' in meta) {
           pending = meta.pending
             ? DecorationSet.create(tr.doc, [
                 Decoration.inline(meta.pending.from, meta.pending.to, {
@@ -440,15 +405,13 @@ export interface MemoPosition {
  * decorations. Called when the note is published so edits made around a memo
  * are persisted to its anchor.
  */
-export function readMemoPositions(
-  state: EditorState,
-): Map<string, MemoPosition> {
+export function readMemoPositions(state: EditorState): Map<string, MemoPosition> {
   const out = new Map<string, MemoPosition>();
   const pluginState = noteMemoPluginKey.getState(state);
   if (!pluginState) return out;
   for (const deco of pluginState.decos.find()) {
-    const id = (deco as any).type?.attrs?.["data-comment-id"];
-    if (typeof id !== "string") continue;
+    const id = (deco as any).type?.attrs?.['data-comment-id'];
+    if (typeof id !== 'string') continue;
     const $from = state.doc.resolve(deco.from);
     let block: BlockText | null = null;
     for (let d = $from.depth; d >= 0; d--) {

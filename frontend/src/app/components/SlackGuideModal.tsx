@@ -69,110 +69,120 @@ export function SlackGuideModal({ open, onOpenChange }: SlackGuideModalProps) {
   };
 
   return (
-    <MotionModal open={open} onClose={() => onOpenChange(false)} className="sm:max-w-[520px] p-0 overflow-hidden max-h-[80dvh]">
-        <div className="overflow-y-auto max-h-[80dvh] p-6">
-          <div className="mb-5">
-            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-bridge-accent/15 flex items-center justify-center flex-shrink-0">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-bridge-accent">
-                  <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" fill="currentColor"/>
-                </svg>
-              </div>
-              {t('slackGuide.title')}
-            </h2>
-            <p className="text-xs text-slate-400 leading-relaxed mt-1">
-              {t('slackGuide.description')}
-            </p>
-          </div>
+    <MotionModal
+      open={open}
+      onClose={() => onOpenChange(false)}
+      className="sm:max-w-[520px] p-0 overflow-hidden max-h-[80dvh]"
+    >
+      <div className="overflow-y-auto max-h-[80dvh] p-6">
+        <div className="mb-5">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-bridge-accent/15 flex items-center justify-center flex-shrink-0">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                className="text-bridge-accent"
+              >
+                <path
+                  d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"
+                  fill="currentColor"
+                />
+              </svg>
+            </div>
+            {t('slackGuide.title')}
+          </h2>
+          <p className="text-xs text-slate-400 leading-relaxed mt-1">
+            {t('slackGuide.description')}
+          </p>
+        </div>
 
-          <div className="space-y-1">
-            {STEPS_CONFIG.map((step, index) => (
-              <div key={index} className="group">
-                <div className="flex gap-3 py-3">
-                  {/* Step number */}
-                  <div className="flex flex-col items-center flex-shrink-0">
-                    <div className="w-6 h-6 rounded-full bg-bridge-accent/15 text-bridge-accent text-xs font-bold flex items-center justify-center">
-                      {index + 1}
-                    </div>
-                    {index < STEPS_CONFIG.length - 1 && (
-                      <div className="w-px flex-1 bg-white/5 mt-1.5" />
-                    )}
+        <div className="space-y-1">
+          {STEPS_CONFIG.map((step, index) => (
+            <div key={index} className="group">
+              <div className="flex gap-3 py-3">
+                {/* Step number */}
+                <div className="flex flex-col items-center flex-shrink-0">
+                  <div className="w-6 h-6 rounded-full bg-bridge-accent/15 text-bridge-accent text-xs font-bold flex items-center justify-center">
+                    {index + 1}
                   </div>
+                  {index < STEPS_CONFIG.length - 1 && (
+                    <div className="w-px flex-1 bg-white/5 mt-1.5" />
+                  )}
+                </div>
 
-                  {/* Step content */}
-                  <div className="flex-1 min-w-0 pb-2">
-                    <h4 className="text-[12px] font-medium text-foreground mb-1">
-                      {t(step.titleKey)}
-                    </h4>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      {t(step.descKey)}
+                {/* Step content */}
+                <div className="flex-1 min-w-0 pb-2">
+                  <h4 className="text-[12px] font-medium text-foreground mb-1">
+                    {t(step.titleKey)}
+                  </h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">{t(step.descKey)}</p>
+                  {step.detailKey && (
+                    <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                      {t(step.detailKey)}
                     </p>
-                    {step.detailKey && (
-                      <p className="text-xs text-slate-500 leading-relaxed mt-1">
-                        {t(step.detailKey)}
-                      </p>
-                    )}
+                  )}
 
-                    {/* Guide image */}
-                    {step.image && (
-                      <div className="mt-2.5 rounded-lg overflow-hidden border border-foreground/10">
-                        <img
-                          src={step.image}
-                          alt={t(step.titleKey)}
-                          className="w-full h-auto"
-                          loading="lazy"
-                        />
-                      </div>
-                    )}
+                  {/* Guide image */}
+                  {step.image && (
+                    <div className="mt-2.5 rounded-lg overflow-hidden border border-foreground/10">
+                      <img
+                        src={step.image}
+                        alt={t(step.titleKey)}
+                        className="w-full h-auto"
+                        loading="lazy"
+                      />
+                    </div>
+                  )}
 
-                    {/* Link button */}
-                    {step.link && (
-                      <a
-                        href={step.link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1.5 text-xs text-bridge-accent bg-bridge-accent/10 hover:bg-bridge-accent/20 rounded-md transition-colors"
+                  {/* Link button */}
+                  {step.link && (
+                    <a
+                      href={step.link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1.5 text-xs text-bridge-accent bg-bridge-accent/10 hover:bg-bridge-accent/20 rounded-md transition-colors"
+                    >
+                      <ExternalLink size={11} />
+                      {step.link.label}
+                      <ArrowRight size={10} />
+                    </a>
+                  )}
+
+                  {/* Copy example */}
+                  {step.copyExample && (
+                    <div className="mt-2 flex items-center gap-1.5 p-2 bg-white/[0.03] rounded-lg border border-foreground/5">
+                      <code className="text-xs text-slate-400 flex-1 truncate font-mono">
+                        {step.copyExample}
+                      </code>
+                      <button
+                        onClick={() => handleCopy(step.copyExample!, index)}
+                        className="flex-shrink-0 p-1 text-slate-500 hover:text-foreground transition-colors"
+                        title={t('slackGuide.copyTitle')}
                       >
-                        <ExternalLink size={11} />
-                        {step.link.label}
-                        <ArrowRight size={10} />
-                      </a>
-                    )}
-
-                    {/* Copy example */}
-                    {step.copyExample && (
-                      <div className="mt-2 flex items-center gap-1.5 p-2 bg-white/[0.03] rounded-lg border border-foreground/5">
-                        <code className="text-xs text-slate-400 flex-1 truncate font-mono">
-                          {step.copyExample}
-                        </code>
-                        <button
-                          onClick={() => handleCopy(step.copyExample!, index)}
-                          className="flex-shrink-0 p-1 text-slate-500 hover:text-foreground transition-colors"
-                          title={t('slackGuide.copyTitle')}
-                        >
-                          {copiedIndex === index
-                            ? <CheckCircle2 size={12} className="text-green-400" />
-                            : <Copy size={12} />
-                          }
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                        {copiedIndex === index ? (
+                          <CheckCircle2 size={12} className="text-green-400" />
+                        ) : (
+                          <Copy size={12} />
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
-            ))}
-          </div>
-
-          {/* Tip section */}
-          <div className="mt-4 p-3 bg-bridge-accent/5 rounded-xl border border-bridge-accent/10">
-            <p className="text-xs text-muted-foreground font-medium mb-1">
-              {t('slackGuide.tipTitle')}
-            </p>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              {t('slackGuide.tipContent')}
-            </p>
-          </div>
+            </div>
+          ))}
         </div>
+
+        {/* Tip section */}
+        <div className="mt-4 p-3 bg-bridge-accent/5 rounded-xl border border-bridge-accent/10">
+          <p className="text-xs text-muted-foreground font-medium mb-1">
+            {t('slackGuide.tipTitle')}
+          </p>
+          <p className="text-xs text-slate-400 leading-relaxed">{t('slackGuide.tipContent')}</p>
+        </div>
+      </div>
     </MotionModal>
   );
 }

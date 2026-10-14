@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useMemo,
-  ReactNode,
-} from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { Task } from '../types';
 
 interface TaskPlaceholder {
@@ -34,9 +27,7 @@ const initialDragState: TaskDragState = {
 };
 
 const TaskDragStateContext = createContext<TaskDragState | null>(null);
-const PlaceholderContext = createContext<TaskPlaceholder | null | undefined>(
-  undefined,
-);
+const PlaceholderContext = createContext<TaskPlaceholder | null | undefined>(undefined);
 const DragActionsContext = createContext<DragActions | null>(null);
 
 export function DragProvider({ children }: { children: ReactNode }) {
@@ -47,17 +38,12 @@ export function DragProvider({ children }: { children: ReactNode }) {
     setDragState({ draggedTask: task, sourceBlockId: blockId });
   }, []);
 
-  const updateTaskPlaceholder = useCallback(
-    (blockId: string, index: number) => {
-      // 동일 위치면 참조 유지 → 불필요한 재렌더 방지
-      setPlaceholder((prev) =>
-        prev && prev.blockId === blockId && prev.index === index
-          ? prev
-          : { blockId, index },
-      );
-    },
-    [],
-  );
+  const updateTaskPlaceholder = useCallback((blockId: string, index: number) => {
+    // 동일 위치면 참조 유지 → 불필요한 재렌더 방지
+    setPlaceholder((prev) =>
+      prev && prev.blockId === blockId && prev.index === index ? prev : { blockId, index },
+    );
+  }, []);
 
   const clearTaskPlaceholder = useCallback(() => {
     setPlaceholder(null);
@@ -81,9 +67,7 @@ export function DragProvider({ children }: { children: ReactNode }) {
   return (
     <DragActionsContext.Provider value={actions}>
       <TaskDragStateContext.Provider value={dragState}>
-        <PlaceholderContext.Provider value={placeholder}>
-          {children}
-        </PlaceholderContext.Provider>
+        <PlaceholderContext.Provider value={placeholder}>{children}</PlaceholderContext.Provider>
       </TaskDragStateContext.Provider>
     </DragActionsContext.Provider>
   );

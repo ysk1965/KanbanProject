@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { useTranslation } from "react-i18next";
+import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Search,
   Plus,
@@ -12,13 +12,13 @@ import {
   Copy,
   Check,
   Clock,
-} from "lucide-react";
-import { motion } from "framer-motion";
-import { toast } from "sonner";
-import { organizationService } from "../../../utils/services";
-import { getJobGroupBadgeClass } from "../../../utils/jobGroupColor";
-import { MotionModal } from "../../ui/MotionModal";
-import { MemberDetailModal } from "../MemberDetailModal";
+} from 'lucide-react';
+import { motion } from 'framer-motion';
+import { toast } from 'sonner';
+import { organizationService } from '../../../utils/services';
+import { getJobGroupBadgeClass } from '../../../utils/jobGroupColor';
+import { MotionModal } from '../../ui/MotionModal';
+import { MemberDetailModal } from '../MemberDetailModal';
 import type {
   OrgMemberSimple,
   OrgMemberPageResponse,
@@ -33,7 +33,7 @@ import type {
   OrgMemberInviteResult,
   OrgInviteLink,
   OrgStructureSettings,
-} from "../../../types";
+} from '../../../types';
 
 interface OrgMembersTabProps {
   orgId: string;
@@ -49,29 +49,29 @@ interface OrgMembersTabProps {
 }
 
 const CONTRACT_BADGE: Record<ContractType, string> = {
-  FULL_TIME: "bg-bridge-accent/15 text-bridge-accent",
-  CONTRACT: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  INTERN: "bg-bridge-secondary/15 text-bridge-secondary",
-  PART_TIME: "bg-purple-500/15 text-purple-600 dark:text-purple-400",
+  FULL_TIME: 'bg-bridge-accent/15 text-bridge-accent',
+  CONTRACT: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  INTERN: 'bg-bridge-secondary/15 text-bridge-secondary',
+  PART_TIME: 'bg-purple-500/15 text-purple-600 dark:text-purple-400',
 };
 
 const CONTRACT_LABEL_KEYS: Record<ContractType, string> = {
-  FULL_TIME: "organization.members.contractFullTime",
-  CONTRACT: "organization.members.contractContract",
-  INTERN: "organization.members.contractIntern",
-  PART_TIME: "organization.members.contractPartTime",
+  FULL_TIME: 'organization.members.contractFullTime',
+  CONTRACT: 'organization.members.contractContract',
+  INTERN: 'organization.members.contractIntern',
+  PART_TIME: 'organization.members.contractPartTime',
 };
 
 const STATUS_BADGE: Record<WorkStatus, string> = {
-  ACTIVE: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  ON_LEAVE: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  RESIGNED: "bg-red-500/15 text-red-600 dark:text-red-400",
+  ACTIVE: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+  ON_LEAVE: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  RESIGNED: 'bg-red-500/15 text-red-600 dark:text-red-400',
 };
 
 const STATUS_LABEL_KEYS: Record<WorkStatus, string> = {
-  ACTIVE: "organization.members.statusActive",
-  ON_LEAVE: "organization.members.statusOnLeave",
-  RESIGNED: "organization.members.statusResigned",
+  ACTIVE: 'organization.members.statusActive',
+  ON_LEAVE: 'organization.members.statusOnLeave',
+  RESIGNED: 'organization.members.statusResigned',
 };
 
 export function OrgMembersTab({
@@ -87,68 +87,57 @@ export function OrgMembersTab({
   hrSystemEnabled,
 }: OrgMembersTabProps) {
   const { t } = useTranslation();
-  const isAdmin = myRole === "OWNER" || myRole === "ADMIN";
+  const isAdmin = myRole === 'OWNER' || myRole === 'ADMIN';
   const [members, setMembers] = useState<OrgMemberSimple[]>([]);
   const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [inviteTab, setInviteTab] = useState<"email" | "link">("email");
+  const [inviteTab, setInviteTab] = useState<'email' | 'link'>('email');
   const [inviteForm, setInviteForm] = useState({
-    email: "",
-    role: "MEMBER",
-    department_id: "",
-    job_title: "",
+    email: '',
+    role: 'MEMBER',
+    department_id: '',
+    job_title: '',
   });
   const [inviting, setInviting] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
   // Invite link states
   const [inviteLinks, setInviteLinks] = useState<OrgInviteLink[]>([]);
-  const [linkRole, setLinkRole] = useState<"MEMBER" | "ADMIN">("MEMBER");
-  const [linkExpiry, setLinkExpiry] = useState("7");
-  const [linkMaxUses, setLinkMaxUses] = useState("");
+  const [linkRole, setLinkRole] = useState<'MEMBER' | 'ADMIN'>('MEMBER');
+  const [linkExpiry, setLinkExpiry] = useState('7');
+  const [linkMaxUses, setLinkMaxUses] = useState('');
   const [creatingLink, setCreatingLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Filters
-  const [search, setSearch] = useState("");
-  const [departmentFilter, setDepartmentFilter] = useState("");
-  const [jobGroupFilter, setJobGroupFilter] = useState("");
-  const [contractFilter, setContractFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [jobGroupFilter, setJobGroupFilter] = useState('');
+  const [contractFilter, setContractFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(0);
 
   const fetchMembers = useCallback(async () => {
     try {
       setLoading(true);
-      const data: OrgMemberPageResponse = await organizationService.getMembers(
-        orgId,
-        {
-          department_id: departmentFilter || undefined,
-          job_group_id: jobGroupFilter || undefined,
-          contract_type: contractFilter || undefined,
-          work_status: statusFilter || undefined,
-          search: search || undefined,
-          page,
-          size: 20,
-        },
-      );
+      const data: OrgMemberPageResponse = await organizationService.getMembers(orgId, {
+        department_id: departmentFilter || undefined,
+        job_group_id: jobGroupFilter || undefined,
+        contract_type: contractFilter || undefined,
+        work_status: statusFilter || undefined,
+        search: search || undefined,
+        page,
+        size: 20,
+      });
       setMembers(data.content);
       setTotalElements(data.total_elements);
     } catch (error) {
-      console.warn("Failed to fetch members:", error);
+      console.warn('Failed to fetch members:', error);
     } finally {
       setLoading(false);
     }
-  }, [
-    orgId,
-    departmentFilter,
-    jobGroupFilter,
-    contractFilter,
-    statusFilter,
-    search,
-    page,
-  ]);
+  }, [orgId, departmentFilter, jobGroupFilter, contractFilter, statusFilter, search, page]);
 
   useEffect(() => {
     fetchMembers();
@@ -156,9 +145,7 @@ export function OrgMembersTab({
 
   const fetchInviteLinks = useCallback(async () => {
     try {
-      const links = await organizationService
-        .getInviteLinks(orgId)
-        .catch(() => []);
+      const links = await organizationService.getInviteLinks(orgId).catch(() => []);
       setInviteLinks(links);
     } catch {
       // ignore
@@ -166,7 +153,7 @@ export function OrgMembersTab({
   }, [orgId]);
 
   useEffect(() => {
-    if (showInviteModal && inviteTab === "link") {
+    if (showInviteModal && inviteTab === 'link') {
       fetchInviteLinks();
     }
   }, [showInviteModal, inviteTab, fetchInviteLinks]);
@@ -179,20 +166,13 @@ export function OrgMembersTab({
         max_uses: linkMaxUses ? Number(linkMaxUses) : null,
         expires_in_days: linkExpiry ? Number(linkExpiry) : undefined,
       });
-      setLinkRole("MEMBER");
-      setLinkExpiry("7");
-      setLinkMaxUses("");
+      setLinkRole('MEMBER');
+      setLinkExpiry('7');
+      setLinkMaxUses('');
       fetchInviteLinks();
-      toast.success(
-        t("organization.members.linkCreated", "Invite link created"),
-      );
+      toast.success(t('organization.members.linkCreated', 'Invite link created'));
     } catch {
-      toast.error(
-        t(
-          "organization.members.linkCreateError",
-          "Failed to create invite link",
-        ),
-      );
+      toast.error(t('organization.members.linkCreateError', 'Failed to create invite link'));
     } finally {
       setCreatingLink(false);
     }
@@ -203,12 +183,7 @@ export function OrgMembersTab({
       await organizationService.deleteInviteLink(orgId, linkId);
       fetchInviteLinks();
     } catch {
-      toast.error(
-        t(
-          "organization.members.linkDeleteError",
-          "Failed to delete invite link",
-        ),
-      );
+      toast.error(t('organization.members.linkDeleteError', 'Failed to delete invite link'));
     }
   };
 
@@ -216,9 +191,7 @@ export function OrgMembersTab({
     const url = `${window.location.origin}/org-invite/${code}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopiedCode(code);
-      toast.success(
-        t("organization.members.linkCopied", "Link copied to clipboard"),
-      );
+      toast.success(t('organization.members.linkCopied', 'Link copied to clipboard'));
       setTimeout(() => setCopiedCode(null), 2000);
     });
   };
@@ -226,8 +199,8 @@ export function OrgMembersTab({
   const formatExpiry = (expiresAt: string | null | undefined) => {
     if (!expiresAt) return null;
     return new Date(expiresAt).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
+      month: 'short',
+      day: 'numeric',
     });
   };
 
@@ -243,20 +216,16 @@ export function OrgMembersTab({
       });
       setShowInviteModal(false);
       setInviteForm({
-        email: "",
-        role: "MEMBER",
-        department_id: "",
-        job_title: "",
+        email: '',
+        role: 'MEMBER',
+        department_id: '',
+        job_title: '',
       });
       fetchMembers();
-      toast.success(
-        t("organization.members.inviteSuccess", "Invite sent successfully"),
-      );
+      toast.success(t('organization.members.inviteSuccess', 'Invite sent successfully'));
     } catch (error) {
-      console.warn("Failed to invite member:", error);
-      toast.error(
-        t("organization.members.inviteError", "Failed to invite member"),
-      );
+      console.warn('Failed to invite member:', error);
+      toast.error(t('organization.members.inviteError', 'Failed to invite member'));
     } finally {
       setInviting(false);
     }
@@ -278,10 +247,7 @@ export function OrgMembersTab({
               setSearch(e.target.value);
               setPage(0);
             }}
-            placeholder={t(
-              "organization.members.searchPlaceholder",
-              "Search by name or email...",
-            )}
+            placeholder={t('organization.members.searchPlaceholder', 'Search by name or email...')}
             className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-2.5 pl-9 pr-4 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
           />
         </div>
@@ -295,9 +261,7 @@ export function OrgMembersTab({
             }}
             className="bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
           >
-            <option value="">
-              {t("organization.members.allDepartments", "All Departments")}
-            </option>
+            <option value="">{t('organization.members.allDepartments', 'All Departments')}</option>
             {departments.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name}
@@ -315,18 +279,10 @@ export function OrgMembersTab({
             }}
             className="bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
           >
-            <option value="">
-              {t("organization.members.allStatuses", "All Statuses")}
-            </option>
-            <option value="ACTIVE">
-              {t("organization.members.active", "Active")}
-            </option>
-            <option value="ON_LEAVE">
-              {t("organization.members.onLeave", "On Leave")}
-            </option>
-            <option value="RESIGNED">
-              {t("organization.members.resigned", "Resigned")}
-            </option>
+            <option value="">{t('organization.members.allStatuses', 'All Statuses')}</option>
+            <option value="ACTIVE">{t('organization.members.active', 'Active')}</option>
+            <option value="ON_LEAVE">{t('organization.members.onLeave', 'On Leave')}</option>
+            <option value="RESIGNED">{t('organization.members.resigned', 'Resigned')}</option>
           </select>
         )}
 
@@ -336,7 +292,7 @@ export function OrgMembersTab({
             className="flex items-center gap-2 px-4 py-2.5 bg-bridge-accent text-white rounded-xl font-bold text-sm hover:bg-bridge-accent/90 transition-all"
           >
             <Plus size={16} />
-            {t("organization.members.invite", "Invite")}
+            {t('organization.members.invite', 'Invite')}
           </button>
         )}
       </div>
@@ -344,7 +300,7 @@ export function OrgMembersTab({
       {/* Results Count */}
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Users size={12} />
-        {t("organization.members.resultCount", "{{count}} members found", {
+        {t('organization.members.resultCount', '{{count}} members found', {
           count: totalElements,
         })}
       </div>
@@ -369,12 +325,12 @@ export function OrgMembersTab({
             <Users size={32} className="text-bridge-accent/60" />
           </div>
           <h3 className="text-base font-bold text-foreground mb-1">
-            {t("organization.members.emptyTitle", "No members found")}
+            {t('organization.members.emptyTitle', 'No members found')}
           </h3>
           <p className="text-sm text-muted-foreground mb-5 max-w-xs">
             {t(
-              "organization.members.emptyDesc",
-              "Invite team members to collaborate in this organization.",
+              'organization.members.emptyDesc',
+              'Invite team members to collaborate in this organization.',
             )}
           </p>
           {isAdmin && (
@@ -383,7 +339,7 @@ export function OrgMembersTab({
               className="flex items-center gap-2 px-5 py-2.5 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all"
             >
               <Plus size={16} />
-              {t("organization.members.invite", "Invite")}
+              {t('organization.members.invite', 'Invite')}
             </button>
           )}
         </motion.div>
@@ -403,11 +359,11 @@ export function OrgMembersTab({
                   {member.user.profile_image ? (
                     <img
                       src={member.user.profile_image}
-                      alt={member.user.name || "프로필"}
+                      alt={member.user.name || '프로필'}
                       className="w-10 h-10 rounded-full object-cover"
                     />
                   ) : (
-                    member.user.name?.charAt(0) || "?"
+                    member.user.name?.charAt(0) || '?'
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -415,27 +371,25 @@ export function OrgMembersTab({
                     <span className="text-foreground font-medium text-sm truncate">
                       {member.user.name}
                     </span>
-                    {structureSettings.job_groups_enabled &&
-                      member.job_group?.name && (
-                        <span
-                          className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${getJobGroupBadgeClass(member.job_group.name)}`}
-                        >
-                          {member.job_group.name}
-                        </span>
-                      )}
+                    {structureSettings.job_groups_enabled && member.job_group?.name && (
+                      <span
+                        className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${getJobGroupBadgeClass(member.job_group.name)}`}
+                      >
+                        {member.job_group.name}
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground truncate mt-0.5">
-                    {structureSettings.departments_enabled &&
-                      member.department?.name && (
-                        <span>{member.department.name}</span>
-                      )}
+                    {structureSettings.departments_enabled && member.department?.name && (
+                      <span>{member.department.name}</span>
+                    )}
                     {structureSettings.departments_enabled &&
                       member.department?.name &&
                       member.job_title && <span> · </span>}
                     {member.job_title && <span>{member.job_title}</span>}
                   </div>
                 </div>
-                {hrSystemEnabled && member.work_status !== "ACTIVE" && (
+                {hrSystemEnabled && member.work_status !== 'ACTIVE' && (
                   <span
                     className={`text-xs font-bold uppercase px-1.5 py-0.5 rounded-full ${STATUS_BADGE[member.work_status]}`}
                   >
@@ -452,7 +406,7 @@ export function OrgMembersTab({
       {totalElements > 20 && (
         <div className="flex items-center justify-between">
           <p className="text-muted-foreground text-xs">
-            {t("organization.members.resultCount", "{{count}} members found", {
+            {t('organization.members.resultCount', '{{count}} members found', {
               count: totalElements,
             })}
           </p>
@@ -468,9 +422,7 @@ export function OrgMembersTab({
               {page + 1} / {Math.ceil(totalElements / 20) || 1}
             </span>
             <button
-              onClick={() =>
-                setPage(Math.min(Math.ceil(totalElements / 20) - 1, page + 1))
-              }
+              onClick={() => setPage(Math.min(Math.ceil(totalElements / 20) - 1, page + 1))}
               disabled={page >= Math.ceil(totalElements / 20) - 1}
               className="min-w-11 min-h-11 flex items-center justify-center p-1.5 bg-bridge-obsidian border border-foreground/[0.08] rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
@@ -485,7 +437,7 @@ export function OrgMembersTab({
         open={!!selectedMemberId}
         onClose={() => setSelectedMemberId(null)}
         orgId={orgId}
-        memberId={selectedMemberId || ""}
+        memberId={selectedMemberId || ''}
         myRole={myRole}
         myUserId={myUserId}
         departments={departments}
@@ -498,54 +450,49 @@ export function OrgMembersTab({
       />
 
       {/* Invite Modal */}
-      <MotionModal
-        open={showInviteModal}
-        onClose={() => setShowInviteModal(false)}
-      >
+      <MotionModal open={showInviteModal} onClose={() => setShowInviteModal(false)}>
         <div className="h-1 bg-gradient-to-r from-bridge-accent to-bridge-secondary rounded-t-2xl" />
         <div className="px-5 pt-4 pb-0 border-b border-foreground/[0.08]">
           <h2 className="text-lg font-bold text-foreground mb-3">
-            {t("organization.members.inviteTitle", "Invite Member")}
+            {t('organization.members.inviteTitle', 'Invite Member')}
           </h2>
           <div className="flex gap-1">
             <button
-              onClick={() => setInviteTab("email")}
+              onClick={() => setInviteTab('email')}
               className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-t-lg transition-colors ${
-                inviteTab === "email"
-                  ? "text-bridge-accent border-b-2 border-bridge-accent"
-                  : "text-slate-400 hover:text-foreground"
+                inviteTab === 'email'
+                  ? 'text-bridge-accent border-b-2 border-bridge-accent'
+                  : 'text-slate-400 hover:text-foreground'
               }`}
             >
               <Mail size={14} />
-              {t("organization.members.tabEmail", "Email")}
+              {t('organization.members.tabEmail', 'Email')}
             </button>
             <button
-              onClick={() => setInviteTab("link")}
+              onClick={() => setInviteTab('link')}
               className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-t-lg transition-colors ${
-                inviteTab === "link"
-                  ? "text-bridge-accent border-b-2 border-bridge-accent"
-                  : "text-slate-400 hover:text-foreground"
+                inviteTab === 'link'
+                  ? 'text-bridge-accent border-b-2 border-bridge-accent'
+                  : 'text-slate-400 hover:text-foreground'
               }`}
             >
               <Link2 size={14} />
-              {t("organization.members.tabLink", "Invite Link")}
+              {t('organization.members.tabLink', 'Invite Link')}
             </button>
           </div>
         </div>
 
-        {inviteTab === "email" ? (
+        {inviteTab === 'email' ? (
           <>
             <div className="px-5 pb-5 pt-4 space-y-4">
               <div>
                 <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
-                  {t("organization.members.email", "Email")}
+                  {t('organization.members.email', 'Email')}
                 </label>
                 <input
                   type="email"
                   value={inviteForm.email}
-                  onChange={(e) =>
-                    setInviteForm({ ...inviteForm, email: e.target.value })
-                  }
+                  onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
                   placeholder="user@example.com"
                   className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                   autoFocus
@@ -553,61 +500,52 @@ export function OrgMembersTab({
               </div>
               <div>
                 <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
-                  {t("organization.members.role", "Role")}
+                  {t('organization.members.role', 'Role')}
                 </label>
                 <select
                   value={inviteForm.role}
-                  onChange={(e) =>
-                    setInviteForm({ ...inviteForm, role: e.target.value })
-                  }
+                  onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
                   className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                 >
-                  <option value="MEMBER">
-                    {t("organization.members.roleMember", "Member")}
-                  </option>
-                  <option value="ADMIN">
-                    {t("organization.members.roleAdmin", "Admin")}
-                  </option>
+                  <option value="MEMBER">{t('organization.members.roleMember', 'Member')}</option>
+                  <option value="ADMIN">{t('organization.members.roleAdmin', 'Admin')}</option>
                 </select>
               </div>
-              {structureSettings.departments_enabled &&
-                departments.length > 0 && (
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
-                      {t("organization.members.department", "Department")}
-                    </label>
-                    <select
-                      value={inviteForm.department_id}
-                      onChange={(e) =>
-                        setInviteForm({
-                          ...inviteForm,
-                          department_id: e.target.value,
-                        })
-                      }
-                      className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
-                    >
-                      <option value="">{t("common.none", "None")}</option>
-                      {departments.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+              {structureSettings.departments_enabled && departments.length > 0 && (
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+                    {t('organization.members.department', 'Department')}
+                  </label>
+                  <select
+                    value={inviteForm.department_id}
+                    onChange={(e) =>
+                      setInviteForm({
+                        ...inviteForm,
+                        department_id: e.target.value,
+                      })
+                    }
+                    className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                  >
+                    <option value="">{t('common.none', 'None')}</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
-                  {t("organization.members.jobTitle", "Job Title")}
+                  {t('organization.members.jobTitle', 'Job Title')}
                 </label>
                 <input
                   type="text"
                   value={inviteForm.job_title}
-                  onChange={(e) =>
-                    setInviteForm({ ...inviteForm, job_title: e.target.value })
-                  }
+                  onChange={(e) => setInviteForm({ ...inviteForm, job_title: e.target.value })}
                   placeholder={t(
-                    "organization.members.jobTitlePlaceholder",
-                    "e.g. Frontend Developer",
+                    'organization.members.jobTitlePlaceholder',
+                    'e.g. Frontend Developer',
                   )}
                   className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                 />
@@ -620,7 +558,7 @@ export function OrgMembersTab({
                   onClick={() => setShowInviteModal(false)}
                   className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors"
                 >
-                  {t("common.cancel", "Cancel")}
+                  {t('common.cancel', 'Cancel')}
                 </button>
                 <button
                   onClick={handleInvite}
@@ -628,8 +566,8 @@ export function OrgMembersTab({
                   className="px-4 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50"
                 >
                   {inviting
-                    ? t("common.sending", "Sending...")
-                    : t("organization.members.sendInvite", "Send Invite")}
+                    ? t('common.sending', 'Sending...')
+                    : t('organization.members.sendInvite', 'Send Invite')}
                 </button>
               </div>
             </div>
@@ -642,58 +580,46 @@ export function OrgMembersTab({
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div>
                     <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1 block">
-                      {t("organization.members.role", "Role")}
+                      {t('organization.members.role', 'Role')}
                     </label>
                     <select
                       value={linkRole}
-                      onChange={(e) =>
-                        setLinkRole(e.target.value as "MEMBER" | "ADMIN")
-                      }
+                      onChange={(e) => setLinkRole(e.target.value as 'MEMBER' | 'ADMIN')}
                       className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg py-2 px-2.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                     >
                       <option value="MEMBER">
-                        {t("organization.members.roleMember", "Member")}
+                        {t('organization.members.roleMember', 'Member')}
                       </option>
-                      <option value="ADMIN">
-                        {t("organization.members.roleAdmin", "Admin")}
-                      </option>
+                      <option value="ADMIN">{t('organization.members.roleAdmin', 'Admin')}</option>
                     </select>
                   </div>
                   <div>
                     <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1 block">
-                      {t("organization.members.linkExpiry", "Expires")}
+                      {t('organization.members.linkExpiry', 'Expires')}
                     </label>
                     <select
                       value={linkExpiry}
                       onChange={(e) => setLinkExpiry(e.target.value)}
                       className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg py-2 px-2.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                     >
-                      <option value="">
-                        {t("organization.members.noExpiry", "No expiry")}
-                      </option>
-                      <option value="1">
-                        {t("organization.members.expiry1Day", "1 day")}
-                      </option>
-                      <option value="7">
-                        {t("organization.members.expiry7Days", "7 days")}
-                      </option>
+                      <option value="">{t('organization.members.noExpiry', 'No expiry')}</option>
+                      <option value="1">{t('organization.members.expiry1Day', '1 day')}</option>
+                      <option value="7">{t('organization.members.expiry7Days', '7 days')}</option>
                       <option value="30">
-                        {t("organization.members.expiry30Days", "30 days")}
+                        {t('organization.members.expiry30Days', '30 days')}
                       </option>
                     </select>
                   </div>
                   <div>
                     <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1 block">
-                      {t("organization.members.linkMaxUses", "Max Uses")}
+                      {t('organization.members.linkMaxUses', 'Max Uses')}
                     </label>
                     <select
                       value={linkMaxUses}
                       onChange={(e) => setLinkMaxUses(e.target.value)}
                       className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg py-2 px-2.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                     >
-                      <option value="">
-                        {t("organization.members.unlimited", "Unlimited")}
-                      </option>
+                      <option value="">{t('organization.members.unlimited', 'Unlimited')}</option>
                       <option value="1">1</option>
                       <option value="5">5</option>
                       <option value="10">10</option>
@@ -709,9 +635,7 @@ export function OrgMembersTab({
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-bridge-accent text-white rounded-lg text-xs font-bold hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
                   >
                     <Link2 size={12} />
-                    {creatingLink
-                      ? "..."
-                      : t("organization.members.generateLink", "Generate Link")}
+                    {creatingLink ? '...' : t('organization.members.generateLink', 'Generate Link')}
                   </button>
                 </div>
               </div>
@@ -719,7 +643,7 @@ export function OrgMembersTab({
               {/* Existing links */}
               {inviteLinks.length === 0 ? (
                 <p className="text-sm text-slate-500 text-center py-4">
-                  {t("organization.members.noLinks", "No active invite links")}
+                  {t('organization.members.noLinks', 'No active invite links')}
                 </p>
               ) : (
                 <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar">
@@ -735,17 +659,17 @@ export function OrgMembersTab({
                         </span>
                         <span
                           className={`text-xs font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
-                            link.role === "ADMIN"
-                              ? "bg-bridge-accent/15 text-bridge-accent"
-                              : "bg-slate-500/15 text-slate-600 dark:text-slate-400"
+                            link.role === 'ADMIN'
+                              ? 'bg-bridge-accent/15 text-bridge-accent'
+                              : 'bg-slate-500/15 text-slate-600 dark:text-slate-400'
                           }`}
                         >
                           {link.role}
                         </span>
                         <span className="text-xs text-slate-500 shrink-0">
                           {link.used_count}
-                          {link.max_uses ? `/${link.max_uses}` : ""}{" "}
-                          {t("organization.members.used", "used")}
+                          {link.max_uses ? `/${link.max_uses}` : ''}{' '}
+                          {t('organization.members.used', 'used')}
                         </span>
                         {link.expires_at && (
                           <span className="text-xs text-slate-500 flex items-center gap-0.5 shrink-0">
@@ -783,7 +707,7 @@ export function OrgMembersTab({
                 onClick={() => setShowInviteModal(false)}
                 className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors"
               >
-                {t("common.close", "Close")}
+                {t('common.close', 'Close')}
               </button>
             </div>
           </>

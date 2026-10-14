@@ -2,9 +2,24 @@ import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'rea
 import { useTranslation } from 'react-i18next';
 import { FEATURE_COLORS } from '../../constants';
 import {
-  Clock, CalendarDays, CheckCircle2,
-  ArrowRight, Sun, Sunrise, Sunset, Moon, Loader2, Flame, Check,
-  Plus, X, ChevronDown, ChevronUp, ListTodo, Zap, Trophy,
+  Clock,
+  CalendarDays,
+  CheckCircle2,
+  ArrowRight,
+  Sun,
+  Sunrise,
+  Sunset,
+  Moon,
+  Loader2,
+  Flame,
+  Check,
+  Plus,
+  X,
+  ChevronDown,
+  ChevronUp,
+  ListTodo,
+  Zap,
+  Trophy,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
@@ -14,8 +29,24 @@ import { ColorPickerPopover } from '../ui/ColorPickerPopover';
 import { personalEventService } from '../../utils/services';
 import { personalTaskAPI, personalHabitAPI, personalDashboardAPI } from '../../utils/api';
 import { getTodayDateString } from '../../utils/dateUtils';
-import { PersonalEvent, PersonalTask, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix, PersonalTaskPriority, PersonalDashboardToday, PersonalOverviewData } from '../../types';
-import { CheckInConfirmModal, TaskCompleteConfirmModal, HabitFormModal, DeleteConfirmModal, type HabitFormData } from './PersonalHabits';
+import {
+  PersonalEvent,
+  PersonalTask,
+  PersonalHabit,
+  HabitTodayItem,
+  HabitFrequency,
+  HabitWeeklyMatrix,
+  PersonalTaskPriority,
+  PersonalDashboardToday,
+  PersonalOverviewData,
+} from '../../types';
+import {
+  CheckInConfirmModal,
+  TaskCompleteConfirmModal,
+  HabitFormModal,
+  DeleteConfirmModal,
+  type HabitFormData,
+} from './PersonalHabits';
 import { TaskDetailModal } from './PersonalTaskBoard';
 import { BoardTasksWidget } from './BoardTasksWidget';
 import { CelebrationsWidget } from './CelebrationsWidget';
@@ -83,76 +114,101 @@ function ViewAllButton({ onClick, label }: { onClick: () => void; label?: string
 
 // ── Check Particles ─────────────────────────────────────────────────
 
-const PARTICLE_COLORS = ['#34d399', '#6ee7b7', '#a7f3d0', '#2dd4bf', '#5eead4', '#fbbf24', '#f9a8d4'];
+const PARTICLE_COLORS = [
+  '#34d399',
+  '#6ee7b7',
+  '#a7f3d0',
+  '#2dd4bf',
+  '#5eead4',
+  '#fbbf24',
+  '#f9a8d4',
+];
 
 function CheckParticles({ trigger }: { trigger: boolean }) {
   const reduced = useReducedMotion();
-  const particles = useMemo(() => Array.from({ length: 8 }, (_, i) => {
-    const angle = (i / 8) * 360;
-    const rad = (angle * Math.PI) / 180;
-    const distance = 14 + Math.random() * 10;
-    return {
-      id: i,
-      x: Math.cos(rad) * distance,
-      y: Math.sin(rad) * distance,
-      color: PARTICLE_COLORS[i % PARTICLE_COLORS.length],
-      size: 2.5 + Math.random() * 2,
-      delay: i * 0.02,
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [trigger]);
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 8 }, (_, i) => {
+        const angle = (i / 8) * 360;
+        const rad = (angle * Math.PI) / 180;
+        const distance = 14 + Math.random() * 10;
+        return {
+          id: i,
+          x: Math.cos(rad) * distance,
+          y: Math.sin(rad) * distance,
+          color: PARTICLE_COLORS[i % PARTICLE_COLORS.length],
+          size: 2.5 + Math.random() * 2,
+          delay: i * 0.02,
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }),
+    [trigger],
+  );
 
   if (reduced) return null;
 
   return (
     <AnimatePresence>
-      {trigger && particles.map(p => (
-        <motion.div
-          key={p.id}
-          initial={{ x: 0, y: 0, scale: 1, opacity: 1 }}
-          animate={{ x: p.x, y: p.y, scale: 0, opacity: 0 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5, delay: p.delay, ease: 'easeOut' }}
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            width: p.size,
-            height: p.size,
-            marginTop: -p.size / 2,
-            marginLeft: -p.size / 2,
-            borderRadius: '50%',
-            backgroundColor: p.color,
-            pointerEvents: 'none',
-          }}
-        />
-      ))}
+      {trigger &&
+        particles.map((p) => (
+          <motion.div
+            key={p.id}
+            initial={{ x: 0, y: 0, scale: 1, opacity: 1 }}
+            animate={{ x: p.x, y: p.y, scale: 0, opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5, delay: p.delay, ease: 'easeOut' }}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              width: p.size,
+              height: p.size,
+              marginTop: -p.size / 2,
+              marginLeft: -p.size / 2,
+              borderRadius: '50%',
+              backgroundColor: p.color,
+              pointerEvents: 'none',
+            }}
+          />
+        ))}
     </AnimatePresence>
   );
 }
 
 // ── Completion Sparkles (for 100% stat cards) ──────────────────────────
 
-const SPARKLE_COLORS = ['#2dd4bf', '#34d399', '#6366f1', '#fbbf24', '#f9a8d4', '#a78bfa', '#5eead4'];
+const SPARKLE_COLORS = [
+  '#2dd4bf',
+  '#34d399',
+  '#6366f1',
+  '#fbbf24',
+  '#f9a8d4',
+  '#a78bfa',
+  '#5eead4',
+];
 
 /** Idle twinkle sparkles (always visible when complete) */
 function CompletionSparkles({ active }: { active: boolean }) {
   const reduced = useReducedMotion();
-  const sparkles = useMemo(() => Array.from({ length: 6 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: 2 + Math.random() * 2.5,
-    delay: i * 0.3 + Math.random() * 0.5,
-    duration: 1.5 + Math.random() * 1,
-    color: SPARKLE_COLORS[i % SPARKLE_COLORS.length],
-  })), []);
+  const sparkles = useMemo(
+    () =>
+      Array.from({ length: 6 }, (_, i) => ({
+        id: i,
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        size: 2 + Math.random() * 2.5,
+        delay: i * 0.3 + Math.random() * 0.5,
+        duration: 1.5 + Math.random() * 1,
+        color: SPARKLE_COLORS[i % SPARKLE_COLORS.length],
+      })),
+    [],
+  );
 
   if (reduced || !active) return null;
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-xl">
-      {sparkles.map(s => (
+      {sparkles.map((s) => (
         <motion.div
           key={s.id}
           className="absolute"
@@ -186,19 +242,23 @@ function CompletionBurst({ triggerKey }: { triggerKey: number }) {
   const reduced = useReducedMotion();
   const [show, setShow] = useState(false);
   const prevKey = useRef(0);
-  const particles = useMemo(() => Array.from({ length: 12 }, (_, i) => {
-    const angle = (i / 12) * 360;
-    const rad = (angle * Math.PI) / 180;
-    const dist = 20 + Math.random() * 25;
-    return {
-      id: i,
-      x: Math.cos(rad) * dist,
-      y: Math.sin(rad) * dist - 8,
-      color: SPARKLE_COLORS[i % SPARKLE_COLORS.length],
-      size: 3 + Math.random() * 3,
-      delay: i * 0.025,
-    };
-  }), []);
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, i) => {
+        const angle = (i / 12) * 360;
+        const rad = (angle * Math.PI) / 180;
+        const dist = 20 + Math.random() * 25;
+        return {
+          id: i,
+          x: Math.cos(rad) * dist,
+          y: Math.sin(rad) * dist - 8,
+          color: SPARKLE_COLORS[i % SPARKLE_COLORS.length],
+          size: 3 + Math.random() * 3,
+          delay: i * 0.025,
+        };
+      }),
+    [],
+  );
 
   useEffect(() => {
     if (triggerKey > 0 && triggerKey !== prevKey.current) {
@@ -213,28 +273,29 @@ function CompletionBurst({ triggerKey }: { triggerKey: number }) {
 
   return (
     <AnimatePresence>
-      {show && particles.map(p => (
-        <motion.div
-          key={p.id}
-          initial={{ x: 0, y: 0, scale: 1, opacity: 1 }}
-          animate={{ x: p.x, y: p.y, scale: 0, opacity: 0 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.7, delay: p.delay, ease: 'easeOut' }}
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            width: p.size,
-            height: p.size,
-            marginTop: -p.size / 2,
-            marginLeft: -p.size / 2,
-            borderRadius: '50%',
-            backgroundColor: p.color,
-            pointerEvents: 'none',
-            zIndex: 10,
-          }}
-        />
-      ))}
+      {show &&
+        particles.map((p) => (
+          <motion.div
+            key={p.id}
+            initial={{ x: 0, y: 0, scale: 1, opacity: 1 }}
+            animate={{ x: p.x, y: p.y, scale: 0, opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.7, delay: p.delay, ease: 'easeOut' }}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              width: p.size,
+              height: p.size,
+              marginTop: -p.size / 2,
+              marginLeft: -p.size / 2,
+              borderRadius: '50%',
+              backgroundColor: p.color,
+              pointerEvents: 'none',
+              zIndex: 10,
+            }}
+          />
+        ))}
     </AnimatePresence>
   );
 }
@@ -290,10 +351,10 @@ function TodayScheduleWidget({
     return h * 60 + m;
   };
 
-  const calendarEvents = events.filter(e => e.event_type === 'CALENDAR');
+  const calendarEvents = events.filter((e) => e.event_type === 'CALENDAR');
 
   const allTimedEvents = events
-    .filter(e => e.event_type !== 'CALENDAR' && !e.all_day && e.start_time)
+    .filter((e) => e.event_type !== 'CALENDAR' && !e.all_day && e.start_time)
     .sort((a, b) => toMin(a.start_time!) - toMin(b.start_time!));
 
   const allDayEvents: PersonalEvent[] = [];
@@ -303,11 +364,11 @@ function TodayScheduleWidget({
   const halfWindow = isMobile ? 60 : 90;
   const rawWindowStart = currentMinutes - halfWindow;
   const rawWindowEnd = currentMinutes + halfWindow;
-  const windowStartMin = rawWindowStart >= 0 ? (Math.floor(rawWindowStart / 30) * 30) : 0;
+  const windowStartMin = rawWindowStart >= 0 ? Math.floor(rawWindowStart / 30) * 30 : 0;
   const windowEndMin = Math.min(24 * 60, Math.ceil(rawWindowEnd / 30) * 30);
 
   // 윈도우와 겹치는 이벤트
-  const timedEvents = allTimedEvents.filter(ev => {
+  const timedEvents = allTimedEvents.filter((ev) => {
     const evStart = toMin(ev.start_time!);
     const evEnd = ev.end_time ? toMin(ev.end_time) : evStart + 60;
     return evStart < rawWindowEnd && evEnd > rawWindowStart;
@@ -329,7 +390,7 @@ function TodayScheduleWidget({
   // 현재 시간 indicator 위치
   const nowTop = useMemo(() => {
     const mins = currentMinutes - windowStartMin;
-    if (mins < 0 || mins > (windowEndMin - windowStartMin)) return null;
+    if (mins < 0 || mins > windowEndMin - windowStartMin) return null;
     return (mins / 30) * TIMELINE_SLOT_H;
   }, [currentMinutes, windowStartMin, windowEndMin]);
 
@@ -353,9 +414,10 @@ function TodayScheduleWidget({
       icon={<Clock size={16} className="text-bridge-secondary" />}
       title={t('personal.overview.todaySchedule', "Today's Schedule")}
       badge={
-        (allTimedEvents.length + calendarEvents.length) > 0 ? (
+        allTimedEvents.length + calendarEvents.length > 0 ? (
           <span className="text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 px-1.5 py-0.5 rounded-full">
-            {timedEvents.length + calendarEvents.length}/{allTimedEvents.length + calendarEvents.length}
+            {timedEvents.length + calendarEvents.length}/
+            {allTimedEvents.length + calendarEvents.length}
           </span>
         ) : null
       }
@@ -369,7 +431,9 @@ function TodayScheduleWidget({
       ) : allTimedEvents.length === 0 && calendarEvents.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-1.5 md:gap-3">
           <CalendarDays size={24} className="text-slate-600 md:w-7 md:h-7" />
-          <p className="text-xs md:text-sm text-slate-500">{t('personal.overview.noEvents', 'No events today')}</p>
+          <p className="text-xs md:text-sm text-slate-500">
+            {t('personal.overview.noEvents', 'No events today')}
+          </p>
           <button
             onClick={onViewAll}
             className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 hover:bg-bridge-secondary/25 rounded-xl transition-all"
@@ -391,23 +455,29 @@ function TodayScheduleWidget({
                     onClick={onViewAll}
                     className="w-full flex items-center gap-2 px-2 py-1 rounded-md hover:bg-foreground/5 transition-colors text-left"
                   >
-                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                    <div
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ backgroundColor: color }}
+                    />
                     <span className="text-xs text-foreground truncate flex-1">{ev.title}</span>
                     <span className="text-xs text-slate-500 tabular-nums shrink-0">
-                      {ev.start_time ? `${ev.start_time.slice(0, 5)}${ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}` : t('personal.mobile.allDay', 'All day')}
+                      {ev.start_time
+                        ? `${ev.start_time.slice(0, 5)}${ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}`
+                        : t('personal.mobile.allDay', 'All day')}
                     </span>
                   </button>
                 );
               })}
-              {allTimedEvents.length > 0 && (
-                <div className="h-0" />
-              )}
+              {allTimedEvents.length > 0 && <div className="h-0" />}
             </div>
           )}
 
           {/* ── 타임라인 ── */}
           {allTimedEvents.length > 0 && (
-            <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar -mx-1 px-1 border-t border-foreground/[0.08] pt-1.5">
+            <div
+              ref={scrollRef}
+              className="flex-1 overflow-y-auto custom-scrollbar -mx-1 px-1 border-t border-foreground/[0.08] pt-1.5"
+            >
               <div className="relative" style={{ height: `${totalHeight}px` }}>
                 {/* ── 30분 단위 시간 그리드 ── */}
                 {timeSlots.map((time, idx) => (
@@ -428,7 +498,7 @@ function TodayScheduleWidget({
                 ))}
 
                 {/* ── 이벤트 블록 ── */}
-                {timedEvents.map(ev => {
+                {timedEvents.map((ev) => {
                   const evStart = toMin(ev.start_time!);
                   const evEnd = ev.end_time ? toMin(ev.end_time) : evStart + 60;
                   const color = ev.color || '#6366F1';
@@ -438,7 +508,10 @@ function TodayScheduleWidget({
                   const clampedEnd = Math.min(evEnd, windowEndMin);
 
                   const top = ((clampedStart - windowStartMin) / 30) * TIMELINE_SLOT_H;
-                  const height = Math.max(((clampedEnd - clampedStart) / 30) * TIMELINE_SLOT_H, TIMELINE_SLOT_H * 0.6);
+                  const height = Math.max(
+                    ((clampedEnd - clampedStart) / 30) * TIMELINE_SLOT_H,
+                    TIMELINE_SLOT_H * 0.6,
+                  );
 
                   const isCurrent = currentMinutes >= evStart && currentMinutes < evEnd;
                   const isPast = currentMinutes >= evEnd;
@@ -464,7 +537,9 @@ function TodayScheduleWidget({
                       onClick={onViewAll}
                     >
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <span className={`text-xs font-medium truncate ${isCurrent ? 'text-foreground' : 'text-foreground/80'}`}>
+                        <span
+                          className={`text-xs font-medium truncate ${isCurrent ? 'text-foreground' : 'text-foreground/80'}`}
+                        >
                           {ev.title}
                         </span>
                         {isCurrent && (
@@ -475,7 +550,8 @@ function TodayScheduleWidget({
                       </div>
                       {height >= TIMELINE_SLOT_H * 0.8 && (
                         <div className="text-xs text-slate-400 mt-0.5">
-                          {ev.start_time?.slice(0, 5)}{ev.end_time ? ` - ${ev.end_time.slice(0, 5)}` : ''}
+                          {ev.start_time?.slice(0, 5)}
+                          {ev.end_time ? ` - ${ev.end_time.slice(0, 5)}` : ''}
                         </div>
                       )}
                     </motion.div>
@@ -509,7 +585,9 @@ function TodayScheduleWidget({
                       {t('personal.overview.noNearbyEvents', 'No events in the next hour')}
                     </p>
                     <p className="text-xs text-slate-600">
-                      {t('personal.overview.totalEventsToday', '{{count}} events today', { count: allTimedEvents.length })}
+                      {t('personal.overview.totalEventsToday', '{{count}} events today', {
+                        count: allTimedEvents.length,
+                      })}
                     </p>
                   </div>
                 )}
@@ -524,8 +602,16 @@ function TodayScheduleWidget({
 
 // ── 우상단: Upcoming Deadlines (PersonalTask 기반) ───────────────────
 
-type DeadlineItem =
-  { kind: 'task'; id: string; date: string; title: string; priority: string; status: string; category?: string | null; isDone: boolean };
+type DeadlineItem = {
+  kind: 'task';
+  id: string;
+  date: string;
+  title: string;
+  priority: string;
+  status: string;
+  category?: string | null;
+  isDone: boolean;
+};
 
 function UpcomingDeadlinesWidget({
   todayDate,
@@ -545,7 +631,11 @@ function UpcomingDeadlinesWidget({
   const [isLoading, setIsLoading] = useState(true);
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
   const [animatingIds, setAnimatingIds] = useState<Set<string>>(new Set());
-  const [taskConfirm, setTaskConfirm] = useState<{ id: string; title: string; isDone: boolean } | null>(null);
+  const [taskConfirm, setTaskConfirm] = useState<{
+    id: string;
+    title: string;
+    isDone: boolean;
+  } | null>(null);
 
   // Full data maps for detail modals
   const [taskMap, setTaskMap] = useState<Map<string, PersonalTask>>(new Map());
@@ -554,20 +644,23 @@ function UpcomingDeadlinesWidget({
   const today = new Date(todayDate + 'T00:00:00');
 
   const priorityOrder: Record<string, number> = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1, NONE: 0 };
-  const sortDeadlines = useCallback((list: DeadlineItem[]) =>
-    [...list].sort((a, b) => {
-      const dateCmp = a.date.localeCompare(b.date);
-      if (dateCmp !== 0) return dateCmp;
-      const aPri = a.kind === 'task' ? (priorityOrder[a.priority] ?? 0) : -1;
-      const bPri = b.kind === 'task' ? (priorityOrder[b.priority] ?? 0) : -1;
-      return bPri - aPri;
-    }), []);
+  const sortDeadlines = useCallback(
+    (list: DeadlineItem[]) =>
+      [...list].sort((a, b) => {
+        const dateCmp = a.date.localeCompare(b.date);
+        if (dateCmp !== 0) return dateCmp;
+        const aPri = a.kind === 'task' ? (priorityOrder[a.priority] ?? 0) : -1;
+        const bPri = b.kind === 'task' ? (priorityOrder[b.priority] ?? 0) : -1;
+        return bPri - aPri;
+      }),
+    [],
+  );
 
   useEffect(() => {
     const processTaskData = (taskData: PersonalTask[]) => {
       const taskItems: DeadlineItem[] = taskData
-        .filter(t => t.status !== 'ARCHIVED' && t.due_date && t.due_date >= todayDate)
-        .map(t => ({
+        .filter((t) => t.status !== 'ARCHIVED' && t.due_date && t.due_date >= todayDate)
+        .map((t) => ({
           kind: 'task' as const,
           id: t.id,
           date: t.due_date!,
@@ -581,7 +674,7 @@ function UpcomingDeadlinesWidget({
       const sorted = sortDeadlines(taskItems);
 
       const tMap = new Map<string, PersonalTask>();
-      taskData.forEach(t => tMap.set(t.id, t));
+      taskData.forEach((t) => tMap.set(t.id, t));
       setTaskMap(tMap);
 
       setItems(sorted);
@@ -605,69 +698,109 @@ function UpcomingDeadlinesWidget({
     })();
   }, [todayDate, externalTasks]);
 
-  const handleToggleTask = useCallback(async (taskId: string, currentlyDone: boolean) => {
-    setTogglingIds(prev => new Set(prev).add(taskId));
-    const newStatus = currentlyDone ? 'TODO' as const : 'DONE' as const;
-    // Optimistic: update parent dashboard stats immediately
-    onTaskToggle?.(taskId, newStatus === 'DONE');
-    try {
-      await personalTaskAPI.updateStatus(taskId, newStatus);
+  const handleToggleTask = useCallback(
+    async (taskId: string, currentlyDone: boolean) => {
+      setTogglingIds((prev) => new Set(prev).add(taskId));
+      const newStatus = currentlyDone ? ('TODO' as const) : ('DONE' as const);
+      // Optimistic: update parent dashboard stats immediately
+      onTaskToggle?.(taskId, newStatus === 'DONE');
+      try {
+        await personalTaskAPI.updateStatus(taskId, newStatus);
 
-      setTogglingIds(prev => { const n = new Set(prev); n.delete(taskId); return n; });
+        setTogglingIds((prev) => {
+          const n = new Set(prev);
+          n.delete(taskId);
+          return n;
+        });
 
-      if (!currentlyDone) {
-        // Checked → animate but keep in list
-        setItems(prev => prev.map(item =>
-          item.kind === 'task' && item.id === taskId
-            ? { ...item, isDone: true, status: newStatus }
-            : item
-        ));
-        setAnimatingIds(prev => new Set(prev).add(taskId));
-        setTimeout(() => {
-          setAnimatingIds(prev => { const n = new Set(prev); n.delete(taskId); return n; });
-        }, 600);
-      } else {
-        // Unchecked → restore and re-sort
-        setItems(prev => prev.map(item =>
-          item.kind === 'task' && item.id === taskId
-            ? { ...item, isDone: false, status: newStatus }
-            : item
-        ));
-        setItems(prev => sortDeadlines(prev));
+        if (!currentlyDone) {
+          // Checked → animate but keep in list
+          setItems((prev) =>
+            prev.map((item) =>
+              item.kind === 'task' && item.id === taskId
+                ? { ...item, isDone: true, status: newStatus }
+                : item,
+            ),
+          );
+          setAnimatingIds((prev) => new Set(prev).add(taskId));
+          setTimeout(() => {
+            setAnimatingIds((prev) => {
+              const n = new Set(prev);
+              n.delete(taskId);
+              return n;
+            });
+          }, 600);
+        } else {
+          // Unchecked → restore and re-sort
+          setItems((prev) =>
+            prev.map((item) =>
+              item.kind === 'task' && item.id === taskId
+                ? { ...item, isDone: false, status: newStatus }
+                : item,
+            ),
+          );
+          setItems((prev) => sortDeadlines(prev));
+        }
+        onRefresh?.();
+      } catch {
+        console.error('Failed to toggle task status');
+        setTogglingIds((prev) => {
+          const n = new Set(prev);
+          n.delete(taskId);
+          return n;
+        });
+        // Revert optimistic update
+        onTaskToggle?.(taskId, currentlyDone);
       }
-      onRefresh?.();
-    } catch {
-      console.error('Failed to toggle task status');
-      setTogglingIds(prev => { const n = new Set(prev); n.delete(taskId); return n; });
-      // Revert optimistic update
-      onTaskToggle?.(taskId, currentlyDone);
-    }
-  }, [sortDeadlines, onTaskToggle, onRefresh]);
+    },
+    [sortDeadlines, onTaskToggle, onRefresh],
+  );
 
   // Task detail modal callbacks
-  const handleTaskUpdate = useCallback(async (data: { title?: string; due_date?: string | null; priority?: PersonalTaskPriority; description?: string }) => {
-    if (!selectedTask) return;
-    try {
-      const updated = await personalTaskAPI.update(selectedTask.id, data);
-      setSelectedTask(updated);
-      setTaskMap(prev => { const n = new Map(prev); n.set(updated.id, updated); return n; });
-      // Update deadline item in list
-      setItems(prev => prev.map(item =>
-        item.kind === 'task' && item.id === updated.id
-          ? { ...item, title: updated.title, date: updated.due_date || item.date, priority: updated.priority }
-          : item
-      ));
-      onRefresh?.();
-    } catch {
-      console.error('Failed to update task');
-    }
-  }, [selectedTask, onRefresh]);
+  const handleTaskUpdate = useCallback(
+    async (data: {
+      title?: string;
+      due_date?: string | null;
+      priority?: PersonalTaskPriority;
+      description?: string;
+    }) => {
+      if (!selectedTask) return;
+      try {
+        const updated = await personalTaskAPI.update(selectedTask.id, data);
+        setSelectedTask(updated);
+        setTaskMap((prev) => {
+          const n = new Map(prev);
+          n.set(updated.id, updated);
+          return n;
+        });
+        // Update deadline item in list
+        setItems((prev) =>
+          prev.map((item) =>
+            item.kind === 'task' && item.id === updated.id
+              ? {
+                  ...item,
+                  title: updated.title,
+                  date: updated.due_date || item.date,
+                  priority: updated.priority,
+                }
+              : item,
+          ),
+        );
+        onRefresh?.();
+      } catch {
+        console.error('Failed to update task');
+      }
+    },
+    [selectedTask, onRefresh],
+  );
 
   const handleTaskDelete = useCallback(async () => {
     if (!selectedTask) return;
     try {
       await personalTaskAPI.delete(selectedTask.id);
-      setItems(prev => prev.filter(item => !(item.kind === 'task' && item.id === selectedTask.id)));
+      setItems((prev) =>
+        prev.filter((item) => !(item.kind === 'task' && item.id === selectedTask.id)),
+      );
       setSelectedTask(null);
       onRefresh?.();
     } catch {
@@ -677,18 +810,24 @@ function UpcomingDeadlinesWidget({
 
   const handleTaskToggleComplete = useCallback(async () => {
     if (!selectedTask) return;
-    const newStatus = selectedTask.status === 'DONE' ? 'TODO' as const : 'DONE' as const;
+    const newStatus = selectedTask.status === 'DONE' ? ('TODO' as const) : ('DONE' as const);
     onTaskToggle?.(selectedTask.id, newStatus === 'DONE');
     try {
       const updated = await personalTaskAPI.updateStatus(selectedTask.id, newStatus);
       setSelectedTask(updated);
-      setTaskMap(prev => { const n = new Map(prev); n.set(updated.id, updated); return n; });
+      setTaskMap((prev) => {
+        const n = new Map(prev);
+        n.set(updated.id, updated);
+        return n;
+      });
       // Update isDone in list (keep item visible)
-      setItems(prev => prev.map(item =>
-        item.kind === 'task' && item.id === selectedTask.id
-          ? { ...item, isDone: newStatus === 'DONE', status: newStatus }
-          : item
-      ));
+      setItems((prev) =>
+        prev.map((item) =>
+          item.kind === 'task' && item.id === selectedTask.id
+            ? { ...item, isDone: newStatus === 'DONE', status: newStatus }
+            : item,
+        ),
+      );
     } catch {
       console.error('Failed to toggle task');
     }
@@ -736,7 +875,9 @@ function UpcomingDeadlinesWidget({
       ) : items.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-1.5 md:gap-3">
           <CalendarDays size={24} className="text-slate-600 md:w-7 md:h-7" />
-          <p className="text-xs md:text-sm text-slate-500">{t('personal.overview.noDeadlines', 'No upcoming deadlines')}</p>
+          <p className="text-xs md:text-sm text-slate-500">
+            {t('personal.overview.noDeadlines', 'No upcoming deadlines')}
+          </p>
           <button
             onClick={onViewAll}
             className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-xs font-bold text-bridge-accent bg-bridge-accent/15 hover:bg-bridge-accent/25 rounded-xl transition-all"
@@ -763,7 +904,9 @@ function UpcomingDeadlinesWidget({
                   layout
                   transition={{ layout: { type: 'spring', stiffness: 500, damping: 35 } }}
                   className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-foreground/5 transition-colors ${isDone && !isAnimating ? 'opacity-50' : ''} ${
-                    dday === 0 && !isDone ? 'bg-bridge-secondary/[0.06] ring-1 ring-bridge-secondary/15' : ''
+                    dday === 0 && !isDone
+                      ? 'bg-bridge-secondary/[0.06] ring-1 ring-bridge-secondary/15'
+                      : ''
                   }`}
                 >
                   <button
@@ -824,7 +967,11 @@ function UpcomingDeadlinesWidget({
                     className="flex-1 flex items-center gap-2.5 min-w-0 text-left"
                   >
                     <div className="w-[60px] flex-shrink-0">
-                      <span className={`text-xs ${dday === 0 && !isDone ? 'text-bridge-secondary font-medium' : 'text-slate-400'}`}>{formatDueDate(item.date)}</span>
+                      <span
+                        className={`text-xs ${dday === 0 && !isDone ? 'text-bridge-secondary font-medium' : 'text-slate-400'}`}
+                      >
+                        {formatDueDate(item.date)}
+                      </span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <motion.div
@@ -858,21 +1005,22 @@ function UpcomingDeadlinesWidget({
                           exit={{ scale: 0.8, opacity: 0 }}
                           transition={{ duration: 0.2 }}
                           className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
-                          isOverdue
-                            ? 'text-red-400 bg-red-400/15'
-                            : dday === 0
-                            ? 'text-bridge-secondary bg-bridge-secondary/15 ring-1 ring-bridge-secondary/30'
-                            : dday <= 3
-                            ? 'text-amber-400 bg-amber-400/15'
-                            : dday <= 7
-                            ? 'text-blue-400 bg-blue-400/15'
-                            : 'text-slate-400 bg-foreground/5'
-                        }`}>
+                            isOverdue
+                              ? 'text-red-400 bg-red-400/15'
+                              : dday === 0
+                                ? 'text-bridge-secondary bg-bridge-secondary/15 ring-1 ring-bridge-secondary/30'
+                                : dday <= 3
+                                  ? 'text-amber-400 bg-amber-400/15'
+                                  : dday <= 7
+                                    ? 'text-blue-400 bg-blue-400/15'
+                                    : 'text-slate-400 bg-foreground/5'
+                          }`}
+                        >
                           {isOverdue
                             ? `D+${Math.abs(dday)}`
                             : dday === 0
-                            ? t('personal.overview.today', 'Today')
-                            : `D-${dday}`}
+                              ? t('personal.overview.today', 'Today')
+                              : `D-${dday}`}
                         </motion.span>
                       )}
                     </AnimatePresence>
@@ -882,8 +1030,14 @@ function UpcomingDeadlinesWidget({
             );
           })}
           {remaining > 0 && (
-            <button onClick={onViewAll} className="w-full text-center py-1.5 text-xs text-slate-500 hover:text-bridge-secondary transition-colors">
-              {t('personal.overview.moreItems', { count: remaining, defaultValue: '+{{count}} more' })}
+            <button
+              onClick={onViewAll}
+              className="w-full text-center py-1.5 text-xs text-slate-500 hover:text-bridge-secondary transition-colors"
+            >
+              {t('personal.overview.moreItems', {
+                count: remaining,
+                defaultValue: '+{{count}} more',
+              })}
             </button>
           )}
         </div>
@@ -912,7 +1066,6 @@ function UpcomingDeadlinesWidget({
         onDelete={handleTaskDelete}
         onToggleComplete={handleTaskToggleComplete}
       />
-
     </WidgetCard>
   );
 }
@@ -922,13 +1075,21 @@ function UpcomingDeadlinesWidget({
 const HABIT_DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const HABIT_DAY_ORDER = [0, 1, 2, 3, 4, 5, 6]; // Sun → Sat
 
-function getHabitScheduledDays(frequencyType: HabitFrequency, frequencyDays?: string | null): Set<number> {
+function getHabitScheduledDays(
+  frequencyType: HabitFrequency,
+  frequencyDays?: string | null,
+): Set<number> {
   switch (frequencyType) {
-    case 'DAILY': return new Set([0, 1, 2, 3, 4, 5, 6]);
-    case 'WEEKDAY': return new Set([1, 2, 3, 4, 5]);
-    case 'WEEKEND': return new Set([0, 6]);
-    case 'CUSTOM': return new Set(frequencyDays ? frequencyDays.split(',').map(Number) : []);
-    default: return new Set([0, 1, 2, 3, 4, 5, 6]);
+    case 'DAILY':
+      return new Set([0, 1, 2, 3, 4, 5, 6]);
+    case 'WEEKDAY':
+      return new Set([1, 2, 3, 4, 5]);
+    case 'WEEKEND':
+      return new Set([0, 6]);
+    case 'CUSTOM':
+      return new Set(frequencyDays ? frequencyDays.split(',').map(Number) : []);
+    default:
+      return new Set([0, 1, 2, 3, 4, 5, 6]);
   }
 }
 
@@ -951,7 +1112,9 @@ function HabitsTodayWidget({
   const [weeklyMatrix, setWeeklyMatrix] = useState<HabitWeeklyMatrix | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [checkInConfirm, setCheckInConfirm] = useState<{ id: string; isUndo: boolean } | null>(null);
+  const [checkInConfirm, setCheckInConfirm] = useState<{ id: string; isUndo: boolean } | null>(
+    null,
+  );
   const [editHabit, setEditHabit] = useState<PersonalHabit | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -961,9 +1124,9 @@ function HabitsTodayWidget({
   const weeklyCompletionMap = useMemo(() => {
     const map = new Map<string, Set<number>>();
     if (!weeklyMatrix) return map;
-    weeklyMatrix.habits.forEach(row => {
+    weeklyMatrix.habits.forEach((row) => {
       const completedDays = new Set<number>();
-      row.days.forEach(day => {
+      row.days.forEach((day) => {
         if (day.is_completed) {
           completedDays.add(new Date(day.date + 'T00:00:00').getDay());
         }
@@ -975,7 +1138,7 @@ function HabitsTodayWidget({
 
   const loadHabits = useCallback(async () => {
     if (externalAllHabits && externalTodayHabits && externalWeeklyMatrix) {
-      setAllHabits(externalAllHabits.filter(h => h.is_active));
+      setAllHabits(externalAllHabits.filter((h) => h.is_active));
       setTodayHabits(externalTodayHabits);
       setWeeklyMatrix(externalWeeklyMatrix);
       setIsLoading(false);
@@ -999,7 +1162,7 @@ function HabitsTodayWidget({
         personalHabitAPI.getToday(fmt(now)),
         personalHabitAPI.getWeekly(fmt(monday), fmt(sunday)),
       ]);
-      setAllHabits(all.filter(h => h.is_active));
+      setAllHabits(all.filter((h) => h.is_active));
       setTodayHabits(today);
       setWeeklyMatrix(weekly);
     } catch {
@@ -1033,11 +1196,11 @@ function HabitsTodayWidget({
 
   const todayStatusMap = useMemo(() => {
     const map = new Map<string, HabitTodayItem>();
-    todayHabits.forEach(h => map.set(h.habit_id, h));
+    todayHabits.forEach((h) => map.set(h.habit_id, h));
     return map;
   }, [todayHabits]);
 
-  const completedCount = todayHabits.filter(h => h.is_completed).length;
+  const completedCount = todayHabits.filter((h) => h.is_completed).length;
   const totalCount = todayHabits.length;
 
   const handleUpdateHabit = async (habitId: string, data: HabitFormData) => {
@@ -1063,20 +1226,20 @@ function HabitsTodayWidget({
   const handleCheckIn = async (habitId: string, isUndo?: boolean) => {
     const revertTo = !!isUndo;
     const todayDate = getTodayDateString();
-    setTodayHabits(prev => prev.map(h =>
-      h.habit_id === habitId ? { ...h, is_completed: !isUndo } : h
-    ));
+    setTodayHabits((prev) =>
+      prev.map((h) => (h.habit_id === habitId ? { ...h, is_completed: !isUndo } : h)),
+    );
     // Optimistic update for weekly matrix
-    setWeeklyMatrix(prev => {
+    setWeeklyMatrix((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
-        habits: prev.habits.map(row => {
+        habits: prev.habits.map((row) => {
           if (row.habit_id !== habitId) return row;
           return {
             ...row,
-            days: row.days.map(day =>
-              day.date === todayDate ? { ...day, is_completed: !isUndo } : day
+            days: row.days.map((day) =>
+              day.date === todayDate ? { ...day, is_completed: !isUndo } : day,
             ),
           };
         }),
@@ -1084,22 +1247,22 @@ function HabitsTodayWidget({
     });
     try {
       const updated = await personalHabitAPI.checkIn(habitId, { log_date: todayDate });
-      setTodayHabits(prev => prev.map(h => h.habit_id === habitId ? updated : h));
+      setTodayHabits((prev) => prev.map((h) => (h.habit_id === habitId ? updated : h)));
     } catch {
-      setTodayHabits(prev => prev.map(h =>
-        h.habit_id === habitId ? { ...h, is_completed: revertTo } : h
-      ));
+      setTodayHabits((prev) =>
+        prev.map((h) => (h.habit_id === habitId ? { ...h, is_completed: revertTo } : h)),
+      );
       // Revert weekly matrix
-      setWeeklyMatrix(prev => {
+      setWeeklyMatrix((prev) => {
         if (!prev) return prev;
         return {
           ...prev,
-          habits: prev.habits.map(row => {
+          habits: prev.habits.map((row) => {
             if (row.habit_id !== habitId) return row;
             return {
               ...row,
-              days: row.days.map(day =>
-                day.date === todayDate ? { ...day, is_completed: revertTo } : day
+              days: row.days.map((day) =>
+                day.date === todayDate ? { ...day, is_completed: revertTo } : day,
               ),
             };
           }),
@@ -1141,7 +1304,9 @@ function HabitsTodayWidget({
       ) : allHabits.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-1.5 md:gap-3">
           <Flame size={24} className="text-slate-600 md:w-7 md:h-7" />
-          <p className="text-xs md:text-sm text-slate-500">{t('personal.overview.noHabits', 'No habits set up yet')}</p>
+          <p className="text-xs md:text-sm text-slate-500">
+            {t('personal.overview.noHabits', 'No habits set up yet')}
+          </p>
           <button
             onClick={() => setIsCreateOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-xs font-bold text-purple-400 bg-purple-400/15 hover:bg-purple-400/25 rounded-xl transition-all"
@@ -1154,143 +1319,163 @@ function HabitsTodayWidget({
         <div className="flex flex-col flex-1 overflow-y-auto custom-scrollbar">
           {/* Grid layout for habit cards */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {allHabits.filter(h => {
-              const scheduled = getHabitScheduledDays(h.frequency_type, h.frequency_days);
-              return scheduled.has(todayDow);
-            }).map((habit, idx) => {
-              const todayStatus = todayStatusMap.get(habit.id);
-              const isScheduledToday = todayStatus !== undefined;
-              const isCompleted = todayStatus?.is_completed ?? false;
-              const scheduledDays = getHabitScheduledDays(habit.frequency_type, habit.frequency_days);
-              const color = habit.color || '#8B5CF6';
-              const streak = todayStatus?.current_streak ?? habit.best_streak;
-              const weeklyCompleted = todayStatus?.weekly_completed ?? 0;
-              const weeklyTarget = todayStatus?.weekly_target ?? 0;
+            {allHabits
+              .filter((h) => {
+                const scheduled = getHabitScheduledDays(h.frequency_type, h.frequency_days);
+                return scheduled.has(todayDow);
+              })
+              .map((habit, idx) => {
+                const todayStatus = todayStatusMap.get(habit.id);
+                const isScheduledToday = todayStatus !== undefined;
+                const isCompleted = todayStatus?.is_completed ?? false;
+                const scheduledDays = getHabitScheduledDays(
+                  habit.frequency_type,
+                  habit.frequency_days,
+                );
+                const color = habit.color || '#8B5CF6';
+                const streak = todayStatus?.current_streak ?? habit.best_streak;
+                const weeklyCompleted = todayStatus?.weekly_completed ?? 0;
+                const weeklyTarget = todayStatus?.weekly_target ?? 0;
 
-              return (
-                <motion.div
-                  key={habit.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.04 }}
-                  onClick={() => setEditHabit(habit)}
-                  className="rounded-xl border p-3 text-left relative group transition-colors cursor-pointer border-foreground/[0.08] bg-foreground/[0.03] hover:bg-foreground/5"
-                >
-                  {/* Top progress gauge bar */}
-                  <div className="absolute top-0 left-3 right-3 h-[2.5px] rounded-b-full overflow-hidden"
-                    style={{ backgroundColor: `${color}22` }}
+                return (
+                  <motion.div
+                    key={habit.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.04 }}
+                    onClick={() => setEditHabit(habit)}
+                    className="rounded-xl border p-3 text-left relative group transition-colors cursor-pointer border-foreground/[0.08] bg-foreground/[0.03] hover:bg-foreground/5"
                   >
-                    <motion.div
-                      className="h-full rounded-b-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: weeklyTarget > 0 ? `${Math.min((weeklyCompleted / weeklyTarget) * 100, 100)}%` : '100%' }}
-                      transition={{ duration: 0.5, ease: 'easeOut' }}
-                      style={{ backgroundColor: weeklyCompleted >= weeklyTarget ? '#2DD4BF' : color }}
-                    />
-                  </div>
-
-                  {/* Icon + title + check + count */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isScheduledToday) {
-                          if (isCompleted) {
-                            setCheckInConfirm({ id: habit.id, isUndo: true });
-                          } else {
-                            handleCheckIn(habit.id);
-                          }
-                        }
-                      }}
-                      className="flex-shrink-0"
+                    {/* Top progress gauge bar */}
+                    <div
+                      className="absolute top-0 left-3 right-3 h-[2.5px] rounded-b-full overflow-hidden"
+                      style={{ backgroundColor: `${color}22` }}
                     >
                       <motion.div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                          isCompleted
-                            ? 'bg-bridge-secondary border-bridge-secondary'
-                            : isScheduledToday
-                            ? 'border-foreground/20 group-hover:border-purple-400/50'
-                            : 'border-foreground/10'
-                        }`}
-                        animate={isCompleted ? { scale: [1, 1.2, 1] } : {}}
-                        transition={{ duration: 0.3 }}
-                      >
-                        {isCompleted && <Check size={11} className="text-white" />}
-                      </motion.div>
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <div className={`text-xs font-bold truncate ${
-                        isCompleted ? 'text-slate-500 line-through' : 'text-foreground'
-                      }`}>
-                        {habit.icon && <span className="mr-0.5">{habit.icon}</span>}
-                        {habit.title}
-                      </div>
+                        className="h-full rounded-b-full"
+                        initial={{ width: 0 }}
+                        animate={{
+                          width:
+                            weeklyTarget > 0
+                              ? `${Math.min((weeklyCompleted / weeklyTarget) * 100, 100)}%`
+                              : '100%',
+                        }}
+                        transition={{ duration: 0.5, ease: 'easeOut' }}
+                        style={{
+                          backgroundColor: weeklyCompleted >= weeklyTarget ? '#2DD4BF' : color,
+                        }}
+                      />
                     </div>
-                    {streak > 0 && (
-                      <span className="inline-flex items-center gap-px text-xs text-orange-400 font-bold shrink-0">
-                        <Flame size={9} className="shrink-0" />
-                        {streak}
-                      </span>
-                    )}
-                  </div>
 
-                  {/* Day chips */}
-                  <div className="flex gap-1">
-                    {HABIT_DAY_ORDER.map(dayIdx => {
-                      const isScheduled = scheduledDays.has(dayIdx);
-                      const isTodayDay = dayIdx === todayDow;
-                      const isDayCompleted = weeklyCompletionMap.get(habit.id)?.has(dayIdx) ?? false;
-                      return (
-                        <div key={dayIdx} className="flex flex-col items-center gap-1 flex-1">
-                          <span className={`text-xs leading-none ${
-                            dayIdx === 0
-                              ? isTodayDay && isScheduled
-                                ? 'font-bold text-red-400'
-                                : isTodayDay
-                                ? 'font-bold text-red-400/70'
-                                : 'font-medium text-red-400/60'
-                              : isTodayDay && isScheduled
-                              ? 'font-bold text-purple-300'
-                              : isTodayDay
-                              ? 'font-bold text-slate-400'
-                              : isScheduled
-                              ? 'text-slate-400'
-                              : 'text-slate-600/30'
-                          }`}>
-                            {HABIT_DAY_LABELS[dayIdx]}
-                          </span>
-                          {isDayCompleted ? (
-                            <div
-                              className={`rounded-full flex items-center justify-center transition-all ${
-                                isTodayDay
-                                  ? 'w-2.5 h-2.5 ring-[1.5px] ring-purple-400/60'
-                                  : 'w-2.5 h-2.5'
-                              }`}
-                              style={{ backgroundColor: color }}
-                            >
-                              <Check size={7} className="text-white" strokeWidth={3.5} />
-                            </div>
-                          ) : (
-                            <div
-                              className={`rounded-full transition-all ${
-                                isTodayDay && isScheduled
-                                  ? 'w-2.5 h-2.5 ring-[1.5px] ring-purple-400/60'
-                                  : 'w-1.5 h-1.5'
-                              }`}
-                              style={{
-                                backgroundColor: isScheduled
-                                  ? isTodayDay ? color : `${color}55`
-                                  : 'rgba(255,255,255,0.04)',
-                              }}
-                            />
-                          )}
+                    {/* Icon + title + check + count */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isScheduledToday) {
+                            if (isCompleted) {
+                              setCheckInConfirm({ id: habit.id, isUndo: true });
+                            } else {
+                              handleCheckIn(habit.id);
+                            }
+                          }
+                        }}
+                        className="flex-shrink-0"
+                      >
+                        <motion.div
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                            isCompleted
+                              ? 'bg-bridge-secondary border-bridge-secondary'
+                              : isScheduledToday
+                                ? 'border-foreground/20 group-hover:border-purple-400/50'
+                                : 'border-foreground/10'
+                          }`}
+                          animate={isCompleted ? { scale: [1, 1.2, 1] } : {}}
+                          transition={{ duration: 0.3 }}
+                        >
+                          {isCompleted && <Check size={11} className="text-white" />}
+                        </motion.div>
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className={`text-xs font-bold truncate ${
+                            isCompleted ? 'text-slate-500 line-through' : 'text-foreground'
+                          }`}
+                        >
+                          {habit.icon && <span className="mr-0.5">{habit.icon}</span>}
+                          {habit.title}
                         </div>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              );
-            })}
+                      </div>
+                      {streak > 0 && (
+                        <span className="inline-flex items-center gap-px text-xs text-orange-400 font-bold shrink-0">
+                          <Flame size={9} className="shrink-0" />
+                          {streak}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Day chips */}
+                    <div className="flex gap-1">
+                      {HABIT_DAY_ORDER.map((dayIdx) => {
+                        const isScheduled = scheduledDays.has(dayIdx);
+                        const isTodayDay = dayIdx === todayDow;
+                        const isDayCompleted =
+                          weeklyCompletionMap.get(habit.id)?.has(dayIdx) ?? false;
+                        return (
+                          <div key={dayIdx} className="flex flex-col items-center gap-1 flex-1">
+                            <span
+                              className={`text-xs leading-none ${
+                                dayIdx === 0
+                                  ? isTodayDay && isScheduled
+                                    ? 'font-bold text-red-400'
+                                    : isTodayDay
+                                      ? 'font-bold text-red-400/70'
+                                      : 'font-medium text-red-400/60'
+                                  : isTodayDay && isScheduled
+                                    ? 'font-bold text-purple-300'
+                                    : isTodayDay
+                                      ? 'font-bold text-slate-400'
+                                      : isScheduled
+                                        ? 'text-slate-400'
+                                        : 'text-slate-600/30'
+                              }`}
+                            >
+                              {HABIT_DAY_LABELS[dayIdx]}
+                            </span>
+                            {isDayCompleted ? (
+                              <div
+                                className={`rounded-full flex items-center justify-center transition-all ${
+                                  isTodayDay
+                                    ? 'w-2.5 h-2.5 ring-[1.5px] ring-purple-400/60'
+                                    : 'w-2.5 h-2.5'
+                                }`}
+                                style={{ backgroundColor: color }}
+                              >
+                                <Check size={7} className="text-white" strokeWidth={3.5} />
+                              </div>
+                            ) : (
+                              <div
+                                className={`rounded-full transition-all ${
+                                  isTodayDay && isScheduled
+                                    ? 'w-2.5 h-2.5 ring-[1.5px] ring-purple-400/60'
+                                    : 'w-1.5 h-1.5'
+                                }`}
+                                style={{
+                                  backgroundColor: isScheduled
+                                    ? isTodayDay
+                                      ? color
+                                      : `${color}55`
+                                    : 'rgba(255,255,255,0.04)',
+                                }}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                );
+              })}
           </div>
         </div>
       )}
@@ -1305,9 +1490,15 @@ function HabitsTodayWidget({
       {/* Check-in Confirm Modal */}
       <CheckInConfirmModal
         open={!!checkInConfirm}
-        habitName={checkInConfirm ? (allHabits.find(h => h.id === checkInConfirm.id)?.title || '') : ''}
-        habitIcon={checkInConfirm ? allHabits.find(h => h.id === checkInConfirm.id)?.icon : undefined}
-        streakCount={checkInConfirm ? todayStatusMap.get(checkInConfirm.id)?.current_streak : undefined}
+        habitName={
+          checkInConfirm ? allHabits.find((h) => h.id === checkInConfirm.id)?.title || '' : ''
+        }
+        habitIcon={
+          checkInConfirm ? allHabits.find((h) => h.id === checkInConfirm.id)?.icon : undefined
+        }
+        streakCount={
+          checkInConfirm ? todayStatusMap.get(checkInConfirm.id)?.current_streak : undefined
+        }
         isUndo={checkInConfirm?.isUndo}
         onConfirm={() => {
           if (checkInConfirm) {
@@ -1334,7 +1525,7 @@ function HabitsTodayWidget({
 
       <DeleteConfirmModal
         open={!!deleteConfirm}
-        habitName={allHabits.find(h => h.id === deleteConfirm)?.title || ''}
+        habitName={allHabits.find((h) => h.id === deleteConfirm)?.title || ''}
         onConfirm={() => deleteConfirm && handleDeleteHabit(deleteConfirm)}
         onCancel={() => setDeleteConfirm(null)}
       />
@@ -1344,7 +1535,11 @@ function HabitsTodayWidget({
 
 // ── Weekly Donut (compact for overview) ──────────────────────────────
 
-function OverviewWeeklyDonut({ completed, target, color }: {
+function OverviewWeeklyDonut({
+  completed,
+  target,
+  color,
+}: {
   completed: number;
   target: number;
   color: string;
@@ -1410,30 +1605,42 @@ function MobileGreetingHeader({
 
   const now = new Date();
   const hour = now.getHours();
-  const greetingIcon = hour < 5 ? <Moon size={18} className="text-indigo-400" />
-    : hour < 9 ? <Sunrise size={18} className="text-violet-400" />
-    : hour < 12 ? <Sun size={18} className="text-amber-400" />
-    : hour < 18 ? <Sunset size={18} className="text-orange-400" />
-    : <Moon size={18} className="text-indigo-400" />;
-  const greetingText = hour < 5
-    ? t('personal.mobile.lateNight', "Still Up Late?")
-    : hour < 9
-    ? t('personal.mobile.earlyMorning', 'Up Early!')
-    : hour < 12
-    ? t('personal.mobile.goodMorning', 'Good Morning')
-    : hour < 18
-    ? t('personal.mobile.goodAfternoon', 'Good Afternoon')
-    : t('personal.mobile.goodEvening', 'Good Evening');
+  const greetingIcon =
+    hour < 5 ? (
+      <Moon size={18} className="text-indigo-400" />
+    ) : hour < 9 ? (
+      <Sunrise size={18} className="text-violet-400" />
+    ) : hour < 12 ? (
+      <Sun size={18} className="text-amber-400" />
+    ) : hour < 18 ? (
+      <Sunset size={18} className="text-orange-400" />
+    ) : (
+      <Moon size={18} className="text-indigo-400" />
+    );
+  const greetingText =
+    hour < 5
+      ? t('personal.mobile.lateNight', 'Still Up Late?')
+      : hour < 9
+        ? t('personal.mobile.earlyMorning', 'Up Early!')
+        : hour < 12
+          ? t('personal.mobile.goodMorning', 'Good Morning')
+          : hour < 18
+            ? t('personal.mobile.goodAfternoon', 'Good Afternoon')
+            : t('personal.mobile.goodEvening', 'Good Evening');
 
-  const dateStr = now.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  const dateStr = now.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
   const userName = currentUser?.name || currentUser?.email?.split('@')[0] || '';
 
-  const habitsDone = dashboardData?.habits_today?.filter(h => h.is_completed).length || 0;
+  const habitsDone = dashboardData?.habits_today?.filter((h) => h.is_completed).length || 0;
   const habitsTotal = dashboardData?.habits_today?.length || 0;
 
   // Tasks due today: count done vs total
   const dueTodayTasks = dashboardData?.due_today_tasks || [];
-  const dueTodayDone = dueTodayTasks.filter(t => t.status === 'DONE').length;
+  const dueTodayDone = dueTodayTasks.filter((t) => t.status === 'DONE').length;
   const dueTodayTotal = dueTodayTasks.length;
 
   const habitsRate = habitsTotal > 0 ? habitsDone / habitsTotal : 0;
@@ -1449,12 +1656,12 @@ function MobileGreetingHeader({
   // Called by gauge bar's onAnimationComplete — fires at the exact moment the bar finishes
   const handleGaugeDone = useCallback((key: 'habits' | 'tasks', rate: number) => {
     if (rate >= 1) {
-      setCelebrate(prev => prev[key] ? prev : { ...prev, [key]: true });
-      setBurstKeys(prev => ({ ...prev, [key]: prev[key] + 1 }));
-      setBounce(prev => ({ ...prev, [key]: true }));
-      setTimeout(() => setBounce(prev => ({ ...prev, [key]: false })), 500);
+      setCelebrate((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+      setBurstKeys((prev) => ({ ...prev, [key]: prev[key] + 1 }));
+      setBounce((prev) => ({ ...prev, [key]: true }));
+      setTimeout(() => setBounce((prev) => ({ ...prev, [key]: false })), 500);
     } else {
-      setCelebrate(prev => !prev[key] ? prev : { ...prev, [key]: false });
+      setCelebrate((prev) => (!prev[key] ? prev : { ...prev, [key]: false }));
     }
   }, []);
 
@@ -1463,9 +1670,11 @@ function MobileGreetingHeader({
       key: 'habits' as const,
       label: t('personal.mobile.habits', 'Habits'),
       value: habitsTotal > 0 ? `${habitsDone}/${habitsTotal}` : '0',
-      icon: celebrate.habits
-        ? <Trophy size={14} className="text-bridge-secondary" />
-        : <Flame size={14} className="text-purple-400" />,
+      icon: celebrate.habits ? (
+        <Trophy size={14} className="text-bridge-secondary" />
+      ) : (
+        <Flame size={14} className="text-purple-400" />
+      ),
       rate: habitsRate,
       onTap: () => onNavigateTab('tasks'),
     },
@@ -1473,9 +1682,11 @@ function MobileGreetingHeader({
       key: 'tasks' as const,
       label: t('personal.mobile.tasks', 'Tasks'),
       value: dueTodayTotal > 0 ? `${dueTodayDone}/${dueTodayTotal}` : '0',
-      icon: celebrate.tasks
-        ? <Trophy size={14} className="text-bridge-secondary" />
-        : <ListTodo size={14} className="text-bridge-accent" />,
+      icon: celebrate.tasks ? (
+        <Trophy size={14} className="text-bridge-secondary" />
+      ) : (
+        <ListTodo size={14} className="text-bridge-accent" />
+      ),
       rate: tasksRate,
       onTap: () => onNavigateTab('tasks'),
     },
@@ -1511,17 +1722,26 @@ function MobileGreetingHeader({
             <motion.button
               key={stat.label}
               onClick={stat.onTap}
-              animate={isBouncing
-                ? { scale: [1, 1.07, 1], borderColor: 'rgba(45,212,191,0.5)' }
-                : isCelebrating
-                ? { scale: 1, borderColor: ['rgba(45,212,191,0.3)', 'rgba(45,212,191,0.15)', 'rgba(45,212,191,0.3)'] }
-                : { scale: 1 }
+              animate={
+                isBouncing
+                  ? { scale: [1, 1.07, 1], borderColor: 'rgba(45,212,191,0.5)' }
+                  : isCelebrating
+                    ? {
+                        scale: 1,
+                        borderColor: [
+                          'rgba(45,212,191,0.3)',
+                          'rgba(45,212,191,0.15)',
+                          'rgba(45,212,191,0.3)',
+                        ],
+                      }
+                    : { scale: 1 }
               }
-              transition={isBouncing
-                ? { scale: { duration: 0.4, ease: 'easeOut' } }
-                : isCelebrating
-                ? { duration: 3, repeat: Infinity, ease: 'easeInOut' }
-                : {}
+              transition={
+                isBouncing
+                  ? { scale: { duration: 0.4, ease: 'easeOut' } }
+                  : isCelebrating
+                    ? { duration: 3, repeat: Infinity, ease: 'easeInOut' }
+                    : {}
               }
               className={`flex-1 rounded-xl border p-3 active:bg-foreground/[0.06] text-left relative overflow-hidden transition-colors duration-500 ${
                 isCelebrating
@@ -1541,10 +1761,16 @@ function MobileGreetingHeader({
                     >
                       {stat.icon}
                     </motion.div>
-                  ) : stat.icon}
-                  <span className={`text-xs font-bold uppercase tracking-wider transition-colors duration-500 ${
-                    isCelebrating ? 'text-bridge-secondary' : 'text-slate-500'
-                  }`}>{stat.label}</span>
+                  ) : (
+                    stat.icon
+                  )}
+                  <span
+                    className={`text-xs font-bold uppercase tracking-wider transition-colors duration-500 ${
+                      isCelebrating ? 'text-bridge-secondary' : 'text-slate-500'
+                    }`}
+                  >
+                    {stat.label}
+                  </span>
                   {isCelebrating && (
                     <motion.span
                       initial={{ opacity: 0, scale: 0 }}
@@ -1557,9 +1783,13 @@ function MobileGreetingHeader({
                   )}
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <span className={`text-lg font-bold transition-colors duration-500 ${
-                    isCelebrating ? 'text-bridge-secondary' : 'text-foreground'
-                  }`}>{stat.value}</span>
+                  <span
+                    className={`text-lg font-bold transition-colors duration-500 ${
+                      isCelebrating ? 'text-bridge-secondary' : 'text-foreground'
+                    }`}
+                  >
+                    {stat.value}
+                  </span>
                 </div>
                 {stat.rate !== undefined && stat.rate >= 0 && (
                   <div className="mt-1.5 h-1 rounded-full bg-foreground/10 overflow-hidden">
@@ -1568,8 +1798,9 @@ function MobileGreetingHeader({
                       style={{
                         backgroundColor: isCelebrating
                           ? '#2DD4BF'
-                          : stat.key === 'tasks' ? '#6366F1'
-                          : '#8B5CF6',
+                          : stat.key === 'tasks'
+                            ? '#6366F1'
+                            : '#8B5CF6',
                         ...(isCelebrating ? { boxShadow: '0 0 8px rgba(45,212,191,0.5)' } : {}),
                       }}
                       initial={{ width: 0 }}
@@ -1589,7 +1820,10 @@ function MobileGreetingHeader({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: [0.03, 0.08, 0.03] }}
                   transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                  style={{ background: 'radial-gradient(ellipse at center, rgba(45,212,191,0.3) 0%, transparent 70%)' }}
+                  style={{
+                    background:
+                      'radial-gradient(ellipse at center, rgba(45,212,191,0.3) 0%, transparent 70%)',
+                  }}
                 />
               )}
             </motion.button>
@@ -1613,7 +1847,13 @@ function MobileQuickHabits({
 }) {
   const { t } = useTranslation();
   const [habits, setHabits] = useState<HabitTodayItem[]>([]);
-  const [checkInConfirm, setCheckInConfirm] = useState<{ id: string; name: string; icon?: string; streak?: number; isUndo: boolean } | null>(null);
+  const [checkInConfirm, setCheckInConfirm] = useState<{
+    id: string;
+    name: string;
+    icon?: string;
+    streak?: number;
+    isUndo: boolean;
+  } | null>(null);
 
   useEffect(() => {
     if (dashboardData?.habits_today) {
@@ -1624,24 +1864,24 @@ function MobileQuickHabits({
   const handleCheckIn = async (habitId: string, isUndo?: boolean) => {
     const revert = !!isUndo;
     // Optimistic: update local strip
-    setHabits(prev => prev.map(h =>
-      h.habit_id === habitId ? { ...h, is_completed: !isUndo } : h
-    ));
+    setHabits((prev) =>
+      prev.map((h) => (h.habit_id === habitId ? { ...h, is_completed: !isUndo } : h)),
+    );
     // Optimistic: update parent dashboardData (header stats)
     onHabitToggle(habitId, !isUndo);
     try {
       const updated = await personalHabitAPI.checkIn(habitId, { log_date: getTodayDateString() });
-      setHabits(prev => prev.map(h => h.habit_id === habitId ? updated : h));
+      setHabits((prev) => prev.map((h) => (h.habit_id === habitId ? updated : h)));
       onHabitToggle(habitId, updated.is_completed);
     } catch {
-      setHabits(prev => prev.map(h =>
-        h.habit_id === habitId ? { ...h, is_completed: revert } : h
-      ));
+      setHabits((prev) =>
+        prev.map((h) => (h.habit_id === habitId ? { ...h, is_completed: revert } : h)),
+      );
       onHabitToggle(habitId, revert);
     }
   };
 
-  const completedCount = habits.filter(h => h.is_completed).length;
+  const completedCount = habits.filter((h) => h.is_completed).length;
   const totalCount = habits.length;
   const allDone = totalCount > 0 && completedCount >= totalCount;
 
@@ -1657,7 +1897,9 @@ function MobileQuickHabits({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Flame size={16} className="text-purple-400" />
-              <h3 className="text-[13px] font-bold text-foreground">{t('personal.mobile.habitsToday', 'Habits')}</h3>
+              <h3 className="text-[13px] font-bold text-foreground">
+                {t('personal.mobile.habitsToday', 'Habits')}
+              </h3>
             </div>
             <button
               onClick={() => onNavigateTab('tasks')}
@@ -1669,7 +1911,9 @@ function MobileQuickHabits({
           </div>
         </div>
         <div className="bg-bridge-dark p-3 flex items-center justify-center">
-          <p className="text-xs text-slate-500">{t('personal.overview.noHabits', 'No habits set up yet')}</p>
+          <p className="text-xs text-slate-500">
+            {t('personal.overview.noHabits', 'No habits set up yet')}
+          </p>
         </div>
       </motion.div>
     );
@@ -1681,9 +1925,7 @@ function MobileQuickHabits({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.15, duration: 0.3 }}
       className={`rounded-2xl border overflow-hidden relative ${
-        allDone
-          ? 'border-bridge-secondary/30'
-          : 'border-foreground/[0.08]'
+        allDone ? 'border-bridge-secondary/30' : 'border-foreground/[0.08]'
       }`}
     >
       {allDone && (
@@ -1691,14 +1933,19 @@ function MobileQuickHabits({
           className="absolute inset-0 rounded-2xl pointer-events-none z-[1]"
           animate={{ opacity: [0.02, 0.06, 0.02] }}
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ background: 'radial-gradient(ellipse at top center, rgba(45,212,191,0.25) 0%, transparent 60%)' }}
+          style={{
+            background:
+              'radial-gradient(ellipse at top center, rgba(45,212,191,0.25) 0%, transparent 60%)',
+          }}
         />
       )}
-      <div className={`px-3 py-2 border-b relative z-[2] ${
-        allDone
-          ? 'bg-bridge-secondary/[0.06] border-bridge-secondary/10'
-          : 'bg-foreground/[0.06] border-foreground/[0.08]'
-      }`}>
+      <div
+        className={`px-3 py-2 border-b relative z-[2] ${
+          allDone
+            ? 'bg-bridge-secondary/[0.06] border-bridge-secondary/10'
+            : 'bg-foreground/[0.06] border-foreground/[0.08]'
+        }`}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {allDone ? (
@@ -1712,9 +1959,13 @@ function MobileQuickHabits({
             ) : (
               <Flame size={16} className="text-purple-400" />
             )}
-            <h3 className={`text-[13px] font-bold ${
-              allDone ? 'text-bridge-secondary' : 'text-foreground'
-            }`}>{t('personal.mobile.habitsToday', 'Habits')}</h3>
+            <h3
+              className={`text-[13px] font-bold ${
+                allDone ? 'text-bridge-secondary' : 'text-foreground'
+              }`}
+            >
+              {t('personal.mobile.habitsToday', 'Habits')}
+            </h3>
             {totalCount > 0 && (
               <motion.span
                 layout
@@ -1724,7 +1975,8 @@ function MobileQuickHabits({
                     : 'text-purple-400 bg-purple-400/15'
                 }`}
               >
-                {allDone ? '✨ ' : ''}{completedCount}/{totalCount}
+                {allDone ? '✨ ' : ''}
+                {completedCount}/{totalCount}
               </motion.span>
             )}
           </div>
@@ -1732,78 +1984,80 @@ function MobileQuickHabits({
         </div>
       </div>
       <div className="bg-bridge-dark p-3">
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-        {habits.map((habit, idx) => {
-          const isCompleted = habit.is_completed;
-          const color = habit.color || '#8B5CF6';
-          return (
-            <motion.button
-              key={habit.habit_id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.05 * idx }}
-              onClick={() => {
-                if (isCompleted) {
-                  setCheckInConfirm({
-                    id: habit.habit_id,
-                    name: habit.title,
-                    icon: habit.icon || undefined,
-                    streak: habit.current_streak,
-                    isUndo: true,
-                  });
-                } else {
-                  handleCheckIn(habit.habit_id);
-                }
-              }}
-              className={`flex-shrink-0 flex flex-col items-center gap-1.5 w-[68px] py-2.5 rounded-xl border transition-all active:scale-95 ${
-                isCompleted
-                  ? 'border-bridge-secondary/30 bg-bridge-secondary/[0.08]'
-                  : 'border-foreground/[0.08] bg-foreground/[0.03]'
-              }`}
-            >
-              <div className="relative">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center text-base transition-all ${
-                    isCompleted
-                      ? 'ring-2 ring-bridge-secondary/50'
-                      : 'ring-2 ring-transparent'
-                  }`}
-                  style={{
-                    background: isCompleted
-                      ? 'linear-gradient(135deg, rgba(45,212,191,0.2), rgba(45,212,191,0.08))'
-                      : `linear-gradient(135deg, ${color}25, ${color}10)`,
-                  }}
-                >
-                  {habit.icon ? (
-                    <span className="text-lg">{habit.icon}</span>
-                  ) : (
-                    <Flame size={16} style={{ color }} />
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+          {habits.map((habit, idx) => {
+            const isCompleted = habit.is_completed;
+            const color = habit.color || '#8B5CF6';
+            return (
+              <motion.button
+                key={habit.habit_id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.05 * idx }}
+                onClick={() => {
+                  if (isCompleted) {
+                    setCheckInConfirm({
+                      id: habit.habit_id,
+                      name: habit.title,
+                      icon: habit.icon || undefined,
+                      streak: habit.current_streak,
+                      isUndo: true,
+                    });
+                  } else {
+                    handleCheckIn(habit.habit_id);
+                  }
+                }}
+                className={`flex-shrink-0 flex flex-col items-center gap-1.5 w-[68px] py-2.5 rounded-xl border transition-all active:scale-95 ${
+                  isCompleted
+                    ? 'border-bridge-secondary/30 bg-bridge-secondary/[0.08]'
+                    : 'border-foreground/[0.08] bg-foreground/[0.03]'
+                }`}
+              >
+                <div className="relative">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center text-base transition-all ${
+                      isCompleted ? 'ring-2 ring-bridge-secondary/50' : 'ring-2 ring-transparent'
+                    }`}
+                    style={{
+                      background: isCompleted
+                        ? 'linear-gradient(135deg, rgba(45,212,191,0.2), rgba(45,212,191,0.08))'
+                        : `linear-gradient(135deg, ${color}25, ${color}10)`,
+                    }}
+                  >
+                    {habit.icon ? (
+                      <span className="text-lg">{habit.icon}</span>
+                    ) : (
+                      <Flame size={16} style={{ color }} />
+                    )}
+                  </div>
+                  {isCompleted && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-bridge-secondary rounded-full flex items-center justify-center"
+                    >
+                      <Check size={10} className="text-white" strokeWidth={3} />
+                    </motion.div>
+                  )}
+                  {habit.current_streak > 0 && (
+                    <div className="absolute -bottom-1 -right-1 min-w-[16px] h-[14px] bg-orange-500 rounded-full flex items-center justify-center px-0.5 shadow-sm">
+                      <span className="text-xs font-bold text-white leading-none">
+                        {habit.current_streak}
+                      </span>
+                    </div>
                   )}
                 </div>
-                {isCompleted && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-bridge-secondary rounded-full flex items-center justify-center"
-                  >
-                    <Check size={10} className="text-white" strokeWidth={3} />
-                  </motion.div>
-                )}
-                {habit.current_streak > 0 && (
-                  <div className="absolute -bottom-1 -right-1 min-w-[16px] h-[14px] bg-orange-500 rounded-full flex items-center justify-center px-0.5 shadow-sm">
-                    <span className="text-xs font-bold text-white leading-none">{habit.current_streak}</span>
-                  </div>
-                )}
-              </div>
-              <span className={`text-xs font-medium truncate w-full text-center px-1 ${
-                isCompleted ? 'text-bridge-secondary' : 'text-foreground'
-              }`}>
-                {habit.title}
-              </span>
-            </motion.button>
-          );
-        })}
-      </div>
+                <span
+                  className={`text-xs font-medium truncate w-full text-center px-1 ${
+                    isCompleted ? 'text-bridge-secondary' : 'text-foreground'
+                  }`}
+                >
+                  {habit.title}
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
       </div>
 
       <CheckInConfirmModal
@@ -1850,25 +2104,27 @@ export function PersonalOverview({ onNavigateTab, onRefreshTasks }: PersonalOver
   }, [loadOverview, onRefreshTasks]);
 
   // Derive dashboardData for mobile components (MobileGreetingHeader, MobileQuickHabits)
-  const dashboardData: PersonalDashboardToday | null = overviewData ? {
-    due_today_tasks: overviewData.due_today_tasks,
-    in_progress_tasks: overviewData.in_progress_tasks,
-    personal_events: overviewData.today_events,
-    habits_today: overviewData.habits_today,
-    task_completion_rate: overviewData.task_completion_rate,
-    habit_completion_rate: overviewData.habit_completion_rate,
-    active_task_count: overviewData.active_task_count,
-    completed_today_count: overviewData.completed_today_count,
-  } : null;
+  const dashboardData: PersonalDashboardToday | null = overviewData
+    ? {
+        due_today_tasks: overviewData.due_today_tasks,
+        in_progress_tasks: overviewData.in_progress_tasks,
+        personal_events: overviewData.today_events,
+        habits_today: overviewData.habits_today,
+        task_completion_rate: overviewData.task_completion_rate,
+        habit_completion_rate: overviewData.habit_completion_rate,
+        active_task_count: overviewData.active_task_count,
+        completed_today_count: overviewData.completed_today_count,
+      }
+    : null;
 
   // Optimistically update overviewData when habit is toggled from the quick strip
   const handleHabitToggle = useCallback((habitId: string, isCompleted: boolean) => {
-    setOverviewData(prev => {
+    setOverviewData((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
-        habits_today: prev.habits_today.map(h =>
-          h.habit_id === habitId ? { ...h, is_completed: isCompleted } : h
+        habits_today: prev.habits_today.map((h) =>
+          h.habit_id === habitId ? { ...h, is_completed: isCompleted } : h,
         ),
       };
     });
@@ -1876,13 +2132,13 @@ export function PersonalOverview({ onNavigateTab, onRefreshTasks }: PersonalOver
 
   // Optimistically update overviewData when task is toggled from deadlines widget
   const handleTaskToggle = useCallback((taskId: string, isDone: boolean) => {
-    setOverviewData(prev => {
+    setOverviewData((prev) => {
       if (!prev) return prev;
       const newStatus = isDone ? 'DONE' : 'TODO';
       return {
         ...prev,
-        due_today_tasks: prev.due_today_tasks.map(t =>
-          t.id === taskId ? { ...t, status: newStatus } : t
+        due_today_tasks: prev.due_today_tasks.map((t) =>
+          t.id === taskId ? { ...t, status: newStatus } : t,
         ),
       };
     });
@@ -1898,7 +2154,11 @@ export function PersonalOverview({ onNavigateTab, onRefreshTasks }: PersonalOver
 
         {/* Mobile Quick Habits Strip */}
         <div className="md:hidden">
-          <MobileQuickHabits dashboardData={dashboardData} onNavigateTab={onNavigateTab} onHabitToggle={handleHabitToggle} />
+          <MobileQuickHabits
+            dashboardData={dashboardData}
+            onNavigateTab={onNavigateTab}
+            onHabitToggle={handleHabitToggle}
+          />
         </div>
 
         {/* Widget grid */}
@@ -1944,8 +2204,22 @@ export function PersonalOverview({ onNavigateTab, onRefreshTasks }: PersonalOver
 const OV_HABIT_COLORS = FEATURE_COLORS;
 
 const OV_HABIT_ICONS = [
-  '🏃', '📚', '💧', '🧘', '💪', '🎯', '✍️', '🎵',
-  '🧠', '🌿', '💊', '🍎', '😴', '🚶', '🧹', '📵',
+  '🏃',
+  '📚',
+  '💧',
+  '🧘',
+  '💪',
+  '🎯',
+  '✍️',
+  '🎵',
+  '🧠',
+  '🌿',
+  '💊',
+  '🍎',
+  '😴',
+  '🚶',
+  '🧹',
+  '📵',
 ];
 
 const OV_DAY_CHIPS = [
@@ -1987,7 +2261,9 @@ function OverviewCreateHabitModal({
   const isValid = title.trim().length > 0 && selectedDays.length > 0;
 
   const toggleDay = (day: number) => {
-    setSelectedDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+    setSelectedDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
+    );
   };
 
   /** Derive frequency_type from selected days */
@@ -1996,8 +2272,9 @@ function OverviewCreateHabitModal({
     if (sorted.length === 7) return { type: 'DAILY' };
     const weekdays = [1, 2, 3, 4, 5];
     const weekend = [0, 6];
-    if (sorted.length === 5 && weekdays.every(d => sorted.includes(d))) return { type: 'WEEKDAY' };
-    if (sorted.length === 2 && weekend.every(d => sorted.includes(d))) return { type: 'WEEKEND' };
+    if (sorted.length === 5 && weekdays.every((d) => sorted.includes(d)))
+      return { type: 'WEEKDAY' };
+    if (sorted.length === 2 && weekend.every((d) => sorted.includes(d))) return { type: 'WEEKEND' };
     return { type: 'CUSTOM', days: sorted.join(',') };
   };
 
@@ -2016,13 +2293,22 @@ function OverviewCreateHabitModal({
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]">
+    <MotionModal
+      open={open}
+      onClose={onClose}
+      className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]"
+    >
       <div>
-        <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
+        <div
+          className="h-[2px]"
+          style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }}
+        />
 
         {/* Header */}
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
-          <span className="text-base shrink-0">{icon || <Flame size={16} className="text-purple-400" />}</span>
+          <span className="text-base shrink-0">
+            {icon || <Flame size={16} className="text-purple-400" />}
+          </span>
           <input
             type="text"
             value={title}
@@ -2045,11 +2331,14 @@ function OverviewCreateHabitModal({
                 key={value}
                 onClick={() => toggleDay(value)}
                 className="flex-1 py-2 text-xs font-bold rounded-lg transition-all"
-                style={selectedDays.includes(value)
-                  ? { backgroundColor: color, color: '#fff' }
-                  : undefined}
+                style={
+                  selectedDays.includes(value)
+                    ? { backgroundColor: color, color: '#fff' }
+                    : undefined
+                }
                 {...(!selectedDays.includes(value) && {
-                  className: 'flex-1 py-2 text-xs font-bold rounded-lg transition-all bg-foreground/5 text-slate-400 hover:bg-foreground/10',
+                  className:
+                    'flex-1 py-2 text-xs font-bold rounded-lg transition-all bg-foreground/5 text-slate-400 hover:bg-foreground/10',
                 })}
               >
                 {label}
@@ -2068,7 +2357,9 @@ function OverviewCreateHabitModal({
             className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-muted-foreground transition-colors"
           >
             {showMore ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            {showMore ? t('personal.habit.lessOptions', 'Less options') : t('personal.habit.moreOptions', 'More options')}
+            {showMore
+              ? t('personal.habit.lessOptions', 'Less options')
+              : t('personal.habit.moreOptions', 'More options')}
           </button>
 
           <AnimatePresence>
@@ -2090,7 +2381,14 @@ function OverviewCreateHabitModal({
                           ? 'ring-2 scale-110'
                           : 'bg-foreground/5 hover:bg-foreground/10 hover:scale-105'
                       }`}
-                      style={icon === emoji ? ({ backgroundColor: `${color}33`, '--tw-ring-color': color } as React.CSSProperties) : undefined}
+                      style={
+                        icon === emoji
+                          ? ({
+                              backgroundColor: `${color}33`,
+                              '--tw-ring-color': color,
+                            } as React.CSSProperties)
+                          : undefined
+                      }
                     >
                       {emoji}
                     </button>

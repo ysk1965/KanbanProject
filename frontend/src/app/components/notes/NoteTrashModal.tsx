@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Trash2, FileText, Folder, PenTool, RotateCcw, Search, X, Loader2, AlertTriangle } from 'lucide-react';
+import {
+  Trash2,
+  FileText,
+  Folder,
+  PenTool,
+  RotateCcw,
+  Search,
+  X,
+  Loader2,
+  AlertTriangle,
+} from 'lucide-react';
 import { MotionModal } from '../ui/MotionModal';
 import { formatDateTime, formatRelativeTime } from '../../utils/dateUtils';
 import { noteService, orgNoteService, myNoteService } from '../../utils/services';
@@ -26,7 +36,8 @@ export function NoteTrashModal({
   onChanged,
 }: NoteTrashModalProps) {
   const { t } = useTranslation();
-  const svc = scopeType === 'personal' ? myNoteService : scopeType === 'org' ? orgNoteService : noteService;
+  const svc =
+    scopeType === 'personal' ? myNoteService : scopeType === 'org' ? orgNoteService : noteService;
 
   const [items, setItems] = useState<NoteTrashItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,10 +71,11 @@ export function NoteTrashModal({
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return items;
-    return items.filter(i =>
-      i.title.toLowerCase().includes(q)
-      || (i.parent_title?.toLowerCase().includes(q) ?? false)
-      || (i.deleted_by?.name.toLowerCase().includes(q) ?? false),
+    return items.filter(
+      (i) =>
+        i.title.toLowerCase().includes(q) ||
+        (i.parent_title?.toLowerCase().includes(q) ?? false) ||
+        (i.deleted_by?.name.toLowerCase().includes(q) ?? false),
     );
   }, [items, searchQuery]);
 
@@ -71,7 +83,7 @@ export function NoteTrashModal({
     setActingId(item.id);
     try {
       await svc.restoreFromTrash(scopeId, item.id);
-      setItems(prev => prev.filter(i => i.id !== item.id));
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
       onRestored?.(item.id);
       onChanged?.();
     } catch (err) {
@@ -85,7 +97,7 @@ export function NoteTrashModal({
     setActingId(item.id);
     try {
       await svc.permanentDelete(scopeId, item.id);
-      setItems(prev => prev.filter(i => i.id !== item.id));
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
       onChanged?.();
     } catch (err) {
       console.error('Failed to permanent delete:', err);
@@ -184,7 +196,9 @@ export function NoteTrashModal({
                   <div className="flex-shrink-0">{getIcon(item.type)}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-foreground font-medium truncate">{item.title}</span>
+                      <span className="text-sm text-foreground font-medium truncate">
+                        {item.title}
+                      </span>
                       {item.has_children && (
                         <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary flex-shrink-0">
                           {t('notes.trash.withChildren', '하위 포함')}
@@ -215,7 +229,11 @@ export function NoteTrashModal({
                       onClick={() => handleRestore(item)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-bridge-accent hover:bg-bridge-accent/10 transition-colors disabled:opacity-50"
                     >
-                      {isActing ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
+                      {isActing ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <RotateCcw size={12} />
+                      )}
                       {t('notes.trash.restore', '복구')}
                     </button>
                     {canPermanentDelete && (
@@ -256,7 +274,11 @@ export function NoteTrashModal({
         <ConfirmInline
           icon={<AlertTriangle size={18} className="text-rose-400" />}
           title={t('notes.trash.permanentDeleteConfirmTitle', '영구 삭제할까요?')}
-          message={t('notes.trash.permanentDeleteConfirm', '"{{title}}"와 모든 하위 항목, 댓글, 버전이 즉시 삭제되며 되돌릴 수 없습니다.', { title: confirmTarget.title })}
+          message={t(
+            'notes.trash.permanentDeleteConfirm',
+            '"{{title}}"와 모든 하위 항목, 댓글, 버전이 즉시 삭제되며 되돌릴 수 없습니다.',
+            { title: confirmTarget.title },
+          )}
           confirmLabel={t('notes.trash.permanentDelete', '영구 삭제')}
           onConfirm={() => handlePermanentDelete(confirmTarget)}
           onCancel={() => setConfirmTarget(null)}
@@ -269,7 +291,11 @@ export function NoteTrashModal({
         <ConfirmInline
           icon={<AlertTriangle size={18} className="text-rose-400" />}
           title={t('notes.trash.emptyAllConfirmTitle', '휴지통을 비울까요?')}
-          message={t('notes.trash.emptyAllConfirm', '휴지통의 모든 항목({{count}}개)이 영구 삭제됩니다. 되돌릴 수 없습니다.', { count: items.length })}
+          message={t(
+            'notes.trash.emptyAllConfirm',
+            '휴지통의 모든 항목({{count}}개)이 영구 삭제됩니다. 되돌릴 수 없습니다.',
+            { count: items.length },
+          )}
           confirmLabel={t('notes.trash.emptyAll', '전체 비우기')}
           onConfirm={handleEmptyAll}
           onCancel={() => setConfirmEmptyAll(false)}
@@ -290,7 +316,15 @@ interface ConfirmInlineProps {
   loading: boolean;
 }
 
-function ConfirmInline({ icon, title, message, confirmLabel, onConfirm, onCancel, loading }: ConfirmInlineProps) {
+function ConfirmInline({
+  icon,
+  title,
+  message,
+  confirmLabel,
+  onConfirm,
+  onCancel,
+  loading,
+}: ConfirmInlineProps) {
   const { t } = useTranslation();
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-bridge-obsidian/95 backdrop-blur rounded-2xl p-5">

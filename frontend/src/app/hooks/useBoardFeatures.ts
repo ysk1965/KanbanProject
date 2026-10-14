@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo } from 'react';
 
 /**
  * 보드 화면 복잡도 — 게이팅의 단일 소스.
@@ -18,9 +18,9 @@ import { useMemo } from "react";
 export type BoardUiLevel = 1 | 2 | 3;
 
 /** 레벨과 직교하는 옵션 키. 백엔드 `UiOption`과 1:1. */
-export type BoardUiOption = "members" | "review" | "timeblock" | "jira";
+export type BoardUiOption = 'members' | 'review' | 'timeblock' | 'jira';
 
-const ALL_OPTIONS: BoardUiOption[] = ["members", "review", "timeblock", "jira"];
+const ALL_OPTIONS: BoardUiOption[] = ['members', 'review', 'timeblock', 'jira'];
 
 /**
  * 응답에 값이 없을 때의 폴백은 **최고 레벨 + 전 옵션**이다.
@@ -68,16 +68,14 @@ function parseOptions(raw: string | null | undefined): BoardUiOption[] {
   if (raw === null || raw === undefined) return [...ALL_OPTIONS];
   const set = new Set(
     raw
-      .split(",")
+      .split(',')
       .map((s) => s.trim())
       .filter(Boolean),
   );
   return ALL_OPTIONS.filter((o) => set.has(o));
 }
 
-export function resolveBoardFeatures(
-  source: BoardUiSource | null | undefined,
-): BoardFeatures {
+export function resolveBoardFeatures(source: BoardUiSource | null | undefined): BoardFeatures {
   const level = normalizeLevel(source?.ui_level);
   const options = parseOptions(source?.ui_options);
   const optionSet = new Set(options);
@@ -98,14 +96,9 @@ export function resolveBoardFeatures(
 /** 옵션 목록 → 저장 문자열. 선언 순서로 정규화해 같은 조합이 항상 같은 문자열이 된다. */
 export function serializeBoardOptions(options: BoardUiOption[]): string {
   const set = new Set(options);
-  return ALL_OPTIONS.filter((o) => set.has(o)).join(",");
+  return ALL_OPTIONS.filter((o) => set.has(o)).join(',');
 }
 
-export function useBoardFeatures(
-  source: BoardUiSource | null | undefined,
-): BoardFeatures {
-  return useMemo(
-    () => resolveBoardFeatures(source),
-    [source?.ui_level, source?.ui_options],
-  );
+export function useBoardFeatures(source: BoardUiSource | null | undefined): BoardFeatures {
+  return useMemo(() => resolveBoardFeatures(source), [source?.ui_level, source?.ui_options]);
 }

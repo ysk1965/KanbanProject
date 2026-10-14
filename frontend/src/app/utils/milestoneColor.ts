@@ -19,24 +19,24 @@ export interface MilestoneColor {
 
 /** 인접 최대 대비를 위해 색상환 지그재그 순으로 나열한 12색 (다크·라이트 모두 400계열 톤) */
 export const MILESTONE_PALETTE: MilestoneColor[] = [
-  { name: "rose", hex: "#FB7185" },
-  { name: "sky", hex: "#38BDF8" },
-  { name: "amber", hex: "#FBBF24" },
-  { name: "violet", hex: "#A78BFA" },
-  { name: "emerald", hex: "#34D399" },
-  { name: "orange", hex: "#FB923C" },
-  { name: "blue", hex: "#60A5FA" },
-  { name: "lime", hex: "#A3E635" },
-  { name: "fuchsia", hex: "#E879F9" },
-  { name: "teal", hex: "#2DD4BF" },
-  { name: "indigo", hex: "#818CF8" },
-  { name: "pink", hex: "#F472B6" },
+  { name: 'rose', hex: '#FB7185' },
+  { name: 'sky', hex: '#38BDF8' },
+  { name: 'amber', hex: '#FBBF24' },
+  { name: 'violet', hex: '#A78BFA' },
+  { name: 'emerald', hex: '#34D399' },
+  { name: 'orange', hex: '#FB923C' },
+  { name: 'blue', hex: '#60A5FA' },
+  { name: 'lime', hex: '#A3E635' },
+  { name: 'fuchsia', hex: '#E879F9' },
+  { name: 'teal', hex: '#2DD4BF' },
+  { name: 'indigo', hex: '#818CF8' },
+  { name: 'pink', hex: '#F472B6' },
 ];
 
 const PALETTE_SIZE = MILESTONE_PALETTE.length;
 
 function isCustomHex(color?: string | null): color is string {
-  return !!color && color.startsWith("#");
+  return !!color && color.startsWith('#');
 }
 
 /** djb2 해시 — map을 못 받은 렌더 사이트의 fallback 전용 (순서 정보가 없을 때) */
@@ -53,12 +53,12 @@ function hashId(id: string): number {
  * #RGB / #RRGGBB 지원. 그 외 형식은 그대로 반환.
  */
 export function withAlpha(hex: string, alpha: number): string {
-  let h = hex.replace("#", "");
+  let h = hex.replace('#', '');
   if (h.length === 3) {
     h = h
-      .split("")
+      .split('')
       .map((c) => c + c)
-      .join("");
+      .join('');
   }
   if (h.length !== 6) return hex;
   const r = parseInt(h.slice(0, 2), 16);
@@ -75,7 +75,7 @@ export function getMilestoneColorByIndex(
   index: number,
   customColor?: string | null,
 ): MilestoneColor {
-  if (isCustomHex(customColor)) return { name: "custom", hex: customColor };
+  if (isCustomHex(customColor)) return { name: 'custom', hex: customColor };
   const i = ((index % PALETTE_SIZE) + PALETTE_SIZE) % PALETTE_SIZE;
   return MILESTONE_PALETTE[i];
 }

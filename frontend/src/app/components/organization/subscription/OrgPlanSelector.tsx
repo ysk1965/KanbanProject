@@ -1,14 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import {
-  Users,
-  LayoutGrid,
-  Shield,
-  Crown,
-  Check,
-  BarChart3,
-  Network,
-} from 'lucide-react';
+import { Users, LayoutGrid, Shield, Crown, Check, BarChart3, Network } from 'lucide-react';
 
 interface OrgPlanSelectorProps {
   currentPlan: string;
@@ -21,10 +13,7 @@ interface PlanFeature {
   label: string;
 }
 
-export function OrgPlanSelector({
-  currentPlan,
-  onSelectPlan,
-}: OrgPlanSelectorProps) {
+export function OrgPlanSelector({ currentPlan, onSelectPlan }: OrgPlanSelectorProps) {
   const { t } = useTranslation();
 
   const freePlanFeatures: PlanFeature[] = [

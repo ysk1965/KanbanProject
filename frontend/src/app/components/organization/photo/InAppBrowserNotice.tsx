@@ -1,16 +1,16 @@
-import { useState, useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { ExternalLink, Copy, Check, X } from "lucide-react";
-import { MotionModal } from "../../ui/MotionModal";
-import { IconButton } from "../../ui/IconButton";
-import { canOpenExternally, openInExternalBrowser } from "../../../utils/platform";
-import type { InAppBrowserGate } from "../../../hooks/useInAppBrowserGate";
+import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ExternalLink, Copy, Check, X } from 'lucide-react';
+import { MotionModal } from '../../ui/MotionModal';
+import { IconButton } from '../../ui/IconButton';
+import { canOpenExternally, openInExternalBrowser } from '../../../utils/platform';
+import type { InAppBrowserGate } from '../../../hooks/useInAppBrowserGate';
 
-const DISMISS_KEY = "bridge_inapp_notice_dismissed";
+const DISMISS_KEY = 'bridge_inapp_notice_dismissed';
 
 function readDismissed(): boolean {
   try {
-    return sessionStorage.getItem(DISMISS_KEY) === "1";
+    return sessionStorage.getItem(DISMISS_KEY) === '1';
   } catch {
     return false;
   }
@@ -23,14 +23,14 @@ async function copyText(text: string): Promise<boolean> {
   } catch {
     // In-app WebViews often block the async clipboard API
     try {
-      const ta = document.createElement("textarea");
+      const ta = document.createElement('textarea');
       ta.value = text;
-      ta.setAttribute("readonly", "");
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
       document.body.appendChild(ta);
       ta.select();
-      const ok = document.execCommand("copy");
+      const ok = document.execCommand('copy');
       document.body.removeChild(ta);
       return ok;
     } catch {
@@ -52,7 +52,7 @@ export function InAppBrowserNotice({ gate }: { gate: InAppBrowserGate }) {
   const handleDismiss = useCallback(() => {
     setDismissed(true);
     try {
-      sessionStorage.setItem(DISMISS_KEY, "1");
+      sessionStorage.setItem(DISMISS_KEY, '1');
     } catch {
       // storage unavailable
     }
@@ -82,18 +82,16 @@ export function InAppBrowserNotice({ gate }: { gate: InAppBrowserGate }) {
           <div className="max-w-6xl mx-auto pl-6 pr-2 py-2 flex items-center gap-3">
             <ExternalLink size={16} className="text-bridge-accent shrink-0" />
             <p className="flex-1 min-w-0 text-xs text-foreground leading-relaxed">
-              {t("inAppBrowser.bannerText", { app })}
+              {t('inAppBrowser.bannerText', { app })}
             </p>
             <button
               onClick={handleOpen}
               className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-all"
             >
-              {auto
-                ? t("inAppBrowser.openButton")
-                : t("inAppBrowser.howButton")}
+              {auto ? t('inAppBrowser.openButton') : t('inAppBrowser.howButton')}
             </button>
             <IconButton
-              aria-label={t("common.close", "Close")}
+              aria-label={t('common.close', 'Close')}
               onClick={handleDismiss}
               className="text-slate-400 hover:text-foreground"
             >
@@ -113,17 +111,14 @@ export function InAppBrowserNotice({ gate }: { gate: InAppBrowserGate }) {
           <div className="w-8 h-8 rounded-lg bg-bridge-accent/15 flex items-center justify-center">
             <ExternalLink size={16} className="text-bridge-accent" />
           </div>
-          <h2
-            id="inapp-guide-title"
-            className="text-sm font-bold text-foreground"
-          >
-            {t("inAppBrowser.guideTitle")}
+          <h2 id="inapp-guide-title" className="text-sm font-bold text-foreground">
+            {t('inAppBrowser.guideTitle')}
           </h2>
         </div>
 
         <div className="px-5 pb-5 pt-4 space-y-4">
           <p className="text-sm text-foreground leading-relaxed">
-            {t("inAppBrowser.guideBody", { app })}
+            {t('inAppBrowser.guideBody', { app })}
           </p>
 
           {auto ? (
@@ -132,19 +127,17 @@ export function InAppBrowserNotice({ gate }: { gate: InAppBrowserGate }) {
               className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-bridge-accent text-white rounded-xl text-sm font-bold hover:bg-bridge-accent/90 transition-all"
             >
               <ExternalLink size={16} />
-              {t("inAppBrowser.openButton")}
+              {t('inAppBrowser.openButton')}
             </button>
           ) : (
             <p className="text-sm text-slate-400 leading-relaxed">
-              {t("inAppBrowser.manualSteps")}
+              {t('inAppBrowser.manualSteps')}
             </p>
           )}
 
           <div className="space-y-2">
             <span className="text-xs text-slate-500">
-              {auto
-                ? t("inAppBrowser.copyHintAuto")
-                : t("inAppBrowser.copyHint")}
+              {auto ? t('inAppBrowser.copyHintAuto') : t('inAppBrowser.copyHint')}
             </span>
             <button
               onClick={handleCopy}
@@ -155,9 +148,7 @@ export function InAppBrowserNotice({ gate }: { gate: InAppBrowserGate }) {
               ) : (
                 <Copy size={16} />
               )}
-              {copied
-                ? t("inAppBrowser.copied")
-                : t("inAppBrowser.copyLink")}
+              {copied ? t('inAppBrowser.copied') : t('inAppBrowser.copyLink')}
             </button>
           </div>
         </div>
@@ -167,7 +158,7 @@ export function InAppBrowserNotice({ gate }: { gate: InAppBrowserGate }) {
             onClick={closeGuide}
             className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent"
           >
-            {t("common.close", "Close")}
+            {t('common.close', 'Close')}
           </button>
         </div>
       </MotionModal>

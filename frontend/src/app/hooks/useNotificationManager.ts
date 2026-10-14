@@ -6,7 +6,7 @@ export function useNotificationManager(
   boardId: string | undefined,
   currentUser: { id: string } | null,
   isRealtimeEnabled: boolean,
-  isInquiryModalOpen: boolean
+  isInquiryModalOpen: boolean,
 ) {
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [unreadInquiryCount, setUnreadInquiryCount] = useState(0);
@@ -35,24 +35,21 @@ export function useNotificationManager(
     if (!currentUser) return;
 
     // subscribe가 자동으로 연결 시작/유지, 재연결 시 자동 재구독
-    const subscription = wsManager.subscribe(
-      `/topic/user/${currentUser.id}`,
-      (message) => {
-        try {
-          const event = JSON.parse(message.body);
-          if (event.type === 'INQUIRY_REPLIED') {
-            const unreadCount = event.data?.unread_count;
-            if (typeof unreadCount === 'number') {
-              setUnreadInquiryCount(unreadCount);
-            } else {
-              setUnreadInquiryCount(prev => prev + 1);
-            }
+    const subscription = wsManager.subscribe(`/topic/user/${currentUser.id}`, (message) => {
+      try {
+        const event = JSON.parse(message.body);
+        if (event.type === 'INQUIRY_REPLIED') {
+          const unreadCount = event.data?.unread_count;
+          if (typeof unreadCount === 'number') {
+            setUnreadInquiryCount(unreadCount);
+          } else {
+            setUnreadInquiryCount((prev) => prev + 1);
           }
-        } catch (error) {
-          console.error('[useNotificationManager] Failed to parse global user event:', error);
         }
+      } catch (error) {
+        console.error('[useNotificationManager] Failed to parse global user event:', error);
       }
-    );
+    });
 
     return () => {
       subscription.unsubscribe();

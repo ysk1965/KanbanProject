@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useTranslation } from "react-i18next";
-import { notificationPreferenceAPI } from "../utils/api";
-import { NotificationPreferences } from "../types";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { notificationPreferenceAPI } from '../utils/api';
+import { NotificationPreferences } from '../types';
 
 interface NotificationPreferencesPanelProps {
   boardId: string;
@@ -11,23 +11,23 @@ interface NotificationPreferencesPanelProps {
 
 const NOTIFICATION_TYPES = [
   {
-    key: "comment_mention",
-    labelKey: "notificationPreferences.commentMention",
-    descKey: "notificationPreferences.commentMentionDesc",
+    key: 'comment_mention',
+    labelKey: 'notificationPreferences.commentMention',
+    descKey: 'notificationPreferences.commentMentionDesc',
   },
   {
-    key: "checklist_assigned",
-    labelKey: "notificationPreferences.checklistAssigned",
-    descKey: "notificationPreferences.checklistAssignedDesc",
+    key: 'checklist_assigned',
+    labelKey: 'notificationPreferences.checklistAssigned',
+    descKey: 'notificationPreferences.checklistAssignedDesc',
   },
   {
-    key: "task_comment",
-    labelKey: "notificationPreferences.taskComment",
-    descKey: "notificationPreferences.taskCommentDesc",
+    key: 'task_comment',
+    labelKey: 'notificationPreferences.taskComment',
+    descKey: 'notificationPreferences.taskCommentDesc',
   },
 ] as const;
 
-type PrefKey = (typeof NOTIFICATION_TYPES)[number]["key"];
+type PrefKey = (typeof NOTIFICATION_TYPES)[number]['key'];
 
 export function NotificationPreferencesPanel({
   boardId,
@@ -41,8 +41,7 @@ export function NotificationPreferencesPanel({
 
   const fetchPreferences = useCallback(async () => {
     try {
-      const prefData =
-        await notificationPreferenceAPI.getMyPreferences(boardId);
+      const prefData = await notificationPreferenceAPI.getMyPreferences(boardId);
       setPrefs(prefData);
     } catch {
       setPrefs({
@@ -78,38 +77,29 @@ export function NotificationPreferencesPanel({
           commentMentionEnabled: updatedPrefs.comment_mention_enabled,
           checklistAssignedEnabled: updatedPrefs.checklist_assigned_enabled,
           taskCommentEnabled: updatedPrefs.task_comment_enabled,
-          slackCommentMentionEnabled:
-            updatedPrefs.slack_comment_mention_enabled,
-          slackChecklistAssignedEnabled:
-            updatedPrefs.slack_checklist_assigned_enabled,
+          slackCommentMentionEnabled: updatedPrefs.slack_comment_mention_enabled,
+          slackChecklistAssignedEnabled: updatedPrefs.slack_checklist_assigned_enabled,
           slackTaskCommentEnabled: updatedPrefs.slack_task_comment_enabled,
-          discordCommentMentionEnabled:
-            updatedPrefs.discord_comment_mention_enabled,
-          discordChecklistAssignedEnabled:
-            updatedPrefs.discord_checklist_assigned_enabled,
+          discordCommentMentionEnabled: updatedPrefs.discord_comment_mention_enabled,
+          discordChecklistAssignedEnabled: updatedPrefs.discord_checklist_assigned_enabled,
           discordTaskCommentEnabled: updatedPrefs.discord_task_comment_enabled,
-          discordMeetingMemoSharedEnabled:
-            updatedPrefs.discord_meeting_memo_shared_enabled,
-          discordNoteCommentMentionEnabled:
-            updatedPrefs.discord_note_comment_mention_enabled,
+          discordMeetingMemoSharedEnabled: updatedPrefs.discord_meeting_memo_shared_enabled,
+          discordNoteCommentMentionEnabled: updatedPrefs.discord_note_comment_mention_enabled,
         });
       } catch (err) {
-        console.error("Failed to save notification preferences:", err);
+        console.error('Failed to save notification preferences:', err);
       }
     },
     [boardId],
   );
 
-  const handleToggle = (
-    key: PrefKey,
-    channel: "inapp" | "slack" | "discord",
-  ) => {
+  const handleToggle = (key: PrefKey, channel: 'inapp' | 'slack' | 'discord') => {
     if (!prefs) return;
 
     const fieldKey =
-      channel === "inapp"
+      channel === 'inapp'
         ? (`${key}_enabled` as keyof NotificationPreferences)
-        : channel === "slack"
+        : channel === 'slack'
           ? (`slack_${key}_enabled` as keyof NotificationPreferences)
           : (`discord_${key}_enabled` as keyof NotificationPreferences);
 
@@ -138,19 +128,19 @@ export function NotificationPreferencesPanel({
           <div className="flex-1" />
           <div className="w-10 text-center">
             <span className="text-xs text-slate-500 uppercase tracking-wider">
-              {t("notificationPreferences.inApp")}
+              {t('notificationPreferences.inApp')}
             </span>
           </div>
           <div className="w-10 text-center">
             <span
-              className={`text-xs uppercase tracking-wider ${hasSlack ? "text-slate-500" : "text-slate-600"}`}
+              className={`text-xs uppercase tracking-wider ${hasSlack ? 'text-slate-500' : 'text-slate-600'}`}
             >
               Slack
             </span>
           </div>
           <div className="w-10 text-center">
             <span
-              className={`text-xs uppercase tracking-wider ${hasDiscord ? "text-slate-500" : "text-slate-600"}`}
+              className={`text-xs uppercase tracking-wider ${hasDiscord ? 'text-slate-500' : 'text-slate-600'}`}
             >
               Discord
             </span>
@@ -162,28 +152,24 @@ export function NotificationPreferencesPanel({
           {NOTIFICATION_TYPES.map(({ key, labelKey, descKey }) => (
             <div key={key} className="flex items-center gap-2 py-1.5 group">
               <div className="flex-1 min-w-0">
-                <div className="text-xs text-muted-foreground">
-                  {t(labelKey)}
-                </div>
-                <div className="text-xs text-slate-500 leading-tight">
-                  {t(descKey)}
-                </div>
+                <div className="text-xs text-muted-foreground">{t(labelKey)}</div>
+                <div className="text-xs text-slate-500 leading-tight">{t(descKey)}</div>
               </div>
               {/* In-app toggle */}
               <div className="w-10 flex justify-center">
                 <button
-                  onClick={() => handleToggle(key, "inapp")}
+                  onClick={() => handleToggle(key, 'inapp')}
                   className={`w-7 h-4 rounded-full transition-colors relative ${
                     prefs[`${key}_enabled` as keyof NotificationPreferences]
-                      ? "bg-bridge-accent"
-                      : "bg-foreground/10"
+                      ? 'bg-bridge-accent'
+                      : 'bg-foreground/10'
                   }`}
                 >
                   <div
                     className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${
                       prefs[`${key}_enabled` as keyof NotificationPreferences]
-                        ? "translate-x-3.5"
-                        : "translate-x-0.5"
+                        ? 'translate-x-3.5'
+                        : 'translate-x-0.5'
                     }`}
                   />
                 </button>
@@ -191,25 +177,21 @@ export function NotificationPreferencesPanel({
               {/* Slack toggle */}
               <div className="w-10 flex justify-center">
                 <button
-                  onClick={() => handleToggle(key, "slack")}
+                  onClick={() => handleToggle(key, 'slack')}
                   disabled={!hasSlack}
                   className={`w-7 h-4 rounded-full transition-colors relative ${
                     !hasSlack
-                      ? "bg-foreground/5 cursor-not-allowed opacity-40"
-                      : prefs[
-                            `slack_${key}_enabled` as keyof NotificationPreferences
-                          ]
-                        ? "bg-bridge-accent"
-                        : "bg-foreground/10"
+                      ? 'bg-foreground/5 cursor-not-allowed opacity-40'
+                      : prefs[`slack_${key}_enabled` as keyof NotificationPreferences]
+                        ? 'bg-bridge-accent'
+                        : 'bg-foreground/10'
                   }`}
                 >
                   <div
                     className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${
-                      prefs[
-                        `slack_${key}_enabled` as keyof NotificationPreferences
-                      ]
-                        ? "translate-x-3.5"
-                        : "translate-x-0.5"
+                      prefs[`slack_${key}_enabled` as keyof NotificationPreferences]
+                        ? 'translate-x-3.5'
+                        : 'translate-x-0.5'
                     }`}
                   />
                 </button>
@@ -217,25 +199,21 @@ export function NotificationPreferencesPanel({
               {/* Discord toggle */}
               <div className="w-10 flex justify-center">
                 <button
-                  onClick={() => handleToggle(key, "discord")}
+                  onClick={() => handleToggle(key, 'discord')}
                   disabled={!hasDiscord}
                   className={`w-7 h-4 rounded-full transition-colors relative ${
                     !hasDiscord
-                      ? "bg-foreground/5 cursor-not-allowed opacity-40"
-                      : prefs[
-                            `discord_${key}_enabled` as keyof NotificationPreferences
-                          ]
-                        ? "bg-bridge-accent"
-                        : "bg-foreground/10"
+                      ? 'bg-foreground/5 cursor-not-allowed opacity-40'
+                      : prefs[`discord_${key}_enabled` as keyof NotificationPreferences]
+                        ? 'bg-bridge-accent'
+                        : 'bg-foreground/10'
                   }`}
                 >
                   <div
                     className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${
-                      prefs[
-                        `discord_${key}_enabled` as keyof NotificationPreferences
-                      ]
-                        ? "translate-x-3.5"
-                        : "translate-x-0.5"
+                      prefs[`discord_${key}_enabled` as keyof NotificationPreferences]
+                        ? 'translate-x-3.5'
+                        : 'translate-x-0.5'
                     }`}
                   />
                 </button>
@@ -246,12 +224,12 @@ export function NotificationPreferencesPanel({
 
         {!hasSlack && (
           <p className="text-xs text-slate-600 mt-2">
-            {t("notificationPreferences.slackRequiresConnection")}
+            {t('notificationPreferences.slackRequiresConnection')}
           </p>
         )}
         {!hasDiscord && (
           <p className="text-xs text-slate-600 mt-1">
-            {t("notificationPreferences.discordRequiresConnection")}
+            {t('notificationPreferences.discordRequiresConnection')}
           </p>
         )}
       </div>

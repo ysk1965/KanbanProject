@@ -1,27 +1,27 @@
-import { useEffect, useRef } from "react";
-import { VIEW_MODE_KEY_MAP } from "../constants/keyboardShortcuts";
+import { useEffect, useRef } from 'react';
+import { VIEW_MODE_KEY_MAP } from '../constants/keyboardShortcuts';
 
 const BOARD_SUB_MODES = [
-  "kanban",
-  "gantt",
-  "calendar",
-  "list",
-  "mindmap",
-  "minikanban",
-  "milestone",
+  'kanban',
+  'gantt',
+  'calendar',
+  'list',
+  'mindmap',
+  'minikanban',
+  'milestone',
 ];
 const SCHEDULE_SUB_TAB_MAP: Record<string, string> = {
-  "1": "timeblock",
-  "2": "calendar",
-  "3": "resource",
+  '1': 'timeblock',
+  '2': 'calendar',
+  '3': 'resource',
 };
 const STATISTICS_SUB_TAB_MAP: Record<string, string> = {
-  "1": "overview",
-  "2": "individual",
-  "3": "team",
-  "4": "work",
-  "5": "impact",
-  "6": "management",
+  '1': 'overview',
+  '2': 'individual',
+  '3': 'team',
+  '4': 'work',
+  '5': 'impact',
+  '6': 'management',
 };
 
 interface UseKeyboardShortcutsOptions {
@@ -64,7 +64,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
       const opts = optionsRef.current;
 
       // Cmd+K / Ctrl+K — always works, even in inputs and modals
-      if ((e.metaKey || e.ctrlKey) && e.code === "KeyK") {
+      if ((e.metaKey || e.ctrlKey) && e.code === 'KeyK') {
         e.preventDefault();
         opts.onFocusSearch();
         return;
@@ -80,10 +80,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
       }
 
       // Excalidraw guard: skip all shortcuts when inside Excalidraw canvas
-      if (
-        e.target instanceof HTMLElement &&
-        e.target.closest(".excalidraw-bridge-container")
-      ) {
+      if (e.target instanceof HTMLElement && e.target.closest('.excalidraw-bridge-container')) {
         return;
       }
 
@@ -101,39 +98,39 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
       const code = e.code;
 
       // Q — Toggle my tasks filter
-      if (code === "KeyQ") {
+      if (code === 'KeyQ') {
         e.preventDefault();
         opts.onToggleMyFilter();
         return;
       }
 
       // W — Toggle expand/collapse
-      if (code === "KeyW") {
+      if (code === 'KeyW') {
         e.preventDefault();
         opts.onToggleExpandCollapse();
         return;
       }
 
       // / — Focus search
-      if (key === "/") {
+      if (key === '/') {
         e.preventDefault();
         opts.onFocusSearch();
         return;
       }
 
       // ? — Show shortcuts help
-      if (key === "?") {
+      if (key === '?') {
         e.preventDefault();
         opts.onOpenShortcutsHelp();
         return;
       }
 
       // Number keys — context-aware sub-view switching
-      if (key >= "1" && key <= "6") {
+      if (key >= '1' && key <= '6') {
         e.preventDefault();
 
         // Schedule view: 1-3 switch schedule sub-tabs
-        if (opts.viewMode === "schedule") {
+        if (opts.viewMode === 'schedule') {
           const scheduleTab = SCHEDULE_SUB_TAB_MAP[key];
           if (scheduleTab && opts.onScheduleSubTabChange) {
             opts.onScheduleSubTabChange(scheduleTab);
@@ -142,7 +139,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
         }
 
         // Statistics view: 1-6 switch statistics sub-tabs
-        if (opts.viewMode === "statistics") {
+        if (opts.viewMode === 'statistics') {
           const statsTab = STATISTICS_SUB_TAB_MAP[key];
           if (statsTab && opts.onStatisticsSubTabChange) {
             opts.onStatisticsSubTabChange(statsTab);
@@ -153,9 +150,8 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
         // Board view: 1=대시보드, 2=칸반, 3=마일스톤, 4=마인드맵 서브탭 전환
         // (dashboard는 F/B 생성 단축키 대상이 아니라 BOARD_SUB_MODES에 넣지 않고 여기서만 허용)
         if (
-          key <= "4" &&
-          (opts.viewMode === "dashboard" ||
-            BOARD_SUB_MODES.includes(opts.viewMode))
+          key <= '4' &&
+          (opts.viewMode === 'dashboard' || BOARD_SUB_MODES.includes(opts.viewMode))
         ) {
           const boardMode = VIEW_MODE_KEY_MAP[key];
           if (boardMode) {
@@ -168,11 +164,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
       }
 
       // F — Add Feature (board views only)
-      if (
-        code === "KeyF" &&
-        opts.canEdit &&
-        BOARD_SUB_MODES.includes(opts.viewMode)
-      ) {
+      if (code === 'KeyF' && opts.canEdit && BOARD_SUB_MODES.includes(opts.viewMode)) {
         e.preventDefault();
         opts.onOpenAddFeature();
         return;
@@ -180,7 +172,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
 
       // B — Add Block (board views only)
       if (
-        code === "KeyB" &&
+        code === 'KeyB' &&
         opts.canEdit &&
         opts.isAdminOrOwner &&
         BOARD_SUB_MODES.includes(opts.viewMode)
@@ -191,14 +183,14 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
       }
 
       // X — Reset filters
-      if (code === "KeyX") {
+      if (code === 'KeyX') {
         e.preventDefault();
         opts.onResetFilters();
         return;
       }
 
       // ] — Next feature
-      if (key === "]") {
+      if (key === ']') {
         e.preventDefault();
         const features = opts.filteredFeatures;
         if (features.length === 0) return;
@@ -215,7 +207,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
       }
 
       // [ — Previous feature
-      if (key === "[") {
+      if (key === '[') {
         e.preventDefault();
         const features = opts.filteredFeatures;
         if (features.length === 0) return;
@@ -232,7 +224,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 }

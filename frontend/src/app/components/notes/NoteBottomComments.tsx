@@ -1,55 +1,42 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { useEscClose } from "../../hooks/useEscClose";
-import {
-  MessageSquare,
-  Send,
-  Loader2,
-  Pencil,
-  Trash2,
-  X,
-  Check,
-  SmilePlus,
-} from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useEscClose } from '../../hooks/useEscClose';
+import { MessageSquare, Send, Loader2, Pencil, Trash2, X, Check, SmilePlus } from 'lucide-react';
 import {
   noteCommentService,
   orgNoteCommentService,
   myNoteCommentService,
-} from "../../utils/services";
-import {
-  memberAPI,
-  mentionGroupAPI,
-  MentionGroupDetail,
-} from "../../utils/api";
-import { wsManager } from "../../utils/websocket";
-import { CLIENT_ID } from "../../utils/clientId";
-import type { BoardWebSocketEvent } from "../../types";
-import { formatRelativeTime } from "../../utils/dateUtils";
-import { getAssigneeClasses, getInitials } from "../../utils/assigneeColor";
+} from '../../utils/services';
+import { memberAPI, mentionGroupAPI, MentionGroupDetail } from '../../utils/api';
+import { wsManager } from '../../utils/websocket';
+import { CLIENT_ID } from '../../utils/clientId';
+import type { BoardWebSocketEvent } from '../../types';
+import { formatRelativeTime } from '../../utils/dateUtils';
+import { getAssigneeClasses, getInitials } from '../../utils/assigneeColor';
 import type {
   NoteCommentDetail,
   NoteCommentListResponse,
   MemberResponse,
   CommentReactionResponse,
-} from "../../utils/api";
-import { Users } from "lucide-react";
+} from '../../utils/api';
+import { Users } from 'lucide-react';
 
 // ========== Constants ==========
 
 const REACTION_EMOJIS = [
-  "\uD83D\uDC4D",
-  "\u2764\uFE0F",
-  "\uD83D\uDE04",
-  "\uD83C\uDF89",
-  "\uD83E\uDD14",
-  "\uD83D\uDC40",
-  "\uD83D\uDC4F",
-  "\uD83D\uDD25",
-  "\u2705",
-  "\uD83D\uDE4F",
-  "\uD83D\uDCAF",
-  "\uD83D\uDE22",
+  '\uD83D\uDC4D',
+  '\u2764\uFE0F',
+  '\uD83D\uDE04',
+  '\uD83C\uDF89',
+  '\uD83E\uDD14',
+  '\uD83D\uDC40',
+  '\uD83D\uDC4F',
+  '\uD83D\uDD25',
+  '\u2705',
+  '\uD83D\uDE4F',
+  '\uD83D\uDCAF',
+  '\uD83D\uDE22',
 ];
 
 // ========== Types ==========
@@ -67,12 +54,12 @@ interface NoteBottomCommentsProps {
 
 function cleanMarkdownArtifacts(text: string): string {
   return text
-    .replace(/\\\n/g, "\n")
-    .replace(/\\$/gm, "")
-    .replace(/\*\*(.*?)\*\*/g, "$1")
-    .replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, "$1")
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/`([^`]+)`/g, "$1");
+    .replace(/\\\n/g, '\n')
+    .replace(/\\$/gm, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/`([^`]+)`/g, '$1');
 }
 
 function renderContentWithMentions(
@@ -87,12 +74,12 @@ function renderContentWithMentions(
   if (allNames.length === 0) return cleaned;
 
   const mentionPattern = new RegExp(
-    `(@(?:${allNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")}))(?=\\s|$)`,
-    "g",
+    `(@(?:${allNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}))(?=\\s|$)`,
+    'g',
   );
   const parts = cleaned.split(mentionPattern);
   return parts.map((part, i) => {
-    if (part.startsWith("@")) {
+    if (part.startsWith('@')) {
       const name = part.slice(1);
       const member = members.find((m) => m.user.name === name);
       if (member) {
@@ -126,12 +113,8 @@ export function NoteBottomComments({
   currentUserId,
   canEdit,
 }: NoteBottomCommentsProps) {
-  const svc = personal
-    ? myNoteCommentService
-    : orgId
-      ? orgNoteCommentService
-      : noteCommentService;
-  const scopeId = personal ? "me" : boardId || orgId || "";
+  const svc = personal ? myNoteCommentService : orgId ? orgNoteCommentService : noteCommentService;
+  const scopeId = personal ? 'me' : boardId || orgId || '';
   // 개인 노트는 단일 사용자이므로 백엔드가 발행하지 않는 per-note 토픽 (구독 무해).
   const wsTopic = personal
     ? `/topic/note/${noteId}`
@@ -145,28 +128,26 @@ export function NoteBottomComments({
   const [loading, setLoading] = useState(true);
 
   // New comment
-  const [newContent, setNewContent] = useState("");
+  const [newContent, setNewContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showMentions, setShowMentions] = useState(false);
-  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionQuery, setMentionQuery] = useState('');
   const [selectedMentions, setSelectedMentions] = useState<string[]>([]);
   const [mentionIndex, setMentionIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Edit
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState("");
+  const [editContent, setEditContent] = useState('');
   const [editMentions, setEditMentions] = useState<string[]>([]);
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editShowMentions, setEditShowMentions] = useState(false);
-  const [editMentionQuery, setEditMentionQuery] = useState("");
+  const [editMentionQuery, setEditMentionQuery] = useState('');
   const [editMentionIndex, setEditMentionIndex] = useState(0);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Emoji
-  const [emojiPickerCommentId, setEmojiPickerCommentId] = useState<
-    string | null
-  >(null);
+  const [emojiPickerCommentId, setEmojiPickerCommentId] = useState<string | null>(null);
   const [emojiPickerPos, setEmojiPickerPos] = useState<{
     top: number;
     left: number;
@@ -182,16 +163,13 @@ export function NoteBottomComments({
 
   const loadComments = useCallback(async () => {
     try {
-      const data: NoteCommentListResponse = await svc.getComments(
-        scopeId,
-        noteId,
-      );
+      const data: NoteCommentListResponse = await svc.getComments(scopeId, noteId);
       // Flatten: only general (non-block) root comments, no replies (flat model)
       // For bottom panel, show all root comments (block_id === null, parent_id === null)
       const flat = data.threads.filter((t) => !t.block_id && !t.parent_id);
       setComments(flat);
     } catch (err) {
-      console.error("Failed to load note comments:", err);
+      console.error('Failed to load note comments:', err);
     } finally {
       setLoading(false);
     }
@@ -203,7 +181,7 @@ export function NoteBottomComments({
       const data = await memberAPI.getMembers(boardId);
       setMembers(data.members || []);
     } catch (err) {
-      console.error("Failed to load members:", err);
+      console.error('Failed to load members:', err);
     }
   }, [boardId]);
 
@@ -226,11 +204,11 @@ export function NoteBottomComments({
   // ========== WebSocket: real-time comment sync ==========
 
   const NOTE_COMMENT_EVENTS = [
-    "NOTE_COMMENT_CREATED",
-    "NOTE_COMMENT_UPDATED",
-    "NOTE_COMMENT_DELETED",
-    "NOTE_COMMENT_RESOLVED",
-    "NOTE_COMMENT_REACTION_TOGGLED",
+    'NOTE_COMMENT_CREATED',
+    'NOTE_COMMENT_UPDATED',
+    'NOTE_COMMENT_DELETED',
+    'NOTE_COMMENT_RESOLVED',
+    'NOTE_COMMENT_REACTION_TOGGLED',
   ];
 
   useEffect(() => {
@@ -265,36 +243,25 @@ export function NoteBottomComments({
         setEmojiPickerPos(null);
       }
     };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, [emojiPickerCommentId]);
 
   // ========== Mention helpers ==========
 
-  const detectMentionQuery = (
-    text: string,
-    cursorPos: number,
-  ): string | null => {
+  const detectMentionQuery = (text: string, cursorPos: number): string | null => {
     const before = text.slice(0, cursorPos);
     const match = before.match(/@(\S*)$/);
     return match ? match[1] : null;
   };
 
-  const currentQuery = (
-    editingId ? editMentionQuery : mentionQuery
-  ).toLowerCase();
+  const currentQuery = (editingId ? editMentionQuery : mentionQuery).toLowerCase();
 
-  const filteredMembers = members.filter((m) =>
-    m.user.name.toLowerCase().includes(currentQuery),
-  );
+  const filteredMembers = members.filter((m) => m.user.name.toLowerCase().includes(currentQuery));
 
-  const filteredGroups = mentionGroups.filter((g) =>
-    g.name.toLowerCase().includes(currentQuery),
-  );
+  const filteredGroups = mentionGroups.filter((g) => g.name.toLowerCase().includes(currentQuery));
 
-  const handleNewContentChange = (
-    e: React.ChangeEvent<HTMLTextAreaElement>,
-  ) => {
+  const handleNewContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setNewContent(val);
     const cursorPos = e.target.selectionStart;
@@ -308,9 +275,7 @@ export function NoteBottomComments({
     }
   };
 
-  const handleEditContentChange = (
-    e: React.ChangeEvent<HTMLTextAreaElement>,
-  ) => {
+  const handleEditContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setEditContent(val);
     const cursorPos = e.target.selectionStart;
@@ -397,23 +362,15 @@ export function NoteBottomComments({
         parent_id: null,
         mentions: selectedMentions.length > 0 ? selectedMentions : undefined,
       });
-      setNewContent("");
+      setNewContent('');
       setSelectedMentions([]);
       await loadComments();
     } catch (err) {
-      console.error("Failed to create comment:", err);
+      console.error('Failed to create comment:', err);
     } finally {
       setSubmitting(false);
     }
-  }, [
-    scopeId,
-    noteId,
-    newContent,
-    selectedMentions,
-    submitting,
-    loadComments,
-    svc,
-  ]);
+  }, [scopeId, noteId, newContent, selectedMentions, submitting, loadComments, svc]);
 
   const startEditing = (comment: NoteCommentDetail) => {
     setEditingId(comment.id);
@@ -423,7 +380,7 @@ export function NoteBottomComments({
 
   const cancelEditing = () => {
     setEditingId(null);
-    setEditContent("");
+    setEditContent('');
     setEditMentions([]);
   };
 
@@ -437,24 +394,16 @@ export function NoteBottomComments({
           mentions: editMentions.length > 0 ? editMentions : undefined,
         });
         setEditingId(null);
-        setEditContent("");
+        setEditContent('');
         setEditMentions([]);
         await loadComments();
       } catch (err) {
-        console.error("Failed to update comment:", err);
+        console.error('Failed to update comment:', err);
       } finally {
         setEditSubmitting(false);
       }
     },
-    [
-      scopeId,
-      noteId,
-      editContent,
-      editMentions,
-      editSubmitting,
-      loadComments,
-      svc,
-    ],
+    [scopeId, noteId, editContent, editMentions, editSubmitting, loadComments, svc],
   );
 
   const handleDelete = useCallback(
@@ -464,7 +413,7 @@ export function NoteBottomComments({
         setDeleteTarget(null);
         await loadComments();
       } catch (err) {
-        console.error("Failed to delete comment:", err);
+        console.error('Failed to delete comment:', err);
       }
     },
     [scopeId, noteId, loadComments, svc],
@@ -475,19 +424,12 @@ export function NoteBottomComments({
   const handleToggleReaction = useCallback(
     async (commentId: string, emoji: string) => {
       try {
-        const response = await svc.toggleReaction(
-          scopeId,
-          noteId,
-          commentId,
-          emoji,
-        );
+        const response = await svc.toggleReaction(scopeId, noteId, commentId, emoji);
         setComments((prev) =>
-          prev.map((c) =>
-            c.id === commentId ? { ...c, reactions: response.reactions } : c,
-          ),
+          prev.map((c) => (c.id === commentId ? { ...c, reactions: response.reactions } : c)),
         );
       } catch (err) {
-        console.error("Failed to toggle reaction:", err);
+        console.error('Failed to toggle reaction:', err);
       }
       setEmojiPickerCommentId(null);
       setEmojiPickerPos(null);
@@ -528,17 +470,17 @@ export function NoteBottomComments({
     const idx = isEdit ? editMentionIndex : mentionIndex;
     const setIdx = isEdit ? setEditMentionIndex : setMentionIndex;
 
-    if (e.key === "ArrowDown") {
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
       setIdx((idx + 1) % totalFilteredCount);
       return true;
     }
-    if (e.key === "ArrowUp") {
+    if (e.key === 'ArrowUp') {
       e.preventDefault();
       setIdx((idx - 1 + totalFilteredCount) % totalFilteredCount);
       return true;
     }
-    if (e.key === "Enter" || e.key === "Tab") {
+    if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
       if (idx < filteredGroups.length) {
         insertGroupMention(filteredGroups[idx], isEdit);
@@ -547,7 +489,7 @@ export function NoteBottomComments({
       }
       return true;
     }
-    if (e.key === "Escape") {
+    if (e.key === 'Escape') {
       e.preventDefault();
       if (isEdit) setEditShowMentions(false);
       else setShowMentions(false);
@@ -559,23 +501,20 @@ export function NoteBottomComments({
   const handleNewKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.nativeEvent.isComposing) return;
     if (handleMentionNav(e, false)) return;
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       handleSubmit();
     }
   };
 
-  const handleEditKeyDown = (
-    e: React.KeyboardEvent<HTMLTextAreaElement>,
-    commentId: string,
-  ) => {
+  const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, commentId: string) => {
     if (e.nativeEvent.isComposing) return;
     if (handleMentionNav(e, true)) return;
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       handleUpdate(commentId);
     }
-    if (e.key === "Escape") {
+    if (e.key === 'Escape') {
       cancelEditing();
     }
   };
@@ -601,17 +540,13 @@ export function NoteBottomComments({
                 insertGroupMention(group, isEdit);
               }}
               onMouseEnter={() => setIdx(currentIdx)}
-              className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${currentIdx === idx ? "bg-foreground/10" : "hover:bg-foreground/5"}`}
+              className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${currentIdx === idx ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`}
             >
               <div className="w-5 h-5 rounded-full bg-bridge-secondary/20 flex items-center justify-center">
                 <Users className="w-3 h-3 text-bridge-secondary" />
               </div>
-              <span className={currentIdx === idx ? "text-foreground" : ""}>
-                {group.name}
-              </span>
-              <span className="text-xs text-slate-500 ml-auto">
-                {group.members.length}명
-              </span>
+              <span className={currentIdx === idx ? 'text-foreground' : ''}>{group.name}</span>
+              <span className="text-xs text-slate-500 ml-auto">{group.members.length}명</span>
             </button>
           );
         })}
@@ -629,12 +564,12 @@ export function NoteBottomComments({
                 insertMention(member, isEdit);
               }}
               onMouseEnter={() => setIdx(currentIdx)}
-              className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${currentIdx === idx ? "bg-foreground/10" : "hover:bg-foreground/5"}`}
+              className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${currentIdx === idx ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`}
             >
               {member.user.profile_image ? (
                 <img
                   src={member.user.profile_image}
-                  alt={member.user.name || "프로필"}
+                  alt={member.user.name || '프로필'}
                   className="h-5 w-5 rounded-full"
                 />
               ) : (
@@ -659,7 +594,7 @@ export function NoteBottomComments({
       <div
         ref={emojiPickerRef}
         style={{
-          position: "fixed",
+          position: 'fixed',
           top: emojiPickerPos.top,
           left: emojiPickerPos.left,
           zIndex: 9999,
@@ -691,27 +626,23 @@ export function NoteBottomComments({
     return (
       <div className="flex flex-wrap items-center gap-1 mt-1.5">
         {reactions.map((reaction: CommentReactionResponse) => {
-          const isMyReaction = reaction.users.some(
-            (u) => u.id === currentUserId,
-          );
+          const isMyReaction = reaction.users.some((u) => u.id === currentUserId);
           const tooltipNames = reaction.users
-            .map((u) => (u.id === currentUserId ? "You" : u.name))
-            .join(", ");
+            .map((u) => (u.id === currentUserId ? 'You' : u.name))
+            .join(', ');
 
           return (
             <button
               key={reaction.emoji}
-              onClick={() =>
-                canEdit && handleToggleReaction(comment.id, reaction.emoji)
-              }
+              onClick={() => canEdit && handleToggleReaction(comment.id, reaction.emoji)}
               disabled={!canEdit}
               className={`group/reaction relative inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all
                 ${
                   isMyReaction
-                    ? "bg-bridge-accent/20 border border-bridge-accent/50 text-bridge-accent hover:bg-bridge-accent/30"
-                    : "bg-foreground/5 border border-foreground/10 text-slate-400 hover:bg-foreground/10 hover:text-muted-foreground"
+                    ? 'bg-bridge-accent/20 border border-bridge-accent/50 text-bridge-accent hover:bg-bridge-accent/30'
+                    : 'bg-foreground/5 border border-foreground/10 text-slate-400 hover:bg-foreground/10 hover:text-muted-foreground'
                 }
-                ${!canEdit ? "cursor-default" : "cursor-pointer"}
+                ${!canEdit ? 'cursor-default' : 'cursor-pointer'}
               `}
               title={tooltipNames}
             >
@@ -780,7 +711,7 @@ export function NoteBottomComments({
                     {comment.author.profile_image ? (
                       <img
                         src={comment.author.profile_image}
-                        alt={comment.author.name || "프로필"}
+                        alt={comment.author.name || '프로필'}
                         className="h-7 w-7 rounded-full flex-shrink-0 mt-0.5"
                       />
                     ) : (
@@ -801,16 +732,14 @@ export function NoteBottomComments({
                         </span>
                         <span className="text-xs text-slate-500">
                           {formatRelativeTime(comment.created_at)}
-                          {isEdited && " (수정됨)"}
+                          {isEdited && ' (수정됨)'}
                         </span>
 
                         {/* Actions */}
                         {canEdit && !isEditing && (
                           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
                             <button
-                              onClick={(e) =>
-                                openEmojiPicker(comment.id, e.currentTarget)
-                              }
+                              onClick={(e) => openEmojiPicker(comment.id, e.currentTarget)}
                               className="p-1 rounded hover:bg-foreground/10 text-slate-500 hover:text-muted-foreground transition-colors"
                             >
                               <SmilePlus className="h-3 w-3" />
@@ -846,15 +775,8 @@ export function NoteBottomComments({
                               ref={editTextareaRef}
                               value={editContent}
                               onChange={handleEditContentChange}
-                              onKeyDown={(e) =>
-                                handleEditKeyDown(e, comment.id)
-                              }
-                              onBlur={() =>
-                                setTimeout(
-                                  () => setEditShowMentions(false),
-                                  150,
-                                )
-                              }
+                              onKeyDown={(e) => handleEditKeyDown(e, comment.id)}
+                              onBlur={() => setTimeout(() => setEditShowMentions(false), 150)}
                               className="w-full text-xs bg-foreground/5 border border-foreground/10 rounded-xl px-3 py-2 text-foreground placeholder-slate-600 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 transition-all"
                               rows={3}
                               autoFocus
@@ -885,11 +807,7 @@ export function NoteBottomComments({
                       ) : (
                         <>
                           <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">
-                            {renderContentWithMentions(
-                              comment.content,
-                              members,
-                              mentionGroups,
-                            )}
+                            {renderContentWithMentions(comment.content, members, mentionGroups)}
                           </p>
                           <ReactionBar comment={comment} />
                         </>
@@ -949,9 +867,7 @@ export function NoteBottomComments({
             className="bg-bridge-obsidian rounded-2xl border border-foreground/10 p-6 shadow-2xl max-w-sm mx-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-sm font-bold text-foreground mb-2">
-              댓글 삭제
-            </h3>
+            <h3 className="text-sm font-bold text-foreground mb-2">댓글 삭제</h3>
             <p className="text-xs text-slate-400 mb-4">
               이 댓글을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
             </p>

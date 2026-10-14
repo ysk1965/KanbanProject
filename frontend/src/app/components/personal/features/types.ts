@@ -1,5 +1,5 @@
-import type { ComponentType } from "react";
-import type { LucideIcon } from "lucide-react";
+import type { ComponentType } from 'react';
+import type { LucideIcon } from 'lucide-react';
 
 /**
  * 마이 스페이스 「기능」 탭 공통 계약.
@@ -58,7 +58,7 @@ export interface PersonalFeature<C = unknown> {
   /** i18n 키. 예: personal.features.timetable_new ("새 시간표") */
   newDocLabelKey: string;
   icon: LucideIcon;
-  status: "ready" | "soon";
+  status: 'ready' | 'soon';
   /** 새 문서의 기본 제목 (i18n 키) */
   defaultTitleKey: string;
   /** 새 문서 content 템플릿 */
@@ -70,13 +70,13 @@ export interface PersonalFeature<C = unknown> {
 
 /* ───────────── 시간표 (feature_key: 'timetable') content 스키마 v1 ───────────── */
 
-export type TimetableCellColor = "" | "red" | "orange" | "purple" | "yellow" | "green" | "blue";
+export type TimetableCellColor = '' | 'red' | 'orange' | 'purple' | 'yellow' | 'green' | 'blue';
 
 export interface TimetableColumn {
   key: string; // 'c1', 'c2' … 문서 안에서 고유
   label: string; // 열 이름. 추천 기억의 키이기도 하다 ('장소', '비고' …)
   width: number | null; // % 또는 null(균등)
-  type: "time" | "text";
+  type: 'time' | 'text';
   suggest: boolean;
 }
 
@@ -102,5 +102,5 @@ export interface TimetableContent {
   days: TimetableDay[];
 }
 
-export const TIMETABLE_FEATURE_KEY = "timetable";
+export const TIMETABLE_FEATURE_KEY = 'timetable';
 export const TIMETABLE_SCHEMA_VER = 1;

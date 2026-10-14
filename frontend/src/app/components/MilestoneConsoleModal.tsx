@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   X,
   Search,
@@ -13,19 +13,15 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
-} from "lucide-react";
-import { motion } from "framer-motion";
-import { MotionModal } from "./ui/MotionModal";
-import { useReducedMotion } from "../hooks/useReducedMotion";
-import type { SprintItemCard } from "../types";
-import { sprintAPI, memberAPI, milestoneAPI } from "../utils/api";
-import {
-  checklistService,
-  featureService,
-  taskService,
-} from "../utils/services";
-import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
-import { getDDay } from "../utils/dateUtils";
+} from 'lucide-react';
+import { motion } from 'framer-motion';
+import { MotionModal } from './ui/MotionModal';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+import type { SprintItemCard } from '../types';
+import { sprintAPI, memberAPI, milestoneAPI } from '../utils/api';
+import { checklistService, featureService, taskService } from '../utils/services';
+import { getAssigneeHex, getInitials } from '../utils/assigneeColor';
+import { getDDay } from '../utils/dateUtils';
 
 interface ConsoleMember {
   id: string;
@@ -74,26 +70,21 @@ interface ConsoleFeature {
   done: number;
 }
 
-const NO_FEATURE = "__no_feature__";
+const NO_FEATURE = '__no_feature__';
 const FALLBACK_PALETTE = [
-  "#6366F1",
-  "#2DD4BF",
-  "#8b5cf6",
-  "#f59e0b",
-  "#f43f5e",
-  "#10b981",
-  "#0ea5e9",
-  "#ec4899",
+  '#6366F1',
+  '#2DD4BF',
+  '#8b5cf6',
+  '#f59e0b',
+  '#f43f5e',
+  '#10b981',
+  '#0ea5e9',
+  '#ec4899',
 ];
 const FEATURE_COLORS = FALLBACK_PALETTE.slice(0, 6);
 
 function assigneeName(it: SprintItemCard): string | null {
-  return (
-    it.assignee?.name ??
-    it.contractor?.manager_name ??
-    it.contractor?.name ??
-    null
-  );
+  return it.assignee?.name ?? it.contractor?.manager_name ?? it.contractor?.name ?? null;
 }
 
 export function MilestoneConsoleModal({
@@ -130,16 +121,14 @@ export function MilestoneConsoleModal({
   const [initialized, setInitialized] = useState(false);
 
   // 필터
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState('');
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [unassignedOnly, setUnassignedOnly] = useState(false);
   const [memberFilter, setMemberFilter] = useState<string | null>(null);
   const [memberMenuOpen, setMemberMenuOpen] = useState(false);
   const memberMenuRef = useRef<HTMLDivElement | null>(null);
   // 완료 여부: all(전체) / done(완료만) / todo(미완료만)
-  const [completionFilter, setCompletionFilter] = useState<
-    "all" | "done" | "todo"
-  >("all");
+  const [completionFilter, setCompletionFilter] = useState<'all' | 'done' | 'todo'>('all');
   const [completionMenuOpen, setCompletionMenuOpen] = useState(false);
   const completionMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -150,15 +139,15 @@ export function MilestoneConsoleModal({
 
   // ── 생성 UI 상태 (피쳐 / 태스크 / 체크리스트 항목) ──
   const [featFormOpen, setFeatFormOpen] = useState(false);
-  const [featName, setFeatName] = useState("");
+  const [featName, setFeatName] = useState('');
   const [featColor, setFeatColor] = useState(FEATURE_COLORS[0]);
   const [creatingFeature, setCreatingFeature] = useState(false);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
-  const [taskFeatureId, setTaskFeatureId] = useState("");
-  const [taskTitle, setTaskTitle] = useState("");
+  const [taskFeatureId, setTaskFeatureId] = useState('');
+  const [taskTitle, setTaskTitle] = useState('');
   const [creatingTask, setCreatingTask] = useState(false);
   const [addingItemTask, setAddingItemTask] = useState<string | null>(null);
-  const [itemTitle, setItemTitle] = useState("");
+  const [itemTitle, setItemTitle] = useState('');
   const [savingItem, setSavingItem] = useState(false);
   // 콘솔 트리는 체크리스트 행 기반이라, 항목이 아직 없는 신규 피쳐/태스크는
   // 서버 응답에서 사라진다. 로컬로 들고 있다가 트리에 머지해 빈 탭/컬럼을 유지한다.
@@ -233,15 +222,15 @@ export function MilestoneConsoleModal({
         (data ?? [])
           .filter((card) => (card.checklist_items ?? []).length === 0)
           .map((card) => ({
-            taskId: card.task_id ?? "",
-            taskTitle: card.task_title ?? "기타",
+            taskId: card.task_id ?? '',
+            taskTitle: card.task_title ?? '기타',
             featureId: card.feature_id ?? NO_FEATURE,
           }))
           .filter((t) => t.taskId),
       );
       loadedMilestoneRef.current = curMilestoneId;
     } catch {
-      showToast("콘솔 데이터를 불러오지 못했습니다");
+      showToast('콘솔 데이터를 불러오지 못했습니다');
     } finally {
       setLoading(false);
     }
@@ -309,21 +298,21 @@ export function MilestoneConsoleModal({
     if (!open || !hasPager) return;
     const onKey = (e: KeyboardEvent) => {
       if (!e.altKey || e.metaKey || e.ctrlKey) return;
-      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
       const t = e.target as HTMLElement | null;
       if (
         t &&
-        (t.tagName === "INPUT" ||
-          t.tagName === "TEXTAREA" ||
-          t.tagName === "SELECT" ||
+        (t.tagName === 'INPUT' ||
+          t.tagName === 'TEXTAREA' ||
+          t.tagName === 'SELECT' ||
           t.isContentEditable)
       )
         return;
       e.preventDefault();
-      goToMilestone(msIndex + (e.key === "ArrowRight" ? 1 : -1));
+      goToMilestone(msIndex + (e.key === 'ArrowRight' ? 1 : -1));
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [open, hasPager, msIndex, goToMilestone]);
 
   // 마일스톤 드롭다운 바깥 클릭 시 닫기
@@ -334,8 +323,8 @@ export function MilestoneConsoleModal({
         setMsMenuOpen(false);
       }
     };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
   }, [msMenuOpen]);
 
   useEffect(() => {
@@ -354,7 +343,7 @@ export function MilestoneConsoleModal({
       if (!feat) {
         feat = {
           featureId: fid,
-          featureTitle: it.feature_title ?? "기타",
+          featureTitle: it.feature_title ?? '기타',
           featureColor: it.feature_color,
           tasks: [],
           total: 0,
@@ -363,10 +352,10 @@ export function MilestoneConsoleModal({
         map.set(fid, feat);
         order.push(fid);
       }
-      const tid = it.task_id ?? "__no_task__";
+      const tid = it.task_id ?? '__no_task__';
       let task = feat.tasks.find((t) => t.taskId === tid);
       if (!task) {
-        task = { taskId: tid, taskTitle: it.task_title ?? "기타", items: [] };
+        task = { taskId: tid, taskTitle: it.task_title ?? '기타', items: [] };
         feat.tasks.push(task);
       }
       task.items.push(it);
@@ -404,8 +393,7 @@ export function MilestoneConsoleModal({
 
   const featureColor = useCallback(
     (feat: ConsoleFeature): string => {
-      if (feat.featureColor && feat.featureColor.startsWith("#"))
-        return feat.featureColor;
+      if (feat.featureColor && feat.featureColor.startsWith('#')) return feat.featureColor;
       const idx = features.findIndex((f) => f.featureId === feat.featureId);
       return FALLBACK_PALETTE[Math.max(0, idx) % FALLBACK_PALETTE.length];
     },
@@ -432,7 +420,7 @@ export function MilestoneConsoleModal({
       const n = assigneeName(it);
       if (n) s.add(n);
     }
-    return Array.from(s).sort((a, b) => a.localeCompare(b, "ko"));
+    return Array.from(s).sort((a, b) => a.localeCompare(b, 'ko'));
   }, [items]);
 
   /**
@@ -453,8 +441,8 @@ export function MilestoneConsoleModal({
         setMemberMenuOpen(false);
       }
     };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
   }, [memberMenuOpen]);
 
   // 완료 여부 드롭다운 바깥 클릭 시 닫기
@@ -465,22 +453,22 @@ export function MilestoneConsoleModal({
         setCompletionMenuOpen(false);
       }
     };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
   }, [completionMenuOpen]);
 
   const match = useCallback(
     (it: SprintItemCard): boolean => {
       if (overdueOnly) {
         const d = it.due_date && !it.completed ? getDDay(it.due_date) : null;
-        if (!d || d.urgency !== "overdue") return false;
+        if (!d || d.urgency !== 'overdue') return false;
       }
       if (unassignedOnly && (it.assignee || it.contractor)) return false;
-      if (completionFilter === "done" && !it.completed) return false;
-      if (completionFilter === "todo" && it.completed) return false;
+      if (completionFilter === 'done' && !it.completed) return false;
+      if (completionFilter === 'todo' && it.completed) return false;
       if (memberFilter && assigneeName(it) !== memberFilter) return false;
       if (q.trim()) {
-        const hay = `${it.title} ${it.task_title ?? ""}`.toLowerCase();
+        const hay = `${it.title} ${it.task_title ?? ''}`.toLowerCase();
         if (!hay.includes(q.trim().toLowerCase())) return false;
       }
       return true;
@@ -505,10 +493,7 @@ export function MilestoneConsoleModal({
   }, [selectedFeature, match]);
 
   // ── DnD: 카드를 다른 Task 컬럼으로 이동 ──
-  const handleDrop = async (
-    target: ConsoleTask,
-    targetFeat: ConsoleFeature,
-  ) => {
+  const handleDrop = async (target: ConsoleTask, targetFeat: ConsoleFeature) => {
     const ref = dragRef.current;
     setDragOverTask(null);
     setDraggingId(null);
@@ -527,10 +512,7 @@ export function MilestoneConsoleModal({
               ...i,
               task_id: target.taskId,
               task_title: target.taskTitle,
-              feature_id:
-                targetFeat.featureId === NO_FEATURE
-                  ? null
-                  : targetFeat.featureId,
+              feature_id: targetFeat.featureId === NO_FEATURE ? null : targetFeat.featureId,
               feature_title: targetFeat.featureTitle,
               feature_color: targetFeat.featureColor,
             }
@@ -539,16 +521,11 @@ export function MilestoneConsoleModal({
     );
 
     try {
-      await sprintAPI.moveChecklistTask(
-        boardId,
-        ref.taskId,
-        ref.id,
-        target.taskId,
-      );
+      await sprintAPI.moveChecklistTask(boardId, ref.taskId, ref.id, target.taskId);
       showToast(`"${moved.title}"  ·  ${target.taskTitle} 로 이동`);
     } catch {
       setItems(prevItems); // 롤백
-      showToast("이동에 실패했습니다");
+      showToast('이동에 실패했습니다');
     }
   };
 
@@ -564,36 +541,34 @@ export function MilestoneConsoleModal({
       await checklistService.toggleItem(boardId, it.task_id, it.id);
     } catch {
       setItems(prev);
-      showToast("완료 상태 변경에 실패했습니다");
+      showToast('완료 상태 변경에 실패했습니다');
     }
   };
 
   const changeAssignee = async (it: SprintItemCard, memberId: string) => {
     if (!canEdit || !it.task_id) return;
     const m = members.find((x) => x.id === memberId) ?? null;
-    if ((it.assignee?.id ?? "") === (m?.id ?? "")) return;
+    if ((it.assignee?.id ?? '') === (m?.id ?? '')) return;
     const prev = items;
     patchLocal(it.id, {
-      assignee: m
-        ? { id: m.id, name: m.name, profile_image: m.profileImage }
-        : null,
+      assignee: m ? { id: m.id, name: m.name, profile_image: m.profileImage } : null,
       contractor: null,
     });
     try {
       await checklistService.updateItem(boardId, it.task_id, it.id, {
         assignee_id: m ? m.id : null,
       });
-      showToast(m ? `담당자 → ${m.name}` : "담당자 해제");
+      showToast(m ? `담당자 → ${m.name}` : '담당자 해제');
     } catch {
       setItems(prev);
-      showToast("담당자 변경에 실패했습니다");
+      showToast('담당자 변경에 실패했습니다');
     }
   };
 
   const changeDue = async (it: SprintItemCard, due: string) => {
     if (!canEdit || !it.task_id) return;
     const value = due || null;
-    if ((it.due_date ?? "") === (value ?? "")) return;
+    if ((it.due_date ?? '') === (value ?? '')) return;
     const prev = items;
     patchLocal(it.id, { due_date: value });
     try {
@@ -602,7 +577,7 @@ export function MilestoneConsoleModal({
       });
     } catch {
       setItems(prev);
-      showToast("마감일 변경에 실패했습니다");
+      showToast('마감일 변경에 실패했습니다');
     }
   };
 
@@ -622,11 +597,11 @@ export function MilestoneConsoleModal({
         { featureId: feature.id, featureTitle: title, featureColor: featColor },
       ]);
       setSelectedId(feature.id);
-      setFeatName("");
+      setFeatName('');
       setFeatFormOpen(false);
       showToast(`피쳐 "${title}" 추가 · 마일스톤에 연결됨`);
     } catch {
-      showToast("피쳐 생성에 실패했습니다");
+      showToast('피쳐 생성에 실패했습니다');
     } finally {
       setCreatingFeature(false);
     }
@@ -635,8 +610,8 @@ export function MilestoneConsoleModal({
   const openTaskForm = () => {
     const real = features.filter((f) => f.featureId !== NO_FEATURE);
     const preferred = real.find((f) => f.featureId === selectedId) ?? real[0];
-    setTaskFeatureId(preferred?.featureId ?? "");
-    setTaskTitle("");
+    setTaskFeatureId(preferred?.featureId ?? '');
+    setTaskTitle('');
     setTaskFormOpen(true);
   };
 
@@ -654,23 +629,20 @@ export function MilestoneConsoleModal({
         { taskId: task.id, taskTitle: title, featureId: taskFeatureId },
       ]);
       setSelectedId(taskFeatureId);
-      setTaskTitle("");
+      setTaskTitle('');
       setTaskFormOpen(false);
       // 체크리스트가 없는 태스크는 리로드 시 트리에서 사라지므로 첫 항목 입력을 바로 연다
       setAddingItemTask(task.id);
-      setItemTitle("");
+      setItemTitle('');
       showToast(`태스크 "${title}" 생성 — 첫 항목을 입력하세요`);
     } catch {
-      showToast("태스크 생성에 실패했습니다");
+      showToast('태스크 생성에 실패했습니다');
     } finally {
       setCreatingTask(false);
     }
   };
 
-  const addChecklistItemInline = async (
-    task: ConsoleTask,
-    feat: ConsoleFeature,
-  ) => {
+  const addChecklistItemInline = async (task: ConsoleTask, feat: ConsoleFeature) => {
     const title = itemTitle.trim();
     if (!title || savingItem) return;
     setSavingItem(true);
@@ -702,9 +674,9 @@ export function MilestoneConsoleModal({
           contractor: null,
         },
       ]);
-      setItemTitle(""); // 입력 유지 — Enter 연속 추가
+      setItemTitle(''); // 입력 유지 — Enter 연속 추가
     } catch {
-      showToast("항목 추가에 실패했습니다");
+      showToast('항목 추가에 실패했습니다');
     } finally {
       setSavingItem(false);
     }
@@ -713,22 +685,22 @@ export function MilestoneConsoleModal({
   const statusOf = (it: SprintItemCard): { label: string; cls: string } => {
     if (it.completed)
       return {
-        label: "완료",
-        cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+        label: '완료',
+        cls: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
       };
     if (!it.assignee && it.contractor)
       return {
-        label: "외주",
-        cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+        label: '외주',
+        cls: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
       };
     if (it.sprint_column_id)
       return {
-        label: "진행",
-        cls: "bg-teal-500/15 text-teal-600 dark:text-teal-400",
+        label: '진행',
+        cls: 'bg-teal-500/15 text-teal-600 dark:text-teal-400',
       };
     return {
-      label: "예정",
-      cls: "bg-foreground/[0.06] text-slate-500 border border-foreground/10",
+      label: '예정',
+      cls: 'bg-foreground/[0.06] text-slate-500 border border-foreground/10',
     };
   };
 
@@ -737,8 +709,8 @@ export function MilestoneConsoleModal({
   const filterBtn = (active: boolean) =>
     `shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
       active
-        ? "bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30"
-        : "bg-foreground/[0.03] text-slate-400 border-foreground/10 hover:border-foreground/20"
+        ? 'bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30'
+        : 'bg-foreground/[0.03] text-slate-400 border-foreground/10 hover:border-foreground/20'
     }`;
 
   return (
@@ -777,12 +749,11 @@ export function MilestoneConsoleModal({
                   className="flex items-center justify-center gap-1.5 min-w-0 max-w-full rounded-lg px-1.5 hover:bg-foreground/5 transition-colors"
                 >
                   <h2 className="text-sm md:text-base font-bold text-foreground truncate tracking-tight">
-                    <span className="text-bridge-accent">{curTitle}</span> 관리
-                    콘솔
+                    <span className="text-bridge-accent">{curTitle}</span> 관리 콘솔
                   </h2>
                   <ChevronDown
                     className={`w-3.5 h-3.5 shrink-0 text-slate-500 transition-transform ${
-                      msMenuOpen ? "rotate-180" : ""
+                      msMenuOpen ? 'rotate-180' : ''
                     }`}
                   />
                 </button>
@@ -795,10 +766,8 @@ export function MilestoneConsoleModal({
                     {msList.map((m, i) => {
                       const on = i === msIndex;
                       const pct =
-                        typeof m.progress_percentage === "number"
-                          ? Math.round(
-                              Math.min(100, Math.max(0, m.progress_percentage)),
-                            )
+                        typeof m.progress_percentage === 'number'
+                          ? Math.round(Math.min(100, Math.max(0, m.progress_percentage)))
                           : null;
                       return (
                         <button
@@ -808,20 +777,16 @@ export function MilestoneConsoleModal({
                           aria-selected={on}
                           onClick={() => goToMilestone(i)}
                           className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-colors ${
-                            on ? "bg-bridge-accent/10" : "hover:bg-foreground/5"
+                            on ? 'bg-bridge-accent/10' : 'hover:bg-foreground/5'
                           }`}
                         >
                           <span className="w-4 shrink-0">
-                            {on && (
-                              <Check className="w-3.5 h-3.5 text-bridge-accent" />
-                            )}
+                            {on && <Check className="w-3.5 h-3.5 text-bridge-accent" />}
                           </span>
                           <span className="flex-1 min-w-0">
                             <span
                               className={`block text-xs truncate ${
-                                on
-                                  ? "font-bold text-foreground"
-                                  : "font-medium text-slate-300"
+                                on ? 'font-bold text-foreground' : 'font-medium text-slate-300'
                               }`}
                             >
                               {m.title}
@@ -850,11 +815,10 @@ export function MilestoneConsoleModal({
               <h2 className="text-sm md:text-base font-bold text-foreground truncate tracking-tight">
                 {curTitle ? (
                   <>
-                    <span className="text-bridge-accent">{curTitle}</span> 관리
-                    콘솔
+                    <span className="text-bridge-accent">{curTitle}</span> 관리 콘솔
                   </>
                 ) : (
-                  "마일스톤 관리 콘솔"
+                  '마일스톤 관리 콘솔'
                 )}
               </h2>
             )}
@@ -877,12 +841,11 @@ export function MilestoneConsoleModal({
                 <span className="font-bold tabular-nums text-slate-400">
                   {msIndex + 1} / {msList.length}
                 </span>
-                {" · "}
+                {' · '}
               </>
             )}
-            피쳐 {features.length} · 태스크{" "}
-            {features.reduce((s, f) => s + f.tasks.length, 0)} · 항목{" "}
-            {items.length}
+            피쳐 {features.length} · 태스크 {features.reduce((s, f) => s + f.tasks.length, 0)} ·
+            항목 {items.length}
           </p>
         </div>
         <button
@@ -892,7 +855,7 @@ export function MilestoneConsoleModal({
           aria-label="새로고침"
           className="shrink-0 inline-grid place-items-center w-8 h-8 rounded-lg border border-foreground/10 bg-foreground/[0.03] text-slate-400 hover:text-foreground hover:border-foreground/20 transition-colors"
         >
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
         <button
           type="button"
@@ -936,15 +899,15 @@ export function MilestoneConsoleModal({
           <button
             type="button"
             onClick={() => setCompletionMenuOpen((v) => !v)}
-            className={filterBtn(completionFilter !== "all")}
+            className={filterBtn(completionFilter !== 'all')}
             aria-haspopup="listbox"
             aria-expanded={completionMenuOpen}
           >
-            {completionFilter === "done" ? (
+            {completionFilter === 'done' ? (
               <>
                 <CheckSquare className="w-3 h-3" /> 완료만
               </>
-            ) : completionFilter === "todo" ? (
+            ) : completionFilter === 'todo' ? (
               <>
                 <Square className="w-3 h-3" /> 미완료만
               </>
@@ -962,9 +925,9 @@ export function MilestoneConsoleModal({
             >
               {(
                 [
-                  { key: "all", label: "완료: 전체", Icon: CheckSquare },
-                  { key: "done", label: "완료만", Icon: CheckSquare },
-                  { key: "todo", label: "미완료만", Icon: Square },
+                  { key: 'all', label: '완료: 전체', Icon: CheckSquare },
+                  { key: 'done', label: '완료만', Icon: CheckSquare },
+                  { key: 'todo', label: '미완료만', Icon: Square },
                 ] as const
               ).map(({ key, label, Icon }) => {
                 const active = completionFilter === key;
@@ -981,9 +944,7 @@ export function MilestoneConsoleModal({
                     className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left text-slate-300 hover:bg-foreground/5 transition-colors"
                   >
                     <span className="w-4 h-4 shrink-0">
-                      {active && (
-                        <Check className="w-3.5 h-3.5 text-bridge-accent" />
-                      )}
+                      {active && <Check className="w-3.5 h-3.5 text-bridge-accent" />}
                     </span>
                     <Icon className="w-3 h-3 shrink-0 opacity-70" />
                     {label}
@@ -1006,10 +967,7 @@ export function MilestoneConsoleModal({
                 <span
                   className="inline-grid place-items-center w-4 h-4 rounded-full text-[9px] font-bold text-white"
                   style={{
-                    background: getAssigneeHex(
-                      memberFilter,
-                      memberColorByName[memberFilter],
-                    ),
+                    background: getAssigneeHex(memberFilter, memberColorByName[memberFilter]),
                   }}
                 >
                   {getInitials(memberFilter)}
@@ -1017,7 +975,7 @@ export function MilestoneConsoleModal({
                 {memberFilter}
               </>
             ) : (
-              "담당자: 전체"
+              '담당자: 전체'
             )}
             <ChevronDown className="w-3 h-3 opacity-70" />
           </button>
@@ -1037,16 +995,12 @@ export function MilestoneConsoleModal({
                 className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left text-slate-300 hover:bg-foreground/5 transition-colors"
               >
                 <span className="w-4 h-4 shrink-0">
-                  {!memberFilter && (
-                    <Check className="w-3.5 h-3.5 text-bridge-accent" />
-                  )}
+                  {!memberFilter && <Check className="w-3.5 h-3.5 text-bridge-accent" />}
                 </span>
                 담당자: 전체
               </button>
               {memberOptions.length === 0 ? (
-                <div className="px-3 py-1.5 text-xs text-slate-500">
-                  담당자 없음
-                </div>
+                <div className="px-3 py-1.5 text-xs text-slate-500">담당자 없음</div>
               ) : (
                 memberOptions.map((name) => {
                   const active = memberFilter === name;
@@ -1063,17 +1017,12 @@ export function MilestoneConsoleModal({
                       className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left text-slate-300 hover:bg-foreground/5 transition-colors"
                     >
                       <span className="w-4 h-4 shrink-0">
-                        {active && (
-                          <Check className="w-3.5 h-3.5 text-bridge-accent" />
-                        )}
+                        {active && <Check className="w-3.5 h-3.5 text-bridge-accent" />}
                       </span>
                       <span
                         className="inline-grid place-items-center w-4 h-4 rounded-full text-[9px] font-bold text-white shrink-0"
                         style={{
-                          background: getAssigneeHex(
-                            name,
-                            memberColorByName[name],
-                          ),
+                          background: getAssigneeHex(name, memberColorByName[name]),
                         }}
                       >
                         {getInitials(name)}
@@ -1087,7 +1036,7 @@ export function MilestoneConsoleModal({
           )}
         </div>
         <span className="ml-auto text-xs text-slate-500 tabular-nums">
-          {total > 0 ? `표시 ${shown} / ${total}` : ""}
+          {total > 0 ? `표시 ${shown} / ${total}` : ''}
         </span>
       </div>
 
@@ -1113,8 +1062,8 @@ export function MilestoneConsoleModal({
                 onClick={() => setSelectedId(f.featureId)}
                 className={`relative w-full flex items-center gap-2 min-h-[38px] pl-3.5 pr-2.5 py-1.5 rounded-lg text-[13px] text-left transition-colors ${
                   on
-                    ? "text-foreground font-bold"
-                    : "text-slate-400 font-medium hover:text-foreground hover:bg-foreground/5"
+                    ? 'text-foreground font-bold'
+                    : 'text-slate-400 font-medium hover:text-foreground hover:bg-foreground/5'
                 }`}
                 style={on ? { background: `${color}1A` } : undefined}
               >
@@ -1125,15 +1074,13 @@ export function MilestoneConsoleModal({
                   />
                 )}
                 <span
-                  className={`w-2 h-2 rounded-full shrink-0 transition-opacity ${on ? "" : "opacity-50"}`}
+                  className={`w-2 h-2 rounded-full shrink-0 transition-opacity ${on ? '' : 'opacity-50'}`}
                   style={{ background: color }}
                 />
-                <span className="flex-1 min-w-0 truncate">
-                  {f.featureTitle}
-                </span>
+                <span className="flex-1 min-w-0 truncate">{f.featureTitle}</span>
                 <span
                   className={`font-mono text-xs tabular-nums shrink-0 ${
-                    allDone ? "text-bridge-secondary" : "opacity-70"
+                    allDone ? 'text-bridge-secondary' : 'opacity-70'
                   }`}
                 >
                   {f.done}/{f.total}
@@ -1149,8 +1096,8 @@ export function MilestoneConsoleModal({
                   value={featName}
                   onChange={(e) => setFeatName(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") createFeatureInline();
-                    if (e.key === "Escape") {
+                    if (e.key === 'Enter') createFeatureInline();
+                    if (e.key === 'Escape') {
                       e.stopPropagation();
                       setFeatFormOpen(false);
                     }
@@ -1168,9 +1115,7 @@ export function MilestoneConsoleModal({
                       aria-label={`피쳐 색 ${c}`}
                       aria-pressed={featColor === c}
                       className={`w-4 h-4 rounded-full shrink-0 transition-transform ${
-                        featColor === c
-                          ? "ring-2 ring-foreground/70 scale-110"
-                          : "hover:scale-110"
+                        featColor === c ? 'ring-2 ring-foreground/70 scale-110' : 'hover:scale-110'
                       }`}
                       style={{ background: c }}
                     />
@@ -1199,7 +1144,7 @@ export function MilestoneConsoleModal({
               <button
                 type="button"
                 onClick={() => {
-                  setFeatName("");
+                  setFeatName('');
                   setFeatColor(FEATURE_COLORS[0]);
                   setFeatFormOpen(true);
                 }}
@@ -1214,13 +1159,9 @@ export function MilestoneConsoleModal({
         <div className="relative flex-1 min-w-0 min-h-0">
           <motion.div
             key={curMilestoneId}
-            initial={
-              reducedMotion || slideDir === 0
-                ? false
-                : { opacity: 0, x: slideDir * 28 }
-            }
+            initial={reducedMotion || slideDir === 0 ? false : { opacity: 0, x: slideDir * 28 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
             className="h-full overflow-x-auto overflow-y-hidden bg-foreground/[0.02] p-4"
           >
             {loading && items.length === 0 ? (
@@ -1230,8 +1171,8 @@ export function MilestoneConsoleModal({
             ) : !selectedFeature ? (
               <div className="h-full grid place-items-center text-sm text-slate-500">
                 {canEdit
-                  ? "＋ 피쳐를 눌러 첫 피쳐를 만들어 보세요"
-                  : "이 마일스톤에 연결된 피쳐가 없습니다"}
+                  ? '＋ 피쳐를 눌러 첫 피쳐를 만들어 보세요'
+                  : '이 마일스톤에 연결된 피쳐가 없습니다'}
               </div>
             ) : (
               <div className="flex gap-3 items-stretch h-full">
@@ -1239,11 +1180,7 @@ export function MilestoneConsoleModal({
                   .map((task) => ({ f: selectedFeature, task }))
                   .map((col) => ({ ...col, vis: col.task.items.filter(match) }))
                   // 필터에 맞는 항목이 없는 컬럼은 뒤로 (안정 정렬로 원래 순서 유지)
-                  .sort(
-                    (a, b) =>
-                      (a.vis.length === 0 ? 1 : 0) -
-                      (b.vis.length === 0 ? 1 : 0),
-                  )
+                  .sort((a, b) => (a.vis.length === 0 ? 1 : 0) - (b.vis.length === 0 ? 1 : 0))
                   .map(({ f, task, vis }) => {
                     const color = featureColor(f);
                     const done = task.items.filter((i) => i.completed).length;
@@ -1257,14 +1194,11 @@ export function MilestoneConsoleModal({
                         onDragOver={(e) => {
                           if (!draggingId) return;
                           e.preventDefault();
-                          if (dragOverTask !== task.taskId)
-                            setDragOverTask(task.taskId);
+                          if (dragOverTask !== task.taskId) setDragOverTask(task.taskId);
                         }}
                         onDragLeave={(e) => {
                           if (
-                            !e.currentTarget.contains(
-                              e.relatedTarget as Node,
-                            ) &&
+                            !e.currentTarget.contains(e.relatedTarget as Node) &&
                             dragOverTask === task.taskId
                           )
                             setDragOverTask(null);
@@ -1280,8 +1214,8 @@ export function MilestoneConsoleModal({
                         }}
                         className={`w-72 shrink-0 bg-bridge-obsidian rounded-xl border flex flex-col min-h-0 transition-colors ${
                           isOver
-                            ? "border-bridge-accent ring-2 ring-bridge-accent/40"
-                            : "border-foreground/[0.08]"
+                            ? 'border-bridge-accent ring-2 ring-bridge-accent/40'
+                            : 'border-foreground/[0.08]'
                         }`}
                         style={{ borderTopColor: color, borderTopWidth: 3 }}
                       >
@@ -1300,45 +1234,36 @@ export function MilestoneConsoleModal({
                           </div>
                         </div>
                         <div className="p-2 flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-                          {vis.length === 0 &&
-                          addingItemTask !== task.taskId ? (
+                          {vis.length === 0 && addingItemTask !== task.taskId ? (
                             <div className="text-xs text-slate-400 text-center py-3 border border-dashed border-foreground/10 rounded-lg">
-                              {task.items.length
-                                ? "필터에 맞는 항목 없음"
-                                : "항목 없음"}
+                              {task.items.length ? '필터에 맞는 항목 없음' : '항목 없음'}
                             </div>
                           ) : (
                             vis.map((it) => {
                               const who = assigneeName(it);
-                              const isContractor =
-                                !it.assignee && !!it.contractor;
+                              const isContractor = !it.assignee && !!it.contractor;
                               const dday =
-                                it.due_date && !it.completed
-                                  ? getDDay(it.due_date)
-                                  : null;
+                                it.due_date && !it.completed ? getDDay(it.due_date) : null;
                               const ddayCls =
-                                dday?.urgency === "overdue"
-                                  ? "bg-rose-500/15 text-rose-500"
-                                  : dday?.urgency === "today" ||
-                                      dday?.urgency === "soon"
-                                    ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                                    : "text-slate-400";
+                                dday?.urgency === 'overdue'
+                                  ? 'bg-rose-500/15 text-rose-500'
+                                  : dday?.urgency === 'today' || dday?.urgency === 'soon'
+                                    ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                                    : 'text-slate-400';
                               const st = statusOf(it);
-                              const stopDrag = (e: {
-                                stopPropagation: () => void;
-                              }) => e.stopPropagation();
+                              const stopDrag = (e: { stopPropagation: () => void }) =>
+                                e.stopPropagation();
                               const ddayLabel = dday
-                                ? dday.urgency === "overdue"
+                                ? dday.urgency === 'overdue'
                                   ? `${dday.text} 지연`
-                                  : dday.urgency === "today" ||
-                                      dday.urgency === "soon"
+                                  : dday.urgency === 'today' || dday.urgency === 'soon'
                                     ? `${dday.text} 임박`
                                     : dday.text
                                 : it.due_date
-                                  ? "마감"
+                                  ? '마감'
                                   : canEdit
-                                    ? "＋마감"
-                                    : "";
+                                    ? '＋마감'
+                                    : '';
                               return (
                                 <div
                                   key={it.id}
@@ -1356,14 +1281,13 @@ export function MilestoneConsoleModal({
                                     dragRef.current = null;
                                   }}
                                   onClick={() =>
-                                    it.task_id &&
-                                    onOpenChecklistItem?.(it.task_id, it.id)
+                                    it.task_id && onOpenChecklistItem?.(it.task_id, it.id)
                                   }
                                   className={`bg-bridge-dark rounded-lg border border-foreground/[0.08] p-3.5 hover:border-foreground/[0.14] transition-all ${
                                     canEdit
-                                      ? "cursor-grab active:cursor-grabbing"
-                                      : "cursor-pointer"
-                                  } ${draggingId === it.id ? "opacity-40" : ""}`}
+                                      ? 'cursor-grab active:cursor-grabbing'
+                                      : 'cursor-pointer'
+                                  } ${draggingId === it.id ? 'opacity-40' : ''}`}
                                 >
                                   <div className="flex items-start gap-2.5 mb-2.5">
                                     <button
@@ -1375,27 +1299,20 @@ export function MilestoneConsoleModal({
                                         stopDrag(e);
                                         toggleComplete(it);
                                       }}
-                                      aria-label={
-                                        it.completed
-                                          ? "완료 해제"
-                                          : "완료로 표시"
-                                      }
+                                      aria-label={it.completed ? '완료 해제' : '완료로 표시'}
                                       className={`mt-0.5 shrink-0 w-5 h-5 rounded-full grid place-items-center border transition-colors ${
                                         it.completed
-                                          ? "bg-emerald-500 border-emerald-500 text-white"
-                                          : "border-foreground/25 text-transparent hover:border-emerald-500"
-                                      } ${canEdit ? "cursor-pointer" : ""}`}
+                                          ? 'bg-emerald-500 border-emerald-500 text-white'
+                                          : 'border-foreground/25 text-transparent hover:border-emerald-500'
+                                      } ${canEdit ? 'cursor-pointer' : ''}`}
                                     >
-                                      <Check
-                                        className="w-3 h-3"
-                                        strokeWidth={3}
-                                      />
+                                      <Check className="w-3 h-3" strokeWidth={3} />
                                     </button>
                                     <div
                                       className={`text-[14px] font-medium leading-snug line-clamp-2 ${
                                         it.completed
-                                          ? "line-through text-slate-400"
-                                          : "text-foreground"
+                                          ? 'line-through text-slate-400'
+                                          : 'text-foreground'
                                       }`}
                                     >
                                       {it.title}
@@ -1411,27 +1328,22 @@ export function MilestoneConsoleModal({
                                         className="inline-grid place-items-center w-6 h-6 rounded-lg text-[11px] font-bold text-white shrink-0"
                                         style={{
                                           background: isContractor
-                                            ? "#f59e0b"
+                                            ? '#f59e0b'
                                             : who
-                                              ? getAssigneeHex(
-                                                  who,
-                                                  memberColorByName[who],
-                                                )
-                                              : "#94a3b8",
+                                              ? getAssigneeHex(who, memberColorByName[who])
+                                              : '#94a3b8',
                                         }}
                                       >
-                                        {who ? getInitials(who) : "·"}
+                                        {who ? getInitials(who) : '·'}
                                       </span>
                                       <span className="text-[13px] text-slate-400 truncate">
-                                        {who ?? "미배정"}
+                                        {who ?? '미배정'}
                                       </span>
                                       {canEdit && members.length > 0 && (
                                         <select
-                                          value={it.assignee?.id ?? ""}
+                                          value={it.assignee?.id ?? ''}
                                           onClick={stopDrag}
-                                          onChange={(e) =>
-                                            changeAssignee(it, e.target.value)
-                                          }
+                                          onChange={(e) => changeAssignee(it, e.target.value)}
                                           aria-label="담당자 변경"
                                           className="absolute inset-0 w-full opacity-0 cursor-pointer"
                                         >
@@ -1453,7 +1365,7 @@ export function MilestoneConsoleModal({
                                         >
                                           <span
                                             className={`inline-block tabular-nums text-xs font-bold px-2 py-0.5 rounded-md ${
-                                              dday ? ddayCls : "text-slate-400"
+                                              dday ? ddayCls : 'text-slate-400'
                                             }`}
                                           >
                                             {ddayLabel}
@@ -1461,11 +1373,9 @@ export function MilestoneConsoleModal({
                                           {canEdit && (
                                             <input
                                               type="date"
-                                              value={it.due_date ?? ""}
+                                              value={it.due_date ?? ''}
                                               onClick={stopDrag}
-                                              onChange={(e) =>
-                                                changeDue(it, e.target.value)
-                                              }
+                                              onChange={(e) => changeDue(it, e.target.value)}
                                               aria-label="마감일 변경"
                                               className="absolute inset-0 w-full opacity-0 cursor-pointer"
                                             />
@@ -1484,7 +1394,7 @@ export function MilestoneConsoleModal({
                             })
                           )}
                           {canEdit &&
-                            task.taskId !== "__no_task__" &&
+                            task.taskId !== '__no_task__' &&
                             (addingItemTask === task.taskId ? (
                               <div className="shrink-0 flex flex-col gap-1">
                                 <input
@@ -1492,12 +1402,11 @@ export function MilestoneConsoleModal({
                                   value={itemTitle}
                                   onChange={(e) => setItemTitle(e.target.value)}
                                   onKeyDown={(e) => {
-                                    if (e.key === "Enter")
-                                      addChecklistItemInline(task, f);
-                                    if (e.key === "Escape") {
+                                    if (e.key === 'Enter') addChecklistItemInline(task, f);
+                                    if (e.key === 'Escape') {
                                       e.stopPropagation();
                                       setAddingItemTask(null);
-                                      setItemTitle("");
+                                      setItemTitle('');
                                     }
                                   }}
                                   disabled={savingItem}
@@ -1514,7 +1423,7 @@ export function MilestoneConsoleModal({
                                 type="button"
                                 onClick={() => {
                                   setAddingItemTask(task.taskId);
-                                  setItemTitle("");
+                                  setItemTitle('');
                                 }}
                                 className="shrink-0 w-full flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-foreground/[0.15] text-[13px] font-medium text-slate-500 hover:text-bridge-accent hover:border-bridge-accent/40 hover:bg-bridge-accent/5 transition-colors"
                               >
@@ -1529,8 +1438,8 @@ export function MilestoneConsoleModal({
                   <div
                     className={`w-72 shrink-0 rounded-xl border flex flex-col min-h-0 transition-colors ${
                       taskFormOpen
-                        ? "border-bridge-accent/50 bg-bridge-obsidian"
-                        : "border-dashed border-foreground/[0.15] hover:border-bridge-accent/40"
+                        ? 'border-bridge-accent/50 bg-bridge-obsidian'
+                        : 'border-dashed border-foreground/[0.15] hover:border-bridge-accent/40'
                     }`}
                   >
                     {taskFormOpen ? (
@@ -1570,8 +1479,8 @@ export function MilestoneConsoleModal({
                             value={taskTitle}
                             onChange={(e) => setTaskTitle(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") createTaskInline();
-                              if (e.key === "Escape") {
+                              if (e.key === 'Enter') createTaskInline();
+                              if (e.key === 'Escape') {
                                 e.stopPropagation();
                                 setTaskFormOpen(false);
                               }
@@ -1581,8 +1490,7 @@ export function MilestoneConsoleModal({
                           />
                         </div>
                         <p className="text-xs text-slate-500 leading-relaxed">
-                          생성 직후 새 컬럼에서 첫 체크리스트 항목 입력이
-                          열립니다.
+                          생성 직후 새 컬럼에서 첫 체크리스트 항목 입력이 열립니다.
                         </p>
                         <div className="flex items-center justify-end gap-2">
                           <button
@@ -1595,11 +1503,7 @@ export function MilestoneConsoleModal({
                           <button
                             type="button"
                             onClick={createTaskInline}
-                            disabled={
-                              creatingTask ||
-                              !taskTitle.trim() ||
-                              !taskFeatureId
-                            }
+                            disabled={creatingTask || !taskTitle.trim() || !taskFeatureId}
                             className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-bridge-accent text-white disabled:opacity-40 hover:bg-bridge-accent/90 transition-all"
                           >
                             태스크 추가
@@ -1655,9 +1559,9 @@ export function MilestoneConsoleModal({
       <div className="flex items-center gap-3 px-5 py-3 border-t border-foreground/[0.08] shrink-0">
         <span className="text-xs text-slate-500">
           {canEdit
-            ? "카드를 다른 태스크로 끌어 이동 · 클릭하면 상세 열기 · ＋로 피쳐/태스크/항목 추가"
-            : "읽기 전용 · 카드를 클릭하면 상세 열기"}
-          {hasPager && " · ⌥←/→ 마일스톤 이동"}
+            ? '카드를 다른 태스크로 끌어 이동 · 클릭하면 상세 열기 · ＋로 피쳐/태스크/항목 추가'
+            : '읽기 전용 · 카드를 클릭하면 상세 열기'}
+          {hasPager && ' · ⌥←/→ 마일스톤 이동'}
         </span>
         <span className="flex-1" />
         <button

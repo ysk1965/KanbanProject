@@ -1,11 +1,11 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
-import { orgPhotoService } from "../utils/services";
+import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { orgPhotoService } from '../utils/services';
 import {
   PhotoUploadQueue,
   type PhotoUploadConfirmedListener,
   type PhotoUploadSnapshot,
   type PhotoUploadTarget,
-} from "../utils/photoUploadQueue";
+} from '../utils/photoUploadQueue';
 
 /** 큐 상태 구독 (useSyncExternalStore) */
 export function usePhotoUploadQueue(queue: PhotoUploadQueue): PhotoUploadSnapshot {
@@ -19,10 +19,7 @@ export function usePhotoUploadConfirmed(
 ): void {
   const ref = useRef(listener);
   ref.current = listener;
-  useEffect(
-    () => queue.onConfirmed((key, photos) => ref.current(key, photos)),
-    [queue],
-  );
+  useEffect(() => queue.onConfirmed((key, photos) => ref.current(key, photos)), [queue]);
 }
 
 // 관리자 업로드는 모달을 닫거나 탭을 옮겨도 계속되도록 조직별 모듈 스코프 큐를 쓴다.

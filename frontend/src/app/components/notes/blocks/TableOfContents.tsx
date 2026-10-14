@@ -97,5 +97,5 @@ export const TableOfContents = createReactBlockSpec(
       if (el.getAttribute('data-block-type') === 'tableOfContents') return {};
       return undefined;
     },
-  }
+  },
 );

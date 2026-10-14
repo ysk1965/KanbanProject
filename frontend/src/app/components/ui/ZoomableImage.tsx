@@ -1,8 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  useBlockBrowserZoom,
-  wheelToZoomFactor,
-} from "../../hooks/useBlockBrowserZoom";
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useBlockBrowserZoom, wheelToZoomFactor } from '../../hooks/useBlockBrowserZoom';
 
 const MIN_ZOOM = 1;
 const DEFAULT_MAX_ZOOM = 5;
@@ -60,14 +57,17 @@ export function ZoomableImage({
     };
   }, []);
 
-  const applyZoom = useCallback((updater: (z: number) => number) => {
-    setZoom((z) => {
-      const next = Math.max(MIN_ZOOM, Math.min(maxZoom, updater(z)));
-      if (next <= 1) setPan({ x: 0, y: 0 });
-      return next;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [maxZoom]);
+  const applyZoom = useCallback(
+    (updater: (z: number) => number) => {
+      setZoom((z) => {
+        const next = Math.max(MIN_ZOOM, Math.min(maxZoom, updater(z)));
+        if (next <= 1) setPan({ x: 0, y: 0 });
+        return next;
+      });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [maxZoom],
+  );
 
   // 휠 줌 — React 합성 wheel 은 passive 라 preventDefault 를 위해 네이티브로 부착
   useEffect(() => {
@@ -78,8 +78,8 @@ export function ZoomableImage({
       e.stopPropagation();
       applyZoom(wheelToZoomFactor(e, 0.4));
     };
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
   }, [applyZoom]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -113,11 +113,11 @@ export function ZoomableImage({
     const onUp = () => {
       isPanningRef.current = false;
     };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
     return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
     };
   }, [isZoomed, zoom, clampPan]);
 
@@ -160,10 +160,8 @@ export function ZoomableImage({
       hasPannedRef.current = true;
       setPan(
         clampPan(
-          panStartRef.current.panX +
-            (e.touches[0].clientX - panStartRef.current.x),
-          panStartRef.current.panY +
-            (e.touches[0].clientY - panStartRef.current.y),
+          panStartRef.current.panX + (e.touches[0].clientX - panStartRef.current.x),
+          panStartRef.current.panY + (e.touches[0].clientY - panStartRef.current.y),
           zoom,
         ),
       );
@@ -198,11 +196,7 @@ export function ZoomableImage({
       ref={containerRef}
       className="relative flex items-center justify-center overflow-hidden touch-none max-w-full max-h-full"
       style={{
-        cursor: isZoomed
-          ? isPanningRef.current
-            ? "grabbing"
-            : "grab"
-          : "zoom-in",
+        cursor: isZoomed ? (isPanningRef.current ? 'grabbing' : 'grab') : 'zoom-in',
       }}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
@@ -213,13 +207,13 @@ export function ZoomableImage({
     >
       <img
         src={src}
-        alt={alt || "image"}
+        alt={alt || 'image'}
         className={className}
         draggable={false}
         style={{
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-          transition: isPanningRef.current ? "none" : "transform 0.15s ease",
-          willChange: "transform",
+          transition: isPanningRef.current ? 'none' : 'transform 0.15s ease',
+          willChange: 'transform',
         }}
       />
       {isZoomed && (

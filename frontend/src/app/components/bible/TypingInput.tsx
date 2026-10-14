@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from "react";
-import { Card } from "../ui/card";
-import { Button } from "../ui/button";
-import { Progress } from "../ui/progress";
-import { RotateCcw } from "lucide-react";
+import { useState, useRef, useEffect } from 'react';
+import { Card } from '../ui/card';
+import { Button } from '../ui/button';
+import { Progress } from '../ui/progress';
+import { RotateCcw } from 'lucide-react';
 
 interface TypingInputProps {
   targetText: string;
@@ -11,11 +11,11 @@ interface TypingInputProps {
 }
 
 export function TypingInput({ targetText, verseNumber, onComplete }: TypingInputProps) {
-  const [userInput, setUserInput] = useState("");
+  const [userInput, setUserInput] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    setUserInput("");
+    setUserInput('');
     inputRef.current?.focus();
   }, [verseNumber]);
 
@@ -38,18 +38,20 @@ export function TypingInput({ targetText, verseNumber, onComplete }: TypingInput
   };
 
   const handleReset = () => {
-    setUserInput("");
+    setUserInput('');
     inputRef.current?.focus();
   };
 
   const getDisplayText = () => {
-    return targetText.split("").map((char, index) => {
+    return targetText.split('').map((char, index) => {
       if (index < userInput.length) {
         const isCorrect = userInput[index] === char;
         return (
           <span
             key={index}
-            className={isCorrect ? "text-green-600 bg-green-50" : "text-red-600 bg-red-50 line-through"}
+            className={
+              isCorrect ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50 line-through'
+            }
           >
             {char}
           </span>
@@ -79,9 +81,7 @@ export function TypingInput({ targetText, verseNumber, onComplete }: TypingInput
         {/* 미리보기 영역 */}
         <div className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
           <div className="text-sm font-medium text-gray-600 mb-2">{verseNumber}절</div>
-          <div className="text-lg leading-relaxed font-serif min-h-[60px]">
-            {getDisplayText()}
-          </div>
+          <div className="text-lg leading-relaxed font-serif min-h-[60px]">{getDisplayText()}</div>
         </div>
 
         {/* 입력 영역 */}

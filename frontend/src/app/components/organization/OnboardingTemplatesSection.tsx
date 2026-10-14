@@ -1,10 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, X, Trash2, ClipboardCheck, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
+import {
+  Plus,
+  X,
+  Trash2,
+  ClipboardCheck,
+  ChevronDown,
+  ChevronRight,
+  GripVertical,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { organizationService } from '../../utils/services';
-import type { OnboardingTemplateSummary, OnboardingTemplateDetail, OrgDepartment, OrgJobGroup } from '../../types';
+import type {
+  OnboardingTemplateSummary,
+  OnboardingTemplateDetail,
+  OrgDepartment,
+  OrgJobGroup,
+} from '../../types';
 
 interface OnboardingTemplatesSectionProps {
   orgId: string;
@@ -19,7 +32,11 @@ interface TemplateItemForm {
   assignee_role: string | null;
 }
 
-export function OnboardingTemplatesSection({ orgId, departments, jobGroups }: OnboardingTemplatesSectionProps) {
+export function OnboardingTemplatesSection({
+  orgId,
+  departments,
+  jobGroups,
+}: OnboardingTemplatesSectionProps) {
   const { t } = useTranslation();
 
   const [templates, setTemplates] = useState<OnboardingTemplateSummary[]>([]);
@@ -101,7 +118,7 @@ export function OnboardingTemplatesSection({ orgId, departments, jobGroups }: On
           description: item.description || '',
           due_day_offset: item.due_day_offset,
           assignee_role: item.assignee_role,
-        }))
+        })),
       );
       setShowForm(true);
     } catch {
@@ -110,14 +127,21 @@ export function OnboardingTemplatesSection({ orgId, departments, jobGroups }: On
   };
 
   const addItem = () => {
-    setFormItems([...formItems, { title: '', description: '', due_day_offset: null, assignee_role: null }]);
+    setFormItems([
+      ...formItems,
+      { title: '', description: '', due_day_offset: null, assignee_role: null },
+    ]);
   };
 
   const removeItem = (index: number) => {
     setFormItems(formItems.filter((_, i) => i !== index));
   };
 
-  const updateItem = (index: number, field: keyof TemplateItemForm, value: string | number | null) => {
+  const updateItem = (
+    index: number,
+    field: keyof TemplateItemForm,
+    value: string | number | null,
+  ) => {
     const updated = [...formItems];
     updated[index] = { ...updated[index], [field]: value };
     setFormItems(updated);
@@ -218,9 +242,15 @@ export function OnboardingTemplatesSection({ orgId, departments, jobGroups }: On
 
       <div className="space-y-2">
         {templates.map((tmpl) => (
-          <div key={tmpl.id} className="bg-foreground/[0.02] rounded-xl border border-foreground/[0.08] overflow-hidden">
+          <div
+            key={tmpl.id}
+            className="bg-foreground/[0.02] rounded-xl border border-foreground/[0.08] overflow-hidden"
+          >
             <div className="flex items-center gap-3 px-4 py-3">
-              <button onClick={() => toggleExpand(tmpl.id)} className="shrink-0 text-muted-foreground">
+              <button
+                onClick={() => toggleExpand(tmpl.id)}
+                className="shrink-0 text-muted-foreground"
+              >
                 {expandedId === tmpl.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               </button>
               <div className="flex-1 min-w-0">
@@ -269,10 +299,14 @@ export function OnboardingTemplatesSection({ orgId, departments, jobGroups }: On
                   <div className="px-4 pb-3 space-y-1">
                     {expandedDetail.items.map((item, i) => (
                       <div key={item.id} className="flex items-center gap-2 text-xs py-1">
-                        <span className="text-muted-foreground w-5 text-right shrink-0">{i + 1}.</span>
+                        <span className="text-muted-foreground w-5 text-right shrink-0">
+                          {i + 1}.
+                        </span>
                         <span className="text-foreground flex-1 truncate">{item.title}</span>
                         {item.due_day_offset != null && (
-                          <span className="text-xs text-muted-foreground shrink-0">D+{item.due_day_offset}</span>
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            D+{item.due_day_offset}
+                          </span>
                         )}
                         {item.assignee_role && (
                           <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-500 shrink-0">
@@ -307,7 +341,11 @@ export function OnboardingTemplatesSection({ orgId, departments, jobGroups }: On
                     ? t('organization.onboarding.editTemplate', 'Edit Template')
                     : t('organization.onboarding.newTemplate', 'New Template')}
                 </span>
-                <button onClick={resetForm} className="p-1 text-muted-foreground hover:text-foreground" aria-label="닫기">
+                <button
+                  onClick={resetForm}
+                  className="p-1 text-muted-foreground hover:text-foreground"
+                  aria-label="닫기"
+                >
                   <X size={14} />
                 </button>
               </div>
@@ -346,9 +384,13 @@ export function OnboardingTemplatesSection({ orgId, departments, jobGroups }: On
                   onChange={(e) => setFormDeptId(e.target.value)}
                   className="bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1.5 px-2 text-xs text-foreground"
                 >
-                  <option value="">{t('organization.onboarding.allDepts', 'All departments')}</option>
+                  <option value="">
+                    {t('organization.onboarding.allDepts', 'All departments')}
+                  </option>
                   {departments.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
                   ))}
                 </select>
                 <select
@@ -356,9 +398,13 @@ export function OnboardingTemplatesSection({ orgId, departments, jobGroups }: On
                   onChange={(e) => setFormJobGroupId(e.target.value)}
                   className="bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1.5 px-2 text-xs text-foreground"
                 >
-                  <option value="">{t('organization.onboarding.allJobGroups', 'All job groups')}</option>
+                  <option value="">
+                    {t('organization.onboarding.allJobGroups', 'All job groups')}
+                  </option>
                   {jobGroups.map((j) => (
-                    <option key={j.id} value={j.id}>{j.name}</option>
+                    <option key={j.id} value={j.id}>
+                      {j.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -395,7 +441,13 @@ export function OnboardingTemplatesSection({ orgId, departments, jobGroups }: On
                             type="number"
                             min={0}
                             value={item.due_day_offset ?? ''}
-                            onChange={(e) => updateItem(i, 'due_day_offset', e.target.value === '' ? null : parseInt(e.target.value))}
+                            onChange={(e) =>
+                              updateItem(
+                                i,
+                                'due_day_offset',
+                                e.target.value === '' ? null : parseInt(e.target.value),
+                              )
+                            }
                             className="w-12 bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1 px-1.5 text-xs text-center text-foreground focus:outline-none"
                             placeholder="-"
                           />
@@ -405,9 +457,13 @@ export function OnboardingTemplatesSection({ orgId, departments, jobGroups }: On
                           onChange={(e) => updateItem(i, 'assignee_role', e.target.value || null)}
                           className="bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1 px-1.5 text-xs text-foreground"
                         >
-                          <option value="">{t('organization.onboarding.noAssignee', 'No assignee')}</option>
+                          <option value="">
+                            {t('organization.onboarding.noAssignee', 'No assignee')}
+                          </option>
                           <option value="SELF">{t('organization.onboarding.self', 'Self')}</option>
-                          <option value="MANAGER">{t('organization.onboarding.manager', 'Manager')}</option>
+                          <option value="MANAGER">
+                            {t('organization.onboarding.manager', 'Manager')}
+                          </option>
                         </select>
                       </div>
                     </div>
@@ -434,7 +490,11 @@ export function OnboardingTemplatesSection({ orgId, departments, jobGroups }: On
                   disabled={saving || !formName.trim()}
                   className="px-4 py-1.5 bg-bridge-accent text-white text-xs font-bold rounded-lg hover:bg-bridge-accent/90 disabled:opacity-50 transition-all"
                 >
-                  {saving ? '...' : editingId ? t('common.save', 'Save') : t('common.create', 'Create')}
+                  {saving
+                    ? '...'
+                    : editingId
+                      ? t('common.save', 'Save')
+                      : t('common.create', 'Create')}
                 </button>
               </div>
             </div>

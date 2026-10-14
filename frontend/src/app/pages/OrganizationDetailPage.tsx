@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { useTranslation } from "react-i18next";
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
   Building2,
@@ -13,63 +13,52 @@ import {
   HardDrive,
   FileText,
   Loader2,
-} from "lucide-react";
-import { motion } from "framer-motion";
-import { useAuth } from "../contexts/AuthContext";
-import { OrgDataProvider, useOrgData } from "../contexts/OrgDataContext";
-import type { OrgRole, OrgSubscription } from "../types";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "../components/ui/tooltip";
-import { OrgDashboardTab } from "../components/organization/tabs/OrgDashboardTab";
-import { OrgMembersTab } from "../components/organization/tabs/OrgMembersTab";
-import { OrgBoardsTab } from "../components/organization/tabs/OrgBoardsTab";
-import { OrgLeaveTab } from "../components/organization/tabs/OrgLeaveTab";
-import { OrgSettingsGeneralSubTab } from "../components/organization/settings/OrgSettingsGeneralSubTab";
-import { OrgSettingsStructureSubTab } from "../components/organization/settings/OrgSettingsStructureSubTab";
-import { OrgSettingsAttendanceSubTab } from "../components/organization/settings/OrgSettingsAttendanceSubTab";
-import { OrgSettingsOnboardingSubTab } from "../components/organization/settings/OrgSettingsOnboardingSubTab";
-import { OrgBillingSection } from "../components/organization/subscription/OrgBillingSection";
-import { OrgInsightsTab } from "../components/organization/tabs/OrgInsightsTab";
-import { OrgAttendanceTab } from "../components/organization/tabs/OrgAttendanceTab";
-import { OrgChartTab } from "../components/organization/tabs/OrgChartTab";
-import { OrgOkrTab } from "../components/organization/tabs/OrgOkrTab";
-import { OrgPhotoGalleryTab } from "../components/organization/tabs/OrgPhotoGalleryTab";
-import { OrgDocumentsTab } from "../components/organization/tabs/OrgDocumentsTab";
-import { OrgStorageTab } from "../components/organization/tabs/OrgStorageTab";
-import { MemberDetailModal } from "../components/organization/MemberDetailModal";
+} from 'lucide-react';
+import { motion } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
+import { OrgDataProvider, useOrgData } from '../contexts/OrgDataContext';
+import type { OrgRole, OrgSubscription } from '../types';
+import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/tooltip';
+import { OrgDashboardTab } from '../components/organization/tabs/OrgDashboardTab';
+import { OrgMembersTab } from '../components/organization/tabs/OrgMembersTab';
+import { OrgBoardsTab } from '../components/organization/tabs/OrgBoardsTab';
+import { OrgLeaveTab } from '../components/organization/tabs/OrgLeaveTab';
+import { OrgSettingsGeneralSubTab } from '../components/organization/settings/OrgSettingsGeneralSubTab';
+import { OrgSettingsStructureSubTab } from '../components/organization/settings/OrgSettingsStructureSubTab';
+import { OrgSettingsAttendanceSubTab } from '../components/organization/settings/OrgSettingsAttendanceSubTab';
+import { OrgSettingsOnboardingSubTab } from '../components/organization/settings/OrgSettingsOnboardingSubTab';
+import { OrgBillingSection } from '../components/organization/subscription/OrgBillingSection';
+import { OrgInsightsTab } from '../components/organization/tabs/OrgInsightsTab';
+import { OrgAttendanceTab } from '../components/organization/tabs/OrgAttendanceTab';
+import { OrgChartTab } from '../components/organization/tabs/OrgChartTab';
+import { OrgOkrTab } from '../components/organization/tabs/OrgOkrTab';
+import { OrgPhotoGalleryTab } from '../components/organization/tabs/OrgPhotoGalleryTab';
+import { OrgDocumentsTab } from '../components/organization/tabs/OrgDocumentsTab';
+import { OrgStorageTab } from '../components/organization/tabs/OrgStorageTab';
+import { MemberDetailModal } from '../components/organization/MemberDetailModal';
 
 // ─── Tab types ───
 
 type TabKey =
-  | "dashboard"
-  | "members"
-  | "chart"
-  | "boards"
-  | "leaves"
-  | "attendance"
-  | "insights"
-  | "okr"
-  | "documents"
-  | "storage"
-  | "photos"
-  | "settings"
-  | "settings_structure"
-  | "settings_attendance"
-  | "settings_onboarding"
-  | "settings_billing";
+  | 'dashboard'
+  | 'members'
+  | 'chart'
+  | 'boards'
+  | 'leaves'
+  | 'attendance'
+  | 'insights'
+  | 'okr'
+  | 'documents'
+  | 'storage'
+  | 'photos'
+  | 'settings'
+  | 'settings_structure'
+  | 'settings_attendance'
+  | 'settings_onboarding'
+  | 'settings_billing';
 
 type GroupKey =
-  | "dashboard"
-  | "people"
-  | "leave"
-  | "workspace"
-  | "documents"
-  | "storage"
-  | "photos"
-  | "settings";
+  'dashboard' | 'people' | 'leave' | 'workspace' | 'documents' | 'storage' | 'photos' | 'settings';
 
 interface TabGroup {
   key: GroupKey;
@@ -81,92 +70,90 @@ interface TabGroup {
 }
 
 const ROLE_BADGE_STYLES: Record<OrgRole, string> = {
-  OWNER:
-    "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
-  ADMIN: "bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30",
-  MEMBER:
-    "bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30",
+  OWNER: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30',
+  ADMIN: 'bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30',
+  MEMBER: 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30',
 };
 
 const TAB_GROUPS: TabGroup[] = [
   {
-    key: "dashboard",
-    labelKey: "organization.tabs.dashboard",
+    key: 'dashboard',
+    labelKey: 'organization.tabs.dashboard',
     icon: BarChart3,
-    defaultTab: "dashboard",
+    defaultTab: 'dashboard',
   },
   {
-    key: "people",
-    labelKey: "organization.tabs.people",
+    key: 'people',
+    labelKey: 'organization.tabs.people',
     icon: Users,
-    defaultTab: "members",
+    defaultTab: 'members',
     subTabs: [
-      { key: "members", labelKey: "organization.tabs.members" },
-      { key: "chart", labelKey: "organization.tabs.chart" },
+      { key: 'members', labelKey: 'organization.tabs.members' },
+      { key: 'chart', labelKey: 'organization.tabs.chart' },
     ],
   },
   {
-    key: "leave",
-    labelKey: "organization.tabs.leave",
+    key: 'leave',
+    labelKey: 'organization.tabs.leave',
     icon: CalendarOff,
-    defaultTab: "leaves",
+    defaultTab: 'leaves',
     subTabs: [
-      { key: "leaves", labelKey: "organization.tabs.leaves" },
-      { key: "attendance", labelKey: "organization.tabs.attendance" },
+      { key: 'leaves', labelKey: 'organization.tabs.leaves' },
+      { key: 'attendance', labelKey: 'organization.tabs.attendance' },
     ],
   },
   {
-    key: "workspace",
-    labelKey: "organization.tabs.workspace",
+    key: 'workspace',
+    labelKey: 'organization.tabs.workspace',
     icon: LayoutGrid,
-    defaultTab: "boards",
+    defaultTab: 'boards',
     subTabs: [
-      { key: "boards", labelKey: "organization.tabs.boards" },
-      { key: "insights", labelKey: "organization.tabs.insights" },
-      { key: "okr", labelKey: "organization.tabs.okr" },
+      { key: 'boards', labelKey: 'organization.tabs.boards' },
+      { key: 'insights', labelKey: 'organization.tabs.insights' },
+      { key: 'okr', labelKey: 'organization.tabs.okr' },
     ],
   },
   {
-    key: "documents",
-    labelKey: "organization.tabs.documents",
+    key: 'documents',
+    labelKey: 'organization.tabs.documents',
     icon: FileText,
-    defaultTab: "documents",
+    defaultTab: 'documents',
   },
   {
-    key: "storage",
-    labelKey: "organization.tabs.storage",
+    key: 'storage',
+    labelKey: 'organization.tabs.storage',
     icon: HardDrive,
-    defaultTab: "storage",
+    defaultTab: 'storage',
   },
   {
-    key: "photos",
-    labelKey: "organization.tabs.photos",
+    key: 'photos',
+    labelKey: 'organization.tabs.photos',
     icon: Camera,
-    defaultTab: "photos",
+    defaultTab: 'photos',
   },
   {
-    key: "settings",
-    labelKey: "organization.tabs.settings",
+    key: 'settings',
+    labelKey: 'organization.tabs.settings',
     icon: Settings,
-    defaultTab: "settings",
+    defaultTab: 'settings',
     adminOnly: true,
     subTabs: [
-      { key: "settings", labelKey: "organization.settings.subtabs.general" },
+      { key: 'settings', labelKey: 'organization.settings.subtabs.general' },
       {
-        key: "settings_billing",
-        labelKey: "organization.settings.subtabs.billing",
+        key: 'settings_billing',
+        labelKey: 'organization.settings.subtabs.billing',
       },
       {
-        key: "settings_structure",
-        labelKey: "organization.settings.subtabs.structure",
+        key: 'settings_structure',
+        labelKey: 'organization.settings.subtabs.structure',
       },
       {
-        key: "settings_attendance",
-        labelKey: "organization.settings.subtabs.attendance",
+        key: 'settings_attendance',
+        labelKey: 'organization.settings.subtabs.attendance',
       },
       {
-        key: "settings_onboarding",
-        labelKey: "organization.settings.subtabs.onboarding",
+        key: 'settings_onboarding',
+        labelKey: 'organization.settings.subtabs.onboarding',
       },
     ],
   },
@@ -208,11 +195,7 @@ function OrgBillingSubTabWrapper({
   }
 
   return (
-    <OrgBillingSection
-      orgId={orgId}
-      subscription={subscription}
-      onUpdate={refreshSubscription}
-    />
+    <OrgBillingSection orgId={orgId} subscription={subscription} onUpdate={refreshSubscription} />
   );
 }
 
@@ -246,10 +229,8 @@ function OrgDetailPageContent() {
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   // ─── Tab state with visited-tab persistence ───
-  const activeTab = (searchParams.get("tab") as TabKey) || "dashboard";
-  const [visitedTabs, setVisitedTabs] = useState<Set<TabKey>>(
-    new Set([activeTab]),
-  );
+  const activeTab = (searchParams.get('tab') as TabKey) || 'dashboard';
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabKey>>(new Set([activeTab]));
 
   const setActiveTab = useCallback(
     (tab: TabKey) => {
@@ -265,24 +246,21 @@ function OrgDetailPageContent() {
   const hrSystemEnabled = org?.hr_system_enabled === true;
   const visibleGroups = TAB_GROUPS.filter((g) => {
     if (g.adminOnly && !isAdmin) return false;
-    if (g.key === "leave" && hrSystemEnabled) return false;
+    if (g.key === 'leave' && hrSystemEnabled) return false;
     return true;
   }).map((g) => {
     // HR 시스템 활성화 시 설정 서브탭에서 근태 정책/온보딩 숨김
-    if (g.key === "settings" && hrSystemEnabled && g.subTabs) {
+    if (g.key === 'settings' && hrSystemEnabled && g.subTabs) {
       return {
         ...g,
         subTabs: g.subTabs.filter(
-          (s) =>
-            s.key !== "settings_attendance" && s.key !== "settings_onboarding",
+          (s) => s.key !== 'settings_attendance' && s.key !== 'settings_onboarding',
         ),
       };
     }
     // HR 시스템 미사용 시 워크스페이스에서 인사이트/OKR 숨김
-    if (g.key === "workspace" && !hrSystemEnabled && g.subTabs) {
-      const filtered = g.subTabs.filter(
-        (s) => s.key !== "insights" && s.key !== "okr",
-      );
+    if (g.key === 'workspace' && !hrSystemEnabled && g.subTabs) {
+      const filtered = g.subTabs.filter((s) => s.key !== 'insights' && s.key !== 'okr');
       return {
         ...g,
         subTabs: filtered.length > 1 ? filtered : undefined,
@@ -294,9 +272,7 @@ function OrgDetailPageContent() {
   const activeGroup = useMemo(() => {
     return (
       visibleGroups.find(
-        (g) =>
-          g.defaultTab === activeTab ||
-          g.subTabs?.some((s) => s.key === activeTab),
+        (g) => g.defaultTab === activeTab || g.subTabs?.some((s) => s.key === activeTab),
       ) || visibleGroups[0]
     );
   }, [activeTab, visibleGroups]);
@@ -304,19 +280,19 @@ function OrgDetailPageContent() {
   const aggregatedLeave = useMemo(() => {
     const active = myLeaveBalances.filter((b) => b.is_active !== false);
     if (active.length === 0) return null;
-    const order = ["ANNUAL", "SICK", "REFRESH", "OTHER"] as const;
+    const order = ['ANNUAL', 'SICK', 'REFRESH', 'OTHER'] as const;
     const sums: Record<string, number> = {
       ANNUAL: 0,
       SICK: 0,
       REFRESH: 0,
       OTHER: 0,
     };
-    for (const b of active) sums[b.leave_category || "OTHER"] += b.remaining;
+    for (const b of active) sums[b.leave_category || 'OTHER'] += b.remaining;
     const i18nKeys: Record<string, string> = {
-      ANNUAL: "organization.settings.categoryAnnual",
-      SICK: "organization.settings.categorySick",
-      REFRESH: "organization.settings.categoryRefresh",
-      OTHER: "organization.settings.categoryOther",
+      ANNUAL: 'organization.settings.categoryAnnual',
+      SICK: 'organization.settings.categorySick',
+      REFRESH: 'organization.settings.categoryRefresh',
+      OTHER: 'organization.settings.categoryOther',
     };
     return {
       values: order.map((c) => sums[c]),
@@ -337,19 +313,19 @@ function OrgDetailPageContent() {
   const triggerSlide = useCallback((dir: number) => {
     const el = slideAnimRef.current;
     if (!el) return;
-    el.style.transition = "none";
+    el.style.transition = 'none';
     el.style.transform = `translateX(${dir * 60}px)`;
-    el.style.opacity = "0";
+    el.style.opacity = '0';
     el.offsetHeight; // force reflow
-    el.style.transition = "transform 0.2s ease-out, opacity 0.2s ease-out";
-    el.style.transform = "translateX(0)";
-    el.style.opacity = "1";
+    el.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+    el.style.transform = 'translateX(0)';
+    el.style.opacity = '1';
     const cleanup = () => {
-      el.style.transform = "";
-      el.style.transition = "";
-      el.style.opacity = "";
+      el.style.transform = '';
+      el.style.transition = '';
+      el.style.opacity = '';
     };
-    el.addEventListener("transitionend", cleanup, { once: true });
+    el.addEventListener('transitionend', cleanup, { once: true });
   }, []);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -384,9 +360,7 @@ function OrgDetailPageContent() {
       );
       if (!currentGroup?.subTabs) return;
 
-      const currentIdx = currentGroup.subTabs.findIndex(
-        (s) => s.key === activeTabRef.current,
-      );
+      const currentIdx = currentGroup.subTabs.findIndex((s) => s.key === activeTabRef.current);
       if (currentIdx === -1) return;
 
       const nextIdx = deltaX < 0 ? currentIdx + 1 : currentIdx - 1;
@@ -423,16 +397,13 @@ function OrgDetailPageContent() {
             onClick={() => setActiveTab(group.defaultTab)}
             className={`flex items-center gap-1.5 px-3 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
               isActive
-                ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
-                : "text-slate-400 hover:text-foreground hover:bg-bridge-surface-hover"
+                ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                : 'text-slate-400 hover:text-foreground hover:bg-bridge-surface-hover'
             }`}
           >
             <Icon size={14} />
             <span className="hidden sm:inline">
-              {t(
-                group.labelKey,
-                group.key.charAt(0).toUpperCase() + group.key.slice(1),
-              )}
+              {t(group.labelKey, group.key.charAt(0).toUpperCase() + group.key.slice(1))}
             </span>
           </button>
         );
@@ -441,15 +412,11 @@ function OrgDetailPageContent() {
   );
 
   // ─── Tab rendering helper: visited tabs stay mounted, hidden when inactive ───
-  const renderTab = (
-    key: TabKey,
-    component: React.ReactNode,
-    adminRequired = false,
-  ) => {
+  const renderTab = (key: TabKey, component: React.ReactNode, adminRequired = false) => {
     if (adminRequired && !isAdmin) return null;
     if (!visitedTabs.has(key)) return null;
     return (
-      <div key={key} className={activeTab === key ? undefined : "hidden"}>
+      <div key={key} className={activeTab === key ? undefined : 'hidden'}>
         {activeTab === key ? (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
@@ -474,7 +441,7 @@ function OrgDetailPageContent() {
           {/* Left: Back + Org Info */}
           <div className="flex items-center gap-3 min-w-0">
             <button
-              onClick={() => navigate("/boards")}
+              onClick={() => navigate('/boards')}
               className="min-w-11 min-h-11 flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-foreground hover:bg-bridge-surface-hover transition-colors shrink-0"
             >
               <ArrowLeft size={18} />
@@ -527,14 +494,14 @@ function OrgDetailPageContent() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
-                    onClick={() => setActiveTab("leaves")}
+                    onClick={() => setActiveTab('leaves')}
                     className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full bg-foreground/[0.03] border border-foreground/[0.08] cursor-pointer hover:border-foreground/[0.15] transition-colors"
                   >
                     <span className="text-xs md:text-xs font-bold text-slate-400">
-                      {t("organization.tabs.leave", "휴가")}
+                      {t('organization.tabs.leave', '휴가')}
                     </span>
                     <span className="text-xs md:text-xs font-bold text-foreground tracking-wide">
-                      {aggregatedLeave.values.join(" \u00B7 ")}
+                      {aggregatedLeave.values.join(' \u00B7 ')}
                     </span>
                   </button>
                 </TooltipTrigger>
@@ -542,7 +509,7 @@ function OrgDetailPageContent() {
                   <span className="text-xs">
                     {aggregatedLeave.labels.map((key, i) => (
                       <span key={key}>
-                        {i > 0 && "  |  "}
+                        {i > 0 && '  |  '}
                         {t(key)} {aggregatedLeave.values[i]}
                       </span>
                     ))}
@@ -554,7 +521,7 @@ function OrgDetailPageContent() {
               <button
                 onClick={() => setShowProfileModal(true)}
                 className="min-w-11 min-h-11 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity shrink-0"
-                title={t("organization.profile.edit", "Edit Profile")}
+                title={t('organization.profile.edit', 'Edit Profile')}
               >
                 {currentUser.profile_image ? (
                   <img
@@ -565,7 +532,7 @@ function OrgDetailPageContent() {
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-bridge-accent/15 ring-2 ring-bridge-accent/30 flex items-center justify-center">
                     <span className="text-xs font-bold text-bridge-accent">
-                      {currentUser.name?.charAt(0)?.toUpperCase() || "?"}
+                      {currentUser.name?.charAt(0)?.toUpperCase() || '?'}
                     </span>
                   </div>
                 )}
@@ -584,14 +551,11 @@ function OrgDetailPageContent() {
                   onClick={() => setActiveTab(sub.key)}
                   className={`px-3 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
                     activeTab === sub.key
-                      ? "bg-foreground/10 text-foreground"
-                      : "text-slate-400 hover:text-foreground"
+                      ? 'bg-foreground/10 text-foreground'
+                      : 'text-slate-400 hover:text-foreground'
                   }`}
                 >
-                  {t(
-                    sub.labelKey,
-                    sub.key.charAt(0).toUpperCase() + sub.key.slice(1),
-                  )}
+                  {t(sub.labelKey, sub.key.charAt(0).toUpperCase() + sub.key.slice(1))}
                 </button>
               ))}
             </div>
@@ -606,11 +570,9 @@ function OrgDetailPageContent() {
         onTouchEnd={handleTouchEnd}
       >
         {/* Documents tab — full width/height, no max-w constraint */}
-        {visitedTabs.has("documents") && (
-          <div
-            className={`flex-1 overflow-hidden ${activeTab === "documents" ? "" : "hidden"}`}
-          >
-            {activeTab === "documents" ? (
+        {visitedTabs.has('documents') && (
+          <div className={`flex-1 overflow-hidden ${activeTab === 'documents' ? '' : 'hidden'}`}>
+            {activeTab === 'documents' ? (
               <motion.div
                 className="h-full"
                 initial={{ opacity: 0, y: 8 }}
@@ -626,11 +588,9 @@ function OrgDetailPageContent() {
         )}
 
         {/* Storage tab — full width/height, no max-w constraint */}
-        {visitedTabs.has("storage") && (
-          <div
-            className={`flex-1 overflow-hidden ${activeTab === "storage" ? "" : "hidden"}`}
-          >
-            {activeTab === "storage" ? (
+        {visitedTabs.has('storage') && (
+          <div className={`flex-1 overflow-hidden ${activeTab === 'storage' ? '' : 'hidden'}`}>
+            {activeTab === 'storage' ? (
               <motion.div
                 className="h-full"
                 initial={{ opacity: 0, y: 8 }}
@@ -648,18 +608,15 @@ function OrgDetailPageContent() {
         {/* Other tabs — constrained width */}
         <div
           ref={slideAnimRef}
-          className={`max-w-6xl mx-auto px-4 py-4 md:px-6 md:py-6 w-full ${activeTab === "documents" ? "hidden" : ""}`}
+          className={`max-w-6xl mx-auto px-4 py-4 md:px-6 md:py-6 w-full ${activeTab === 'documents' ? 'hidden' : ''}`}
         >
+          {renderTab('dashboard', <OrgDashboardTab orgId={orgId} role={myRole} />)}
           {renderTab(
-            "dashboard",
-            <OrgDashboardTab orgId={orgId} role={myRole} />,
-          )}
-          {renderTab(
-            "members",
+            'members',
             <OrgMembersTab
               orgId={orgId}
               myRole={myRole}
-              myUserId={currentUser?.id || ""}
+              myUserId={currentUser?.id || ''}
               departments={departments}
               jobGroups={jobGroups}
               positions={positions}
@@ -670,12 +627,12 @@ function OrgDetailPageContent() {
             />,
           )}
           {renderTab(
-            "chart",
+            'chart',
             <OrgChartTab
               orgId={orgId}
               myRole={myRole}
               departments={departments}
-              myUserId={currentUser?.id || ""}
+              myUserId={currentUser?.id || ''}
               jobGroups={jobGroups}
               positions={positions}
               titles={titles}
@@ -684,18 +641,14 @@ function OrgDetailPageContent() {
               hrSystemEnabled={hrSystemEnabled}
             />,
           )}
-          {renderTab("boards", <OrgBoardsTab orgId={orgId} myRole={myRole} />)}
-          {renderTab("leaves", <OrgLeaveTab orgId={orgId} myRole={myRole} />)}
+          {renderTab('boards', <OrgBoardsTab orgId={orgId} myRole={myRole} />)}
+          {renderTab('leaves', <OrgLeaveTab orgId={orgId} myRole={myRole} />)}
           {renderTab(
-            "attendance",
-            <OrgAttendanceTab
-              orgId={orgId}
-              myRole={myRole}
-              departments={departments}
-            />,
+            'attendance',
+            <OrgAttendanceTab orgId={orgId} myRole={myRole} departments={departments} />,
           )}
           {renderTab(
-            "insights",
+            'insights',
             <OrgInsightsTab
               orgId={orgId}
               myRole={myRole}
@@ -704,13 +657,10 @@ function OrgDetailPageContent() {
               structureSettings={structureSettings}
             />,
           )}
-          {renderTab("okr", <OrgOkrTab orgId={orgId} myRole={myRole} />)}
+          {renderTab('okr', <OrgOkrTab orgId={orgId} myRole={myRole} />)}
+          {renderTab('photos', <OrgPhotoGalleryTab orgId={orgId} myRole={myRole} />)}
           {renderTab(
-            "photos",
-            <OrgPhotoGalleryTab orgId={orgId} myRole={myRole} />,
-          )}
-          {renderTab(
-            "settings",
+            'settings',
             <OrgSettingsGeneralSubTab
               orgId={orgId}
               org={org}
@@ -720,7 +670,7 @@ function OrgDetailPageContent() {
             true,
           )}
           {renderTab(
-            "settings_billing",
+            'settings_billing',
             <OrgBillingSubTabWrapper
               orgId={orgId}
               subscription={subscription}
@@ -729,13 +679,9 @@ function OrgDetailPageContent() {
             />,
             true,
           )}
+          {renderTab('settings_structure', <OrgSettingsStructureSubTab orgId={orgId} />, true)}
           {renderTab(
-            "settings_structure",
-            <OrgSettingsStructureSubTab orgId={orgId} />,
-            true,
-          )}
-          {renderTab(
-            "settings_attendance",
+            'settings_attendance',
             <OrgSettingsAttendanceSubTab
               orgId={orgId}
               onLeaveBalanceChange={refreshLeaveBalances}
@@ -743,24 +689,20 @@ function OrgDetailPageContent() {
             />,
             true,
           )}
-          {renderTab(
-            "settings_onboarding",
-            <OrgSettingsOnboardingSubTab orgId={orgId} />,
-            true,
-          )}
+          {renderTab('settings_onboarding', <OrgSettingsOnboardingSubTab orgId={orgId} />, true)}
         </div>
 
         {/* Bottom spacer for mobile tab bar */}
         <div
           className="shrink-0 md:hidden"
-          style={{ height: "calc(3.5rem + env(safe-area-inset-bottom, 0px))" }}
+          style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))' }}
         />
       </div>
 
       {/* ─── Mobile Bottom Tab Bar (MySpace style) ─── */}
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-bridge-obsidian/95 backdrop-blur-xl border-t border-foreground/10"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="flex items-center justify-around px-1 pt-2 pb-1.5">
           {visibleGroups.map((group) => {
@@ -776,42 +718,35 @@ function OrgDetailPageContent() {
                   <motion.div
                     layoutId="org-tab-indicator"
                     className="absolute -top-2 w-8 h-[3px] rounded-full bg-bridge-secondary"
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   />
                 )}
                 {isActive && (
                   <motion.div
                     layoutId="org-tab-glow"
                     className="absolute inset-0 rounded-xl bg-bridge-secondary/8"
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   />
                 )}
                 <motion.div
-                  animate={
-                    isActive ? { scale: 1.15, y: -2 } : { scale: 1, y: 0 }
-                  }
-                  transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                  animate={isActive ? { scale: 1.15, y: -2 } : { scale: 1, y: 0 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 25 }}
                 >
                   <Icon
                     size={20}
                     className={`transition-colors duration-200 ${
-                      isActive ? "text-bridge-secondary" : "text-slate-500"
+                      isActive ? 'text-bridge-secondary' : 'text-slate-500'
                     }`}
                   />
                 </motion.div>
                 <motion.span
                   className={`text-xs font-medium transition-colors duration-200 ${
-                    isActive ? "text-bridge-secondary" : "text-slate-500"
+                    isActive ? 'text-bridge-secondary' : 'text-slate-500'
                   }`}
-                  animate={
-                    isActive ? { opacity: 1, y: 0 } : { opacity: 0.7, y: 0 }
-                  }
+                  animate={isActive ? { opacity: 1, y: 0 } : { opacity: 0.7, y: 0 }}
                   transition={{ duration: 0.2 }}
                 >
-                  {t(
-                    group.labelKey,
-                    group.key.charAt(0).toUpperCase() + group.key.slice(1),
-                  )}
+                  {t(group.labelKey, group.key.charAt(0).toUpperCase() + group.key.slice(1))}
                 </motion.span>
               </button>
             );
@@ -826,7 +761,7 @@ function OrgDetailPageContent() {
           orgId={orgId}
           memberId={myMemberId}
           myRole={myRole}
-          myUserId={currentUser?.id || ""}
+          myUserId={currentUser?.id || ''}
           departments={departments}
           jobGroups={jobGroups}
           positions={positions}

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { useTranslation } from "react-i18next";
+import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ChevronLeft,
   ChevronRight,
@@ -10,10 +10,10 @@ import {
   Timer,
   TrendingUp,
   CalendarCheck,
-} from "lucide-react";
-import { motion } from "framer-motion";
-import { toast } from "sonner";
-import { organizationService } from "../../../utils/services";
+} from 'lucide-react';
+import { motion } from 'framer-motion';
+import { toast } from 'sonner';
+import { organizationService } from '../../../utils/services';
 
 import type {
   OrgRole,
@@ -23,7 +23,7 @@ import type {
   AttendanceRecordDetail,
   AttendanceTeamMemberSummary,
   AttendanceStatus,
-} from "../../../types";
+} from '../../../types';
 
 interface OrgAttendanceTabProps {
   orgId: string;
@@ -32,31 +32,31 @@ interface OrgAttendanceTabProps {
 }
 
 const STATUS_BADGE: Record<AttendanceStatus, string> = {
-  PRESENT: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  ABSENT: "bg-red-500/15 text-red-600 dark:text-red-400",
-  ON_LEAVE: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-  HALF_DAY: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  WEEKEND: "bg-slate-500/15 text-slate-600 dark:text-slate-400",
-  HOLIDAY: "bg-purple-500/15 text-purple-600 dark:text-purple-400",
+  PRESENT: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+  ABSENT: 'bg-red-500/15 text-red-600 dark:text-red-400',
+  ON_LEAVE: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
+  HALF_DAY: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  WEEKEND: 'bg-slate-500/15 text-slate-600 dark:text-slate-400',
+  HOLIDAY: 'bg-purple-500/15 text-purple-600 dark:text-purple-400',
 };
 
 function formatMinutes(
   minutes: number | null | undefined,
   t: (key: string, fallback: string) => string,
 ): string {
-  if (minutes == null || isNaN(minutes) || minutes <= 0) return "-";
+  if (minutes == null || isNaN(minutes) || minutes <= 0) return '-';
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  if (h === 0) return `${m}${t("organization.attendance.minutes", "m")}`;
-  if (m === 0) return `${h}${t("organization.attendance.hours", "h")}`;
-  return `${h}${t("organization.attendance.hours", "h")} ${m}${t("organization.attendance.minutes", "m")}`;
+  if (h === 0) return `${m}${t('organization.attendance.minutes', 'm')}`;
+  if (m === 0) return `${h}${t('organization.attendance.hours', 'h')}`;
+  return `${h}${t('organization.attendance.hours', 'h')} ${m}${t('organization.attendance.minutes', 'm')}`;
 }
 
 function extractTime(isoStr: string | null): string {
-  if (!isoStr) return "-";
+  if (!isoStr) return '-';
   try {
     const d = new Date(isoStr);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   } catch {
     return isoStr;
   }
@@ -64,23 +64,19 @@ function extractTime(isoStr: string | null): string {
 
 function getStatusLabelKey(status: AttendanceStatus): string {
   const map: Record<AttendanceStatus, string> = {
-    PRESENT: "organization.attendance.present",
-    ABSENT: "organization.attendance.absent",
-    ON_LEAVE: "organization.attendance.onLeave",
-    HALF_DAY: "organization.attendance.halfDay",
-    WEEKEND: "organization.attendance.weekend",
-    HOLIDAY: "organization.attendance.holiday",
+    PRESENT: 'organization.attendance.present',
+    ABSENT: 'organization.attendance.absent',
+    ON_LEAVE: 'organization.attendance.onLeave',
+    HALF_DAY: 'organization.attendance.halfDay',
+    WEEKEND: 'organization.attendance.weekend',
+    HOLIDAY: 'organization.attendance.holiday',
   };
   return map[status];
 }
 
-export function OrgAttendanceTab({
-  orgId,
-  myRole,
-  departments,
-}: OrgAttendanceTabProps) {
+export function OrgAttendanceTab({ orgId, myRole, departments }: OrgAttendanceTabProps) {
   const { t } = useTranslation();
-  const isAdmin = myRole === "OWNER" || myRole === "ADMIN";
+  const isAdmin = myRole === 'OWNER' || myRole === 'ADMIN';
 
   // Month picker
   const now = new Date();
@@ -88,17 +84,13 @@ export function OrgAttendanceTab({
   const [month, setMonth] = useState(now.getMonth() + 1);
 
   // My records
-  const [myData, setMyData] = useState<AttendanceMyRecordsResponse | null>(
-    null,
-  );
+  const [myData, setMyData] = useState<AttendanceMyRecordsResponse | null>(null);
   const [loadingMy, setLoadingMy] = useState(true);
 
   // Team summary (admin only)
-  const [teamMembers, setTeamMembers] = useState<AttendanceTeamMemberSummary[]>(
-    [],
-  );
+  const [teamMembers, setTeamMembers] = useState<AttendanceTeamMemberSummary[]>([]);
   const [loadingTeam, setLoadingTeam] = useState(false);
-  const [deptFilter, setDeptFilter] = useState("");
+  const [deptFilter, setDeptFilter] = useState('');
   const [exporting, setExporting] = useState(false);
 
   const fetchMyRecords = useCallback(async () => {
@@ -168,15 +160,15 @@ export function OrgAttendanceTab({
         department_id: deptFilter || undefined,
       });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
+      const a = document.createElement('a');
       a.href = url;
-      a.download = `attendance_${year}_${String(month).padStart(2, "0")}.csv`;
+      a.download = `attendance_${year}_${String(month).padStart(2, '0')}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch {
-      toast.error(t("organization.attendance.export", "Export") + " failed");
+      toast.error(t('organization.attendance.export', 'Export') + ' failed');
     } finally {
       setExporting(false);
     }
@@ -198,7 +190,7 @@ export function OrgAttendanceTab({
         <div className="flex items-center gap-2">
           <Clock size={18} className="text-bridge-accent" />
           <h2 className="text-lg font-bold text-foreground tracking-tight">
-            {t("organization.attendance.title", "Attendance")}
+            {t('organization.attendance.title', 'Attendance')}
           </h2>
         </div>
         <div className="flex items-center gap-2">
@@ -209,7 +201,7 @@ export function OrgAttendanceTab({
             <ChevronLeft size={18} />
           </button>
           <span className="text-sm font-bold text-foreground min-w-[120px] text-center">
-            {year}. {String(month).padStart(2, "0")}
+            {year}. {String(month).padStart(2, '0')}
           </span>
           <button
             onClick={goNext}
@@ -235,44 +227,35 @@ export function OrgAttendanceTab({
           {[
             {
               icon: Timer,
-              bgClass: "bg-bridge-accent/15",
-              textClass: "text-bridge-accent",
-              label: t(
-                "organization.attendance.avgWorkHours",
-                "Avg. Work Hours",
-              ),
+              bgClass: 'bg-bridge-accent/15',
+              textClass: 'text-bridge-accent',
+              label: t('organization.attendance.avgWorkHours', 'Avg. Work Hours'),
               value: formatMinutes(summary.avg_work_minutes_per_day, t),
-              sub: t("organization.attendance.perDay", "/day"),
+              sub: t('organization.attendance.perDay', '/day'),
             },
             {
               icon: TrendingUp,
-              bgClass: "bg-amber-500/15",
-              textClass: "text-amber-500",
-              label: t(
-                "organization.attendance.totalOvertime",
-                "Total Overtime",
-              ),
+              bgClass: 'bg-amber-500/15',
+              textClass: 'text-amber-500',
+              label: t('organization.attendance.totalOvertime', 'Total Overtime'),
               value: formatMinutes(summary.overtime_minutes, t),
               sub: null,
             },
             {
               icon: CalendarCheck,
-              bgClass: "bg-emerald-500/15",
-              textClass: "text-emerald-500",
-              label: t(
-                "organization.attendance.attendanceRate",
-                "Attendance Rate",
-              ),
+              bgClass: 'bg-emerald-500/15',
+              textClass: 'text-emerald-500',
+              label: t('organization.attendance.attendanceRate', 'Attendance Rate'),
               value: `${attendanceRate}%`,
               sub: `${summary.present_days}/${summary.total_work_days}`,
             },
             {
               icon: AlertTriangle,
-              bgClass: "bg-red-500/15",
-              textClass: "text-red-500",
-              label: t("organization.attendance.lateCount", "Late Count"),
+              bgClass: 'bg-red-500/15',
+              textClass: 'text-red-500',
+              label: t('organization.attendance.lateCount', 'Late Count'),
               value: String(summary.late_count),
-              sub: t("organization.attendance.times", "times"),
+              sub: t('organization.attendance.times', 'times'),
             },
           ].map((card, index) => (
             <motion.div
@@ -293,14 +276,8 @@ export function OrgAttendanceTab({
                 </span>
               </div>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-bold text-foreground">
-                  {card.value}
-                </span>
-                {card.sub && (
-                  <span className="text-xs text-muted-foreground">
-                    {card.sub}
-                  </span>
-                )}
+                <span className="text-xl font-bold text-foreground">{card.value}</span>
+                {card.sub && <span className="text-xs text-muted-foreground">{card.sub}</span>}
               </div>
             </motion.div>
           ))}
@@ -312,7 +289,7 @@ export function OrgAttendanceTab({
         <div className="flex items-center gap-2 mb-3">
           <CalendarCheck size={14} className="text-bridge-secondary" />
           <h3 className="text-sm font-bold text-foreground">
-            {t("organization.attendance.myAttendance", "My Attendance")}
+            {t('organization.attendance.myAttendance', 'My Attendance')}
           </h3>
         </div>
 
@@ -324,10 +301,7 @@ export function OrgAttendanceTab({
               <Clock size={24} className="text-bridge-accent/60" />
             </div>
             <p className="text-sm text-muted-foreground">
-              {t(
-                "organization.attendance.noMyRecords",
-                "No attendance records for this month",
-              )}
+              {t('organization.attendance.noMyRecords', 'No attendance records for this month')}
             </p>
           </div>
         ) : (
@@ -336,19 +310,19 @@ export function OrgAttendanceTab({
             <div className="overflow-x-auto">
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 px-4 py-2.5 border-b border-foreground/[0.08] bg-foreground/[0.02] min-w-[500px]">
                 <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  {t("organization.attendance.date", "Date")}
+                  {t('organization.attendance.date', 'Date')}
                 </span>
                 <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  {t("organization.attendance.clockInTime", "Clock In")}
+                  {t('organization.attendance.clockInTime', 'Clock In')}
                 </span>
                 <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  {t("organization.attendance.clockOutTime", "Clock Out")}
+                  {t('organization.attendance.clockOutTime', 'Clock Out')}
                 </span>
                 <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  {t("organization.attendance.workHours", "Work Hours")}
+                  {t('organization.attendance.workHours', 'Work Hours')}
                 </span>
                 <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  {t("organization.attendance.status", "Status")}
+                  {t('organization.attendance.status', 'Status')}
                 </span>
               </div>
               {/* Rows */}
@@ -373,10 +347,7 @@ export function OrgAttendanceTab({
                           {extractTime(record.clock_out)}
                           <span
                             className="text-xs text-amber-500"
-                            title={t(
-                              "organization.attendance.autoClockOut",
-                              "Auto",
-                            )}
+                            title={t('organization.attendance.autoClockOut', 'Auto')}
                           >
                             (A)
                           </span>
@@ -397,7 +368,7 @@ export function OrgAttendanceTab({
                       {record.is_late && (
                         <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
                           <AlertTriangle size={10} />
-                          {t("organization.attendance.late", "Late")}
+                          {t('organization.attendance.late', 'Late')}
                         </span>
                       )}
                       {record.leave_info && (
@@ -421,7 +392,7 @@ export function OrgAttendanceTab({
             <div className="flex items-center gap-2">
               <Users size={14} className="text-bridge-accent" />
               <h3 className="text-sm font-bold text-foreground">
-                {t("organization.attendance.teamSummary", "Team Attendance")}
+                {t('organization.attendance.teamSummary', 'Team Attendance')}
               </h3>
             </div>
             <div className="flex items-center gap-2">
@@ -432,10 +403,7 @@ export function OrgAttendanceTab({
                 className="bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg py-1.5 px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all appearance-none cursor-pointer"
               >
                 <option value="">
-                  {t(
-                    "organization.attendance.allDepartments",
-                    "All Departments",
-                  )}
+                  {t('organization.attendance.allDepartments', 'All Departments')}
                 </option>
                 {departments.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -450,7 +418,7 @@ export function OrgAttendanceTab({
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/15 transition-colors disabled:opacity-50"
               >
                 <Download size={13} />
-                {t("organization.attendance.exportCsv", "Export CSV")}
+                {t('organization.attendance.exportCsv', 'Export CSV')}
               </button>
             </div>
           </div>
@@ -460,10 +428,7 @@ export function OrgAttendanceTab({
           ) : teamMembers.length === 0 ? (
             <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-8 text-center">
               <p className="text-sm text-muted-foreground">
-                {t(
-                  "organization.attendance.noTeamData",
-                  "No team data for this month",
-                )}
+                {t('organization.attendance.noTeamData', 'No team data for this month')}
               </p>
             </div>
           ) : (
@@ -472,27 +437,27 @@ export function OrgAttendanceTab({
                 {/* Header */}
                 <div className="grid grid-cols-7 gap-2 px-4 py-2.5 border-b border-foreground/[0.08] bg-foreground/[0.02] min-w-[700px]">
                   <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    {t("organization.attendance.name", "Name")}
+                    {t('organization.attendance.name', 'Name')}
                   </span>
                   <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    {t("organization.attendance.department", "Dept")}
+                    {t('organization.attendance.department', 'Dept')}
                   </span>
                   <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    {t("organization.attendance.monthlyTotal", "This Month")}
+                    {t('organization.attendance.monthlyTotal', 'This Month')}
                   </span>
                   <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    {t("organization.attendance.average", "Average")}
+                    {t('organization.attendance.average', 'Average')}
                   </span>
                   <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    {t("organization.attendance.late", "Late")}
+                    {t('organization.attendance.late', 'Late')}
                   </span>
                   <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    {t("organization.attendance.overtime", "Overtime")}
+                    {t('organization.attendance.overtime', 'Overtime')}
                   </span>
                   <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    {t("organization.attendance.present", "Present")} /{" "}
-                    {t("organization.attendance.onLeave", "Leave")} /{" "}
-                    {t("organization.attendance.absent", "Absent")}
+                    {t('organization.attendance.present', 'Present')} /{' '}
+                    {t('organization.attendance.onLeave', 'Leave')} /{' '}
+                    {t('organization.attendance.absent', 'Absent')}
                   </span>
                 </div>
                 {/* Rows */}
@@ -509,7 +474,7 @@ export function OrgAttendanceTab({
                         {member.member_name}
                       </span>
                       <span className="text-xs text-muted-foreground truncate">
-                        {member.department_name || "-"}
+                        {member.department_name || '-'}
                       </span>
                       <span className="text-sm text-foreground">
                         {formatMinutes(member.total_work_minutes, t)}
@@ -523,7 +488,7 @@ export function OrgAttendanceTab({
                             {member.late_count}
                           </span>
                         ) : (
-                          "0"
+                          '0'
                         )}
                       </span>
                       <span className="text-sm text-foreground">

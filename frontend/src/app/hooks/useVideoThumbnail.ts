@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
  */
 export function useVideoThumbnail(
   videoUrl: string | null | undefined,
-  enabled: boolean = true
+  enabled: boolean = true,
 ): string | null {
   const [thumbnail, setThumbnail] = useState<string | null>(null);
 

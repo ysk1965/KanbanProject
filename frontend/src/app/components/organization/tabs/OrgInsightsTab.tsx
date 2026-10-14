@@ -3,7 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { format, subDays } from 'date-fns';
 import { organizationService } from '../../../utils/services';
-import type { OrgInsightsSummary, OrgBoardResourceResponse, OrgRole, OrgDepartment, OrgJobGroup, OrgStructureSettings } from '../../../types';
+import type {
+  OrgInsightsSummary,
+  OrgBoardResourceResponse,
+  OrgRole,
+  OrgDepartment,
+  OrgJobGroup,
+  OrgStructureSettings,
+} from '../../../types';
 import { InsightsPeriodFilter } from './insights/InsightsPeriodFilter';
 import { InsightsSummaryCards } from './insights/InsightsSummaryCards';
 import { MembersContributionView } from './insights/MembersContributionView';
@@ -29,7 +36,13 @@ function getDefaultDates(): { start: string; end: string } {
 
 type SubTab = 'members' | 'boards';
 
-export function OrgInsightsTab({ orgId, myRole, departments, jobGroups, structureSettings }: OrgInsightsTabProps) {
+export function OrgInsightsTab({
+  orgId,
+  myRole,
+  departments,
+  jobGroups,
+  structureSettings,
+}: OrgInsightsTabProps) {
   const { t } = useTranslation();
   const isAdmin = myRole === 'OWNER' || myRole === 'ADMIN';
 

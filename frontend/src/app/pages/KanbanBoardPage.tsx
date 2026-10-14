@@ -1,13 +1,6 @@
-import {
-  useState,
-  useMemo,
-  useEffect,
-  useCallback,
-  useRef,
-  Suspense,
-} from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { setTag } from "../../lib/sentry";
+import { useState, useMemo, useEffect, useCallback, useRef, Suspense } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { setTag } from '../../lib/sentry';
 import {
   Loader2,
   Plus,
@@ -24,45 +17,45 @@ import {
   FileBarChart2,
   Lock,
   Settings2,
-} from "lucide-react";
-import { format, parseISO } from "date-fns";
+} from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
+} from '../components/ui/dropdown-menu';
 
 // 뷰 모드 타입
 type ViewMode =
-  | "dashboard"
-  | "kanban"
-  | "gantt"
-  | "schedule"
-  | "calendar"
-  | "milestone"
-  | "meeting"
-  | "library"
-  | "report"
-  | "statistics"
-  | "ai_report"
-  | "list"
-  | "mindmap"
-  | "minikanban";
+  | 'dashboard'
+  | 'kanban'
+  | 'gantt'
+  | 'schedule'
+  | 'calendar'
+  | 'milestone'
+  | 'meeting'
+  | 'library'
+  | 'report'
+  | 'statistics'
+  | 'ai_report'
+  | 'list'
+  | 'mindmap'
+  | 'minikanban';
 
 // 보드 서브뷰 그룹 (보드 탭에 속하는 ViewMode 집합)
 const BOARD_SUB_MODES: ViewMode[] = [
-  "dashboard",
-  "kanban",
-  "gantt",
-  "calendar",
-  "list",
-  "mindmap",
-  "minikanban",
-  "milestone",
+  'dashboard',
+  'kanban',
+  'gantt',
+  'calendar',
+  'list',
+  'mindmap',
+  'minikanban',
+  'milestone',
 ];
-import { DragProvider } from "../contexts/DragContext";
-import { useAuth } from "../contexts/AuthContext";
+import { DragProvider } from '../contexts/DragContext';
+import { useAuth } from '../contexts/AuthContext';
 import {
   Block,
   Feature,
@@ -84,8 +77,8 @@ import {
   StatisticsViewType,
   JobRole,
   BoardContractor,
-} from "../types";
-import type { MilestoneDeepLink } from "../components/MilestoneView";
+} from '../types';
+import type { MilestoneDeepLink } from '../components/MilestoneView';
 import {
   DndContext,
   DragOverlay,
@@ -96,119 +89,113 @@ import {
   useSensors,
   type DragStartEvent,
   type DragEndEvent,
-} from "@dnd-kit/core";
+} from '@dnd-kit/core';
 import {
   SortableContext,
   horizontalListSortingStrategy,
   arrayMove,
   sortableKeyboardCoordinates,
-} from "@dnd-kit/sortable";
-import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
-import { KanbanBlock } from "../components/KanbanBlock";
-import { MilestoneTabBar } from "../components/MilestoneTabBar";
-import { ScheduleSubTabBar } from "../components/ScheduleSubTabBar";
-import { KanbanView } from "../views/KanbanView";
-import { FeatureCard } from "../components/FeatureCard";
-import { FeatureChipSelector } from "../components/FeatureChipSelector";
-import { TrialBanner } from "../components/TrialBanner";
-import { FilterOptions } from "../components/FilterModal";
-import {
-  BoardMember as ShareBoardMember,
-  MemberRole,
-} from "../components/ShareBoardModal";
-import {
-  NotificationDropdown,
-  type ActivityNavTarget,
-} from "../components/NotificationDropdown";
-import { UpgradeTrigger } from "../components/UpgradeModal";
-import { ContractorManageModal } from "../components/ContractorManageModal";
-import { lazyWithRetry } from "../utils/lazyWithRetry";
+} from '@dnd-kit/sortable';
+import { restrictToHorizontalAxis } from '@dnd-kit/modifiers';
+import { KanbanBlock } from '../components/KanbanBlock';
+import { MilestoneTabBar } from '../components/MilestoneTabBar';
+import { ScheduleSubTabBar } from '../components/ScheduleSubTabBar';
+import { KanbanView } from '../views/KanbanView';
+import { FeatureCard } from '../components/FeatureCard';
+import { FeatureChipSelector } from '../components/FeatureChipSelector';
+import { TrialBanner } from '../components/TrialBanner';
+import { FilterOptions } from '../components/FilterModal';
+import { BoardMember as ShareBoardMember, MemberRole } from '../components/ShareBoardModal';
+import { NotificationDropdown, type ActivityNavTarget } from '../components/NotificationDropdown';
+import { UpgradeTrigger } from '../components/UpgradeModal';
+import { ContractorManageModal } from '../components/ContractorManageModal';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
 // 보드 진입 시 기본 뷰(칸반) 외 뷰들은 실제로 탭을 열 때 청크를 내려받는다.
 const GanttView = lazyWithRetry(
-  () => import("../views/GanttView").then((m) => ({ default: m.GanttView })),
-  "GanttView",
+  () => import('../views/GanttView').then((m) => ({ default: m.GanttView })),
+  'GanttView',
 );
 const DashboardView = lazyWithRetry(
   () =>
-    import("../views/DashboardView").then((m) => ({
+    import('../views/DashboardView').then((m) => ({
       default: m.DashboardView,
     })),
-  "DashboardView",
+  'DashboardView',
 );
 const ScheduleView = lazyWithRetry(
   () =>
-    import("../views/ScheduleView").then((m) => ({
+    import('../views/ScheduleView').then((m) => ({
       default: m.ScheduleView,
     })),
-  "ScheduleView",
+  'ScheduleView',
 );
 const MeetingCalendarView = lazyWithRetry(
   () =>
-    import("../components/MeetingCalendarView").then((m) => ({
+    import('../components/MeetingCalendarView').then((m) => ({
       default: m.MeetingCalendarView,
     })),
-  "MeetingCalendarView",
+  'MeetingCalendarView',
 );
 const CalendarView = lazyWithRetry(
   () =>
-    import("../components/CalendarView").then((m) => ({
+    import('../components/CalendarView').then((m) => ({
       default: m.CalendarView,
     })),
-  "CalendarView",
+  'CalendarView',
 );
 const StatisticsView = lazyWithRetry(
   () =>
-    import("../components/StatisticsView").then((m) => ({
+    import('../components/StatisticsView').then((m) => ({
       default: m.StatisticsView,
     })),
-  "StatisticsView",
+  'StatisticsView',
 );
 const AIReportPanel = lazyWithRetry(
   () =>
-    import("../components/AIReportPanel").then((m) => ({
+    import('../components/AIReportPanel').then((m) => ({
       default: m.AIReportPanel,
     })),
-  "AIReportPanel",
+  'AIReportPanel',
 );
 const LibraryView = lazyWithRetry(
   () =>
-    import("../components/library/LibraryView").then((m) => ({
+    import('../components/library/LibraryView').then((m) => ({
       default: m.LibraryView,
     })),
-  "LibraryView",
+  'LibraryView',
 );
 const BoardReportSpace = lazyWithRetry(
   () =>
-    import("../components/report/BoardReportSpace").then((m) => ({
+    import('../components/report/BoardReportSpace').then((m) => ({
       default: m.BoardReportSpace,
     })),
-  "BoardReportSpace",
+  'BoardReportSpace',
 );
 const MilestoneView = lazyWithRetry(
   () =>
-    import("../components/MilestoneView").then((m) => ({
+    import('../components/MilestoneView').then((m) => ({
       default: m.MilestoneView,
     })),
-  "MilestoneView",
+  'MilestoneView',
 );
 const MindMapView = lazyWithRetry(
   () =>
-    import("../views/MindMapView").then((m) => ({
+    import('../views/MindMapView').then((m) => ({
       default: m.MindMapView,
     })),
-  "MindMapView",
+  'MindMapView',
 );
 const MiniKanbanView = lazyWithRetry(
   () =>
-    import("../views/MiniKanbanView").then((m) => ({
+    import('../views/MiniKanbanView').then((m) => ({
       default: m.MiniKanbanView,
     })),
-  "MiniKanbanView",
+  'MiniKanbanView',
 );
-import { EmptyBoardGuide } from "../components/EmptyBoardGuide";
-import { QuickAddTaskModal } from "../components/QuickAddTaskModal";
-import { OverdueChecklistModal } from "../components/OverdueChecklistModal";
-import { BoardTrashView } from "../components/trash/BoardTrashView";
+import { EmptyBoardGuide } from '../components/EmptyBoardGuide';
+import { QuickAddTaskModal } from '../components/QuickAddTaskModal';
+import { OverdueChecklistModal } from '../components/OverdueChecklistModal';
+import { BoardTrashView } from '../components/trash/BoardTrashView';
 import {
   boardService,
   featureService,
@@ -226,7 +213,7 @@ import {
   taskDependencyService,
   jobRoleService,
   contractorService,
-} from "../utils/services";
+} from '../utils/services';
 import {
   notificationAPI,
   checklistAPI,
@@ -234,35 +221,35 @@ import {
   boardJoinRequestAPI,
   milestoneBlockAPI,
   trashAPI,
-} from "../utils/api";
-import { API_ORIGIN } from "../config/env";
-import { toast } from "sonner";
+} from '../utils/api';
+import { API_ORIGIN } from '../config/env';
+import { toast } from 'sonner';
 
-import { useTranslation } from "react-i18next";
-import { getRandomFeatureColor } from "../constants";
-import { useBoardWebSocket } from "../hooks/useBoardWebSocket";
+import { useTranslation } from 'react-i18next';
+import { getRandomFeatureColor } from '../constants';
+import { useBoardWebSocket } from '../hooks/useBoardWebSocket';
 
 // 추출된 Hook 및 컴포넌트
-import { useBoardWebSocketHandlers } from "../hooks/useBoardWebSocketHandlers";
-import { useBoardDataLoader } from "../hooks/useBoardDataLoader";
-import { useBoardUiConfig } from "../hooks/useBoardUiConfig";
-import { FeatureDrawer } from "../components/FeatureDrawer";
-import { FeatureGhost, useFeatureGhosts } from "../components/FeatureGhost";
-import { LevelUpWizard } from "../components/LevelUpWizard";
-import { useBoardFilters } from "../hooks/useBoardFilters";
-import { useBoardModals } from "../hooks/useBoardModals";
-import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
-import { KeyboardShortcutsModal } from "../components/KeyboardShortcutsModal";
-import { useBoardPermissions } from "../hooks/useBoardPermissions";
-import { useNotificationManager } from "../hooks/useNotificationManager";
-import { KanbanBoardHeader } from "../components/KanbanBoardHeader";
-import { KanbanFilterToolbar } from "../components/KanbanFilterToolbar";
-import { BoardModalManager } from "../components/BoardModalManager";
-import { FloatingViewSwitcher } from "../components/FloatingViewSwitcher";
-import { BoardSubTabs } from "../components/BoardSubTabs";
+import { useBoardWebSocketHandlers } from '../hooks/useBoardWebSocketHandlers';
+import { useBoardDataLoader } from '../hooks/useBoardDataLoader';
+import { useBoardUiConfig } from '../hooks/useBoardUiConfig';
+import { FeatureDrawer } from '../components/FeatureDrawer';
+import { FeatureGhost, useFeatureGhosts } from '../components/FeatureGhost';
+import { LevelUpWizard } from '../components/LevelUpWizard';
+import { useBoardFilters } from '../hooks/useBoardFilters';
+import { useBoardModals } from '../hooks/useBoardModals';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
+import { useBoardPermissions } from '../hooks/useBoardPermissions';
+import { useNotificationManager } from '../hooks/useNotificationManager';
+import { KanbanBoardHeader } from '../components/KanbanBoardHeader';
+import { KanbanFilterToolbar } from '../components/KanbanFilterToolbar';
+import { BoardModalManager } from '../components/BoardModalManager';
+import { FloatingViewSwitcher } from '../components/FloatingViewSwitcher';
+import { BoardSubTabs } from '../components/BoardSubTabs';
 // BoardResourceBar removed — integrated into KanbanFilterToolbar
-import { BoardListView } from "../components/BoardListView";
-import JoinRequestBanner from "../components/JoinRequestBanner";
+import { BoardListView } from '../components/BoardListView';
+import JoinRequestBanner from '../components/JoinRequestBanner';
 
 declare const __FE_COMMIT_HASH__: string;
 
@@ -291,15 +278,15 @@ export function KanbanBoardPage() {
   } = useAuth();
 
   // URL 쿼리 파라미터에서 뷰/탭/태스크 정보 읽기 (Slack/Discord 등 외부 링크용)
-  const urlView = searchParams.get("view") as ViewMode | null;
-  const urlTab = searchParams.get("tab");
-  const urlTaskId = searchParams.get("task");
+  const urlView = searchParams.get('view') as ViewMode | null;
+  const urlTab = searchParams.get('tab');
+  const urlTaskId = searchParams.get('task');
   // 자동 보고서의 체크리스트 딥링크(?task=&checklist=) — 태스크를 열면서 그 항목을 하이라이트한다.
-  const urlChecklistItemId = searchParams.get("checklist");
+  const urlChecklistItemId = searchParams.get('checklist');
   // 보고서 구성원 상세의 "보드에서 보기" — 담당자 이름으로 보드를 필터한 상태로 연다.
-  const urlMemberName = searchParams.get("member");
+  const urlMemberName = searchParams.get('member');
   // 보고서의 지연 진입점(?overdue=1) — 마감 지난 카드만 남긴 상태로 연다.
-  const urlOverdueOnly = searchParams.get("overdue") === "1";
+  const urlOverdueOnly = searchParams.get('overdue') === '1';
   /**
    * 마일스톤 테이블 공유 링크 — 보낸 사람이 보던 마일스톤·레이아웃·필터를 그대로 연다.
    * (MilestoneTableView의 "링크 복사"가 만드는 주소)
@@ -309,44 +296,40 @@ export function KanbanBoardPage() {
    * — 한 번 찍어 둔 스냅샷에 기대지 않아 읽는 시점이 언제든 값이 살아 있다.
    */
   const milestoneDeepLink = useMemo<MilestoneDeepLink | undefined>(() => {
-    const milestoneId = searchParams.get("milestone");
-    const layout = searchParams.get("mlayout");
-    const status = searchParams.get("mstatus");
-    const sprint = searchParams.get("msprint");
-    const assignee = searchParams.get("massignee");
-    if (!milestoneId && !layout && !status && !sprint && !assignee)
-      return undefined;
+    const milestoneId = searchParams.get('milestone');
+    const layout = searchParams.get('mlayout');
+    const status = searchParams.get('mstatus');
+    const sprint = searchParams.get('msprint');
+    const assignee = searchParams.get('massignee');
+    if (!milestoneId && !layout && !status && !sprint && !assignee) return undefined;
     return {
       milestoneId,
-      layout: layout === "table" || layout === "board" ? layout : undefined,
+      layout: layout === 'table' || layout === 'board' ? layout : undefined,
       filters: {
-        status:
-          status === "doing" || status === "open" || status === "all"
-            ? status
-            : undefined,
+        status: status === 'doing' || status === 'open' || status === 'all' ? status : undefined,
         sprint: sprint ?? null,
         assignee: assignee ?? null,
       },
     };
   }, [searchParams]);
   const pendingDeepLinkTaskId = useRef<string | null>(urlTaskId);
-  const milestoneIdRef = useRef<string>("");
+  const milestoneIdRef = useRef<string>('');
   // WebSocket 핸들러(useCallback [])에서 최신 tasks 접근용 (stale closure 방지)
   const tasksRef = useRef<Task[]>([]);
 
   // 버전 정보
-  const [beCommit, setBeCommit] = useState<string>("");
+  const [beCommit, setBeCommit] = useState<string>('');
   useEffect(() => {
     fetch(`${API_ORIGIN}/health`)
       .then((r) => r.json())
-      .then((d) => setBeCommit(d.commit || ""))
+      .then((d) => setBeCommit(d.commit || ''))
       .catch(() => {});
   }, []);
 
   // Sentry: 현재 보고 있는 board_id를 태그로 첨부 → 에러 발생 시 어느 보드였는지 자동 식별
   useEffect(() => {
-    if (boardId) setTag("board_id", boardId);
-    return () => setTag("board_id", "");
+    if (boardId) setTag('board_id', boardId);
+    return () => setTag('board_id', '');
   }, [boardId]);
 
   // localStorage 마이그레이션 (기존 사용자 호환: weekly→gantt, scheduleSubMode→boardSubMode)
@@ -354,8 +337,8 @@ export function KanbanBoardPage() {
     if (!boardId) return;
     // viewMode_${boardId}: weekly → gantt
     const savedViewMode = localStorage.getItem(`viewMode_${boardId}`);
-    if (savedViewMode === "weekly") {
-      localStorage.setItem(`viewMode_${boardId}`, "gantt");
+    if (savedViewMode === 'weekly') {
+      localStorage.setItem(`viewMode_${boardId}`, 'gantt');
     }
     // scheduleSubMode → boardSubMode 마이그레이션
     const oldScheduleSub = localStorage.getItem(`scheduleSubMode_${boardId}`);
@@ -363,12 +346,9 @@ export function KanbanBoardPage() {
       const newBoardSub = localStorage.getItem(`boardSubMode_${boardId}`);
       if (!newBoardSub) {
         // weekly→gantt, calendar/milestone 그대로, schedule은 보드 서브뷰가 아니므로 무시
-        if (oldScheduleSub === "weekly") {
-          localStorage.setItem(`boardSubMode_${boardId}`, "gantt");
-        } else if (
-          oldScheduleSub === "calendar" ||
-          oldScheduleSub === "milestone"
-        ) {
+        if (oldScheduleSub === 'weekly') {
+          localStorage.setItem(`boardSubMode_${boardId}`, 'gantt');
+        } else if (oldScheduleSub === 'calendar' || oldScheduleSub === 'milestone') {
           localStorage.setItem(`boardSubMode_${boardId}`, oldScheduleSub);
         }
       }
@@ -381,28 +361,24 @@ export function KanbanBoardPage() {
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     // 하위호환: weekly→gantt, notes·storage→library(자료실로 통합)
     const remap = (value: string): string =>
-      value === "weekly"
-        ? "gantt"
-        : value === "notes" || value === "storage"
-          ? "library"
-          : value;
+      value === 'weekly' ? 'gantt' : value === 'notes' || value === 'storage' ? 'library' : value;
 
     if (urlView) {
       const mappedView = remap(urlView);
       if (
         [
-          "dashboard",
-          "kanban",
-          "gantt",
-          "schedule",
-          "calendar",
-          "milestone",
-          "meeting",
-          "library",
-          "report",
-          "statistics",
-          "ai_report",
-          "list",
+          'dashboard',
+          'kanban',
+          'gantt',
+          'schedule',
+          'calendar',
+          'milestone',
+          'meeting',
+          'library',
+          'report',
+          'statistics',
+          'ai_report',
+          'list',
         ].includes(mappedView)
       ) {
         return mappedView as ViewMode;
@@ -410,40 +386,32 @@ export function KanbanBoardPage() {
     }
     const saved = localStorage.getItem(`viewMode_${boardId}`);
     // 기본 진입 탭은 대시보드. 다른 탭을 고르면 localStorage에 남아 다음 방문에도 유지된다.
-    if (!saved) return "dashboard";
+    if (!saved) return 'dashboard';
     return remap(saved) as ViewMode;
   });
 
   // 보드 서브뷰 모드 기억 헬퍼 (칸반/간트/캘린더/리스트/마일스톤)
   const getBoardSubMode = ():
-    | "kanban"
-    | "gantt"
-    | "calendar"
-    | "list"
-    | "milestone"
-    | "mindmap"
-    | "minikanban" => {
+    'kanban' | 'gantt' | 'calendar' | 'list' | 'milestone' | 'mindmap' | 'minikanban' => {
     const saved = localStorage.getItem(`boardSubMode_${boardId}`);
-    if (saved === "gantt") return "gantt";
-    if (saved === "calendar") return "calendar";
-    if (saved === "list") return "list";
-    if (saved === "milestone") return "milestone";
-    if (saved === "mindmap") return "mindmap";
-    if (saved === "minikanban") return "minikanban";
-    return "kanban";
+    if (saved === 'gantt') return 'gantt';
+    if (saved === 'calendar') return 'calendar';
+    if (saved === 'list') return 'list';
+    if (saved === 'milestone') return 'milestone';
+    if (saved === 'mindmap') return 'mindmap';
+    if (saved === 'minikanban') return 'minikanban';
+    return 'kanban';
   };
   // 일정 탭 서브모드 (타임블록 / 캘린더 / 리소스)
-  type ScheduleSubTab = "timeblock" | "calendar" | "resource";
+  type ScheduleSubTab = 'timeblock' | 'calendar' | 'resource';
   const getScheduleSubTab = (): ScheduleSubTab => {
     const saved = localStorage.getItem(`scheduleSubTab_${boardId}`);
-    if (saved === "calendar" || saved === "resource") return saved;
-    return "timeblock";
+    if (saved === 'calendar' || saved === 'resource') return saved;
+    return 'timeblock';
   };
 
   // 일정 탭 서브탭 상태 (localStorage 영속화)
-  const [scheduleSubTab, setScheduleSubTab] = useState<ScheduleSubTab>(() =>
-    getScheduleSubTab(),
-  );
+  const [scheduleSubTab, setScheduleSubTab] = useState<ScheduleSubTab>(() => getScheduleSubTab());
 
   const handleScheduleSubTabChange = useCallback(
     (tab: ScheduleSubTab) => {
@@ -457,21 +425,17 @@ export function KanbanBoardPage() {
 
   // 일정 서브탭 키보드 단축키 (1=타임블록, 2=워크로드, 3=캘린더)
   useEffect(() => {
-    if (viewMode !== "schedule") return;
+    if (viewMode !== 'schedule') return;
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
-      if (
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        (e.target as HTMLElement)?.isContentEditable
-      )
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable)
         return;
-      if (e.key === "1") handleScheduleSubTabChange("timeblock");
-      else if (e.key === "2") handleScheduleSubTabChange("resource");
-      else if (e.key === "3") handleScheduleSubTabChange("calendar");
+      if (e.key === '1') handleScheduleSubTabChange('timeblock');
+      else if (e.key === '2') handleScheduleSubTabChange('resource');
+      else if (e.key === '3') handleScheduleSubTabChange('calendar');
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [viewMode, handleScheduleSubTabChange]);
 
   const [scheduleRefreshPanel, setScheduleRefreshPanel] = useState(0);
@@ -487,32 +451,25 @@ export function KanbanBoardPage() {
   }, [viewMode]);
   const notifyScheduleRefresh = useCallback(() => {
     const mode = viewModeRef.current;
-    if (mode === "schedule" || mode === "dashboard") {
+    if (mode === 'schedule' || mode === 'dashboard') {
       setScheduleRefreshPanel((prev) => prev + 1);
     }
   }, []);
 
-  const getAISubMode = (): "statistics" | "ai_report" => {
+  const getAISubMode = (): 'statistics' | 'ai_report' => {
     const saved = localStorage.getItem(`aiSubMode_${boardId}`);
-    return saved === "ai_report" ? "ai_report" : "statistics";
+    return saved === 'ai_report' ? 'ai_report' : 'statistics';
   };
 
   // URL 쿼리 파라미터 소비 후 제거 (뒤로가기 시 다시 트리거 방지)
   useEffect(() => {
-    if (
-      urlView ||
-      urlTab ||
-      urlTaskId ||
-      urlChecklistItemId ||
-      urlMemberName ||
-      urlOverdueOnly
-    ) {
-      searchParams.delete("view");
-      searchParams.delete("tab");
-      searchParams.delete("task");
-      searchParams.delete("checklist");
-      searchParams.delete("member");
-      searchParams.delete("overdue");
+    if (urlView || urlTab || urlTaskId || urlChecklistItemId || urlMemberName || urlOverdueOnly) {
+      searchParams.delete('view');
+      searchParams.delete('tab');
+      searchParams.delete('task');
+      searchParams.delete('checklist');
+      searchParams.delete('member');
+      searchParams.delete('overdue');
       setSearchParams(searchParams, { replace: true });
     }
   }, []);
@@ -763,54 +720,40 @@ export function KanbanBoardPage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   // 초기값은 ?checklist= 딥링크. 모달이 열리는 순간 그 항목으로 스크롤·하이라이트되고,
   // 모달을 닫을 때 비워진다(onCloseTask). 딥링크가 없으면 평소처럼 null.
-  const [highlightChecklistItemId, setHighlightChecklistItemId] = useState<
-    string | null
-  >(urlChecklistItemId);
+  const [highlightChecklistItemId, setHighlightChecklistItemId] = useState<string | null>(
+    urlChecklistItemId,
+  );
   // ?overdue=1(보고서·슬랙의 "지연 N건")로 들어오면 지연 목록 모달을 띄운다.
   const [isOverdueModalOpen, setIsOverdueModalOpen] = useState(urlOverdueOnly);
   const [scheduleRefreshKey, setScheduleRefreshKey] = useState(0);
   const [meetingRefreshKey, setMeetingRefreshKey] = useState(0);
-  const [meetingNavigateDate, setMeetingNavigateDate] = useState<Date | null>(
-    null,
-  );
+  const [meetingNavigateDate, setMeetingNavigateDate] = useState<Date | null>(null);
   const [managementRefreshKey, setManagementRefreshKey] = useState(0);
   const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
-  const [headerContractors, setHeaderContractors] = useState<BoardContractor[]>(
-    [],
-  );
-  const [wsCommentEvent, setWsCommentEvent] =
-    useState<BoardWebSocketEvent | null>(null);
-  const [wsChecklistEvent, setWsChecklistEvent] =
-    useState<BoardWebSocketEvent | null>(null);
-  const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(
-    null,
-  );
+  const [headerContractors, setHeaderContractors] = useState<BoardContractor[]>([]);
+  const [wsCommentEvent, setWsCommentEvent] = useState<BoardWebSocketEvent | null>(null);
+  const [wsChecklistEvent, setWsChecklistEvent] = useState<BoardWebSocketEvent | null>(null);
+  const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(null);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
-    keyword: "",
+    keyword: '',
     // ?member= 딥링크(보고서 → 보드)면 그 담당자로 필터한 상태에서 시작한다.
     members: urlMemberName ? [urlMemberName] : [],
     features: [],
     tags: [],
     cardStatus: [],
-    dueDate: urlOverdueOnly ? ["overdue"] : [],
+    dueDate: urlOverdueOnly ? ['overdue'] : [],
   });
 
   // Feature 칩 선택 상태 (null = 전체, [] = 없음, [ids] = 개별 선택)
-  const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[] | null>(
-    null,
-  );
+  const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[] | null>(null);
 
   // 캐스케이드 펄스: 체크리스트 → Feature 칩
   const [cascadeFeatureId, setCascadeFeatureId] = useState<string | null>(null);
 
   // 체크리스트 펼침 상태
-  const [expandedChecklistTaskIds, setExpandedChecklistTaskIds] = useState<
-    Set<string>
-  >(new Set());
+  const [expandedChecklistTaskIds, setExpandedChecklistTaskIds] = useState<Set<string>>(new Set());
   // 방금 Done으로 이동된 태스크 ID (완료 애니메이션용)
-  const [recentlyCompletedTaskIds, setRecentlyCompletedTaskIds] = useState<
-    Set<string>
-  >(new Set());
+  const [recentlyCompletedTaskIds, setRecentlyCompletedTaskIds] = useState<Set<string>>(new Set());
 
   // 데이터 로드 완료 시 localStorage에서 펼치기 상태 복원 (기본: 접힘)
   const initialExpandDone = useRef(false);
@@ -818,14 +761,10 @@ export function KanbanBoardPage() {
     if (!isLoading && tasks.length > 0 && !initialExpandDone.current) {
       initialExpandDone.current = true;
       try {
-        const savedChecklist = localStorage.getItem(
-          `expandedChecklist_${boardId}`,
-        );
+        const savedChecklist = localStorage.getItem(`expandedChecklist_${boardId}`);
         if (savedChecklist) {
           const ids = JSON.parse(savedChecklist) as string[];
-          setExpandedChecklistTaskIds(
-            new Set(ids.filter((id) => tasks.some((t) => t.id === id))),
-          );
+          setExpandedChecklistTaskIds(new Set(ids.filter((id) => tasks.some((t) => t.id === id))));
         }
       } catch {
         // localStorage 파싱 실패 시 기본값(접힘) 유지
@@ -845,15 +784,14 @@ export function KanbanBoardPage() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   // AI분석 > 마일스톤 서브탭 (statistics 내부 6개 탭)
-  const [statisticsActiveView, setStatisticsActiveView] =
-    useState<StatisticsViewType>("overview");
+  const [statisticsActiveView, setStatisticsActiveView] = useState<StatisticsViewType>('overview');
 
-  const showAlertModal = (type: "premium" | "permission") => {
+  const showAlertModal = (type: 'premium' | 'permission') => {
     setAlertModal({ open: true, type });
   };
 
   // 멤버 데이터 파생
-  const currentUserId = currentUser?.id || "";
+  const currentUserId = currentUser?.id || '';
 
   const memberColorMap = useMemo(() => {
     const map: Record<string, string | null> = {};
@@ -865,7 +803,7 @@ export function KanbanBoardPage() {
 
   // 직군(JobRole) 데이터: userId → JobRoleInfo
   const memberJobRoleMap = useMemo(() => {
-    const map: Record<string, import("../types").JobRoleInfo | null> = {};
+    const map: Record<string, import('../types').JobRoleInfo | null> = {};
     boardMembersData.forEach((m) => {
       map[m.userId] = m.jobRole || null;
     });
@@ -873,18 +811,13 @@ export function KanbanBoardPage() {
   }, [boardMembersData]);
 
   // ======== 커스텀 Hook: 알림 ========
-  const isRealtimeEnabled = tierInfo?.tier !== "STANDARD";
+  const isRealtimeEnabled = tierInfo?.tier !== 'STANDARD';
   const {
     unreadNotificationCount,
     setUnreadNotificationCount,
     unreadInquiryCount,
     setUnreadInquiryCount,
-  } = useNotificationManager(
-    boardId,
-    currentUser,
-    isRealtimeEnabled,
-    isInquiryModalOpen,
-  );
+  } = useNotificationManager(boardId, currentUser, isRealtimeEnabled, isInquiryModalOpen);
 
   // ======== Feature별 소속 마일스톤 맵 (task.milestone_id 기준 파생) ========
   // 진실은 task.milestone_id — 태스크 배정 기준으로 파생 (MilestoneMatrix와 동일 원칙)
@@ -894,8 +827,7 @@ export function KanbanBoardPage() {
     const msRef = new Map(
       milestones.map((ms, idx) => [ms.id, { id: ms.id, title: ms.title, idx }]),
     );
-    const map: Record<string, { id: string; title: string; idx: number }[]> =
-      {};
+    const map: Record<string, { id: string; title: string; idx: number }[]> = {};
     tasks.forEach((t) => {
       if (!t.milestone_id || !t.feature_id) return;
       const ref = msRef.get(t.milestone_id);
@@ -921,21 +853,17 @@ export function KanbanBoardPage() {
   // 마일스톤에만 노출되고, 태스크 배정이 없는 피처만 멤버십 폴백으로 표시된다.
   const kanbanFeatures = useMemo(() => {
     const mid = kanbanSelectedMilestoneId;
-    if (!mid || mid === "all") return features;
-    if (mid === "none") {
-      return features.filter(
-        (f) => (featureMilestonesMap[f.id]?.length ?? 0) === 0,
-      );
+    if (!mid || mid === 'all') return features;
+    if (mid === 'none') {
+      return features.filter((f) => (featureMilestonesMap[f.id]?.length ?? 0) === 0);
     }
-    return features.filter((f) =>
-      featureMilestonesMap[f.id]?.some((m) => m.id === mid),
-    );
+    return features.filter((f) => featureMilestonesMap[f.id]?.some((m) => m.id === mid));
   }, [features, featureMilestonesMap, kanbanSelectedMilestoneId]);
 
   const kanbanTasks = useMemo(() => {
     const mid = kanbanSelectedMilestoneId;
-    if (!mid || mid === "all") return tasks;
-    if (mid === "none") return tasks.filter((t) => !t.milestone_id);
+    if (!mid || mid === 'all') return tasks;
+    if (mid === 'none') return tasks.filter((t) => !t.milestone_id);
     return tasks.filter((t) => t.milestone_id === mid);
   }, [tasks, kanbanSelectedMilestoneId]);
 
@@ -959,18 +887,18 @@ export function KanbanBoardPage() {
   // isAnyModalOpen은 useBoardModals 훅에서 파생
 
   const handleToggleExpandCollapse = useCallback(() => {
-    if (viewMode === "kanban") {
+    if (viewMode === 'kanban') {
       setExpandedChecklistTaskIds((prev) =>
         prev.size > 0 ? new Set() : new Set(tasks.map((t) => t.id)),
       );
     } else {
-      window.dispatchEvent(new CustomEvent("bridge:toggleExpandCollapse"));
+      window.dispatchEvent(new CustomEvent('bridge:toggleExpandCollapse'));
     }
   }, [tasks, viewMode]);
 
   const handleResetFilters = useCallback(() => {
     setFilterOptions({
-      keyword: "",
+      keyword: '',
       members: [],
       features: [],
       tags: [],
@@ -982,8 +910,7 @@ export function KanbanBoardPage() {
   const handleToggleMyFilter = useCallback(() => {
     if (!currentUser) return;
     setFilterOptions((prev) => {
-      const isMyOnly =
-        prev.members.length === 1 && prev.members[0] === currentUser.name;
+      const isMyOnly = prev.members.length === 1 && prev.members[0] === currentUser.name;
       return { ...prev, members: isMyOnly ? [] : [currentUser.name] };
     });
   }, [currentUser]);
@@ -992,27 +919,18 @@ export function KanbanBoardPage() {
   const reloadBlocksForMilestone = useCallback(
     async (overrideMilestoneId?: string) => {
       if (!boardId) return;
-      const effectiveMilestoneId =
-        overrideMilestoneId ?? kanbanSelectedMilestoneId;
+      const effectiveMilestoneId = overrideMilestoneId ?? kanbanSelectedMilestoneId;
       const reloadMilestoneId =
-        effectiveMilestoneId &&
-        effectiveMilestoneId !== "all" &&
-        effectiveMilestoneId !== "none"
+        effectiveMilestoneId && effectiveMilestoneId !== 'all' && effectiveMilestoneId !== 'none'
           ? effectiveMilestoneId
           : undefined;
-      const blockResult = await blockService.getBlocksWithHidden(
-        boardId,
-        reloadMilestoneId,
-      );
+      const blockResult = await blockService.getBlocksWithHidden(boardId, reloadMilestoneId);
       setBlocks(blockResult.blocks);
       setHiddenBlocks(blockResult.hiddenBlocks);
       // 독립 서브탭(미니칸반)용 전체 블록도 최신화.
       // 마일스톤 스코프 조회면 전체 블록은 별도 조회, 아니면 동일 결과 재사용.
       if (reloadMilestoneId) {
-        const fullBlockResult = await blockService.getBlocksWithHidden(
-          boardId,
-          undefined,
-        );
+        const fullBlockResult = await blockService.getBlocksWithHidden(boardId, undefined);
         setAllBlocks(fullBlockResult.blocks);
       } else {
         setAllBlocks(blockResult.blocks);
@@ -1053,12 +971,10 @@ export function KanbanBoardPage() {
   // 재연결 시 누락된 이벤트 복구
   const hasConnectedBefore = useRef(false);
   useEffect(() => {
-    if (connectionStatus === "connected") {
+    if (connectionStatus === 'connected') {
       if (hasConnectedBefore.current && boardId) {
         const milestoneId =
-          kanbanSelectedMilestoneId !== "all"
-            ? kanbanSelectedMilestoneId
-            : undefined;
+          kanbanSelectedMilestoneId !== 'all' ? kanbanSelectedMilestoneId : undefined;
         reloadFeaturesAndTasks(milestoneId);
         // reloadFeaturesAndTasks가 마일스톤 스코프 blocks를 설정하므로,
         // 여기서는 독립 서브탭용 전체 blocks만 최신화한다.
@@ -1078,11 +994,11 @@ export function KanbanBoardPage() {
   // 402 이벤트 리스너 (크레딧 소진 시)
   useEffect(() => {
     const handler = () => {
-      setCreditModalMode("exhausted");
+      setCreditModalMode('exhausted');
       setShowCreditModal(true);
     };
-    window.addEventListener("ai-credits-exhausted", handler);
-    return () => window.removeEventListener("ai-credits-exhausted", handler);
+    window.addEventListener('ai-credits-exhausted', handler);
+    return () => window.removeEventListener('ai-credits-exhausted', handler);
   }, []);
 
   // AI 크레딧 구매 완료 콜백
@@ -1093,18 +1009,18 @@ export function KanbanBoardPage() {
 
   // 결제 완료 후 pending action 처리
   useEffect(() => {
-    const pendingSeatAction = localStorage.getItem("pending_payment_action");
+    const pendingSeatAction = localStorage.getItem('pending_payment_action');
     if (pendingSeatAction && boardId && !isLoading) {
-      localStorage.removeItem("pending_payment_action");
+      localStorage.removeItem('pending_payment_action');
       try {
         const action = JSON.parse(pendingSeatAction);
-        if (action.type === "roleChange" && action.pendingMemberId) {
+        if (action.type === 'roleChange' && action.pendingMemberId) {
           handleUpdateMemberRole(action.pendingMemberId, action.pendingRole);
-        } else if (action.type === "invite" && action.pendingEmail) {
+        } else if (action.type === 'invite' && action.pendingEmail) {
           handleAddMember(action.pendingEmail, action.pendingRole);
         }
       } catch (e) {
-        console.error("Failed to process pending seat action:", e);
+        console.error('Failed to process pending seat action:', e);
       }
     }
   }, [boardId, isLoading]);
@@ -1148,7 +1064,7 @@ export function KanbanBoardPage() {
       const roles = await jobRoleService.list(boardId);
       setJobRoles(roles);
     } catch (err) {
-      console.error("Failed to refresh job roles:", err);
+      console.error('Failed to refresh job roles:', err);
     }
   }, [boardId]);
 
@@ -1156,9 +1072,7 @@ export function KanbanBoardPage() {
     async (memberId: string, jobRoleId: string | null) => {
       if (!boardId) return;
       const prev = boardMembersData;
-      const targetRole = jobRoleId
-        ? jobRoles.find((r) => r.id === jobRoleId) || null
-        : null;
+      const targetRole = jobRoleId ? jobRoles.find((r) => r.id === jobRoleId) || null : null;
       setBoardMembersData(
         prev.map((m) =>
           m.id === memberId
@@ -1180,7 +1094,7 @@ export function KanbanBoardPage() {
         await memberService.updateMemberJobRole(boardId, memberId, jobRoleId);
         await refreshJobRoles();
       } catch (err) {
-        console.error("Failed to update member jobRole:", err);
+        console.error('Failed to update member jobRole:', err);
         setBoardMembersData(prev);
       }
     },
@@ -1196,11 +1110,11 @@ export function KanbanBoardPage() {
   // STANDARD 전환 후 첫 방문 시 Premium 혜택 모달 자동 표시
   useEffect(() => {
     if (!boardId || !tierInfo || hideBilling || isLoading) return;
-    if (tierInfo.tier === "STANDARD") {
+    if (tierInfo.tier === 'STANDARD') {
       const storageKey = `bridge_premium_benefits_shown_${boardId}`;
       if (!localStorage.getItem(storageKey)) {
         setIsPremiumBenefitsModalOpen(true);
-        localStorage.setItem(storageKey, "true");
+        localStorage.setItem(storageKey, 'true');
       }
     }
   }, [boardId, tierInfo, hideBilling, isLoading]);
@@ -1242,33 +1156,29 @@ export function KanbanBoardPage() {
   // stable 콜백(handleNavigateToMeeting)에서 최신 handleViewModeChange 접근용
   const handleViewModeChangeRef = useRef<(mode: ViewMode) => void>(() => {});
   const handleViewModeChange = (mode: ViewMode) => {
-    if (mode === "gantt" && !canAccessSchedule) {
-      openUpgradeModal("weekly_schedule");
+    if (mode === 'gantt' && !canAccessSchedule) {
+      openUpgradeModal('weekly_schedule');
       return;
     }
-    if (mode === "statistics") {
+    if (mode === 'statistics') {
       if (!canAccessStatistics) {
-        openUpgradeModal("statistics");
+        openUpgradeModal('statistics');
         return;
       }
       if (!isAdminOrOwner) {
         return;
       }
     }
-    if (mode === "ai_report" && !canAccessStatistics) {
-      openUpgradeModal("statistics");
+    if (mode === 'ai_report' && !canAccessStatistics) {
+      openUpgradeModal('statistics');
       return;
     }
     // 캘린더 진입 시 기본 담당자 필터 (현재 사용자)
-    if (
-      mode === "calendar" &&
-      currentUser &&
-      filterOptions.members.length === 0
-    ) {
+    if (mode === 'calendar' && currentUser && filterOptions.members.length === 0) {
       setFilterOptions((prev) => ({ ...prev, members: [currentUser.name] }));
     }
     // 캘린더에서 벗어날 때 자동 적용된 필터만 정리
-    if (mode !== "calendar" && viewMode === "calendar") {
+    if (mode !== 'calendar' && viewMode === 'calendar') {
       const isOnlyMyFilter =
         filterOptions.members.length === 1 &&
         currentUser &&
@@ -1282,8 +1192,8 @@ export function KanbanBoardPage() {
       }
     }
     // 마일스톤 뷰 Premium 권한 체크
-    if (mode === "milestone" && !canAccessMilestone) {
-      openUpgradeModal("milestone");
+    if (mode === 'milestone' && !canAccessMilestone) {
+      openUpgradeModal('milestone');
       return;
     }
     // 보드 서브뷰 서브모드 기억 (kanban/gantt/calendar/list/milestone)
@@ -1291,10 +1201,10 @@ export function KanbanBoardPage() {
       localStorage.setItem(`boardSubMode_${boardId}`, mode);
     }
     // 일정 탭 서브모드 기억 (현재 schedule만)
-    if (mode === "schedule") {
+    if (mode === 'schedule') {
       localStorage.setItem(`scheduleSubMode_${boardId}`, mode);
     }
-    if (mode === "statistics" || mode === "ai_report") {
+    if (mode === 'statistics' || mode === 'ai_report') {
       localStorage.setItem(`aiSubMode_${boardId}`, mode);
     }
     setViewMode(mode);
@@ -1307,8 +1217,7 @@ export function KanbanBoardPage() {
     viewMode,
     onViewModeChange: handleViewModeChange,
     onScheduleSubTabChange: handleScheduleSubTabChange as (tab: string) => void,
-    onStatisticsSubTabChange: (tab: string) =>
-      setStatisticsActiveView(tab as StatisticsViewType),
+    onStatisticsSubTabChange: (tab: string) => setStatisticsActiveView(tab as StatisticsViewType),
     onFocusSearch: () => searchInputRef.current?.focus(),
     onOpenAddFeature: () => setIsAddFeatureModalOpen(true),
     onOpenAddBlock: () => setIsAddBlockModalOpen(true),
@@ -1327,15 +1236,12 @@ export function KanbanBoardPage() {
   // 마일스톤 열기 핸들러 (Premium 기능 체크)
   const handleOpenMilestoneWithCheck = async (milestone?: Milestone) => {
     if (!canAccessMilestone) {
-      openUpgradeModal("milestone");
+      openUpgradeModal('milestone');
       return;
     }
     if (milestone && boardId) {
       try {
-        const detailed = await milestoneService.getMilestone(
-          boardId,
-          milestone.id,
-        );
+        const detailed = await milestoneService.getMilestone(boardId, milestone.id);
         setSelectedMilestone(detailed);
       } catch {
         setSelectedMilestone(milestone);
@@ -1347,10 +1253,7 @@ export function KanbanBoardPage() {
   };
 
   // Seat 기반 업그레이드 핸들러 (Polar Checkout 리다이렉트)
-  const handleSeatUpgrade = async (
-    billingCycle: "MONTHLY" | "YEARLY",
-    seatCount: number,
-  ) => {
+  const handleSeatUpgrade = async (billingCycle: 'MONTHLY' | 'YEARLY', seatCount: number) => {
     if (!boardId) return;
     try {
       await subscriptionService.startSeatSubscription(boardId, {
@@ -1359,7 +1262,7 @@ export function KanbanBoardPage() {
       });
       // Polar checkout 리다이렉트가 발생하므로 여기까지 도달하지 않음
     } catch (error: any) {
-      console.error("Failed to upgrade:", error);
+      console.error('Failed to upgrade:', error);
       throw error;
     }
   };
@@ -1370,21 +1273,21 @@ export function KanbanBoardPage() {
 
     const { pendingEmail, pendingRole, pendingMemberId } = seatPurchaseModal;
     const pendingAction = JSON.stringify({
-      type: pendingMemberId ? "roleChange" : "invite",
+      type: pendingMemberId ? 'roleChange' : 'invite',
       pendingEmail,
       pendingRole,
       pendingMemberId,
     });
-    localStorage.setItem("pending_checkout_board_id", boardId);
-    localStorage.setItem("pending_payment_action", pendingAction);
+    localStorage.setItem('pending_checkout_board_id', boardId);
+    localStorage.setItem('pending_payment_action', pendingAction);
     setSeatPurchaseModal(null);
 
     try {
       await subscriptionService.purchaseSeats(boardId, additionalSeats);
       // Polar checkout 리다이렉트가 발생하므로 여기까지 도달하지 않음
     } catch (error: any) {
-      localStorage.removeItem("pending_checkout_board_id");
-      localStorage.removeItem("pending_payment_action");
+      localStorage.removeItem('pending_checkout_board_id');
+      localStorage.removeItem('pending_payment_action');
       throw error;
     }
   };
@@ -1393,8 +1296,7 @@ export function KanbanBoardPage() {
   const handleOrgPurchaseSeatsAndRetry = async (additionalSeats: number) => {
     if (!orgSeatLimitModal) return;
 
-    const { orgId, pendingEmail, pendingRole, pendingMemberId } =
-      orgSeatLimitModal;
+    const { orgId, pendingEmail, pendingRole, pendingMemberId } = orgSeatLimitModal;
 
     try {
       await orgSubscriptionService.purchaseSeats(orgId, additionalSeats);
@@ -1407,8 +1309,8 @@ export function KanbanBoardPage() {
         await handleAddMember(pendingEmail, pendingRole);
       }
     } catch (error: any) {
-      console.error("Failed to purchase org seats:", error);
-      alert(error?.message || t("orgSeatLimit.purchaseFailed"));
+      console.error('Failed to purchase org seats:', error);
+      alert(error?.message || t('orgSeatLimit.purchaseFailed'));
     }
   };
 
@@ -1418,16 +1320,13 @@ export function KanbanBoardPage() {
     if (boardId) {
       try {
         const saveMilestoneId =
-          milestoneId === "all" || milestoneId === "none" ? null : milestoneId;
+          milestoneId === 'all' || milestoneId === 'none' ? null : milestoneId;
         await boardService.updateSelectedMilestone(boardId, saveMilestoneId);
-        setBoard((prev) =>
-          prev ? { ...prev, selected_milestone_id: saveMilestoneId } : prev,
-        );
-        const reloadMilestoneId =
-          milestoneId === "all" ? undefined : milestoneId;
+        setBoard((prev) => (prev ? { ...prev, selected_milestone_id: saveMilestoneId } : prev));
+        const reloadMilestoneId = milestoneId === 'all' ? undefined : milestoneId;
         await reloadFeaturesAndTasks(reloadMilestoneId);
       } catch (error) {
-        console.error("Failed to save selected milestone:", error);
+        console.error('Failed to save selected milestone:', error);
       }
     }
   };
@@ -1436,26 +1335,22 @@ export function KanbanBoardPage() {
   const handleAddMember = async (email: string, role: MemberRole) => {
     if (!boardId) return;
 
-    if (!email.includes("@")) {
-      alert(t("kanban.invalidEmail"));
+    if (!email.includes('@')) {
+      alert(t('kanban.invalidEmail'));
       return;
     }
 
     if (boardMembersData.some((m) => m.email === email)) {
-      alert(t("kanban.memberAlreadyAdded"));
+      alert(t('kanban.memberAlreadyAdded'));
       return;
     }
 
     const backendRole = role.toUpperCase();
 
     try {
-      const result = await memberService.inviteMember(
-        boardId,
-        email,
-        backendRole as any,
-      );
+      const result = await memberService.inviteMember(boardId, email, backendRole as any);
 
-      if (result.type === "DIRECT_ADD" && result.member) {
+      if (result.type === 'DIRECT_ADD' && result.member) {
         setBoardMembersData([
           ...boardMembersData,
           {
@@ -1466,13 +1361,13 @@ export function KanbanBoardPage() {
             role: result.member.role.toLowerCase() as MemberRole,
           },
         ]);
-        alert(t("kanban.memberAdded", { name: result.member.user.name }));
-      } else if (result.type === "EMAIL_SENT") {
-        alert(t("kanban.inviteEmailSent", { email: result.email }));
+        alert(t('kanban.memberAdded', { name: result.member.user.name }));
+      } else if (result.type === 'EMAIL_SENT') {
+        alert(t('kanban.inviteEmailSent', { email: result.email }));
       }
     } catch (error: any) {
-      console.error("Failed to invite member:", error);
-      if (error?.code === "OS003" && error?.errors) {
+      console.error('Failed to invite member:', error);
+      if (error?.code === 'OS003' && error?.errors) {
         setOrgSeatLimitModal({
           open: true,
           orgId: error.errors.org_id,
@@ -1480,13 +1375,13 @@ export function KanbanBoardPage() {
           activeMemberCount: parseInt(error.errors.active_member_count),
           monthlyPricePerSeat: parseInt(error.errors.monthly_price_per_seat),
           yearlyPricePerSeat: parseInt(error.errors.yearly_price_per_seat),
-          isOrgAdmin: error.errors.is_org_admin === "true",
+          isOrgAdmin: error.errors.is_org_admin === 'true',
           pendingEmail: email,
           pendingRole: role,
         });
         return;
       }
-      if (error?.code === "S005" && error?.errors) {
+      if (error?.code === 'S005' && error?.errors) {
         setSeatPurchaseModal({
           open: true,
           seatCount: parseInt(error.errors.seat_count),
@@ -1496,7 +1391,7 @@ export function KanbanBoardPage() {
         });
         return;
       }
-      alert(error?.message || t("kanban.inviteFailed"));
+      alert(error?.message || t('kanban.inviteFailed'));
     }
   };
 
@@ -1504,22 +1399,16 @@ export function KanbanBoardPage() {
     if (!boardId) return;
 
     const prevMembers = [...boardMembersData];
-    setBoardMembersData(
-      boardMembersData.map((m) => (m.id === memberId ? { ...m, role } : m)),
-    );
+    setBoardMembersData(boardMembersData.map((m) => (m.id === memberId ? { ...m, role } : m)));
 
     const backendRole = role.toUpperCase();
 
     try {
-      await memberService.updateMemberRole(
-        boardId,
-        memberId,
-        backendRole as any,
-      );
+      await memberService.updateMemberRole(boardId, memberId, backendRole as any);
     } catch (error: any) {
-      console.error("Failed to update member role:", error);
+      console.error('Failed to update member role:', error);
       setBoardMembersData(prevMembers);
-      if (error?.code === "OS003" && error?.errors) {
+      if (error?.code === 'OS003' && error?.errors) {
         setOrgSeatLimitModal({
           open: true,
           orgId: error.errors.org_id,
@@ -1527,66 +1416,52 @@ export function KanbanBoardPage() {
           activeMemberCount: parseInt(error.errors.active_member_count),
           monthlyPricePerSeat: parseInt(error.errors.monthly_price_per_seat),
           yearlyPricePerSeat: parseInt(error.errors.yearly_price_per_seat),
-          isOrgAdmin: error.errors.is_org_admin === "true",
-          pendingEmail: "",
+          isOrgAdmin: error.errors.is_org_admin === 'true',
+          pendingEmail: '',
           pendingRole: role,
           pendingMemberId: memberId,
         });
         return;
       }
-      if (error?.code === "S005" && error?.errors) {
+      if (error?.code === 'S005' && error?.errors) {
         setSeatPurchaseModal({
           open: true,
           seatCount: parseInt(error.errors.seat_count),
           billableMemberCount: parseInt(error.errors.billable_member_count),
-          pendingEmail: "",
+          pendingEmail: '',
           pendingRole: role,
           pendingMemberId: memberId,
         });
         return;
       }
-      alert(error?.message || t("kanban.roleChangeFailed"));
+      alert(error?.message || t('kanban.roleChangeFailed'));
     }
   };
 
-  const handleUpdateMemberColor = async (
-    memberId: string,
-    color: string | null,
-  ) => {
+  const handleUpdateMemberColor = async (memberId: string, color: string | null) => {
     if (!boardId) return;
     const prevMembers = [...boardMembersData];
     setBoardMembersData(
-      boardMembersData.map((m) =>
-        m.id === memberId ? { ...m, assigneeColor: color } : m,
-      ),
+      boardMembersData.map((m) => (m.id === memberId ? { ...m, assigneeColor: color } : m)),
     );
     try {
       await memberService.updateMemberColor(boardId, memberId, color);
     } catch (error: any) {
-      console.error("Failed to update member color:", error);
+      console.error('Failed to update member color:', error);
       setBoardMembersData(prevMembers);
     }
   };
 
-  const handleUpdateMemberGithubLogin = async (
-    memberId: string,
-    githubLogin: string | null,
-  ) => {
+  const handleUpdateMemberGithubLogin = async (memberId: string, githubLogin: string | null) => {
     if (!boardId) return;
     const prevMembers = [...boardMembersData];
     setBoardMembersData(
-      boardMembersData.map((m) =>
-        m.id === memberId ? { ...m, githubLogin } : m,
-      ),
+      boardMembersData.map((m) => (m.id === memberId ? { ...m, githubLogin } : m)),
     );
     try {
-      await memberService.updateMemberGithubLogin(
-        boardId,
-        memberId,
-        githubLogin,
-      );
+      await memberService.updateMemberGithubLogin(boardId, memberId, githubLogin);
     } catch (error: any) {
-      console.error("Failed to update member github login:", error);
+      console.error('Failed to update member github login:', error);
       setBoardMembersData(prevMembers);
     }
   };
@@ -1596,7 +1471,7 @@ export function KanbanBoardPage() {
 
     const targetMember = boardMembersData.find((m) => m.id === memberId);
     if (targetMember?.userId === currentUserId) {
-      alert(t("kanban.cannotRemoveSelf"));
+      alert(t('kanban.cannotRemoveSelf'));
       return;
     }
 
@@ -1606,9 +1481,9 @@ export function KanbanBoardPage() {
     try {
       await memberService.removeMember(boardId, memberId);
     } catch (error: any) {
-      console.error("Failed to remove member:", error);
+      console.error('Failed to remove member:', error);
       setBoardMembersData(prevMembers);
-      alert(error?.message || t("kanban.removeMemberFailed"));
+      alert(error?.message || t('kanban.removeMemberFailed'));
     }
   };
 
@@ -1623,24 +1498,18 @@ export function KanbanBoardPage() {
 
     const prevMembers = [...boardMembersData];
     const memberMap = new Map(boardMembersData.map((m) => [m.id, m]));
-    setBoardMembersData(
-      memberIds.map((id) => memberMap.get(id)!).filter(Boolean),
-    );
+    setBoardMembersData(memberIds.map((id) => memberMap.get(id)!).filter(Boolean));
 
     try {
       await memberService.reorderMembers(boardId, memberIds);
     } catch (error: any) {
-      console.error("Failed to reorder members:", error);
+      console.error('Failed to reorder members:', error);
       setBoardMembersData(prevMembers);
     }
   };
 
   // 초대 링크 핸들러
-  const handleCreateInviteLink = async (
-    role: string,
-    maxUses: number,
-    expiresIn: string,
-  ) => {
+  const handleCreateInviteLink = async (role: string, maxUses: number, expiresIn: string) => {
     if (!boardId) return {} as InviteLink;
 
     let expiresInHours: number | null = null;
@@ -1649,14 +1518,14 @@ export function KanbanBoardPage() {
       if (match) {
         const value = parseInt(match[1]);
         const unit = match[2];
-        if (unit === "d") expiresInHours = value * 24;
-        else if (unit === "h") expiresInHours = value;
-        else if (unit === "m") expiresInHours = Math.ceil(value / 60);
+        if (unit === 'd') expiresInHours = value * 24;
+        else if (unit === 'h') expiresInHours = value;
+        else if (unit === 'm') expiresInHours = Math.ceil(value / 60);
       }
     }
 
     const link = await inviteLinkService.createInviteLink(boardId, {
-      role: role as "ADMIN" | "MEMBER" | "VIEWER",
+      role: role as 'ADMIN' | 'MEMBER' | 'VIEWER',
       max_uses: maxUses || null,
       expires_in_hours: expiresInHours,
     });
@@ -1671,25 +1540,20 @@ export function KanbanBoardPage() {
   };
 
   // 구독 핸들러
-  const handleChangeBillingCycle = async (
-    billingCycle: "MONTHLY" | "YEARLY",
-  ) => {
+  const handleChangeBillingCycle = async (billingCycle: 'MONTHLY' | 'YEARLY') => {
     if (!boardId) return;
-    const newSubscription = await subscriptionService.changePlan(
-      boardId,
-      billingCycle,
-    );
+    const newSubscription = await subscriptionService.changePlan(boardId, billingCycle);
     setSubscription(newSubscription);
   };
 
   const handleSubscriptionPurchaseSeats = async (additionalSeats: number) => {
     if (!boardId) return;
-    localStorage.setItem("pending_checkout_board_id", boardId);
+    localStorage.setItem('pending_checkout_board_id', boardId);
     try {
       await subscriptionService.purchaseSeats(boardId, additionalSeats);
       // Polar checkout 리다이렉트가 발생하므로 여기까지 도달하지 않음
     } catch (error: any) {
-      localStorage.removeItem("pending_checkout_board_id");
+      localStorage.removeItem('pending_checkout_board_id');
       throw error;
     }
   };
@@ -1727,8 +1591,8 @@ export function KanbanBoardPage() {
     try {
       const milestoneId =
         kanbanSelectedMilestoneId &&
-        kanbanSelectedMilestoneId !== "all" &&
-        kanbanSelectedMilestoneId !== "none"
+        kanbanSelectedMilestoneId !== 'all' &&
+        kanbanSelectedMilestoneId !== 'none'
           ? kanbanSelectedMilestoneId
           : undefined;
       await blockService.createBlock(boardId, {
@@ -1738,24 +1602,18 @@ export function KanbanBoardPage() {
       });
       await reloadBlocksForMilestone();
     } catch (error) {
-      console.error("Failed to create block:", error);
+      console.error('Failed to create block:', error);
     }
   };
 
-  const handleEditBlock = async (
-    blockId: string,
-    name: string,
-    color: string,
-  ) => {
+  const handleEditBlock = async (blockId: string, name: string, color: string) => {
     if (!boardId) return;
     const previousBlocks = blocks;
-    setBlocks((prev) =>
-      prev.map((b) => (b.id === blockId ? { ...b, name, color } : b)),
-    );
+    setBlocks((prev) => prev.map((b) => (b.id === blockId ? { ...b, name, color } : b)));
     try {
       await blockService.updateBlock(boardId, blockId, { name, color });
     } catch (error) {
-      console.error("Failed to update block:", error);
+      console.error('Failed to update block:', error);
       setBlocks(previousBlocks);
     }
   };
@@ -1766,16 +1624,14 @@ export function KanbanBoardPage() {
       if (!boardId) return;
       const previousBlocks = blocks;
       setBlocks((prev) =>
-        prev.map((b) =>
-          b.id === blockId ? { ...b, show_progress_bar: enabled } : b,
-        ),
+        prev.map((b) => (b.id === blockId ? { ...b, show_progress_bar: enabled } : b)),
       );
       try {
         await blockService.updateBlock(boardId, blockId, {
           show_progress_bar: enabled,
         });
       } catch (error) {
-        console.error("Failed to toggle progress bar:", error);
+        console.error('Failed to toggle progress bar:', error);
         setBlocks(previousBlocks);
       }
     },
@@ -1785,13 +1641,13 @@ export function KanbanBoardPage() {
   const handleDeleteBlock = useCallback(
     async (blockId: string) => {
       const blockToDelete = blocks.find((b) => b.id === blockId);
-      if (!blockToDelete || blockToDelete.type === "FIXED") return;
+      if (!blockToDelete || blockToDelete.type === 'FIXED') return;
 
       const previousBlocks = blocks;
       const previousTasks = tasks;
 
       const updatedTasks = tasks.map((task) =>
-        task.block_id === blockId ? { ...task, block_id: "task" } : task,
+        task.block_id === blockId ? { ...task, block_id: 'task' } : task,
       );
 
       const updatedBlocks = blocks
@@ -1810,7 +1666,7 @@ export function KanbanBoardPage() {
         try {
           await blockService.deleteBlock(boardId, blockId);
         } catch (error) {
-          console.error("Failed to delete block:", error);
+          console.error('Failed to delete block:', error);
           setBlocks(previousBlocks);
           setTasks(previousTasks);
         }
@@ -1824,21 +1680,16 @@ export function KanbanBoardPage() {
       if (
         !boardId ||
         !kanbanSelectedMilestoneId ||
-        kanbanSelectedMilestoneId === "all" ||
-        kanbanSelectedMilestoneId === "none"
+        kanbanSelectedMilestoneId === 'all' ||
+        kanbanSelectedMilestoneId === 'none'
       )
         return;
 
       try {
-        await milestoneBlockAPI.toggleVisibility(
-          boardId,
-          kanbanSelectedMilestoneId,
-          blockId,
-          true,
-        );
+        await milestoneBlockAPI.toggleVisibility(boardId, kanbanSelectedMilestoneId, blockId, true);
         await reloadBlocksForMilestone();
       } catch (error) {
-        console.error("Failed to hide block:", error);
+        console.error('Failed to hide block:', error);
       }
     },
     [boardId, kanbanSelectedMilestoneId, reloadBlocksForMilestone],
@@ -1849,8 +1700,8 @@ export function KanbanBoardPage() {
       if (
         !boardId ||
         !kanbanSelectedMilestoneId ||
-        kanbanSelectedMilestoneId === "all" ||
-        kanbanSelectedMilestoneId === "none"
+        kanbanSelectedMilestoneId === 'all' ||
+        kanbanSelectedMilestoneId === 'none'
       )
         return;
 
@@ -1863,7 +1714,7 @@ export function KanbanBoardPage() {
         );
         await reloadBlocksForMilestone();
       } catch (error) {
-        console.error("Failed to show block:", error);
+        console.error('Failed to show block:', error);
       }
     },
     [boardId, kanbanSelectedMilestoneId, reloadBlocksForMilestone],
@@ -1892,18 +1743,14 @@ export function KanbanBoardPage() {
 
         if (data.milestoneId) {
           try {
-            const updatedMilestone = await milestoneService.addFeatures(
-              boardId,
-              data.milestoneId,
-              [newFeature.id],
-            );
+            const updatedMilestone = await milestoneService.addFeatures(boardId, data.milestoneId, [
+              newFeature.id,
+            ]);
             setMilestones((prev) =>
-              prev.map((m) =>
-                m.id === updatedMilestone.id ? updatedMilestone : m,
-              ),
+              prev.map((m) => (m.id === updatedMilestone.id ? updatedMilestone : m)),
             );
           } catch (error) {
-            console.error("Failed to link feature to milestone:", error);
+            console.error('Failed to link feature to milestone:', error);
           }
         }
 
@@ -1912,7 +1759,7 @@ export function KanbanBoardPage() {
         notifyScheduleRefresh();
         return newFeature;
       } catch (error) {
-        console.error("Failed to create feature:", error);
+        console.error('Failed to create feature:', error);
         return null;
       }
     },
@@ -1969,9 +1816,7 @@ export function KanbanBoardPage() {
   }, []);
 
   const handleJoinRequestSent = useCallback(() => {
-    setBoard((prev) =>
-      prev ? { ...prev, has_pending_join_request: true } : prev,
-    );
+    setBoard((prev) => (prev ? { ...prev, has_pending_join_request: true } : prev));
   }, [setBoard]);
 
   const handleUpdateFeature = async (updates: Partial<Feature>) => {
@@ -1980,32 +1825,20 @@ export function KanbanBoardPage() {
     const featureId = updates.id;
 
     try {
-      const updatedFeature = await featureService.updateFeature(
-        boardId,
-        featureId,
-        {
-          title: updates.title,
-          description: updates.description,
-          color: updates.color,
-          assignee_id: updates.assignee?.id,
-          start_date: updates.start_date,
-          due_date: updates.due_date,
-        },
-      );
-      setFeatures(
-        features.map((f) => (f.id === featureId ? updatedFeature : f)),
-      );
-      setAllFeatures(
-        allFeatures.map((f) => (f.id === featureId ? updatedFeature : f)),
-      );
+      const updatedFeature = await featureService.updateFeature(boardId, featureId, {
+        title: updates.title,
+        description: updates.description,
+        color: updates.color,
+        assignee_id: updates.assignee?.id,
+        start_date: updates.start_date,
+        due_date: updates.due_date,
+      });
+      setFeatures(features.map((f) => (f.id === featureId ? updatedFeature : f)));
+      setAllFeatures(allFeatures.map((f) => (f.id === featureId ? updatedFeature : f)));
     } catch (error) {
-      console.error("Failed to update feature:", error);
-      setFeatures(
-        features.map((f) => (f.id === featureId ? { ...f, ...updates } : f)),
-      );
-      setAllFeatures(
-        allFeatures.map((f) => (f.id === featureId ? { ...f, ...updates } : f)),
-      );
+      console.error('Failed to update feature:', error);
+      setFeatures(features.map((f) => (f.id === featureId ? { ...f, ...updates } : f)));
+      setAllFeatures(allFeatures.map((f) => (f.id === featureId ? { ...f, ...updates } : f)));
     }
   };
 
@@ -2021,18 +1854,14 @@ export function KanbanBoardPage() {
 
     if (taskMigrations && taskMigrations.length > 0) {
       // 이관된 태스크: feature_id 업데이트
-      const migrationMap = new Map(
-        taskMigrations.map((m) => [m.task_id, m.target_feature_id]),
-      );
+      const migrationMap = new Map(taskMigrations.map((m) => [m.task_id, m.target_feature_id]));
       setTasks(
         (prev) =>
           prev
             .map((t) => {
               const targetFeatureId = migrationMap.get(t.id);
               if (targetFeatureId) {
-                const targetFeature = features.find(
-                  (f) => f.id === targetFeatureId,
-                );
+                const targetFeature = features.find((f) => f.id === targetFeatureId);
                 return {
                   ...t,
                   feature_id: targetFeatureId,
@@ -2054,40 +1883,37 @@ export function KanbanBoardPage() {
     setSelectedFeature(null);
 
     const deletedFeature = features.find((f) => f.id === featureId);
-    const deletedTitle =
-      deletedFeature?.title ?? t("trash.toast.untitledFeature", "삭제된 피처");
+    const deletedTitle = deletedFeature?.title ?? t('trash.toast.untitledFeature', '삭제된 피처');
 
     try {
       await featureService.deleteFeature(boardId, featureId, taskMigrations);
       toast(
-        t("trash.toast.featureDeleted", '"{{title}}" 피처를 삭제했습니다', {
+        t('trash.toast.featureDeleted', '"{{title}}" 피처를 삭제했습니다', {
           title: deletedTitle,
         }),
         {
           duration: 8000,
           action: {
-            label: t("trash.toast.undo", "되돌리기"),
+            label: t('trash.toast.undo', '되돌리기'),
             onClick: async () => {
               try {
                 await trashAPI.restoreFeature(boardId, featureId);
                 const mid =
-                  milestoneIdRef.current && milestoneIdRef.current !== "all"
+                  milestoneIdRef.current && milestoneIdRef.current !== 'all'
                     ? milestoneIdRef.current
                     : undefined;
                 await reloadFeaturesAndTasks(mid);
-                toast.success(t("trash.toast.restored", "복구되었습니다"));
+                toast.success(t('trash.toast.restored', '복구되었습니다'));
               } catch (e) {
-                console.error("Failed to restore feature:", e);
-                toast.error(
-                  t("trash.toast.restoreFailed", "복구에 실패했습니다"),
-                );
+                console.error('Failed to restore feature:', e);
+                toast.error(t('trash.toast.restoreFailed', '복구에 실패했습니다'));
               }
             },
           },
         },
       );
     } catch (error) {
-      console.error("Failed to delete feature:", error);
+      console.error('Failed to delete feature:', error);
     }
   };
 
@@ -2109,37 +1935,28 @@ export function KanbanBoardPage() {
       });
       setTasks([...tasks, newTask]);
       setFeatures(
-        features.map((f) =>
-          f.id === featureId ? { ...f, total_tasks: f.total_tasks + 1 } : f,
-        ),
+        features.map((f) => (f.id === featureId ? { ...f, total_tasks: f.total_tasks + 1 } : f)),
       );
       notifyScheduleRefresh();
     } catch (error: any) {
-      console.error("Failed to create task:", error);
+      console.error('Failed to create task:', error);
     }
   };
 
   // 피처 상세 모달: 서브태스크 DnD 순서 변경 (낙관적 업데이트 + 서버 영속화)
-  const handleReorderSubtasks = async (
-    featureId: string,
-    taskIds: string[],
-  ) => {
+  const handleReorderSubtasks = async (featureId: string, taskIds: string[]) => {
     if (!boardId) return;
 
     const orderMap = new Map(taskIds.map((id, index) => [id, index]));
     const prevTasks = tasks;
     setTasks((prev) =>
-      prev.map((t) =>
-        orderMap.has(t.id)
-          ? { ...t, feature_position: orderMap.get(t.id)! }
-          : t,
-      ),
+      prev.map((t) => (orderMap.has(t.id) ? { ...t, feature_position: orderMap.get(t.id)! } : t)),
     );
 
     try {
       await taskService.reorderFeatureTasks(boardId, featureId, taskIds);
     } catch (error) {
-      console.error("Failed to reorder subtasks:", error);
+      console.error('Failed to reorder subtasks:', error);
       setTasks(prevTasks);
     }
   };
@@ -2175,19 +1992,12 @@ export function KanbanBoardPage() {
       });
 
       // TASK 블록이 아닌 다른 블록에서 추가한 경우 → 해당 블록으로 이동
-      const taskBlock = blocks.find((b) => b.fixed_type === "TASK");
+      const taskBlock = blocks.find((b) => b.fixed_type === 'TASK');
       if (taskBlock && quickAddBlockId !== taskBlock.id) {
-        const targetBlockTasks = tasks.filter(
-          (t) => t.block_id === quickAddBlockId,
-        );
-        await taskService.moveTask(
-          boardId,
-          newTask.id,
-          quickAddBlockId,
-          targetBlockTasks.length,
-        );
+        const targetBlockTasks = tasks.filter((t) => t.block_id === quickAddBlockId);
+        await taskService.moveTask(boardId, newTask.id, quickAddBlockId, targetBlockTasks.length);
         const targetBlock = blocks.find((b) => b.id === quickAddBlockId);
-        const doneBlock = blocks.find((b) => b.fixed_type === "DONE");
+        const doneBlock = blocks.find((b) => b.fixed_type === 'DONE');
         newTask.block_id = quickAddBlockId;
         newTask.block_name = targetBlock?.name;
         newTask.completed = quickAddBlockId === doneBlock?.id;
@@ -2195,15 +2005,13 @@ export function KanbanBoardPage() {
 
       setTasks((prev) => [...prev, newTask]);
       setFeatures((prev) =>
-        prev.map((f) =>
-          f.id === featureId ? { ...f, total_tasks: f.total_tasks + 1 } : f,
-        ),
+        prev.map((f) => (f.id === featureId ? { ...f, total_tasks: f.total_tasks + 1 } : f)),
       );
       notifyScheduleRefresh();
 
       setQuickAddBlockId(null);
     } catch (error) {
-      console.error("Failed to quick add task:", error);
+      console.error('Failed to quick add task:', error);
     } finally {
       setIsQuickAddSubmitting(false);
     }
@@ -2226,7 +2034,7 @@ export function KanbanBoardPage() {
           const fetched = await taskService.getTask(boardId, item.task.id);
           handleTaskClick(fetched);
         } catch (err) {
-          console.warn("Failed to fetch task for checklist detail", err);
+          console.warn('Failed to fetch task for checklist detail', err);
         }
       }
     },
@@ -2246,7 +2054,7 @@ export function KanbanBoardPage() {
     if (date) {
       setMeetingNavigateDate(date);
     }
-    handleViewModeChangeRef.current("meeting");
+    handleViewModeChangeRef.current('meeting');
   }, []);
 
   const handleViewTaskById = useCallback(
@@ -2259,7 +2067,7 @@ export function KanbanBoardPage() {
           const fetched = await taskService.getTask(boardId, taskId);
           handleTaskClick(fetched);
         } catch (err) {
-          console.warn("Failed to fetch task for schedule view", err);
+          console.warn('Failed to fetch task for schedule view', err);
         }
       }
     },
@@ -2288,10 +2096,10 @@ export function KanbanBoardPage() {
           if (prevItem && prevItem.completed !== item.completed) {
             queueMicrotask(() => {
               setWsChecklistEvent({
-                type: "CHECKLIST_TOGGLED",
-                board_id: boardId || "",
-                user_id: currentUser?.id || "",
-                user_name: currentUser?.name || "",
+                type: 'CHECKLIST_TOGGLED',
+                board_id: boardId || '',
+                user_id: currentUser?.id || '',
+                user_name: currentUser?.name || '',
                 timestamp: new Date().toISOString(),
                 data: { item, task_id: taskId },
               });
@@ -2303,19 +2111,13 @@ export function KanbanBoardPage() {
       });
       notifyScheduleRefresh();
     },
-    [
-      boardId,
-      currentUser,
-      setChecklistDataMap,
-      setWsChecklistEvent,
-      notifyScheduleRefresh,
-    ],
+    [boardId, currentUser, setChecklistDataMap, setWsChecklistEvent, notifyScheduleRefresh],
   );
 
   // 활동로그 항목 클릭 → 대상(피처/태스크) 모달로 이동
   const handleActivityNavigate = useCallback(
     (target: ActivityNavTarget) => {
-      if (target.kind === "feature") {
+      if (target.kind === 'feature') {
         handleViewFeatureById(target.featureId);
       } else {
         handleViewTaskWithChecklist(target.taskId, target.checklistItemId);
@@ -2344,9 +2146,7 @@ export function KanbanBoardPage() {
 
     const isOnlyChecklistUpdate = Object.keys(updates).every(
       (key) =>
-        key === "checklist_total" ||
-        key === "checklist_completed" ||
-        key === "checklist_version",
+        key === 'checklist_total' || key === 'checklist_completed' || key === 'checklist_version',
     );
 
     if (isOnlyChecklistUpdate) {
@@ -2356,7 +2156,7 @@ export function KanbanBoardPage() {
 
     try {
       // 마일스톤 변경 시에는 기존 값과 병합해 다른 필드(날짜/설명 등)가 null로 덮이지 않게 한다.
-      const hasMilestone = "milestone_id" in updates;
+      const hasMilestone = 'milestone_id' in updates;
       const existing = tasks.find((t) => t.id === taskId);
       const base = hasMilestone ? { ...existing, ...updates } : updates;
       const updatedTask = await taskService.updateTask(boardId, taskId, {
@@ -2366,7 +2166,7 @@ export function KanbanBoardPage() {
         due_date: base.due_date ?? null,
         estimated_minutes: base.estimated_minutes ?? null,
         // ""=해제, 값=배정, undefined=변경 없음
-        milestone_id: hasMilestone ? (updates.milestone_id ?? "") : undefined,
+        milestone_id: hasMilestone ? (updates.milestone_id ?? '') : undefined,
       });
       setTasks((prevTasks) =>
         prevTasks.map((t) =>
@@ -2381,7 +2181,7 @@ export function KanbanBoardPage() {
       );
       notifyScheduleRefresh();
     } catch (error) {
-      console.error("Failed to update task:", error);
+      console.error('Failed to update task:', error);
     }
   };
 
@@ -2403,9 +2203,7 @@ export function KanbanBoardPage() {
                 total_tasks: newTotalTasks,
                 completed_tasks: newCompletedTasks,
                 progress_percentage:
-                  newTotalTasks > 0
-                    ? Math.round((newCompletedTasks / newTotalTasks) * 100)
-                    : 0,
+                  newTotalTasks > 0 ? Math.round((newCompletedTasks / newTotalTasks) * 100) : 0,
               }
             : f,
         ),
@@ -2421,34 +2219,32 @@ export function KanbanBoardPage() {
     try {
       await taskService.deleteTask(boardId, taskId);
       toast(
-        t("trash.toast.taskDeleted", '"{{title}}" 태스크를 삭제했습니다', {
+        t('trash.toast.taskDeleted', '"{{title}}" 태스크를 삭제했습니다', {
           title: deletedTitle,
         }),
         {
           duration: 8000,
           action: {
-            label: t("trash.toast.undo", "되돌리기"),
+            label: t('trash.toast.undo', '되돌리기'),
             onClick: async () => {
               try {
                 await trashAPI.restoreTask(boardId, taskId);
                 const mid =
-                  milestoneIdRef.current && milestoneIdRef.current !== "all"
+                  milestoneIdRef.current && milestoneIdRef.current !== 'all'
                     ? milestoneIdRef.current
                     : undefined;
                 await reloadFeaturesAndTasks(mid);
-                toast.success(t("trash.toast.restored", "복구되었습니다"));
+                toast.success(t('trash.toast.restored', '복구되었습니다'));
               } catch (e) {
-                console.error("Failed to restore task:", e);
-                toast.error(
-                  t("trash.toast.restoreFailed", "복구에 실패했습니다"),
-                );
+                console.error('Failed to restore task:', e);
+                toast.error(t('trash.toast.restoreFailed', '복구에 실패했습니다'));
               }
             },
           },
         },
       );
     } catch (error) {
-      console.error("Failed to delete task:", error);
+      console.error('Failed to delete task:', error);
     }
   };
 
@@ -2464,43 +2260,25 @@ export function KanbanBoardPage() {
 
     try {
       if (selectedMilestone) {
-        const updated = await milestoneService.updateMilestone(
-          boardId,
-          selectedMilestone.id,
-          {
-            title: data.title,
-            description: data.description,
-            start_date: data.start_date,
-            end_date: data.end_date,
-          },
-        );
+        const updated = await milestoneService.updateMilestone(boardId, selectedMilestone.id, {
+          title: data.title,
+          description: data.description,
+          start_date: data.start_date,
+          end_date: data.end_date,
+        });
 
-        const currentFeatureIds = new Set(
-          selectedMilestone.features?.map((f) => f.id) || [],
-        );
+        const currentFeatureIds = new Set(selectedMilestone.features?.map((f) => f.id) || []);
         const newFeatureIds = new Set(data.feature_ids || []);
 
-        const featuresToRemove = [...currentFeatureIds].filter(
-          (id) => !newFeatureIds.has(id),
-        );
-        const featuresToAdd = [...newFeatureIds].filter(
-          (id) => !currentFeatureIds.has(id),
-        );
+        const featuresToRemove = [...currentFeatureIds].filter((id) => !newFeatureIds.has(id));
+        const featuresToAdd = [...newFeatureIds].filter((id) => !currentFeatureIds.has(id));
 
         for (const featureId of featuresToRemove) {
-          await milestoneService.removeFeature(
-            boardId,
-            selectedMilestone.id,
-            featureId,
-          );
+          await milestoneService.removeFeature(boardId, selectedMilestone.id, featureId);
         }
 
         if (featuresToAdd.length > 0) {
-          await milestoneService.addFeatures(
-            boardId,
-            selectedMilestone.id,
-            featuresToAdd,
-          );
+          await milestoneService.addFeatures(boardId, selectedMilestone.id, featuresToAdd);
         }
 
         const refreshedMilestone = await milestoneService.getMilestone(
@@ -2508,9 +2286,7 @@ export function KanbanBoardPage() {
           selectedMilestone.id,
         );
         setMilestones((prev) =>
-          prev.map((m) =>
-            m.id === refreshedMilestone.id ? refreshedMilestone : m,
-          ),
+          prev.map((m) => (m.id === refreshedMilestone.id ? refreshedMilestone : m)),
         );
         setSelectedMilestone(refreshedMilestone);
 
@@ -2523,15 +2299,13 @@ export function KanbanBoardPage() {
         setSelectedMilestone(created);
 
         await boardService.updateSelectedMilestone(boardId, created.id);
-        setBoard((prev) =>
-          prev ? { ...prev, selected_milestone_id: created.id } : prev,
-        );
+        setBoard((prev) => (prev ? { ...prev, selected_milestone_id: created.id } : prev));
         setKanbanSelectedMilestoneId(created.id);
 
         await reloadFeaturesAndTasks(created.id);
       }
     } catch (error) {
-      console.error("Failed to save milestone:", error);
+      console.error('Failed to save milestone:', error);
       throw error;
     }
   };
@@ -2545,15 +2319,13 @@ export function KanbanBoardPage() {
       setMilestones((prev) => prev.filter((m) => m.id !== milestoneId));
 
       if (kanbanSelectedMilestoneId === milestoneId) {
-        setKanbanSelectedMilestoneId("all");
+        setKanbanSelectedMilestoneId('all');
         await boardService.updateSelectedMilestone(boardId, null);
-        setBoard((prev) =>
-          prev ? { ...prev, selected_milestone_id: null } : prev,
-        );
+        setBoard((prev) => (prev ? { ...prev, selected_milestone_id: null } : prev));
         await reloadFeaturesAndTasks(undefined);
       }
     } catch (error) {
-      console.error("Failed to delete milestone:", error);
+      console.error('Failed to delete milestone:', error);
       throw error;
     }
   };
@@ -2567,11 +2339,9 @@ export function KanbanBoardPage() {
           start_date,
           end_date,
         });
-        setMilestones((prev) =>
-          prev.map((m) => (m.id === id ? { ...m, ...updated } : m)),
-        );
+        setMilestones((prev) => prev.map((m) => (m.id === id ? { ...m, ...updated } : m)));
       } catch (error) {
-        console.error("Failed to update milestone dates:", error);
+        console.error('Failed to update milestone dates:', error);
       }
     },
     [boardId, setMilestones],
@@ -2582,7 +2352,7 @@ export function KanbanBoardPage() {
       const task = tasks.find((t) => t.id === taskId);
       if (!task || !boardId) return;
 
-      const doneBlock = blocks.find((b) => b.fixed_type === "DONE");
+      const doneBlock = blocks.find((b) => b.fixed_type === 'DONE');
       const targetBlock = blocks.find((b) => b.id === targetBlockId);
       const wasInDone = doneBlock?.id === task.block_id;
       const isMovingToDone = doneBlock?.id === targetBlockId;
@@ -2628,9 +2398,7 @@ export function KanbanBoardPage() {
                     ...f,
                     completed_tasks: newCompletedTasks,
                     progress_percentage:
-                      f.total_tasks > 0
-                        ? Math.round((newCompletedTasks / f.total_tasks) * 100)
-                        : 0,
+                      f.total_tasks > 0 ? Math.round((newCompletedTasks / f.total_tasks) * 100) : 0,
                   }
                 : f,
             ),
@@ -2639,17 +2407,12 @@ export function KanbanBoardPage() {
       }
 
       try {
-        const movedTask = await taskService.moveTask(
-          boardId,
-          taskId,
-          targetBlockId,
-          newPosition,
-        );
+        const movedTask = await taskService.moveTask(boardId, taskId, targetBlockId, newPosition);
         setTasks((prevTasks) =>
           prevTasks.map((t) => (t.id === taskId ? { ...t, ...movedTask } : t)),
         );
       } catch (error) {
-        console.error("Failed to move task:", error);
+        console.error('Failed to move task:', error);
         setTasks((prevTasks) =>
           prevTasks.map((t) =>
             t.id === taskId
@@ -2690,9 +2453,7 @@ export function KanbanBoardPage() {
             it.id === itemId
               ? {
                   ...it,
-                  ...("start_date" in patch
-                    ? { start_date: patch.start_date ?? null }
-                    : {}),
+                  ...('start_date' in patch ? { start_date: patch.start_date ?? null } : {}),
                 }
               : it,
           ),
@@ -2700,7 +2461,7 @@ export function KanbanBoardPage() {
       });
       checklistAPI
         .patchItem(boardId, taskId, itemId, patch)
-        .catch((e) => console.error("mini kanban patch checklist failed", e));
+        .catch((e) => console.error('mini kanban patch checklist failed', e));
     },
     [boardId, setChecklistDataMap],
   );
@@ -2727,15 +2488,12 @@ export function KanbanBoardPage() {
       });
       checklistAPI
         .toggleItem(boardId, taskId, itemId)
-        .catch((e) => console.error("mini kanban toggle checklist failed", e));
+        .catch((e) => console.error('mini kanban toggle checklist failed', e));
     },
     [boardId, setChecklistDataMap],
   );
 
-  const handleMoveTaskToFeature = async (
-    taskId: string,
-    targetFeatureId: string,
-  ) => {
+  const handleMoveTaskToFeature = async (taskId: string, targetFeatureId: string) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task || !boardId) return;
 
@@ -2781,9 +2539,7 @@ export function KanbanBoardPage() {
             total_tasks: oldNewTotal,
             completed_tasks: oldNewCompleted,
             progress_percentage:
-              oldNewTotal > 0
-                ? Math.round((oldNewCompleted / oldNewTotal) * 100)
-                : 0,
+              oldNewTotal > 0 ? Math.round((oldNewCompleted / oldNewTotal) * 100) : 0,
           };
         }
         if (f.id === newFeature.id) {
@@ -2792,9 +2548,7 @@ export function KanbanBoardPage() {
             total_tasks: newNewTotal,
             completed_tasks: newNewCompleted,
             progress_percentage:
-              newNewTotal > 0
-                ? Math.round((newNewCompleted / newNewTotal) * 100)
-                : 0,
+              newNewTotal > 0 ? Math.round((newNewCompleted / newNewTotal) * 100) : 0,
           };
         }
         return f;
@@ -2818,13 +2572,11 @@ export function KanbanBoardPage() {
       await taskService.moveTaskToFeature(boardId, taskId, targetFeatureId);
       setManagementRefreshKey((prev) => prev + 1);
     } catch (error) {
-      console.error("Failed to move task to feature:", error);
+      console.error('Failed to move task to feature:', error);
       if (isCrossMilestone) {
         // 제거했던 태스크 복원
         setTasks((prevTasks) =>
-          prevTasks.some((t) => t.id === taskId)
-            ? prevTasks
-            : [...prevTasks, task],
+          prevTasks.some((t) => t.id === taskId) ? prevTasks : [...prevTasks, task],
         );
       } else {
         setTasks((prevTasks) =>
@@ -2888,15 +2640,11 @@ export function KanbanBoardPage() {
       if (createdTask) {
         // 새 Task를 보드 상태에 먼저 넣는다 — TASK_CREATED 웹소켓 이벤트가 먼저 왔을 수 있으니 중복 방지.
         setTasks((prev) =>
-          prev.some((tk) => tk.id === createdTask.id)
-            ? prev
-            : [...prev, createdTask],
+          prev.some((tk) => tk.id === createdTask.id) ? prev : [...prev, createdTask],
         );
         setFeatures((prev) =>
           prev.map((f) =>
-            f.id === createdTask.feature_id
-              ? { ...f, total_tasks: (f.total_tasks || 0) + 1 }
-              : f,
+            f.id === createdTask.feature_id ? { ...f, total_tasks: (f.total_tasks || 0) + 1 } : f,
           ),
         );
       }
@@ -2910,14 +2658,8 @@ export function KanbanBoardPage() {
 
         const nextSource = sourceItems.filter((i) => i.id !== checklistItemId);
         const targetItems = prev[resolvedTargetTaskId] || [];
-        const maxPosition = targetItems.reduce(
-          (max, i) => Math.max(max, i.position ?? 0),
-          -1,
-        );
-        const nextTarget = [
-          ...targetItems,
-          { ...movedChecklistItem, position: maxPosition + 1 },
-        ];
+        const maxPosition = targetItems.reduce((max, i) => Math.max(max, i.position ?? 0), -1);
+        const nextTarget = [...targetItems, { ...movedChecklistItem, position: maxPosition + 1 }];
         return {
           ...prev,
           [sourceTaskId]: nextSource,
@@ -2957,13 +2699,13 @@ export function KanbanBoardPage() {
 
       if (createdTask) {
         toast.success(
-          t("task.moveNewTaskSuccess", {
+          t('task.moveNewTaskSuccess', {
             title: createdTask.title,
-            defaultValue: "체크리스트 항목을 새 Task {{title}}(으)로 옮겼어요",
+            defaultValue: '체크리스트 항목을 새 Task {{title}}(으)로 옮겼어요',
           }),
           {
             action: {
-              label: t("task.moveOpenTask", "Task 열기"),
+              label: t('task.moveOpenTask', 'Task 열기'),
               onClick: () => {
                 setSelectedTask(createdTask);
                 setIsTaskModalOpen(true);
@@ -2973,7 +2715,7 @@ export function KanbanBoardPage() {
         );
       }
     } catch (error) {
-      console.error("Failed to move checklist item:", error);
+      console.error('Failed to move checklist item:', error);
       throw error;
     }
   };
@@ -2986,27 +2728,18 @@ export function KanbanBoardPage() {
       const originalPosition = task?.position ?? newPosition;
 
       setTasks((prevTasks) =>
-        prevTasks.map((t) =>
-          t.id === taskId ? { ...t, position: newPosition } : t,
-        ),
+        prevTasks.map((t) => (t.id === taskId ? { ...t, position: newPosition } : t)),
       );
 
       try {
-        const movedTask = await taskService.moveTask(
-          boardId,
-          taskId,
-          blockId,
-          newPosition,
-        );
+        const movedTask = await taskService.moveTask(boardId, taskId, blockId, newPosition);
         setTasks((prevTasks) =>
           prevTasks.map((t) => (t.id === taskId ? { ...t, ...movedTask } : t)),
         );
       } catch (error) {
-        console.error("Failed to reorder task:", error);
+        console.error('Failed to reorder task:', error);
         setTasks((prevTasks) =>
-          prevTasks.map((t) =>
-            t.id === taskId ? { ...t, position: originalPosition } : t,
-          ),
+          prevTasks.map((t) => (t.id === taskId ? { ...t, position: originalPosition } : t)),
         );
       }
     },
@@ -3031,27 +2764,22 @@ export function KanbanBoardPage() {
 
     try {
       const createdTag = await tagService.createTag(boardId, { name, color });
-      setTags((prevTags) =>
-        prevTags.map((t) => (t.id === tempId ? createdTag : t)),
-      );
+      setTags((prevTags) => prevTags.map((t) => (t.id === tempId ? createdTag : t)));
       return createdTag.id;
     } catch (error) {
-      console.error("Failed to create tag:", error);
+      console.error('Failed to create tag:', error);
       setTags((prevTags) => prevTags.filter((t) => t.id !== tempId));
     }
   };
 
-  const handleUpdateTag = async (
-    tagId: string,
-    data: { name?: string; color?: string },
-  ) => {
+  const handleUpdateTag = async (tagId: string, data: { name?: string; color?: string }) => {
     if (!boardId) return;
     const prevTags = [...tags];
     setTags(tags.map((t) => (t.id === tagId ? { ...t, ...data } : t)));
     try {
       await tagService.updateTag(boardId, tagId, data);
     } catch (error) {
-      console.error("Failed to update tag:", error);
+      console.error('Failed to update tag:', error);
       setTags(prevTags);
     }
   };
@@ -3070,14 +2798,14 @@ export function KanbanBoardPage() {
       prev.map((f) => ({
         ...f,
         tags: (f.tags || []).filter((tag) =>
-          typeof tag === "string" ? tag !== tagId : (tag as Tag).id !== tagId,
+          typeof tag === 'string' ? tag !== tagId : (tag as Tag).id !== tagId,
         ),
       })),
     );
     try {
       await tagService.deleteTag(boardId, tagId);
     } catch (error) {
-      console.error("Failed to delete tag:", error);
+      console.error('Failed to delete tag:', error);
       setTags(prevTags);
     }
   };
@@ -3090,15 +2818,13 @@ export function KanbanBoardPage() {
   // 현재 과금 멤버 수
   const currentBillableMembers =
     subscription?.billable_member_count ||
-    boardMembersData.filter((m) => m.role !== "viewer").length ||
+    boardMembersData.filter((m) => m.role !== 'viewer').length ||
     0;
 
   if (isLoading) {
     return (
       <div className="min-h-dvh bg-bridge-dark flex items-center justify-center">
-        <div className="text-foreground text-lg font-normal">
-          {t("common.loading")}
-        </div>
+        <div className="text-foreground text-lg font-normal">{t('common.loading')}</div>
       </div>
     );
   }
@@ -3107,7 +2833,7 @@ export function KanbanBoardPage() {
     <DragProvider>
       <div className="h-dvh bg-bridge-dark flex flex-col overflow-hidden">
         <KanbanBoardHeader
-          boardId={boardId || ""}
+          boardId={boardId || ''}
           board={board}
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
@@ -3125,9 +2851,7 @@ export function KanbanBoardPage() {
           kanbanSelectedMilestoneId={kanbanSelectedMilestoneId}
           onMilestoneSelect={handleKanbanMilestoneSelect}
           onOpenMilestoneWithCheck={handleOpenMilestoneWithCheck}
-          onOpenMilestoneOnboarding={() =>
-            setIsMilestoneOnboardingOpen(true)
-          }
+          onOpenMilestoneOnboarding={() => setIsMilestoneOnboardingOpen(true)}
           subscription={subscription}
           tierInfo={tierInfo}
           unreadNotificationCount={unreadNotificationCount}
@@ -3151,11 +2875,10 @@ export function KanbanBoardPage() {
           onUpdatePayment={async () => {
             if (!boardId) return;
             try {
-              const url =
-                await subscriptionService.getBillingPortalUrl(boardId);
-              window.open(url, "_blank");
+              const url = await subscriptionService.getBillingPortalUrl(boardId);
+              window.open(url, '_blank');
             } catch (e) {
-              console.error("Failed to get billing portal URL", e);
+              console.error('Failed to get billing portal URL', e);
             }
           }}
           onOpenShortcutsHelp={() => setIsShortcutsHelpOpen(true)}
@@ -3166,7 +2889,7 @@ export function KanbanBoardPage() {
           contractors={headerContractors}
           onOpenContractorManager={() => setIsContractorManagerOpen(true)}
           getBoardSubMode={getBoardSubMode}
-          getScheduleSubMode={() => "schedule" as const}
+          getScheduleSubMode={() => 'schedule' as const}
           getAISubMode={getAISubMode}
           onOpenUpgradeModal={openUpgradeModal}
           onSaveBoardName={async (name: string) => {
@@ -3175,7 +2898,7 @@ export function KanbanBoardPage() {
               await boardService.updateBoard(boardId, name, board.description ?? undefined);
               setBoard((prev) => (prev ? { ...prev, name } : prev));
             } catch (e) {
-              console.error("Failed to update board name", e);
+              console.error('Failed to update board name', e);
             }
           }}
         />
@@ -3186,9 +2909,7 @@ export function KanbanBoardPage() {
             boardId={boardId}
             hasPendingRequest={board?.has_pending_join_request ?? false}
             onRequestSent={() =>
-              setBoard((prev) =>
-                prev ? { ...prev, has_pending_join_request: true } : prev,
-              )
+              setBoard((prev) => (prev ? { ...prev, has_pending_join_request: true } : prev))
             }
           />
         )}
@@ -3231,18 +2952,16 @@ export function KanbanBoardPage() {
 
         {/* 서브뷰 ↔ 마일스톤 구분선 (대시보드·마인드맵은 마일스톤 필터 제외) */}
         {BOARD_SUB_MODES.includes(viewMode) &&
-          viewMode !== "dashboard" &&
-          viewMode !== "milestone" &&
-          viewMode !== "mindmap" &&
-          milestones.length > 0 && (
-            <div className="border-b border-foreground/[0.08]" />
-          )}
+          viewMode !== 'dashboard' &&
+          viewMode !== 'milestone' &&
+          viewMode !== 'mindmap' &&
+          milestones.length > 0 && <div className="border-b border-foreground/[0.08]" />}
 
         {/* 마일스톤 탭 바 (보드 서브뷰에서 표시, dashboard·milestone·mindmap 뷰 제외) */}
         {BOARD_SUB_MODES.includes(viewMode) &&
-          viewMode !== "dashboard" &&
-          viewMode !== "milestone" &&
-          viewMode !== "mindmap" &&
+          viewMode !== 'dashboard' &&
+          viewMode !== 'milestone' &&
+          viewMode !== 'mindmap' &&
           milestones.length > 0 && (
             <MilestoneTabBar
               milestones={milestones}
@@ -3255,107 +2974,102 @@ export function KanbanBoardPage() {
           )}
 
         {/* 일정 탭 서브탭 바 (타임블록 / 캘린더 / 리소스) */}
-        {viewMode === "schedule" && (
-          <ScheduleSubTabBar
-            activeTab={scheduleSubTab}
-            onChange={handleScheduleSubTabChange}
-          />
+        {viewMode === 'schedule' && (
+          <ScheduleSubTabBar activeTab={scheduleSubTab} onChange={handleScheduleSubTabChange} />
         )}
-        {(viewMode === "statistics" || viewMode === "ai_report") &&
+        {(viewMode === 'statistics' || viewMode === 'ai_report') &&
           isAdminOrOwner &&
           !isViewer &&
           !isTester && (
             <div className="flex items-center justify-center py-1.5 bg-kanban-header/50 border-b border-foreground/5">
               <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-0.5">
                 <button
-                  onClick={() => handleViewModeChange("statistics")}
+                  onClick={() => handleViewModeChange('statistics')}
                   className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                    viewMode === "statistics"
-                      ? "bg-foreground/10 text-foreground"
-                      : "text-zinc-400 hover:text-foreground"
+                    viewMode === 'statistics'
+                      ? 'bg-foreground/10 text-foreground'
+                      : 'text-zinc-400 hover:text-foreground'
                   }`}
                 >
-                  {t("kanban.viewStatistics")}
+                  {t('kanban.viewStatistics')}
                 </button>
                 <button
-                  onClick={() => handleViewModeChange("ai_report")}
+                  onClick={() => handleViewModeChange('ai_report')}
                   className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                    viewMode === "ai_report"
-                      ? "bg-foreground/10 text-foreground"
-                      : "text-zinc-400 hover:text-foreground"
+                    viewMode === 'ai_report'
+                      ? 'bg-foreground/10 text-foreground'
+                      : 'text-zinc-400 hover:text-foreground'
                   }`}
                 >
-                  {t("kanban.viewAIReport")}
+                  {t('kanban.viewAIReport')}
                 </button>
               </div>
             </div>
           )}
 
         {/* 뷰 모드에 따른 컨텐츠 렌더링 */}
-        {viewMode === "dashboard" ? (
+        {viewMode === 'dashboard' ? (
           <Suspense fallback={VIEW_FALLBACK}>
-          <DashboardView
-            boardId={boardId || ""}
-            organizationId={board?.organization_id ?? undefined}
-            userId={currentUser?.id}
-            milestones={milestones}
-            selectedMilestoneId={kanbanSelectedMilestoneId}
-            boardMembersData={boardMembersData}
-            memberColorMap={memberColorMap}
-            taskMilestoneMap={taskMilestoneMap}
-            jobRoles={jobRoles}
-            allFeatures={allFeatures}
-            scheduleRefreshKey={scheduleRefreshKey}
-            scheduleRefreshPanel={scheduleRefreshPanel}
-            wsChecklistEvent={wsChecklistEvent}
-            currentUserRole={currentUserRole}
-            onViewFeatureById={handleViewFeatureById}
-            onViewTaskWithChecklist={handleViewTaskWithChecklist}
-            onNavigateToMeeting={handleNavigateToMeeting}
-            onMilestoneClick={handleOpenMilestoneWithCheck}
-            onUpdateMilestoneDates={
-              canEdit ? handleUpdateMilestoneDates : undefined
-            }
-            onOpenContractorManager={handleOpenContractorManager}
-            onOpenKanban={() => handleViewModeChange("kanban")}
-            onOpenSchedule={() => {
-              handleScheduleSubTabChange("timeblock");
-              handleViewModeChange("schedule");
-            }}
-            onOpenResourceView={() => {
-              handleScheduleSubTabChange("resource");
-              handleViewModeChange("schedule");
-            }}
-            onRefreshAfterPromote={() => {
-              setScheduleRefreshKey((k) => k + 1);
-              setScheduleRefreshPanel((k) => k + 1);
-            }}
-          />
+            <DashboardView
+              boardId={boardId || ''}
+              organizationId={board?.organization_id ?? undefined}
+              userId={currentUser?.id}
+              milestones={milestones}
+              selectedMilestoneId={kanbanSelectedMilestoneId}
+              boardMembersData={boardMembersData}
+              memberColorMap={memberColorMap}
+              taskMilestoneMap={taskMilestoneMap}
+              jobRoles={jobRoles}
+              allFeatures={allFeatures}
+              scheduleRefreshKey={scheduleRefreshKey}
+              scheduleRefreshPanel={scheduleRefreshPanel}
+              wsChecklistEvent={wsChecklistEvent}
+              currentUserRole={currentUserRole}
+              onViewFeatureById={handleViewFeatureById}
+              onViewTaskWithChecklist={handleViewTaskWithChecklist}
+              onNavigateToMeeting={handleNavigateToMeeting}
+              onMilestoneClick={handleOpenMilestoneWithCheck}
+              onUpdateMilestoneDates={canEdit ? handleUpdateMilestoneDates : undefined}
+              onOpenContractorManager={handleOpenContractorManager}
+              onOpenKanban={() => handleViewModeChange('kanban')}
+              onOpenSchedule={() => {
+                handleScheduleSubTabChange('timeblock');
+                handleViewModeChange('schedule');
+              }}
+              onOpenResourceView={() => {
+                handleScheduleSubTabChange('resource');
+                handleViewModeChange('schedule');
+              }}
+              onRefreshAfterPromote={() => {
+                setScheduleRefreshKey((k) => k + 1);
+                setScheduleRefreshPanel((k) => k + 1);
+              }}
+            />
           </Suspense>
-        ) : viewMode === "gantt" ? (
+        ) : viewMode === 'gantt' ? (
           <Suspense fallback={VIEW_FALLBACK}>
-          <GanttView
-            boardId={boardId || ""}
-            searchInputRef={searchInputRef}
-            filterOptions={filterOptions}
-            onFilterChange={setFilterOptions}
-            features={kanbanFeatures}
-            filteredFeatures={filteredFeatures}
-            tasks={kanbanTasks}
-            filteredTasks={filteredTasks}
-            setTasks={setTasks}
-            tags={tags}
-            boardMembersData={boardMembersData}
-            milestones={milestones}
-            selectedMilestoneId={kanbanSelectedMilestoneId}
-            canEdit={canEdit}
-            onFeatureClick={handleFeatureClick}
-            onTaskClick={handleTaskClick}
-          />
+            <GanttView
+              boardId={boardId || ''}
+              searchInputRef={searchInputRef}
+              filterOptions={filterOptions}
+              onFilterChange={setFilterOptions}
+              features={kanbanFeatures}
+              filteredFeatures={filteredFeatures}
+              tasks={kanbanTasks}
+              filteredTasks={filteredTasks}
+              setTasks={setTasks}
+              tags={tags}
+              boardMembersData={boardMembersData}
+              milestones={milestones}
+              selectedMilestoneId={kanbanSelectedMilestoneId}
+              canEdit={canEdit}
+              onFeatureClick={handleFeatureClick}
+              onTaskClick={handleTaskClick}
+            />
           </Suspense>
-        ) : viewMode === "kanban" ? (
+        ) : viewMode === 'kanban' ? (
           <KanbanView
-            boardId={boardId || ""}
+            boardId={boardId || ''}
             searchInputRef={searchInputRef}
             features={kanbanFeatures}
             filteredFeatures={filteredFeatures}
@@ -3404,38 +3118,36 @@ export function KanbanBoardPage() {
             onQuickAddTask={setQuickAddBlockId}
             onJoinRequestSent={handleJoinRequestSent}
           />
-        ) : viewMode === "schedule" ? (
+        ) : viewMode === 'schedule' ? (
           <Suspense fallback={VIEW_FALLBACK}>
-          <ScheduleView
-            boardId={boardId || ""}
-            scheduleSubTab={scheduleSubTab}
-            organizationId={board?.organization_id ?? undefined}
-            boardMembersData={boardMembersData}
-            memberColorMap={memberColorMap}
-            jobRoles={jobRoles}
-            memberJobRoleMap={memberJobRoleMap}
-            milestones={milestones}
-            taskMilestoneMap={taskMilestoneMap}
-            allFeatures={allFeatures}
-            scheduleRefreshKey={scheduleRefreshKey}
-            scheduleRefreshPanel={scheduleRefreshPanel}
-            wsChecklistEvent={wsChecklistEvent}
-            currentUserRole={currentUserRole}
-            urlTab={urlTab}
-            notifyScheduleRefresh={notifyScheduleRefresh}
-            onViewFeatureById={handleViewFeatureById}
-            onNavigateToMeeting={handleNavigateToMeeting}
-            onViewTaskWithChecklist={handleViewTaskWithChecklist}
-            onViewTaskById={handleViewTaskById}
-            onItemDetailClick={handleChecklistItemDetailClick}
-            onOpenContractorManager={handleOpenContractorManager}
-            onMilestoneClick={handleOpenMilestoneWithCheck}
-            onUpdateMilestoneDates={
-              canEdit ? handleUpdateMilestoneDates : undefined
-            }
-          />
+            <ScheduleView
+              boardId={boardId || ''}
+              scheduleSubTab={scheduleSubTab}
+              organizationId={board?.organization_id ?? undefined}
+              boardMembersData={boardMembersData}
+              memberColorMap={memberColorMap}
+              jobRoles={jobRoles}
+              memberJobRoleMap={memberJobRoleMap}
+              milestones={milestones}
+              taskMilestoneMap={taskMilestoneMap}
+              allFeatures={allFeatures}
+              scheduleRefreshKey={scheduleRefreshKey}
+              scheduleRefreshPanel={scheduleRefreshPanel}
+              wsChecklistEvent={wsChecklistEvent}
+              currentUserRole={currentUserRole}
+              urlTab={urlTab}
+              notifyScheduleRefresh={notifyScheduleRefresh}
+              onViewFeatureById={handleViewFeatureById}
+              onNavigateToMeeting={handleNavigateToMeeting}
+              onViewTaskWithChecklist={handleViewTaskWithChecklist}
+              onViewTaskById={handleViewTaskById}
+              onItemDetailClick={handleChecklistItemDetailClick}
+              onOpenContractorManager={handleOpenContractorManager}
+              onMilestoneClick={handleOpenMilestoneWithCheck}
+              onUpdateMilestoneDates={canEdit ? handleUpdateMilestoneDates : undefined}
+            />
           </Suspense>
-        ) : viewMode === "calendar" ? (
+        ) : viewMode === 'calendar' ? (
           <main className="flex-1 flex flex-col overflow-hidden">
             <KanbanFilterToolbar
               ref={searchInputRef}
@@ -3445,41 +3157,41 @@ export function KanbanBoardPage() {
               tags={tags}
               boardMembersData={boardMembersData}
               tasks={kanbanTasks}
-              boardId={boardId || ""}
+              boardId={boardId || ''}
               canEdit={canEdit}
             />
             <Suspense fallback={VIEW_FALLBACK}>
-            <CalendarView
-              boardId={boardId || ""}
-              features={filteredFeatures}
-              tasks={filteredTasks}
-              checklistDataMap={checklistDataMap}
-              onViewFeature={(featureId) => {
-                const feature =
-                  features.find((f) => f.id === featureId) ||
-                  allFeatures.find((f) => f.id === featureId);
-                if (feature) handleFeatureClick(feature);
-              }}
-              onViewTask={(taskId) => {
-                const task = tasks.find((t) => t.id === taskId);
-                if (task) handleTaskClick(task);
-              }}
-            />
+              <CalendarView
+                boardId={boardId || ''}
+                features={filteredFeatures}
+                tasks={filteredTasks}
+                checklistDataMap={checklistDataMap}
+                onViewFeature={(featureId) => {
+                  const feature =
+                    features.find((f) => f.id === featureId) ||
+                    allFeatures.find((f) => f.id === featureId);
+                  if (feature) handleFeatureClick(feature);
+                }}
+                onViewTask={(taskId) => {
+                  const task = tasks.find((t) => t.id === taskId);
+                  if (task) handleTaskClick(task);
+                }}
+              />
             </Suspense>
           </main>
-        ) : viewMode === "meeting" ? (
+        ) : viewMode === 'meeting' ? (
           <main className="flex-1 overflow-hidden">
             <Suspense fallback={VIEW_FALLBACK}>
-            <MeetingCalendarView
-              boardId={boardId || ""}
-              boardMembers={boardMembersData}
-              onRefreshSchedule={() => setScheduleRefreshKey((k) => k + 1)}
-              refreshTrigger={meetingRefreshKey}
-              navigateToDate={meetingNavigateDate}
-            />
+              <MeetingCalendarView
+                boardId={boardId || ''}
+                boardMembers={boardMembersData}
+                onRefreshSchedule={() => setScheduleRefreshKey((k) => k + 1)}
+                refreshTrigger={meetingRefreshKey}
+                navigateToDate={meetingNavigateDate}
+              />
             </Suspense>
           </main>
-        ) : viewMode === "library" ? (
+        ) : viewMode === 'library' ? (
           <main className="flex-1 overflow-hidden">
             <Suspense
               fallback={
@@ -3488,13 +3200,10 @@ export function KanbanBoardPage() {
                 </div>
               }
             >
-              <LibraryView
-                boardId={boardId || ""}
-                currentUserRole={currentUserRole}
-              />
+              <LibraryView boardId={boardId || ''} currentUserRole={currentUserRole} />
             </Suspense>
           </main>
-        ) : viewMode === "report" ? (
+        ) : viewMode === 'report' ? (
           <main className="flex-1 overflow-hidden">
             <Suspense
               fallback={
@@ -3505,14 +3214,14 @@ export function KanbanBoardPage() {
             >
               <div className="h-full flex flex-col p-3 md:p-5">
                 <BoardReportSpace
-                  boardId={boardId || ""}
+                  boardId={boardId || ''}
                   canManage={isAdminOrOwner}
                   boardName={board?.name}
                 />
               </div>
             </Suspense>
           </main>
-        ) : viewMode === "statistics" ? (
+        ) : viewMode === 'statistics' ? (
           <main className="flex-1 overflow-hidden">
             <Suspense
               fallback={
@@ -3522,7 +3231,7 @@ export function KanbanBoardPage() {
               }
             >
               <StatisticsView
-                boardId={boardId || ""}
+                boardId={boardId || ''}
                 milestones={milestones}
                 tags={tags}
                 members={boardMembersData.map((m) => ({
@@ -3534,7 +3243,7 @@ export function KanbanBoardPage() {
                     profile_image: null,
                   },
                   role: m.role.toUpperCase() as any,
-                  joined_at: "",
+                  joined_at: '',
                 }))}
                 onTaskClick={(taskId) => {
                   const task = tasks.find((t) => t.id === taskId);
@@ -3546,7 +3255,7 @@ export function KanbanBoardPage() {
               />
             </Suspense>
           </main>
-        ) : viewMode === "ai_report" ? (
+        ) : viewMode === 'ai_report' ? (
           <main className="flex-1 overflow-hidden">
             <Suspense
               fallback={
@@ -3556,7 +3265,7 @@ export function KanbanBoardPage() {
               }
             >
               <AIReportPanel
-                boardId={boardId || ""}
+                boardId={boardId || ''}
                 members={boardMembersData.map((m) => ({
                   id: m.id,
                   user: {
@@ -3566,13 +3275,13 @@ export function KanbanBoardPage() {
                     profile_image: null,
                   },
                   role: m.role.toUpperCase() as any,
-                  joined_at: "",
+                  joined_at: '',
                 }))}
                 hideBilling={hideBilling}
               />
             </Suspense>
           </main>
-        ) : viewMode === "milestone" ? (
+        ) : viewMode === 'milestone' ? (
           <main className="flex-1 overflow-hidden flex flex-col">
             <div className="flex-1 overflow-hidden">
               <Suspense
@@ -3583,27 +3292,23 @@ export function KanbanBoardPage() {
                 }
               >
                 <MilestoneView
-                  boardId={boardId || ""}
+                  boardId={boardId || ''}
                   features={features}
                   tasks={tasks}
                   milestones={milestones}
                   onFeatureClick={handleFeatureClick}
                   onCreateMilestone={() => handleOpenMilestoneWithCheck()}
-                  onEditMilestone={(milestone) =>
-                    handleOpenMilestoneWithCheck(milestone)
-                  }
+                  onEditMilestone={(milestone) => handleOpenMilestoneWithCheck(milestone)}
                   onTaskClick={handleTaskClick}
                   canEdit={canEdit}
                   onViewInKanban={(milestoneId) => {
                     void handleKanbanMilestoneSelect(milestoneId);
-                    handleViewModeChange("kanban");
+                    handleViewModeChange('kanban');
                   }}
                   onRefresh={() => {
                     if (boardId) {
                       const milestoneId =
-                        kanbanSelectedMilestoneId !== "all"
-                          ? kanbanSelectedMilestoneId
-                          : undefined;
+                        kanbanSelectedMilestoneId !== 'all' ? kanbanSelectedMilestoneId : undefined;
                       reloadFeaturesAndTasks(milestoneId);
                     }
                   }}
@@ -3612,7 +3317,7 @@ export function KanbanBoardPage() {
               </Suspense>
             </div>
           </main>
-        ) : viewMode === "list" ? (
+        ) : viewMode === 'list' ? (
           <main className="flex-1 flex flex-col overflow-hidden">
             <KanbanFilterToolbar
               ref={searchInputRef}
@@ -3622,11 +3327,11 @@ export function KanbanBoardPage() {
               tags={tags}
               boardMembersData={boardMembersData}
               tasks={kanbanTasks}
-              boardId={boardId || ""}
+              boardId={boardId || ''}
               canEdit={canEdit}
             />
             <BoardListView
-              boardId={boardId || ""}
+              boardId={boardId || ''}
               features={filteredFeatures}
               tasks={filteredTasks}
               blocks={blocks}
@@ -3645,7 +3350,7 @@ export function KanbanBoardPage() {
               }}
             />
           </main>
-        ) : viewMode === "mindmap" ? (
+        ) : viewMode === 'mindmap' ? (
           <main className="flex-1 flex flex-col overflow-hidden">
             <Suspense
               fallback={
@@ -3655,7 +3360,7 @@ export function KanbanBoardPage() {
               }
             >
               <MindMapView
-                boardId={boardId || ""}
+                boardId={boardId || ''}
                 features={allFeatures}
                 tasks={tasks}
                 featureMilestonesMap={featureMilestonesMap}
@@ -3668,7 +3373,7 @@ export function KanbanBoardPage() {
               />
             </Suspense>
           </main>
-        ) : viewMode === "minikanban" ? (
+        ) : viewMode === 'minikanban' ? (
           <main className="flex-1 flex flex-col overflow-hidden">
             <Suspense
               fallback={
@@ -3678,7 +3383,7 @@ export function KanbanBoardPage() {
               }
             >
               <MiniKanbanView
-                boardId={boardId || ""}
+                boardId={boardId || ''}
                 blocks={blocks}
                 tasks={kanbanTasks}
                 checklistByTask={checklistDataMap}
@@ -3696,13 +3401,13 @@ export function KanbanBoardPage() {
         {/* 모바일 하단 여백 (탭바 + safe area 공간 확보) */}
         <div
           className="shrink-0 md:hidden"
-          style={{ height: "calc(3.5rem + env(safe-area-inset-bottom, 0px))" }}
+          style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))' }}
         />
 
         {/* 모바일 하단 탭바 - inline으로 유지 (뷰모드 의존성이 깊어서) */}
         <nav
           className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-bridge-obsidian/95 backdrop-blur-xl border-t border-foreground/10"
-          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
           <div className="flex items-center gap-0.5 px-1 pt-2 pb-1.5">
             <MobileTabButton
@@ -3711,56 +3416,53 @@ export function KanbanBoardPage() {
                 const subMode = getBoardSubMode();
                 handleViewModeChange(subMode);
               }}
-              label={t("kanban.viewBoard", "보드")}
+              label={t('kanban.viewBoard', '보드')}
               icon="kanban"
             />
             <MobileTabButton
-              active={viewMode === "schedule"}
+              active={viewMode === 'schedule'}
               onClick={() => {
-                handleViewModeChange("schedule");
+                handleViewModeChange('schedule');
               }}
-              label={t("kanban.viewScheduleTab", "일정")}
+              label={t('kanban.viewScheduleTab', '일정')}
               icon="schedule"
             />
             <MobileTabButton
-              active={viewMode === "meeting"}
-              onClick={() => handleViewModeChange("meeting")}
-              label={t("kanban.viewMeeting", "회의")}
+              active={viewMode === 'meeting'}
+              onClick={() => handleViewModeChange('meeting')}
+              label={t('kanban.viewMeeting', '회의')}
               icon="meeting"
             />
             <MobileTabButton
-              active={viewMode === "library"}
-              onClick={() => handleViewModeChange("library")}
-              label={t("kanban.viewLibrary", "자료실")}
+              active={viewMode === 'library'}
+              onClick={() => handleViewModeChange('library')}
+              label={t('kanban.viewLibrary', '자료실')}
               icon="library"
             />
             <MobileTabButton
-              active={viewMode === "report"}
-              onClick={() => handleViewModeChange("report")}
-              label={t("kanban.viewReport", "보고서")}
+              active={viewMode === 'report'}
+              onClick={() => handleViewModeChange('report')}
+              label={t('kanban.viewReport', '보고서')}
               icon="report"
             />
             {!isRestricted && (isAdminOrOwner || (!isViewer && !isTester)) && (
               <MobileTabButton
-                active={viewMode === "statistics" || viewMode === "ai_report"}
+                active={viewMode === 'statistics' || viewMode === 'ai_report'}
                 onClick={() => {
                   if (!canAccessStatistics) {
-                    openUpgradeModal("statistics");
+                    openUpgradeModal('statistics');
                     return;
                   }
                   const subMode = getAISubMode();
-                  if (subMode === "statistics" && !isAdminOrOwner) {
-                    handleViewModeChange("ai_report");
-                  } else if (
-                    subMode === "ai_report" &&
-                    (isViewer || isTester)
-                  ) {
-                    handleViewModeChange("statistics");
+                  if (subMode === 'statistics' && !isAdminOrOwner) {
+                    handleViewModeChange('ai_report');
+                  } else if (subMode === 'ai_report' && (isViewer || isTester)) {
+                    handleViewModeChange('statistics');
                   } else {
                     handleViewModeChange(subMode);
                   }
                 }}
-                label={t("kanban.viewAIAnalysisTab", "AI분석")}
+                label={t('kanban.viewAIAnalysisTab', 'AI분석')}
                 icon="ai"
                 locked={!canAccessStatistics}
               />
@@ -3782,7 +3484,7 @@ export function KanbanBoardPage() {
         <OverdueChecklistModal
           open={isOverdueModalOpen}
           onClose={() => setIsOverdueModalOpen(false)}
-          boardId={boardId || ""}
+          boardId={boardId || ''}
           tasks={tasks}
           checklistDataMap={checklistDataMap}
           canEdit={canEdit}
@@ -3802,7 +3504,7 @@ export function KanbanBoardPage() {
             boardId={boardId}
             onRestored={() => {
               const mid =
-                milestoneIdRef.current && milestoneIdRef.current !== "all"
+                milestoneIdRef.current && milestoneIdRef.current !== 'all'
                   ? milestoneIdRef.current
                   : undefined;
               reloadFeaturesAndTasks(mid).catch(() => {});
@@ -3828,8 +3530,7 @@ export function KanbanBoardPage() {
             onClose={() => setLevelUpTarget(null)}
             boardId={boardId}
             milestoneId={
-              kanbanSelectedMilestoneId !== "all" &&
-              kanbanSelectedMilestoneId !== "none"
+              kanbanSelectedMilestoneId !== 'all' && kanbanSelectedMilestoneId !== 'none'
                 ? kanbanSelectedMilestoneId
                 : (milestones[0]?.id ?? null)
             }
@@ -3839,7 +3540,7 @@ export function KanbanBoardPage() {
         )}
 
         <BoardModalManager
-          boardId={boardId || ""}
+          boardId={boardId || ''}
           // Feature Modal
           isOnboarding={features.length <= 1 && tasks.length === 0}
           selectedFeature={selectedFeature}
@@ -3849,9 +3550,7 @@ export function KanbanBoardPage() {
             setSelectedFeature(null);
           }}
           featureTasks={
-            selectedFeature
-              ? tasks.filter((t) => t.feature_id === selectedFeature.id)
-              : []
+            selectedFeature ? tasks.filter((t) => t.feature_id === selectedFeature.id) : []
           }
           blocks={blocks}
           allBlocks={allBlocks}
@@ -3859,15 +3558,10 @@ export function KanbanBoardPage() {
             handleAddSubtask(selectedFeature!.id, title, milestoneId)
           }
           onReorderSubtasks={(taskIds) =>
-            selectedFeature &&
-            handleReorderSubtasks(selectedFeature.id, taskIds)
+            selectedFeature && handleReorderSubtasks(selectedFeature.id, taskIds)
           }
           onRenameSubtask={(taskId, newTitle) => {
-            setTasks((prev) =>
-              prev.map((t) =>
-                t.id === taskId ? { ...t, title: newTitle } : t,
-              ),
-            );
+            setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, title: newTitle } : t)));
           }}
           onUpdateFeature={handleUpdateFeature}
           onDeleteFeature={handleDeleteFeature}
@@ -3886,12 +3580,10 @@ export function KanbanBoardPage() {
             setSelectedTask(null);
             setHighlightChecklistItemId(null);
           }}
-          onUpdateTask={(updates) =>
-            selectedTask && handleUpdateTask(selectedTask.id, updates)
-          }
+          onUpdateTask={(updates) => selectedTask && handleUpdateTask(selectedTask.id, updates)}
           onDeleteTask={handleDeleteTask}
           onMoveToDone={(taskId) => {
-            const doneBlock = blocks.find((b) => b.fixed_type === "DONE");
+            const doneBlock = blocks.find((b) => b.fixed_type === 'DONE');
             if (doneBlock) {
               handleMoveTask(taskId, doneBlock.id, 0);
               setManagementRefreshKey((prev) => prev + 1);
@@ -3961,7 +3653,7 @@ export function KanbanBoardPage() {
                   seatCount: subscription.seat_count,
                   usedSeats:
                     subscription.billable_member_count ||
-                    boardMembersData.filter((m) => m.role !== "viewer").length,
+                    boardMembersData.filter((m) => m.role !== 'viewer').length,
                 }
               : undefined
           }
@@ -3978,7 +3670,7 @@ export function KanbanBoardPage() {
             !hideBillingForUser
               ? () => {
                   setIsShareBoardModalOpen(false);
-                  setCreditModalMode("purchase");
+                  setCreditModalMode('purchase');
                   setShowCreditModal(true);
                 }
               : undefined
@@ -4024,10 +3716,7 @@ export function KanbanBoardPage() {
           onSelectMilestone={async (ms) => {
             if (ms && boardId) {
               try {
-                const detailed = await milestoneService.getMilestone(
-                  boardId,
-                  ms.id,
-                );
+                const detailed = await milestoneService.getMilestone(boardId, ms.id);
                 setSelectedMilestone(detailed);
               } catch {
                 setSelectedMilestone(ms);
@@ -4051,7 +3740,7 @@ export function KanbanBoardPage() {
           // Seat Purchase Modal
           seatPurchaseModal={seatPurchaseModal}
           onCloseSeatPurchase={() => setSeatPurchaseModal(null)}
-          billingCycle={subscription?.billing_cycle || "MONTHLY"}
+          billingCycle={subscription?.billing_cycle || 'MONTHLY'}
           onPurchaseSeatsAndRetry={handlePurchaseSeatsAndRetry}
           // Org Seat Limit Modal
           orgSeatLimitModal={orgSeatLimitModal}
@@ -4081,18 +3770,15 @@ export function KanbanBoardPage() {
 
         {/* Version Info */}
         <div className="fixed bottom-16 md:bottom-2 right-3 text-xs text-slate-600 select-none pointer-events-none z-10">
-          FE:{" "}
-          {typeof __FE_COMMIT_HASH__ !== "undefined"
-            ? __FE_COMMIT_HASH__
-            : "dev"}
+          FE: {typeof __FE_COMMIT_HASH__ !== 'undefined' ? __FE_COMMIT_HASH__ : 'dev'}
           {beCommit && <> · BE: {beCommit}</>}
         </div>
 
         {/* 우하단 플로팅 뷰 전환 버튼 (보드 표현 뷰에서만 표시, 대시보드·마일스톤·마인드맵 제외) */}
         {BOARD_SUB_MODES.includes(viewMode) &&
-          viewMode !== "dashboard" &&
-          viewMode !== "milestone" &&
-          viewMode !== "mindmap" && (
+          viewMode !== 'dashboard' &&
+          viewMode !== 'milestone' &&
+          viewMode !== 'mindmap' && (
             <FloatingViewSwitcher
               viewMode={viewMode}
               onViewModeChange={(mode) => handleViewModeChange(mode)}
@@ -4119,7 +3805,7 @@ export function KanbanBoardPage() {
   );
 }
 
-import { motion } from "framer-motion";
+import { motion } from 'framer-motion';
 
 // 모바일 하단 탭 버튼 컴포넌트
 
@@ -4133,7 +3819,7 @@ function MobileTabButton({
   active: boolean;
   onClick: () => void;
   label: string;
-  icon: "kanban" | "schedule" | "meeting" | "library" | "report" | "ai";
+  icon: 'kanban' | 'schedule' | 'meeting' | 'library' | 'report' | 'ai';
   locked?: boolean;
 }) {
   const iconMap = {
@@ -4149,27 +3835,19 @@ function MobileTabButton({
     <button
       onClick={onClick}
       className={`relative flex flex-1 min-w-0 flex-col items-center gap-0.5 min-h-[44px] px-0.5 py-1 rounded-lg transition-colors ${
-        active
-          ? "text-bridge-secondary"
-          : locked
-            ? "text-zinc-700"
-            : "text-zinc-500"
+        active ? 'text-bridge-secondary' : locked ? 'text-zinc-700' : 'text-zinc-500'
       }`}
     >
       {active && (
         <motion.div
           layoutId="kanban-tab-indicator"
           className="absolute -top-2 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-bridge-secondary"
-          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
         />
       )}
       {iconMap[icon]}
-      <span className="text-xs font-medium w-full text-center truncate">
-        {label}
-      </span>
-      {locked && (
-        <Lock size={8} className="absolute top-0.5 right-1 text-zinc-600" />
-      )}
+      <span className="text-xs font-medium w-full text-center truncate">{label}</span>
+      {locked && <Lock size={8} className="absolute top-0.5 right-1 text-zinc-600" />}
     </button>
   );
 }

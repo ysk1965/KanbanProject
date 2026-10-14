@@ -1,16 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
-import { organizationService } from "../../../utils/services";
-import { OnboardingTemplatesSection } from "../OnboardingTemplatesSection";
-import { OrgAnniversarySettingsSection } from "./OrgAnniversarySettingsSection";
-import type { OrgDepartment, OrgJobGroup } from "../../../types";
+import { useState, useEffect, useCallback } from 'react';
+import { organizationService } from '../../../utils/services';
+import { OnboardingTemplatesSection } from '../OnboardingTemplatesSection';
+import { OrgAnniversarySettingsSection } from './OrgAnniversarySettingsSection';
+import type { OrgDepartment, OrgJobGroup } from '../../../types';
 
 interface OrgSettingsOnboardingSubTabProps {
   orgId: string;
 }
 
-export function OrgSettingsOnboardingSubTab({
-  orgId,
-}: OrgSettingsOnboardingSubTabProps) {
+export function OrgSettingsOnboardingSubTab({ orgId }: OrgSettingsOnboardingSubTabProps) {
   const [departments, setDepartments] = useState<OrgDepartment[]>([]);
   const [jobGroups, setJobGroups] = useState<OrgJobGroup[]>([]);
 
@@ -23,7 +21,7 @@ export function OrgSettingsOnboardingSubTab({
       setDepartments(depts);
       setJobGroups(jgs);
     } catch (error) {
-      console.warn("Failed to fetch org data:", error);
+      console.warn('Failed to fetch org data:', error);
     }
   }, [orgId]);
 
@@ -33,11 +31,7 @@ export function OrgSettingsOnboardingSubTab({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-      <OnboardingTemplatesSection
-        orgId={orgId}
-        departments={departments}
-        jobGroups={jobGroups}
-      />
+      <OnboardingTemplatesSection orgId={orgId} departments={departments} jobGroups={jobGroups} />
       <OrgAnniversarySettingsSection orgId={orgId} />
     </div>
   );

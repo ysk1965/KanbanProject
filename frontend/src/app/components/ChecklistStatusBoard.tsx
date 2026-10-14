@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   DndContext,
   DragOverlay,
@@ -11,7 +11,7 @@ import {
   pointerWithin,
   type DragEndEvent,
   type DragStartEvent,
-} from "@dnd-kit/core";
+} from '@dnd-kit/core';
 import {
   Clock,
   Wrench,
@@ -21,22 +21,22 @@ import {
   Calendar as CalendarIcon,
   ArrowRightLeft,
   ChevronDown,
-} from "lucide-react";
-import { format } from "date-fns";
-import { ko } from "date-fns/locale";
-import type { ChecklistItem, BoardContractor, ContractorInfo } from "../types";
-import type { BoardMember } from "./ShareBoardModal";
-import type { ScheduleBlockDetailResponse } from "../utils/api";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Calendar } from "./ui/calendar";
-import { Button } from "./ui/button";
-import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
-import { getTodayDateString } from "../utils/dateUtils";
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import type { ChecklistItem, BoardContractor, ContractorInfo } from '../types';
+import type { BoardMember } from './ShareBoardModal';
+import type { ScheduleBlockDetailResponse } from '../utils/api';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar } from './ui/calendar';
+import { Button } from './ui/button';
+import { getAssigneeHex, getInitials } from '../utils/assigneeColor';
+import { getTodayDateString } from '../utils/dateUtils';
 import {
   resolveChecklistColumn,
   isChecklistOverdue,
   type ChecklistColumn,
-} from "../utils/checklistStatus";
+} from '../utils/checklistStatus';
 
 interface ChecklistStatusBoardProps {
   items: ChecklistItem[];
@@ -67,29 +67,27 @@ const COLUMN_META: {
   ring: string;
 }[] = [
   {
-    key: "todo",
-    dot: "bg-slate-400",
-    text: "text-slate-400",
-    ring: "ring-slate-400/40",
+    key: 'todo',
+    dot: 'bg-slate-400',
+    text: 'text-slate-400',
+    ring: 'ring-slate-400/40',
   },
   {
-    key: "doing",
-    dot: "bg-amber-500",
-    text: "text-amber-500",
-    ring: "ring-amber-500/40",
+    key: 'doing',
+    dot: 'bg-amber-500',
+    text: 'text-amber-500',
+    ring: 'ring-amber-500/40',
   },
   {
-    key: "done",
-    dot: "bg-emerald-500",
-    text: "text-emerald-500",
-    ring: "ring-emerald-500/40",
+    key: 'done',
+    dot: 'bg-emerald-500',
+    text: 'text-emerald-500',
+    ring: 'ring-emerald-500/40',
   },
 ];
 
 // 타임블록 총합(분) → "1h 20m" 형식
-function formatMinutes(
-  blocks: ScheduleBlockDetailResponse[] | undefined,
-): string | null {
+function formatMinutes(blocks: ScheduleBlockDetailResponse[] | undefined): string | null {
   if (!blocks || blocks.length === 0) return null;
   const total = blocks.reduce((sum, b) => {
     const ms =
@@ -107,13 +105,11 @@ function formatMinutes(
 
 // 기간 표시 (row 로직 정렬)
 function formatRange(item: ChecklistItem): string | null {
-  const endDate =
-    item.completed && item.done_date ? item.done_date : item.due_date;
+  const endDate = item.completed && item.done_date ? item.done_date : item.due_date;
   const s = item.start_date;
-  if (s && endDate)
-    return `${format(new Date(s), "M/d")} - ${format(new Date(endDate), "M/d")}`;
-  if (s) return `${format(new Date(s), "M/d")} ~`;
-  if (endDate) return `~ ${format(new Date(endDate), "M/d")}`;
+  if (s && endDate) return `${format(new Date(s), 'M/d')} - ${format(new Date(endDate), 'M/d')}`;
+  if (s) return `${format(new Date(s), 'M/d')} ~`;
+  if (endDate) return `~ ${format(new Date(endDate), 'M/d')}`;
   return null;
 }
 
@@ -158,7 +154,7 @@ function BoardCard({
   const assigneeHex = item.assignee
     ? getAssigneeHex(item.assignee.name, memberData?.assigneeColor)
     : null;
-  const contractorColor = item.contractor?.color || "#6366F1";
+  const contractorColor = item.contractor?.color || '#6366F1';
 
   const timeBlocks = timeBlocksMap[item.id] || [];
   const range = formatRange(item);
@@ -180,22 +176,22 @@ function BoardCard({
 
   const handleTitleKeyDown = (e: React.KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return;
-    if (e.key === "Enter") commitTitle();
-    else if (e.key === "Escape") {
+    if (e.key === 'Enter') commitTitle();
+    else if (e.key === 'Escape') {
       setEditedTitle(item.title);
       setIsEditing(false);
     }
   };
 
   // 미배정 상태의 편집 트리거는 호버 시에만 노출 (카드 클러터 방지)
-  const ghostTrigger = "opacity-0 group-hover:opacity-100 transition-opacity";
+  const ghostTrigger = 'opacity-0 group-hover:opacity-100 transition-opacity';
 
   return (
     <div
       className={`group rounded-lg border p-2.5 transition-colors ${
         dragging
-          ? "bg-bridge-surface border-bridge-accent/60 shadow-xl"
-          : "bg-bridge-surface border-foreground/[0.10] hover:border-foreground/[0.20]"
+          ? 'bg-bridge-surface border-bridge-accent/60 shadow-xl'
+          : 'bg-bridge-surface border-foreground/[0.10] hover:border-foreground/[0.20]'
       }`}
     >
       <div className="flex items-start gap-2">
@@ -203,13 +199,13 @@ function BoardCard({
         <button
           onClick={canEdit ? () => onToggle(item.id) : undefined}
           disabled={!canEdit}
-          aria-label={item.completed ? "완료 해제" : "완료"}
+          aria-label={item.completed ? '완료 해제' : '완료'}
           onPointerDown={(e) => e.stopPropagation()}
           className={`mt-0.5 w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all ${
             item.completed
-              ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
-              : "border-2 border-slate-500 hover:border-slate-300 bg-transparent"
-          } ${!canEdit ? "cursor-default" : "cursor-pointer"}`}
+              ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+              : 'border-2 border-slate-500 hover:border-slate-300 bg-transparent'
+          } ${!canEdit ? 'cursor-default' : 'cursor-pointer'}`}
         >
           {item.completed && (
             <svg
@@ -219,11 +215,7 @@ function BoardCard({
               strokeWidth={3}
               stroke="currentColor"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M4.5 12.75l6 6 9-13.5"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
             </svg>
           )}
         </button>
@@ -243,8 +235,8 @@ function BoardCard({
           <p
             onClick={startEditing}
             className={`flex-1 text-[13px] font-medium leading-snug break-words ${
-              item.completed ? "line-through text-slate-500" : "text-foreground"
-            } ${interactive ? "cursor-pointer" : ""}`}
+              item.completed ? 'line-through text-slate-500' : 'text-foreground'
+            } ${interactive ? 'cursor-pointer' : ''}`}
           >
             {item.title}
           </p>
@@ -257,11 +249,11 @@ function BoardCard({
               <button
                 onClick={() => onMoveToTask(item.id)}
                 onPointerDown={(e) => e.stopPropagation()}
-                aria-label={t("task.moveChecklistToTask", {
-                  defaultValue: "다른 태스크로 이동",
+                aria-label={t('task.moveChecklistToTask', {
+                  defaultValue: '다른 태스크로 이동',
                 })}
-                title={t("task.moveChecklistToTask", {
-                  defaultValue: "다른 태스크로 이동",
+                title={t('task.moveChecklistToTask', {
+                  defaultValue: '다른 태스크로 이동',
                 })}
                 className="p-1 rounded text-slate-500 hover:text-foreground hover:bg-foreground/10 transition-colors"
               >
@@ -283,12 +275,7 @@ function BoardCard({
       </div>
 
       {/* 메타: 날짜 / 담당자 / 타임블록 */}
-      {(interactive ||
-        range ||
-        assigneeHex ||
-        item.contractor ||
-        est ||
-        timeBlocks.length > 0) && (
+      {(interactive || range || assigneeHex || item.contractor || est || timeBlocks.length > 0) && (
         <div className="flex items-center gap-1.5 flex-wrap mt-2 pl-6">
           {/* 날짜 — 클릭 시 기간 캘린더 (리스트뷰 동일) */}
           {interactive ? (
@@ -298,14 +285,14 @@ function BoardCard({
                   onPointerDown={(e) => e.stopPropagation()}
                   className={`inline-flex items-center gap-1 text-[11px] px-1 py-0.5 -mx-1 rounded hover:bg-foreground/10 transition-colors ${
                     overdue
-                      ? "text-rose-500 font-bold"
+                      ? 'text-rose-500 font-bold'
                       : range
-                        ? "text-slate-500"
+                        ? 'text-slate-500'
                         : `text-slate-500 ${ghostTrigger}`
                   }`}
                 >
                   <CalendarIcon className="w-3 h-3" />
-                  {range || t("task.date", { defaultValue: "날짜" })}
+                  {range || t('task.date', { defaultValue: '날짜' })}
                 </button>
               </PopoverTrigger>
               <PopoverContent
@@ -315,9 +302,7 @@ function BoardCard({
                 <Calendar
                   mode="range"
                   selected={{
-                    from: item.start_date
-                      ? new Date(item.start_date)
-                      : undefined,
+                    from: item.start_date ? new Date(item.start_date) : undefined,
                     to: item.due_date ? new Date(item.due_date) : undefined,
                   }}
                   defaultMonth={
@@ -331,8 +316,8 @@ function BoardCard({
                   }
                   onSelect={(r) => {
                     onUpdate?.(item.id, {
-                      start_date: r?.from ? format(r.from, "yyyy-MM-dd") : null,
-                      due_date: r?.to ? format(r.to, "yyyy-MM-dd") : null,
+                      start_date: r?.from ? format(r.from, 'yyyy-MM-dd') : null,
+                      due_date: r?.to ? format(r.to, 'yyyy-MM-dd') : null,
                     });
                   }}
                   numberOfMonths={1}
@@ -352,7 +337,7 @@ function BoardCard({
                         })
                       }
                     >
-                      {t("task.deleteDate", { defaultValue: "날짜 삭제" })}
+                      {t('task.deleteDate', { defaultValue: '날짜 삭제' })}
                     </Button>
                   </div>
                 )}
@@ -361,7 +346,7 @@ function BoardCard({
           ) : (
             range && (
               <span
-                className={`text-[11px] ${overdue ? "text-rose-500 font-bold" : "text-slate-500"}`}
+                className={`text-[11px] ${overdue ? 'text-rose-500 font-bold' : 'text-slate-500'}`}
               >
                 {range}
               </span>
@@ -395,8 +380,8 @@ function BoardCard({
                   ) : (
                     <button
                       onPointerDown={(e) => e.stopPropagation()}
-                      aria-label={t("task.assignee", {
-                        defaultValue: "담당자",
+                      aria-label={t('task.assignee', {
+                        defaultValue: '담당자',
                       })}
                       className={`w-[18px] h-[18px] rounded-full bg-slate-600 flex items-center justify-center text-[10px] text-slate-300 flex-shrink-0 hover:bg-slate-500 transition-colors ${ghostTrigger}`}
                     >
@@ -410,22 +395,17 @@ function BoardCard({
                 >
                   <div className="space-y-0.5">
                     <button
-                      onClick={() =>
-                        onUpdate?.(item.id, { assignee: null, contractor: null })
-                      }
+                      onClick={() => onUpdate?.(item.id, { assignee: null, contractor: null })}
                       className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-foreground/10 transition-colors ${
                         !item.assignee && !item.contractor
-                          ? "bg-foreground/10 text-foreground"
-                          : "text-muted-foreground"
+                          ? 'bg-foreground/10 text-foreground'
+                          : 'text-muted-foreground'
                       }`}
                     >
-                      {t("common.none", { defaultValue: "없음" })}
+                      {t('common.none', { defaultValue: '없음' })}
                     </button>
                     {boardMembers.map((member) => {
-                      const hex = getAssigneeHex(
-                        member.name,
-                        member.assigneeColor,
-                      );
+                      const hex = getAssigneeHex(member.name, member.assigneeColor);
                       return (
                         <button
                           key={member.userId}
@@ -441,8 +421,8 @@ function BoardCard({
                           }
                           className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-foreground/10 transition-colors ${
                             item.assignee?.id === member.userId
-                              ? "bg-foreground/10 text-foreground"
-                              : "text-muted-foreground"
+                              ? 'bg-foreground/10 text-foreground'
+                              : 'text-muted-foreground'
                           }`}
                         >
                           <span
@@ -459,10 +439,10 @@ function BoardCard({
                       <>
                         <div className="my-1 border-t border-foreground/[0.08]" />
                         <div className="px-2 py-1 text-xs font-bold uppercase tracking-widest text-slate-400">
-                          {t("task.contractorSection", "외주 작업자")}
+                          {t('task.contractorSection', '외주 작업자')}
                         </div>
                         {contractors.map((c) => {
-                          const color = c.color || "#6366F1";
+                          const color = c.color || '#6366F1';
                           return (
                             <button
                               key={c.id}
@@ -478,21 +458,18 @@ function BoardCard({
                               }
                               className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-foreground/10 transition-colors ${
                                 item.contractor?.id === c.id
-                                  ? "bg-foreground/10 text-foreground"
-                                  : "text-muted-foreground"
+                                  ? 'bg-foreground/10 text-foreground'
+                                  : 'text-muted-foreground'
                               }`}
                             >
                               <span
                                 className="w-4 h-4 rounded-full border border-dashed flex items-center justify-center flex-shrink-0"
                                 style={{
-                                  backgroundColor: color + "15",
-                                  borderColor: color + "66",
+                                  backgroundColor: color + '15',
+                                  borderColor: color + '66',
                                 }}
                               >
-                                <Wrench
-                                  className="w-2.5 h-2.5"
-                                  style={{ color }}
-                                />
+                                <Wrench className="w-2.5 h-2.5" style={{ color }} />
                               </span>
                               {c.name}
                             </button>
@@ -530,20 +507,16 @@ function BoardCard({
             <button
               onClick={() => setShowTimeBlocks((v) => !v)}
               onPointerDown={(e) => e.stopPropagation()}
-              title={t("task.viewTimeBlocks", {
-                defaultValue: "타임블록 보기",
+              title={t('task.viewTimeBlocks', {
+                defaultValue: '타임블록 보기',
               })}
               className={`inline-flex items-center gap-0.5 text-[11px] font-medium px-1 py-0.5 -mx-1 rounded transition-colors ${
                 showTimeBlocks || timeBlocks.length > 0
-                  ? "text-bridge-secondary hover:bg-bridge-secondary/10"
+                  ? 'text-bridge-secondary hover:bg-bridge-secondary/10'
                   : `text-slate-500 hover:bg-foreground/10 ${ghostTrigger}`
               }`}
             >
-              {showTimeBlocks ? (
-                <ChevronDown className="w-3 h-3" />
-              ) : (
-                <Clock className="w-3 h-3" />
-              )}
+              {showTimeBlocks ? <ChevronDown className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
               {est}
             </button>
           ) : (
@@ -562,8 +535,8 @@ function BoardCard({
         <div className="mt-1.5 pl-6 space-y-1">
           {timeBlocks.length === 0 ? (
             <div className="text-[11px] text-slate-500 py-0.5">
-              {t("task.noTimeBlocks", {
-                defaultValue: "등록된 타임블록이 없습니다",
+              {t('task.noTimeBlocks', {
+                defaultValue: '등록된 타임블록이 없습니다',
               })}
             </div>
           ) : (
@@ -574,7 +547,7 @@ function BoardCard({
               >
                 <CalendarIcon className="w-3 h-3 text-slate-500 flex-shrink-0" />
                 <span className="text-slate-500">
-                  {format(new Date(block.scheduled_date), "M/d (E)", {
+                  {format(new Date(block.scheduled_date), 'M/d (E)', {
                     locale: ko,
                   })}
                 </span>
@@ -625,8 +598,8 @@ function DraggableCard(props: {
           wasDraggedRef.current = false;
         }
       }}
-      className={`${props.canEdit ? "cursor-grab active:cursor-grabbing" : ""} ${
-        isDragging ? "opacity-40" : ""
+      className={`${props.canEdit ? 'cursor-grab active:cursor-grabbing' : ''} ${
+        isDragging ? 'opacity-40' : ''
       }`}
     >
       <BoardCard {...props} />
@@ -669,13 +642,13 @@ function Column({
   const { t } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({ id: `col-${meta.key}` });
   const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState('');
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const submitAdd = () => {
     const title = draft.trim();
     if (title && onQuickAdd) onQuickAdd(title);
-    setDraft("");
+    setDraft('');
     // 연속 추가를 위해 입력창 유지
     inputRef.current?.focus();
   };
@@ -691,13 +664,11 @@ function Column({
       className={`flex flex-col rounded-xl border p-2.5 min-h-[180px] transition-colors ${
         isOver
           ? `bg-foreground/[0.05] border-transparent ring-2 ${meta.ring}`
-          : "bg-foreground/[0.03] border-foreground/[0.08]"
+          : 'bg-foreground/[0.03] border-foreground/[0.08]'
       }`}
     >
       <div className="flex items-center justify-between mb-2.5 px-1">
-        <span
-          className={`flex items-center gap-2 text-xs font-bold tracking-wide ${meta.text}`}
-        >
+        <span className={`flex items-center gap-2 text-xs font-bold tracking-wide ${meta.text}`}>
           <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
           {label}
         </span>
@@ -708,20 +679,16 @@ function Column({
           {onQuickAdd && canEdit && (
             <button
               onClick={adding ? () => setAdding(false) : startAdding}
-              aria-label={t("task.addChecklistItem", {
-                defaultValue: "체크리스트 항목 추가",
+              aria-label={t('task.addChecklistItem', {
+                defaultValue: '체크리스트 항목 추가',
               })}
               className={`p-0.5 rounded transition-colors ${
                 adding
-                  ? "text-slate-400 hover:text-foreground"
-                  : "text-slate-400 hover:text-bridge-accent hover:bg-bridge-accent/10"
+                  ? 'text-slate-400 hover:text-foreground'
+                  : 'text-slate-400 hover:text-bridge-accent hover:bg-bridge-accent/10'
               }`}
             >
-              {adding ? (
-                <X className="w-3.5 h-3.5" />
-              ) : (
-                <Plus className="w-4 h-4" />
-              )}
+              {adding ? <X className="w-3.5 h-3.5" /> : <Plus className="w-4 h-4" />}
             </button>
           )}
         </div>
@@ -735,17 +702,17 @@ function Column({
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.nativeEvent.isComposing) return;
-            if (e.key === "Enter") submitAdd();
-            else if (e.key === "Escape") {
-              setDraft("");
+            if (e.key === 'Enter') submitAdd();
+            else if (e.key === 'Escape') {
+              setDraft('');
               setAdding(false);
             }
           }}
           onBlur={() => {
             if (!draft.trim()) setAdding(false);
           }}
-          placeholder={t("task.checklistItemPlaceholder", {
-            defaultValue: "항목 입력...",
+          placeholder={t('task.checklistItemPlaceholder', {
+            defaultValue: '항목 입력...',
           })}
           className="w-full mb-2 bg-foreground/[0.04] border border-foreground/10 rounded-lg py-1.5 px-2.5 text-[13px] text-foreground placeholder-slate-500 outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
         />
@@ -791,9 +758,7 @@ export function ChecklistStatusBoard({
   const today = getTodayDateString();
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   const grouped = useMemo(() => {
     const g: Record<ChecklistColumn, ChecklistItem[]> = {
@@ -804,16 +769,14 @@ export function ChecklistStatusBoard({
     for (const item of items) g[resolveChecklistColumn(item, today)].push(item);
     // DONE: 최근 완료순(내림차순), 그 외: position 순
     g.done.sort((a, b) => {
-      const av = a.completed_at || a.done_date || "";
-      const bv = b.completed_at || b.done_date || "";
+      const av = a.completed_at || a.done_date || '';
+      const bv = b.completed_at || b.done_date || '';
       return bv.localeCompare(av);
     });
     return g;
   }, [items, today]);
 
-  const activeItem = activeId
-    ? items.find((i) => i.id === activeId) || null
-    : null;
+  const activeItem = activeId ? items.find((i) => i.id === activeId) || null : null;
 
   const handleDragStart = (e: DragStartEvent) => {
     setActiveId(String(e.active.id));
@@ -823,8 +786,8 @@ export function ChecklistStatusBoard({
     setActiveId(null);
     const overId = e.over?.id;
     if (!overId) return;
-    const target = String(overId).replace("col-", "") as ChecklistColumn;
-    if (!["todo", "doing", "done"].includes(target)) return;
+    const target = String(overId).replace('col-', '') as ChecklistColumn;
+    if (!['todo', 'doing', 'done'].includes(target)) return;
     const item = items.find((i) => i.id === String(e.active.id));
     if (!item) return;
     if (resolveChecklistColumn(item, today) === target) return;
@@ -832,9 +795,9 @@ export function ChecklistStatusBoard({
   };
 
   const labels: Record<ChecklistColumn, string> = {
-    todo: t("task.checklistView.todo", { defaultValue: "TODO" }),
-    doing: t("task.checklistView.doing", { defaultValue: "DOING" }),
-    done: t("task.checklistView.done", { defaultValue: "DONE" }),
+    todo: t('task.checklistView.todo', { defaultValue: 'TODO' }),
+    doing: t('task.checklistView.doing', { defaultValue: 'DOING' }),
+    done: t('task.checklistView.done', { defaultValue: 'DONE' }),
   };
 
   return (
@@ -862,7 +825,7 @@ export function ChecklistStatusBoard({
             onUpdate={onUpdateItem}
             onDelete={onDelete}
             onMoveToTask={onMoveToTask}
-            onQuickAdd={meta.key === "todo" ? onQuickAdd : undefined}
+            onQuickAdd={meta.key === 'todo' ? onQuickAdd : undefined}
           />
         ))}
       </div>

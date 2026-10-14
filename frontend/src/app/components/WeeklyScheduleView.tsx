@@ -1,16 +1,16 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   ChevronDown,
   ChevronRight as ChevronRightIcon,
   FileText,
   Flag,
   Calendar as CalendarIcon,
-} from "lucide-react";
-import { useTranslation } from "react-i18next";
-import { Button } from "./ui/button";
-import { Calendar } from "./ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { DateRange } from "react-day-picker";
+} from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Button } from './ui/button';
+import { Calendar } from './ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { DateRange } from 'react-day-picker';
 import {
   format,
   addDays,
@@ -28,15 +28,15 @@ import {
   startOfWeek,
   endOfWeek,
   isWithinInterval,
-} from "date-fns";
-import { ko } from "date-fns/locale";
-import { formatDate } from "../utils/dateUtils";
-import { sortByFeatureOrder } from "../utils/taskOrder";
-import { useHolidays } from "../hooks/useHolidays";
-import { Feature, Task, Milestone, TaskDependency } from "../types";
-import { DependencyArrows, TaskPosition } from "./DependencyArrows";
+} from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { formatDate } from '../utils/dateUtils';
+import { sortByFeatureOrder } from '../utils/taskOrder';
+import { useHolidays } from '../hooks/useHolidays';
+import { Feature, Task, Milestone, TaskDependency } from '../types';
+import { DependencyArrows, TaskPosition } from './DependencyArrows';
 
-type ScheduleViewMode = "day" | "week";
+type ScheduleViewMode = 'day' | 'week';
 
 interface WeeklyScheduleViewProps {
   boardId: string;
@@ -46,17 +46,10 @@ interface WeeklyScheduleViewProps {
   selectedMilestoneId?: string; // 상위에서 선택된 마일스톤
   onViewFeature?: (featureId: string) => void;
   onViewTask?: (taskId: string) => void;
-  onUpdateTaskDates?: (
-    taskId: string,
-    startDate: string,
-    endDate: string,
-  ) => void;
+  onUpdateTaskDates?: (taskId: string, startDate: string, endDate: string) => void;
   onSaveBaseline?: () => Promise<void>;
   dependencies?: TaskDependency[];
-  onCreateDependency?: (
-    predecessorId: string,
-    successorId: string,
-  ) => Promise<void>;
+  onCreateDependency?: (predecessorId: string, successorId: string) => Promise<void>;
   onDeleteDependency?: (dependencyId: string) => Promise<void>;
 }
 
@@ -69,7 +62,7 @@ const LEFT_COLUMN_WIDTH = 280;
 
 // 날짜 문자열을 로컬 타임존 기준으로 파싱 (타임존 이슈 방지)
 const parseLocalDate = (dateStr: string): Date => {
-  const [year, month, day] = dateStr.split("-").map(Number);
+  const [year, month, day] = dateStr.split('-').map(Number);
   return new Date(year, month - 1, day);
 };
 
@@ -79,7 +72,7 @@ const getTaskBarColor = (task: Task, endDate: Date | null): string => {
   today.setHours(0, 0, 0, 0);
 
   if (task.completed) {
-    return "bg-green-500"; // 완료
+    return 'bg-green-500'; // 완료
   }
 
   if (endDate) {
@@ -87,17 +80,14 @@ const getTaskBarColor = (task: Task, endDate: Date | null): string => {
     endDateNormalized.setHours(0, 0, 0, 0);
 
     if (isBefore(endDateNormalized, today)) {
-      return "bg-red-500"; // 마감 초과
+      return 'bg-red-500'; // 마감 초과
     }
 
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    if (
-      isSameDay(endDateNormalized, today) ||
-      isSameDay(endDateNormalized, tomorrow)
-    ) {
-      return "bg-orange-500"; // 마감 임박
+    if (isSameDay(endDateNormalized, today) || isSameDay(endDateNormalized, tomorrow)) {
+      return 'bg-orange-500'; // 마감 임박
     }
   }
 
@@ -108,11 +98,11 @@ const getTaskBarColor = (task: Task, endDate: Date | null): string => {
     startDateNormalized.setHours(0, 0, 0, 0);
 
     if (isAfter(startDateNormalized, today)) {
-      return "bg-gray-400"; // 진행 전
+      return 'bg-gray-400'; // 진행 전
     }
   }
 
-  return "bg-bridge-secondary"; // 진행 중
+  return 'bg-bridge-secondary'; // 진행 중
 };
 
 export function WeeklyScheduleView({
@@ -120,7 +110,7 @@ export function WeeklyScheduleView({
   features,
   tasks,
   milestones = [],
-  selectedMilestoneId = "all",
+  selectedMilestoneId = 'all',
   onViewFeature,
   onViewTask,
   onUpdateTaskDates,
@@ -132,7 +122,7 @@ export function WeeklyScheduleView({
   const { t, i18n } = useTranslation();
   const { holidayMap } = useHolidays(i18n.language, new Date().getFullYear());
   // 일/주 보기 모드
-  const [viewMode, setViewMode] = useState<ScheduleViewMode>("day");
+  const [viewMode, setViewMode] = useState<ScheduleViewMode>('day');
 
   // Baseline 비교 표시 상태
   const [showBaseline, setShowBaseline] = useState(false);
@@ -140,26 +130,18 @@ export function WeeklyScheduleView({
   // 시작/종료 날짜 (기본값: 오늘 기준 7일 전 ~ 30일 후)
   // ⚠️ startOfDay 필수: rangeStartDate에 시간 컴포넌트가 있으면
   // differenceInDays(parseLocalDate(midnight), rangeStart(15:30)) → off-by-one 발생
-  const [rangeStartDate, setRangeStartDate] = useState(() =>
-    startOfDay(subDays(new Date(), 7)),
-  );
-  const [rangeEndDate, setRangeEndDate] = useState(() =>
-    startOfDay(addDays(new Date(), 23)),
-  );
+  const [rangeStartDate, setRangeStartDate] = useState(() => startOfDay(subDays(new Date(), 7)));
+  const [rangeEndDate, setRangeEndDate] = useState(() => startOfDay(addDays(new Date(), 23)));
 
   // 선택된 마일스톤에 따라 날짜 범위 업데이트
   useEffect(() => {
-    if (
-      selectedMilestoneId &&
-      selectedMilestoneId !== "all" &&
-      milestones.length > 0
-    ) {
+    if (selectedMilestoneId && selectedMilestoneId !== 'all' && milestones.length > 0) {
       const milestone = milestones.find((m) => m.id === selectedMilestoneId);
       if (milestone) {
         setRangeStartDate(parseLocalDate(milestone.start_date));
         setRangeEndDate(parseLocalDate(milestone.end_date));
       }
-    } else if (selectedMilestoneId === "all") {
+    } else if (selectedMilestoneId === 'all') {
       // "전체" 선택 시 기본 날짜 범위로
       setRangeStartDate(startOfDay(subDays(new Date(), 7)));
       setRangeEndDate(startOfDay(addDays(new Date(), 23)));
@@ -167,14 +149,12 @@ export function WeeklyScheduleView({
   }, [selectedMilestoneId, milestones]);
 
   // Feature 접기/펼치기 상태
-  const [collapsedFeatures, setCollapsedFeatures] = useState<Set<string>>(
-    new Set(),
-  );
+  const [collapsedFeatures, setCollapsedFeatures] = useState<Set<string>>(new Set());
 
   // 드래그 리사이즈 상태
   const [resizing, setResizing] = useState<{
     taskId: string;
-    handle: "left" | "right";
+    handle: 'left' | 'right';
     initialX: number;
     initialStartDate: Date | null;
     initialEndDate: Date | null;
@@ -246,8 +226,8 @@ export function WeeklyScheduleView({
   const totalDays = days.length;
 
   // 현재 뷰에 따른 열 너비와 총 너비
-  const columnWidth = viewMode === "day" ? DAY_WIDTH : WEEK_WIDTH;
-  const totalColumns = viewMode === "day" ? totalDays : weeks.length;
+  const columnWidth = viewMode === 'day' ? DAY_WIDTH : WEEK_WIDTH;
+  const totalColumns = viewMode === 'day' ? totalDays : weeks.length;
 
   // 오늘 버튼 클릭 - 오늘이 보이도록 스크롤
   const handleGoToToday = () => {
@@ -255,9 +235,8 @@ export function WeeklyScheduleView({
     // 오늘이 범위 내에 있으면 스크롤만
     if (!isBefore(today, rangeStartDate) && !isAfter(today, rangeEndDate)) {
       if (scrollContainerRef.current) {
-        if (viewMode === "day") {
-          const todayOffset =
-            differenceInDays(today, rangeStartDate) * DAY_WIDTH;
+        if (viewMode === 'day') {
+          const todayOffset = differenceInDays(today, rangeStartDate) * DAY_WIDTH;
           scrollContainerRef.current.scrollLeft = todayOffset - 100;
         } else {
           // 주 단위 뷰에서는 오늘이 속한 주를 찾아서 스크롤
@@ -265,8 +244,7 @@ export function WeeklyScheduleView({
             isWithinInterval(today, { start: week.start, end: week.end }),
           );
           if (weekIndex >= 0) {
-            scrollContainerRef.current.scrollLeft =
-              weekIndex * WEEK_WIDTH - 100;
+            scrollContainerRef.current.scrollLeft = weekIndex * WEEK_WIDTH - 100;
           }
         }
       }
@@ -281,7 +259,7 @@ export function WeeklyScheduleView({
   useEffect(() => {
     if (scrollContainerRef.current) {
       const today = startOfDay(new Date());
-      if (viewMode === "day") {
+      if (viewMode === 'day') {
         const todayOffset = differenceInDays(today, rangeStartDate) * DAY_WIDTH;
         scrollContainerRef.current.scrollLeft = Math.max(0, todayOffset - 100);
       } else {
@@ -289,10 +267,7 @@ export function WeeklyScheduleView({
           isWithinInterval(today, { start: week.start, end: week.end }),
         );
         if (weekIndex >= 0) {
-          scrollContainerRef.current.scrollLeft = Math.max(
-            0,
-            weekIndex * WEEK_WIDTH - 100,
-          );
+          scrollContainerRef.current.scrollLeft = Math.max(0, weekIndex * WEEK_WIDTH - 100);
         }
       }
     }
@@ -324,7 +299,7 @@ export function WeeklyScheduleView({
   const handleResizeStart = (
     e: React.MouseEvent,
     taskId: string,
-    handle: "left" | "right",
+    handle: 'left' | 'right',
     task: Task,
   ) => {
     e.preventDefault();
@@ -360,13 +335,13 @@ export function WeeklyScheduleView({
       let newStartDate = resizing.initialStartDate;
       let newEndDate = resizing.initialEndDate;
 
-      if (resizing.handle === "left" && newStartDate) {
+      if (resizing.handle === 'left' && newStartDate) {
         newStartDate = addDays(resizing.initialStartDate!, daysDelta);
         // 시작일이 종료일을 넘지 않도록
         if (newEndDate && isAfter(newStartDate, newEndDate)) {
           newStartDate = newEndDate;
         }
-      } else if (resizing.handle === "right" && newEndDate) {
+      } else if (resizing.handle === 'right' && newEndDate) {
         newEndDate = addDays(resizing.initialEndDate!, daysDelta);
         // 종료일이 시작일보다 앞서지 않도록
         if (newStartDate && isBefore(newEndDate, newStartDate)) {
@@ -396,12 +371,12 @@ export function WeeklyScheduleView({
         let newStartDate = resizing.initialStartDate;
         let newEndDate = resizing.initialEndDate;
 
-        if (resizing.handle === "left" && newStartDate) {
+        if (resizing.handle === 'left' && newStartDate) {
           newStartDate = addDays(resizing.initialStartDate!, daysDelta);
           if (newEndDate && isAfter(newStartDate, newEndDate)) {
             newStartDate = newEndDate;
           }
-        } else if (resizing.handle === "right" && newEndDate) {
+        } else if (resizing.handle === 'right' && newEndDate) {
           newEndDate = addDays(resizing.initialEndDate!, daysDelta);
           if (newStartDate && isBefore(newEndDate, newStartDate)) {
             newEndDate = newStartDate;
@@ -412,8 +387,8 @@ export function WeeklyScheduleView({
         if (onUpdateTaskDates && newStartDate && newEndDate) {
           onUpdateTaskDates(
             resizing.taskId,
-            format(newStartDate, "yyyy-MM-dd"),
-            format(newEndDate, "yyyy-MM-dd"),
+            format(newStartDate, 'yyyy-MM-dd'),
+            format(newEndDate, 'yyyy-MM-dd'),
           );
         }
       }
@@ -427,32 +402,26 @@ export function WeeklyScheduleView({
       setResizing(null);
     };
 
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
 
     return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [resizing, tasks, rangeStartDate, onUpdateTaskDates]);
 
   // 롱프레스 시작 (0.3초 후 드래그 모드)
-  const handleLongPressStart = (
-    e: React.MouseEvent,
-    taskId: string,
-    task: Task,
-  ) => {
+  const handleLongPressStart = (e: React.MouseEvent, taskId: string, task: Task) => {
     // 리사이즈 핸들 클릭이면 무시
-    if ((e.target as HTMLElement).closest("[data-resize-handle]")) return;
+    if ((e.target as HTMLElement).closest('[data-resize-handle]')) return;
 
     longPressTaskRef.current = { taskId, task, x: e.clientX };
 
     longPressTimerRef.current = setTimeout(() => {
       if (longPressTaskRef.current) {
         const { taskId, task, x } = longPressTaskRef.current;
-        const startDate = task.start_date
-          ? parseLocalDate(task.start_date)
-          : null;
+        const startDate = task.start_date ? parseLocalDate(task.start_date) : null;
         const endDate = task.due_date ? parseLocalDate(task.due_date) : null;
 
         if (startDate && endDate) {
@@ -463,7 +432,7 @@ export function WeeklyScheduleView({
             initialEndDate: endDate,
           });
           // 드래그 모드 진입 시 커서 변경
-          document.body.style.cursor = "grabbing";
+          document.body.style.cursor = 'grabbing';
         }
       }
     }, 300); // 0.3초
@@ -507,16 +476,12 @@ export function WeeklyScheduleView({
     const handleMouseUp = (e: MouseEvent) => {
       if (!dragging) return;
 
-      document.body.style.cursor = "";
+      document.body.style.cursor = '';
 
       const deltaX = e.clientX - dragging.initialX;
       const daysDelta = Math.round(deltaX / DAY_WIDTH);
 
-      if (
-        daysDelta !== 0 &&
-        dragging.initialStartDate &&
-        dragging.initialEndDate
-      ) {
+      if (daysDelta !== 0 && dragging.initialStartDate && dragging.initialEndDate) {
         const newStartDate = addDays(dragging.initialStartDate, daysDelta);
         const newEndDate = addDays(dragging.initialEndDate, daysDelta);
 
@@ -524,8 +489,8 @@ export function WeeklyScheduleView({
         if (onUpdateTaskDates) {
           onUpdateTaskDates(
             dragging.taskId,
-            format(newStartDate, "yyyy-MM-dd"),
-            format(newEndDate, "yyyy-MM-dd"),
+            format(newStartDate, 'yyyy-MM-dd'),
+            format(newEndDate, 'yyyy-MM-dd'),
           );
         }
       }
@@ -539,12 +504,12 @@ export function WeeklyScheduleView({
       setDragging(null);
     };
 
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
 
     return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [dragging, rangeStartDate, onUpdateTaskDates]);
 
@@ -563,16 +528,13 @@ export function WeeklyScheduleView({
   const pixelToDate = (clientX: number): Date => {
     const rect = timelineRef.current?.getBoundingClientRect();
     const x = clientX - (rect?.left || 0);
-    const dayIndex = Math.max(
-      0,
-      Math.min(Math.floor(x / DAY_WIDTH), days.length - 1),
-    );
+    const dayIndex = Math.max(0, Math.min(Math.floor(x / DAY_WIDTH), days.length - 1));
     return addDays(rangeStartDate, dayIndex);
   };
 
   // 빈 행 드래그 시작 (날짜 설정)
   const handleCreateStart = (e: React.MouseEvent, taskId: string) => {
-    if (viewMode !== "day" || !onUpdateTaskDates) return;
+    if (viewMode !== 'day' || !onUpdateTaskDates) return;
     e.preventDefault();
     const date = pixelToDate(e.clientX);
     setCreating({ taskId, startColumnDate: date, currentDate: date });
@@ -598,8 +560,8 @@ export function WeeklyScheduleView({
       if (onUpdateTaskDates) {
         onUpdateTaskDates(
           creating.taskId,
-          format(startDate, "yyyy-MM-dd"),
-          format(finalEndDate, "yyyy-MM-dd"),
+          format(startDate, 'yyyy-MM-dd'),
+          format(finalEndDate, 'yyyy-MM-dd'),
         );
       }
 
@@ -607,19 +569,19 @@ export function WeeklyScheduleView({
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setCreating(null);
+      if (e.key === 'Escape') setCreating(null);
     };
 
-    document.body.style.cursor = "crosshair";
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.cursor = 'crosshair';
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.body.style.cursor = "";
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.cursor = '';
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [creating, rangeStartDate, days.length, onUpdateTaskDates]);
 
@@ -648,21 +610,21 @@ export function WeeklyScheduleView({
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         setDragLink(null);
       }
     };
 
-    document.body.style.cursor = "crosshair";
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.cursor = 'crosshair';
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.body.style.cursor = "";
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.cursor = '';
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isDragLinking]);
 
@@ -688,9 +650,7 @@ export function WeeklyScheduleView({
   const featureTaskMap = useMemo(() => {
     const map = new Map<string, Task[]>();
     features.forEach((feature) => {
-      const featureTasks = tasks.filter(
-        (task) => task.feature_id === feature.id,
-      );
+      const featureTasks = tasks.filter((task) => task.feature_id === feature.id);
       map.set(feature.id, sortByFeatureOrder(featureTasks));
     });
     return map;
@@ -698,19 +658,15 @@ export function WeeklyScheduleView({
 
   // 마일스톤 선택에 따른 Feature 필터링
   const displayedFeatures = useMemo(() => {
-    if (selectedMilestoneId === "all") {
+    if (selectedMilestoneId === 'all') {
       return features;
     }
-    const selectedMilestone = milestones.find(
-      (m) => m.id === selectedMilestoneId,
-    );
+    const selectedMilestone = milestones.find((m) => m.id === selectedMilestoneId);
     if (!selectedMilestone || !selectedMilestone.features) {
       return features;
     }
     // 마일스톤에 연결된 feature ID 목록
-    const linkedFeatureIds = new Set(
-      selectedMilestone.features.map((f) => f.id),
-    );
+    const linkedFeatureIds = new Set(selectedMilestone.features.map((f) => f.id));
     return features.filter((f) => linkedFeatureIds.has(f.id));
   }, [features, selectedMilestoneId, milestones]);
 
@@ -721,9 +677,7 @@ export function WeeklyScheduleView({
     let maxEnd: Date | null = null;
 
     featureTasks.forEach((task) => {
-      const taskStartDate = task.start_date
-        ? parseLocalDate(task.start_date)
-        : null;
+      const taskStartDate = task.start_date ? parseLocalDate(task.start_date) : null;
       const endDate = task.due_date ? parseLocalDate(task.due_date) : null;
 
       if (taskStartDate && (!minStart || isBefore(taskStartDate, minStart))) {
@@ -739,9 +693,7 @@ export function WeeklyScheduleView({
 
   // Task 바 위치 계산 (픽셀 기반)
   const calculateTaskBarPosition = (task: Task) => {
-    const taskStartDate = task.start_date
-      ? parseLocalDate(task.start_date)
-      : null;
+    const taskStartDate = task.start_date ? parseLocalDate(task.start_date) : null;
     const endDate = task.due_date ? parseLocalDate(task.due_date) : null;
 
     if (!taskStartDate && !endDate) return null;
@@ -754,22 +706,15 @@ export function WeeklyScheduleView({
     const effectiveEnd = endDate || taskStartDate!;
 
     // 범위와 겹치지 않으면 null
-    if (
-      isAfter(effectiveStart, rangeEnd) ||
-      isBefore(effectiveEnd, rangeStart)
-    ) {
+    if (isAfter(effectiveStart, rangeEnd) || isBefore(effectiveEnd, rangeStart)) {
       return null;
     }
 
     // 시작 위치 계산
-    const displayStart = isBefore(effectiveStart, rangeStart)
-      ? rangeStart
-      : effectiveStart;
-    const displayEnd = isAfter(effectiveEnd, rangeEnd)
-      ? rangeEnd
-      : effectiveEnd;
+    const displayStart = isBefore(effectiveStart, rangeStart) ? rangeStart : effectiveStart;
+    const displayEnd = isAfter(effectiveEnd, rangeEnd) ? rangeEnd : effectiveEnd;
 
-    if (viewMode === "day") {
+    if (viewMode === 'day') {
       const startOffset = differenceInDays(displayStart, rangeStart);
       const duration = differenceInDays(displayEnd, displayStart) + 1;
       return {
@@ -784,8 +729,7 @@ export function WeeklyScheduleView({
             start: week.start,
             end: week.end,
           }) ||
-          (isBefore(displayStart, week.start) &&
-            isAfter(displayEnd, week.start)),
+          (isBefore(displayStart, week.start) && isAfter(displayEnd, week.start)),
       );
       const endWeekIndex = weeks.findIndex((week) =>
         isWithinInterval(displayEnd, { start: week.start, end: week.end }),
@@ -794,8 +738,7 @@ export function WeeklyScheduleView({
       if (startWeekIndex === -1 && endWeekIndex === -1) return null;
 
       const effectiveStartWeek = startWeekIndex >= 0 ? startWeekIndex : 0;
-      const effectiveEndWeek =
-        endWeekIndex >= 0 ? endWeekIndex : weeks.length - 1;
+      const effectiveEndWeek = endWeekIndex >= 0 ? endWeekIndex : weeks.length - 1;
       const weekSpan = effectiveEndWeek - effectiveStartWeek + 1;
 
       return {
@@ -816,21 +759,14 @@ export function WeeklyScheduleView({
     const effectiveStart = minStart || maxEnd!;
     const effectiveEnd = maxEnd || minStart!;
 
-    if (
-      isAfter(effectiveStart, rangeEnd) ||
-      isBefore(effectiveEnd, rangeStart)
-    ) {
+    if (isAfter(effectiveStart, rangeEnd) || isBefore(effectiveEnd, rangeStart)) {
       return null;
     }
 
-    const displayStart = isBefore(effectiveStart, rangeStart)
-      ? rangeStart
-      : effectiveStart;
-    const displayEnd = isAfter(effectiveEnd, rangeEnd)
-      ? rangeEnd
-      : effectiveEnd;
+    const displayStart = isBefore(effectiveStart, rangeStart) ? rangeStart : effectiveStart;
+    const displayEnd = isAfter(effectiveEnd, rangeEnd) ? rangeEnd : effectiveEnd;
 
-    if (viewMode === "day") {
+    if (viewMode === 'day') {
       const startOffset = differenceInDays(displayStart, rangeStart);
       const duration = differenceInDays(displayEnd, displayStart) + 1;
       return {
@@ -845,8 +781,7 @@ export function WeeklyScheduleView({
             start: week.start,
             end: week.end,
           }) ||
-          (isBefore(displayStart, week.start) &&
-            isAfter(displayEnd, week.start)),
+          (isBefore(displayStart, week.start) && isAfter(displayEnd, week.start)),
       );
       const endWeekIndex = weeks.findIndex((week) =>
         isWithinInterval(displayEnd, { start: week.start, end: week.end }),
@@ -855,8 +790,7 @@ export function WeeklyScheduleView({
       if (startWeekIndex === -1 && endWeekIndex === -1) return null;
 
       const effectiveStartWeek = startWeekIndex >= 0 ? startWeekIndex : 0;
-      const effectiveEndWeek =
-        endWeekIndex >= 0 ? endWeekIndex : weeks.length - 1;
+      const effectiveEndWeek = endWeekIndex >= 0 ? endWeekIndex : weeks.length - 1;
       const weekSpan = effectiveEndWeek - effectiveStartWeek + 1;
 
       return {
@@ -871,9 +805,7 @@ export function WeeklyScheduleView({
     const baselineStart = task.baseline_start_date
       ? parseLocalDate(task.baseline_start_date)
       : null;
-    const baselineEnd = task.baseline_due_date
-      ? parseLocalDate(task.baseline_due_date)
-      : null;
+    const baselineEnd = task.baseline_due_date ? parseLocalDate(task.baseline_due_date) : null;
 
     if (!baselineStart && !baselineEnd) return null;
 
@@ -883,21 +815,14 @@ export function WeeklyScheduleView({
     const effectiveStart = baselineStart || baselineEnd!;
     const effectiveEnd = baselineEnd || baselineStart!;
 
-    if (
-      isAfter(effectiveStart, rangeEnd) ||
-      isBefore(effectiveEnd, rangeStart)
-    ) {
+    if (isAfter(effectiveStart, rangeEnd) || isBefore(effectiveEnd, rangeStart)) {
       return null;
     }
 
-    const displayStart = isBefore(effectiveStart, rangeStart)
-      ? rangeStart
-      : effectiveStart;
-    const displayEnd = isAfter(effectiveEnd, rangeEnd)
-      ? rangeEnd
-      : effectiveEnd;
+    const displayStart = isBefore(effectiveStart, rangeStart) ? rangeStart : effectiveStart;
+    const displayEnd = isAfter(effectiveEnd, rangeEnd) ? rangeEnd : effectiveEnd;
 
-    if (viewMode === "day") {
+    if (viewMode === 'day') {
       const startOffset = differenceInDays(displayStart, rangeStart);
       const duration = differenceInDays(displayEnd, displayStart) + 1;
       return {
@@ -911,16 +836,14 @@ export function WeeklyScheduleView({
             start: week.start,
             end: week.end,
           }) ||
-          (isBefore(displayStart, week.start) &&
-            isAfter(displayEnd, week.start)),
+          (isBefore(displayStart, week.start) && isAfter(displayEnd, week.start)),
       );
       const endWeekIndex = weeks.findIndex((week) =>
         isWithinInterval(displayEnd, { start: week.start, end: week.end }),
       );
       if (startWeekIndex === -1 && endWeekIndex === -1) return null;
       const effectiveStartWeek = startWeekIndex >= 0 ? startWeekIndex : 0;
-      const effectiveEndWeek =
-        endWeekIndex >= 0 ? endWeekIndex : weeks.length - 1;
+      const effectiveEndWeek = endWeekIndex >= 0 ? endWeekIndex : weeks.length - 1;
       const weekSpan = effectiveEndWeek - effectiveStartWeek + 1;
       return {
         left: effectiveStartWeek * WEEK_WIDTH,
@@ -936,14 +859,9 @@ export function WeeklyScheduleView({
     let maxEnd: Date | null = null;
 
     featureTasks.forEach((task) => {
-      const bStart = task.baseline_start_date
-        ? parseLocalDate(task.baseline_start_date)
-        : null;
-      const bEnd = task.baseline_due_date
-        ? parseLocalDate(task.baseline_due_date)
-        : null;
-      if (bStart && (!minStart || isBefore(bStart, minStart)))
-        minStart = bStart;
+      const bStart = task.baseline_start_date ? parseLocalDate(task.baseline_start_date) : null;
+      const bEnd = task.baseline_due_date ? parseLocalDate(task.baseline_due_date) : null;
+      if (bStart && (!minStart || isBefore(bStart, minStart))) minStart = bStart;
       if (bEnd && (!maxEnd || isAfter(bEnd, maxEnd))) maxEnd = bEnd;
     });
 
@@ -954,21 +872,14 @@ export function WeeklyScheduleView({
     const effectiveStart = minStart || maxEnd!;
     const effectiveEnd = maxEnd || minStart!;
 
-    if (
-      isAfter(effectiveStart, rangeEnd) ||
-      isBefore(effectiveEnd, rangeStart)
-    ) {
+    if (isAfter(effectiveStart, rangeEnd) || isBefore(effectiveEnd, rangeStart)) {
       return null;
     }
 
-    const displayStart = isBefore(effectiveStart, rangeStart)
-      ? rangeStart
-      : effectiveStart;
-    const displayEnd = isAfter(effectiveEnd, rangeEnd)
-      ? rangeEnd
-      : effectiveEnd;
+    const displayStart = isBefore(effectiveStart, rangeStart) ? rangeStart : effectiveStart;
+    const displayEnd = isAfter(effectiveEnd, rangeEnd) ? rangeEnd : effectiveEnd;
 
-    if (viewMode === "day") {
+    if (viewMode === 'day') {
       const startOffset = differenceInDays(displayStart, rangeStart);
       const duration = differenceInDays(displayEnd, displayStart) + 1;
       return {
@@ -982,16 +893,14 @@ export function WeeklyScheduleView({
             start: week.start,
             end: week.end,
           }) ||
-          (isBefore(displayStart, week.start) &&
-            isAfter(displayEnd, week.start)),
+          (isBefore(displayStart, week.start) && isAfter(displayEnd, week.start)),
       );
       const endWeekIndex = weeks.findIndex((week) =>
         isWithinInterval(displayEnd, { start: week.start, end: week.end }),
       );
       if (startWeekIndex === -1 && endWeekIndex === -1) return null;
       const effectiveStartWeek = startWeekIndex >= 0 ? startWeekIndex : 0;
-      const effectiveEndWeek =
-        endWeekIndex >= 0 ? endWeekIndex : weeks.length - 1;
+      const effectiveEndWeek = endWeekIndex >= 0 ? endWeekIndex : weeks.length - 1;
       const weekSpan = effectiveEndWeek - effectiveStartWeek + 1;
       return {
         left: effectiveStartWeek * WEEK_WIDTH,
@@ -1015,7 +924,7 @@ export function WeeklyScheduleView({
     const displayStart = isBefore(msStart, rangeStart) ? rangeStart : msStart;
     const displayEnd = isAfter(msEnd, rangeEnd) ? rangeEnd : msEnd;
 
-    if (viewMode === "day") {
+    if (viewMode === 'day') {
       const startOffset = differenceInDays(displayStart, rangeStart);
       const duration = differenceInDays(displayEnd, displayStart) + 1;
       return {
@@ -1029,16 +938,14 @@ export function WeeklyScheduleView({
             start: week.start,
             end: week.end,
           }) ||
-          (isBefore(displayStart, week.start) &&
-            isAfter(displayEnd, week.start)),
+          (isBefore(displayStart, week.start) && isAfter(displayEnd, week.start)),
       );
       const endWeekIndex = weeks.findIndex((week) =>
         isWithinInterval(displayEnd, { start: week.start, end: week.end }),
       );
       if (startWeekIndex === -1 && endWeekIndex === -1) return null;
       const effectiveStartWeek = startWeekIndex >= 0 ? startWeekIndex : 0;
-      const effectiveEndWeek =
-        endWeekIndex >= 0 ? endWeekIndex : weeks.length - 1;
+      const effectiveEndWeek = endWeekIndex >= 0 ? endWeekIndex : weeks.length - 1;
       const weekSpan = effectiveEndWeek - effectiveStartWeek + 1;
       return {
         left: effectiveStartWeek * WEEK_WIDTH,
@@ -1057,7 +964,7 @@ export function WeeklyScheduleView({
       return null;
     }
 
-    if (viewMode === "day") {
+    if (viewMode === 'day') {
       const offset = differenceInDays(today, rangeStart);
       return offset * DAY_WIDTH + DAY_WIDTH / 2;
     } else {
@@ -1131,8 +1038,7 @@ export function WeeklyScheduleView({
   }, [displayedFeatures, collapsedFeatures, featureTaskMap, milestones]);
 
   // 총 그리드 너비
-  const totalGridWidth =
-    viewMode === "day" ? totalDays * DAY_WIDTH : weeks.length * WEEK_WIDTH;
+  const totalGridWidth = viewMode === 'day' ? totalDays * DAY_WIDTH : weeks.length * WEEK_WIDTH;
 
   return (
     <div className="h-full flex flex-col bg-bridge-dark">
@@ -1142,25 +1048,21 @@ export function WeeklyScheduleView({
           {/* 일/주 토글 */}
           <div
             className="flex bg-bridge-dark rounded-lg p-1 cursor-pointer"
-            onClick={() => setViewMode(viewMode === "day" ? "week" : "day")}
+            onClick={() => setViewMode(viewMode === 'day' ? 'week' : 'day')}
           >
             <span
               className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                viewMode === "day"
-                  ? "bg-bridge-surface-hover text-foreground"
-                  : "text-zinc-400"
+                viewMode === 'day' ? 'bg-bridge-surface-hover text-foreground' : 'text-zinc-400'
               }`}
             >
-              {t("weeklySchedule.day")}
+              {t('weeklySchedule.day')}
             </span>
             <span
               className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                viewMode === "week"
-                  ? "bg-bridge-surface-hover text-foreground"
-                  : "text-zinc-400"
+                viewMode === 'week' ? 'bg-bridge-surface-hover text-foreground' : 'text-zinc-400'
               }`}
             >
-              {t("weeklySchedule.week")}
+              {t('weeklySchedule.week')}
             </span>
           </div>
 
@@ -1170,8 +1072,8 @@ export function WeeklyScheduleView({
               <button className="flex items-center gap-2 px-3 py-1.5 text-sm bg-foreground/5 border border-bridge-border rounded-lg text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors">
                 <CalendarIcon className="h-4 w-4 text-zinc-400" />
                 <span>
-                  {format(rangeStartDate, "yyyy. MM. dd.")} ~{" "}
-                  {format(rangeEndDate, "yyyy. MM. dd.")}
+                  {format(rangeStartDate, 'yyyy. MM. dd.')} ~{' '}
+                  {format(rangeEndDate, 'yyyy. MM. dd.')}
                 </span>
               </button>
             </PopoverTrigger>
@@ -1199,9 +1101,9 @@ export function WeeklyScheduleView({
 
           <span className="text-sm text-zinc-400">
             (
-            {viewMode === "day"
-              ? t("weeklySchedule.dayCount", { count: totalDays })
-              : t("weeklySchedule.weekCount", { count: weeks.length })}
+            {viewMode === 'day'
+              ? t('weeklySchedule.dayCount', { count: totalDays })
+              : t('weeklySchedule.weekCount', { count: weeks.length })}
             )
           </span>
 
@@ -1209,7 +1111,7 @@ export function WeeklyScheduleView({
             onClick={handleGoToToday}
             className="px-3 py-1.5 text-sm bg-foreground/5 border border-bridge-border rounded-lg text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors"
           >
-            {t("weeklySchedule.today")}
+            {t('weeklySchedule.today')}
           </button>
 
           {/* Baseline 컨트롤 */}
@@ -1219,11 +1121,11 @@ export function WeeklyScheduleView({
                 onClick={() => setShowBaseline(!showBaseline)}
                 className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
                   showBaseline
-                    ? "bg-bridge-accent/20 border-bridge-accent/50 text-bridge-accent"
-                    : "bg-foreground/5 border-bridge-border text-muted-foreground hover:bg-foreground/10"
+                    ? 'bg-bridge-accent/20 border-bridge-accent/50 text-bridge-accent'
+                    : 'bg-foreground/5 border-bridge-border text-muted-foreground hover:bg-foreground/10'
                 }`}
               >
-                {t("weeklySchedule.showBaseline")}
+                {t('weeklySchedule.showBaseline')}
               </button>
             )}
             {onSaveBaseline && (
@@ -1231,26 +1133,26 @@ export function WeeklyScheduleView({
                 onClick={onSaveBaseline}
                 className="px-3 py-1.5 text-sm bg-foreground/5 border border-bridge-border rounded-lg text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors"
               >
-                {t("weeklySchedule.saveBaseline")}
+                {t('weeklySchedule.saveBaseline')}
               </button>
             )}
           </div>
         </div>
         <div className="hidden md:flex items-center gap-2 text-xs text-zinc-400 shrink-0">
-          <span className="inline-block w-3 h-3 bg-gray-400 rounded"></span>{" "}
-          {t("weeklySchedule.notStarted")}
-          <span className="inline-block w-3 h-3 bg-bridge-secondary rounded ml-2"></span>{" "}
-          {t("weeklySchedule.inProgress")}
-          <span className="inline-block w-3 h-3 bg-orange-500 rounded ml-2"></span>{" "}
-          {t("weeklySchedule.dueSoon")}
-          <span className="inline-block w-3 h-3 bg-red-500 rounded ml-2"></span>{" "}
-          {t("weeklySchedule.overdue")}
-          <span className="inline-block w-3 h-3 bg-green-500 rounded ml-2"></span>{" "}
-          {t("common.completed")}
+          <span className="inline-block w-3 h-3 bg-gray-400 rounded"></span>{' '}
+          {t('weeklySchedule.notStarted')}
+          <span className="inline-block w-3 h-3 bg-bridge-secondary rounded ml-2"></span>{' '}
+          {t('weeklySchedule.inProgress')}
+          <span className="inline-block w-3 h-3 bg-orange-500 rounded ml-2"></span>{' '}
+          {t('weeklySchedule.dueSoon')}
+          <span className="inline-block w-3 h-3 bg-red-500 rounded ml-2"></span>{' '}
+          {t('weeklySchedule.overdue')}
+          <span className="inline-block w-3 h-3 bg-green-500 rounded ml-2"></span>{' '}
+          {t('common.completed')}
           {showBaseline && (
             <>
-              <span className="inline-block w-3 h-3 border-2 border-dashed border-white/30 bg-foreground/5 rounded ml-2"></span>{" "}
-              {t("weeklySchedule.showBaseline")}
+              <span className="inline-block w-3 h-3 border-2 border-dashed border-white/30 bg-foreground/5 rounded ml-2"></span>{' '}
+              {t('weeklySchedule.showBaseline')}
             </>
           )}
         </div>
@@ -1262,28 +1164,28 @@ export function WeeklyScheduleView({
         <div className="flex-shrink-0 flex flex-col w-[200px] md:w-[280px]">
           {/* 헤더 */}
           <div className="h-14 p-3 bg-bridge-surface border-b border-r border-bridge-border flex items-center">
-            <span className="text-sm font-medium text-zinc-400">
-              Feature / Task
-            </span>
+            <span className="text-sm font-medium text-zinc-400">Feature / Task</span>
           </div>
 
           {/* Feature/Task 목록 */}
-          <div ref={sidebarScrollRef} onScroll={handleSidebarScroll} className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+          <div
+            ref={sidebarScrollRef}
+            onScroll={handleSidebarScroll}
+            className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar"
+          >
             {/* 마일스톤 행 (최상단) */}
             {milestones.length > 0 && (
               <div className="h-10 p-2 md:p-3 border-b border-r border-bridge-border flex items-center gap-2 bg-foreground/[0.03]">
                 <Flag className="h-4 w-4 text-bridge-accent flex-shrink-0" />
                 <span className="text-sm font-medium text-foreground">
-                  {t("weeklySchedule.milestoneDefault", "마일스톤")}
+                  {t('weeklySchedule.milestoneDefault', '마일스톤')}
                 </span>
               </div>
             )}
             {displayedFeatures.map((feature) => {
               const isCollapsed = collapsedFeatures.has(feature.id);
               const featureTasks = featureTaskMap.get(feature.id) || [];
-              const completedTasks = featureTasks.filter(
-                (t) => t.completed,
-              ).length;
+              const completedTasks = featureTasks.filter((t) => t.completed).length;
 
               return (
                 <div key={feature.id}>
@@ -1325,9 +1227,7 @@ export function WeeklyScheduleView({
                         <FileText className="h-3 w-3 text-zinc-400 flex-shrink-0" />
                         <span
                           className={`text-sm truncate flex-1 cursor-pointer hover:text-bridge-secondary ${
-                            task.completed
-                              ? "text-zinc-400 line-through"
-                              : "text-muted-foreground"
+                            task.completed ? 'text-zinc-400 line-through' : 'text-muted-foreground'
                           }`}
                           onClick={() => onViewTask?.(task.id)}
                         >
@@ -1342,9 +1242,9 @@ export function WeeklyScheduleView({
 
             {displayedFeatures.length === 0 && (
               <div className="flex items-center justify-center h-64 text-zinc-400">
-                {selectedMilestoneId === "all"
-                  ? t("weeklySchedule.noFeatures")
-                  : t("weeklySchedule.noLinkedFeatures")}
+                {selectedMilestoneId === 'all'
+                  ? t('weeklySchedule.noFeatures')
+                  : t('weeklySchedule.noLinkedFeatures')}
               </div>
             )}
           </div>
@@ -1358,36 +1258,32 @@ export function WeeklyScheduleView({
             className="h-14 bg-bridge-surface border-b border-bridge-border overflow-hidden"
           >
             <div className="flex" style={{ width: totalGridWidth }}>
-              {viewMode === "day"
+              {viewMode === 'day'
                 ? // 일 단위 헤더
                   days.map((day, index) => {
                     const dayIsToday = isToday(day);
                     const dayOfWeek = getDay(day);
                     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                    const dayKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+                    const dayKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
                     const isHoliday = holidayMap.has(dayKey);
 
                     return (
                       <div
                         key={index}
                         className={`flex-shrink-0 p-2 text-center border-r border-bridge-border ${
-                          dayIsToday
-                            ? "bg-bridge-secondary/15"
-                            : isWeekend
-                              ? "bg-zinc-800/30"
-                              : ""
+                          dayIsToday ? 'bg-bridge-secondary/15' : isWeekend ? 'bg-zinc-800/30' : ''
                         }`}
                         style={{ width: DAY_WIDTH }}
                       >
                         <div
-                          className={`text-xs font-medium ${dayIsToday ? "text-bridge-secondary" : isHoliday || dayOfWeek === 0 ? "text-red-400" : isWeekend ? "text-zinc-400" : "text-zinc-400"}`}
+                          className={`text-xs font-medium ${dayIsToday ? 'text-bridge-secondary' : isHoliday || dayOfWeek === 0 ? 'text-red-400' : isWeekend ? 'text-zinc-400' : 'text-zinc-400'}`}
                         >
-                          {formatDate(day, "EEE")}
+                          {formatDate(day, 'EEE')}
                         </div>
                         <div
-                          className={`text-xs ${dayIsToday ? "text-bridge-secondary" : isHoliday || dayOfWeek === 0 ? "text-red-400" : "text-zinc-400"}`}
+                          className={`text-xs ${dayIsToday ? 'text-bridge-secondary' : isHoliday || dayOfWeek === 0 ? 'text-red-400' : 'text-zinc-400'}`}
                         >
-                          {format(day, "M/d")}
+                          {format(day, 'M/d')}
                         </div>
                       </div>
                     );
@@ -1404,19 +1300,19 @@ export function WeeklyScheduleView({
                       <div
                         key={index}
                         className={`flex-shrink-0 p-2 text-center border-r border-bridge-border ${
-                          isCurrentWeek ? "bg-bridge-secondary/15" : ""
+                          isCurrentWeek ? 'bg-bridge-secondary/15' : ''
                         }`}
                         style={{ width: WEEK_WIDTH }}
                       >
                         <div
-                          className={`text-xs font-medium ${isCurrentWeek ? "text-bridge-secondary" : "text-zinc-400"}`}
+                          className={`text-xs font-medium ${isCurrentWeek ? 'text-bridge-secondary' : 'text-zinc-400'}`}
                         >
-                          {format(week.start, "M/d")}
+                          {format(week.start, 'M/d')}
                         </div>
                         <div
-                          className={`text-xs ${isCurrentWeek ? "text-bridge-secondary" : "text-zinc-400"}`}
+                          className={`text-xs ${isCurrentWeek ? 'text-bridge-secondary' : 'text-zinc-400'}`}
                         >
-                          ~{format(week.end, "M/d")}
+                          ~{format(week.end, 'M/d')}
                         </div>
                       </div>
                     );
@@ -1430,22 +1326,18 @@ export function WeeklyScheduleView({
             className="flex-1 overflow-auto custom-scrollbar"
             onScroll={handleScroll}
           >
-            <div
-              ref={timelineRef}
-              className="relative"
-              style={{ width: totalGridWidth }}
-            >
+            <div ref={timelineRef} className="relative" style={{ width: totalGridWidth }}>
               {/* 오늘 표시선 */}
               {todayLinePosition !== null && (
                 <div
                   className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none"
-                  style={{ left: todayLinePosition, minHeight: "100%" }}
+                  style={{ left: todayLinePosition, minHeight: '100%' }}
                 />
               )}
 
               {/* 배경 그리드 */}
               <div className="absolute inset-0 flex pointer-events-none">
-                {viewMode === "day"
+                {viewMode === 'day'
                   ? // 일 단위 배경 (주말 표시)
                     days.map((day, index) => {
                       const dayOfWeek = getDay(day);
@@ -1453,7 +1345,7 @@ export function WeeklyScheduleView({
                       return (
                         <div
                           key={index}
-                          className={`flex-shrink-0 border-r border-bridge-border ${isWeekend ? "bg-zinc-800/20" : ""}`}
+                          className={`flex-shrink-0 border-r border-bridge-border ${isWeekend ? 'bg-zinc-800/20' : ''}`}
                           style={{ width: DAY_WIDTH }}
                         />
                       );
@@ -1468,7 +1360,7 @@ export function WeeklyScheduleView({
                       return (
                         <div
                           key={index}
-                          className={`flex-shrink-0 border-r border-bridge-border ${isCurrentWeek ? "bg-bridge-secondary/8" : ""}`}
+                          className={`flex-shrink-0 border-r border-bridge-border ${isCurrentWeek ? 'bg-bridge-secondary/8' : ''}`}
                           style={{ width: WEEK_WIDTH }}
                         />
                       );
@@ -1489,7 +1381,7 @@ export function WeeklyScheduleView({
                           left: barPos.left,
                           width: barPos.width,
                           minWidth: 20,
-                          background: "linear-gradient(135deg, #6366F1 0%, #818CF8 100%)",
+                          background: 'linear-gradient(135deg, #6366F1 0%, #818CF8 100%)',
                         }}
                         title={ms.title}
                       >
@@ -1504,16 +1396,10 @@ export function WeeklyScheduleView({
               {displayedFeatures.map((feature) => {
                 const isCollapsed = collapsedFeatures.has(feature.id);
                 const featureTasks = featureTaskMap.get(feature.id) || [];
-                const featureBarPosition = calculateFeatureBarPosition(
-                  feature.id,
-                );
-                const completedTasks = featureTasks.filter(
-                  (t) => t.completed,
-                ).length;
+                const featureBarPosition = calculateFeatureBarPosition(feature.id);
+                const completedTasks = featureTasks.filter((t) => t.completed).length;
                 const progressPercent =
-                  featureTasks.length > 0
-                    ? (completedTasks / featureTasks.length) * 100
-                    : 0;
+                  featureTasks.length > 0 ? (completedTasks / featureTasks.length) * 100 : 0;
 
                 return (
                   <div key={feature.id}>
@@ -1522,8 +1408,7 @@ export function WeeklyScheduleView({
                       {/* Feature Baseline 바 */}
                       {showBaseline &&
                         (() => {
-                          const baselinePos =
-                            calculateFeatureBaselineBarPosition(feature.id);
+                          const baselinePos = calculateFeatureBaselineBarPosition(feature.id);
                           if (!baselinePos) return null;
                           return (
                             <div
@@ -1555,16 +1440,14 @@ export function WeeklyScheduleView({
                     {!isCollapsed &&
                       featureTasks.map((task) => {
                         const taskBarPosition = calculateTaskBarPosition(task);
-                        const taskEndDate = task.due_date
-                          ? parseLocalDate(task.due_date)
-                          : null;
+                        const taskEndDate = task.due_date ? parseLocalDate(task.due_date) : null;
                         const barColor = getTaskBarColor(task, taskEndDate);
                         const hasStartDate = !!task.start_date;
                         const hasEndDate = !!task.due_date;
                         const isDraggingThis = dragging?.taskId === task.id;
                         const isResizingThis = resizing?.taskId === task.id;
                         // 주 단위 뷰에서는 드래그/리사이즈 비활성화
-                        const canDragResize = viewMode === "day";
+                        const canDragResize = viewMode === 'day';
 
                         // 드래그-투-크리에이트 프리뷰 바 계산
                         const isCreatingThis = creating?.taskId === task.id;
@@ -1575,12 +1458,8 @@ export function WeeklyScheduleView({
                                 const d2 = creating.currentDate;
                                 const start = isBefore(d1, d2) ? d1 : d2;
                                 const end = isAfter(d1, d2) ? d1 : d2;
-                                const startOffset = differenceInDays(
-                                  start,
-                                  rangeStartDate,
-                                );
-                                const duration =
-                                  differenceInDays(end, start) + 1;
+                                const startOffset = differenceInDays(start, rangeStartDate);
+                                const duration = differenceInDays(end, start) + 1;
                                 return {
                                   left: startOffset * DAY_WIDTH,
                                   width: duration * DAY_WIDTH - 4,
@@ -1592,14 +1471,12 @@ export function WeeklyScheduleView({
                           <div
                             key={task.id}
                             className={`h-10 relative border-b border-bridge-border ${
-                              !taskBarPosition &&
-                              viewMode === "day" &&
-                              onUpdateTaskDates
-                                ? "cursor-crosshair"
-                                : ""
+                              !taskBarPosition && viewMode === 'day' && onUpdateTaskDates
+                                ? 'cursor-crosshair'
+                                : ''
                             }`}
                             onMouseDown={
-                              !taskBarPosition && viewMode === "day"
+                              !taskBarPosition && viewMode === 'day'
                                 ? (e) => handleCreateStart(e, task.id)
                                 : undefined
                             }
@@ -1618,8 +1495,7 @@ export function WeeklyScheduleView({
                             {/* Task Baseline 바 */}
                             {showBaseline &&
                               (() => {
-                                const baselinePos =
-                                  calculateBaselineBarPosition(task);
+                                const baselinePos = calculateBaselineBarPosition(task);
                                 if (!baselinePos) return null;
                                 return (
                                   <div
@@ -1637,14 +1513,14 @@ export function WeeklyScheduleView({
                                 data-task-id={task.id}
                                 className={`absolute top-1/2 -translate-y-1/2 h-6 ${barColor} rounded transition-colors group ${
                                   isDraggingThis
-                                    ? "cursor-grabbing opacity-80 shadow-lg"
+                                    ? 'cursor-grabbing opacity-80 shadow-lg'
                                     : isResizingThis
-                                      ? "brightness-110"
+                                      ? 'brightness-110'
                                       : dragLink?.fromTaskId === task.id
-                                        ? "ring-2 ring-bridge-accent brightness-110"
+                                        ? 'ring-2 ring-bridge-accent brightness-110'
                                         : dragLink
-                                          ? "cursor-crosshair hover:brightness-125 hover:ring-2 hover:ring-bridge-accent/60"
-                                          : "cursor-pointer hover:brightness-110"
+                                          ? 'cursor-crosshair hover:brightness-125 hover:ring-2 hover:ring-bridge-accent/60'
+                                          : 'cursor-pointer hover:brightness-110'
                                 }`}
                                 style={{
                                   left: taskBarPosition.left,
@@ -1656,14 +1532,10 @@ export function WeeklyScheduleView({
                                     ? (e) => {
                                         if (
                                           !(e.target as HTMLElement).closest(
-                                            "[data-connect-handle]",
+                                            '[data-connect-handle]',
                                           )
                                         ) {
-                                          handleLongPressStart(
-                                            e,
-                                            task.id,
-                                            task,
-                                          );
+                                          handleLongPressStart(e, task.id, task);
                                         }
                                       }
                                     : undefined
@@ -1676,10 +1548,7 @@ export function WeeklyScheduleView({
                                     onCreateDependency
                                   ) {
                                     e.stopPropagation();
-                                    onCreateDependency(
-                                      dragLink.fromTaskId,
-                                      task.id,
-                                    );
+                                    onCreateDependency(dragLink.fromTaskId, task.id);
                                     setDragLink(null);
                                     justFinishedDragRef.current = true;
                                     setTimeout(() => {
@@ -1687,15 +1556,9 @@ export function WeeklyScheduleView({
                                     }, 100);
                                   }
                                 }}
-                                onMouseLeave={
-                                  canDragResize ? handleLongPressEnd : undefined
-                                }
+                                onMouseLeave={canDragResize ? handleLongPressEnd : undefined}
                                 onClick={() => {
-                                  if (
-                                    !resizing &&
-                                    !dragging &&
-                                    !justFinishedDragRef.current
-                                  ) {
+                                  if (!resizing && !dragging && !justFinishedDragRef.current) {
                                     onViewTask?.(task.id);
                                   }
                                 }}
@@ -1707,12 +1570,7 @@ export function WeeklyScheduleView({
                                     className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-l hover:bg-foreground/50 z-10"
                                     onMouseDown={(e) => {
                                       handleLongPressEnd();
-                                      handleResizeStart(
-                                        e,
-                                        task.id,
-                                        "left",
-                                        task,
-                                      );
+                                      handleResizeStart(e, task.id, 'left', task);
                                     }}
                                   />
                                 )}
@@ -1723,12 +1581,7 @@ export function WeeklyScheduleView({
                                     className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-r hover:bg-foreground/50 z-10"
                                     onMouseDown={(e) => {
                                       handleLongPressEnd();
-                                      handleResizeStart(
-                                        e,
-                                        task.id,
-                                        "right",
-                                        task,
-                                      );
+                                      handleResizeStart(e, task.id, 'right', task);
                                     }}
                                   />
                                 )}
@@ -1742,8 +1595,7 @@ export function WeeklyScheduleView({
                                       e.preventDefault();
                                       e.stopPropagation();
                                       handleLongPressEnd();
-                                      const rect =
-                                        timelineRef.current?.getBoundingClientRect();
+                                      const rect = timelineRef.current?.getBoundingClientRect();
                                       if (rect) {
                                         setDragLink({
                                           fromTaskId: task.id,
@@ -1756,39 +1608,33 @@ export function WeeklyScheduleView({
                                 )}
                                 {/* Task 이름 + 체크리스트 원형 게이지 */}
                                 <div className="px-2 h-full flex items-center gap-1.5 overflow-hidden pointer-events-none">
-                                  <span className="text-xs text-white truncate">
-                                    {task.title}
-                                  </span>
-                                  {task.checklist_total &&
-                                    task.checklist_total > 0 && (
-                                      <div className="flex-shrink-0 relative w-4 h-4">
-                                        <svg
-                                          className="w-4 h-4 -rotate-90"
-                                          viewBox="0 0 16 16"
-                                        >
-                                          {/* 배경 원 */}
-                                          <circle
-                                            cx="8"
-                                            cy="8"
-                                            r="6"
-                                            fill="none"
-                                            stroke="rgba(0,0,0,0.3)"
-                                            strokeWidth="2"
-                                          />
-                                          {/* 진행률 원 */}
-                                          <circle
-                                            cx="8"
-                                            cy="8"
-                                            r="6"
-                                            fill="none"
-                                            stroke="rgba(255,255,255,0.9)"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeDasharray={`${((task.checklist_completed || 0) / task.checklist_total) * 37.7} 37.7`}
-                                          />
-                                        </svg>
-                                      </div>
-                                    )}
+                                  <span className="text-xs text-white truncate">{task.title}</span>
+                                  {task.checklist_total && task.checklist_total > 0 && (
+                                    <div className="flex-shrink-0 relative w-4 h-4">
+                                      <svg className="w-4 h-4 -rotate-90" viewBox="0 0 16 16">
+                                        {/* 배경 원 */}
+                                        <circle
+                                          cx="8"
+                                          cy="8"
+                                          r="6"
+                                          fill="none"
+                                          stroke="rgba(0,0,0,0.3)"
+                                          strokeWidth="2"
+                                        />
+                                        {/* 진행률 원 */}
+                                        <circle
+                                          cx="8"
+                                          cy="8"
+                                          r="6"
+                                          fill="none"
+                                          stroke="rgba(255,255,255,0.9)"
+                                          strokeWidth="2"
+                                          strokeLinecap="round"
+                                          strokeDasharray={`${((task.checklist_completed || 0) / task.checklist_total) * 37.7} 37.7`}
+                                        />
+                                      </svg>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             )}

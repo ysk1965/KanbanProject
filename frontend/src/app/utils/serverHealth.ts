@@ -12,10 +12,10 @@
  */
 
 // api.ts 를 import 하면 순환 참조가 되므로 base URL 은 의존성 없는 config/env 에서 가져온다.
-import { API_BASE_URL } from "../config/env";
+import { API_BASE_URL } from '../config/env';
 
 /** 서버가 응답하지 않는 것으로 의심될 때 발행되는 이벤트 */
-export const SERVER_UNAVAILABLE_EVENT = "server-unavailable";
+export const SERVER_UNAVAILABLE_EVENT = 'server-unavailable';
 
 /**
  * "서버가 죽었다"고 볼 수 있는 에러인지 판별.
@@ -24,7 +24,7 @@ export const SERVER_UNAVAILABLE_EVENT = "server-unavailable";
  * 4xx 는 서버가 멀쩡히 응답한 것이므로 여기 포함하지 않는다.
  */
 export const isServerDownError = (error: unknown): boolean => {
-  if (error instanceof DOMException && error.name === "AbortError") return false;
+  if (error instanceof DOMException && error.name === 'AbortError') return false;
   if (error instanceof TypeError) return true;
   const status = (error as { status?: number } | null | undefined)?.status;
   return status === 502 || status === 503 || status === 504;
@@ -36,13 +36,11 @@ let lastSignalAt = 0;
 
 /** 서버 응답 없음 신호 발행 (쓰로틀됨) */
 export const reportServerUnreachable = (endpoint?: string): void => {
-  if (typeof window === "undefined") return;
+  if (typeof window === 'undefined') return;
   const now = Date.now();
   if (now - lastSignalAt < SIGNAL_THROTTLE_MS) return;
   lastSignalAt = now;
-  window.dispatchEvent(
-    new CustomEvent(SERVER_UNAVAILABLE_EVENT, { detail: { endpoint } }),
-  );
+  window.dispatchEvent(new CustomEvent(SERVER_UNAVAILABLE_EVENT, { detail: { endpoint } }));
 };
 
 /** 응답이 왔다 = 서버 생존. 쓰로틀을 풀어 다음 장애를 즉시 알린다 */
@@ -60,15 +58,13 @@ export const reportServerReachable = (): void => {
  *   인터넷이 되는데도 false 를 돌려주는 일이 있어, 그 값으로 요청을 막으면
  *   서버가 멀쩡해도 오프라인 화면에서 영원히 못 빠져나온다. 항상 실제로 찔러본다.
  */
-export const fetchServerStatus = async <T>(
-  timeoutMs: number = 8000,
-): Promise<T> => {
+export const fetchServerStatus = async <T>(timeoutMs: number = 8000): Promise<T> => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(`${API_BASE_URL}/system/status`, {
-      method: "GET",
-      cache: "no-store",
+      method: 'GET',
+      cache: 'no-store',
       signal: controller.signal,
     });
     if (!response.ok) {

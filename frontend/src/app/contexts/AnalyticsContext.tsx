@@ -58,7 +58,7 @@ export interface AnalyticsEventParams {
 interface AnalyticsContextType {
   track: <K extends keyof AnalyticsEventParams>(
     eventName: K,
-    params: AnalyticsEventParams[K]
+    params: AnalyticsEventParams[K],
   ) => void;
 }
 
@@ -70,10 +70,7 @@ const AnalyticsContext = createContext<AnalyticsContextType | null>(null);
 
 export function AnalyticsProvider({ children }: { children: ReactNode }) {
   const track = useCallback(
-    <K extends keyof AnalyticsEventParams>(
-      eventName: K,
-      params: AnalyticsEventParams[K]
-    ): void => {
+    <K extends keyof AnalyticsEventParams>(eventName: K, params: AnalyticsEventParams[K]): void => {
       // Firebase Analytics로 이벤트 전송 (동적 import로 광고 차단기 대응)
       import('firebase/analytics')
         .then(({ logEvent }) => {
@@ -100,16 +97,12 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
         console.debug(`[Analytics] ${eventName}`, params);
       }
     },
-    []
+    [],
   );
 
   const value = useMemo<AnalyticsContextType>(() => ({ track }), [track]);
 
-  return (
-    <AnalyticsContext.Provider value={value}>
-      {children}
-    </AnalyticsContext.Provider>
-  );
+  return <AnalyticsContext.Provider value={value}>{children}</AnalyticsContext.Provider>;
 }
 
 // ============================================
@@ -137,7 +130,7 @@ export function useAnalyticsContext(): AnalyticsContextType {
 
 export function trackEvent<K extends keyof AnalyticsEventParams>(
   eventName: K,
-  params: AnalyticsEventParams[K]
+  params: AnalyticsEventParams[K],
 ): void {
   import('firebase/analytics')
     .then(({ logEvent }) => {

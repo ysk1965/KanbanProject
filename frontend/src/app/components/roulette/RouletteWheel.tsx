@@ -29,8 +29,16 @@ export function RouletteWheel({ participants, isSpinning, onSpinComplete }: Roul
   }, [participants]);
 
   const colors = [
-    '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
-    '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52B788'
+    '#FF6B6B',
+    '#4ECDC4',
+    '#45B7D1',
+    '#FFA07A',
+    '#98D8C8',
+    '#F7DC6F',
+    '#BB8FCE',
+    '#85C1E2',
+    '#F8B739',
+    '#52B788',
   ];
 
   useEffect(() => {
@@ -53,7 +61,7 @@ export function RouletteWheel({ participants, isSpinning, onSpinComplete }: Roul
       const randomOffset = minOffset + Math.random() * (maxOffset - minOffset);
       const winnerAngle = winnerIndex * degreePerSegment + randomOffset;
 
-      const stopAngle = ((360 - winnerAngle) % 360 + 360) % 360;
+      const stopAngle = (((360 - winnerAngle) % 360) + 360) % 360;
 
       const minTarget = rotation + spins * 360;
       let targetRotation = Math.ceil((minTarget - stopAngle) / 360) * 360 + stopAngle;
@@ -73,7 +81,7 @@ export function RouletteWheel({ participants, isSpinning, onSpinComplete }: Roul
           return Math.random() * (max - min) + min;
         }
 
-        const interval = setInterval(function() {
+        const interval = setInterval(function () {
           const timeLeft = animationEnd - Date.now();
 
           if (timeLeft <= 0) {
@@ -85,12 +93,12 @@ export function RouletteWheel({ participants, isSpinning, onSpinComplete }: Roul
           confetti({
             ...defaults,
             particleCount,
-            origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+            origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
           });
           confetti({
             ...defaults,
             particleCount,
-            origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+            origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
           });
         }, 250);
 
@@ -111,7 +119,9 @@ export function RouletteWheel({ participants, isSpinning, onSpinComplete }: Roul
   if (renderParticipants.length === 0) {
     return (
       <div className="flex items-center justify-center w-64 h-64 sm:w-80 sm:h-80 rounded-full bg-gray-100 dark:bg-gray-700 border-4 border-gray-300 dark:border-gray-600">
-        <p className="text-gray-400 dark:text-gray-500 text-center px-8 text-sm sm:text-base">참가자를 추가해주세요</p>
+        <p className="text-gray-400 dark:text-gray-500 text-center px-8 text-sm sm:text-base">
+          참가자를 추가해주세요
+        </p>
       </div>
     );
   }

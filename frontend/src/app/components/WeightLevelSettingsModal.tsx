@@ -52,7 +52,14 @@ export function WeightLevelSettingsModal({
       console.error('Failed to load weight levels:', error);
       // 기본 레벨 설정
       setLevels([
-        { id: 'temp-1', name: 'Standard', weight: 1.0, color: '#6366f1', position: 0, is_default: true }
+        {
+          id: 'temp-1',
+          name: 'Standard',
+          weight: 1.0,
+          color: '#6366f1',
+          position: 0,
+          is_default: true,
+        },
       ]);
       setDefaultLevelId('temp-1');
     } finally {
@@ -107,7 +114,9 @@ export function WeightLevelSettingsModal({
           color: l.color,
           position: l.position,
         })),
-        default_level_id: defaultLevelId?.startsWith('temp-') ? undefined : defaultLevelId || undefined,
+        default_level_id: defaultLevelId?.startsWith('temp-')
+          ? undefined
+          : defaultLevelId || undefined,
       });
       onSave();
       onClose();
@@ -121,170 +130,260 @@ export function WeightLevelSettingsModal({
 
   return (
     <MotionModal open={open} onClose={onClose} className="sm:max-w-2xl p-0 overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
-          <h2 className="text-lg font-bold text-foreground">{t('weightLevel.title')}</h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-foreground transition-colors"
-            aria-label="닫기"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
+        <h2 className="text-lg font-bold text-foreground">{t('weightLevel.title')}</h2>
+        <button
+          onClick={onClose}
+          className="text-slate-400 hover:text-foreground transition-colors"
+          aria-label="닫기"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
 
-        {/* Content */}
-        <div className="p-6 max-h-[60dvh] overflow-y-auto">
-          {isLoading ? (
-            <div className="text-center py-8 text-slate-400">{t('common.loading')}</div>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-slate-400 mb-4 whitespace-pre-line">
-                {t('weightLevel.description')}
-              </p>
+      {/* Content */}
+      <div className="p-6 max-h-[60dvh] overflow-y-auto">
+        {isLoading ? (
+          <div className="text-center py-8 text-slate-400">{t('common.loading')}</div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-400 mb-4 whitespace-pre-line">
+              {t('weightLevel.description')}
+            </p>
 
-              {/* Level List */}
-              <div className="space-y-3">
-                {levels.map((level, index) => (
-                  <div
-                    key={level.id}
-                    className="flex items-center gap-3 p-4 bg-bridge-dark rounded-xl border border-foreground/10"
-                  >
-                    <GripVertical className="h-4 w-4 text-slate-400 cursor-grab" />
+            {/* Level List */}
+            <div className="space-y-3">
+              {levels.map((level, index) => (
+                <div
+                  key={level.id}
+                  className="flex items-center gap-3 p-4 bg-bridge-dark rounded-xl border border-foreground/10"
+                >
+                  <GripVertical className="h-4 w-4 text-slate-400 cursor-grab" />
 
-                    {/* Color Picker */}
-                    <ColorPickerPopover
-                      colors={PRESET_COLORS}
-                      selectedColor={level.color}
-                      onColorChange={(color) => handleUpdateLevel(level.id, { color })}
-                      triggerShape="circle"
-                    />
+                  {/* Color Picker */}
+                  <ColorPickerPopover
+                    colors={PRESET_COLORS}
+                    selectedColor={level.color}
+                    onColorChange={(color) => handleUpdateLevel(level.id, { color })}
+                    triggerShape="circle"
+                  />
 
-                    {/* Name */}
+                  {/* Name */}
+                  <input
+                    type="text"
+                    value={level.name}
+                    onChange={(e) => handleUpdateLevel(level.id, { name: e.target.value })}
+                    className="flex-1 bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent"
+                    placeholder={t('weightLevel.levelNamePlaceholder')}
+                  />
+
+                  {/* Weight */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400 text-sm">x</span>
                     <input
-                      type="text"
-                      value={level.name}
-                      onChange={(e) => handleUpdateLevel(level.id, { name: e.target.value })}
-                      className="flex-1 bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent"
-                      placeholder={t('weightLevel.levelNamePlaceholder')}
+                      type="number"
+                      value={level.weight}
+                      onChange={(e) =>
+                        handleUpdateLevel(level.id, { weight: parseFloat(e.target.value) || 1 })
+                      }
+                      step="0.1"
+                      min="0.1"
+                      max="10"
+                      className="w-20 bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2 text-foreground text-sm text-center focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent"
                     />
-
-                    {/* Weight */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-400 text-sm">x</span>
-                      <input
-                        type="number"
-                        value={level.weight}
-                        onChange={(e) => handleUpdateLevel(level.id, { weight: parseFloat(e.target.value) || 1 })}
-                        step="0.1"
-                        min="0.1"
-                        max="10"
-                        className="w-20 bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2 text-foreground text-sm text-center focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent"
-                      />
-                    </div>
-
-                    {/* Default Toggle */}
-                    <button
-                      onClick={() => handleSetDefault(level.id)}
-                      className={`p-2 rounded-lg transition-all ${
-                        defaultLevelId === level.id
-                          ? 'bg-bridge-accent text-white'
-                          : 'bg-foreground/5 text-slate-400 hover:text-foreground hover:bg-foreground/10'
-                      }`}
-                      title={defaultLevelId === level.id ? t('weightLevel.defaultLevel') : t('weightLevel.setAsDefault')}
-                    >
-                      <Check className="h-4 w-4" />
-                    </button>
-
-                    {/* Delete */}
-                    <button
-                      onClick={() => handleRemoveLevel(level.id)}
-                      className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all"
-                      title={t('common.delete')}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
                   </div>
-                ))}
-              </div>
 
-              {/* Add Button */}
-              <button
-                onClick={handleAddLevel}
-                className="w-full py-3 border border-dashed border-foreground/10 rounded-xl text-slate-400 hover:text-foreground hover:border-white/40 transition-all flex items-center justify-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                {t('weightLevel.addLevel')}
-              </button>
+                  {/* Default Toggle */}
+                  <button
+                    onClick={() => handleSetDefault(level.id)}
+                    className={`p-2 rounded-lg transition-all ${
+                      defaultLevelId === level.id
+                        ? 'bg-bridge-accent text-white'
+                        : 'bg-foreground/5 text-slate-400 hover:text-foreground hover:bg-foreground/10'
+                    }`}
+                    title={
+                      defaultLevelId === level.id
+                        ? t('weightLevel.defaultLevel')
+                        : t('weightLevel.setAsDefault')
+                    }
+                  >
+                    <Check className="h-4 w-4" />
+                  </button>
 
-              {/* Preset Examples */}
-              <div className="mt-6 p-4 bg-bridge-dark/50 rounded-xl">
-                <p className="text-xs text-slate-400 mb-3">{t('weightLevel.recommendedPresets')}</p>
-                <div className="flex flex-wrap gap-2">
+                  {/* Delete */}
                   <button
-                    onClick={() => {
-                      setLevels([
-                        { id: 'p1', name: 'Low', weight: 0.5, color: '#64748b', position: 0, is_default: false },
-                        { id: 'p2', name: 'Standard', weight: 1.0, color: '#6366f1', position: 1, is_default: true },
-                        { id: 'p3', name: 'High', weight: 1.5, color: '#f59e0b', position: 2, is_default: false },
-                        { id: 'p4', name: 'Critical', weight: 2.0, color: '#ef4444', position: 3, is_default: false },
-                      ]);
-                      setDefaultLevelId('p2');
-                    }}
-                    className="px-3 py-1.5 bg-foreground/5 border border-foreground/10 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
+                    onClick={() => handleRemoveLevel(level.id)}
+                    className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all"
+                    title={t('common.delete')}
                   >
-                    {t('weightLevel.preset4Levels')}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setLevels([
-                        { id: 'p1', name: '일반', weight: 1.0, color: '#6366f1', position: 0, is_default: true },
-                        { id: 'p2', name: '중요', weight: 1.5, color: '#f59e0b', position: 1, is_default: false },
-                        { id: 'p3', name: '긴급', weight: 2.0, color: '#ef4444', position: 2, is_default: false },
-                      ]);
-                      setDefaultLevelId('p1');
-                    }}
-                    className="px-3 py-1.5 bg-foreground/5 border border-foreground/10 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
-                  >
-                    {t('weightLevel.preset3Levels')}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setLevels([
-                        { id: 'p1', name: 'P0', weight: 3.0, color: '#ef4444', position: 0, is_default: false },
-                        { id: 'p2', name: 'P1', weight: 2.0, color: '#f97316', position: 1, is_default: false },
-                        { id: 'p3', name: 'P2', weight: 1.5, color: '#f59e0b', position: 2, is_default: true },
-                        { id: 'p4', name: 'P3', weight: 1.0, color: '#10b981', position: 3, is_default: false },
-                        { id: 'p5', name: 'P4', weight: 0.5, color: '#64748b', position: 4, is_default: false },
-                      ]);
-                      setDefaultLevelId('p3');
-                    }}
-                    className="px-3 py-1.5 bg-foreground/5 border border-foreground/10 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
-                  >
-                    {t('weightLevel.preset5Levels')}
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
+              ))}
+            </div>
+
+            {/* Add Button */}
+            <button
+              onClick={handleAddLevel}
+              className="w-full py-3 border border-dashed border-foreground/10 rounded-xl text-slate-400 hover:text-foreground hover:border-white/40 transition-all flex items-center justify-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              {t('weightLevel.addLevel')}
+            </button>
+
+            {/* Preset Examples */}
+            <div className="mt-6 p-4 bg-bridge-dark/50 rounded-xl">
+              <p className="text-xs text-slate-400 mb-3">{t('weightLevel.recommendedPresets')}</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => {
+                    setLevels([
+                      {
+                        id: 'p1',
+                        name: 'Low',
+                        weight: 0.5,
+                        color: '#64748b',
+                        position: 0,
+                        is_default: false,
+                      },
+                      {
+                        id: 'p2',
+                        name: 'Standard',
+                        weight: 1.0,
+                        color: '#6366f1',
+                        position: 1,
+                        is_default: true,
+                      },
+                      {
+                        id: 'p3',
+                        name: 'High',
+                        weight: 1.5,
+                        color: '#f59e0b',
+                        position: 2,
+                        is_default: false,
+                      },
+                      {
+                        id: 'p4',
+                        name: 'Critical',
+                        weight: 2.0,
+                        color: '#ef4444',
+                        position: 3,
+                        is_default: false,
+                      },
+                    ]);
+                    setDefaultLevelId('p2');
+                  }}
+                  className="px-3 py-1.5 bg-foreground/5 border border-foreground/10 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
+                >
+                  {t('weightLevel.preset4Levels')}
+                </button>
+                <button
+                  onClick={() => {
+                    setLevels([
+                      {
+                        id: 'p1',
+                        name: '일반',
+                        weight: 1.0,
+                        color: '#6366f1',
+                        position: 0,
+                        is_default: true,
+                      },
+                      {
+                        id: 'p2',
+                        name: '중요',
+                        weight: 1.5,
+                        color: '#f59e0b',
+                        position: 1,
+                        is_default: false,
+                      },
+                      {
+                        id: 'p3',
+                        name: '긴급',
+                        weight: 2.0,
+                        color: '#ef4444',
+                        position: 2,
+                        is_default: false,
+                      },
+                    ]);
+                    setDefaultLevelId('p1');
+                  }}
+                  className="px-3 py-1.5 bg-foreground/5 border border-foreground/10 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
+                >
+                  {t('weightLevel.preset3Levels')}
+                </button>
+                <button
+                  onClick={() => {
+                    setLevels([
+                      {
+                        id: 'p1',
+                        name: 'P0',
+                        weight: 3.0,
+                        color: '#ef4444',
+                        position: 0,
+                        is_default: false,
+                      },
+                      {
+                        id: 'p2',
+                        name: 'P1',
+                        weight: 2.0,
+                        color: '#f97316',
+                        position: 1,
+                        is_default: false,
+                      },
+                      {
+                        id: 'p3',
+                        name: 'P2',
+                        weight: 1.5,
+                        color: '#f59e0b',
+                        position: 2,
+                        is_default: true,
+                      },
+                      {
+                        id: 'p4',
+                        name: 'P3',
+                        weight: 1.0,
+                        color: '#10b981',
+                        position: 3,
+                        is_default: false,
+                      },
+                      {
+                        id: 'p5',
+                        name: 'P4',
+                        weight: 0.5,
+                        color: '#64748b',
+                        position: 4,
+                        is_default: false,
+                      },
+                    ]);
+                    setDefaultLevelId('p3');
+                  }}
+                  className="px-3 py-1.5 bg-foreground/5 border border-foreground/10 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
+                >
+                  {t('weightLevel.preset5Levels')}
+                </button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-foreground/10 flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl font-medium hover:bg-foreground/10 transition-all"
-          >
-            {t('common.cancel')}
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="px-4 py-2 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSaving ? t('weightLevel.saving') : t('common.save')}
-          </button>
-        </div>
+      {/* Footer */}
+      <div className="px-6 py-4 border-t border-foreground/10 flex justify-end gap-3">
+        <button
+          onClick={onClose}
+          className="px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl font-medium hover:bg-foreground/10 transition-all"
+        >
+          {t('common.cancel')}
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="px-4 py-2 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isSaving ? t('weightLevel.saving') : t('common.save')}
+        </button>
+      </div>
     </MotionModal>
   );
 }

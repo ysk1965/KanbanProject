@@ -6,40 +6,40 @@ import {
   useRef,
   useState,
   type CSSProperties,
-} from "react";
-import { useTranslation } from "react-i18next";
-import { Loader2, Undo2 } from "lucide-react";
-import type { Feature, JobRole, Milestone } from "../../types";
-import { lazyWithRetry } from "../../utils/lazyWithRetry";
-import { checklistAPI, type BoardChecklistItemResponse } from "../../utils/api";
-import { formatDate } from "../../utils/dateUtils";
-import { parseDate } from "../../utils/workloadBar";
-import type { BoardMember as ShareBoardMember } from "../ShareBoardModal";
-import { DashboardEmpty, PanelBanner, PanelShell } from "./DashboardCard";
-import { BacklogRail } from "./BacklogRail";
-import { PlacementRail } from "./PlacementRail";
+} from 'react';
+import { useTranslation } from 'react-i18next';
+import { Loader2, Undo2 } from 'lucide-react';
+import type { Feature, JobRole, Milestone } from '../../types';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
+import { checklistAPI, type BoardChecklistItemResponse } from '../../utils/api';
+import { formatDate } from '../../utils/dateUtils';
+import { parseDate } from '../../utils/workloadBar';
+import type { BoardMember as ShareBoardMember } from '../ShareBoardModal';
+import { DashboardEmpty, PanelBanner, PanelShell } from './DashboardCard';
+import { BacklogRail } from './BacklogRail';
+import { PlacementRail } from './PlacementRail';
 import {
   BACKLOG_WIDTH_VAR,
   MIN_BACKLOG_WIDTH,
   MIN_WORKLOAD_HEIGHT,
   useBacklogColumnSplit,
   useWorkloadSplit,
-} from "./dashboardSplit";
-import { SplitHandle } from "./SplitHandle";
-import { requestAxisRefresh, useAxisTransfer } from "../../utils/axisTransfer";
+} from './dashboardSplit';
+import { SplitHandle } from './SplitHandle';
+import { requestAxisRefresh, useAxisTransfer } from '../../utils/axisTransfer';
 
 const ScheduleResourceView = lazyWithRetry(
   () =>
-    import("../schedule/ScheduleResourceView").then((m) => ({
+    import('../schedule/ScheduleResourceView').then((m) => ({
       default: m.ScheduleResourceView,
     })),
-  "ScheduleResourceView",
+  'ScheduleResourceView',
 );
 
 /** 배치 안내를 띄워 두는 시간 (ms) */
 const NOTICE_TTL = 8000;
 
-const CONTRACTOR_PREFIX = "contractor:";
+const CONTRACTOR_PREFIX = 'contractor:';
 
 /** 이동 직후 되돌리기용으로 붙잡아 두는 이전 값 */
 interface PlacementNotice {
@@ -49,7 +49,7 @@ interface PlacementNotice {
    * unscheduled   = 일정이 풀려 미배치로 내려갔다
    * untimeblocked = 타임블록에서 빠지며 일정도 풀렸다 (되돌려도 지워진 블록은 안 돌아온다)
    */
-  kind: "placed" | "timeblocked" | "unscheduled" | "untimeblocked";
+  kind: 'placed' | 'timeblocked' | 'unscheduled' | 'untimeblocked';
   itemId: string;
   taskId: string;
   title: string;
@@ -144,8 +144,8 @@ export function MyWorkloadWidget({
 
   // 두 카드가 같은 문구를 쓴다 — 멤버가 아니면 간트도 큐도 만들 수 없다
   const notMemberMessage = t(
-    "boardDashboard.notBoardMember",
-    "이 보드의 멤버로 등록되어 있지 않습니다.",
+    'boardDashboard.notBoardMember',
+    '이 보드의 멤버로 등록되어 있지 않습니다.',
   );
 
   // 보고 있는 대상의 행만 남긴다 — 참조가 매 렌더 바뀌면 하위 뷰가 재조회하므로 메모한다
@@ -155,7 +155,7 @@ export function MyWorkloadWidget({
   );
 
   // 남의 대시보드에서는 부모가 currentUserRole을 viewer로 낮춰 보낸다
-  const canEdit = currentUserRole !== "viewer";
+  const canEdit = currentUserRole !== 'viewer';
 
   const [notice, setNotice] = useState<PlacementNotice | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -200,10 +200,7 @@ export function MyWorkloadWidget({
   const showNotice = useCallback((next: PlacementNotice) => {
     setNotice(next);
     if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
-    noticeTimerRef.current = window.setTimeout(
-      () => setNotice(null),
-      NOTICE_TTL,
-    );
+    noticeTimerRef.current = window.setTimeout(() => setNotice(null), NOTICE_TTL);
   }, []);
 
   useEffect(
@@ -237,16 +234,13 @@ export function MyWorkloadWidget({
       },
       targetDate: string,
       targetAssigneeId?: string,
-      noticeKind: "placed" | "timeblocked" = "placed",
+      noticeKind: 'placed' | 'timeblocked' = 'placed',
     ) => {
       const keepStart =
-        item.start_date && item.start_date <= targetDate
-          ? item.start_date
-          : targetDate;
+        item.start_date && item.start_date <= targetDate ? item.start_date : targetDate;
 
       const isContractorRow =
-        typeof targetAssigneeId === "string" &&
-        targetAssigneeId.startsWith(CONTRACTOR_PREFIX);
+        typeof targetAssigneeId === 'string' && targetAssigneeId.startsWith(CONTRACTOR_PREFIX);
 
       // 행을 지정하지 않은 빠른 배치는 담당자 키를 아예 보내지 않는다.
       // PATCH는 미전송 필드를 보존하므로 담당자가 유지된다(PUT은 해제해 버린다).
@@ -255,13 +249,10 @@ export function MyWorkloadWidget({
         : isContractorRow
           ? {
               assignee_id: null,
-              contractor_id: targetAssigneeId.substring(
-                CONTRACTOR_PREFIX.length,
-              ),
+              contractor_id: targetAssigneeId.substring(CONTRACTOR_PREFIX.length),
             }
           : {
-              assignee_id:
-                targetAssigneeId === "__unassigned__" ? null : targetAssigneeId,
+              assignee_id: targetAssigneeId === '__unassigned__' ? null : targetAssigneeId,
               contractor_id: null,
             };
 
@@ -276,15 +267,15 @@ export function MyWorkloadWidget({
           kind: noticeKind,
           itemId: item.id,
           taskId: item.task_id,
-          title: item.title ?? "",
+          title: item.title ?? '',
           targetDate,
           prevStartDate: item.start_date ?? null,
           prevDueDate: item.due_date ?? null,
         });
       } catch (err) {
-        console.warn("MyWorkloadWidget: failed to place item", err);
+        console.warn('MyWorkloadWidget: failed to place item', err);
         setNotice(null);
-        setError(t("boardDashboard.placeFailed", "배치하지 못했습니다."));
+        setError(t('boardDashboard.placeFailed', '배치하지 못했습니다.'));
         throw err;
       } finally {
         bumpRefresh();
@@ -309,7 +300,7 @@ export function MyWorkloadWidget({
         start_date?: string | null;
         due_date?: string | null;
       },
-      noticeKind: "unscheduled" | "untimeblocked" = "unscheduled",
+      noticeKind: 'unscheduled' | 'untimeblocked' = 'unscheduled',
     ) => {
       try {
         await checklistAPI.patchItem(boardId, item.task_id, item.id, {
@@ -321,16 +312,14 @@ export function MyWorkloadWidget({
           kind: noticeKind,
           itemId: item.id,
           taskId: item.task_id,
-          title: item.title ?? "",
+          title: item.title ?? '',
           prevStartDate: item.start_date ?? null,
           prevDueDate: item.due_date ?? null,
         });
       } catch (err) {
-        console.warn("MyWorkloadWidget: failed to unschedule item", err);
+        console.warn('MyWorkloadWidget: failed to unschedule item', err);
         setNotice(null);
-        setError(
-          t("boardDashboard.unscheduleFailed", "일정을 해제하지 못했습니다."),
-        );
+        setError(t('boardDashboard.unscheduleFailed', '일정을 해제하지 못했습니다.'));
       } finally {
         bumpRefresh();
       }
@@ -351,8 +340,8 @@ export function MyWorkloadWidget({
     // 놓은 날이 그 날이 아닐 수 있으므로 같은 규칙으로 다시 잡는다 —
     // placeItem이 시작일이 앞서면 기간을 살리고 마감만 옮긴다.
     if (
-      (detail.from === "placement" || detail.from === "workload") &&
-      detail.to === "timeblock" &&
+      (detail.from === 'placement' || detail.from === 'workload') &&
+      detail.to === 'timeblock' &&
       detail.targetDate
     ) {
       void placeItem(
@@ -365,15 +354,15 @@ export function MyWorkloadWidget({
         },
         detail.targetDate,
         undefined,
-        "timeblocked",
+        'timeblocked',
       ).catch(() => {
         /* placeItem이 이미 안내를 띄운다 */
       });
       return;
     }
 
-    if (detail.to !== "placement") return;
-    if (detail.from !== "workload" && detail.from !== "timeblock") return;
+    if (detail.to !== 'placement') return;
+    if (detail.from !== 'workload' && detail.from !== 'timeblock') return;
 
     // 타임블록에서 내려온 건은 블록을 이미 타임블록이 지웠다 — 우리는 날짜만 푼다.
     // (되돌리기로도 블록은 안 돌아오므로 안내 문구가 다르다)
@@ -385,7 +374,7 @@ export function MyWorkloadWidget({
         start_date: detail.item.start_date,
         due_date: detail.item.due_date,
       },
-      detail.from === "timeblock" ? "untimeblocked" : "unscheduled",
+      detail.from === 'timeblock' ? 'untimeblocked' : 'unscheduled',
     );
   });
 
@@ -400,8 +389,8 @@ export function MyWorkloadWidget({
       });
       setError(null);
     } catch (err) {
-      console.warn("MyWorkloadWidget: failed to undo placement", err);
-      setError(t("boardDashboard.undoFailed", "되돌리지 못했습니다."));
+      console.warn('MyWorkloadWidget: failed to undo placement', err);
+      setError(t('boardDashboard.undoFailed', '되돌리지 못했습니다.'));
     } finally {
       bumpRefresh();
     }
@@ -470,67 +459,58 @@ export function MyWorkloadWidget({
           dot="accent"
           title={
             scopeName
-              ? t("boardDashboard.workloadTitleOf", "{{name}}의 워크로드", {
+              ? t('boardDashboard.workloadTitleOf', '{{name}}의 워크로드', {
                   name: scopeName,
                 })
-              : t("boardDashboard.workloadTitle", "내 워크로드")
+              : t('boardDashboard.workloadTitle', '내 워크로드')
           }
-          linkLabel={t("boardDashboard.workloadLink", "리소스 뷰에서 열기")}
+          linkLabel={t('boardDashboard.workloadLink', '리소스 뷰에서 열기')}
           onLinkClick={onOpenResourceView}
           banner={
             notice || error ? (
-              <PanelBanner tone={error ? "error" : "info"}>
+              <PanelBanner tone={error ? 'error' : 'info'}>
                 {error ? (
                   <p className="text-xs">{error}</p>
                 ) : (
                   <>
                     <p className="text-xs truncate">
-                      {notice!.kind === "untimeblocked"
+                      {notice!.kind === 'untimeblocked'
                         ? // 지워진 블록은 되돌리기로도 안 돌아온다 — 무엇이 돌아오는지만 말한다
-                          t("boardDashboard.untimeblockedNotice", {
+                          t('boardDashboard.untimeblockedNotice', {
                             title: notice!.title,
                             defaultValue:
-                              "「{{title}}」 타임블록에서 빠짐 · 되돌리면 날짜만 돌아옵니다",
+                              '「{{title}}」 타임블록에서 빠짐 · 되돌리면 날짜만 돌아옵니다',
                           })
-                        : notice!.kind === "unscheduled"
-                          ? t("boardDashboard.unscheduledNotice", {
+                        : notice!.kind === 'unscheduled'
+                          ? t('boardDashboard.unscheduledNotice', {
                               title: notice!.title,
                               defaultValue:
-                                "「{{title}}」 일정 해제됨 · 담당자와 체크리스트는 그대로입니다",
+                                '「{{title}}」 일정 해제됨 · 담당자와 체크리스트는 그대로입니다',
                             })
-                          : notice!.kind === "timeblocked"
+                          : notice!.kind === 'timeblocked'
                             ? // 되돌리기는 날짜만 되돌린다 — 만들어진 타임블록은 남는다.
                               // 그래서 "배치됨"과 다른 문구로 무엇이 생겼는지 알린다.
                               //
                               // 날짜가 이미 있던 건(간트 바)은 되돌려도 "풀리는" 게 아니라
                               // 이전 날짜로 돌아간다 — 같은 동작이라도 결과가 달라 문구를 나눈다.
                               notice!.prevDueDate || notice!.prevStartDate
-                              ? t("boardDashboard.timeblockMovedNotice", {
+                              ? t('boardDashboard.timeblockMovedNotice', {
                                   title: notice!.title,
-                                  date: formatDate(
-                                    parseDate(notice!.targetDate ?? ""),
-                                    "PPP",
-                                  ),
+                                  date: formatDate(parseDate(notice!.targetDate ?? ''), 'PPP'),
                                   defaultValue:
-                                    "「{{title}}」 {{date}} 타임블록으로 옮김 · 되돌리면 날짜만 되돌아갑니다",
+                                    '「{{title}}」 {{date}} 타임블록으로 옮김 · 되돌리면 날짜만 되돌아갑니다',
                                 })
-                              : t("boardDashboard.timeblockedNotice", {
+                              : t('boardDashboard.timeblockedNotice', {
                                   title: notice!.title,
-                                  date: formatDate(
-                                    parseDate(notice!.targetDate ?? ""),
-                                    "PPP",
-                                  ),
+                                  date: formatDate(parseDate(notice!.targetDate ?? ''), 'PPP'),
                                   defaultValue:
-                                    "「{{title}}」 {{date}} 타임블록에 배치됨 · 되돌리면 날짜만 풀립니다",
+                                    '「{{title}}」 {{date}} 타임블록에 배치됨 · 되돌리면 날짜만 풀립니다',
                                 })
-                            : t("boardDashboard.placedNotice", {
+                            : t('boardDashboard.placedNotice', {
                                 title: notice!.title,
                                 // 로컬 Date로 넘긴다 — 문자열은 UTC로 해석돼 하루 어긋날 수 있다
-                                date: formatDate(
-                                  parseDate(notice!.targetDate ?? ""),
-                                  "PPP",
-                                ),
-                                defaultValue: "「{{title}}」 {{date}}에 배치됨",
+                                date: formatDate(parseDate(notice!.targetDate ?? ''), 'PPP'),
+                                defaultValue: '「{{title}}」 {{date}}에 배치됨',
                               })}
                     </p>
                     <button
@@ -539,7 +519,7 @@ export function MyWorkloadWidget({
                       className="ml-auto flex-none flex items-center gap-1 text-xs font-bold text-bridge-accent hover:underline"
                     >
                       <Undo2 size={12} aria-hidden="true" />
-                      {t("boardDashboard.undo", "되돌리기")}
+                      {t('boardDashboard.undo', '되돌리기')}
                     </button>
                   </>
                 )}
@@ -558,7 +538,7 @@ export function MyWorkloadWidget({
                   <div className="flex-1 flex items-center justify-center">
                     <Loader2
                       className="w-6 h-6 animate-spin text-bridge-accent"
-                      aria-label={t("common.loading", "불러오는 중")}
+                      aria-label={t('common.loading', '불러오는 중')}
                     />
                   </div>
                 }
@@ -592,10 +572,7 @@ export function MyWorkloadWidget({
           value={workloadHeight}
           min={MIN_WORKLOAD_HEIGHT}
           max={maxWorkloadHeight}
-          label={t(
-            "boardDashboard.splitWorkloadQueue",
-            "워크로드와 배치 대기 높이 조절",
-          )}
+          label={t('boardDashboard.splitWorkloadQueue', '워크로드와 배치 대기 높이 조절')}
           onPointerDown={onSplitPointerDown}
           onKeyDown={onSplitKeyDown}
           onReset={resetSplit}
@@ -628,7 +605,7 @@ export function MyWorkloadWidget({
           value={backlogWidth}
           min={MIN_BACKLOG_WIDTH}
           max={maxBacklogWidth}
-          label={t("boardDashboard.splitQueueBacklog", "백로그 열 폭 조절")}
+          label={t('boardDashboard.splitQueueBacklog', '백로그 열 폭 조절')}
           onPointerDown={onBacklogPointerDown}
           onKeyDown={onBacklogKeyDown}
           onReset={resetBacklogSplit}
@@ -644,8 +621,8 @@ export function MyWorkloadWidget({
       <div
         className={
           backlogCollapsed
-            ? "flex-none min-h-0 h-10 xl:h-auto xl:w-10"
-            : "flex-none min-h-0 h-[260px] xl:h-auto xl:w-[var(--dash-backlog-w)]"
+            ? 'flex-none min-h-0 h-10 xl:h-auto xl:w-10'
+            : 'flex-none min-h-0 h-[260px] xl:h-auto xl:w-[var(--dash-backlog-w)]'
         }
       >
         <BacklogRail

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { jiraAutofixAPI, JiraAutofixJob } from "../utils/api";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { jiraAutofixAPI, JiraAutofixJob } from '../utils/api';
 
 /**
  * "내 항목이 지금 어디까지 갔나"를 답하는 훅.
@@ -14,7 +14,7 @@ import { jiraAutofixAPI, JiraAutofixJob } from "../utils/api";
 const POLL_INTERVAL_MS = 10_000;
 
 /** 아직 결과가 정해지지 않은 상태. 이 중 하나라도 있으면 화면이 곧 바뀐다. */
-const LIVE_STATUSES = new Set(["QUEUED", "DISPATCHED"]);
+const LIVE_STATUSES = new Set(['QUEUED', 'DISPATCHED']);
 
 export interface AutofixTaskJobs {
   /** 체크리스트 항목 id → 그 항목의 가장 최근 작업. 재시도하면 이전 작업은 이력이지 현재가 아니다. */

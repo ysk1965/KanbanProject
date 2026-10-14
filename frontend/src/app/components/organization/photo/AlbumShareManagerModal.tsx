@@ -18,11 +18,7 @@ import { toast } from 'sonner';
 import { MotionModal } from '../../ui/MotionModal';
 import { orgPhotoService } from '../../../utils/services';
 import { formatDateTime, formatRelativeTime } from '../../../utils/dateUtils';
-import type {
-  OrgPhotoTab,
-  PhotoShareLink,
-  PhotoShareLinkType,
-} from '../../../types';
+import type { OrgPhotoTab, PhotoShareLink, PhotoShareLinkType } from '../../../types';
 
 interface AlbumShareManagerModalProps {
   open: boolean;
@@ -166,32 +162,21 @@ export function AlbumShareManagerModal({
   const handleOgImageUpload = useCallback(
     async (linkId: string, file: File) => {
       if (!file.type.startsWith('image/')) {
-        toast.error(
-          t('photoGallery.ogImageOnlyImage', '이미지 파일만 업로드할 수 있습니다'),
-        );
+        toast.error(t('photoGallery.ogImageOnlyImage', '이미지 파일만 업로드할 수 있습니다'));
         return;
       }
       try {
         setOgBusyId(linkId);
-        const updated = await orgPhotoService.uploadShareLinkOgImage(
-          orgId,
-          linkId,
-          file,
-        );
+        const updated = await orgPhotoService.uploadShareLinkOgImage(orgId, linkId, file);
         setLinks((prev) => prev.map((l) => (l.id === linkId ? updated : l)));
-        toast.success(
-          t('photoGallery.ogImageUpdated', '미리보기 이미지가 변경되었습니다'),
-          {
-            description: t(
-              'photoGallery.ogImageCacheNote',
-              '이미 공유된 대화방에는 메신저 캐시 때문에 반영까지 시간이 걸릴 수 있습니다',
-            ),
-          },
-        );
+        toast.success(t('photoGallery.ogImageUpdated', '미리보기 이미지가 변경되었습니다'), {
+          description: t(
+            'photoGallery.ogImageCacheNote',
+            '이미 공유된 대화방에는 메신저 캐시 때문에 반영까지 시간이 걸릴 수 있습니다',
+          ),
+        });
       } catch {
-        toast.error(
-          t('photoGallery.ogImageError', '미리보기 이미지 변경에 실패했습니다'),
-        );
+        toast.error(t('photoGallery.ogImageError', '미리보기 이미지 변경에 실패했습니다'));
       } finally {
         setOgBusyId(null);
       }
@@ -203,18 +188,11 @@ export function AlbumShareManagerModal({
     async (linkId: string) => {
       try {
         setOgBusyId(linkId);
-        const updated = await orgPhotoService.deleteShareLinkOgImage(
-          orgId,
-          linkId,
-        );
+        const updated = await orgPhotoService.deleteShareLinkOgImage(orgId, linkId);
         setLinks((prev) => prev.map((l) => (l.id === linkId ? updated : l)));
-        toast.success(
-          t('photoGallery.ogImageRemoved', '미리보기 이미지가 제거되었습니다'),
-        );
+        toast.success(t('photoGallery.ogImageRemoved', '미리보기 이미지가 제거되었습니다'));
       } catch {
-        toast.error(
-          t('photoGallery.ogImageError', '미리보기 이미지 변경에 실패했습니다'),
-        );
+        toast.error(t('photoGallery.ogImageError', '미리보기 이미지 변경에 실패했습니다'));
       } finally {
         setOgBusyId(null);
       }
@@ -240,9 +218,7 @@ export function AlbumShareManagerModal({
 
   const sortedAlbums = useMemo(() => {
     if (!focusTabId) return albums;
-    return [...albums].sort((a, b) =>
-      a.id === focusTabId ? -1 : b.id === focusTabId ? 1 : 0,
-    );
+    return [...albums].sort((a, b) => (a.id === focusTabId ? -1 : b.id === focusTabId ? 1 : 0));
   }, [albums, focusTabId]);
 
   return (
@@ -309,9 +285,7 @@ export function AlbumShareManagerModal({
       )}
 
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-xs text-slate-600">
-          Esc {t('common.close', '닫기')}
-        </span>
+        <span className="text-xs text-slate-600">Esc {t('common.close', '닫기')}</span>
         <button
           onClick={onClose}
           className="px-4 py-1.5 rounded-lg text-xs font-bold text-foreground bg-foreground/5 hover:bg-foreground/10 transition-all"
@@ -367,8 +341,7 @@ function ShareLinkSection({
   const [formTitle, setFormTitle] = useState('');
 
   const sectionKey = tabId ?? 'gallery';
-  const isIssuing =
-    issuingKey === `${sectionKey}-VIEW` || issuingKey === `${sectionKey}-UPLOAD`;
+  const isIssuing = issuingKey === `${sectionKey}-VIEW` || issuingKey === `${sectionKey}-UPLOAD`;
 
   const submit = (type: PhotoShareLinkType) => {
     onIssue(
@@ -553,9 +526,7 @@ function ShareLinkRow({
         <span className="text-sm font-bold text-foreground truncate flex-1">
           {link.title || t('photoGallery.unnamed', '이름 없음')}
         </span>
-        <span
-          className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${statusCls} shrink-0`}
-        >
+        <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${statusCls} shrink-0`}>
           {statusText}
         </span>
         <button
@@ -564,11 +535,7 @@ function ShareLinkRow({
           aria-label={t('photoGallery.shareCopy', '복사')}
           title={t('photoGallery.shareCopy', '복사')}
         >
-          {isCopied ? (
-            <Check size={14} className="text-bridge-accent" />
-          ) : (
-            <Copy size={14} />
-          )}
+          {isCopied ? <Check size={14} className="text-bridge-accent" /> : <Copy size={14} />}
         </button>
         <a
           href={url}
@@ -586,11 +553,7 @@ function ShareLinkRow({
           aria-label={t('photoGallery.expireNow', '즉시 만료')}
           title={t('photoGallery.expireNow', '즉시 만료')}
         >
-          {isRevoking ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : (
-            <Trash2 size={14} />
-          )}
+          {isRevoking ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
         </button>
       </div>
       <div className="mt-1.5 px-2 py-1 bg-foreground/[0.03] rounded-md">
@@ -633,11 +596,7 @@ function ShareLinkRow({
           disabled={isOgBusy}
           className="text-xs font-bold px-2 py-1 rounded-lg bg-foreground/5 text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-colors flex items-center gap-1 shrink-0 disabled:opacity-50"
         >
-          {isOgBusy ? (
-            <Loader2 size={12} className="animate-spin" />
-          ) : (
-            <ImageIcon size={12} />
-          )}
+          {isOgBusy ? <Loader2 size={12} className="animate-spin" /> : <ImageIcon size={12} />}
           {ogImageUrl
             ? t('photoGallery.ogImageChange', '이미지 변경')
             : t('photoGallery.ogImageSet', '이미지 지정')}

@@ -13,9 +13,9 @@ interface SubscriptionEntry {
 
 /** 재연결 백오프 설정 */
 const RECONNECT = {
-  BASE_DELAY: 1000,   // 첫 재시도: 1초
-  MAX_DELAY: 30000,   // 최대 대기: 30초
-  JITTER_MAX: 1000,   // 랜덤 지터: 0~1초
+  BASE_DELAY: 1000, // 첫 재시도: 1초
+  MAX_DELAY: 30000, // 최대 대기: 30초
+  JITTER_MAX: 1000, // 랜덤 지터: 0~1초
 } as const;
 
 /**
@@ -45,7 +45,7 @@ class WebSocketManager {
   private getReconnectDelay(): number {
     const exponential = Math.min(
       RECONNECT.BASE_DELAY * Math.pow(2, this.reconnectAttempt),
-      RECONNECT.MAX_DELAY
+      RECONNECT.MAX_DELAY,
     );
     const jitter = Math.random() * RECONNECT.JITTER_MAX;
     return exponential + jitter;
@@ -117,7 +117,7 @@ class WebSocketManager {
         }
         this.updateStatus('disconnected');
         console.log(
-          `[WebSocket] Connection closed (next retry in ${this.client?.reconnectDelay ?? 0}ms, attempt #${this.reconnectAttempt})`
+          `[WebSocket] Connection closed (next retry in ${this.client?.reconnectDelay ?? 0}ms, attempt #${this.reconnectAttempt})`,
         );
       },
 
@@ -190,7 +190,7 @@ class WebSocketManager {
    */
   subscribe(
     destination: string,
-    callback: (message: IMessage) => void
+    callback: (message: IMessage) => void,
   ): { unsubscribe: () => void } {
     const id = `sub-${++this.subIdCounter}`;
 

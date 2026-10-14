@@ -69,7 +69,9 @@ export function AdminSubscriptionsTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-foreground mb-2">{t('admin.subscriptions.title')}</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-2">
+            {t('admin.subscriptions.title')}
+          </h2>
           <p className="text-slate-400">{t('admin.subscriptions.subtitle')}</p>
         </div>
       </div>
@@ -138,7 +140,9 @@ export function AdminSubscriptionsTab() {
                           <div className="w-10 h-10 rounded-lg bg-bridge-accent/20 flex items-center justify-center">
                             <Folder className="h-5 w-5 text-bridge-accent" />
                           </div>
-                          <span className="text-foreground font-medium">{subscription.board_name}</span>
+                          <span className="text-foreground font-medium">
+                            {subscription.board_name}
+                          </span>
                         </div>
                       </td>
                       <td className="px-3 py-3 md:px-6 md:py-4">
@@ -150,7 +154,7 @@ export function AdminSubscriptionsTab() {
                       <td className="px-3 py-3 md:px-6 md:py-4">
                         <span
                           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getTierStyle(
-                            subscription.tier
+                            subscription.tier,
                           )}`}
                         >
                           {subscription.tier}
@@ -159,7 +163,7 @@ export function AdminSubscriptionsTab() {
                       <td className="px-3 py-3 md:px-6 md:py-4">
                         <span
                           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusStyle(
-                            subscription.status
+                            subscription.status,
                           )}`}
                         >
                           {subscription.status}
@@ -204,7 +208,11 @@ export function AdminSubscriptionsTab() {
                   {page + 1} / {Math.ceil(subscriptions.total / subscriptions.size) || 1}
                 </span>
                 <button
-                  onClick={() => setPage(Math.min(Math.ceil(subscriptions.total / subscriptions.size) - 1, page + 1))}
+                  onClick={() =>
+                    setPage(
+                      Math.min(Math.ceil(subscriptions.total / subscriptions.size) - 1, page + 1),
+                    )
+                  }
                   disabled={page >= Math.ceil(subscriptions.total / subscriptions.size) - 1}
                   className="p-2 bg-bridge-obsidian border border-foreground/[0.08] rounded-lg
                     text-slate-400 hover:text-foreground hover:bg-foreground/5

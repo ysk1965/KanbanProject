@@ -1,13 +1,13 @@
-import { useState, useCallback, useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import { Layers, Flag, Plus, Table2 } from "lucide-react";
-import type { Feature, Task, Milestone } from "../types";
-import { getTodayDateString } from "../utils/dateUtils";
-import { MilestoneMatrix } from "./MilestoneMatrix";
-import { MilestoneDetailView } from "./MilestoneDetailView";
-import type { MilestoneTableFilters } from "./MilestoneTableView";
+import { useState, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Layers, Flag, Plus, Table2 } from 'lucide-react';
+import type { Feature, Task, Milestone } from '../types';
+import { getTodayDateString } from '../utils/dateUtils';
+import { MilestoneMatrix } from './MilestoneMatrix';
+import { MilestoneDetailView } from './MilestoneDetailView';
+import type { MilestoneTableFilters } from './MilestoneTableView';
 
-type MilestoneViewMode = "detail" | "matrix";
+type MilestoneViewMode = 'detail' | 'matrix';
 
 // ========================================
 // Types
@@ -37,12 +37,11 @@ interface MilestoneViewProps {
 
 export interface MilestoneDeepLink {
   milestoneId?: string | null;
-  layout?: "board" | "table";
+  layout?: 'board' | 'table';
   filters?: MilestoneTableFilters;
 }
 
-export type MilestoneStatusKey =
-  "completed" | "waiting" | "overdue" | "inProgress";
+export type MilestoneStatusKey = 'completed' | 'waiting' | 'overdue' | 'inProgress';
 
 /**
  * 마일스톤 상태(완료/대기/초과/진행중)와 배지·막대 색상을 한 곳에서 결정.
@@ -61,33 +60,29 @@ export function getMilestoneStatus(
 
   if (progress >= 100) {
     return {
-      key: "completed",
-      barColor: "bg-green-500",
-      badgeClasses:
-        "bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30",
+      key: 'completed',
+      barColor: 'bg-green-500',
+      badgeClasses: 'bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30',
     };
   }
   if (now < start) {
     return {
-      key: "waiting",
-      barColor: "bg-slate-400",
-      badgeClasses:
-        "bg-slate-500/20 text-slate-600 dark:text-slate-400 border-slate-500/30",
+      key: 'waiting',
+      barColor: 'bg-slate-400',
+      badgeClasses: 'bg-slate-500/20 text-slate-600 dark:text-slate-400 border-slate-500/30',
     };
   }
   if (now > end && !suppressOverdue) {
     return {
-      key: "overdue",
-      barColor: "bg-red-500",
-      badgeClasses:
-        "bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30",
+      key: 'overdue',
+      barColor: 'bg-red-500',
+      badgeClasses: 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30',
     };
   }
   return {
-    key: "inProgress",
-    barColor: "bg-bridge-accent",
-    badgeClasses:
-      "bg-bridge-accent/20 text-bridge-accent border-bridge-accent/30",
+    key: 'inProgress',
+    barColor: 'bg-bridge-accent',
+    badgeClasses: 'bg-bridge-accent/20 text-bridge-accent border-bridge-accent/30',
   };
 }
 
@@ -121,10 +116,10 @@ export function MilestoneView({
   const viewModeKey = `milestoneViewMode_v2_${boardId}`;
   const [viewMode, setViewMode] = useState<MilestoneViewMode>(() => {
     // 공유 링크는 늘 디테일을 겨눈다 — 매트릭스 기억값이 있어도 무시
-    if (deepLink?.milestoneId) return "detail";
-    if (typeof window === "undefined") return "detail";
+    if (deepLink?.milestoneId) return 'detail';
+    if (typeof window === 'undefined') return 'detail';
     const saved = localStorage.getItem(viewModeKey);
-    return saved === "matrix" ? "matrix" : "detail";
+    return saved === 'matrix' ? 'matrix' : 'detail';
   });
   const changeViewMode = useCallback(
     (mode: MilestoneViewMode) => {
@@ -140,9 +135,7 @@ export function MilestoneView({
 
   const sortedMilestones = useMemo(() => {
     return [...milestones].sort((a, b) => {
-      return (
-        new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
-      );
+      return new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
     });
   }, [milestones]);
 
@@ -155,21 +148,17 @@ export function MilestoneView({
     if (sortedMilestones.length === 0) return null;
     const today = getTodayDateString();
     const inProgress = sortedMilestones.find(
-      (m) =>
-        m.start_date.slice(0, 10) <= today && today <= m.end_date.slice(0, 10),
+      (m) => m.start_date.slice(0, 10) <= today && today <= m.end_date.slice(0, 10),
     );
     if (inProgress) return inProgress;
-    const upcoming = sortedMilestones.find(
-      (m) => m.start_date.slice(0, 10) > today,
-    );
+    const upcoming = sortedMilestones.find((m) => m.start_date.slice(0, 10) > today);
     return upcoming ?? sortedMilestones[sortedMilestones.length - 1];
   }, [sortedMilestones]);
 
   // 디테일 탭에서 보여줄 마일스톤 — 명시 선택 > 기본(진행 중)
   const detailMilestone =
-    (detailMilestoneId
-      ? milestones.find((m) => m.id === detailMilestoneId)
-      : null) ?? defaultDetailMilestone;
+    (detailMilestoneId ? milestones.find((m) => m.id === detailMilestoneId) : null) ??
+    defaultDetailMilestone;
 
   // 마일스톤 클릭(매트릭스 헤더) → 디테일 탭으로 전환
   // 매트릭스에서 진입한 경우만 Esc로 매트릭스에 돌아간다 (디테일 탭 직접 진입 시 Esc 무시)
@@ -178,7 +167,7 @@ export function MilestoneView({
     (milestoneId: string) => {
       setDetailMilestoneId(milestoneId);
       setEnteredFromMatrix(true);
-      changeViewMode("detail");
+      changeViewMode('detail');
     },
     [changeViewMode],
   );
@@ -201,14 +190,14 @@ export function MilestoneView({
           <Flag className="h-8 w-8 text-muted-foreground" />
         </div>
         <h3 className="text-lg font-bold text-foreground mb-2">
-          {t("milestone.onboardingTitle", {
-            defaultValue: "Manage your project with milestones",
+          {t('milestone.onboardingTitle', {
+            defaultValue: 'Manage your project with milestones',
           })}
         </h3>
         <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
-          {t("milestone.onboardingDesc", {
+          {t('milestone.onboardingDesc', {
             defaultValue:
-              "Group features into milestones to track schedules and progress at a glance.",
+              'Group features into milestones to track schedules and progress at a glance.',
           })}
         </p>
         {onCreateMilestone && (
@@ -217,7 +206,7 @@ export function MilestoneView({
             className="flex items-center gap-2 px-5 py-2.5 bg-bridge-accent text-white rounded-xl font-bold text-sm hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all"
           >
             <Plus className="h-4 w-4" />
-            {t("milestone.createFirst", { defaultValue: "마일스톤 만들기" })}
+            {t('milestone.createFirst', { defaultValue: '마일스톤 만들기' })}
           </button>
         )}
       </div>
@@ -236,41 +225,40 @@ export function MilestoneView({
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Flag className="h-4 w-4" />
             <span>
-              {milestones.length}{" "}
-              {t("milestone.count", { defaultValue: "개 마일스톤" })}
+              {milestones.length} {t('milestone.count', { defaultValue: '개 마일스톤' })}
             </span>
           </div>
           <div className="flex items-center gap-2">
             {/* 뷰 토글: 디테일 · 매트릭스 */}
             <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/5 border border-foreground/[0.08]">
               <button
-                onClick={() => changeViewModeByTab("detail")}
+                onClick={() => changeViewModeByTab('detail')}
                 className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
-                  viewMode === "detail"
-                    ? "bg-bridge-accent text-white font-bold"
-                    : "text-slate-400 hover:text-foreground"
+                  viewMode === 'detail'
+                    ? 'bg-bridge-accent text-white font-bold'
+                    : 'text-slate-400 hover:text-foreground'
                 }`}
-                title={t("milestone.viewDetail", { defaultValue: "디테일" })}
+                title={t('milestone.viewDetail', { defaultValue: '디테일' })}
               >
                 <Layers className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">
-                  {t("milestone.viewDetail", { defaultValue: "디테일" })}
+                  {t('milestone.viewDetail', { defaultValue: '디테일' })}
                 </span>
               </button>
               <button
-                onClick={() => changeViewModeByTab("matrix")}
+                onClick={() => changeViewModeByTab('matrix')}
                 className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
-                  viewMode === "matrix"
-                    ? "bg-bridge-accent text-white font-bold"
-                    : "text-slate-400 hover:text-foreground"
+                  viewMode === 'matrix'
+                    ? 'bg-bridge-accent text-white font-bold'
+                    : 'text-slate-400 hover:text-foreground'
                 }`}
-                title={t("milestone.matrix.title", {
-                  defaultValue: "피처 × 마일스톤",
+                title={t('milestone.matrix.title', {
+                  defaultValue: '피처 × 마일스톤',
                 })}
               >
                 <Table2 className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">
-                  {t("milestone.viewMatrix", { defaultValue: "매트릭스" })}
+                  {t('milestone.viewMatrix', { defaultValue: '매트릭스' })}
                 </span>
               </button>
             </div>
@@ -279,13 +267,13 @@ export function MilestoneView({
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.2)] transition-all"
             >
               <Plus className="h-3.5 w-3.5" />
-              {t("milestone.create", { defaultValue: "마일스톤 추가" })}
+              {t('milestone.create', { defaultValue: '마일스톤 추가' })}
             </button>
           </div>
         </div>
       )}
 
-      {viewMode === "detail" && detailMilestone ? (
+      {viewMode === 'detail' && detailMilestone ? (
         <MilestoneDetailView
           boardId={boardId}
           milestone={detailMilestone}
@@ -296,7 +284,7 @@ export function MilestoneView({
             if (!enteredFromMatrix) return;
             setDetailMilestoneId(null);
             setEnteredFromMatrix(false);
-            changeViewMode("matrix");
+            changeViewMode('matrix');
           }}
           onSelectMilestone={setDetailMilestoneId}
           onEditMilestone={onEditMilestone}

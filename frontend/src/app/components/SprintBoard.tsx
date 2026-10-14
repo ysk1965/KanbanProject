@@ -1,11 +1,4 @@
-import {
-  Fragment,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Loader2,
   ChevronDown,
@@ -40,14 +33,11 @@ import {
   MoreHorizontal,
   Search,
   CornerDownLeft,
-} from "lucide-react";
-import { toast } from "sonner";
-import { sprintAPI, checklistAPI, taskAPI, jiraAPI } from "../utils/api";
-import {
-  resolveBoardFeatures,
-  type BoardFeatures,
-} from "../hooks/useBoardFeatures";
-import type { JiraStatus, JiraMeta, JiraBlockStatusEntry } from "../utils/api";
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { sprintAPI, checklistAPI, taskAPI, jiraAPI } from '../utils/api';
+import { resolveBoardFeatures, type BoardFeatures } from '../hooks/useBoardFeatures';
+import type { JiraStatus, JiraMeta, JiraBlockStatusEntry } from '../utils/api';
 import type {
   SprintBoard as SprintBoardData,
   SprintColumn,
@@ -55,33 +45,29 @@ import type {
   SprintItemCard,
   SprintChecklistLine,
   SprintJiraTask,
-} from "../types";
-import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
-import { useSprintRealtime } from "../hooks/useSprintRealtime";
+} from '../types';
+import { getAssigneeHex, getInitials } from '../utils/assigneeColor';
+import { useSprintRealtime } from '../hooks/useSprintRealtime';
 import {
   formatDate,
   formatRelativeTime,
   parseUTCDate,
   getTodayDateString,
   getDDay,
-} from "../utils/dateUtils";
-import {
-  jiraIssueUrl,
-  jiraIssueTypeMark,
-  jiraPriorityMark,
-} from "../utils/jira";
-import { MotionModal } from "./ui/MotionModal";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { SprintSegmentBar } from "./SprintSegmentBar";
-import { SprintSplitModal } from "./SprintSplitModal";
-import { SprintMemberGanttModal } from "./SprintMemberGanttModal";
-import { MilestoneConsoleModal } from "./MilestoneConsoleModal";
-import { JiraOnboardingGuide } from "./JiraOnboardingGuide";
-import { JiraScopeModal } from "./JiraScopeModal";
-import { JiraSettingsPanel } from "./JiraSettingsPanel";
-import { JiraSyncIndicator } from "./JiraSyncIndicator";
-import { JiraAutofixDock } from "./JiraAutofixDock";
-import type { FilterOptions } from "./FilterModal";
+} from '../utils/dateUtils';
+import { jiraIssueUrl, jiraIssueTypeMark, jiraPriorityMark } from '../utils/jira';
+import { MotionModal } from './ui/MotionModal';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { SprintSegmentBar } from './SprintSegmentBar';
+import { SprintSplitModal } from './SprintSplitModal';
+import { SprintMemberGanttModal } from './SprintMemberGanttModal';
+import { MilestoneConsoleModal } from './MilestoneConsoleModal';
+import { JiraOnboardingGuide } from './JiraOnboardingGuide';
+import { JiraScopeModal } from './JiraScopeModal';
+import { JiraSettingsPanel } from './JiraSettingsPanel';
+import { JiraSyncIndicator } from './JiraSyncIndicator';
+import { JiraAutofixDock } from './JiraAutofixDock';
+import type { FilterOptions } from './FilterModal';
 
 interface SprintBoardProps {
   boardId: string;
@@ -212,10 +198,9 @@ function takenInSprint(it: SprintItemCard, sprintId: string | null): boolean {
  * 진척 집계·카드 스코프·보임 필터가 모두 이 함수 하나를 보게 해 규칙이 갈라지지 않게 한다.
  */
 function lineOwnedBy(line: SprintChecklistLine, memberId: string): boolean {
-  return memberId === "__none__"
+  return memberId === '__none__'
     ? !line.assignee && !line.contractor?.manager_user_id
-    : line.assignee?.id === memberId ||
-        line.contractor?.manager_user_id === memberId;
+    : line.assignee?.id === memberId || line.contractor?.manager_user_id === memberId;
 }
 
 /**
@@ -223,47 +208,43 @@ function lineOwnedBy(line: SprintChecklistLine, memberId: string): boolean {
  * 같은 태스크가 여러 컬럼에 서므로 완료 여부도 컬럼 주인마다 다르다.
  * 판정 근거를 컬럼 진척(progressUnits)과 같은 스코프로 맞춰, 헤더 숫자와 필터 결과가 어긋나지 않게 한다.
  */
-function memberCardDone(
-  it: SprintItemCard,
-  isDone: boolean,
-  memberId: string,
-): boolean {
+function memberCardDone(it: SprintItemCard, isDone: boolean, memberId: string): boolean {
   const my = (it.checklist_items ?? []).filter((l) => lineOwnedBy(l, memberId));
   const u = progressUnits(it, isDone, my.length > 0 ? my : undefined);
   return u.total > 0 && u.done >= u.total;
 }
 
-const DRAG_ITEM = "application/bridge-sprint-item";
-const DRAG_SOURCE = "application/bridge-sprint-source";
+const DRAG_ITEM = 'application/bridge-sprint-item';
+const DRAG_SOURCE = 'application/bridge-sprint-source';
 /** 보드 그룹 기준(Feature ↔ 구성원) 선택 저장 키(새로고침해도 유지) */
-const SPRINT_VIEW_KEY = "bridge:sprint-view";
+const SPRINT_VIEW_KEY = 'bridge:sprint-view';
 /** 구성원 뷰 "보임"(완료 항목 노출) 선택 저장 키(새로고침해도 유지) */
-const SPRINT_DONE_VIS_KEY = "bridge:sprint-done-visibility";
+const SPRINT_DONE_VIS_KEY = 'bridge:sprint-done-visibility';
 /** 좌측 업무 리스트 패널 접힘 상태 저장 키(새로고침해도 유지) */
-const SPRINT_TREE_COLLAPSED_KEY = "bridge:sprint-tree:collapsed";
+const SPRINT_TREE_COLLAPSED_KEY = 'bridge:sprint-tree:collapsed';
 /** 좌측 업무 리스트 패널 폭(px) 저장 키(새로고침해도 유지) */
-const SPRINT_TREE_WIDTH_KEY = "bridge:sprint-tree:width";
+const SPRINT_TREE_WIDTH_KEY = 'bridge:sprint-tree:width';
 /** 하단 미분류 레일 접힘 상태 저장 키. 기본값은 접힘 — 평소엔 보드 세로 공간을 돌려준다. */
-const SPRINT_UNCAT_COLLAPSED_KEY = "bridge:sprint-uncategorized:collapsed";
+const SPRINT_UNCAT_COLLAPSED_KEY = 'bridge:sprint-uncategorized:collapsed';
 /** 우측 도크(In Review·Done)에서 마지막으로 보던 탭(컬럼 id) 저장 키. */
-const SPRINT_DOCK_TAB_KEY = "bridge:sprint-dock:tab";
+const SPRINT_DOCK_TAB_KEY = 'bridge:sprint-dock:tab';
 /** 우측 도크 폭(px) 저장 키(새로고침해도 유지). */
-const SPRINT_DOCK_WIDTH_KEY = "bridge:sprint-dock:width";
+const SPRINT_DOCK_WIDTH_KEY = 'bridge:sprint-dock:width';
 /** 피쳐 컬럼 접힘 상태(피쳐 id → 접힘 여부) 저장 키. 명시 토글만 저장하고, 없으면 카드 0장일 때 접힘. */
-const SPRINT_FEATURE_COLS_KEY = "bridge:sprint-feature-cols:collapsed";
+const SPRINT_FEATURE_COLS_KEY = 'bridge:sprint-feature-cols:collapsed';
 
 /**
  * 담당 모노그램 — 20px 원에 한 글자. 두 글자 9px는 원 안에서 읽히지 않아 한 글자 12px로 바꿨다.
  * 한글은 성(첫 글자), 영문은 첫 글자 대문자. 전체 이름은 항상 title로 붙인다.
  */
 function monogram(name: string | null | undefined): string {
-  const t = (name ?? "").trim();
-  return t ? t.charAt(0).toUpperCase() : "?";
+  const t = (name ?? '').trim();
+  return t ? t.charAt(0).toUpperCase() : '?';
 }
 /** 업무 리스트 범위("active"/"all") 저장 키(새로고침해도 유지). */
-const SPRINT_LIST_SCOPE_KEY = "bridge:sprint-list-scope";
+const SPRINT_LIST_SCOPE_KEY = 'bridge:sprint-list-scope';
 /** 업무 리스트 접힌 섹션 라벨 집합 저장 키(새로고침해도 유지). 기본은 백로그만 접힘. */
-const SPRINT_LIST_SECTIONS_KEY = "bridge:sprint-list:collapsed-sections";
+const SPRINT_LIST_SECTIONS_KEY = 'bridge:sprint-list:collapsed-sections';
 
 /**
  * JIRA 흐름 게이지 세그먼트 색 — 단계가 뒤로 갈수록 액센트가 진해지고,
@@ -275,10 +256,9 @@ function jiraFlowSegColor(
   index: number,
   lastKey?: string,
 ): string {
-  if (lastKey && col.key === lastKey) return "var(--bridge-secondary)";
-  if (col.key === "__unmapped__" || col.tone === "muted")
-    return "rgba(148, 163, 184, 0.45)";
-  if (col.tone === "review") return "#f59e0b";
+  if (lastKey && col.key === lastKey) return 'var(--bridge-secondary)';
+  if (col.key === '__unmapped__' || col.tone === 'muted') return 'rgba(148, 163, 184, 0.45)';
+  if (col.tone === 'review') return '#f59e0b';
   const alpha = Math.min(0.28 + index * 0.15, 0.72);
   return `rgba(99, 102, 241, ${alpha})`;
 }
@@ -289,7 +269,7 @@ function jiraFlowSegColor(
  *  · feature:  피쳐 미지정 → 컬럼엔 서지만 "무엇에 속한 일인지"가 비어 있다(레일은 보조 트레이).
  * "미담김"(백로그)은 좌측 업무 리스트가 이미 맡고 있어 여기 포함하지 않는다.
  */
-type UncatCause = "assignee" | "feature";
+type UncatCause = 'assignee' | 'feature';
 interface UncatCard {
   it: SprintItemCard;
   causes: UncatCause[];
@@ -302,17 +282,16 @@ interface UncatCard {
  *  · done = 완료만 — 회고·보고 때 "이번 스프린트에 뭘 끝냈나"를 보는 모드
  * 진척 숫자(카드 게이지·컬럼 헤더 분모)는 이 선택과 무관하게 언제나 전체 기준을 유지한다.
  */
-type DoneVisibility = "all" | "open" | "done";
-const DONE_VIS_OPTIONS: { key: DoneVisibility; label: string; hint: string }[] =
-  [
-    { key: "all", label: "전체", hint: "완료·진행중 모두 표시" },
-    {
-      key: "open",
-      label: "진행중",
-      hint: "완료된 카드와 체크된 줄을 숨깁니다",
-    },
-    { key: "done", label: "완료", hint: "완료된 카드와 체크된 줄만 표시" },
-  ];
+type DoneVisibility = 'all' | 'open' | 'done';
+const DONE_VIS_OPTIONS: { key: DoneVisibility; label: string; hint: string }[] = [
+  { key: 'all', label: '전체', hint: '완료·진행중 모두 표시' },
+  {
+    key: 'open',
+    label: '진행중',
+    hint: '완료된 카드와 체크된 줄을 숨깁니다',
+  },
+  { key: 'done', label: '완료', hint: '완료된 카드와 체크된 줄만 표시' },
+];
 
 /** 패널 폭 제한(px) */
 const PANEL_MIN_WIDTH = 240;
@@ -327,9 +306,9 @@ const DOCK_DEFAULT_WIDTH = 200;
 function errMessage(e: unknown, fallback: string): string {
   if (
     e &&
-    typeof e === "object" &&
-    "message" in e &&
-    typeof (e as { message?: unknown }).message === "string"
+    typeof e === 'object' &&
+    'message' in e &&
+    typeof (e as { message?: unknown }).message === 'string'
   ) {
     return (e as { message: string }).message;
   }
@@ -338,11 +317,11 @@ function errMessage(e: unknown, fallback: string): string {
 
 /** D-day 긴급도 → 배지 색상. 지남/오늘=빨강, 임박(D-3이내)=앰버, 그 외=여유(틸). */
 const DDAY_BADGE: Record<string, string> = {
-  overdue: "bg-rose-500/15 text-rose-500",
-  today: "bg-rose-500/15 text-rose-500",
-  soon: "bg-amber-500/15 text-amber-500",
-  normal: "bg-bridge-secondary/15 text-bridge-secondary",
-  none: "",
+  overdue: 'bg-rose-500/15 text-rose-500',
+  today: 'bg-rose-500/15 text-rose-500',
+  soon: 'bg-amber-500/15 text-amber-500',
+  normal: 'bg-bridge-secondary/15 text-bridge-secondary',
+  none: '',
 };
 
 // 스프린트 카드 긴급도 tier — 지연(0) → 진행 중(1) → 예정(2) → 완료·기간 미설정(3).
@@ -350,7 +329,7 @@ const DDAY_BADGE: Record<string, string> = {
 function sprintCardTier(it: SprintItemCard, isDone: boolean): number {
   if (isDone) return 3;
   const dday = it.due_date ? getDDay(it.due_date) : null;
-  if (dday?.urgency === "overdue") return 0; // 지연 — 종료일이 오늘보다 이전
+  if (dday?.urgency === 'overdue') return 0; // 지연 — 종료일이 오늘보다 이전
   const startDday = it.start_date ? getDDay(it.start_date) : null;
   if (startDday && startDday.diff > 0) return 2; // 예정 — 아직 시작 전
   if (startDday || dday) return 1; // 진행 중 — 기간 안(시작 지남·마감 안 지남)
@@ -389,13 +368,10 @@ export function SprintBoard({
   const uiFeatures = boardFeatures ?? resolveBoardFeatures(null);
   /** 담당자 아바타 색 — 지정 색(assignee_color) 우선, 없으면 이름 해시 폴백. */
   const assigneeHex = (assignee: { id?: string; name: string }) =>
-    getAssigneeHex(
-      assignee.name,
-      assignee.id ? memberColorMap?.[assignee.id] : undefined,
-    );
+    getAssigneeHex(assignee.name, assignee.id ? memberColorMap?.[assignee.id] : undefined);
   const controlled = !!controlledMilestoneId;
   const [internalMid, setInternalMid] = useState<string>(
-    controlledMilestoneId ?? milestones[0]?.id ?? "",
+    controlledMilestoneId ?? milestones[0]?.id ?? '',
   );
   const milestoneId = controlledMilestoneId ?? internalMid;
   const milestone = milestones.find((m) => m.id === milestoneId) ?? null;
@@ -405,14 +381,10 @@ export function SprintBoard({
 
   // 업무 리스트: 피쳐 카드의 태스크 목록 펼침 집합. 기본은 접힘 —
   // 담기 단위가 태스크라 펼치면 행마다 담기/빼기가 붙는다.
-  const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(
-    new Set(),
-  );
+  const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(new Set());
   // 인라인 태스크 생성 입력값 — 키는 "list:{featureId}"(업무 리스트, 백로그로 생성) /
   // "col:{featureId}"(피쳐 컬럼, 생성 즉시 담김). 피쳐마다 입력이 따로 살아 연속 입력이 된다.
-  const [newTaskTitles, setNewTaskTitles] = useState<Record<string, string>>(
-    {},
-  );
+  const [newTaskTitles, setNewTaskTitles] = useState<Record<string, string>>({});
   // 지금 생성 요청이 나가 있는 입력 키(스피너 표시용). null이면 없음.
   const [creatingTaskKey, setCreatingTaskKey] = useState<string | null>(null);
   // 입력이 열려 있는 추가 행 키 — 평소엔 고스트 행("＋ 태스크 추가")만 두고,
@@ -420,13 +392,11 @@ export function SprintBoard({
   const [activeAddKey, setActiveAddKey] = useState<string | null>(null);
   // 업무 리스트 범위 — "active": 미배정 + 선택한 스프린트(기본), "all": 다른 스프린트에
   // 담긴 태스크까지. 다른 버킷의 일은 평소엔 소음이고, 옮겨 담을 때만 궁금하다.
-  const [listScope, setListScope] = useState<"active" | "all">(() => {
+  const [listScope, setListScope] = useState<'active' | 'all'>(() => {
     try {
-      return localStorage.getItem(SPRINT_LIST_SCOPE_KEY) === "all"
-        ? "all"
-        : "active";
+      return localStorage.getItem(SPRINT_LIST_SCOPE_KEY) === 'all' ? 'all' : 'active';
     } catch {
-      return "active";
+      return 'active';
     }
   });
   useEffect(() => {
@@ -438,31 +408,24 @@ export function SprintBoard({
   }, [listScope]);
   // 업무 리스트: 피쳐 카드 안 "완료 태스크" 펼침 집합. 남은 일이 리스트의 주인공이라
   // 완료 행은 기본 접히고, "완료 N개 보기"로만 드러난다.
-  const [expandedDoneTasks, setExpandedDoneTasks] = useState<Set<string>>(
-    new Set(),
-  );
+  const [expandedDoneTasks, setExpandedDoneTasks] = useState<Set<string>>(new Set());
   // 업무 리스트: 제목 검색(피쳐·태스크). 클라이언트 필터 — 맞는 태스크가 있는 피쳐는 자동 펼침.
-  const [listQuery, setListQuery] = useState("");
+  const [listQuery, setListQuery] = useState('');
   // 업무 리스트 ⋯ 메뉴(모두 펼치기/접기·마일스톤 콘솔) 열림.
   const [listMenuOpen, setListMenuOpen] = useState(false);
   // 접힌 섹션 라벨 집합. 백로그는 기본 접힘 — 평소엔 이번 스프린트가 주인공이다.
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
-    () => {
-      try {
-        const raw = localStorage.getItem(SPRINT_LIST_SECTIONS_KEY);
-        if (raw) return new Set(JSON.parse(raw) as string[]);
-      } catch {
-        /* 파싱 실패·접근 불가 시 기본값 */
-      }
-      return new Set(["백로그"]);
-    },
-  );
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(SPRINT_LIST_SECTIONS_KEY);
+      if (raw) return new Set(JSON.parse(raw) as string[]);
+    } catch {
+      /* 파싱 실패·접근 불가 시 기본값 */
+    }
+    return new Set(['백로그']);
+  });
   useEffect(() => {
     try {
-      localStorage.setItem(
-        SPRINT_LIST_SECTIONS_KEY,
-        JSON.stringify([...collapsedSections]),
-      );
+      localStorage.setItem(SPRINT_LIST_SECTIONS_KEY, JSON.stringify([...collapsedSections]));
     } catch {
       /* 프라이빗 모드 등 localStorage 접근 불가 시 무시 */
     }
@@ -475,9 +438,7 @@ export function SprintBoard({
       return next;
     });
   // 섹션 꼬리의 "완료 n · 빈 피쳐 m" 접힘 그룹 펼침 집합(섹션 라벨 키). 기본 접힘.
-  const [expandedSettled, setExpandedSettled] = useState<Set<string>>(
-    new Set(),
-  );
+  const [expandedSettled, setExpandedSettled] = useState<Set<string>>(new Set());
   const toggleSettled = (label: string) =>
     setExpandedSettled((prev) => {
       const next = new Set(prev);
@@ -491,7 +452,7 @@ export function SprintBoard({
   const [collapsedCards, setCollapsedCards] = useState<Set<string>>(new Set());
   // 업무 리스트 헤더 "+" → 인라인 새 피쳐 입력. 제목만 받고 생성 후 상세 모달로 이어 작성한다.
   const [addingFeature, setAddingFeature] = useState(false);
-  const [newFeatureTitle, setNewFeatureTitle] = useState("");
+  const [newFeatureTitle, setNewFeatureTitle] = useState('');
   const [creatingFeature, setCreatingFeature] = useState(false);
   // Feature 필터 — 상단 요약 스트립 칩 선택 집합. 비어 있으면 전체 표시.
   // Feature는 스프린트 상위 개념이라 타임라인 위에 두고, 선택 시 아래 보드 컬럼(Feature/구성원/JIRA)을 좁힌다.
@@ -503,18 +464,16 @@ export function SprintBoard({
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   // 드래그 중 드롭 존 안내용 — 카드→리스트(빼기) / 리스트→보드(담기) 방향을 구분한다.
   const [dragOverList, setDragOverList] = useState(false);
-  const [draggingSource, setDraggingSource] = useState<
-    "backlog" | "sprint" | null
-  >(null);
+  const [draggingSource, setDraggingSource] = useState<'backlog' | 'sprint' | null>(null);
   const [editingCol, setEditingCol] = useState<string | null>(null);
-  const [editColName, setEditColName] = useState("");
+  const [editColName, setEditColName] = useState('');
   const busyRef = useRef(false);
 
   // 진행 현황 모달 (게이지 클릭 → 오늘 완료/진행 중/기존 완료/미완료 상세)
   const [progressOpen, setProgressOpen] = useState(false);
   const [progressTab, setProgressTab] = useState<
-    "todayDone" | "inProgress" | "earlierDone" | "notStarted"
-  >("todayDone");
+    'todayDone' | 'inProgress' | 'earlierDone' | 'notStarted'
+  >('todayDone');
 
   // 지금 보고 있는 버킷. 기본값은 오늘이 속한 스프린트(current_sprint)지만, 사용자가
   // 고른 뒤엔 보드를 재조회해도 그 선택을 유지한다 — 담기 한 번에 화면이 튀면 안 된다.
@@ -527,7 +486,7 @@ export function SprintBoard({
   // "접힘 = 문제 없음"으로 오해되지 않게 한다.
   const [uncatCollapsed, setUncatCollapsed] = useState<boolean>(() => {
     try {
-      return localStorage.getItem(SPRINT_UNCAT_COLLAPSED_KEY) !== "false";
+      return localStorage.getItem(SPRINT_UNCAT_COLLAPSED_KEY) !== 'false';
     } catch {
       return true;
     }
@@ -539,7 +498,7 @@ export function SprintBoard({
       /* 프라이빗 모드 등 localStorage 접근 불가 시 무시 */
     }
   }, [uncatCollapsed]);
-  const [uncatFilter, setUncatFilter] = useState<"all" | UncatCause>("all");
+  const [uncatFilter, setUncatFilter] = useState<'all' | UncatCause>('all');
   // 피쳐 지정 드롭다운을 연 레일 카드 id(null이면 닫힘)
   const [featurePickerFor, setFeaturePickerFor] = useState<string | null>(null);
   // 레일에서 시작된 드래그 — 구성원 컬럼 드롭을 "컬럼 이동"이 아니라 "담당 배정"으로 갈라내는 표식.
@@ -595,23 +554,20 @@ export function SprintBoard({
       setDockResizing(true);
       const onMove = (ev: MouseEvent) => {
         setDockWidth(
-          Math.min(
-            DOCK_MAX_WIDTH,
-            Math.max(DOCK_MIN_WIDTH, startW + (startX - ev.clientX)),
-          ),
+          Math.min(DOCK_MAX_WIDTH, Math.max(DOCK_MIN_WIDTH, startW + (startX - ev.clientX))),
         );
       };
       const onUp = () => {
         setDockResizing(false);
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
       };
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
     },
     [dockWidth],
   );
@@ -619,26 +575,17 @@ export function SprintBoard({
   // ── 피쳐 컬럼 접힘 ──
   // 헤더 클릭으로 44px 레일로 접는다. 명시적으로 토글한 것만 저장하고,
   // 저장이 없는 컬럼은 카드가 0장일 때 접힌 채로 시작한다(빈 컬럼이 270px을 차지하지 않게).
-  const [featureColCollapsed, setFeatureColCollapsed] = useState<
-    Record<string, boolean>
-  >(() => {
+  const [featureColCollapsed, setFeatureColCollapsed] = useState<Record<string, boolean>>(() => {
     try {
-      const parsed = JSON.parse(
-        localStorage.getItem(SPRINT_FEATURE_COLS_KEY) ?? "null",
-      ) as unknown;
-      return parsed && typeof parsed === "object"
-        ? (parsed as Record<string, boolean>)
-        : {};
+      const parsed = JSON.parse(localStorage.getItem(SPRINT_FEATURE_COLS_KEY) ?? 'null') as unknown;
+      return parsed && typeof parsed === 'object' ? (parsed as Record<string, boolean>) : {};
     } catch {
       return {};
     }
   });
   useEffect(() => {
     try {
-      localStorage.setItem(
-        SPRINT_FEATURE_COLS_KEY,
-        JSON.stringify(featureColCollapsed),
-      );
+      localStorage.setItem(SPRINT_FEATURE_COLS_KEY, JSON.stringify(featureColCollapsed));
     } catch {
       /* 프라이빗 모드 등 localStorage 접근 불가 시 무시 */
     }
@@ -656,14 +603,12 @@ export function SprintBoard({
   // 구성원 뷰에서도 카드 액션(리뷰/완료)으로 해당 컬럼에 보낼 수 있다.
   // (순수 클라이언트 표시 전환 — 서버/드래그 상태는 두 뷰가 동일하게 공유)
   // JIRA는 여기 들어오지 않는다 — 화면 자체가 바뀌는 물건이라 부모의 화면 선택(jiraView)이 정한다.
-  const [groupPref, setGroupPref] = useState<"feature" | "member">(() => {
+  const [groupPref, setGroupPref] = useState<'feature' | 'member'>(() => {
     try {
       // 레거시: 예전엔 "jira"도 이 키에 저장됐다. 화면 선택으로 옮겨갔으니 Feature로 되돌린다.
-      return localStorage.getItem(SPRINT_VIEW_KEY) === "member"
-        ? "member"
-        : "feature";
+      return localStorage.getItem(SPRINT_VIEW_KEY) === 'member' ? 'member' : 'feature';
     } catch {
-      return "feature";
+      return 'feature';
     }
   });
   useEffect(() => {
@@ -676,10 +621,10 @@ export function SprintBoard({
   // 아래 렌더/집계는 모두 이 값을 읽는다 — JIRA 화면이면 그룹 기준을 덮어쓴다.
   // 구성원 옵션이 꺼져 있으면 저장된 선택(localStorage)이 member여도 feature로 되돌린다 —
   // 전환 버튼이 없는데 구성원 컬럼에 갇히면 빠져나올 길이 없다.
-  const groupBy: "feature" | "member" | "jira" = jiraView
-    ? "jira"
-    : groupPref === "member" && !uiFeatures.has("members")
-      ? "feature"
+  const groupBy: 'feature' | 'member' | 'jira' = jiraView
+    ? 'jira'
+    : groupPref === 'member' && !uiFeatures.has('members')
+      ? 'feature'
       : groupPref;
 
   // 구성원 뷰 보임 필터. 기본은 "진행중" — 이 뷰를 여는 이유가 "이 사람 지금 뭐 남았지"라서다.
@@ -687,10 +632,10 @@ export function SprintBoard({
   const [doneVis, setDoneVis] = useState<DoneVisibility>(() => {
     try {
       const saved = localStorage.getItem(SPRINT_DONE_VIS_KEY);
-      if (saved === "all" || saved === "done") return saved;
-      return "open";
+      if (saved === 'all' || saved === 'done') return saved;
+      return 'open';
     } catch {
-      return "open";
+      return 'open';
     }
   });
   useEffect(() => {
@@ -718,9 +663,7 @@ export function SprintBoard({
   const jiraMirrorReady = !!jiraStatus?.mirror_ready;
   // pre-block: 드래그 중인 카드에서 전환 가능한 JIRA 상태 id 집합(null=아직 로딩/미확인 → 낙관적 허용)
   const [jiraDragTaskId, setJiraDragTaskId] = useState<string | null>(null);
-  const [jiraDragAllowed, setJiraDragAllowed] = useState<Set<string> | null>(
-    null,
-  );
+  const [jiraDragAllowed, setJiraDragAllowed] = useState<Set<string> | null>(null);
   // silentReload는 아래에서 정의되므로 ref로 우회 참조한다(확인 처리 후 무음 재조회용).
   const silentReloadRef = useRef<(() => Promise<void>) | null>(null);
 
@@ -735,7 +678,7 @@ export function SprintBoard({
   const [jiraSeenBaseline, setJiraSeenBaseline] = useState<string | null>(null);
   useEffect(() => {
     // 탭 밖일 때만 서버 값을 추종. 단 최초 1회는 탭과 무관하게 채운다(저장된 탭이 jira인 경우).
-    if (groupBy !== "jira" || jiraSeenBaseline === null) {
+    if (groupBy !== 'jira' || jiraSeenBaseline === null) {
       setJiraSeenBaseline(serverJiraSeenAt);
     }
   }, [groupBy, serverJiraSeenAt, jiraSeenBaseline]);
@@ -770,7 +713,7 @@ export function SprintBoard({
   // JIRA 탭을 벗어나면 확인 처리 → 서버 기준선을 민 뒤 무음 재조회로 뱃지를 즉시 정리한다.
   const wasOnJiraRef = useRef(false);
   useEffect(() => {
-    const onJira = groupBy === "jira" && jiraConnected;
+    const onJira = groupBy === 'jira' && jiraConnected;
     if (wasOnJiraRef.current && !onJira) {
       jiraAPI
         .markSeen(boardId)
@@ -799,7 +742,7 @@ export function SprintBoard({
     const map = jiraStatus?.block_status_map;
     if (!map) return false;
     return Object.entries(map).some(
-      ([blockId, entry]) => blockId !== "__rejected" && !!entry.jira_status_id,
+      ([blockId, entry]) => blockId !== '__rejected' && !!entry.jira_status_id,
     );
   }, [jiraStatus]);
 
@@ -822,8 +765,7 @@ export function SprintBoard({
   // JIRA 화면 진입 시 메타(상태·블록명) 로드 (최초 1회). 마일스톤 스코프가 전용 미러를 가지면
   // 그 스코프 기준 메타가 내려온다 — milestoneId가 바뀌면 아래 리셋 이펙트가 메타를 비워 재조회된다.
   useEffect(() => {
-    if (groupBy !== "jira" || !jiraConnected || jiraMeta || jiraMetaLoading)
-      return;
+    if (groupBy !== 'jira' || !jiraConnected || jiraMeta || jiraMetaLoading) return;
     setJiraMetaLoading(true);
     jiraAPI
       .getMeta(boardId, milestoneId)
@@ -844,7 +786,7 @@ export function SprintBoard({
   // 좌측 업무 리스트 패널: 접힘 여부 + 폭(px). 둘 다 localStorage에서 복원해 새로고침 유지.
   const [panelCollapsed, setPanelCollapsed] = useState<boolean>(() => {
     try {
-      return localStorage.getItem(SPRINT_TREE_COLLAPSED_KEY) === "true";
+      return localStorage.getItem(SPRINT_TREE_COLLAPSED_KEY) === 'true';
     } catch {
       return false;
     }
@@ -892,15 +834,15 @@ export function SprintBoard({
     };
     const onUp = () => {
       setResizing(false);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
     };
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   }, []);
 
   const load = useCallback(async () => {
@@ -915,7 +857,7 @@ export function SprintBoard({
       const data = await sprintAPI.getSprintBoard(boardId, milestoneId);
       setBoard(data);
     } catch (e: unknown) {
-      setError(errMessage(e, "스프린트를 불러오지 못했습니다"));
+      setError(errMessage(e, '스프린트를 불러오지 못했습니다'));
     } finally {
       setLoading(false);
     }
@@ -969,7 +911,7 @@ export function SprintBoard({
       const data = await fn();
       setBoard(data);
     } catch (e: unknown) {
-      setError(errMessage(e, "작업에 실패했습니다"));
+      setError(errMessage(e, '작업에 실패했습니다'));
     } finally {
       busyRef.current = false;
     }
@@ -1002,30 +944,26 @@ export function SprintBoard({
   // JiraSettingsPanel에 넘기는 콜백은 아이덴티티가 고정돼야 한다.
   // 인라인 화살표를 넘기면 패널의 상태 재조회 이펙트가 매 리렌더마다 다시 돌아
   // getStatus → setJiraStatus → 리렌더 무한루프가 된다.
-  const handleJiraStatusChange = useCallback(
-    () => refreshJiraState(false),
-    [refreshJiraState],
-  );
+  const handleJiraStatusChange = useCallback(() => refreshJiraState(false), [refreshJiraState]);
 
   // ── 통합 필터(칸반 탭 필터바) — 담당자·피쳐·라벨·상태·검색을 스프린트 뷰 전반에 적용 ──
   // 항목(SprintItemCard) 단위 매칭 함수: Feature/구성원 뷰·백로그·게이지·트리·미리보기 공용.
   // SprintItemCard에는 태그가 없어 부모가 준 featureTagsMap/taskTagsMap로 라벨을 판정한다.
   const itemMatchesFilter = useMemo(() => {
     const fo = filterOptions;
-    const kw = fo?.keyword?.trim().toLowerCase() ?? "";
+    const kw = fo?.keyword?.trim().toLowerCase() ?? '';
     const members = fo?.members ?? [];
-    const memberWantsNone = members.includes("__no_members__");
-    const memberNames = new Set(members.filter((m) => m !== "__no_members__"));
+    const memberWantsNone = members.includes('__no_members__');
+    const memberNames = new Set(members.filter((m) => m !== '__no_members__'));
     const featSel = new Set(fo?.features ?? []);
     const tagSel = new Set(fo?.tags ?? []);
     const statusSel = fo?.cardStatus ?? [];
     const endColIds = new Set(
-      (board?.columns ?? []).filter((c) => c.kind === "END").map((c) => c.id),
+      (board?.columns ?? []).filter((c) => c.kind === 'END').map((c) => c.id),
     );
     return (it: SprintItemCard): boolean => {
       if (kw) {
-        const hay =
-          `${it.title} ${it.task_title ?? ""} ${it.feature_title ?? ""}`.toLowerCase();
+        const hay = `${it.title} ${it.task_title ?? ''} ${it.feature_title ?? ''}`.toLowerCase();
         if (!hay.includes(kw)) return false;
       }
       if (members.length > 0) {
@@ -1034,8 +972,7 @@ export function SprintBoard({
         const ok = name ? memberNames.has(name) : memberWantsNone;
         if (!ok) return false;
       }
-      if (featSel.size > 0 && !featSel.has(it.feature_id ?? "__none__"))
-        return false;
+      if (featSel.size > 0 && !featSel.has(it.feature_id ?? '__none__')) return false;
       if (tagSel.size > 0) {
         const fTags = it.feature_id ? featureTagsMap[it.feature_id] : undefined;
         const tTags = it.task_id ? taskTagsMap[it.task_id] : undefined;
@@ -1046,11 +983,10 @@ export function SprintBoard({
       }
       if (statusSel.length > 0) {
         const isDone =
-          it.completed ||
-          (!!it.sprint_column_id && endColIds.has(it.sprint_column_id));
+          it.completed || (!!it.sprint_column_id && endColIds.has(it.sprint_column_id));
         const ok =
-          (statusSel.includes("completed") && isDone) ||
-          (statusSel.includes("incomplete") && !isDone);
+          (statusSel.includes('completed') && isDone) ||
+          (statusSel.includes('incomplete') && !isDone);
         if (!ok) return false;
       }
       return true;
@@ -1072,12 +1008,7 @@ export function SprintBoard({
   /** 지금 보고 있는 버킷. 선택이 아직 없으면 오늘이 속한 스프린트로 읽는다. */
   const selectedSprint = useMemo<SprintInfo | null>(() => {
     const list = board?.sprints ?? [];
-    return (
-      list.find((s) => s.id === selectedSprintId) ??
-      board?.current_sprint ??
-      list[0] ??
-      null
-    );
+    return list.find((s) => s.id === selectedSprintId) ?? board?.current_sprint ?? list[0] ?? null;
   }, [board, selectedSprintId]);
   /** 담김 판정의 기준 버킷 — 이게 없으면 담기 자체가 성립하지 않는다. */
   const scopeSprintId = selectedSprint?.id ?? null;
@@ -1087,34 +1018,26 @@ export function SprintBoard({
   const filteredBoard = useMemo<SprintBoardData | null>(() => {
     if (!board) return null;
     const inScope = (it: SprintItemCard) =>
-      takenInSprint(it, scopeSprintId) &&
-      (!hasActiveFilter || itemMatchesFilter(it));
+      takenInSprint(it, scopeSprintId) && (!hasActiveFilter || itemMatchesFilter(it));
     const filteredColumns = board.columns.map((c) => ({
       ...c,
       items: c.items.filter(inScope),
     }));
     // 게이지 재계산: 담긴 항목(sprint_column_id)의 체크리스트 줄 기준(progressUnits)
-    const endColIds = new Set(
-      board.columns.filter((c) => c.kind === "END").map((c) => c.id),
-    );
+    const endColIds = new Set(board.columns.filter((c) => c.kind === 'END').map((c) => c.id));
     let done = 0;
     let total = 0;
     for (const c of filteredColumns) {
       for (const it of c.items) {
         if (!it.sprint_column_id) continue;
-        const u = progressUnits(
-          it,
-          it.completed || endColIds.has(it.sprint_column_id),
-        );
+        const u = progressUnits(it, it.completed || endColIds.has(it.sprint_column_id));
         done += u.done;
         total += u.total;
       }
     }
     return {
       ...board,
-      backlog: hasActiveFilter
-        ? board.backlog.filter(itemMatchesFilter)
-        : board.backlog,
+      backlog: hasActiveFilter ? board.backlog.filter(itemMatchesFilter) : board.backlog,
       columns: filteredColumns,
       gauge: {
         done,
@@ -1128,28 +1051,24 @@ export function SprintBoard({
   // 담당자는 태스크 담당자 중 하나라도 걸리면 통과, 상태는 체크리스트 전체 완료(done>=total) 기준.
   const taskMatchesFilter = useMemo(() => {
     const fo = filterOptions;
-    const kw = fo?.keyword?.trim().toLowerCase() ?? "";
+    const kw = fo?.keyword?.trim().toLowerCase() ?? '';
     const members = fo?.members ?? [];
-    const memberWantsNone = members.includes("__no_members__");
-    const memberNames = new Set(members.filter((m) => m !== "__no_members__"));
+    const memberWantsNone = members.includes('__no_members__');
+    const memberNames = new Set(members.filter((m) => m !== '__no_members__'));
     const featSel = new Set(fo?.features ?? []);
     const tagSel = new Set(fo?.tags ?? []);
     const statusSel = fo?.cardStatus ?? [];
     return (jt: SprintJiraTask): boolean => {
       if (kw) {
-        const hay = `${jt.task_title ?? ""} ${jt.jira_issue_key}`.toLowerCase();
+        const hay = `${jt.task_title ?? ''} ${jt.jira_issue_key}`.toLowerCase();
         if (!hay.includes(kw)) return false;
       }
       if (members.length > 0) {
         const asg = jt.assignees ?? [];
-        const ok =
-          asg.length === 0
-            ? memberWantsNone
-            : asg.some((a) => memberNames.has(a.name));
+        const ok = asg.length === 0 ? memberWantsNone : asg.some((a) => memberNames.has(a.name));
         if (!ok) return false;
       }
-      if (featSel.size > 0 && !featSel.has(jt.feature_id ?? "__none__"))
-        return false;
+      if (featSel.size > 0 && !featSel.has(jt.feature_id ?? '__none__')) return false;
       if (tagSel.size > 0) {
         const fTags = jt.feature_id ? featureTagsMap[jt.feature_id] : undefined;
         const tTags = jt.task_id ? taskTagsMap[jt.task_id] : undefined;
@@ -1161,8 +1080,8 @@ export function SprintBoard({
       if (statusSel.length > 0) {
         const isDone = jt.total > 0 && jt.done >= jt.total;
         const ok =
-          (statusSel.includes("completed") && isDone) ||
-          (statusSel.includes("incomplete") && !isDone);
+          (statusSel.includes('completed') && isDone) ||
+          (statusSel.includes('incomplete') && !isDone);
         if (!ok) return false;
       }
       return true;
@@ -1174,10 +1093,7 @@ export function SprintBoard({
     [scopeSprintId],
   );
   const columns = useMemo(
-    () =>
-      (filteredBoard?.columns ?? [])
-        .slice()
-        .sort((a, b) => a.position - b.position),
+    () => (filteredBoard?.columns ?? []).slice().sort((a, b) => a.position - b.position),
     [filteredBoard],
   );
 
@@ -1194,16 +1110,16 @@ export function SprintBoard({
         .filter((it) => !hasActiveFilter || itemMatchesFilter(it)),
     ];
     const endColIds = new Set(
-      filteredBoard.columns.filter((c) => c.kind === "END").map((c) => c.id),
+      filteredBoard.columns.filter((c) => c.kind === 'END').map((c) => c.id),
     );
     const featMap = new Map<string, TreeFeature>();
     for (const it of all) {
-      const fid = it.feature_id ?? "__none__";
+      const fid = it.feature_id ?? '__none__';
       let feat = featMap.get(fid);
       if (!feat) {
         feat = {
           featureId: fid,
-          featureTitle: it.feature_title ?? "기타",
+          featureTitle: it.feature_title ?? '기타',
           featureColor: it.feature_color ?? null,
           featureCreatedAt: it.feature_created_at ?? null,
           tasks: [],
@@ -1216,9 +1132,7 @@ export function SprintBoard({
         };
         featMap.set(fid, feat);
       }
-      const isDone =
-        it.completed ||
-        (!!it.sprint_column_id && endColIds.has(it.sprint_column_id));
+      const isDone = it.completed || (!!it.sprint_column_id && endColIds.has(it.sprint_column_id));
       // 피쳐 게이지도 체크리스트 줄 기준 — 백로그 포함 그 피쳐의 전체 할 일이 분모다.
       const u = progressUnits(it, isDone);
       feat.unitDone += u.done;
@@ -1240,7 +1154,7 @@ export function SprintBoard({
     // 완료 상태의 빈 피쳐는 담을 일이 없으므로 후보에서 뺀다.
     if (!hasActiveFilter) {
       for (const f of board?.board_features ?? []) {
-        if (featMap.has(f.id) || f.status === "COMPLETED") continue;
+        if (featMap.has(f.id) || f.status === 'COMPLETED') continue;
         featMap.set(f.id, {
           featureId: f.id,
           featureTitle: f.title,
@@ -1265,8 +1179,8 @@ export function SprintBoard({
     return Array.from(featMap.values())
       .map((feat, idx) => ({ feat, idx }))
       .sort((a, b) => {
-        const aNone = a.feat.featureId === "__none__";
-        const bNone = b.feat.featureId === "__none__";
+        const aNone = a.feat.featureId === '__none__';
+        const bNone = b.feat.featureId === '__none__';
         if (aNone !== bNone) return aNone ? 1 : -1;
         const ac = a.feat.featureCreatedAt;
         const bc = b.feat.featureCreatedAt;
@@ -1283,8 +1197,7 @@ export function SprintBoard({
   // 섹션 안 정렬: 진행 중 피쳐 → 완료(100%) 피쳐 → 빈 피쳐(태스크 0).
   // 남은 일이 주인공이라 완료·빈 카드는 뒤로 물러난다(같은 급 안에선 생성 순서 유지).
   const splitBySection = useCallback((feats: TreeFeature[]) => {
-    const rankOf = (f: TreeFeature) =>
-      f.total === 0 ? 2 : f.completed === f.total ? 1 : 0;
+    const rankOf = (f: TreeFeature) => (f.total === 0 ? 2 : f.completed === f.total ? 1 : 0);
     return feats
       .map((feat, idx) => ({ feat, idx }))
       .sort((a, b) => {
@@ -1340,11 +1253,11 @@ export function SprintBoard({
     setCreatingFeature(true);
     try {
       const created = await onCreateFeature({ title });
-      setNewFeatureTitle("");
+      setNewFeatureTitle('');
       setAddingFeature(false);
       if (created?.id) onOpenFeature?.(created.id);
     } catch (e) {
-      toast.error(errMessage(e, "피쳐 생성에 실패했어요"));
+      toast.error(errMessage(e, '피쳐 생성에 실패했어요'));
     } finally {
       setCreatingFeature(false);
     }
@@ -1363,14 +1276,10 @@ export function SprintBoard({
     (a: SprintItemCard, b: SprintItemCard) => {
       const doneA =
         a.completed ||
-        (a.sprint_column_id
-          ? columnById.get(a.sprint_column_id)?.kind === "END"
-          : false);
+        (a.sprint_column_id ? columnById.get(a.sprint_column_id)?.kind === 'END' : false);
       const doneB =
         b.completed ||
-        (b.sprint_column_id
-          ? columnById.get(b.sprint_column_id)?.kind === "END"
-          : false);
+        (b.sprint_column_id ? columnById.get(b.sprint_column_id)?.kind === 'END' : false);
       const ta = sprintCardTier(a, doneA);
       const tb = sprintCardTier(b, doneB);
       if (ta !== tb) return ta - tb;
@@ -1380,27 +1289,17 @@ export function SprintBoard({
   );
 
   const columnAccent = (c: SprintColumn) =>
-    c.kind === "START"
-      ? "#6366F1"
-      : c.kind === "END"
-        ? "#34d399"
-        : (c.color ?? "#f59e0b");
+    c.kind === 'START' ? '#6366F1' : c.kind === 'END' ? '#34d399' : (c.color ?? '#f59e0b');
 
   // START("Sprint") 컬럼 — Task 단위 컬럼으로 쪼개기 위한 앵커
-  const startColumn = useMemo(
-    () => columns.find((c) => c.kind === "START") ?? null,
-    [columns],
-  );
+  const startColumn = useMemo(() => columns.find((c) => c.kind === 'START') ?? null, [columns]);
   // 카드 호버 액션의 이동 타겟.
   //  - "완료" → END(Done): 고정 앵커라 항상 확실히 식별된다.
   //  - "리뷰" → 첫 MIDDLE(기본 "In Review"): 이름을 바꿔도 위치 기준으로 동작 유지.
   //    (columns는 position 정렬이므로 find가 첫 MIDDLE을 집는다.)
-  const endColumn = useMemo(
-    () => columns.find((c) => c.kind === "END") ?? null,
-    [columns],
-  );
+  const endColumn = useMemo(() => columns.find((c) => c.kind === 'END') ?? null, [columns]);
   const firstMiddleColumn = useMemo(
-    () => columns.find((c) => c.kind === "MIDDLE") ?? null,
+    () => columns.find((c) => c.kind === 'MIDDLE') ?? null,
     [columns],
   );
 
@@ -1410,9 +1309,8 @@ export function SprintBoard({
     () =>
       columns.filter(
         (c) =>
-          c.kind === "END" ||
-          (c.kind === "MIDDLE" &&
-            (uiFeatures.has("review") || c.items.length > 0)),
+          c.kind === 'END' ||
+          (c.kind === 'MIDDLE' && (uiFeatures.has('review') || c.items.length > 0)),
       ),
     [columns, uiFeatures],
   );
@@ -1438,10 +1336,8 @@ export function SprintBoard({
       let doneTotal = 0;
       let unitTotal = 0;
       for (const it of taken) {
-        const kind = it.sprint_column_id
-          ? columnById.get(it.sprint_column_id)?.kind
-          : undefined;
-        const u = progressUnits(it, it.completed || kind === "END");
+        const kind = it.sprint_column_id ? columnById.get(it.sprint_column_id)?.kind : undefined;
+        const u = progressUnits(it, it.completed || kind === 'END');
         doneTotal += u.done;
         unitTotal += u.total;
       }
@@ -1474,17 +1370,12 @@ export function SprintBoard({
         for (const it of feat.tasks) {
           if (!takenHere(it)) continue; // 선택한 버킷에 담긴 태스크만
           const kind = columnById.get(it.sprint_column_id!)?.kind;
-          const isDone = it.completed || kind === "END";
+          const isDone = it.completed || kind === 'END';
           const u = progressUnits(it, isDone); // 진척은 체크리스트 줄 기준
           total += u.total;
           done += u.done;
           // 지연은 "몇 건 밀렸나"라 태스크 단위 그대로 센다.
-          if (
-            !isDone &&
-            it.due_date &&
-            getDDay(it.due_date)?.urgency === "overdue"
-          )
-            overdue += 1;
+          if (!isDone && it.due_date && getDDay(it.due_date)?.urgency === 'overdue') overdue += 1;
         }
         return {
           featureId: feat.featureId,
@@ -1534,30 +1425,22 @@ export function SprintBoard({
         seen.add(a.id);
         out.push({ id: a.id, name: a.name });
       }
-      for (const c of it.contractors ??
-        (it.contractor ? [it.contractor] : [])) {
+      for (const c of it.contractors ?? (it.contractor ? [it.contractor] : [])) {
         const id = c.manager_user_id;
         if (!id || seen.has(id)) continue;
         seen.add(id);
-        out.push({ id, name: c.manager_name ?? "미배정" });
+        out.push({ id, name: c.manager_name ?? '미배정' });
       }
-      return out.length > 0 ? out : [{ id: "__none__", name: "미배정" }];
+      return out.length > 0 ? out : [{ id: '__none__', name: '미배정' }];
     };
     // 담긴 태스크 전체를 담당자별 진척으로 집계
-    const stat = new Map<
-      string,
-      { name: string; done: number; total: number }
-    >();
+    const stat = new Map<string, { name: string; done: number; total: number }>();
     for (const c of columns) {
       for (const it of c.items) {
         if (!it.sprint_column_id) continue;
-        if (
-          featureFilter.size > 0 &&
-          !featureFilter.has(it.feature_id ?? "__none__")
-        )
-          continue;
+        if (featureFilter.size > 0 && !featureFilter.has(it.feature_id ?? '__none__')) continue;
         const kind = columnById.get(it.sprint_column_id)?.kind;
-        const isDone = it.completed || kind === "END";
+        const isDone = it.completed || kind === 'END';
         const lines = it.checklist_items ?? [];
         for (const k of keysOf(it)) {
           let s = stat.get(k.id);
@@ -1569,11 +1452,7 @@ export function SprintBoard({
           // (renderCard의 memberScope와 같은 귀속 규칙 — 외주는 관리 담당의 몫).
           const myLines = lines.filter((l) => lineOwnedBy(l, k.id));
           // 담당 줄이 없으면(줄 담당 미지정·체크리스트 없음) 태스크 1건을 그 사람 몫으로 환산
-          const u = progressUnits(
-            it,
-            isDone,
-            myLines.length > 0 ? myLines : undefined,
-          );
+          const u = progressUnits(it, isDone, myLines.length > 0 ? myLines : undefined);
           s.total += u.total;
           s.done += u.done;
         }
@@ -1582,11 +1461,7 @@ export function SprintBoard({
     // 컬럼에 노출할 카드는 START 단계 태스크뿐(순서 유지)
     const startByMember = new Map<string, SprintItemCard[]>();
     for (const it of startColumn.items) {
-      if (
-        featureFilter.size > 0 &&
-        !featureFilter.has(it.feature_id ?? "__none__")
-      )
-        continue;
+      if (featureFilter.size > 0 && !featureFilter.has(it.feature_id ?? '__none__')) continue;
       for (const k of keysOf(it)) {
         const arr = startByMember.get(k.id);
         if (arr) arr.push(it);
@@ -1603,33 +1478,26 @@ export function SprintBoard({
     (memberOrder ?? []).forEach((uid, i) => orderIndex.set(uid, i));
     const rank = (id: string) => orderIndex.get(id) ?? Number.MAX_SAFE_INTEGER;
     const ids = Array.from(startByMember.keys())
-      .filter((id) => id !== "__none__")
+      .filter((id) => id !== '__none__')
       .sort((a, b) => {
         const ra = rank(a);
         const rb = rank(b);
         if (ra !== rb) return ra - rb;
-        return (
-          (startByMember.get(b)?.length ?? 0) -
-          (startByMember.get(a)?.length ?? 0)
-        );
+        return (startByMember.get(b)?.length ?? 0) - (startByMember.get(a)?.length ?? 0);
       });
     return ids.map((id) => {
       const all = (startByMember.get(id) ?? []).slice().sort(sprintUrgencyCmp);
       // 보임 필터는 "노출할 카드"만 좁힌다 — 컬럼 존재 여부(ids)와 진척(stat)은
       // 필터 이전 집합에서 이미 정해졌으므로, 전부 완료인 사람도 컬럼은 그대로 남는다.
       const items =
-        doneVis === "all"
+        doneVis === 'all'
           ? all
           : all.filter((it) => {
               const kind = it.sprint_column_id
                 ? columnById.get(it.sprint_column_id)?.kind
                 : undefined;
-              const done = memberCardDone(
-                it,
-                it.completed || kind === "END",
-                id,
-              );
-              return doneVis === "done" ? done : !done;
+              const done = memberCardDone(it, it.completed || kind === 'END', id);
+              return doneVis === 'done' ? done : !done;
             });
       return {
         memberId: id,
@@ -1640,15 +1508,7 @@ export function SprintBoard({
         total: stat.get(id)?.total ?? 0,
       };
     });
-  }, [
-    startColumn,
-    columns,
-    columnById,
-    memberOrder,
-    featureFilter,
-    sprintUrgencyCmp,
-    doneVis,
-  ]);
+  }, [startColumn, columns, columnById, memberOrder, featureFilter, sprintUrgencyCmp, doneVis]);
 
   // ── 미분류 레일 데이터 ──
   // 스프린트에 "담긴" 카드 중 분류 정보가 빈 것만 모은다. 완료(END·completed) 카드는
@@ -1658,14 +1518,10 @@ export function SprintBoard({
     const out: UncatCard[] = [];
     const seen = new Set<string>();
     for (const c of columns) {
-      if (c.kind === "END") continue;
+      if (c.kind === 'END') continue;
       for (const it of c.items) {
         if (!it.sprint_column_id || it.completed) continue;
-        if (
-          featureFilter.size > 0 &&
-          !featureFilter.has(it.feature_id ?? "__none__")
-        )
-          continue;
+        if (featureFilter.size > 0 && !featureFilter.has(it.feature_id ?? '__none__')) continue;
         if (seen.has(it.id)) continue;
         // 담당 판정은 구성원 컬럼 라우팅(keysOf)과 같은 규칙이어야 한다 —
         // 그래야 "컬럼에 못 서는 카드 = 레일에 있는 카드"가 정확히 일치한다.
@@ -1675,8 +1531,8 @@ export function SprintBoard({
             (c2) => !!c2.manager_user_id,
           );
         const causes: UncatCause[] = [];
-        if (!hasAssignee) causes.push("assignee");
-        if (!it.feature_id) causes.push("feature");
+        if (!hasAssignee) causes.push('assignee');
+        if (!it.feature_id) causes.push('feature');
         if (causes.length === 0) continue;
         seen.add(it.id);
         out.push({ it, causes });
@@ -1684,8 +1540,8 @@ export function SprintBoard({
     }
     // 담당 없음이 먼저 — 이 카드들은 레일 말고는 보이는 곳이 없어 방치되면 그대로 누락된다.
     return out.sort((a, b) => {
-      const ka = a.causes.includes("assignee") ? 0 : 1;
-      const kb = b.causes.includes("assignee") ? 0 : 1;
+      const ka = a.causes.includes('assignee') ? 0 : 1;
+      const kb = b.causes.includes('assignee') ? 0 : 1;
       if (ka !== kb) return ka - kb;
       return sprintUrgencyCmp(a.it, b.it);
     });
@@ -1694,9 +1550,8 @@ export function SprintBoard({
   const uncatCounts = useMemo(
     () => ({
       all: uncategorized.length,
-      assignee: uncategorized.filter((u) => u.causes.includes("assignee"))
-        .length,
-      feature: uncategorized.filter((u) => u.causes.includes("feature")).length,
+      assignee: uncategorized.filter((u) => u.causes.includes('assignee')).length,
+      feature: uncategorized.filter((u) => u.causes.includes('feature')).length,
     }),
     [uncategorized],
   );
@@ -1704,13 +1559,12 @@ export function SprintBoard({
   // 고른 사유가 0건이 되면(마지막 한 건을 해소했을 때 등) 칩이 사라지므로 전체로 되돌린다 —
   // 그대로 두면 "해당 항목 없음"만 남아 레일이 빈 것처럼 보인다.
   useEffect(() => {
-    if (uncatFilter !== "all" && uncatCounts[uncatFilter] === 0)
-      setUncatFilter("all");
+    if (uncatFilter !== 'all' && uncatCounts[uncatFilter] === 0) setUncatFilter('all');
   }, [uncatFilter, uncatCounts]);
 
   const uncatVisible = useMemo(
     () =>
-      uncatFilter === "all"
+      uncatFilter === 'all'
         ? uncategorized
         : uncategorized.filter((u) => u.causes.includes(uncatFilter)),
     [uncategorized, uncatFilter],
@@ -1729,7 +1583,7 @@ export function SprintBoard({
   const featureChoices = useMemo(
     () =>
       tree
-        .filter((f) => f.featureId !== "__none__")
+        .filter((f) => f.featureId !== '__none__')
         .map((f) => ({
           id: f.featureId,
           title: f.featureTitle,
@@ -1741,13 +1595,13 @@ export function SprintBoard({
   // 구성원 간트 모달 데이터 — 선택 구성원의 스프린트 항목(모든 컬럼)을 모은다.
   // 배치/미배치는 모달이 start_date·due_date로 판정한다.
   const ganttData = useMemo(() => {
-    if (!ganttMemberId || ganttMemberId === "__none__") return null;
+    if (!ganttMemberId || ganttMemberId === '__none__') return null;
     const mc = memberColumns.find((m) => m.memberId === ganttMemberId);
     const its = columns
       .flatMap((c) => c.items)
-      .filter((it) => (it.assignee?.id ?? "__none__") === ganttMemberId);
+      .filter((it) => (it.assignee?.id ?? '__none__') === ganttMemberId);
     return {
-      member: { id: ganttMemberId, name: mc?.memberName ?? "" },
+      member: { id: ganttMemberId, name: mc?.memberName ?? '' },
       items: its,
     };
   }, [ganttMemberId, memberColumns, columns]);
@@ -1767,7 +1621,7 @@ export function SprintBoard({
     taskId: string;
     taskTitle: string;
     jiraKey: string;
-    qaState: "REVIEW" | "VERIFIED" | "REJECTED" | null;
+    qaState: 'REVIEW' | 'VERIFIED' | 'REJECTED' | null;
     statusId: string | null; // 해석된 현재 JIRA 상태 id
     blockId: string | null; // 태스크의 현재 BRIDGE 블록 id (미러 배치용)
     assignees: { id: string; name: string }[];
@@ -1785,15 +1639,13 @@ export function SprintBoard({
     label: string; // 컬럼 이름 (JIRA 보드 컬럼명)
     draggable: boolean; // 드롭 가능한 컬럼이면 true
     targetBlockId: string | null; // 드롭 시 이동할 블록
-    tone: "push" | "review" | "verified" | "muted"; // 컬럼 액센트
+    tone: 'push' | 'review' | 'verified' | 'muted'; // 컬럼 액센트
     cards: JiraTaskCard[];
   }
   const jiraColumns = useMemo<JiraColumnDef[]>(() => {
-    if (groupBy !== "jira" || !jiraConnected || !jiraMeta) return [];
+    if (groupBy !== 'jira' || !jiraConnected || !jiraMeta) return [];
     const isMirror =
-      !!jiraMeta?.scope_mirror ||
-      !!jiraStatus?.mirror_ready ||
-      jiraStatus?.sync_mode === "MIRROR";
+      !!jiraMeta?.scope_mirror || !!jiraStatus?.mirror_ready || jiraStatus?.sync_mode === 'MIRROR';
     if (!isMirror && !jiraStatus?.block_status_map) return [];
 
     // 카드 집계용 인덱스: 블록→상태(현재 상태 해석용)
@@ -1804,12 +1656,9 @@ export function SprintBoard({
         if (b.jira_status_id) statusByBlock.set(b.id, b.jira_status_id);
       }
     } else {
-      const map = jiraStatus!.block_status_map as Record<
-        string,
-        JiraBlockStatusEntry
-      >;
+      const map = jiraStatus!.block_status_map as Record<string, JiraBlockStatusEntry>;
       for (const [blockId, entry] of Object.entries(map)) {
-        if (blockId === "__rejected" || !entry.jira_status_id) continue;
+        if (blockId === '__rejected' || !entry.jira_status_id) continue;
         statusByBlock.set(blockId, entry.jira_status_id);
         entryByStatus.set(entry.jira_status_id, entry);
       }
@@ -1823,19 +1672,13 @@ export function SprintBoard({
     const taskMap = new Map<string, JiraTaskCard>();
     for (const jt of board?.jira_tasks ?? []) {
       if (!jt.jira_issue_key || !jt.task_id) continue;
-      if (
-        featureFilter.size > 0 &&
-        !featureFilter.has(jt.feature_id ?? "__none__")
-      )
-        continue;
+      if (featureFilter.size > 0 && !featureFilter.has(jt.feature_id ?? '__none__')) continue;
       if (!taskMatchesFilter(jt)) continue;
       const resolved =
-        (jt.block_id ? statusByBlock.get(jt.block_id) : undefined) ??
-        jt.jira_status_id ??
-        null;
+        (jt.block_id ? statusByBlock.get(jt.block_id) : undefined) ?? jt.jira_status_id ?? null;
       taskMap.set(jt.task_id, {
         taskId: jt.task_id,
-        taskTitle: jt.task_title ?? "Task",
+        taskTitle: jt.task_title ?? 'Task',
         jiraKey: jt.jira_issue_key,
         qaState: jt.qa_state ?? null,
         statusId: resolved,
@@ -1859,9 +1702,7 @@ export function SprintBoard({
 
     if (isMirror) {
       // 2a) 미러: 컬럼 = 미러 블록(=JIRA 보드 컬럼), position 순. 카드 배치는 block_id로.
-      const mirrorBlocks = (jiraMeta.blocks ?? []).filter(
-        (b) => !!b.jira_status_id,
-      );
+      const mirrorBlocks = (jiraMeta.blocks ?? []).filter((b) => !!b.jira_status_id);
       cols = mirrorBlocks
         .map((b) => ({
           statusId: b.jira_status_id as string,
@@ -1872,40 +1713,32 @@ export function SprintBoard({
           label: b.name,
           draggable: true,
           targetBlockId: b.id,
-          tone: "push" as const,
+          tone: 'push' as const,
         }))
         .map((c) => ({ ...c, cards: [] as JiraTaskCard[] }));
       const colByBlock = new Map(cols.map((c) => [c.targetBlockId, c]));
-      placeCard = (card) =>
-        card.blockId ? colByBlock.get(card.blockId) : undefined;
+      placeCard = (card) => (card.blockId ? colByBlock.get(card.blockId) : undefined);
     } else {
       // 2b) 매뉴얼(레거시): 컬럼 = JIRA 상태, push→검토중→검증완료 순. 배치는 statusId로.
       const targetBlockByStatus = new Map<string, string>();
-      const map = jiraStatus!.block_status_map as Record<
-        string,
-        JiraBlockStatusEntry
-      >;
+      const map = jiraStatus!.block_status_map as Record<string, JiraBlockStatusEntry>;
       for (const [blockId, entry] of Object.entries(map)) {
-        if (blockId === "__rejected" || !entry.jira_status_id) continue;
-        if (entry.dir !== "pull")
-          targetBlockByStatus.set(entry.jira_status_id, blockId);
+        if (blockId === '__rejected' || !entry.jira_status_id) continue;
+        if (entry.dir !== 'pull') targetBlockByStatus.set(entry.jira_status_id, blockId);
       }
       const rankOf = (statusId: string) => {
         const e = entryByStatus.get(statusId);
         if (!e) return 3;
-        if (e.dir === "pull") return e.qa === "VERIFIED" ? 2 : 1;
+        if (e.dir === 'pull') return e.qa === 'VERIFIED' ? 2 : 1;
         return 0;
       };
-      const toneOf = (statusId: string): JiraColumnDef["tone"] => {
+      const toneOf = (statusId: string): JiraColumnDef['tone'] => {
         const e = entryByStatus.get(statusId);
-        if (!e) return "muted";
-        if (e.dir === "pull")
-          return e.qa === "VERIFIED" ? "verified" : "review";
-        return "push";
+        if (!e) return 'muted';
+        if (e.dir === 'pull') return e.qa === 'VERIFIED' ? 'verified' : 'review';
+        return 'push';
       };
-      const ordered = (jiraMeta.statuses ?? [])
-        .slice()
-        .sort((a, b) => rankOf(a.id) - rankOf(b.id));
+      const ordered = (jiraMeta.statuses ?? []).slice().sort((a, b) => rankOf(a.id) - rankOf(b.id));
       cols = ordered.map((s) => ({
         statusId: s.id,
         statusIds: [s.id],
@@ -1916,8 +1749,7 @@ export function SprintBoard({
         cards: [],
       }));
       const colByStatus = new Map(cols.map((c) => [c.statusId, c]));
-      placeCard = (card) =>
-        card.statusId ? colByStatus.get(card.statusId) : undefined;
+      placeCard = (card) => (card.statusId ? colByStatus.get(card.statusId) : undefined);
     }
 
     // 3) 태스크 배치. 매칭 안 되는 카드는 leftover 컬럼(무음 누락 방지)
@@ -1929,12 +1761,12 @@ export function SprintBoard({
     }
     if (leftover.length) {
       cols.push({
-        statusId: "__unmapped__",
+        statusId: '__unmapped__',
         statusIds: [],
-        label: "기타",
+        label: '기타',
         draggable: false,
         targetBlockId: null,
-        tone: "muted",
+        tone: 'muted',
         cards: leftover,
       });
     }
@@ -1954,9 +1786,8 @@ export function SprintBoard({
   // 별도 칩으로만 세운다. 연동이 끊긴(JIRA 삭제) 카드는 제외.
   const jiraRejected = useMemo(
     () =>
-      jiraColumns
-        .flatMap((c) => c.cards)
-        .filter((c) => !c.isDeleted && c.qaState === "REJECTED").length,
+      jiraColumns.flatMap((c) => c.cards).filter((c) => !c.isDeleted && c.qaState === 'REJECTED')
+        .length,
     [jiraColumns],
   );
 
@@ -1975,7 +1806,7 @@ export function SprintBoard({
     // 마지막 단계 = leftover("기타")를 뺀 마지막 컬럼.
     //  · 미러: 미러 블록 position 순 → 배열 끝이 JIRA 보드의 종료 컬럼
     //  · 매뉴얼: rankOf 정렬로 검증완료(VERIFIED)가 맨 뒤
-    const real = cols.filter((c) => c.key !== "__unmapped__");
+    const real = cols.filter((c) => c.key !== '__unmapped__');
     const last = real.length > 0 ? real[real.length - 1] : null;
     return {
       cols,
@@ -1990,9 +1821,9 @@ export function SprintBoard({
   const onDragStartJiraTask = (e: React.DragEvent, card: JiraTaskCard) => {
     if (!canEdit) return;
     e.dataTransfer.setData(DRAG_ITEM, card.taskId);
-    e.dataTransfer.setData(DRAG_SOURCE, "jira-task");
-    e.dataTransfer.effectAllowed = "move";
-    setDraggingSource("sprint");
+    e.dataTransfer.setData(DRAG_SOURCE, 'jira-task');
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingSource('sprint');
     setJiraDragTaskId(card.taskId);
     setJiraDragAllowed(null);
     jiraAPI
@@ -2012,8 +1843,7 @@ export function SprintBoard({
   // 이 카드가 이 컬럼으로 드롭 가능한지 (pre-block). 컬럼에 묶인 상태 중 하나라도 허용 전환이면 OK.
   // allowed 미로딩(null)이면 낙관적 허용.
   const isJiraDropAllowed = (col: JiraColumnDef) =>
-    jiraDragAllowed == null ||
-    col.statusIds.some((s) => jiraDragAllowed.has(s));
+    jiraDragAllowed == null || col.statusIds.some((s) => jiraDragAllowed.has(s));
   // 컬럼 드롭 → 태스크 블록 이동 → 백엔드 이벤트로 JIRA 전이 자동 발동
   const onDropJiraColumn = async (e: React.DragEvent, col: JiraColumnDef) => {
     e.preventDefault();
@@ -2022,17 +1852,15 @@ export function SprintBoard({
     const taskId = e.dataTransfer.getData(DRAG_ITEM);
     const source = e.dataTransfer.getData(DRAG_SOURCE);
     onDragEndJiraTask();
-    if (!taskId || source !== "jira-task") return;
+    if (!taskId || source !== 'jira-task') return;
     // 미러 컬럼이 아니거나 드롭 타깃 없으면 무시
     if (!col.draggable || !col.targetBlockId) return;
     const targetBlockId = col.targetBlockId;
-    const card = jiraColumns
-      .flatMap((c) => c.cards)
-      .find((c) => c.taskId === taskId);
+    const card = jiraColumns.flatMap((c) => c.cards).find((c) => c.taskId === taskId);
     if (card?.blockId === col.targetBlockId) return; // 이미 그 컬럼
     // pre-block: JIRA가 허용하지 않는 전환이면 차단 + 안내
     if (!isJiraDropAllowed(col)) {
-      toast.error("JIRA에서 허용되지 않는 이동입니다.");
+      toast.error('JIRA에서 허용되지 않는 이동입니다.');
       return;
     }
     await run(async () => {
@@ -2057,17 +1885,17 @@ export function SprintBoard({
     if (it.task_id) onOpenChecklistItem?.(it.task_id);
   };
   const openTask = (taskId: string) => {
-    if (taskId !== "__none__") onOpenChecklistItem?.(taskId);
+    if (taskId !== '__none__') onOpenChecklistItem?.(taskId);
   };
   // 담기 — 단위는 태스크. 대상 버킷은 "지금 보고 있는 스프린트"다. 이미 다른 버킷에
   // 담긴 태스크에도 그대로 쓰여 옮겨 담기가 된다(서버가 귀속을 갈아끼운다).
   const addTaskToSprint = (taskId: string | null | undefined) => {
-    if (!canEdit || !scopeSprintId || !taskId || taskId === "__none__") return;
+    if (!canEdit || !scopeSprintId || !taskId || taskId === '__none__') return;
     void run(() => sprintAPI.addTask(boardId, scopeSprintId, taskId));
   };
   // 빼기 — 그 태스크만 미배정(백로그)으로 되돌린다.
   const removeTaskFromSprint = (taskId: string | null | undefined) => {
-    if (!canEdit || !scopeSprintId || !taskId || taskId === "__none__") return;
+    if (!canEdit || !scopeSprintId || !taskId || taskId === '__none__') return;
     void run(() => sprintAPI.removeTask(boardId, scopeSprintId, taskId));
   };
   // 일괄 담기 — 피쳐 행의 "남은 n개 담기". run()은 busyRef로 직렬화되어 있어
@@ -2084,7 +1912,7 @@ export function SprintBoard({
       }
       if (data) setBoard(data);
     } catch (e: unknown) {
-      setError(errMessage(e, "담기에 실패했습니다"));
+      setError(errMessage(e, '담기에 실패했습니다'));
     } finally {
       busyRef.current = false;
     }
@@ -2093,13 +1921,9 @@ export function SprintBoard({
   //  · 업무 리스트(intoSprint=false): 백로그로 생성, 담을지는 별도 선택.
   //  · 피쳐 컬럼(intoSprint=true): 생성 즉시 addTask로 이어 그 컬럼(START)에 담긴다.
   // 성공 후 입력값만 비우고 포커스는 그대로 둬 연속 입력이 된다.
-  const submitNewTask = async (
-    featureId: string,
-    key: string,
-    intoSprint: boolean,
-  ) => {
-    const title = (newTaskTitles[key] ?? "").trim();
-    if (!title || !canEdit || featureId === "__none__") return;
+  const submitNewTask = async (featureId: string, key: string, intoSprint: boolean) => {
+    const title = (newTaskTitles[key] ?? '').trim();
+    if (!title || !canEdit || featureId === '__none__') return;
     if (intoSprint && !scopeSprintId) return;
     if (busyRef.current) return;
     busyRef.current = true;
@@ -2115,9 +1939,9 @@ export function SprintBoard({
       } else {
         setBoard(await sprintAPI.getSprintBoard(boardId, milestoneId));
       }
-      setNewTaskTitles((prev) => ({ ...prev, [key]: "" }));
+      setNewTaskTitles((prev) => ({ ...prev, [key]: '' }));
     } catch (e) {
-      toast.error(errMessage(e, "태스크 생성에 실패했어요"));
+      toast.error(errMessage(e, '태스크 생성에 실패했어요'));
     } finally {
       busyRef.current = false;
       setCreatingTaskKey(null);
@@ -2125,8 +1949,7 @@ export function SprintBoard({
   };
   // 카드 호버 액션(리뷰·완료) — 드래그 없이 원클릭으로 목표 컬럼(In Review/Done)에 이동.
   const moveItemToColumn = (it: SprintItemCard, col: SprintColumn | null) => {
-    if (!canEdit || !scopeSprintId || !col || it.sprint_column_id === col.id)
-      return;
+    if (!canEdit || !scopeSprintId || !col || it.sprint_column_id === col.id) return;
     void run(() => sprintAPI.moveToColumn(boardId, it.id, col.id));
   };
 
@@ -2140,15 +1963,11 @@ export function SprintBoard({
     memberName: string,
   ) => {
     const taskId = it.task_id ?? it.id;
-    if (!canEdit || !taskId || taskId === "__none__") return;
-    const targets = (it.checklist_items ?? []).filter(
-      (l) => !l.assignee && !l.contractor,
-    );
+    if (!canEdit || !taskId || taskId === '__none__') return;
+    const targets = (it.checklist_items ?? []).filter((l) => !l.assignee && !l.contractor);
     if (targets.length === 0) {
       // 체크리스트가 없는 태스크는 담당을 붙일 자리가 없다 — 상세로 보내 항목부터 만들게 한다.
-      toast.info(
-        "담당을 붙일 체크리스트가 없어요. 상세에서 항목을 먼저 추가해 주세요.",
-      );
+      toast.info('담당을 붙일 체크리스트가 없어요. 상세에서 항목을 먼저 추가해 주세요.');
       onOpenChecklistItem?.(taskId);
       return;
     }
@@ -2163,11 +1982,9 @@ export function SprintBoard({
         });
       }
       setBoard(await sprintAPI.getSprintBoard(boardId, milestoneId));
-      toast.success(
-        `${memberName} 담당으로 지정했어요 · 항목 ${targets.length}개`,
-      );
+      toast.success(`${memberName} 담당으로 지정했어요 · 항목 ${targets.length}개`);
     } catch (e) {
-      toast.error(errMessage(e, "담당 지정에 실패했어요"));
+      toast.error(errMessage(e, '담당 지정에 실패했어요'));
     } finally {
       busyRef.current = false;
     }
@@ -2177,7 +1994,7 @@ export function SprintBoard({
   const setCardFeature = (it: SprintItemCard, featureId: string) => {
     const taskId = it.task_id ?? it.id;
     setFeaturePickerFor(null);
-    if (!canEdit || !taskId || taskId === "__none__") return;
+    if (!canEdit || !taskId || taskId === '__none__') return;
     void run(async () => {
       await taskAPI.moveTaskToFeature(boardId, taskId, {
         target_feature_id: featureId,
@@ -2190,7 +2007,7 @@ export function SprintBoard({
   const onDragStartItem = (
     e: React.DragEvent,
     item: SprintItemCard,
-    source: "backlog" | "sprint",
+    source: 'backlog' | 'sprint',
   ) => {
     // 부분 카드는 홈이 다른 스프린트라 컬럼 이동 대상이 아니다(1단계: 컬럼은 파생값).
     if (!canEdit || item.partial) {
@@ -2199,7 +2016,7 @@ export function SprintBoard({
     }
     e.dataTransfer.setData(DRAG_ITEM, item.id);
     e.dataTransfer.setData(DRAG_SOURCE, source);
-    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.effectAllowed = 'move';
     setDraggingSource(source);
   };
   const onDragEndItem = () => {
@@ -2224,7 +2041,7 @@ export function SprintBoard({
     const itemId = e.dataTransfer.getData(DRAG_ITEM);
     const source = e.dataTransfer.getData(DRAG_SOURCE);
     // 리스트→보드 담기 드래그는 제거됨(호버 버튼으로 대체). 보드 안 컬럼 이동만 허용.
-    if (!itemId || source !== "sprint") return;
+    if (!itemId || source !== 'sprint') return;
     await run(() => sprintAPI.moveToColumn(boardId, itemId, col.id));
   };
 
@@ -2236,16 +2053,12 @@ export function SprintBoard({
     void run(() => sprintAPI.updateColumn(boardId, col.id, { name }));
   };
   const removeColumn = (col: SprintColumn) => {
-    if (
-      !window.confirm(
-        `"${col.name}" 컬럼을 삭제할까요? 담긴 카드는 앞 컬럼으로 이동합니다.`,
-      )
-    )
+    if (!window.confirm(`"${col.name}" 컬럼을 삭제할까요? 담긴 카드는 앞 컬럼으로 이동합니다.`))
       return;
     void run(() => sprintAPI.deleteColumn(boardId, col.id));
   };
   const moveColumn = (col: SprintColumn, dir: -1 | 1) => {
-    const middles = columns.filter((c) => c.kind === "MIDDLE");
+    const middles = columns.filter((c) => c.kind === 'MIDDLE');
     const idx = middles.findIndex((c) => c.id === col.id);
     const swap = idx + dir;
     if (idx < 0 || swap < 0 || swap >= middles.length) return;
@@ -2267,7 +2080,7 @@ export function SprintBoard({
   // 이월이 줄 단위가 되면서 "태스크 몇 개"가 아니라 "몇 줄이 남았나"가 정직한 숫자다.
   const unfinishedBySprint = useMemo(() => {
     const endColIds = new Set(
-      (board?.columns ?? []).filter((c) => c.kind === "END").map((c) => c.id),
+      (board?.columns ?? []).filter((c) => c.kind === 'END').map((c) => c.id),
     );
     const counts: Record<string, number> = {};
     for (const c of board?.columns ?? []) {
@@ -2287,27 +2100,20 @@ export function SprintBoard({
     }
     return counts;
   }, [board]);
-  const remainingTasks = scopeSprintId
-    ? (unfinishedBySprint[scopeSprintId] ?? 0)
-    : 0;
+  const remainingTasks = scopeSprintId ? (unfinishedBySprint[scopeSprintId] ?? 0) : 0;
 
   /** 선택한 버킷 바로 다음 시퀀스의 버킷 — 미완료를 보낼 대상 */
   const nextSprint = useMemo<SprintInfo | null>(() => {
     if (!selectedSprint) return null;
     return (
-      (board?.sprints ?? []).find(
-        (s) => s.sequence_no === selectedSprint.sequence_no + 1,
-      ) ?? null
+      (board?.sprints ?? []).find((s) => s.sequence_no === selectedSprint.sequence_no + 1) ?? null
     );
   }, [board, selectedSprint]);
 
   // 이월은 더 이상 자동이 아니다 — 지난 버킷의 미완료를 관리자가 한 번에 다음으로 민다.
   // (개별 태스크는 언제든 담기/빼기로 옮길 수 있어, 이건 정리용 일괄 액션이다.)
   const canPushUnfinished =
-    isAdminOrOwner &&
-    selectedSprint?.state === "PAST" &&
-    remainingTasks > 0 &&
-    !!nextSprint;
+    isAdminOrOwner && selectedSprint?.state === 'PAST' && remainingTasks > 0 && !!nextSprint;
 
   // "다음으로 보내기"는 바로 옮기지 않고 미완료 줄을 고르는 다이얼로그를 연다 — 줄 단위 이월.
   const [pushOpen, setPushOpen] = useState(false);
@@ -2321,9 +2127,7 @@ export function SprintBoard({
    */
   const pushCandidates = useMemo(() => {
     if (!selectedSprint || !board) return [];
-    const endColIds = new Set(
-      board.columns.filter((c) => c.kind === "END").map((c) => c.id),
-    );
+    const endColIds = new Set(board.columns.filter((c) => c.kind === 'END').map((c) => c.id));
     type Group = {
       taskId: string;
       title: string;
@@ -2335,8 +2139,7 @@ export function SprintBoard({
     const groups: Group[] = [];
     for (const c of board.columns) {
       for (const it of c.items) {
-        if (it.sprint_id !== selectedSprint.id || !it.sprint_column_id)
-          continue;
+        if (it.sprint_id !== selectedSprint.id || !it.sprint_column_id) continue;
         if (it.completed || endColIds.has(it.sprint_column_id)) continue;
         const taskId = it.task_id ?? it.id;
         const lines = (it.checklist_items ?? []).filter((l) => !l.completed);
@@ -2382,13 +2185,9 @@ export function SprintBoard({
 
   // ── 줄 단위 스프린트 지정 ──
   // 카드 안 체크리스트 줄의 스프린트 칩 → 팝오버. 고르는 즉시 이동하고 토스트로 되돌리기만 준다.
-  const [lineSprintPickerFor, setLineSprintPickerFor] = useState<string | null>(
-    null,
-  );
+  const [lineSprintPickerFor, setLineSprintPickerFor] = useState<string | null>(null);
   const sprintNameOf = (sprintId: string | null | undefined) =>
-    sprintId
-      ? (board?.sprints.find((s) => s.id === sprintId)?.name ?? "스프린트")
-      : "백로그";
+    sprintId ? (board?.sprints.find((s) => s.id === sprintId)?.name ?? '스프린트') : '백로그';
   const setLineSprint = (
     taskId: string | null,
     lines: SprintChecklistLine[],
@@ -2402,7 +2201,7 @@ export function SprintBoard({
       const was = l.sprint_overridden ? (l.sprint_id ?? null) : null;
       prev.set(was, [...(prev.get(was) ?? []), l.id]);
     }
-    const targetLabel = target ? sprintNameOf(target) : "태스크";
+    const targetLabel = target ? sprintNameOf(target) : '태스크';
     void run(async () => {
       const next = await sprintAPI.setChecklistSprint(boardId, {
         item_ids: lines.map((l) => l.id),
@@ -2414,7 +2213,7 @@ export function SprintBoard({
           : `항목 ${lines.length}개를 ${targetLabel}(으)로 보냈어요`,
         {
           action: {
-            label: "되돌리기",
+            label: '되돌리기',
             onClick: () => {
               void run(async () => {
                 let restored: SprintBoardData | null = null;
@@ -2424,9 +2223,7 @@ export function SprintBoard({
                     sprint_id: sprintId,
                   });
                 }
-                return (
-                  restored ?? sprintAPI.getSprintBoard(boardId, milestoneId)
-                );
+                return restored ?? sprintAPI.getSprintBoard(boardId, milestoneId);
               });
             },
           },
@@ -2440,7 +2237,7 @@ export function SprintBoard({
   const submitSplit = async (payload: {
     count: number;
     boundaries: string[];
-    task_distribution: "keep" | "unassign" | "by_date";
+    task_distribution: 'keep' | 'unassign' | 'by_date';
   }) => {
     await run(() => sprintAPI.splitSprints(boardId, milestoneId, payload));
     setSplitOpen(false);
@@ -2458,18 +2255,10 @@ export function SprintBoard({
   // 닿지 않았다고 해서 그 안에서 진행한 20줄이 게이지에서 사라지면 안 되기 때문이다.
   const sprintProgress = useMemo(() => {
     const cols = filteredBoard?.columns ?? [];
-    const endColIds = new Set(
-      cols.filter((c) => c.kind === "END").map((c) => c.id),
-    );
-    const midColIds = new Set(
-      cols.filter((c) => c.kind === "MIDDLE").map((c) => c.id),
-    );
+    const endColIds = new Set(cols.filter((c) => c.kind === 'END').map((c) => c.id));
+    const midColIds = new Set(cols.filter((c) => c.kind === 'MIDDLE').map((c) => c.id));
     const now = new Date();
-    const startToday = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-    ).getTime();
+    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const todayStr = getTodayDateString();
     const doneTs = (it: SprintItemCard) =>
       parseUTCDate(it.completed_at ?? it.done_date)?.getTime() ?? 0;
@@ -2498,9 +2287,7 @@ export function SprintBoard({
             uEarlier += u.total;
           }
         } else {
-          const inMidCol = it.sprint_column_id
-            ? midColIds.has(it.sprint_column_id)
-            : false;
+          const inMidCol = it.sprint_column_id ? midColIds.has(it.sprint_column_id) : false;
           const s = it.start_date;
           const d = it.due_date;
           const hasDate = !!(s || d);
@@ -2522,7 +2309,7 @@ export function SprintBoard({
     todayDone.sort((a, b) => doneTs(b) - doneTs(a));
     earlierDone.sort((a, b) => doneTs(b) - doneTs(a));
     const byDue = (a: SprintItemCard, b: SprintItemCard) =>
-      (a.due_date ?? "9999-99-99").localeCompare(b.due_date ?? "9999-99-99");
+      (a.due_date ?? '9999-99-99').localeCompare(b.due_date ?? '9999-99-99');
     inProgress.sort(byDue);
     notStarted.sort(byDue);
 
@@ -2567,9 +2354,7 @@ export function SprintBoard({
     return (
       <div className="flex flex-col items-center justify-center h-full text-slate-500 gap-2">
         <Flag className="w-8 h-8 opacity-40" />
-        <p className="text-sm">
-          마일스톤을 먼저 만들면 스프린트가 자동으로 시작됩니다.
-        </p>
+        <p className="text-sm">마일스톤을 먼저 만들면 스프린트가 자동으로 시작됩니다.</p>
       </div>
     );
   }
@@ -2581,24 +2366,20 @@ export function SprintBoard({
     readOnly = false,
     memberScope?: { id: string; name: string },
   ) => {
-    const curCol = it.sprint_column_id
-      ? columnById.get(it.sprint_column_id)
-      : undefined;
-    const isDoneItem = it.completed || curCol?.kind === "END";
+    const curCol = it.sprint_column_id ? columnById.get(it.sprint_column_id) : undefined;
+    const isDoneItem = it.completed || curCol?.kind === 'END';
     // 부분 카드 — 홈이 다른 스프린트(또는 백로그)인 태스크의 "이 스프린트로 보낸 줄"만 담은 카드.
     // 컬럼은 파생값(몫 전부 완료 → Done)이라 드래그·리뷰·완료·빼기 조작을 두지 않는다.
     const isPartial = !!it.partial;
     const homeLabel = sprintNameOf(it.home_sprint_id);
     // 마감 D-day — 완료된 카드는 긴급도 표시 안 함(완료 배지로 대체).
     const dday = !isDoneItem && it.due_date ? getDDay(it.due_date) : null;
-    const overdue = dday?.urgency === "overdue";
+    const overdue = dday?.urgency === 'overdue';
     // 시작 D-day(양수 diff = 아직 시작 전). start_date/due_date/completed만으로 진행 상태 파생.
-    const startDday =
-      !isDoneItem && it.start_date ? getDDay(it.start_date) : null;
+    const startDday = !isDoneItem && it.start_date ? getDDay(it.start_date) : null;
     // 예정 = 시작일이 아직 안 옴 → 기간 칩을 마감이 아니라 시작 D-day로 바꾼다.
     // "진행 중"은 기간 칩·스트라이프와 겹치는 기본 상태라 별도 배지를 두지 않는다.
-    const upcoming =
-      !isDoneItem && !overdue && !!startDday && startDday.diff > 0;
+    const upcoming = !isDoneItem && !overdue && !!startDday && startDday.diff > 0;
     // ── 기간의 출처 ─────────────────────────────────────────────────
     // 목표 모델에서 태스크는 자기 날짜를 소유하지 않는다 — 담긴 주기의 기간을 물려받는다.
     // 지금은 플래그가 없으니 "주기 기간과 같은가"로 추정한다.
@@ -2609,65 +2390,51 @@ export function SprintBoard({
     const committed = !!it.sprint_column_id;
     const sprintPeriod =
       committed && sprintFrom && sprintTo
-        ? `${formatDate(sprintFrom, "M/d")} ~ ${formatDate(sprintTo, "M/d")}`
+        ? `${formatDate(sprintFrom, 'M/d')} ~ ${formatDate(sprintTo, 'M/d')}`
         : null;
     const hasOwnDates = !!it.start_date || !!it.due_date;
     // 레벨 1에는 상속해줄 주기가 없다 — 기간 개념 자체가 화면에 없으므로 표식도 없다.
-    const dateSource: "sprint" | "override" | null =
+    const dateSource: 'sprint' | 'override' | null =
       isDoneItem || !sprintPeriod || !uiFeatures.showTaskPeriod
         ? null
-        : !hasOwnDates ||
-            (day10(it.start_date) === sprintFrom &&
-              day10(it.due_date) === sprintTo)
-          ? "sprint"
-          : "override";
+        : !hasOwnDates || (day10(it.start_date) === sprintFrom && day10(it.due_date) === sprintTo)
+          ? 'sprint'
+          : 'override';
     // 리뷰 = 첫 MIDDLE(기본 "In Review")로 이동. 이미 그 컬럼이거나 완료면 숨김.
     // 리뷰 옵션이 꺼져 있으면 새로 리뷰로 보낼 수 없다(이미 거기 있는 카드는 그대로 남는다).
     const showReview =
       canEdit &&
       !readOnly &&
       !isPartial &&
-      uiFeatures.has("review") &&
+      uiFeatures.has('review') &&
       !!firstMiddleColumn &&
       !isDoneItem &&
       it.sprint_column_id !== firstMiddleColumn.id;
     // 완료 = END(Done)로 이동. 이미 완료면 숨김.
-    const showDone =
-      canEdit && !readOnly && !isPartial && !!endColumn && !isDoneItem;
+    const showDone = canEdit && !readOnly && !isPartial && !!endColumn && !isDoneItem;
     // 상세 = Task 모달 열기. 미리보기 제외.
     const showDetail = !readOnly && !!it.task_id;
     // 빼기 = 이 태스크만 백로그로 복귀. 담기 단위가 태스크라 카드에서 바로 뺄 수 있다.
     const showRemove =
-      canEdit &&
-      !readOnly &&
-      !isPartial &&
-      !!scopeSprintId &&
-      !!it.sprint_column_id;
+      canEdit && !readOnly && !isPartial && !!scopeSprintId && !!it.sprint_column_id;
     // 줄 스프린트 칩 — 나눌 스프린트가 둘 이상일 때만 의미가 있다.
-    const showLineSprint =
-      canEdit && !readOnly && !!it.task_id && (board?.sprints.length ?? 0) > 1;
+    const showLineSprint = canEdit && !readOnly && !!it.task_id && (board?.sprints.length ?? 0) > 1;
     const showActions = showRemove || showReview || showDone || showDetail;
     // 카드 안쪽 체크리스트 — 담긴 뒤 항목이 추가돼도 여기 그대로 반영된다.
     const lines = it.checklist_items ?? [];
     // 구성원 뷰: 컬럼 주인 몫만 남긴다. 같은 태스크가 여러 컬럼에 서므로
     // 컬럼마다 보이는 줄이 달라야 "여기서 내가 할 일"이 바로 읽힌다.
     // 외주 줄은 관리 담당(manager)의 컬럼으로 귀속 — 컬럼 라우팅(keysOf) 규칙과 같다.
-    const myLines = memberScope
-      ? lines.filter((l) => lineOwnedBy(l, memberScope.id))
-      : lines;
+    const myLines = memberScope ? lines.filter((l) => lineOwnedBy(l, memberScope.id)) : lines;
     // 스코프 결과가 비면(줄 담당 정보가 없는 옛 데이터 등) 전체로 폴백해 빈 카드가 되지 않게 한다.
     const scoped = !!memberScope && myLines.length > 0;
     // 펼침 키 — 구성원 뷰는 컬럼 주인별로, Feature 뷰는 카드별로 기억한다.
-    const cardKey = `${memberScope?.id ?? "feat"}:${it.id}`;
+    const cardKey = `${memberScope?.id ?? 'feat'}:${it.id}`;
     const expanded = !collapsedCards.has(cardKey);
     // 진척의 분모: 구성원 뷰는 "내 몫", Feature 뷰는 태스크 전체(서버 롤업).
     const baseLines = scoped ? myLines : lines;
-    const cTotal = scoped
-      ? myLines.length
-      : (it.checklist_total ?? lines.length);
-    const cDone = scoped
-      ? myLines.filter((l) => l.completed).length
-      : (it.checklist_done ?? 0);
+    const cTotal = scoped ? myLines.length : (it.checklist_total ?? lines.length);
+    const cDone = scoped ? myLines.filter((l) => l.completed).length : (it.checklist_done ?? 0);
     // 함께 미는 사람들 — 이 태스크의 줄 담당자 중 컬럼 주인이 아닌 사람.
     // 태스크에 담당자가 없는 설계라 카드 하나가 여러 컬럼에 서는데, 그 사실을
     // 숫자("담당 외 21개")가 아니라 얼굴로 말하게 한다. 실제 항목은 상세(↗)에서 본다.
@@ -2677,14 +2444,12 @@ export function SprintBoard({
           for (const l of lines) {
             if (lineOwnedBy(l, memberScope!.id)) continue;
             const a = l.assignee;
-            if (a && !seen.has(a.id))
-              seen.set(a.id, { id: a.id, name: a.name });
+            if (a && !seen.has(a.id)) seen.set(a.id, { id: a.id, name: a.name });
             const cm = l.contractor?.manager_user_id;
             if (cm && !seen.has(cm))
               seen.set(cm, {
                 id: cm,
-                name:
-                  l.contractor?.manager_name ?? l.contractor?.name ?? "외주",
+                name: l.contractor?.manager_name ?? l.contractor?.name ?? '외주',
               });
           }
           return Array.from(seen.values());
@@ -2693,8 +2458,8 @@ export function SprintBoard({
     // 보임 필터(구성원 뷰 전용) — 그리는 줄에만 건다.
     // cTotal·cDone은 필터 이전 배열 기준이라 그대로 둔다: 숨겼다고 분모가 줄면 진척률이 거짓말이 된다.
     const visibleOf = (arr: SprintChecklistLine[]) =>
-      memberScope && doneVis !== "all"
-        ? arr.filter((l) => (doneVis === "done" ? l.completed : !l.completed))
+      memberScope && doneVis !== 'all'
+        ? arr.filter((l) => (doneVis === 'done' ? l.completed : !l.completed))
         : arr;
     const visibleBase = visibleOf(baseLines);
     // 카드는 제목·진행·담당·예외만 말한다 — 항목은 펼쳐야 보인다(구성원 뷰는 내 몫만).
@@ -2702,17 +2467,15 @@ export function SprintBoard({
     // 줄 담당 아이콘은 "누구 것인지 섞여 있을 때"만 의미가 있다.
     const showLineOwner = expanded && !scoped;
     // 리뷰 중(MIDDLE) — 좌측 스트라이프를 앰버로. 지연이 이긴다.
-    const inReview = !isDoneItem && curCol?.kind === "MIDDLE";
+    const inReview = !isDoneItem && curCol?.kind === 'MIDDLE';
     const pct = cTotal > 0 ? Math.round((cDone / cTotal) * 100) : 0;
     // 액션 — 아이콘만. 1줄 제목 옆(담당 앞)에 호버 시 나타난다. 손이 카드에 올라간 순간
     // 필요한 건 예외 칩이 아니라 동작이라, 칩(이월·직접·D-day)은 그동안 자리를 비켜 준다.
     // 칩을 밀어내는 대신 자리를 바꾸는 이유 — 칩이 둘 붙은 카드에서 제목이 두 글자로 잘리기 때문.
     const actionBtn =
-      "inline-grid place-items-center w-[22px] h-[22px] rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50";
+      'inline-grid place-items-center w-[22px] h-[22px] rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50';
     // 액션이 없는 카드(미리보기·부분 카드)는 칩을 숨길 이유가 없다.
-    const chipHide = showActions
-      ? "group-hover:hidden group-focus-within:hidden"
-      : "";
+    const chipHide = showActions ? 'group-hover:hidden group-focus-within:hidden' : '';
     // 다른 스프린트로 보낸 줄 — 1줄의 "S1에 2줄" 칩을 걷어내고 2줄 분수 옆 +N으로 압축했다.
     // 신호는 남겨야 한다: 이 카드가 3/5인데 태스크 자체는 더 크다는 사실을 못 읽으면 분모를 오해한다.
     const sentCounts = isPartial ? [] : (it.foreign_line_counts ?? []);
@@ -2721,26 +2484,24 @@ export function SprintBoard({
       <div
         key={it.id}
         draggable={canEdit && !readOnly && !isPartial}
-        onDragStart={(e) => !readOnly && onDragStartItem(e, it, "sprint")}
+        onDragStart={(e) => !readOnly && onDragStartItem(e, it, 'sprint')}
         onDragEnd={onDragEndItem}
         // 좌측 3px 스트라이프 — 상태 전용. 지연 로즈 > 리뷰 중 앰버 > 평시 없음.
         // 피쳐 색은 컬럼 상단 레일이 독점한다(색 채널 분리 — 상태색이 신호로 살아남게).
         style={
           overdue
-            ? { borderLeftColor: "#f43f5e" }
+            ? { borderLeftColor: '#f43f5e' }
             : inReview
-              ? { borderLeftColor: "#f59e0b" }
+              ? { borderLeftColor: '#f59e0b' }
               : undefined
         }
         className={`group relative rounded-xl border border-l-[3px] border-sprint-border px-2.5 py-2 space-y-1.5 transition-colors ${
-          overdue ? "bg-rose-500/[0.07]" : "bg-sprint-card"
+          overdue ? 'bg-rose-500/[0.07]' : 'bg-sprint-card'
         } ${
           readOnly || isPartial
-            ? "cursor-default"
+            ? 'cursor-default'
             : `hover:border-sprint-border-hover cursor-grab ${
-                overdue
-                  ? "hover:bg-rose-500/[0.12]"
-                  : "hover:bg-sprint-card-hover"
+                overdue ? 'hover:bg-rose-500/[0.12]' : 'hover:bg-sprint-card-hover'
               }`
         }`}
       >
@@ -2768,7 +2529,7 @@ export function SprintBoard({
         <div className="flex items-center gap-1.5 min-w-0">
           <span
             className={`flex-1 min-w-0 text-xs font-bold leading-snug truncate ${
-              it.completed ? "line-through text-slate-500" : "text-foreground"
+              it.completed ? 'line-through text-slate-500' : 'text-foreground'
             }`}
             title={it.title}
           >
@@ -2784,10 +2545,10 @@ export function SprintBoard({
             </span>
           )}
           {/* 직접 지정 — 주기와 다른 기간을 들고 있는 예외. 주기가 바뀌어도 날짜가 따라가지 않는다. */}
-          {dateSource === "override" && sprintPeriod && (
+          {dateSource === 'override' && sprintPeriod && (
             <span
               className={`shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 ${chipHide}`}
-              title={`기간 직접 지정 · ${selectedSprint?.name ?? "이 스프린트"}은 ${sprintPeriod}`}
+              title={`기간 직접 지정 · ${selectedSprint?.name ?? '이 스프린트'}은 ${sprintPeriod}`}
             >
               직접
             </span>
@@ -2796,12 +2557,12 @@ export function SprintBoard({
           {upcoming ? (
             <span
               className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-xs font-bold tabular-nums bg-foreground/[0.06] text-slate-400 ${chipHide}`}
-              title={`${formatDate(it.start_date, "M/d")} 시작`}
+              title={`${formatDate(it.start_date, 'M/d')} 시작`}
             >
               <Calendar className="w-3 h-3" />
               {startDday!.text}
             </span>
-          ) : dday && dday.urgency !== "normal" ? (
+          ) : dday && dday.urgency !== 'normal' ? (
             <span
               className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-xs font-bold tabular-nums ${DDAY_BADGE[dday.urgency]} ${chipHide}`}
               title={formatDate(it.due_date)}
@@ -2835,8 +2596,8 @@ export function SprintBoard({
                     moveItemToColumn(it, firstMiddleColumn);
                   }}
                   className={`${actionBtn} bg-amber-500/15 text-amber-500 hover:bg-amber-500 hover:text-amber-950`}
-                  aria-label={`${firstMiddleColumn?.name ?? "In Review"}로 이동`}
-                  title={`${firstMiddleColumn?.name ?? "In Review"}로 이동`}
+                  aria-label={`${firstMiddleColumn?.name ?? 'In Review'}로 이동`}
+                  title={`${firstMiddleColumn?.name ?? 'In Review'}로 이동`}
                 >
                   <Eye className="w-3 h-3" />
                 </button>
@@ -2914,7 +2675,7 @@ export function SprintBoard({
                 >
                   <span
                     className={`block h-full transition-[width] motion-reduce:transition-none ${
-                      isDoneItem ? "bg-emerald-500" : "bg-foreground/40"
+                      isDoneItem ? 'bg-emerald-500' : 'bg-foreground/40'
                     }`}
                     style={{ width: `${isDoneItem ? 100 : pct}%` }}
                   />
@@ -2925,8 +2686,7 @@ export function SprintBoard({
                   title={`체크리스트 ${cDone}/${cTotal} 완료 (${pct}%)`}
                 >
                   {scoped && <span className="mr-1">내 몫</span>}
-                  <span className="font-bold text-slate-400">{cDone}</span>/
-                  {cTotal}
+                  <span className="font-bold text-slate-400">{cDone}</span>/{cTotal}
                 </span>
               </>
             )}
@@ -2941,8 +2701,8 @@ export function SprintBoard({
                 }}
                 className="shrink-0 text-xs font-bold tabular-nums px-1 rounded text-bridge-secondary hover:bg-bridge-secondary/15 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-colors"
                 title={`다른 스프린트로 보낸 항목 ${sentTotal}줄 · ${sentCounts
-                  .map((c) => `S${c.sprint_seq ?? "?"} ${c.done}/${c.total}`)
-                  .join(", ")} · 눌러서 이동`}
+                  .map((c) => `S${c.sprint_seq ?? '?'} ${c.done}/${c.total}`)
+                  .join(', ')} · 눌러서 이동`}
                 aria-label={`다른 스프린트로 보낸 항목 ${sentTotal}줄 보기`}
               >
                 +{sentTotal}
@@ -2954,7 +2714,7 @@ export function SprintBoard({
               {coOwners.length > 0 && (
                 <span
                   className="flex items-center"
-                  title={`함께 진행 · ${coOwners.map((o) => o.name).join(", ")}`}
+                  title={`함께 진행 · ${coOwners.map((o) => o.name).join(', ')}`}
                   aria-label={`함께 진행 ${coOwners.length}명`}
                 >
                   {coOwners.slice(0, 3).map((o, i) => (
@@ -2991,17 +2751,13 @@ export function SprintBoard({
                   toggleCardExpand(cardKey);
                 }}
                 aria-expanded={expanded}
-                aria-label={expanded ? "체크리스트 접기" : "체크리스트 펼치기"}
-                title={
-                  expanded
-                    ? "접기"
-                    : `체크리스트 ${visibleBase.length}개 펼치기`
-                }
+                aria-label={expanded ? '체크리스트 접기' : '체크리스트 펼치기'}
+                title={expanded ? '접기' : `체크리스트 ${visibleBase.length}개 펼치기`}
                 className="shrink-0 inline-grid place-items-center w-[22px] h-[22px] rounded-md text-slate-500 hover:text-foreground hover:bg-foreground/[0.08] focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-colors"
               >
                 <ChevronDown
                   className={`w-3.5 h-3.5 transition-transform motion-reduce:transition-none ${
-                    expanded ? "rotate-180" : ""
+                    expanded ? 'rotate-180' : ''
                   }`}
                 />
               </button>
@@ -3016,9 +2772,7 @@ export function SprintBoard({
               <li
                 key={line.id}
                 className={`group/line flex items-center gap-1.5 ${
-                  scoped && !lineOwnedBy(line, memberScope!.id)
-                    ? "opacity-60"
-                    : ""
+                  scoped && !lineOwnedBy(line, memberScope!.id) ? 'opacity-60' : ''
                 }`}
               >
                 <button
@@ -3028,28 +2782,21 @@ export function SprintBoard({
                     e.stopPropagation();
                     toggleChecklistLine(it.task_id, line.id);
                   }}
-                  aria-label={line.completed ? "완료 해제" : "완료 표시"}
+                  aria-label={line.completed ? '완료 해제' : '완료 표시'}
                   className={`w-[13px] h-[13px] rounded shrink-0 border grid place-items-center transition-colors ${
                     line.completed
-                      ? "bg-bridge-secondary border-bridge-secondary"
-                      : "border-slate-600 hover:border-bridge-secondary"
-                  } ${
-                    readOnly || !canEdit ? "cursor-default" : "cursor-pointer"
-                  }`}
+                      ? 'bg-bridge-secondary border-bridge-secondary'
+                      : 'border-slate-600 hover:border-bridge-secondary'
+                  } ${readOnly || !canEdit ? 'cursor-default' : 'cursor-pointer'}`}
                 >
                   {line.completed && (
-                    <Check
-                      className="w-2.5 h-2.5 text-bridge-dark"
-                      strokeWidth={4}
-                    />
+                    <Check className="w-2.5 h-2.5 text-bridge-dark" strokeWidth={4} />
                   )}
                 </button>
                 {/* 완료 항목도 "무엇을 끝냈는지"라는 정보다 — 후퇴시키되 읽히는 선까지만. */}
                 <span
                   className={`flex-1 min-w-0 text-xs leading-snug truncate ${
-                    line.completed
-                      ? "line-through decoration-1 text-slate-500"
-                      : "text-slate-400"
+                    line.completed ? 'line-through decoration-1 text-slate-500' : 'text-slate-400'
                   }`}
                   title={line.title}
                 >
@@ -3059,9 +2806,7 @@ export function SprintBoard({
                 {showLineSprint && (
                   <Popover
                     open={lineSprintPickerFor === `${it.id}:${line.id}`}
-                    onOpenChange={(o) =>
-                      setLineSprintPickerFor(o ? `${it.id}:${line.id}` : null)
-                    }
+                    onOpenChange={(o) => setLineSprintPickerFor(o ? `${it.id}:${line.id}` : null)}
                   >
                     <PopoverTrigger asChild>
                       <button
@@ -3071,15 +2816,15 @@ export function SprintBoard({
                         title={
                           line.sprint_overridden
                             ? `${sprintNameOf(line.sprint_id)}(으)로 직접 보낸 항목 — 클릭해서 바꾸기`
-                            : "태스크를 따라가는 항목 — 클릭해서 다른 스프린트로 보내기"
+                            : '태스크를 따라가는 항목 — 클릭해서 다른 스프린트로 보내기'
                         }
                         className={`shrink-0 text-xs font-bold px-1.5 rounded-full leading-[18px] tabular-nums transition-opacity focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
                           line.sprint_overridden
-                            ? "bg-bridge-secondary/15 text-bridge-secondary"
-                            : "border border-dashed border-foreground/20 text-slate-500 opacity-0 group-hover/line:opacity-100 focus:opacity-100 data-[state=open]:opacity-100"
+                            ? 'bg-bridge-secondary/15 text-bridge-secondary'
+                            : 'border border-dashed border-foreground/20 text-slate-500 opacity-0 group-hover/line:opacity-100 focus:opacity-100 data-[state=open]:opacity-100'
                         }`}
                       >
-                        S{line.sprint_seq ?? "?"}
+                        S{line.sprint_seq ?? '?'}
                       </button>
                     </PopoverTrigger>
                     <PopoverContent
@@ -3095,54 +2840,47 @@ export function SprintBoard({
                         onClick={() => setLineSprint(it.task_id, [line], null)}
                         className={`flex items-center justify-between gap-2 w-full px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors ${
                           !line.sprint_overridden
-                            ? "bg-bridge-accent/15 text-foreground font-bold"
-                            : "text-slate-300 hover:bg-foreground/5"
+                            ? 'bg-bridge-accent/15 text-foreground font-bold'
+                            : 'text-slate-300 hover:bg-foreground/5'
                         }`}
                       >
                         <span>태스크 따라가기</span>
                         <span className="text-slate-500 tabular-nums">
-                          {sprintNameOf(
-                            isPartial ? it.home_sprint_id : it.sprint_id,
-                          )}
+                          {sprintNameOf(isPartial ? it.home_sprint_id : it.sprint_id)}
                         </span>
                       </button>
                       <div className="my-1 border-t border-foreground/[0.08]" />
                       {(board?.sprints ?? []).map((sp) => {
-                        const selected =
-                          line.sprint_overridden && line.sprint_id === sp.id;
+                        const selected = line.sprint_overridden && line.sprint_id === sp.id;
                         const period =
                           sp.start_date && sp.end_date
-                            ? `${formatDate(sp.start_date, "M/d")}~${formatDate(sp.end_date, "M/d")}`
-                            : "";
+                            ? `${formatDate(sp.start_date, 'M/d')}~${formatDate(sp.end_date, 'M/d')}`
+                            : '';
                         return (
                           <button
                             key={sp.id}
                             type="button"
-                            onClick={() =>
-                              setLineSprint(it.task_id, [line], sp.id)
-                            }
+                            onClick={() => setLineSprint(it.task_id, [line], sp.id)}
                             className={`flex items-center justify-between gap-2 w-full px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors ${
                               selected
-                                ? "bg-bridge-accent/15 text-foreground font-bold"
-                                : sp.state === "PAST"
-                                  ? "text-slate-500 hover:bg-foreground/5"
-                                  : "text-slate-300 hover:bg-foreground/5"
+                                ? 'bg-bridge-accent/15 text-foreground font-bold'
+                                : sp.state === 'PAST'
+                                  ? 'text-slate-500 hover:bg-foreground/5'
+                                  : 'text-slate-300 hover:bg-foreground/5'
                             }`}
                           >
                             <span className="truncate">{sp.name}</span>
                             <span
                               className={`shrink-0 tabular-nums ${
-                                sp.state === "CURRENT"
-                                  ? "text-bridge-secondary"
-                                  : "text-slate-500"
+                                sp.state === 'CURRENT' ? 'text-bridge-secondary' : 'text-slate-500'
                               }`}
                             >
                               {period}
-                              {sp.state === "CURRENT"
-                                ? " · 현재"
-                                : sp.state === "PAST"
-                                  ? " · 지남"
-                                  : ""}
+                              {sp.state === 'CURRENT'
+                                ? ' · 현재'
+                                : sp.state === 'PAST'
+                                  ? ' · 지남'
+                                  : ''}
                             </span>
                           </button>
                         );
@@ -3158,15 +2896,11 @@ export function SprintBoard({
                       line.assignee
                         ? {
                             background: assigneeHex(line.assignee),
-                            color: "#fff",
+                            color: '#fff',
                           }
-                        : { background: "#f59e0b", color: "#451a03" }
+                        : { background: '#f59e0b', color: '#451a03' }
                     }
-                    title={
-                      line.assignee
-                        ? line.assignee.name
-                        : `외주 · ${line.contractor!.name}`
-                    }
+                    title={line.assignee ? line.assignee.name : `외주 · ${line.contractor!.name}`}
                   >
                     {monogram(line.assignee?.name ?? line.contractor!.name)}
                   </span>
@@ -3177,7 +2911,7 @@ export function SprintBoard({
         )}
         {expanded && cTotal > 0 && shownLines.length === 0 && (
           <p className="pt-1.5 border-t border-foreground/[0.08] text-xs text-slate-600">
-            {doneVis === "open" ? "진행 중인 항목 없음" : "완료된 항목 없음"}
+            {doneVis === 'open' ? '진행 중인 항목 없음' : '완료된 항목 없음'}
           </p>
         )}
       </div>
@@ -3197,16 +2931,13 @@ export function SprintBoard({
     inDock = false,
   ) => {
     const accent = columnAccent(col);
-    const isAnchor = col.kind !== "MIDDLE";
-    const showEdit =
-      col.kind === "MIDDLE" && isAdminOrOwner && editingCol !== col.id;
+    const isAnchor = col.kind !== 'MIDDLE';
+    const showEdit = col.kind === 'MIDDLE' && isAdminOrOwner && editingCol !== col.id;
     const showHeader = !inDock || showEdit || editingCol === col.id;
     return (
       <>
         {/* 컬럼 상단 상태 색 레일 */}
-        {!inDock && (
-          <div className="h-[3px] shrink-0" style={{ background: accent }} />
-        )}
+        {!inDock && <div className="h-[3px] shrink-0" style={{ background: accent }} />}
         {/* 컬럼 헤더 */}
         {showHeader && (
           <div className="px-3 py-2 border-b border-foreground/[0.06] flex items-center gap-2">
@@ -3219,19 +2950,15 @@ export function SprintBoard({
                 onChange={(e) => setEditColName(e.target.value)}
                 onBlur={() => submitRename(col)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") submitRename(col);
-                  if (e.key === "Escape") setEditingCol(null);
+                  if (e.key === 'Enter') submitRename(col);
+                  if (e.key === 'Escape') setEditingCol(null);
                 }}
                 className="flex-1 min-w-0 bg-foreground/[0.05] border border-foreground/10 rounded px-2 py-0.5 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
               />
             ) : (
-              <span className="text-xs font-bold text-foreground truncate flex-1">
-                {col.name}
-              </span>
+              <span className="text-xs font-bold text-foreground truncate flex-1">{col.name}</span>
             )}
-            {isAnchor && !inDock && (
-              <span className="text-xs text-slate-500 shrink-0">고정</span>
-            )}
+            {isAnchor && !inDock && <span className="text-xs text-slate-500 shrink-0">고정</span>}
             {!inDock && (
               <span className="text-xs text-slate-500 tabular-nums shrink-0">
                 {col.items.length}
@@ -3291,7 +3018,7 @@ export function SprintBoard({
             START(담기 안내 폴백)는 컬럼 자체가 피쳐 축이 아니라 평면 나열을 유지한다. */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2">
           {col.items.length === 0 &&
-            (col.kind === "START" ? (
+            (col.kind === 'START' ? (
               <div className="min-h-[80px] grid place-items-center text-xs text-slate-600 text-center px-2">
                 왼쪽 업무 리스트에서 태스크를 담아 시작하세요
               </div>
@@ -3299,12 +3026,12 @@ export function SprintBoard({
               // 빈 도크 — 드롭 존 안내. 드래그 중엔 테두리가 실선으로 살아난다.
               <div
                 className={`min-h-[64px] grid place-items-center rounded-xl border border-dashed text-xs font-medium text-center px-2 transition-colors ${
-                  draggingSource === "sprint"
-                    ? "border-solid"
-                    : "border-foreground/15 text-slate-500"
+                  draggingSource === 'sprint'
+                    ? 'border-solid'
+                    : 'border-foreground/15 text-slate-500'
                 }`}
                 style={
-                  draggingSource === "sprint"
+                  draggingSource === 'sprint'
                     ? {
                         borderColor: accent,
                         color: accent,
@@ -3313,12 +3040,10 @@ export function SprintBoard({
                     : undefined
                 }
               >
-                {col.kind === "END"
-                  ? "여기에 놓으면 완료"
-                  : `여기에 놓으면 ${col.name}`}
+                {col.kind === 'END' ? '여기에 놓으면 완료' : `여기에 놓으면 ${col.name}`}
               </div>
             ))}
-          {col.kind === "START"
+          {col.kind === 'START'
             ? col.items.map((it) => renderCard(it))
             : (() => {
                 const groups = new Map<
@@ -3330,11 +3055,11 @@ export function SprintBoard({
                   }
                 >();
                 for (const it of col.items) {
-                  const fid = it.feature_id ?? "__none__";
+                  const fid = it.feature_id ?? '__none__';
                   let g = groups.get(fid);
                   if (!g) {
                     g = {
-                      title: it.feature_title ?? "기타",
+                      title: it.feature_title ?? '기타',
                       color: it.feature_color ?? null,
                       items: [],
                     };
@@ -3347,7 +3072,7 @@ export function SprintBoard({
                     <div className="flex items-center gap-1.5 px-1 pt-0.5">
                       <span
                         className="w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ background: g.color ?? "#6366F1" }}
+                        style={{ background: g.color ?? '#6366F1' }}
                       />
                       <span
                         className="text-xs font-bold text-slate-400 truncate flex-1 min-w-0"
@@ -3375,33 +3100,28 @@ export function SprintBoard({
     if (dockColumns.length === 0) return null;
     const active =
       dockColumns.find((c) => c.id === dockTab) ??
-      dockColumns.find((c) => c.kind === "END") ??
+      dockColumns.find((c) => c.kind === 'END') ??
       dockColumns[0];
     const accent = columnAccent(active);
     const isOver = dragOverCol === active.id;
     // END 훈장 — 오늘 완료 수(진행 현황 모달의 "오늘 완료" 기준과 동일: 로컬 자정 이후).
-    const endCol = dockColumns.find((c) => c.kind === "END");
+    const endCol = dockColumns.find((c) => c.kind === 'END');
     const todayCnt = endCol
       ? (() => {
           const now = new Date();
-          const startToday = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate(),
-          ).getTime();
+          const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
           return endCol.items.filter((it) => {
-            const ts =
-              parseUTCDate(it.completed_at ?? it.done_date)?.getTime() ?? 0;
+            const ts = parseUTCDate(it.completed_at ?? it.done_date)?.getTime() ?? 0;
             return ts >= startToday;
           }).length;
         })()
       : 0;
     const tabLabel = (c: SprintColumn) =>
-      c.kind === "END" ? "완료" : c.name === "In Review" ? "리뷰" : c.name;
+      c.kind === 'END' ? '완료' : c.name === 'In Review' ? '리뷰' : c.name;
     return (
       <div
         onDragOver={(e) => {
-          if (canEdit && draggingSource === "sprint") {
+          if (canEdit && draggingSource === 'sprint') {
             e.preventDefault();
             setDragOverCol(active.id);
           }
@@ -3416,9 +3136,7 @@ export function SprintBoard({
           ...(isOver ? { borderColor: accent } : {}),
         }}
         className={`shrink-0 self-start max-h-full flex flex-col rounded-2xl border bg-sprint-col overflow-hidden transition-colors ${
-          draggingSource === "sprint" && !isOver
-            ? "border-foreground/20"
-            : "border-sprint-border"
+          draggingSource === 'sprint' && !isOver ? 'border-foreground/20' : 'border-sprint-border'
         }`}
       >
         <div className="h-[3px] shrink-0" style={{ background: accent }} />
@@ -3441,7 +3159,7 @@ export function SprintBoard({
                   onClick={() => setDockTab(c.id)}
                   onDragOver={(e) => {
                     // 탭 위에 끌어오면 그 탭으로 전환 — 원하는 컬럼을 보며 놓을 수 있게.
-                    if (canEdit && draggingSource === "sprint") {
+                    if (canEdit && draggingSource === 'sprint') {
                       e.preventDefault();
                       if (!on) setDockTab(c.id);
                       setDragOverCol(c.id);
@@ -3454,15 +3172,12 @@ export function SprintBoard({
                   title={`${c.name} · ${c.items.length}건`}
                   className={`flex-1 h-8 px-2 rounded-lg inline-flex items-center justify-center gap-1.5 text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
                     on
-                      ? "bg-foreground/[0.06] text-foreground"
-                      : "text-slate-500 hover:text-slate-400 hover:bg-foreground/[0.04]"
+                      ? 'bg-foreground/[0.06] text-foreground'
+                      : 'text-slate-500 hover:text-slate-400 hover:bg-foreground/[0.04]'
                   }`}
                 >
                   <span className="truncate">{tabLabel(c)}</span>
-                  <span
-                    className="tabular-nums"
-                    style={on ? { color: cAccent } : undefined}
-                  >
+                  <span className="tabular-nums" style={on ? { color: cAccent } : undefined}>
                     {c.items.length}
                   </span>
                 </button>
@@ -3471,19 +3186,16 @@ export function SprintBoard({
           </div>
         ) : (
           <div className="px-3 pt-2 flex items-center gap-2">
-            <span className="text-xs font-bold text-foreground truncate flex-1">
-              {active.name}
-            </span>
+            <span className="text-xs font-bold text-foreground truncate flex-1">{active.name}</span>
             <span className="text-xs tabular-nums" style={{ color: accent }}>
               {active.items.length}
             </span>
           </div>
         )}
         {/* 오늘 완료 — Done 탭에서만. 0이면 자리도 없다. */}
-        {active.kind === "END" && todayCnt > 0 && (
+        {active.kind === 'END' && todayCnt > 0 && (
           <div className="px-3 pt-1.5 text-xs text-slate-500 tabular-nums">
-            오늘 완료{" "}
-            <span className="font-bold text-bridge-secondary">{todayCnt}</span>
+            오늘 완료 <span className="font-bold text-bridge-secondary">{todayCnt}</span>
           </div>
         )}
         {renderStageColumnInner(active, undefined, true)}
@@ -3492,17 +3204,16 @@ export function SprintBoard({
   };
 
   const renderFeatureColumn = (fc: (typeof featureColumns)[number]) => {
-    const accent = fc.featureColor ?? "#6366F1";
+    const accent = fc.featureColor ?? '#6366F1';
     const key = `feat-${fc.featureId}`;
     const pct = fc.total > 0 ? Math.round((fc.doneTotal / fc.total) * 100) : 0;
     const complete = fc.total > 0 && fc.doneTotal === fc.total;
     // 접힘 — 명시 토글이 있으면 그것, 없으면 카드 0장일 때 접힘.
-    const collapsed =
-      featureColCollapsed[fc.featureId] ?? fc.items.length === 0;
+    const collapsed = featureColCollapsed[fc.featureId] ?? fc.items.length === 0;
     const isOver = dragOverCol === key;
     const dropProps = {
       onDragOver: (e: React.DragEvent) => {
-        if (canEdit && draggingSource === "sprint") {
+        if (canEdit && draggingSource === 'sprint') {
           e.preventDefault();
           setDragOverCol(key);
         }
@@ -3519,7 +3230,7 @@ export function SprintBoard({
           key={key}
           {...dropProps}
           className={`w-11 shrink-0 self-start max-h-full flex flex-col rounded-2xl border bg-sprint-col overflow-hidden transition-colors ${
-            isOver ? "border-bridge-accent/60" : "border-sprint-border"
+            isOver ? 'border-bridge-accent/60' : 'border-sprint-border'
           }`}
         >
           <div className="h-[3px] shrink-0" style={{ background: accent }} />
@@ -3531,12 +3242,10 @@ export function SprintBoard({
             title={`${fc.featureTitle} · 카드 ${fc.items.length}장 — 클릭해서 펼치기`}
             className="flex-1 min-h-[160px] w-full flex flex-col items-center gap-2 pt-3 pb-3 hover:bg-foreground/[0.04] transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
           >
-            <span className="text-xs font-bold tabular-nums text-slate-400">
-              {fc.items.length}
-            </span>
+            <span className="text-xs font-bold tabular-nums text-slate-400">{fc.items.length}</span>
             <span
               className="text-xs font-bold text-foreground max-h-[220px] overflow-hidden"
-              style={{ writingMode: "vertical-rl" }}
+              style={{ writingMode: 'vertical-rl' }}
             >
               {fc.featureTitle}
             </span>
@@ -3549,7 +3258,7 @@ export function SprintBoard({
         key={key}
         {...dropProps}
         className={`w-[240px] shrink-0 self-start max-h-full flex flex-col rounded-2xl border bg-sprint-col overflow-hidden transition-colors ${
-          isOver ? "border-bridge-accent/60" : "border-sprint-border"
+          isOver ? 'border-bridge-accent/60' : 'border-sprint-border'
         }`}
       >
         {/* 컬럼 상단 Feature 색 레일 — 피쳐 색은 여기 하나뿐이다(카드·헤더 도트엔 칠하지 않는다) */}
@@ -3575,17 +3284,16 @@ export function SprintBoard({
             >
               <span
                 className={`block h-full transition-[width] motion-reduce:transition-none ${
-                  complete ? "bg-emerald-500" : "bg-foreground/40"
+                  complete ? 'bg-emerald-500' : 'bg-foreground/40'
                 }`}
                 style={{ width: `${pct}%` }}
               />
             </span>
             <span className="text-xs tabular-nums text-slate-500">
-              <span className="font-bold text-slate-400">{fc.doneTotal}</span>/
-              {fc.total}
+              <span className="font-bold text-slate-400">{fc.doneTotal}</span>/{fc.total}
             </span>
           </span>
-          {onOpenFeature && fc.featureId !== "__none__" && (
+          {onOpenFeature && fc.featureId !== '__none__' && (
             <button
               type="button"
               onClick={() => onOpenFeature(fc.featureId)}
@@ -3614,7 +3322,7 @@ export function SprintBoard({
         </div>
         {/* 인라인 태스크 생성(갈래 ②) — 여기서 만들면 생성 즉시 이 컬럼(START)에 담긴다.
             카드 스택 바로 아래 붙어 빈 컬럼이 바닥까지 늘어나지 않는다. */}
-        {canEdit && !!scopeSprintId && fc.featureId !== "__none__" && (
+        {canEdit && !!scopeSprintId && fc.featureId !== '__none__' && (
           <div className="shrink-0 p-2 pt-0">
             {(() => {
               const key = `col:${fc.featureId}`;
@@ -3624,7 +3332,7 @@ export function SprintBoard({
                   <Plus className="w-3.5 h-3.5 text-bridge-accent shrink-0" />
                   <input
                     autoFocus
-                    value={newTaskTitles[key] ?? ""}
+                    value={newTaskTitles[key] ?? ''}
                     onChange={(e) =>
                       setNewTaskTitles((prev) => ({
                         ...prev,
@@ -3632,16 +3340,16 @@ export function SprintBoard({
                       }))
                     }
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") {
+                      if (e.key === 'Enter') {
                         e.preventDefault();
                         void submitNewTask(fc.featureId, key, true);
-                      } else if (e.key === "Escape") {
-                        setNewTaskTitles((prev) => ({ ...prev, [key]: "" }));
+                      } else if (e.key === 'Escape') {
+                        setNewTaskTitles((prev) => ({ ...prev, [key]: '' }));
                         setActiveAddKey(null);
                       }
                     }}
                     onBlur={() => {
-                      if (!(newTaskTitles[key] ?? "").trim())
+                      if (!(newTaskTitles[key] ?? '').trim())
                         setActiveAddKey((k) => (k === key ? null : k));
                     }}
                     placeholder="태스크 추가 — 즉시 담김"
@@ -3690,17 +3398,15 @@ export function SprintBoard({
     };
     // 지연 건수 — 담당자 컬럼에서 실제로 궁금한 건 퍼센트가 아니라 "막힌 게 몇 개냐"다.
     const overdueCount = mc.items.filter((it) => {
-      const kind = it.sprint_column_id
-        ? columnById.get(it.sprint_column_id)?.kind
-        : undefined;
-      if (it.completed || kind === "END") return false;
-      return !!it.due_date && getDDay(it.due_date).urgency === "overdue";
+      const kind = it.sprint_column_id ? columnById.get(it.sprint_column_id)?.kind : undefined;
+      if (it.completed || kind === 'END') return false;
+      return !!it.due_date && getDDay(it.due_date).urgency === 'overdue';
     }).length;
     return (
       <div
         key={key}
         onDragOver={(e) => {
-          if (canEdit && draggingSource === "sprint") {
+          if (canEdit && draggingSource === 'sprint') {
             e.preventDefault();
             setDragOverCol(key);
           }
@@ -3708,9 +3414,7 @@ export function SprintBoard({
         onDragLeave={() => setDragOverCol((c) => (c === key ? null : c))}
         onDrop={onDropMember}
         className={`w-[240px] shrink-0 self-start max-h-full flex flex-col rounded-2xl border bg-sprint-col overflow-hidden transition-colors ${
-          dragOverCol === key
-            ? "border-bridge-accent/60"
-            : "border-sprint-border"
+          dragOverCol === key ? 'border-bridge-accent/60' : 'border-sprint-border'
         }`}
       >
         {/* 컬럼 상단 담당자 색 레일 */}
@@ -3742,8 +3446,7 @@ export function SprintBoard({
               </span>
             )}
             <span className="text-xs text-slate-500 tabular-nums shrink-0">
-              <span className="font-bold text-foreground">{mc.doneTotal}</span>/
-              {mc.total}
+              <span className="font-bold text-foreground">{mc.doneTotal}</span>/{mc.total}
             </span>
             <button
               type="button"
@@ -3770,12 +3473,10 @@ export function SprintBoard({
             // 컬럼을 지우지 않고 상태로 보여준다.
             mc.hiddenByVis > 0 ? (
               <div className="h-full min-h-[80px] grid place-content-center justify-items-center gap-1 text-center px-2">
-                {doneVis === "open" ? (
+                {doneVis === 'open' ? (
                   <>
                     <CheckCircle2 className="w-5 h-5 text-bridge-secondary" />
-                    <span className="text-xs font-bold text-bridge-secondary">
-                      전부 완료
-                    </span>
+                    <span className="text-xs font-bold text-bridge-secondary">전부 완료</span>
                     <span className="text-xs text-slate-600 tabular-nums">
                       진행 중인 항목 없음 · 완료 {mc.hiddenByVis}건
                     </span>
@@ -3805,11 +3506,11 @@ export function SprintBoard({
         {mc.items.length > 0 && mc.hiddenByVis > 0 && (
           <button
             type="button"
-            onClick={() => setDoneVis("all")}
+            onClick={() => setDoneVis('all')}
             title="보임 필터를 해제하고 전체를 봅니다"
             className="shrink-0 px-3 py-1.5 border-t border-foreground/[0.06] text-xs text-slate-600 hover:text-bridge-secondary hover:bg-foreground/[0.03] focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-colors tabular-nums text-left"
           >
-            {doneVis === "open" ? "완료" : "진행중"} {mc.hiddenByVis}건 숨김
+            {doneVis === 'open' ? '완료' : '진행중'} {mc.hiddenByVis}건 숨김
           </button>
         )}
       </div>
@@ -3821,8 +3522,8 @@ export function SprintBoard({
   // 피쳐 없음 카드는 담당자 컬럼에도 서 있지만, "분류가 덜 된 것"을 한곳에서 처리하도록 함께 모은다.
   const renderUncatCard = (u: UncatCard) => {
     const it = u.it;
-    const needAssignee = u.causes.includes("assignee");
-    const needFeature = u.causes.includes("feature");
+    const needAssignee = u.causes.includes('assignee');
+    const needFeature = u.causes.includes('feature');
     const doneLines = it.checklist_done ?? 0;
     const totalLines = it.checklist_total ?? it.checklist_items?.length ?? 0;
     const asg = it.assignees ?? (it.assignee ? [it.assignee] : []);
@@ -3833,13 +3534,13 @@ export function SprintBoard({
         onDragStart={(e) => {
           if (!canEdit) return;
           uncatDragRef.current = it;
-          onDragStartItem(e, it, "sprint");
+          onDragStartItem(e, it, 'sprint');
         }}
         onDragEnd={onDragEndItem}
         onClick={() => openItem(it)}
         // 점선 테두리 — 컬럼 카드(실선)와 구분되는 "아직 자리를 못 잡음" 신호.
         className={`relative w-[200px] shrink-0 rounded-xl border border-dashed border-foreground/20 bg-sprint-card p-2.5 space-y-2 hover:border-bridge-accent/50 transition-colors ${
-          canEdit ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+          canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
         }`}
       >
         {/* 사유 칩 — 이 카드가 왜 레일에 있는지를 카드 스스로 설명한다(두 사유면 둘 다). */}
@@ -3858,10 +3559,10 @@ export function SprintBoard({
             <span
               className="text-xs font-bold px-1.5 py-0.5 rounded-md truncate max-w-[88px]"
               style={{
-                background: `${it.feature_color ?? "#6366F1"}26`,
-                color: it.feature_color ?? "#93c5fd",
+                background: `${it.feature_color ?? '#6366F1'}26`,
+                color: it.feature_color ?? '#93c5fd',
               }}
-              title={it.feature_title ?? ""}
+              title={it.feature_title ?? ''}
             >
               {it.feature_title}
             </span>
@@ -3874,8 +3575,7 @@ export function SprintBoard({
 
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-slate-500 tabular-nums shrink-0">
-            <span className="font-bold text-foreground">{doneLines}</span>/
-            {totalLines}
+            <span className="font-bold text-foreground">{doneLines}</span>/{totalLines}
           </span>
           {/* 담당 아바타 — 있으면 이 카드가 구성원 컬럼에도 함께 서 있다는 뜻이다. */}
           {asg.length > 0 && (
@@ -3937,16 +3637,14 @@ export function SprintBoard({
       return (
         <div className="shrink-0 flex items-center gap-2 px-4 py-2 border-t border-foreground/[0.08] bg-sprint-col">
           <Check className="w-3.5 h-3.5 text-bridge-secondary shrink-0" />
-          <span className="text-xs font-bold text-bridge-secondary shrink-0">
-            미분류 없음
-          </span>
+          <span className="text-xs font-bold text-bridge-secondary shrink-0">미분류 없음</span>
           <span className="text-xs text-slate-600 truncate">
             담긴 카드의 담당·피쳐가 모두 채워졌습니다
           </span>
         </div>
       );
     }
-    const filterChip = (key: "all" | UncatCause, label: string, n: number) => (
+    const filterChip = (key: 'all' | UncatCause, label: string, n: number) => (
       <button
         key={key}
         type="button"
@@ -3954,8 +3652,8 @@ export function SprintBoard({
         aria-pressed={uncatFilter === key}
         className={`text-xs font-bold px-2 py-0.5 rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
           uncatFilter === key
-            ? "bg-bridge-accent/15 border-bridge-accent/40 text-bridge-accent"
-            : "bg-foreground/[0.04] border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/[0.08]"
+            ? 'bg-bridge-accent/15 border-bridge-accent/40 text-bridge-accent'
+            : 'bg-foreground/[0.04] border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/[0.08]'
         }`}
       >
         {label} {n}
@@ -3971,9 +3669,7 @@ export function SprintBoard({
               setFeaturePickerFor(null); // 접을 때 열려 있던 피쳐 드롭다운도 함께 닫는다
             }}
             aria-expanded={!uncatCollapsed}
-            aria-label={
-              uncatCollapsed ? "미분류 레일 펼치기" : "미분류 레일 접기"
-            }
+            aria-label={uncatCollapsed ? '미분류 레일 펼치기' : '미분류 레일 접기'}
             className="shrink-0 w-6 h-6 grid place-items-center rounded-md text-slate-400 hover:text-foreground hover:bg-foreground/5 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-colors"
           >
             {uncatCollapsed ? (
@@ -3983,9 +3679,7 @@ export function SprintBoard({
             )}
           </button>
           <Inbox className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          <span className="text-xs font-bold text-foreground shrink-0">
-            미분류
-          </span>
+          <span className="text-xs font-bold text-foreground shrink-0">미분류</span>
           <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-400 tabular-nums shrink-0">
             {total}
           </span>
@@ -4006,11 +3700,10 @@ export function SprintBoard({
           ) : (
             <>
               <div className="flex items-center gap-1 min-w-0 overflow-x-auto custom-scrollbar">
-                {filterChip("all", "전체", uncatCounts.all)}
+                {filterChip('all', '전체', uncatCounts.all)}
                 {uncatCounts.assignee > 0 &&
-                  filterChip("assignee", "담당 없음", uncatCounts.assignee)}
-                {uncatCounts.feature > 0 &&
-                  filterChip("feature", "피쳐 없음", uncatCounts.feature)}
+                  filterChip('assignee', '담당 없음', uncatCounts.assignee)}
+                {uncatCounts.feature > 0 && filterChip('feature', '피쳐 없음', uncatCounts.feature)}
               </div>
               {canEdit && (
                 <span className="ml-auto shrink-0 text-xs text-slate-600 hidden lg:block">
@@ -4034,26 +3727,24 @@ export function SprintBoard({
   };
 
   // ── JIRA 뷰 렌더 (컬럼=JIRA 상태, 카드=Task) ──
-  const renderQaBadge = (qa: "REVIEW" | "VERIFIED" | "REJECTED") => {
+  const renderQaBadge = (qa: 'REVIEW' | 'VERIFIED' | 'REJECTED') => {
     const cfg =
-      qa === "VERIFIED"
+      qa === 'VERIFIED'
         ? {
-            label: "검증완료",
-            cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+            label: '검증완료',
+            cls: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
           }
-        : qa === "REJECTED"
+        : qa === 'REJECTED'
           ? {
-              label: "반려",
-              cls: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+              label: '반려',
+              cls: 'bg-rose-500/15 text-rose-600 dark:text-rose-400',
             }
           : {
-              label: "검토중",
-              cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+              label: '검토중',
+              cls: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
             };
     return (
-      <span
-        className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${cfg.cls}`}
-      >
+      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${cfg.cls}`}>
         {cfg.label}
       </span>
     );
@@ -4066,9 +3757,7 @@ export function SprintBoard({
     const typeMark = jiraIssueTypeMark(card.issueType);
     const priorityMark = jiraPriorityMark(card.priority);
     // 원본이 삭제된 이슈로는 나갈 곳이 없다 — 404로 보내지 않는다.
-    const issueUrl = card.isDeleted
-      ? null
-      : jiraIssueUrl(jiraStatus?.base_url, card.jiraKey);
+    const issueUrl = card.isDeleted ? null : jiraIssueUrl(jiraStatus?.base_url, card.jiraKey);
     // 체크리스트가 하나라도 있으면 게이지를 세운다 — 1개짜리도 0/1(미착수)과 1/1(완료)은
     // 다른 상태다. 체크리스트가 아예 없는 카드만 그 자리를 JIRA 갱신 시각이 받는다.
     const showProgress = card.total > 0;
@@ -4083,7 +3772,7 @@ export function SprintBoard({
         }}
         onClick={() => openTask(card.taskId)}
         className={`group rounded-xl border border-sprint-border bg-sprint-card p-2.5 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.45)] transition-colors hover:border-sprint-border-hover hover:bg-sprint-card-hover ${
-          canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+          canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
         }`}
       >
         <div className="flex items-center gap-1.5 mb-1.5">
@@ -4095,10 +3784,7 @@ export function SprintBoard({
               aria-label={`이슈 타입 ${typeMark.label}`}
               title={typeMark.label}
             >
-              <typeMark.icon
-                className="w-3 h-3"
-                style={{ color: typeMark.color }}
-              />
+              <typeMark.icon className="w-3 h-3" style={{ color: typeMark.color }} />
             </span>
           )}
           {priorityMark && (
@@ -4108,10 +3794,7 @@ export function SprintBoard({
               aria-label={`우선순위 ${priorityMark.label}`}
               title={priorityMark.label}
             >
-              <priorityMark.icon
-                className="w-3 h-3"
-                style={{ color: priorityMark.color }}
-              />
+              <priorityMark.icon className="w-3 h-3" style={{ color: priorityMark.color }} />
             </span>
           )}
           {/* 이슈키 = JIRA 원문으로 나가는 문. 카드 본체 클릭(BRIDGE 모달)과 겹치지 않게 전파를 끊는다.
@@ -4125,7 +3808,7 @@ export function SprintBoard({
               onClick={(e) => e.stopPropagation()}
               title={`JIRA에서 ${card.jiraKey} 열기`}
               className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-              style={{ background: "rgba(38,132,255,0.16)", color: "#7fb0ff" }}
+              style={{ background: 'rgba(38,132,255,0.16)', color: '#7fb0ff' }}
             >
               <Diamond className="w-2.5 h-2.5" />
               {card.jiraKey}
@@ -4134,12 +3817,12 @@ export function SprintBoard({
           ) : (
             <span
               className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ${
-                card.isDeleted ? "line-through opacity-60" : ""
+                card.isDeleted ? 'line-through opacity-60' : ''
               }`}
               style={
                 card.isDeleted
-                  ? { background: "rgba(148,163,184,0.16)", color: "#94a3b8" }
-                  : { background: "rgba(38,132,255,0.16)", color: "#7fb0ff" }
+                  ? { background: 'rgba(148,163,184,0.16)', color: '#94a3b8' }
+                  : { background: 'rgba(38,132,255,0.16)', color: '#7fb0ff' }
               }
             >
               <Diamond className="w-2.5 h-2.5" />
@@ -4186,9 +3869,7 @@ export function SprintBoard({
             /* "JIRA"를 앞에 붙이는 이유 — 이 시각은 BRIDGE에서 만진 시각이 아니라
                이슈가 JIRA에서 마지막으로 움직인 시각이다. 두 축이 섞이면 아무도 못 믿는다. */
             <span className="flex-1 text-[10px] text-slate-500 truncate">
-              {card.jiraUpdatedAt
-                ? `JIRA ${formatRelativeTime(card.jiraUpdatedAt)}`
-                : ""}
+              {card.jiraUpdatedAt ? `JIRA ${formatRelativeTime(card.jiraUpdatedAt)}` : ''}
             </span>
           )}
           {card.assignees.length > 0 && (
@@ -4197,7 +3878,7 @@ export function SprintBoard({
                 <span
                   key={a.id}
                   className="w-4 h-4 rounded-full grid place-items-center text-[8px] font-bold ring-1 ring-sprint-card"
-                  style={{ background: assigneeHex(a), color: "#fff" }}
+                  style={{ background: assigneeHex(a), color: '#fff' }}
                   title={a.name}
                 >
                   {getInitials(a.name)}
@@ -4214,22 +3895,22 @@ export function SprintBoard({
     const key = `jira-${col.statusId}`;
     const isPush = col.draggable;
     // pre-block: JIRA 드래그 중이고 이 컬럼이 허용 전환이 아니면 비활성(회색+드롭 차단)
-    const dragActive = jiraDragTaskId != null && draggingSource === "sprint";
+    const dragActive = jiraDragTaskId != null && draggingSource === 'sprint';
     const dropAllowed = isPush && isJiraDropAllowed(col);
     const dimmed = dragActive && !dropAllowed;
     const accent =
-      col.tone === "push"
-        ? "#6366F1"
-        : col.tone === "review"
-          ? "#f59e0b"
-          : col.tone === "verified"
-            ? "#34d399"
-            : "#64748b";
+      col.tone === 'push'
+        ? '#6366F1'
+        : col.tone === 'review'
+          ? '#f59e0b'
+          : col.tone === 'verified'
+            ? '#34d399'
+            : '#64748b';
     return (
       <div
         key={key}
         onDragOver={(e) => {
-          if (canEdit && dropAllowed && draggingSource === "sprint") {
+          if (canEdit && dropAllowed && draggingSource === 'sprint') {
             e.preventDefault();
             setDragOverCol(key);
           }
@@ -4237,23 +3918,15 @@ export function SprintBoard({
         onDragLeave={() => setDragOverCol((c) => (c === key ? null : c))}
         onDrop={(e) => onDropJiraColumn(e, col)}
         className={`w-[270px] shrink-0 flex flex-col rounded-2xl border bg-sprint-col overflow-hidden transition-all ${
-          dragOverCol === key
-            ? "border-bridge-accent/60"
-            : "border-sprint-border"
-        } ${dimmed ? "opacity-40" : ""}`}
+          dragOverCol === key ? 'border-bridge-accent/60' : 'border-sprint-border'
+        } ${dimmed ? 'opacity-40' : ''}`}
       >
         {/* 컬럼 상단 JIRA 상태 색 레일 */}
         <div className="h-[3px] shrink-0" style={{ background: accent }} />
         <div className="px-3 pt-2.5 pb-2 border-b border-foreground/[0.06]">
           <div className="flex items-center gap-2">
-            <span
-              className="w-2 h-2 rounded-sm shrink-0"
-              style={{ background: accent }}
-            />
-            <span
-              className="text-xs font-bold text-foreground truncate flex-1"
-              title={col.label}
-            >
+            <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: accent }} />
+            <span className="text-xs font-bold text-foreground truncate flex-1" title={col.label}>
               {col.label}
             </span>
             {!isPush && (
@@ -4311,10 +3984,7 @@ export function SprintBoard({
           <div className="mb-3 rounded-xl border border-foreground/[0.08] bg-foreground/[0.02] px-3 py-2.5">
             <div className="flex items-center gap-2 mb-2 pl-0.5">
               <span className="text-xs font-bold tracking-wider text-slate-400 uppercase">
-                Feature{" "}
-                <span className="text-bridge-accent">
-                  {featureSummaries.length}
-                </span>
+                Feature <span className="text-bridge-accent">{featureSummaries.length}</span>
               </span>
               <span className="hidden sm:inline text-xs text-slate-600">
                 칩 클릭 = 피쳐 열기 · 깔때기 = 필터
@@ -4331,22 +4001,21 @@ export function SprintBoard({
             </div>
             <div className="flex items-stretch gap-2 overflow-x-auto custom-scrollbar pb-1">
               {featureSummaries.map((f) => {
-                const accent = f.featureColor ?? "#6366F1";
+                const accent = f.featureColor ?? '#6366F1';
                 const selected = featureFilter.has(f.featureId);
                 const dimmed = featureFilter.size > 0 && !selected;
-                const pct =
-                  f.total > 0 ? Math.round((f.done / f.total) * 100) : 0;
+                const pct = f.total > 0 ? Math.round((f.done / f.total) * 100) : 0;
                 // 주 동작 = 피쳐 상세 모달 열기. 모달 대상이 없는 "기타"(__none__)나
                 // onOpenFeature 미제공 시엔 본체 클릭을 필터 토글로 폴백한다.
-                const canOpen = !!onOpenFeature && f.featureId !== "__none__";
+                const canOpen = !!onOpenFeature && f.featureId !== '__none__';
                 return (
                   <div
                     key={f.featureId}
                     className={`group/chip relative shrink-0 w-[136px] rounded-lg border transition-all ${
                       selected
-                        ? "border-transparent"
-                        : "bg-foreground/[0.03] border-foreground/[0.08] hover:border-foreground/[0.16]"
-                    } ${dimmed ? "opacity-40 hover:opacity-75" : ""}`}
+                        ? 'border-transparent'
+                        : 'bg-foreground/[0.03] border-foreground/[0.08] hover:border-foreground/[0.16]'
+                    } ${dimmed ? 'opacity-40 hover:opacity-75' : ''}`}
                     style={
                       selected
                         ? {
@@ -4360,25 +4029,19 @@ export function SprintBoard({
                     <button
                       type="button"
                       onClick={() =>
-                        canOpen
-                          ? onOpenFeature!(f.featureId)
-                          : toggleFeatureFilter(f.featureId)
+                        canOpen ? onOpenFeature!(f.featureId) : toggleFeatureFilter(f.featureId)
                       }
                       title={
                         canOpen
-                          ? `${f.featureTitle} 열기${f.overdue > 0 ? ` · 지연 ${f.overdue}건` : ""}`
+                          ? `${f.featureTitle} 열기${f.overdue > 0 ? ` · 지연 ${f.overdue}건` : ''}`
                           : f.featureTitle
                       }
                       aria-label={
-                        canOpen
-                          ? `${f.featureTitle} 피쳐 열기`
-                          : `${f.featureTitle} 필터`
+                        canOpen ? `${f.featureTitle} 피쳐 열기` : `${f.featureTitle} 필터`
                       }
                       className="w-full text-left px-2.5 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                     >
-                      <div
-                        className={`flex items-center gap-1.5 mb-1.5 ${canOpen ? "pr-5" : ""}`}
-                      >
+                      <div className={`flex items-center gap-1.5 mb-1.5 ${canOpen ? 'pr-5' : ''}`}>
                         <span
                           className="w-2 h-2 rounded-full shrink-0"
                           style={{ background: accent }}
@@ -4410,24 +4073,16 @@ export function SprintBoard({
                           toggleFeatureFilter(f.featureId);
                         }}
                         aria-pressed={selected}
-                        title={
-                          selected ? "이 피쳐 필터 해제" : "이 피쳐만 보기"
-                        }
+                        title={selected ? '이 피쳐 필터 해제' : '이 피쳐만 보기'}
                         aria-label={
-                          selected
-                            ? `${f.featureTitle} 필터 해제`
-                            : `${f.featureTitle}만 보기`
+                          selected ? `${f.featureTitle} 필터 해제` : `${f.featureTitle}만 보기`
                         }
                         className={`absolute top-1 right-1 w-5 h-5 grid place-items-center rounded-md transition-opacity focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
                           selected
-                            ? "opacity-100"
-                            : "text-slate-400 opacity-0 group-hover/chip:opacity-100 hover:bg-foreground/10"
+                            ? 'opacity-100'
+                            : 'text-slate-400 opacity-0 group-hover/chip:opacity-100 hover:bg-foreground/10'
                         }`}
-                        style={
-                          selected
-                            ? { color: accent, background: `${accent}2e` }
-                            : undefined
-                        }
+                        style={selected ? { color: accent, background: `${accent}2e` } : undefined}
                       >
                         <Filter className="w-3 h-3" />
                       </button>
@@ -4442,7 +4097,7 @@ export function SprintBoard({
         {/* JIRA 화면은 스코프가 보드 전체라 스프린트 타임라인·진척을 세우지 않는다 —
             모수가 다른 진행률 두 개(스프린트 체크리스트 vs JIRA 이슈)가 한 화면에 겹치면
             어느 쪽도 못 믿는다. 대신 이 화면이 무엇을 세고 있는지 밝히는 머리말만 둔다. */}
-        {groupBy === "jira" ? (
+        {groupBy === 'jira' ? (
           <div className="flex items-center gap-3 flex-wrap rounded-xl border border-foreground/[0.08] bg-foreground/[0.04] px-3 py-2.5">
             <span className="inline-flex items-center gap-1.5 text-sm font-bold text-foreground whitespace-nowrap">
               <Diamond className="w-3.5 h-3.5 text-bridge-accent" />
@@ -4491,13 +4146,13 @@ export function SprintBoard({
                 onClick={() => setShowScopeModal(true)}
                 className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors shrink-0 ${
                   board?.jira_scope
-                    ? "text-bridge-secondary hover:bg-bridge-secondary/10"
-                    : "text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                    ? 'text-bridge-secondary hover:bg-bridge-secondary/10'
+                    : 'text-slate-400 hover:text-foreground hover:bg-foreground/10'
                 }`}
                 title="이 마일스톤의 JIRA 뷰 범위(JQL)를 설정"
               >
                 <Filter className="w-3 h-3" />
-                {board?.jira_scope ? "스코프 편집" : "마일스톤 스코프"}
+                {board?.jira_scope ? '스코프 편집' : '마일스톤 스코프'}
               </button>
             )}
             {isAdminOrOwner && (
@@ -4537,7 +4192,7 @@ export function SprintBoard({
             {/* 원라인 세그먼트 바 — 좌측은 마일스톤 라벨+미니 트랙, 우측은 선택 버킷 수치·뷰 토글·⋯ 메뉴 */}
             {(board?.sprints ?? []).length > 0 ? (
               <SprintSegmentBar
-                milestoneTitle={milestone?.title ?? "마일스톤"}
+                milestoneTitle={milestone?.title ?? '마일스톤'}
                 milestoneStart={milestone?.start_date ?? null}
                 milestoneEnd={milestone?.end_date ?? null}
                 sprints={board?.sprints ?? []}
@@ -4576,9 +4231,7 @@ export function SprintBoard({
                 <button
                   type="button"
                   onClick={() => {
-                    setProgressTab(
-                      sprintProgress.nToday > 0 ? "todayDone" : "inProgress",
-                    );
+                    setProgressTab(sprintProgress.nToday > 0 ? 'todayDone' : 'inProgress');
                     setProgressOpen(true);
                   }}
                   aria-haspopup="dialog"
@@ -4586,11 +4239,9 @@ export function SprintBoard({
                   title={`${selectedSprint.name}${
                     selectedSprint.start_date
                       ? ` · ${formatDate(selectedSprint.start_date)} ~ ${
-                          selectedSprint.end_date
-                            ? formatDate(selectedSprint.end_date)
-                            : "진행"
+                          selectedSprint.end_date ? formatDate(selectedSprint.end_date) : '진행'
                         }`
-                      : ""
+                      : ''
                   } · 진행 현황 자세히 보기`}
                   className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-foreground/5 transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                 >
@@ -4604,8 +4255,7 @@ export function SprintBoard({
                     <span className="text-xs text-slate-400">%</span>
                   </span>
                   <span className="text-xs font-medium text-slate-400 tabular-nums whitespace-nowrap">
-                    {gauge?.done ?? selectedSprint.done} /{" "}
-                    {gauge?.total ?? selectedSprint.total}
+                    {gauge?.done ?? selectedSprint.done} / {gauge?.total ?? selectedSprint.total}
                   </span>
                   {sprintProgress.nToday > 0 && (
                     <span
@@ -4616,15 +4266,14 @@ export function SprintBoard({
                     </span>
                   )}
                 </button>
-                {selectedSprint.state === "CURRENT" &&
+                {selectedSprint.state === 'CURRENT' &&
                   selectedSprint.end_date &&
                   (() => {
                     const d = getDDay(selectedSprint.end_date);
                     return (
                       <span
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold tabular-nums shrink-0 ${
-                          DDAY_BADGE[d.urgency] ||
-                          "bg-bridge-secondary/15 text-bridge-secondary"
+                          DDAY_BADGE[d.urgency] || 'bg-bridge-secondary/15 text-bridge-secondary'
                         }`}
                         title={`이 스프린트 종료 ${formatDate(selectedSprint.end_date)}`}
                       >
@@ -4637,19 +4286,17 @@ export function SprintBoard({
                 {/* 보임 필터 — 구성원 뷰 전용. 그룹 기준(Feature↔구성원)보다 앞에 둔다:
                       "무엇을 볼까"를 먼저 고르고 "어떻게 자를까"를 뒤에 고르는 순서가
                       왼→오 읽기와 맞는다. */}
-                {groupBy === "member" && (
+                {groupBy === 'member' && (
                   <Popover open={doneVisOpen} onOpenChange={setDoneVisOpen}>
                     <PopoverTrigger asChild>
                       <button
                         type="button"
                         aria-label="완료 항목 보임 필터"
-                        title={
-                          DONE_VIS_OPTIONS.find((o) => o.key === doneVis)?.hint
-                        }
+                        title={DONE_VIS_OPTIONS.find((o) => o.key === doneVis)?.hint}
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
-                          doneVis === "all"
-                            ? "bg-foreground/[0.06] border-foreground/10 text-slate-400 hover:text-foreground"
-                            : "bg-bridge-secondary/15 border-bridge-secondary/40 text-bridge-secondary"
+                          doneVis === 'all'
+                            ? 'bg-foreground/[0.06] border-foreground/10 text-slate-400 hover:text-foreground'
+                            : 'bg-bridge-secondary/15 border-bridge-secondary/40 text-bridge-secondary'
                         }`}
                       >
                         <Eye className="w-3 h-3" />
@@ -4673,8 +4320,8 @@ export function SprintBoard({
                           title={opt.hint}
                           className={`flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-xs font-bold text-left transition-colors ${
                             doneVis === opt.key
-                              ? "bg-bridge-secondary/15 text-bridge-secondary"
-                              : "text-slate-400 hover:bg-foreground/5 hover:text-foreground"
+                              ? 'bg-bridge-secondary/15 text-bridge-secondary'
+                              : 'text-slate-400 hover:bg-foreground/5 hover:text-foreground'
                           }`}
                         >
                           <span className="truncate">{opt.label}</span>
@@ -4690,8 +4337,8 @@ export function SprintBoard({
                 {/* Feature ↔ 구성원 전환 — 둘 다 "이 버킷에 담긴 것"을 소유 축으로
                       자르는, 서로 교환 가능한 절단면이다. JIRA는 스코프도 축도 달라
                       여기가 아니라 화면 선택 줄(스프린트 | 블록 보드 | JIRA)에 있다. */}
-                {!uiFeatures.has("members") && memberGhost}
-                {uiFeatures.has("members") && (
+                {!uiFeatures.has('members') && memberGhost}
+                {uiFeatures.has('members') && (
                   <div
                     className="flex items-center gap-0.5 p-0.5 rounded-lg bg-foreground/[0.06] border border-foreground/10 shrink-0"
                     role="tablist"
@@ -4700,12 +4347,12 @@ export function SprintBoard({
                     <button
                       type="button"
                       role="tab"
-                      aria-selected={groupBy === "feature"}
-                      onClick={() => setGroupPref("feature")}
+                      aria-selected={groupBy === 'feature'}
+                      onClick={() => setGroupPref('feature')}
                       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
-                        groupBy === "feature"
-                          ? "bg-bridge-accent text-white"
-                          : "text-slate-400 hover:text-foreground"
+                        groupBy === 'feature'
+                          ? 'bg-bridge-accent text-white'
+                          : 'text-slate-400 hover:text-foreground'
                       }`}
                       title="Feature 단위로 컬럼 보기"
                     >
@@ -4715,12 +4362,12 @@ export function SprintBoard({
                     <button
                       type="button"
                       role="tab"
-                      aria-selected={groupBy === "member"}
-                      onClick={() => setGroupPref("member")}
+                      aria-selected={groupBy === 'member'}
+                      onClick={() => setGroupPref('member')}
                       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
-                        groupBy === "member"
-                          ? "bg-bridge-accent text-white"
-                          : "text-slate-400 hover:text-foreground"
+                        groupBy === 'member'
+                          ? 'bg-bridge-accent text-white'
+                          : 'text-slate-400 hover:text-foreground'
                       }`}
                       title="구성원(담당자) 단위로 컬럼 보기"
                     >
@@ -4739,8 +4386,8 @@ export function SprintBoard({
                       title="스프린트 메뉴"
                       className={`inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
                         canPushUnfinished && nextSprint
-                          ? "text-amber-600 dark:text-amber-400 bg-amber-500/15 hover:bg-amber-500/25"
-                          : "text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                          ? 'text-amber-600 dark:text-amber-400 bg-amber-500/15 hover:bg-amber-500/25'
+                          : 'text-slate-400 hover:text-foreground hover:bg-foreground/10'
                       }`}
                     >
                       <MoreHorizontal className="w-4 h-4" />
@@ -4753,7 +4400,7 @@ export function SprintBoard({
                     <div className="px-2.5 py-2 text-xs text-slate-500 tabular-nums border-b border-foreground/[0.08] mb-1">
                       {remainingTasks > 0
                         ? `이 스프린트 남은 항목 ${remainingTasks}개`
-                        : "이 스프린트 전부 완료"}
+                        : '이 스프린트 전부 완료'}
                     </div>
                     {/* 이월의 새 모습 — 지난 버킷의 미완료를 다음 버킷으로 한 번에 민다 */}
                     {canPushUnfinished && nextSprint && (
@@ -4815,27 +4462,26 @@ export function SprintBoard({
       {/* JIRA 뷰: 컬럼=JIRA 상태·카드=JIRA에서 유입 → 좌측 업무 리스트(체크리스트 담기)는 의미 없어 숨김 */}
       <div className="flex-1 min-h-0 flex">
         {/* 좌: 소스 트리 — Feature 섹션 ▸ Task 라벨 ▸ 체크리스트 행(클릭 진입 + 인라인 완료) */}
-        {groupBy !== "jira" && (
+        {groupBy !== 'jira' && (
           <aside
             style={panelCollapsed ? undefined : { width: panelWidth }}
             onDragOver={(e) => {
               // 카드 드래그로는 빼기가 안 된다(빼기 = Task 헤더 버튼). 좌측 패널은
               // 비-드롭 대상 — preventDefault로 dragover는 받되 dropEffect="none"으로
               // not-allowed 커서를 켜고, 호버 오버레이로 "여기선 못 뺀다"를 알린다.
-              if (canEdit && draggingSource === "sprint") {
+              if (canEdit && draggingSource === 'sprint') {
                 e.preventDefault();
-                e.dataTransfer.dropEffect = "none";
+                e.dataTransfer.dropEffect = 'none';
                 setDragOverList(true);
               }
             }}
             onDragLeave={(e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node))
-                setDragOverList(false);
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverList(false);
             }}
             onDrop={onDropList}
             className={`shrink-0 border-r border-sprint-border flex flex-col bg-sprint-rail relative shadow-[inset_-8px_0_12px_-10px_rgba(0,0,0,0.6)] ${
-              panelCollapsed ? "w-[46px]" : ""
-            } ${resizing ? "" : "transition-[width] duration-200"}`}
+              panelCollapsed ? 'w-[46px]' : ''
+            } ${resizing ? '' : 'transition-[width] duration-200'}`}
           >
             {/* 접힘 레일 — 아이콘 하나만. 클릭 시 펼침 */}
             {panelCollapsed && (
@@ -4853,18 +4499,15 @@ export function SprintBoard({
             )}
             {/* 비-드롭 차단 오버레이 — 카드를 좌측 위로 가져온 순간(dragOverList)에만
                 차분히 dim + not-allowed. 빼기는 카드 드래그가 아니라 Task 헤더 버튼임을 안내. */}
-            {!panelCollapsed && draggingSource === "sprint" && dragOverList && (
+            {!panelCollapsed && draggingSource === 'sprint' && dragOverList && (
               <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-bridge-dark/55 backdrop-blur-[1px] px-6">
                 <div className="flex flex-col items-center gap-2 text-center">
                   <span className="w-10 h-10 rounded-full grid place-items-center bg-foreground/[0.06] border border-foreground/15 text-slate-400">
                     <Ban className="w-5 h-5" />
                   </span>
-                  <p className="text-xs font-bold text-slate-300">
-                    여기로는 뺄 수 없어요
-                  </p>
+                  <p className="text-xs font-bold text-slate-300">여기로는 뺄 수 없어요</p>
                   <p className="text-xs font-medium text-slate-500">
-                    빼기는 카드·태스크 행의{" "}
-                    <span className="text-rose-400 font-bold">빼기</span>{" "}
+                    빼기는 카드·태스크 행의 <span className="text-rose-400 font-bold">빼기</span>{' '}
                     버튼으로
                   </p>
                 </div>
@@ -4873,21 +4516,17 @@ export function SprintBoard({
             {!panelCollapsed &&
               (() => {
                 // 담김 컬럼은 "담기"가 성립하는 화면(편집 가능 + 스프린트 스코프 + 백로그 개념)에만 선다.
-                const takeCol =
-                  canEdit && !!scopeSprintId && uiFeatures.showBacklog;
+                const takeCol = canEdit && !!scopeSprintId && uiFeatures.showBacklog;
                 // 피쳐 행·태스크 행·컬럼 헤더가 같은 그리드를 쓴다 — 숫자가 한 축에 정렬되어야
                 // 리스트가 표처럼 스캔된다. [이름 | 체크(분수) | 담김 | 셰브런]
                 // 체크는 분수만 — 미니바까지 두면 이름 칸이 좁아져 피쳐명이 잘린다.
                 const rowGrid = takeCol
-                  ? "grid-cols-[minmax(0,1fr)_48px_56px_20px]"
-                  : "grid-cols-[minmax(0,1fr)_48px_20px]";
+                  ? 'grid-cols-[minmax(0,1fr)_48px_56px_20px]'
+                  : 'grid-cols-[minmax(0,1fr)_48px_20px]';
                 const q = listQuery.trim().toLowerCase();
-                const taskMatches = (t: SprintItemCard) =>
-                  t.title.toLowerCase().includes(q);
+                const taskMatches = (t: SprintItemCard) => t.title.toLowerCase().includes(q);
                 const featMatches = (f: TreeFeature) =>
-                  !q ||
-                  f.featureTitle.toLowerCase().includes(q) ||
-                  f.tasks.some(taskMatches);
+                  !q || f.featureTitle.toLowerCase().includes(q) || f.tasks.some(taskMatches);
                 const rankOf = (f: TreeFeature) =>
                   f.total === 0 ? 2 : f.completed === f.total ? 1 : 0;
                 return (
@@ -4895,7 +4534,7 @@ export function SprintBoard({
                     {/* 헤더 — 이름 · 범위 · 새 피쳐 · ⋯ · 접기. 저빈도 액션은 ⋯ 안으로. */}
                     <div className="px-3 py-2 border-b border-foreground/[0.06] flex items-center gap-1.5">
                       <span className="text-xs font-bold uppercase tracking-widest text-slate-400 truncate flex-1 min-w-0">
-                        {uiFeatures.showBacklog ? "업무 리스트" : "묶음 목록"}
+                        {uiFeatures.showBacklog ? '업무 리스트' : '묶음 목록'}
                       </span>
                       {/* 리스트 범위 — 이번 스프린트(미배치 포함) / 모든 스프린트(지난 스프린트 완료 포함).
                           "진행/전체"는 상태 필터로 오해되어 스프린트 축이 드러나는 이름으로 바꿨다. */}
@@ -4907,8 +4546,8 @@ export function SprintBoard({
                         >
                           {(
                             [
-                              { key: "active", label: "이번 스프린트" },
-                              { key: "all", label: "모든 스프린트" },
+                              { key: 'active', label: '이번 스프린트' },
+                              { key: 'all', label: '모든 스프린트' },
                             ] as const
                           ).map((opt) => (
                             <button
@@ -4917,14 +4556,14 @@ export function SprintBoard({
                               onClick={() => setListScope(opt.key)}
                               aria-pressed={listScope === opt.key}
                               title={
-                                opt.key === "active"
-                                  ? "미배치 + 이번 스프린트에 담긴 태스크만"
-                                  : "다른 스프린트에 담긴 태스크까지 모두"
+                                opt.key === 'active'
+                                  ? '미배치 + 이번 스프린트에 담긴 태스크만'
+                                  : '다른 스프린트에 담긴 태스크까지 모두'
                               }
                               className={`px-2 py-0.5 rounded-md text-xs font-bold whitespace-nowrap transition-colors ${
                                 listScope === opt.key
-                                  ? "bg-bridge-accent/15 text-bridge-accent"
-                                  : "text-slate-500 hover:text-slate-400"
+                                  ? 'bg-bridge-accent/15 text-bridge-accent'
+                                  : 'text-slate-500 hover:text-slate-400'
                               }`}
                             >
                               {opt.label}
@@ -4938,7 +4577,7 @@ export function SprintBoard({
                           type="button"
                           onClick={() => {
                             setAddingFeature(true);
-                            setNewFeatureTitle("");
+                            setNewFeatureTitle('');
                           }}
                           title="새 피쳐 추가"
                           aria-label="새 피쳐 추가"
@@ -4948,10 +4587,7 @@ export function SprintBoard({
                         </button>
                       )}
                       {/* ⋯ 메뉴 — 마일스톤 콘솔·모두 펼치기/접기 */}
-                      <Popover
-                        open={listMenuOpen}
-                        onOpenChange={setListMenuOpen}
-                      >
+                      <Popover open={listMenuOpen} onOpenChange={setListMenuOpen}>
                         <PopoverTrigger asChild>
                           <button
                             type="button"
@@ -4970,9 +4606,7 @@ export function SprintBoard({
                             type="button"
                             onClick={() => {
                               setListMenuOpen(false);
-                              setExpandedFeatures(
-                                new Set(tree.map((f) => f.featureId)),
-                              );
+                              setExpandedFeatures(new Set(tree.map((f) => f.featureId)));
                             }}
                             className="flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-xs font-bold text-left text-foreground hover:bg-foreground/5 transition-colors"
                           >
@@ -5026,7 +4660,7 @@ export function SprintBoard({
                           value={listQuery}
                           onChange={(e) => setListQuery(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === "Escape") setListQuery("");
+                            if (e.key === 'Escape') setListQuery('');
                           }}
                           placeholder="피쳐·태스크 검색"
                           aria-label="업무 리스트 검색"
@@ -5035,7 +4669,7 @@ export function SprintBoard({
                         {listQuery && (
                           <button
                             type="button"
-                            onClick={() => setListQuery("")}
+                            onClick={() => setListQuery('')}
                             aria-label="검색어 지우기"
                             className="shrink-0 text-slate-500 hover:text-foreground transition-colors"
                           >
@@ -5047,16 +4681,13 @@ export function SprintBoard({
                         className={`grid ${rowGrid} items-center gap-2 px-2 pt-2 pb-0.5 text-xs text-slate-500`}
                       >
                         <span>피쳐</span>
-                        <span
-                          className="text-right"
-                          title="완료된 체크리스트 줄 / 전체 줄"
-                        >
+                        <span className="text-right" title="완료된 체크리스트 줄 / 전체 줄">
                           체크
                         </span>
                         {takeCol && (
                           <span
                             className="text-right"
-                            title={`${selectedSprint?.name ?? "이 스프린트"}에 담긴 태스크 / 전체 태스크`}
+                            title={`${selectedSprint?.name ?? '이 스프린트'}에 담긴 태스크 / 전체 태스크`}
                           >
                             담김
                           </span>
@@ -5076,12 +4707,12 @@ export function SprintBoard({
                             disabled={creatingFeature}
                             onChange={(e) => setNewFeatureTitle(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") {
+                              if (e.key === 'Enter') {
                                 e.preventDefault();
                                 submitNewFeature();
-                              } else if (e.key === "Escape") {
+                              } else if (e.key === 'Escape') {
                                 setAddingFeature(false);
-                                setNewFeatureTitle("");
+                                setNewFeatureTitle('');
                               }
                             }}
                             onBlur={() => {
@@ -5096,9 +4727,7 @@ export function SprintBoard({
                             <Loader2 className="w-4 h-4 animate-spin text-bridge-accent shrink-0" />
                           ) : (
                             <>
-                              <span className="text-xs text-slate-500 shrink-0">
-                                Enter
-                              </span>
+                              <span className="text-xs text-slate-500 shrink-0">Enter</span>
                               <button
                                 type="button"
                                 onMouseDown={(e) => e.preventDefault()}
@@ -5113,9 +4742,7 @@ export function SprintBoard({
                         </div>
                       )}
                       {tree.length === 0 && !addingFeature && (
-                        <p className="text-xs text-slate-500 text-center py-8">
-                          항목이 없습니다.
-                        </p>
+                        <p className="text-xs text-slate-500 text-center py-8">항목이 없습니다.</p>
                       )}
                       {tree.length > 0 && q && !tree.some(featMatches) && (
                         <p className="text-xs text-slate-500 text-center py-8">
@@ -5130,24 +4757,18 @@ export function SprintBoard({
                         // rose·amber는 지연·임박 전용, teal은 담김 전용.
                         const renderFeatureRow = (feat: TreeFeature) => {
                           const isEmpty = feat.total === 0;
-                          const isComplete =
-                            feat.total > 0 && feat.completed === feat.total;
+                          const isComplete = feat.total > 0 && feat.completed === feat.total;
                           const dimmed = isEmpty || isComplete;
-                          const featMatch =
-                            !!q && feat.featureTitle.toLowerCase().includes(q);
+                          const featMatch = !!q && feat.featureTitle.toLowerCase().includes(q);
                           // 리스트 범위: "이번 스프린트"면 다른 버킷에 담긴 태스크를 걷어낸다.
                           // 검색 중엔 피쳐 이름이 맞으면 전부, 아니면 맞는 태스크만 남긴다.
                           // 분수·게이지는 범위와 무관하게 전체 기준 — 숨겼다고 진척이 줄면 거짓말이 된다.
                           const scopedTasks =
-                            listScope === "all"
+                            listScope === 'all'
                               ? feat.tasks
-                              : feat.tasks.filter(
-                                  (t) => !t.sprint_id || takenHere(t),
-                                );
+                              : feat.tasks.filter((t) => !t.sprint_id || takenHere(t));
                           const bodyTasks =
-                            q && !featMatch
-                              ? scopedTasks.filter(taskMatches)
-                              : scopedTasks;
+                            q && !featMatch ? scopedTasks.filter(taskMatches) : scopedTasks;
                           const bodyOpen =
                             !isEmpty &&
                             (q && !featMatch
@@ -5155,16 +4776,10 @@ export function SprintBoard({
                               : expandedFeatures.has(feat.featureId));
                           const pct =
                             feat.unitTotal > 0
-                              ? Math.round(
-                                  (feat.unitDone / feat.unitTotal) * 100,
-                                )
+                              ? Math.round((feat.unitDone / feat.unitTotal) * 100)
                               : 0;
-                          const featColor = feat.featureColor ?? "#6366F1";
-                          const dotColor = isEmpty
-                            ? "#94a3b8"
-                            : isComplete
-                              ? "#34d399"
-                              : featColor;
+                          const featColor = feat.featureColor ?? '#6366F1';
+                          const dotColor = isEmpty ? '#94a3b8' : isComplete ? '#34d399' : featColor;
                           let lateCount = 0;
                           let soonCount = 0;
                           let carryCount = 0;
@@ -5173,9 +4788,8 @@ export function SprintBoard({
                             if ((t.carry_over_count ?? 0) > 0) carryCount += 1;
                             if (t.due_date) {
                               const u = getDDay(t.due_date).urgency;
-                              if (u === "overdue" || u === "today")
-                                lateCount += 1;
-                              else if (u === "soon") soonCount += 1;
+                              if (u === 'overdue' || u === 'today') lateCount += 1;
+                              else if (u === 'soon') soonCount += 1;
                             }
                           }
                           // 일괄 담기 후보 — 미배정·미완료 태스크만(다른 스프린트 것을 한 번에
@@ -5184,16 +4798,15 @@ export function SprintBoard({
                             ? feat.tasks
                                 .filter((t) => !t.sprint_id && !t.completed)
                                 .map((t) => t.task_id ?? t.id)
-                                .filter((id) => id !== "__none__")
+                                .filter((id) => id !== '__none__')
                             : [];
                           const takeTone =
                             feat.taken === 0
-                              ? "text-slate-500"
+                              ? 'text-slate-500'
                               : feat.taken < feat.total
-                                ? "text-amber-600 dark:text-amber-400"
-                                : "text-bridge-secondary";
-                          const canAddTask =
-                            canEdit && feat.featureId !== "__none__";
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-bridge-secondary';
+                          const canAddTask = canEdit && feat.featureId !== '__none__';
                           const addKey = `list:${feat.featureId}`;
                           const addBusy = creatingTaskKey === addKey;
                           // 고스트 추가 행 — 평소엔 한 줄 텍스트만, 클릭한 자리 하나만 입력으로 펼친다.
@@ -5206,7 +4819,7 @@ export function SprintBoard({
                                 <Plus className="w-3.5 h-3.5 text-bridge-accent shrink-0" />
                                 <input
                                   autoFocus
-                                  value={newTaskTitles[addKey] ?? ""}
+                                  value={newTaskTitles[addKey] ?? ''}
                                   onChange={(e) =>
                                     setNewTaskTitles((prev) => ({
                                       ...prev,
@@ -5214,26 +4827,20 @@ export function SprintBoard({
                                     }))
                                   }
                                   onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
+                                    if (e.key === 'Enter') {
                                       e.preventDefault();
-                                      void submitNewTask(
-                                        feat.featureId,
-                                        addKey,
-                                        false,
-                                      );
-                                    } else if (e.key === "Escape") {
+                                      void submitNewTask(feat.featureId, addKey, false);
+                                    } else if (e.key === 'Escape') {
                                       setNewTaskTitles((prev) => ({
                                         ...prev,
-                                        [addKey]: "",
+                                        [addKey]: '',
                                       }));
                                       setActiveAddKey(null);
                                     }
                                   }}
                                   onBlur={() => {
-                                    if (!(newTaskTitles[addKey] ?? "").trim())
-                                      setActiveAddKey((k) =>
-                                        k === addKey ? null : k,
-                                      );
+                                    if (!(newTaskTitles[addKey] ?? '').trim())
+                                      setActiveAddKey((k) => (k === addKey ? null : k));
                                   }}
                                   placeholder="태스크 추가 — 백로그로"
                                   aria-label={`${feat.featureTitle}에 태스크 추가 (백로그로 생성)`}
@@ -5258,16 +4865,13 @@ export function SprintBoard({
                             );
                           const renderTaskRow = (it: SprintItemCard) => {
                             const tid = it.task_id ?? it.id;
-                            const hasTask =
-                              tid !== "__none__" && !!onOpenChecklistItem;
+                            const hasTask = tid !== '__none__' && !!onOpenChecklistItem;
                             // 3-상태: 미배정 / 보고 있는 버킷에 담김 / 다른 버킷에 담김.
                             // 마지막 상태도 "여기로 옮겨 담을 수 있는" 태스크라 담기 버튼이 산다.
                             const taken = takenHere(it);
                             const elsewhere = !!it.sprint_id && !taken;
                             const otherSprint = elsewhere
-                              ? (board?.sprints ?? []).find(
-                                  (s) => s.id === it.sprint_id,
-                                )
+                              ? (board?.sprints ?? []).find((s) => s.id === it.sprint_id)
                               : undefined;
                             const col =
                               taken && it.sprint_column_id
@@ -5275,38 +4879,25 @@ export function SprintBoard({
                                 : undefined;
                             const cTotal = it.checklist_total ?? 0;
                             const cDone = it.checklist_done ?? 0;
-                            const dday =
-                              !it.completed && it.due_date
-                                ? getDDay(it.due_date)
-                                : null;
-                            const overdue = dday?.urgency === "overdue";
+                            const dday = !it.completed && it.due_date ? getDDay(it.due_date) : null;
+                            const overdue = dday?.urgency === 'overdue';
                             // 뱃지는 가장 급한 것 하나만: D-day > 이월 > 예외 컬럼 > 다른 스프린트.
-                            const showDday =
-                              !!dday && dday.urgency !== "normal";
+                            const showDday = !!dday && dday.urgency !== 'normal';
                             const showCarry =
-                              !showDday &&
-                              !it.completed &&
-                              (it.carry_over_count ?? 0) > 0;
+                              !showDday && !it.completed && (it.carry_over_count ?? 0) > 0;
                             const showCol =
-                              !showDday &&
-                              !showCarry &&
-                              taken &&
-                              !!col &&
-                              col.kind !== "START";
+                              !showDday && !showCarry && taken && !!col && col.kind !== 'START';
                             return (
                               <div
                                 key={it.id}
-                                role={hasTask ? "button" : undefined}
+                                role={hasTask ? 'button' : undefined}
                                 tabIndex={hasTask ? 0 : undefined}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (hasTask) openItem(it);
                                 }}
                                 onKeyDown={(e) => {
-                                  if (
-                                    hasTask &&
-                                    (e.key === "Enter" || e.key === " ")
-                                  ) {
+                                  if (hasTask && (e.key === 'Enter' || e.key === ' ')) {
                                     e.preventDefault();
                                     e.stopPropagation();
                                     openItem(it);
@@ -5315,10 +4906,10 @@ export function SprintBoard({
                                 title={it.title}
                                 className={`group/task relative grid ${rowGrid} items-center gap-2 h-[30px] pl-[26px] pr-2 rounded-md transition-colors before:absolute before:left-3 before:inset-y-0 before:w-px before:bg-foreground/10 ${
                                   overdue
-                                    ? "bg-rose-500/[0.06] hover:bg-rose-500/10"
-                                    : "hover:bg-foreground/5"
-                                } ${it.completed || elsewhere ? "opacity-60 hover:opacity-100" : ""} ${
-                                  hasTask ? "cursor-pointer" : ""
+                                    ? 'bg-rose-500/[0.06] hover:bg-rose-500/10'
+                                    : 'hover:bg-foreground/5'
+                                } ${it.completed || elsewhere ? 'opacity-60 hover:opacity-100' : ''} ${
+                                  hasTask ? 'cursor-pointer' : ''
                                 }`}
                               >
                                 {/* 이름 + 뱃지(최대 1) */}
@@ -5326,8 +4917,8 @@ export function SprintBoard({
                                   <span
                                     className={`min-w-0 text-xs font-medium truncate ${
                                       it.completed
-                                        ? "line-through text-slate-500"
-                                        : "text-foreground"
+                                        ? 'line-through text-slate-500'
+                                        : 'text-foreground'
                                     }`}
                                   >
                                     {it.title}
@@ -5357,9 +4948,7 @@ export function SprintBoard({
                                       }}
                                       title={`담김 · ${col.name}`}
                                     >
-                                      <span className="truncate">
-                                        {col.name}
-                                      </span>
+                                      <span className="truncate">{col.name}</span>
                                     </span>
                                   )}
                                   {/* 다른 버킷에 담김 — 어느 스프린트가 데려갔는지만 밝힌다. 눌러서 이동. */}
@@ -5368,33 +4957,28 @@ export function SprintBoard({
                                       type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        if (it.sprint_id)
-                                          setSelectedSprintId(it.sprint_id);
+                                        if (it.sprint_id) setSelectedSprintId(it.sprint_id);
                                       }}
                                       className={`shrink-0 inline-flex items-center text-xs font-bold px-1.5 py-0.5 rounded-full tabular-nums transition-colors ${
-                                        otherSprint?.state === "PAST"
-                                          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                                          : "bg-foreground/[0.06] text-slate-400 hover:text-foreground"
+                                        otherSprint?.state === 'PAST'
+                                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                                          : 'bg-foreground/[0.06] text-slate-400 hover:text-foreground'
                                       }`}
-                                      title={`${otherSprint?.name ?? "다른 스프린트"}에 담겨 있어요 · 눌러서 이동`}
+                                      title={`${otherSprint?.name ?? '다른 스프린트'}에 담겨 있어요 · 눌러서 이동`}
                                     >
-                                      S{it.sprint_seq ?? "?"}
+                                      S{it.sprint_seq ?? '?'}
                                     </button>
                                   )}
                                 </div>
                                 {/* 체크 — 분수만. 완료 행은 에메랄드. */}
                                 <div
                                   className="flex items-center justify-end gap-1.5"
-                                  title={
-                                    cTotal > 0
-                                      ? `체크리스트 ${cDone}/${cTotal}`
-                                      : undefined
-                                  }
+                                  title={cTotal > 0 ? `체크리스트 ${cDone}/${cTotal}` : undefined}
                                 >
                                   {cTotal > 0 && (
                                     <span className="text-xs tabular-nums text-slate-500">
                                       <span
-                                        className={`font-bold ${it.completed ? "text-emerald-500" : "text-slate-400"}`}
+                                        className={`font-bold ${it.completed ? 'text-emerald-500' : 'text-slate-400'}`}
                                       >
                                         {it.completed ? cTotal : cDone}
                                       </span>
@@ -5409,12 +4993,9 @@ export function SprintBoard({
                                       <>
                                         <span
                                           className="inline-grid place-items-center w-5 h-5 rounded-full bg-bridge-secondary/15 text-bridge-secondary group-hover/task:hidden group-focus-within/task:hidden"
-                                          title={`${selectedSprint?.name ?? "이 스프린트"}에 담김`}
+                                          title={`${selectedSprint?.name ?? '이 스프린트'}에 담김`}
                                         >
-                                          <Check
-                                            className="w-3 h-3"
-                                            strokeWidth={3}
-                                          />
+                                          <Check className="w-3 h-3" strokeWidth={3} />
                                         </span>
                                         <button
                                           type="button"
@@ -5426,10 +5007,7 @@ export function SprintBoard({
                                           aria-label={`${it.title} 스프린트에서 빼기`}
                                           className="hidden group-hover/task:inline-flex group-focus-within/task:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-bold text-rose-500 border border-rose-500/30 hover:bg-rose-500/15 transition-colors"
                                         >
-                                          <Minus
-                                            className="w-3 h-3"
-                                            strokeWidth={2.5}
-                                          />
+                                          <Minus className="w-3 h-3" strokeWidth={2.5} />
                                           빼기
                                         </button>
                                       </>
@@ -5443,20 +5021,17 @@ export function SprintBoard({
                                         }}
                                         title={
                                           elsewhere
-                                            ? `${selectedSprint?.name ?? "이 스프린트"}로 옮겨 담기`
-                                            : `${selectedSprint?.name ?? "스프린트"}에 담기`
+                                            ? `${selectedSprint?.name ?? '이 스프린트'}로 옮겨 담기`
+                                            : `${selectedSprint?.name ?? '스프린트'}에 담기`
                                         }
-                                        aria-label={`${it.title} ${selectedSprint?.name ?? "스프린트"}에 담기`}
+                                        aria-label={`${it.title} ${selectedSprint?.name ?? '스프린트'}에 담기`}
                                         className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-bold bg-bridge-accent/15 text-bridge-accent hover:bg-bridge-accent hover:text-white transition-colors ${
                                           elsewhere
-                                            ? "invisible group-hover/task:visible group-focus-within/task:visible"
-                                            : ""
+                                            ? 'invisible group-hover/task:visible group-focus-within/task:visible'
+                                            : ''
                                         }`}
                                       >
-                                        <Plus
-                                          className="w-3 h-3"
-                                          strokeWidth={2.5}
-                                        />
+                                        <Plus className="w-3 h-3" strokeWidth={2.5} />
                                         담기
                                       </button>
                                     )}
@@ -5468,14 +5043,9 @@ export function SprintBoard({
                           };
                           const renderBody = () => {
                             // 남은 일이 주인공 — 완료 행은 접어서 "완료 N개 보기"로만 드러난다.
-                            const remainingTasks = bodyTasks.filter(
-                              (t) => !t.completed,
-                            );
-                            const doneTasks = bodyTasks.filter(
-                              (t) => t.completed,
-                            );
-                            const showDone =
-                              !!q || expandedDoneTasks.has(feat.featureId);
+                            const remainingTasks = bodyTasks.filter((t) => !t.completed);
+                            const doneTasks = bodyTasks.filter((t) => t.completed);
+                            const showDone = !!q || expandedDoneTasks.has(feat.featureId);
                             return (
                               <div className="space-y-px pb-1">
                                 {remainingTasks.map(renderTaskRow)}
@@ -5495,11 +5065,10 @@ export function SprintBoard({
                                           className="w-3 h-3 text-emerald-600 dark:text-emerald-400"
                                           strokeWidth={3}
                                         />
-                                        완료 {doneTasks.length}개{" "}
-                                        {showDone ? "접기" : "보기"}
+                                        완료 {doneTasks.length}개 {showDone ? '접기' : '보기'}
                                         <ChevronDown
                                           className={`w-3 h-3 transition-transform motion-reduce:transition-none ${
-                                            showDone ? "rotate-180" : ""
+                                            showDone ? 'rotate-180' : ''
                                           }`}
                                         />
                                       </button>
@@ -5523,12 +5092,12 @@ export function SprintBoard({
                                   if (!isEmpty) toggleFeature(feat.featureId);
                                 }}
                                 className={`group/row grid ${rowGrid} items-center gap-2 h-9 px-2 rounded-lg transition-colors ${
-                                  isEmpty ? "" : "cursor-pointer"
+                                  isEmpty ? '' : 'cursor-pointer'
                                 } ${
                                   bodyOpen
-                                    ? `sticky ${uiFeatures.showBacklog ? "top-7" : "top-0"} z-10 bg-sprint-rail shadow-[0_6px_8px_-8px_rgba(0,0,0,0.6)]`
-                                    : "hover:bg-foreground/5"
-                                } ${dimmed ? "opacity-60 hover:opacity-100" : ""}`}
+                                    ? `sticky ${uiFeatures.showBacklog ? 'top-7' : 'top-0'} z-10 bg-sprint-rail shadow-[0_6px_8px_-8px_rgba(0,0,0,0.6)]`
+                                    : 'hover:bg-foreground/5'
+                                } ${dimmed ? 'opacity-60 hover:opacity-100' : ''}`}
                               >
                                 <div className="flex items-center gap-2 min-w-0">
                                   <span
@@ -5538,9 +5107,7 @@ export function SprintBoard({
                                   />
                                   <span
                                     className={`text-xs md:text-sm font-bold truncate ${
-                                      dimmed
-                                        ? "text-slate-400"
-                                        : "text-foreground"
+                                      dimmed ? 'text-slate-400' : 'text-foreground'
                                     }`}
                                     title={feat.featureTitle}
                                   >
@@ -5582,7 +5149,7 @@ export function SprintBoard({
                                   className="flex items-center justify-end gap-1.5"
                                   title={
                                     isEmpty
-                                      ? "태스크가 아직 없어요"
+                                      ? '태스크가 아직 없어요'
                                       : `체크리스트 ${feat.unitDone}/${feat.unitTotal} 완료 (${pct}%) · 태스크 ${feat.completed}/${feat.total} 완료`
                                   }
                                 >
@@ -5593,7 +5160,7 @@ export function SprintBoard({
                                   ) : (
                                     <span className="text-xs tabular-nums text-slate-400">
                                       <span
-                                        className={`font-bold ${isComplete ? "text-emerald-500" : "text-foreground"}`}
+                                        className={`font-bold ${isComplete ? 'text-emerald-500' : 'text-foreground'}`}
                                       >
                                         {feat.unitDone}
                                       </span>
@@ -5608,11 +5175,9 @@ export function SprintBoard({
                                       <>
                                         <span
                                           className={`text-xs tabular-nums font-bold ${takeTone} ${
-                                            untakenIds.length > 0
-                                              ? "group-hover/row:hidden"
-                                              : ""
+                                            untakenIds.length > 0 ? 'group-hover/row:hidden' : ''
                                           }`}
-                                          title={`${selectedSprint?.name ?? "이 스프린트"}에 담긴 태스크 ${feat.taken}/${feat.total}`}
+                                          title={`${selectedSprint?.name ?? '이 스프린트'}에 담긴 태스크 ${feat.taken}/${feat.total}`}
                                         >
                                           {feat.taken}/{feat.total}
                                         </span>
@@ -5623,14 +5188,11 @@ export function SprintBoard({
                                               e.stopPropagation();
                                               void addTasksToSprint(untakenIds);
                                             }}
-                                            title={`미배치 태스크 ${untakenIds.length}개를 ${selectedSprint?.name ?? "이 스프린트"}에 담기`}
+                                            title={`미배치 태스크 ${untakenIds.length}개를 ${selectedSprint?.name ?? '이 스프린트'}에 담기`}
                                             aria-label={`${feat.featureTitle}의 미배치 태스크 ${untakenIds.length}개 담기`}
                                             className="hidden group-hover/row:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-bold tabular-nums bg-bridge-accent/15 text-bridge-accent hover:bg-bridge-accent hover:text-white transition-colors"
                                           >
-                                            <Plus
-                                              className="w-3 h-3"
-                                              strokeWidth={2.5}
-                                            />
+                                            <Plus className="w-3 h-3" strokeWidth={2.5} />
                                             {untakenIds.length}
                                           </button>
                                         )}
@@ -5648,13 +5210,13 @@ export function SprintBoard({
                                         toggleFeature(feat.featureId);
                                       }}
                                       aria-expanded={bodyOpen}
-                                      aria-label={`${feat.featureTitle} ${bodyOpen ? "접기" : "펼치기"}`}
-                                      title={bodyOpen ? "접기" : "펼치기"}
+                                      aria-label={`${feat.featureTitle} ${bodyOpen ? '접기' : '펼치기'}`}
+                                      title={bodyOpen ? '접기' : '펼치기'}
                                       className="relative w-5 h-5 grid place-items-center rounded-md text-slate-500 hover:bg-foreground/[0.08] hover:text-foreground transition-colors after:absolute after:-inset-2 after:content-['']"
                                     >
                                       <ChevronRight
                                         className={`w-3.5 h-3.5 transition-transform motion-reduce:transition-none ${
-                                          bodyOpen ? "rotate-90" : ""
+                                          bodyOpen ? 'rotate-90' : ''
                                         }`}
                                       />
                                     </button>
@@ -5663,9 +5225,7 @@ export function SprintBoard({
                               </div>
                               {/* 빈 피쳐 — 펼칠 목록이 없어 행 바로 아래에 첫 태스크 입력을 둔다. */}
                               {isEmpty && canAddTask && !q && (
-                                <div className="pb-1">
-                                  {renderAddTaskInput()}
-                                </div>
+                                <div className="pb-1">{renderAddTaskInput()}</div>
                               )}
                               {bodyOpen && renderBody()}
                             </Fragment>
@@ -5681,25 +5241,16 @@ export function SprintBoard({
                         }
                         // 섹션 — 각자 래퍼를 가져 sticky 헤더가 다음 섹션에 자연스럽게 밀려난다.
                         // 완료·빈 피쳐는 섹션 꼬리의 접힘 그룹으로 내려 남은 일이 위에 선다.
-                        const renderSection = (
-                          label: string,
-                          feats: TreeFeature[],
-                        ) => {
+                        const renderSection = (label: string, feats: TreeFeature[]) => {
                           const visible = feats.filter(featMatches);
                           if (visible.length === 0) return null;
                           const collapsed = !q && collapsedSections.has(label);
                           const active = visible.filter((f) => rankOf(f) === 0);
-                          const settled = visible.filter(
-                            (f) => rankOf(f) !== 0,
-                          );
-                          const doneN = settled.filter(
-                            (f) => rankOf(f) === 1,
-                          ).length;
+                          const settled = visible.filter((f) => rankOf(f) !== 0);
+                          const doneN = settled.filter((f) => rankOf(f) === 1).length;
                           const emptyN = settled.length - doneN;
                           const settledOpen =
-                            !!q ||
-                            active.length === 0 ||
-                            expandedSettled.has(label);
+                            !!q || active.length === 0 || expandedSettled.has(label);
                           return (
                             <div key={label} className="pt-1">
                               <button
@@ -5710,12 +5261,10 @@ export function SprintBoard({
                               >
                                 <ChevronDown
                                   className={`w-3.5 h-3.5 text-slate-500 transition-transform motion-reduce:transition-none ${
-                                    collapsed ? "-rotate-90" : ""
+                                    collapsed ? '-rotate-90' : ''
                                   }`}
                                 />
-                                <span className="text-xs font-bold text-slate-400">
-                                  {label}
-                                </span>
+                                <span className="text-xs font-bold text-slate-400">{label}</span>
                                 <span className="text-xs tabular-nums text-slate-500">
                                   {visible.length}
                                 </span>
@@ -5723,27 +5272,25 @@ export function SprintBoard({
                               {!collapsed && (
                                 <div className="space-y-0.5">
                                   {active.map(renderFeatureRow)}
-                                  {settled.length > 0 &&
-                                    active.length > 0 &&
-                                    !q && (
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleSettled(label)}
-                                        aria-expanded={settledOpen}
-                                        className="w-full h-7 px-2 flex items-center gap-1.5 rounded-md text-xs text-slate-500 hover:text-slate-400 hover:bg-foreground/[0.04] transition-colors"
-                                      >
-                                        <ChevronRight
-                                          className={`w-3 h-3 transition-transform motion-reduce:transition-none ${
-                                            settledOpen ? "rotate-90" : ""
-                                          }`}
-                                        />
-                                        <span className="tabular-nums">
-                                          {doneN > 0 && `완료 ${doneN}`}
-                                          {doneN > 0 && emptyN > 0 && " · "}
-                                          {emptyN > 0 && `빈 피쳐 ${emptyN}`}
-                                        </span>
-                                      </button>
-                                    )}
+                                  {settled.length > 0 && active.length > 0 && !q && (
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleSettled(label)}
+                                      aria-expanded={settledOpen}
+                                      className="w-full h-7 px-2 flex items-center gap-1.5 rounded-md text-xs text-slate-500 hover:text-slate-400 hover:bg-foreground/[0.04] transition-colors"
+                                    >
+                                      <ChevronRight
+                                        className={`w-3 h-3 transition-transform motion-reduce:transition-none ${
+                                          settledOpen ? 'rotate-90' : ''
+                                        }`}
+                                      />
+                                      <span className="tabular-nums">
+                                        {doneN > 0 && `완료 ${doneN}`}
+                                        {doneN > 0 && emptyN > 0 && ' · '}
+                                        {emptyN > 0 && `빈 피쳐 ${emptyN}`}
+                                      </span>
+                                    </button>
+                                  )}
                                   {settledOpen && settled.map(renderFeatureRow)}
                                 </div>
                               )}
@@ -5752,8 +5299,8 @@ export function SprintBoard({
                         };
                         return (
                           <>
-                            {renderSection("이번 스프린트", inSprintTree)}
-                            {renderSection("백로그", backlogTree)}
+                            {renderSection('이번 스프린트', inSprintTree)}
+                            {renderSection('백로그', backlogTree)}
                           </>
                         );
                       })()}
@@ -5767,14 +5314,14 @@ export function SprintBoard({
                 onMouseDown={handleResizeStart}
                 title="드래그해서 폭 조절"
                 className={`group absolute top-0 right-0 h-full w-[7px] translate-x-1/2 cursor-col-resize z-30 ${
-                  canEdit && draggingSource ? "pointer-events-none" : ""
+                  canEdit && draggingSource ? 'pointer-events-none' : ''
                 }`}
               >
                 <div
                   className={`absolute inset-y-0 left-[3px] w-px transition-colors ${
                     resizing
-                      ? "bg-bridge-accent w-[2px] left-[2px]"
-                      : "bg-transparent group-hover:bg-bridge-accent"
+                      ? 'bg-bridge-accent w-[2px] left-[2px]'
+                      : 'bg-transparent group-hover:bg-bridge-accent'
                   }`}
                 />
               </div>
@@ -5788,94 +5335,84 @@ export function SprintBoard({
             게이지가 위로 올라가면서 여백을 책임질 자리도 보드 컨테이너로 옮겼다. */}
         <div
           className={`flex-1 min-w-0 flex flex-col overflow-hidden bg-sprint-bg ${
-            groupBy === "jira" && jiraConnected ? "pb-[102px] md:pb-[38px]" : ""
+            groupBy === 'jira' && jiraConnected ? 'pb-[102px] md:pb-[38px]' : ''
           }`}
         >
           {/* JIRA 흐름 게이지 — 이 화면의 유일한 진행률이다("연동 이슈가 마지막 단계까지
               얼마나 갔나"). 보드 바로 위에 두어 컬럼 분포와 눈이 이어지고, 바닥 고정 도크와도
               겹치지 않는다. 스프린트 스코프가 아니라 활성 스프린트 유무는 따지지 않는다. */}
-          {groupBy === "jira" &&
-            (jiraMirrorReady || hasBlockMapping) &&
-            jiraFlow.total > 0 && (
-              <div className="shrink-0 border-b border-foreground/[0.08] bg-bridge-obsidian px-3 md:px-4 py-2.5 flex items-center gap-3 flex-wrap">
-                <span className="text-xs font-bold uppercase tracking-widest text-slate-400 shrink-0">
-                  JIRA
-                </span>
-                <span className="text-sm font-bold text-foreground tabular-nums shrink-0">
-                  {jiraFlow.pct}
-                  <span className="text-xs text-slate-400">%</span>
-                </span>
-                <span className="text-xs text-slate-500 tabular-nums shrink-0">
-                  {jiraFlow.last?.label ?? "완료"} {jiraFlow.last?.count ?? 0} /
-                  전체 {jiraFlow.total}건
-                </span>
-                {/* 컬럼별 세그먼트 — 앞 단계는 액센트 투명도 스텝, 마지막 단계만 단색으로 끝난 몫을 세운다 */}
-                <div className="flex-1 min-w-[120px] h-[6px] rounded-full bg-foreground/10 overflow-hidden flex">
-                  {jiraFlow.cols.map((c, i) => {
-                    if (c.count === 0) return null;
-                    return (
-                      <div
-                        key={c.key}
-                        title={`${c.label} ${c.count}건`}
-                        className="h-full transition-all duration-500"
+          {groupBy === 'jira' && (jiraMirrorReady || hasBlockMapping) && jiraFlow.total > 0 && (
+            <div className="shrink-0 border-b border-foreground/[0.08] bg-bridge-obsidian px-3 md:px-4 py-2.5 flex items-center gap-3 flex-wrap">
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-400 shrink-0">
+                JIRA
+              </span>
+              <span className="text-sm font-bold text-foreground tabular-nums shrink-0">
+                {jiraFlow.pct}
+                <span className="text-xs text-slate-400">%</span>
+              </span>
+              <span className="text-xs text-slate-500 tabular-nums shrink-0">
+                {jiraFlow.last?.label ?? '완료'} {jiraFlow.last?.count ?? 0} / 전체 {jiraFlow.total}
+                건
+              </span>
+              {/* 컬럼별 세그먼트 — 앞 단계는 액센트 투명도 스텝, 마지막 단계만 단색으로 끝난 몫을 세운다 */}
+              <div className="flex-1 min-w-[120px] h-[6px] rounded-full bg-foreground/10 overflow-hidden flex">
+                {jiraFlow.cols.map((c, i) => {
+                  if (c.count === 0) return null;
+                  return (
+                    <div
+                      key={c.key}
+                      title={`${c.label} ${c.count}건`}
+                      className="h-full transition-all duration-500"
+                      style={{
+                        width: `${(c.count / jiraFlow.total) * 100}%`,
+                        background: jiraFlowSegColor(c, i, jiraFlow.last?.key),
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                {jiraFlow.cols.map((c, i) => {
+                  if (c.count === 0) return null;
+                  const isLast = c.key === jiraFlow.last?.key;
+                  return (
+                    <span
+                      key={c.key}
+                      className={`inline-flex items-center gap-1.5 text-xs font-bold px-1.5 py-0.5 rounded-full ${
+                        isLast
+                          ? 'bg-bridge-secondary/15 text-bridge-secondary'
+                          : c.tone === 'review'
+                            ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                            : 'bg-foreground/[0.06] text-slate-400'
+                      }`}
+                    >
+                      <span
+                        className="w-[7px] h-[7px] rounded-sm shrink-0"
                         style={{
-                          width: `${(c.count / jiraFlow.total) * 100}%`,
-                          background: jiraFlowSegColor(
-                            c,
-                            i,
-                            jiraFlow.last?.key,
-                          ),
+                          background: jiraFlowSegColor(c, i, jiraFlow.last?.key),
                         }}
                       />
-                    );
-                  })}
-                </div>
-                <div className="flex items-center gap-1.5 flex-wrap shrink-0">
-                  {jiraFlow.cols.map((c, i) => {
-                    if (c.count === 0) return null;
-                    const isLast = c.key === jiraFlow.last?.key;
-                    return (
-                      <span
-                        key={c.key}
-                        className={`inline-flex items-center gap-1.5 text-xs font-bold px-1.5 py-0.5 rounded-full ${
-                          isLast
-                            ? "bg-bridge-secondary/15 text-bridge-secondary"
-                            : c.tone === "review"
-                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                              : "bg-foreground/[0.06] text-slate-400"
-                        }`}
-                      >
-                        <span
-                          className="w-[7px] h-[7px] rounded-sm shrink-0"
-                          style={{
-                            background: jiraFlowSegColor(
-                              c,
-                              i,
-                              jiraFlow.last?.key,
-                            ),
-                          }}
-                        />
-                        {c.label} {c.count}
-                      </span>
-                    );
-                  })}
-                  {jiraRejected > 0 && (
-                    <span
-                      className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 tabular-nums"
-                      title="JIRA에서 반려된 이슈"
-                    >
-                      반려 {jiraRejected}
+                      {c.label} {c.count}
                     </span>
-                  )}
-                </div>
+                  );
+                })}
+                {jiraRejected > 0 && (
+                  <span
+                    className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 tabular-nums"
+                    title="JIRA에서 반려된 이슈"
+                  >
+                    반려 {jiraRejected}
+                  </span>
+                )}
               </div>
-            )}
+            </div>
+          )}
           {/* 좌: 가로 스크롤 컬럼 스트립 / 우: In Review·Done 고정 도크(스프린트 화면 전용).
               도크는 스크롤 컨테이너 밖 flex 형제라 Feature 컬럼 수와 무관하게 항상 보인다. */}
           <div className="flex-1 min-h-0 flex overflow-hidden">
             {/* JIRA 화면은 스프린트 스코프가 아니다 — 선택한 버킷이 비어 있어도
                 연동 이슈는 그대로 보여야 하므로 버킷 검사보다 앞에 둔다. */}
-            {groupBy === "jira" ? (
+            {groupBy === 'jira' ? (
               jiraMetaLoading && !jiraMeta ? (
                 <div className="flex-1 flex items-center justify-center h-full">
                   <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
@@ -5928,8 +5465,8 @@ export function SprintBoard({
                       // 카드가 남아 있는데 컬럼을 숨기면 그 카드가 화면에서 사라진다.
                       // 옵션을 끄는 건 "새로 리뷰로 보내지 않겠다"이지 "있던 걸 버리겠다"가 아니다.
                       if (
-                        col.kind === "MIDDLE" &&
-                        !uiFeatures.has("review") &&
+                        col.kind === 'MIDDLE' &&
+                        !uiFeatures.has('review') &&
                         col.items.length === 0
                       ) {
                         // 내린 자리에 유령을 세운다 — 첫 번째 MIDDLE에만.
@@ -5940,24 +5477,20 @@ export function SprintBoard({
                       }
                       // In Review·Done(MIDDLE·END)은 우측 도크(dockColumns)가 맡는다 —
                       // 스크롤 스트립에서 그리면 Feature 컬럼에 밀려 화면 밖으로 사라진다.
-                      if (col.kind !== "START") return null;
+                      if (col.kind !== 'START') return null;
                       // START("Sprint") 컬럼은 그룹 기준에 따라 Feature/담당자 단위 컬럼들로 확장.
                       // 담기 단위가 태스크라 컬럼은 "담긴 태스크가 있는 피쳐"에만 선다 —
                       // 빈 피쳐는 좌측 업무 리스트에서 첫 태스크를 만들어 담아야 등장한다.
-                      const grouped =
-                        groupBy === "member" ? memberColumns : featureColumns;
+                      const grouped = groupBy === 'member' ? memberColumns : featureColumns;
                       if (grouped.length > 0) {
                         return (
                           <Fragment key={col.id}>
-                            {groupBy === "member"
-                              ? memberColumns.map((mc) =>
-                                  renderMemberColumn(mc),
-                                )
+                            {groupBy === 'member'
+                              ? memberColumns.map((mc) => renderMemberColumn(mc))
                               : featureColumns
                                   .filter(
                                     (fc) =>
-                                      featureFilter.size === 0 ||
-                                      featureFilter.has(fc.featureId),
+                                      featureFilter.size === 0 || featureFilter.has(fc.featureId),
                                   )
                                   .map((fc) => renderFeatureColumn(fc))}
                           </Fragment>
@@ -5968,19 +5501,17 @@ export function SprintBoard({
                         <div
                           key={col.id}
                           onDragOver={(e) => {
-                            if (canEdit && draggingSource === "sprint") {
+                            if (canEdit && draggingSource === 'sprint') {
                               e.preventDefault();
                               setDragOverCol(col.id);
                             }
                           }}
-                          onDragLeave={() =>
-                            setDragOverCol((c) => (c === col.id ? null : c))
-                          }
+                          onDragLeave={() => setDragOverCol((c) => (c === col.id ? null : c))}
                           onDrop={(e) => onDropColumn(e, col)}
                           className={`w-[240px] shrink-0 self-start max-h-full flex flex-col rounded-2xl border bg-sprint-col overflow-hidden transition-colors ${
                             dragOverCol === col.id
-                              ? "border-bridge-accent/60"
-                              : "border-sprint-border"
+                              ? 'border-bridge-accent/60'
+                              : 'border-sprint-border'
                           }`}
                         >
                           {renderStageColumnInner(col)}
@@ -5992,7 +5523,7 @@ export function SprintBoard({
                 {/* 우측 도크 — In Review·Done 탭 하나(renderDock).
                     구성원 뷰에선 숨긴다 — "지금 누가 뭘 하나"에 집중하는 화면이라서다.
                     카드를 리뷰/완료로 보내는 건 카드 액션 버튼(showReview/showDone)이 대신한다. */}
-                {groupBy !== "member" && dockColumns.length > 0 && (
+                {groupBy !== 'member' && dockColumns.length > 0 && (
                   <div className="relative shrink-0 flex py-3 md:py-4 pl-3 md:pl-4 pr-3 md:pr-4 min-h-0 bg-sprint-dock-ground border-l border-sprint-dock-edge">
                     {/* 리사이즈 핸들 — 도크 영역 왼쪽 경계. 왼쪽으로 끌면 넓어진다(200~420px), 더블클릭 초기화. */}
                     <div
@@ -6006,14 +5537,14 @@ export function SprintBoard({
                       aria-valuenow={dockWidth}
                       title="드래그해서 폭 조절 · 더블클릭 초기화"
                       className={`group absolute top-0 left-0 h-full w-[9px] -translate-x-1/2 cursor-col-resize z-30 ${
-                        canEdit && draggingSource ? "pointer-events-none" : ""
+                        canEdit && draggingSource ? 'pointer-events-none' : ''
                       }`}
                     >
                       <div
                         className={`absolute inset-y-0 left-[4px] w-px transition-colors ${
                           dockResizing
-                            ? "bg-bridge-accent w-[2px] left-[3.5px]"
-                            : "bg-transparent group-hover:bg-bridge-accent"
+                            ? 'bg-bridge-accent w-[2px] left-[3.5px]'
+                            : 'bg-transparent group-hover:bg-bridge-accent'
                         }`}
                       />
                     </div>
@@ -6024,7 +5555,7 @@ export function SprintBoard({
             )}
           </div>
           {/* 미분류 레일 — 구성원 뷰 전용. 미리보기(읽기 전용 스냅샷)에선 숨긴다. */}
-          {!!scopeSprintId && groupBy === "member" && renderUncategorizedRail()}
+          {!!scopeSprintId && groupBy === 'member' && renderUncategorizedRail()}
         </div>
       </div>
 
@@ -6042,22 +5573,16 @@ export function SprintBoard({
             <Layers className="w-4 h-4" />
           </span>
           <div className="min-w-0">
-            <h4
-              id="uncat-feature-title"
-              className="text-sm font-bold text-foreground"
-            >
+            <h4 id="uncat-feature-title" className="text-sm font-bold text-foreground">
               어떤 피쳐에 속하나요?
             </h4>
-            <p className="text-xs text-slate-500 truncate">
-              {featurePickerTarget?.title}
-            </p>
+            <p className="text-xs text-slate-500 truncate">{featurePickerTarget?.title}</p>
           </div>
         </div>
         <div className="px-5 pb-5 pt-4">
           {featureChoices.length === 0 ? (
             <p className="text-sm text-slate-400">
-              선택할 피쳐가 없어요. 좌측 업무 리스트에서 피쳐를 먼저 만들어
-              주세요.
+              선택할 피쳐가 없어요. 좌측 업무 리스트에서 피쳐를 먼저 만들어 주세요.
             </p>
           ) : (
             <div className="max-h-[320px] overflow-y-auto custom-scrollbar space-y-1">
@@ -6065,19 +5590,14 @@ export function SprintBoard({
                 <button
                   key={f.id}
                   type="button"
-                  onClick={() =>
-                    featurePickerTarget &&
-                    setCardFeature(featurePickerTarget, f.id)
-                  }
+                  onClick={() => featurePickerTarget && setCardFeature(featurePickerTarget, f.id)}
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left border border-transparent hover:border-foreground/10 hover:bg-foreground/5 transition-colors"
                 >
                   <span
                     className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ background: f.color ?? "#6366F1" }}
+                    style={{ background: f.color ?? '#6366F1' }}
                   />
-                  <span className="text-sm text-foreground truncate">
-                    {f.title}
-                  </span>
+                  <span className="text-sm text-foreground truncate">{f.title}</span>
                 </button>
               ))}
             </div>
@@ -6105,13 +5625,9 @@ export function SprintBoard({
         {/* Header */}
         <div className="flex items-center gap-2 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
           <Check className="w-4 h-4 text-bridge-secondary shrink-0" />
-          <h3 className="text-sm font-bold text-foreground truncate">
-            진행 현황
-          </h3>
+          <h3 className="text-sm font-bold text-foreground truncate">진행 현황</h3>
           {selectedSprint && (
-            <span className="text-xs text-slate-500 truncate min-w-0">
-              · {selectedSprint.name}
-            </span>
+            <span className="text-xs text-slate-500 truncate min-w-0">· {selectedSprint.name}</span>
           )}
           <button
             type="button"
@@ -6188,10 +5704,10 @@ export function SprintBoard({
           <div className="flex items-center gap-1.5 mb-3 flex-wrap">
             {(
               [
-                ["todayDone", "오늘 완료"],
-                ["inProgress", "진행 중"],
-                ["earlierDone", "기존 완료"],
-                ["notStarted", "미완료"],
+                ['todayDone', '오늘 완료'],
+                ['inProgress', '진행 중'],
+                ['earlierDone', '기존 완료'],
+                ['notStarted', '미완료'],
               ] as const
             ).map(([tab, label]) => (
               <button
@@ -6200,8 +5716,8 @@ export function SprintBoard({
                 onClick={() => setProgressTab(tab)}
                 className={`text-xs px-3 py-1 rounded-full transition-colors tabular-nums ${
                   progressTab === tab
-                    ? "bg-bridge-secondary/15 text-bridge-secondary font-bold"
-                    : "text-slate-500 hover:text-slate-300 bg-foreground/[0.03]"
+                    ? 'bg-bridge-secondary/15 text-bridge-secondary font-bold'
+                    : 'text-slate-500 hover:text-slate-300 bg-foreground/[0.03]'
                 }`}
               >
                 {label} {sprintProgress.counts[tab]}
@@ -6210,22 +5726,19 @@ export function SprintBoard({
           </div>
 
           {sprintProgress.buckets[progressTab].length === 0 ? (
-            <div className="text-sm text-slate-500 py-12 text-center">
-              항목이 없어요
-            </div>
+            <div className="text-sm text-slate-500 py-12 text-center">항목이 없어요</div>
           ) : (
             <div className="space-y-1 max-h-[60dvh] overflow-y-auto custom-scrollbar">
               {sprintProgress.buckets[progressTab].slice(0, 100).map((it) => {
-                const isDone =
-                  progressTab === "todayDone" || progressTab === "earlierDone";
-                const isProg = progressTab === "inProgress";
+                const isDone = progressTab === 'todayDone' || progressTab === 'earlierDone';
+                const isProg = progressTab === 'inProgress';
                 const rightLabel = isDone
                   ? formatRelativeTime(it.completed_at ?? it.done_date)
                   : it.due_date
                     ? `~ ${it.due_date}`
                     : it.start_date
                       ? `${it.start_date} ~`
-                      : "";
+                      : '';
                 return (
                   <button
                     key={it.id}
@@ -6239,10 +5752,10 @@ export function SprintBoard({
                     <span
                       className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
                         isDone
-                          ? "bg-emerald-500/15"
+                          ? 'bg-emerald-500/15'
                           : isProg
-                            ? "bg-amber-500/15"
-                            : "bg-slate-500/15"
+                            ? 'bg-amber-500/15'
+                            : 'bg-slate-500/15'
                       }`}
                     >
                       {isDone ? (
@@ -6259,15 +5772,11 @@ export function SprintBoard({
                       </div>
                       <div className="flex items-center gap-1.5 mt-1 min-w-0">
                         {it.task_title && (
-                          <span className="text-xs text-slate-500 truncate">
-                            {it.task_title}
-                          </span>
+                          <span className="text-xs text-slate-500 truncate">{it.task_title}</span>
                         )}
                         {it.assignee && (
                           <>
-                            <span className="text-xs text-slate-600 shrink-0">
-                              ·
-                            </span>
+                            <span className="text-xs text-slate-600 shrink-0">·</span>
                             <span className="flex items-center gap-1 shrink-0">
                               <span
                                 className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold leading-none text-white flex-shrink-0 border border-foreground/[0.08] whitespace-nowrap overflow-hidden"
@@ -6278,17 +5787,13 @@ export function SprintBoard({
                               >
                                 {getInitials(it.assignee.name)}
                               </span>
-                              <span className="text-xs text-slate-400">
-                                {it.assignee.name}
-                              </span>
+                              <span className="text-xs text-slate-400">{it.assignee.name}</span>
                             </span>
                           </>
                         )}
                       </div>
                     </div>
-                    <span className="text-xs text-slate-500 shrink-0 mt-0.5">
-                      {rightLabel}
-                    </span>
+                    <span className="text-xs text-slate-500 shrink-0 mt-0.5">{rightLabel}</span>
                   </button>
                 );
               })}
@@ -6331,11 +5836,7 @@ export function SprintBoard({
         boardId={boardId}
         canEdit={canEdit}
         member={retainedGantt?.member ?? null}
-        memberColor={
-          retainedGantt?.member
-            ? memberColorMap?.[retainedGantt.member.id]
-            : null
-        }
+        memberColor={retainedGantt?.member ? memberColorMap?.[retainedGantt.member.id] : null}
         items={retainedGantt?.items ?? []}
         sprintName={selectedSprint?.name ?? null}
         sprintStart={selectedSprint?.start_date ?? null}
@@ -6390,10 +5891,7 @@ export function SprintBoard({
             <Diamond className="w-4 h-4" />
           </span>
           <div className="min-w-0">
-            <h4
-              id="sprint-jira-title"
-              className="text-sm font-bold text-foreground"
-            >
+            <h4 id="sprint-jira-title" className="text-sm font-bold text-foreground">
               JIRA 연동
             </h4>
             <p className="text-xs text-slate-500 truncate">
@@ -6402,10 +5900,7 @@ export function SprintBoard({
           </div>
         </div>
         <div className="px-4 pb-5 pt-4">
-          <JiraSettingsPanel
-            boardId={boardId}
-            onJiraStatusChange={handleJiraStatusChange}
-          />
+          <JiraSettingsPanel boardId={boardId} onJiraStatusChange={handleJiraStatusChange} />
         </div>
       </MotionModal>
 
@@ -6414,7 +5909,7 @@ export function SprintBoard({
           스프린트 화면 바닥을 상시 차지할 이유가 없다(여백 보정도 JIRA 때만 걸려 있다). */}
       <JiraAutofixDock
         boardId={boardId}
-        enabled={jiraConnected && groupBy === "jira"}
+        enabled={jiraConnected && groupBy === 'jira'}
         onOpenTask={openTask}
       />
     </div>
@@ -6453,8 +5948,7 @@ function PushUnfinishedDialog({
   useEffect(() => {
     if (open) setExcluded(new Set());
   }, [open]);
-  const keyOf = (taskId: string, lineId?: string) =>
-    lineId ? `l:${lineId}` : `t:${taskId}`;
+  const keyOf = (taskId: string, lineId?: string) => (lineId ? `l:${lineId}` : `t:${taskId}`);
   const toggle = (key: string) =>
     setExcluded((prev) => {
       const next = new Set(prev);
@@ -6462,14 +5956,9 @@ function PushUnfinishedDialog({
       else next.add(key);
       return next;
     });
-  const totalCount = groups.reduce(
-    (n, g) => n + (g.taskOnly ? 1 : g.lines.length),
-    0,
-  );
+  const totalCount = groups.reduce((n, g) => n + (g.taskOnly ? 1 : g.lines.length), 0);
   const selectedItemIds = groups.flatMap((g) =>
-    g.lines
-      .filter((l) => !excluded.has(keyOf(g.taskId, l.id)))
-      .map((l) => l.id),
+    g.lines.filter((l) => !excluded.has(keyOf(g.taskId, l.id))).map((l) => l.id),
   );
   const selectedTaskIds = groups
     .filter((g) => g.taskOnly && !excluded.has(keyOf(g.taskId)))
@@ -6477,9 +5966,7 @@ function PushUnfinishedDialog({
   const selectedCount = selectedItemIds.length + selectedTaskIds.length;
   const box = (on: boolean) =>
     `w-[14px] h-[14px] rounded shrink-0 border grid place-items-center transition-colors ${
-      on
-        ? "bg-bridge-accent border-bridge-accent"
-        : "border-slate-600 hover:border-bridge-accent"
+      on ? 'bg-bridge-accent border-bridge-accent' : 'border-slate-600 hover:border-bridge-accent'
     }`;
   return (
     <MotionModal
@@ -6494,15 +5981,11 @@ function PushUnfinishedDialog({
           <SendHorizontal className="w-4 h-4" />
         </span>
         <div className="min-w-0">
-          <h4
-            id="push-unfinished-title"
-            className="text-sm font-bold text-foreground"
-          >
+          <h4 id="push-unfinished-title" className="text-sm font-bold text-foreground">
             미완료 {totalCount}개를 {nextName}(으)로 보낼까요?
           </h4>
           <p className="text-xs text-slate-500">
-            끝낸 항목은 {sprintName}에 남아요. 체크를 풀면 그 항목도{" "}
-            {sprintName}에 그대로 둡니다.
+            끝낸 항목은 {sprintName}에 남아요. 체크를 풀면 그 항목도 {sprintName}에 그대로 둡니다.
           </p>
         </div>
       </div>
@@ -6511,20 +5994,15 @@ function PushUnfinishedDialog({
           <p className="text-sm text-slate-400">보낼 미완료 항목이 없어요.</p>
         )}
         {groups.map((g) => {
-          const pickedHere = g.lines.filter(
-            (l) => !excluded.has(keyOf(g.taskId, l.id)),
-          ).length;
-          const wholeTask =
-            g.taskOnly || (pickedHere > 0 && pickedHere === g.unfinishedTotal);
+          const pickedHere = g.lines.filter((l) => !excluded.has(keyOf(g.taskId, l.id))).length;
+          const wholeTask = g.taskOnly || (pickedHere > 0 && pickedHere === g.unfinishedTotal);
           return (
-            <div key={`${g.taskId}:${g.partial ? "p" : "h"}`}>
+            <div key={`${g.taskId}:${g.partial ? 'p' : 'h'}`}>
               <div className="flex items-center gap-2 mb-1 min-w-0">
-                <span className="text-xs font-bold text-foreground truncate">
-                  {g.title}
-                </span>
+                <span className="text-xs font-bold text-foreground truncate">{g.title}</span>
                 <span className="shrink-0 text-xs text-slate-500 tabular-nums">
                   {g.taskOnly
-                    ? "체크리스트 없음 · 태스크 이동"
+                    ? '체크리스트 없음 · 태스크 이동'
                     : g.partial
                       ? `${pickedHere}/${g.lines.length}줄 · 보낸 항목`
                       : wholeTask
@@ -6540,15 +6018,10 @@ function PushUnfinishedDialog({
                 >
                   <span className={box(!excluded.has(keyOf(g.taskId)))}>
                     {!excluded.has(keyOf(g.taskId)) && (
-                      <Check
-                        className="w-2.5 h-2.5 text-white"
-                        strokeWidth={4}
-                      />
+                      <Check className="w-2.5 h-2.5 text-white" strokeWidth={4} />
                     )}
                   </span>
-                  <span className="truncate">
-                    태스크 자체를 {nextName}(으)로
-                  </span>
+                  <span className="truncate">태스크 자체를 {nextName}(으)로</span>
                 </button>
               ) : (
                 <ul className="space-y-0.5">
@@ -6562,19 +6035,12 @@ function PushUnfinishedDialog({
                           className="flex items-center gap-2 w-full px-1.5 py-1 rounded-md text-xs text-left text-slate-300 hover:bg-foreground/5 transition-colors"
                         >
                           <span className={box(on)}>
-                            {on && (
-                              <Check
-                                className="w-2.5 h-2.5 text-white"
-                                strokeWidth={4}
-                              />
-                            )}
+                            {on && <Check className="w-2.5 h-2.5 text-white" strokeWidth={4} />}
                           </span>
-                          <span className="flex-1 min-w-0 truncate">
-                            {l.title}
-                          </span>
+                          <span className="flex-1 min-w-0 truncate">{l.title}</span>
                           {l.due_date && (
                             <span className="shrink-0 text-slate-500 tabular-nums">
-                              {formatDate(l.due_date, "M/d")}
+                              {formatDate(l.due_date, 'M/d')}
                             </span>
                           )}
                         </button>

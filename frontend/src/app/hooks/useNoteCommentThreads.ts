@@ -1,20 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-  noteCommentService,
-  orgNoteCommentService,
-  myNoteCommentService,
-} from "../utils/services";
-import { wsManager } from "../utils/websocket";
-import { CLIENT_ID } from "../utils/clientId";
-import type { BoardWebSocketEvent } from "../types";
-import type { NoteCommentDetail } from "../utils/api";
+import { useCallback, useEffect, useState } from 'react';
+import { noteCommentService, orgNoteCommentService, myNoteCommentService } from '../utils/services';
+import { wsManager } from '../utils/websocket';
+import { CLIENT_ID } from '../utils/clientId';
+import type { BoardWebSocketEvent } from '../types';
+import type { NoteCommentDetail } from '../utils/api';
 
 const NOTE_COMMENT_EVENTS = new Set([
-  "NOTE_COMMENT_CREATED",
-  "NOTE_COMMENT_UPDATED",
-  "NOTE_COMMENT_DELETED",
-  "NOTE_COMMENT_RESOLVED",
-  "NOTE_COMMENT_REACTION_TOGGLED",
+  'NOTE_COMMENT_CREATED',
+  'NOTE_COMMENT_UPDATED',
+  'NOTE_COMMENT_DELETED',
+  'NOTE_COMMENT_RESOLVED',
+  'NOTE_COMMENT_REACTION_TOGGLED',
 ]);
 
 export interface NoteCommentScope {
@@ -25,12 +21,8 @@ export interface NoteCommentScope {
 
 /** Pick the comment service + scope id for a note, mirroring NoteCommentSidebar. */
 export function resolveNoteCommentScope({ boardId, orgId, personal }: NoteCommentScope) {
-  const svc = personal
-    ? myNoteCommentService
-    : orgId
-      ? orgNoteCommentService
-      : noteCommentService;
-  const scopeId = personal ? "me" : boardId || orgId || "";
+  const svc = personal ? myNoteCommentService : orgId ? orgNoteCommentService : noteCommentService;
+  const scopeId = personal ? 'me' : boardId || orgId || '';
   return { svc, scopeId };
 }
 
@@ -56,7 +48,7 @@ export function useNoteCommentThreads(scope: NoteCommentScope, noteId: string) {
       const data = await svc.getComments(scopeId, noteId);
       setThreads(data.threads ?? []);
     } catch (err) {
-      console.error("Failed to load note comment threads:", err);
+      console.error('Failed to load note comment threads:', err);
     }
   }, [svc, scopeId, noteId]);
 

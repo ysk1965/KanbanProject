@@ -1,4 +1,4 @@
-import { NotesView } from "../notes/NotesView";
+import { NotesView } from '../notes/NotesView';
 
 interface LibraryViewProps {
   boardId?: string;
@@ -14,12 +14,7 @@ interface LibraryViewProps {
  * 에디터(노트) 또는 미리보기(파일)로 바뀐다. 노트 엔진은 NotesView를 그대로
  * 쓰고, 스토리지 레이어만 withFiles로 켠다.
  */
-export function LibraryView({
-  boardId,
-  orgId,
-  personal,
-  currentUserRole,
-}: LibraryViewProps) {
+export function LibraryView({ boardId, orgId, personal, currentUserRole }: LibraryViewProps) {
   return (
     <NotesView
       boardId={boardId}

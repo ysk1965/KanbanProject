@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Plus,
   Users,
@@ -18,10 +18,10 @@ import {
   Trash2,
   UserCheck,
   UserPlus,
-} from "lucide-react";
-import { format, parseISO } from "date-fns";
-import { useTranslation } from "react-i18next";
-import { useAuth } from "../contexts/AuthContext";
+} from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
 import {
   Board,
   Milestone,
@@ -29,45 +29,42 @@ import {
   Subscription,
   AiCredits,
   BoardContractor,
-} from "../types";
-import { BoardMember as ShareBoardMember, MemberRole } from "./ShareBoardModal";
-import { UpgradeTrigger } from "./UpgradeModal";
-import { TrialBanner } from "./TrialBanner";
-import { NotificationDropdown } from "./NotificationDropdown";
-import { UserMenu } from "./UserMenu";
-import { AnnouncementDisplay } from "./AnnouncementDisplay";
-import { boardService } from "../utils/services";
-import {
-  getContractorPeriodStatus,
-  getContractorDaysRemaining,
-} from "./ContractorManageModal";
+} from '../types';
+import { BoardMember as ShareBoardMember, MemberRole } from './ShareBoardModal';
+import { UpgradeTrigger } from './UpgradeModal';
+import { TrialBanner } from './TrialBanner';
+import { NotificationDropdown } from './NotificationDropdown';
+import { UserMenu } from './UserMenu';
+import { AnnouncementDisplay } from './AnnouncementDisplay';
+import { boardService } from '../utils/services';
+import { getContractorPeriodStatus, getContractorDaysRemaining } from './ContractorManageModal';
 
 type ViewMode =
-  | "dashboard"
-  | "kanban"
-  | "gantt"
-  | "schedule"
-  | "calendar"
-  | "milestone"
-  | "meeting"
-  | "library"
-  | "report"
-  | "statistics"
-  | "ai_report"
-  | "list"
-  | "mindmap"
-  | "minikanban";
+  | 'dashboard'
+  | 'kanban'
+  | 'gantt'
+  | 'schedule'
+  | 'calendar'
+  | 'milestone'
+  | 'meeting'
+  | 'library'
+  | 'report'
+  | 'statistics'
+  | 'ai_report'
+  | 'list'
+  | 'mindmap'
+  | 'minikanban';
 
 // 보드 서브뷰 그룹 (보드 탭에 속하는 ViewMode 집합)
 const BOARD_SUB_MODES: ViewMode[] = [
-  "dashboard",
-  "kanban",
-  "gantt",
-  "calendar",
-  "list",
-  "mindmap",
-  "minikanban",
-  "milestone",
+  'dashboard',
+  'kanban',
+  'gantt',
+  'calendar',
+  'list',
+  'mindmap',
+  'minikanban',
+  'milestone',
 ];
 
 interface KanbanBoardHeaderProps {
@@ -132,15 +129,9 @@ interface KanbanBoardHeaderProps {
   onOpenContractorManager?: () => void;
   // Sub mode helpers
   getBoardSubMode: () =>
-    | "kanban"
-    | "gantt"
-    | "calendar"
-    | "list"
-    | "milestone"
-    | "mindmap"
-    | "minikanban";
-  getScheduleSubMode: () => "schedule";
-  getAISubMode: () => "statistics" | "ai_report";
+    'kanban' | 'gantt' | 'calendar' | 'list' | 'milestone' | 'mindmap' | 'minikanban';
+  getScheduleSubMode: () => 'schedule';
+  getAISubMode: () => 'statistics' | 'ai_report';
 }
 
 export function KanbanBoardHeader({
@@ -197,28 +188,28 @@ export function KanbanBoardHeader({
   const { t } = useTranslation();
   const { isRestricted } = useAuth();
   const [isEditingBoardName, setIsEditingBoardName] = useState(false);
-  const [editingBoardName, setEditingBoardName] = useState("");
+  const [editingBoardName, setEditingBoardName] = useState('');
   const boardNameInputRef = useRef<HTMLInputElement>(null);
 
   // TAB 키로 최상위 탭 순환 이동
   const getAvailableTabs = useCallback(() => {
     const tabs: { key: string; action: () => void }[] = [
-      { key: "board", action: () => onViewModeChange(getBoardSubMode()) },
-      { key: "schedule", action: () => onViewModeChange("schedule") },
-      { key: "meeting", action: () => onViewModeChange("meeting") },
+      { key: 'board', action: () => onViewModeChange(getBoardSubMode()) },
+      { key: 'schedule', action: () => onViewModeChange('schedule') },
+      { key: 'meeting', action: () => onViewModeChange('meeting') },
     ];
-    tabs.push({ key: "library", action: () => onViewModeChange("library") });
-    tabs.push({ key: "report", action: () => onViewModeChange("report") });
+    tabs.push({ key: 'library', action: () => onViewModeChange('library') });
+    tabs.push({ key: 'report', action: () => onViewModeChange('report') });
     if (!isRestricted && (isAdminOrOwner || (!isViewer && !isTester))) {
       tabs.push({
-        key: "ai",
+        key: 'ai',
         action: () => {
           if (!canAccessStatistics) return;
           const subMode = getAISubMode();
-          if (subMode === "statistics" && !isAdminOrOwner) {
-            onViewModeChange("ai_report");
-          } else if (subMode === "ai_report" && (isViewer || isTester)) {
-            onViewModeChange("statistics");
+          if (subMode === 'statistics' && !isAdminOrOwner) {
+            onViewModeChange('ai_report');
+          } else if (subMode === 'ai_report' && (isViewer || isTester)) {
+            onViewModeChange('statistics');
           } else {
             onViewModeChange(subMode);
           }
@@ -238,20 +229,20 @@ export function KanbanBoardHeader({
 
   const getCurrentTabIndex = useCallback(() => {
     if (BOARD_SUB_MODES.includes(viewMode)) return 0;
-    if (viewMode === "schedule") return 1;
-    if (viewMode === "meeting") return 2;
-    if (viewMode === "library") return 3;
-    if (viewMode === "report") return 4;
-    if (viewMode === "statistics" || viewMode === "ai_report") {
+    if (viewMode === 'schedule') return 1;
+    if (viewMode === 'meeting') return 2;
+    if (viewMode === 'library') return 3;
+    if (viewMode === 'report') return 4;
+    if (viewMode === 'statistics' || viewMode === 'ai_report') {
       const tabs = getAvailableTabs();
-      return tabs.findIndex((t) => t.key === "ai");
+      return tabs.findIndex((t) => t.key === 'ai');
     }
     return 0;
   }, [viewMode, getAvailableTabs]);
 
   useEffect(() => {
     const handleTabKey = (e: KeyboardEvent) => {
-      if (e.key !== "Tab") return;
+      if (e.key !== 'Tab') return;
 
       // 입력 필드에 포커스 중이면 기본 동작 유지
       const active = document.activeElement;
@@ -267,7 +258,7 @@ export function KanbanBoardHeader({
       // 모달/드롭다운이 열려있으면 무시
       if (
         document.querySelector("[role='dialog']") ||
-        document.querySelector("[data-radix-popper-content-wrapper]")
+        document.querySelector('[data-radix-popper-content-wrapper]')
       ) {
         return;
       }
@@ -288,8 +279,8 @@ export function KanbanBoardHeader({
       tabs[nextIdx].action();
     };
 
-    window.addEventListener("keydown", handleTabKey);
-    return () => window.removeEventListener("keydown", handleTabKey);
+    window.addEventListener('keydown', handleTabKey);
+    return () => window.removeEventListener('keydown', handleTabKey);
   }, [getAvailableTabs, getCurrentTabIndex]);
 
   const handleStartEditBoardName = () => {
@@ -313,12 +304,12 @@ export function KanbanBoardHeader({
     <>
       <AnnouncementDisplay />
       <TrialBanner
-        status={subscription?.status || "ACTIVE"}
+        status={subscription?.status || 'ACTIVE'}
         tier={tierInfo?.tier}
         trialEndsAt={tierInfo?.trial_ends_at || subscription?.trial_ends_at}
         onOpenSubscription={onOpenSubscription}
         onOpenPremiumBenefits={onOpenPremiumBenefits}
-        onTrialEnding={() => onOpenUpgradeModal("trial_ending")}
+        onTrialEnding={() => onOpenUpgradeModal('trial_ending')}
         onUpdatePayment={onUpdatePayment}
         daysPastDue={subscription?.days_past_due}
         daysUntilSuspension={subscription?.days_until_suspension}
@@ -348,19 +339,19 @@ export function KanbanBoardHeader({
                 onChange={(e) => setEditingBoardName(e.target.value)}
                 onBlur={handleSaveBoardName}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSaveBoardName();
-                  if (e.key === "Escape") setIsEditingBoardName(false);
+                  if (e.key === 'Enter') handleSaveBoardName();
+                  if (e.key === 'Escape') setIsEditingBoardName(false);
                 }}
                 className="text-sm md:text-lg font-bold tracking-tight text-foreground bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-0.5 outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent max-w-[160px] sm:max-w-[200px] md:max-w-[300px]"
                 autoFocus
               />
             ) : (
               <h1
-                className={`text-sm md:text-lg font-bold tracking-tight text-foreground truncate max-w-[100px] sm:max-w-[160px] md:max-w-none ${canEdit ? "cursor-pointer hover:text-bridge-accent transition-colors" : ""}`}
+                className={`text-sm md:text-lg font-bold tracking-tight text-foreground truncate max-w-[100px] sm:max-w-[160px] md:max-w-none ${canEdit ? 'cursor-pointer hover:text-bridge-accent transition-colors' : ''}`}
                 onClick={canEdit ? handleStartEditBoardName : undefined}
-                title={canEdit ? t("common.edit") : undefined}
+                title={canEdit ? t('common.edit') : undefined}
               >
-                {board?.name || t("kanban.defaultBoardName")}
+                {board?.name || t('kanban.defaultBoardName')}
               </h1>
             )}
 
@@ -384,108 +375,91 @@ export function KanbanBoardHeader({
               }}
               className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                 BOARD_SUB_MODES.includes(viewMode)
-                  ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
-                  : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+                  ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                  : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
               }`}
             >
               <LayoutGrid size={14} />
-              <span className="hidden md:inline">
-                {t("kanban.viewBoard", "보드")}
-              </span>
+              <span className="hidden md:inline">{t('kanban.viewBoard', '보드')}</span>
             </button>
 
             <button
               onClick={() => {
-                onViewModeChange("schedule");
+                onViewModeChange('schedule');
               }}
               className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                viewMode === "schedule"
-                  ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
-                  : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+                viewMode === 'schedule'
+                  ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                  : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
               }`}
             >
               <Calendar size={14} />
-              <span className="hidden md:inline">
-                {t("kanban.viewScheduleTab", "일정")}
-              </span>
+              <span className="hidden md:inline">{t('kanban.viewScheduleTab', '일정')}</span>
             </button>
 
             <button
-              onClick={() => onViewModeChange("meeting")}
+              onClick={() => onViewModeChange('meeting')}
               className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                viewMode === "meeting"
-                  ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
-                  : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+                viewMode === 'meeting'
+                  ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                  : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
               }`}
             >
               <Users size={14} />
-              <span className="hidden md:inline">
-                {t("kanban.viewMeeting", "회의")}
-              </span>
+              <span className="hidden md:inline">{t('kanban.viewMeeting', '회의')}</span>
             </button>
 
             <button
-              onClick={() => onViewModeChange("library")}
+              onClick={() => onViewModeChange('library')}
               className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                viewMode === "library"
-                  ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
-                  : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+                viewMode === 'library'
+                  ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                  : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
               }`}
             >
               <FolderOpen size={14} />
-              <span className="hidden md:inline">
-                {t("kanban.viewLibrary", "자료실")}
-              </span>
+              <span className="hidden md:inline">{t('kanban.viewLibrary', '자료실')}</span>
             </button>
 
             <button
-              onClick={() => onViewModeChange("report")}
+              onClick={() => onViewModeChange('report')}
               className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                viewMode === "report"
-                  ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
-                  : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+                viewMode === 'report'
+                  ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                  : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
               }`}
             >
               <FileBarChart2 size={14} />
-              <span className="hidden md:inline">
-                {t("kanban.viewReport", "보고서")}
-              </span>
+              <span className="hidden md:inline">{t('kanban.viewReport', '보고서')}</span>
             </button>
 
             {!isRestricted && (isAdminOrOwner || (!isViewer && !isTester)) && (
               <button
                 onClick={() => {
                   if (!canAccessStatistics) {
-                    onOpenUpgradeModal("statistics");
+                    onOpenUpgradeModal('statistics');
                     return;
                   }
                   const subMode = getAISubMode();
-                  if (subMode === "statistics" && !isAdminOrOwner) {
-                    onViewModeChange("ai_report");
-                  } else if (
-                    subMode === "ai_report" &&
-                    (isViewer || isTester)
-                  ) {
-                    onViewModeChange("statistics");
+                  if (subMode === 'statistics' && !isAdminOrOwner) {
+                    onViewModeChange('ai_report');
+                  } else if (subMode === 'ai_report' && (isViewer || isTester)) {
+                    onViewModeChange('statistics');
                   } else {
                     onViewModeChange(subMode);
                   }
                 }}
                 className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all relative whitespace-nowrap ${
-                  viewMode === "statistics" || viewMode === "ai_report"
-                    ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
+                  viewMode === 'statistics' || viewMode === 'ai_report'
+                    ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
                     : !canAccessStatistics
-                      ? "text-zinc-600 cursor-not-allowed opacity-50"
-                      : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+                      ? 'text-zinc-600 cursor-not-allowed opacity-50'
+                      : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
                 }`}
               >
                 <BarChart3 size={14} />
-                <span className="hidden md:inline">
-                  {t("kanban.viewAIAnalysisTab", "AI분석")}
-                </span>
-                {!canAccessStatistics && (
-                  <Lock size={10} className="ml-0.5 text-zinc-500" />
-                )}
+                <span className="hidden md:inline">{t('kanban.viewAIAnalysisTab', 'AI분석')}</span>
+                {!canAccessStatistics && <Lock size={10} className="ml-0.5 text-zinc-500" />}
               </button>
             )}
           </nav>
@@ -498,8 +472,8 @@ export function KanbanBoardHeader({
               <button
                 onClick={onOpenShortcutsHelp}
                 className="hidden md:flex items-center p-2 text-slate-500 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
-                title={t("keyboardShortcuts.title", "키보드 단축키")}
-                aria-label={t("keyboardShortcuts.title", "키보드 단축키")}
+                title={t('keyboardShortcuts.title', '키보드 단축키')}
+                aria-label={t('keyboardShortcuts.title', '키보드 단축키')}
               >
                 <Keyboard size={16} />
               </button>
@@ -515,8 +489,8 @@ export function KanbanBoardHeader({
               onUnreadCountChange={onUnreadCountChange}
               canAccessSlack={canAccessSlack}
               canAccessDiscord={canAccessSlack}
-              onSlackUpgrade={() => onOpenUpgradeModal("slack")}
-              onDiscordUpgrade={() => onOpenUpgradeModal("slack")}
+              onSlackUpgrade={() => onOpenUpgradeModal('slack')}
+              onDiscordUpgrade={() => onOpenUpgradeModal('slack')}
               isAdmin={isAdminOrOwner}
               isTester={isTester}
             />
@@ -524,13 +498,13 @@ export function KanbanBoardHeader({
               <button
                 onClick={onOpenInquiry}
                 className="relative flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover rounded-lg transition-all"
-                title={t("kanban.inquiry")}
-                aria-label={t("kanban.inquiry")}
+                title={t('kanban.inquiry')}
+                aria-label={t('kanban.inquiry')}
               >
                 <MessageSquare size={18} />
                 {unreadInquiryCount > 0 && (
                   <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center px-1">
-                    {unreadInquiryCount > 99 ? "99+" : unreadInquiryCount}
+                    {unreadInquiryCount > 99 ? '99+' : unreadInquiryCount}
                   </span>
                 )}
               </button>
@@ -540,9 +514,7 @@ export function KanbanBoardHeader({
               className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover rounded-lg transition-all"
             >
               <Users size={18} />
-              <span className="hidden md:inline text-xs font-medium">
-                {t("kanban.team")}
-              </span>
+              <span className="hidden md:inline text-xs font-medium">{t('kanban.team')}</span>
               <span className="text-xs font-bold text-foreground tabular-nums">
                 {boardMembersData?.length ?? 0}
               </span>
@@ -563,9 +535,7 @@ export function KanbanBoardHeader({
                     className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-lg border border-dashed border-foreground/20 text-slate-500 hover:border-bridge-accent hover:text-bridge-accent hover:bg-bridge-accent/10 transition-colors"
                   >
                     <UserPlus size={15} className="shrink-0" />
-                    <span className="hidden md:inline text-xs font-medium">
-                      외부인원
-                    </span>
+                    <span className="hidden md:inline text-xs font-medium">외부인원</span>
                   </button>
                 );
               }
@@ -577,44 +547,39 @@ export function KanbanBoardHeader({
               let imminent = false; // 시작/만료 7일 이내
               list.forEach((c) => {
                 const st = getContractorPeriodStatus(c.start_date, c.end_date);
-                if (st === "expired") expired += 1;
-                else if (st === "upcoming") upcoming += 1;
+                if (st === 'expired') expired += 1;
+                else if (st === 'upcoming') upcoming += 1;
                 else active += 1; // active + none(기간 미설정)
                 const dr = getContractorDaysRemaining(c.start_date, c.end_date);
                 if (dr) {
-                  const days = parseInt(dr.replace(/[^0-9-]/g, ""), 10);
-                  if (!Number.isNaN(days) && days >= 0 && days <= 7)
-                    imminent = true;
+                  const days = parseInt(dr.replace(/[^0-9-]/g, ''), 10);
+                  if (!Number.isNaN(days) && days >= 0 && days <= 7) imminent = true;
                 }
               });
 
               // 상태 도트/아이콘 색: 임박 > 활동중 > 유휴
               const dotClass = imminent
-                ? "bg-amber-500 dark:bg-amber-400 shadow-[0_0_0_3px_rgba(245,158,11,0.18)]"
+                ? 'bg-amber-500 dark:bg-amber-400 shadow-[0_0_0_3px_rgba(245,158,11,0.18)]'
                 : active > 0
-                  ? "bg-emerald-500 dark:bg-emerald-400"
-                  : "bg-slate-400/60";
+                  ? 'bg-emerald-500 dark:bg-emerald-400'
+                  : 'bg-slate-400/60';
               const iconClass = imminent
-                ? "text-amber-500 dark:text-amber-400"
+                ? 'text-amber-500 dark:text-amber-400'
                 : active > 0
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-slate-400";
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-400';
 
               return (
                 <button
                   type="button"
                   onClick={onOpenContractorManager}
-                  title={`외부인원 ${total}명 · 활동중 ${active}${upcoming ? ` · 예정 ${upcoming}` : ""}${expired ? ` · 만료 ${expired}` : ""}`}
+                  title={`외부인원 ${total}명 · 활동중 ${active}${upcoming ? ` · 예정 ${upcoming}` : ''}${expired ? ` · 만료 ${expired}` : ''}`}
                   aria-label={`외부인원 관리, 총 ${total}명 중 활동중 ${active}명`}
                   className="flex items-center gap-2 px-2.5 md:px-3 py-1.5 rounded-lg hover:bg-foreground/5 transition-colors"
                 >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotClass}`}
-                  />
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotClass}`} />
                   <UserCheck size={16} className={`shrink-0 ${iconClass}`} />
-                  <span className="hidden md:inline text-xs font-medium text-slate-400">
-                    외부
-                  </span>
+                  <span className="hidden md:inline text-xs font-medium text-slate-400">외부</span>
                   <span className="text-xs font-bold text-foreground tabular-nums leading-none">
                     {active}
                     <span className="font-bold text-slate-500">/{total}</span>
@@ -626,8 +591,8 @@ export function KanbanBoardHeader({
               <button
                 onClick={onOpenTrash}
                 className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover rounded-lg transition-all"
-                title={t("trash.title", "휴지통")}
-                aria-label={t("trash.title", "휴지통")}
+                title={t('trash.title', '휴지통')}
+                aria-label={t('trash.title', '휴지통')}
               >
                 <Trash2 size={18} />
               </button>

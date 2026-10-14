@@ -1,18 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { Plus, Trash2, Loader2, ChevronRight } from "lucide-react";
-import { toast } from "sonner";
-import { personalFeatureAPI } from "../../utils/services";
-import { MotionModal } from "../ui/MotionModal";
-import { EmptyState } from "../ui/EmptyState";
-import {
-  PERSONAL_FEATURES,
-  FEATURE_SCHEMA_VER,
-  getFeature,
-} from "./features/registry";
-import { FeatureDocShell } from "./features/FeatureDocShell";
-import type { PersonalFeature, PersonalFeatureDocSummary } from "./features/types";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { Plus, Trash2, Loader2, ChevronRight } from 'lucide-react';
+import { toast } from 'sonner';
+import { personalFeatureAPI } from '../../utils/services';
+import { MotionModal } from '../ui/MotionModal';
+import { EmptyState } from '../ui/EmptyState';
+import { PERSONAL_FEATURES, FEATURE_SCHEMA_VER, getFeature } from './features/registry';
+import { FeatureDocShell } from './features/FeatureDocShell';
+import type { PersonalFeature, PersonalFeatureDocSummary } from './features/types';
 
 /**
  * 마이 스페이스 「기능」 탭.
@@ -23,18 +19,18 @@ import type { PersonalFeature, PersonalFeatureDocSummary } from "./features/type
  * 딥링크: ?tab=features&feature=<key>&doc=<id>
  */
 
-const PARAM_TAB = "tab";
-const PARAM_FEATURE = "feature";
-const PARAM_DOC = "doc";
+const PARAM_TAB = 'tab';
+const PARAM_FEATURE = 'feature';
+const PARAM_DOC = 'doc';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyFeature = PersonalFeature<any>;
 
-const READY_FEATURES = PERSONAL_FEATURES.filter((f) => f.status === "ready");
+const READY_FEATURES = PERSONAL_FEATURES.filter((f) => f.status === 'ready');
 
 function resolveFeature(key: string | null): AnyFeature {
   const found = key ? getFeature(key) : undefined;
-  if (found && found.status === "ready") return found;
+  if (found && found.status === 'ready') return found;
   return READY_FEATURES[0] ?? PERSONAL_FEATURES[0];
 }
 
@@ -45,13 +41,13 @@ export function PersonalFeatures() {
   const [featureKey, setFeatureKey] = useState<string>(
     () => resolveFeature(searchParams.get(PARAM_FEATURE)).key,
   );
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(
-    () => searchParams.get(PARAM_DOC),
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(() =>
+    searchParams.get(PARAM_DOC),
   );
   /** 기능별 문서 목록. 아직 안 불러온 기능은 키가 없다 (배지 숨김). */
-  const [docsByFeature, setDocsByFeature] = useState<
-    Record<string, PersonalFeatureDocSummary[]>
-  >({});
+  const [docsByFeature, setDocsByFeature] = useState<Record<string, PersonalFeatureDocSummary[]>>(
+    {},
+  );
   const [listLoading, setListLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -68,7 +64,7 @@ export function PersonalFeatures() {
       setDocsByFeature((prev) => ({ ...prev, [key]: list }));
       return list;
     } catch (e) {
-      console.error("Failed to load feature docs:", e);
+      console.error('Failed to load feature docs:', e);
       return null;
     }
   }, []);
@@ -98,7 +94,7 @@ export function PersonalFeatures() {
   // URL 동기화 (탭 상태는 페이지가 갖지 않으므로 tab=features 도 같이 적는다)
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
-    next.set(PARAM_TAB, "features");
+    next.set(PARAM_TAB, 'features');
     next.set(PARAM_FEATURE, feature.key);
     if (selectedDocId) next.set(PARAM_DOC, selectedDocId);
     else next.delete(PARAM_DOC);
@@ -111,8 +107,8 @@ export function PersonalFeatures() {
   // ─── 기능 선택 ───
   const selectFeature = useCallback(
     async (f: AnyFeature) => {
-      if (f.status === "soon") {
-        toast.info(t("personal.features.soon_toast"));
+      if (f.status === 'soon') {
+        toast.info(t('personal.features.soon_toast'));
         return;
       }
       if (f.key === feature.key) return;
@@ -136,8 +132,8 @@ export function PersonalFeatures() {
       await loadDocs(feature.key);
       setSelectedDocId(created.id);
     } catch (e) {
-      console.error("Failed to create feature doc:", e);
-      toast.error(t("common.error", "오류가 발생했습니다"));
+      console.error('Failed to create feature doc:', e);
+      toast.error(t('common.error', '오류가 발생했습니다'));
     } finally {
       setCreating(false);
     }
@@ -155,8 +151,8 @@ export function PersonalFeatures() {
       setSelectedDocId(remaining[0]?.id ?? null);
       setConfirmDeleteOpen(false);
     } catch (e) {
-      console.error("Failed to delete feature doc:", e);
-      toast.error(t("common.error", "오류가 발생했습니다"));
+      console.error('Failed to delete feature doc:', e);
+      toast.error(t('common.error', '오류가 발생했습니다'));
     } finally {
       setDeleting(false);
     }
@@ -195,7 +191,7 @@ export function PersonalFeatures() {
             </button>
             <button
               type="button"
-              aria-label={t("personal.features.delete")}
+              aria-label={t('personal.features.delete')}
               disabled={!selectedDoc}
               onClick={() => setConfirmDeleteOpen(true)}
               className="w-9 h-9 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 flex items-center justify-center transition-colors disabled:opacity-40 disabled:hover:text-slate-400 disabled:hover:bg-transparent"
@@ -207,7 +203,7 @@ export function PersonalFeatures() {
           {/* 기능 › 문서 목록 */}
           <div className="rounded-2xl border border-foreground/[0.08] bg-bridge-obsidian p-2 overflow-y-auto custom-scrollbar max-h-[40vh] md:max-h-none md:flex-1">
             {PERSONAL_FEATURES.map((f) => {
-              const isSoon = f.status === "soon";
+              const isSoon = f.status === 'soon';
               const isActive = f.key === feature.key;
               const list = docsByFeature[f.key];
               const Icon = f.icon;
@@ -219,19 +215,17 @@ export function PersonalFeatures() {
                     aria-disabled={isSoon}
                     className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs transition-colors ${
                       isSoon
-                        ? "text-slate-500 opacity-60 cursor-default"
+                        ? 'text-slate-500 opacity-60 cursor-default'
                         : isActive
-                          ? "text-foreground font-bold bg-foreground/5"
-                          : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                          ? 'text-foreground font-bold bg-foreground/5'
+                          : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
                     }`}
                   >
                     <Icon className="w-4 h-4 flex-none" />
-                    <span className="flex-1 min-w-0 text-left truncate">
-                      {t(f.labelKey)}
-                    </span>
+                    <span className="flex-1 min-w-0 text-left truncate">{t(f.labelKey)}</span>
                     {isSoon ? (
                       <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-foreground/5 text-slate-500">
-                        {t("personal.features.soon")}
+                        {t('personal.features.soon')}
                       </span>
                     ) : list ? (
                       <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
@@ -257,15 +251,15 @@ export function PersonalFeatures() {
                               title={d.title}
                               className={`w-full flex items-center gap-1.5 pl-8 pr-2 py-1.5 rounded-lg text-xs text-left transition-colors ${
                                 isSelected
-                                  ? "bg-bridge-accent/15 text-bridge-accent font-bold"
-                                  : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                                  ? 'bg-bridge-accent/15 text-bridge-accent font-bold'
+                                  : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
                               }`}
                             >
                               <ChevronRight
-                                className={`w-3 h-3 flex-none ${isSelected ? "opacity-100" : "opacity-0"}`}
+                                className={`w-3 h-3 flex-none ${isSelected ? 'opacity-100' : 'opacity-0'}`}
                               />
                               <span className="min-w-0 truncate">
-                                {d.title || t("personal.features.untitled")}
+                                {d.title || t('personal.features.untitled')}
                               </span>
                             </button>
                           );
@@ -297,8 +291,8 @@ export function PersonalFeatures() {
             <div className="flex-1 flex items-center justify-center rounded-2xl border border-foreground/[0.08] bg-bridge-obsidian">
               <EmptyState
                 icon={feature.icon}
-                title={t("personal.features.empty_title")}
-                description={t("personal.features.empty_desc")}
+                title={t('personal.features.empty_title')}
+                description={t('personal.features.empty_desc')}
                 action={{ label: `+ ${newDocLabel}`, onClick: createDoc }}
               />
             </div>
@@ -318,19 +312,16 @@ export function PersonalFeatures() {
           <div className="w-8 h-8 rounded-lg bg-rose-500/15 text-rose-500 flex items-center justify-center">
             <Trash2 className="w-4 h-4" />
           </div>
-          <h2
-            id="feature-doc-delete-title"
-            className="text-sm font-bold text-foreground"
-          >
-            {t("personal.features.delete_confirm_title")}
+          <h2 id="feature-doc-delete-title" className="text-sm font-bold text-foreground">
+            {t('personal.features.delete_confirm_title')}
           </h2>
         </div>
         <div className="px-5 pb-5 pt-4">
           <p className="text-sm text-foreground truncate">
-            {selectedDoc?.title || t("personal.features.untitled")}
+            {selectedDoc?.title || t('personal.features.untitled')}
           </p>
           <p className="text-xs text-slate-500 mt-1">
-            {t("personal.features.delete_confirm_desc")}
+            {t('personal.features.delete_confirm_desc')}
           </p>
         </div>
         <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
@@ -342,7 +333,7 @@ export function PersonalFeatures() {
               disabled={deleting}
               className="px-4 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
             >
-              {t("common.cancel", "취소")}
+              {t('common.cancel', '취소')}
             </button>
             <button
               type="button"
@@ -351,7 +342,7 @@ export function PersonalFeatures() {
               className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-rose-500 hover:bg-rose-500/90 transition-colors disabled:opacity-50"
             >
               {deleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {t("personal.features.delete")}
+              {t('personal.features.delete')}
             </button>
           </div>
         </div>

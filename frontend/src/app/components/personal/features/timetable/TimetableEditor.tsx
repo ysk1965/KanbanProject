@@ -1,10 +1,35 @@
 import type React from 'react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { flushSync } from 'react-dom';
-import { CalendarPlus, ChevronLeft, ChevronRight, Columns3, GripVertical, ImageDown, Loader2, Plus, Redo2, Undo2, X } from 'lucide-react';
-import type { FeatureEditorProps, PersonalFeatureTerm, TimetableCellColor, TimetableContent } from '../types';
+import {
+  CalendarPlus,
+  ChevronLeft,
+  ChevronRight,
+  Columns3,
+  GripVertical,
+  ImageDown,
+  Loader2,
+  Plus,
+  Redo2,
+  Undo2,
+  X,
+} from 'lucide-react';
+import type {
+  FeatureEditorProps,
+  PersonalFeatureTerm,
+  TimetableCellColor,
+  TimetableContent,
+} from '../types';
 import {
   addColumn,
   addDay,
@@ -136,18 +161,33 @@ function cellKey(p: Pos): string {
 }
 
 /** 열 이름 + 값이 기억된 용어와 정확히 같으면 그 색 (대소문자 무시) */
-function colorOfTerm(terms: PersonalFeatureTerm[], field: string, value: string): TimetableCellColor | '' {
+function colorOfTerm(
+  terms: PersonalFeatureTerm[],
+  field: string,
+  value: string,
+): TimetableCellColor | '' {
   const v = normTerm(value).toLowerCase();
   if (!v) return '';
-  const hit = terms.find((x) => x.field === field && !!x.color && normTerm(x.value).toLowerCase() === v);
+  const hit = terms.find(
+    (x) => x.field === field && !!x.color && normTerm(x.value).toLowerCase() === v,
+  );
   return (hit?.color as TimetableCellColor) || '';
 }
 
 function isEditableEl(el: Element | null): el is HTMLElement {
-  return el instanceof HTMLElement && (el.classList.contains('tt-cell') || el.classList.contains('tt-th-label'));
+  return (
+    el instanceof HTMLElement &&
+    (el.classList.contains('tt-cell') || el.classList.contains('tt-th-label'))
+  );
 }
 
-export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }: FeatureEditorProps<TimetableContent>) {
+export function TimetableEditor({
+  doc,
+  onChange,
+  terms,
+  onForgetTerm,
+  readOnly,
+}: FeatureEditorProps<TimetableContent>) {
   const { t } = useTranslation();
   const tt = useCallback(
     (key: string, def: string, opts?: Record<string, unknown>) =>
@@ -160,7 +200,9 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
   const weekNames = useMemo(() => tt('weekdays', '일,월,화,수,목,금,토').split(','), [tt]);
 
   /* ── 모델 (셸이 debounce 저장) ── */
-  const [content, setContentState] = useState<TimetableContent>(() => doc.content ?? createDefaultTimetable());
+  const [content, setContentState] = useState<TimetableContent>(
+    () => doc.content ?? createDefaultTimetable(),
+  );
   const contentRef = useRef(content);
   const lastEmitted = useRef<TimetableContent | null>(null);
 
@@ -177,7 +219,8 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
   const redoStack = useRef<TimetableContent[]>([]);
   const lastPush = useRef<{ key: string; at: number } | null>(null);
   const [hist, setHist] = useState({ undo: 0, redo: 0 });
-  const syncHist = () => setHist({ undo: undoStack.current.length, redo: redoStack.current.length });
+  const syncHist = () =>
+    setHist({ undo: undoStack.current.length, redo: redoStack.current.length });
 
   useEffect(() => {
     undoStack.current = [];
@@ -197,7 +240,8 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
       if (next === prev) return false;
       const now = Date.now();
       const lp = lastPush.current;
-      const coalesce = !!coalesceKey && !!lp && lp.key === coalesceKey && now - lp.at < UNDO_COALESCE_MS;
+      const coalesce =
+        !!coalesceKey && !!lp && lp.key === coalesceKey && now - lp.at < UNDO_COALESCE_MS;
       if (!coalesce) {
         undoStack.current.push(prev);
         if (undoStack.current.length > UNDO_LIMIT) undoStack.current.shift();
@@ -289,7 +333,9 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
   });
 
   const findCellEl = (p: Pos): HTMLElement | null =>
-    rootRef.current?.querySelector<HTMLElement>(`.tt-cell[data-di="${p.di}"][data-ri="${p.ri}"][data-key="${p.key}"]`) ?? null;
+    rootRef.current?.querySelector<HTMLElement>(
+      `.tt-cell[data-di="${p.di}"][data-ri="${p.ri}"][data-key="${p.key}"]`,
+    ) ?? null;
 
   /* ── 커밋 ── */
   const commitCell = useCallback(
@@ -364,7 +410,9 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
               count: moved,
             })
           : undefined;
-      setTimePop((cur) => (cur && samePos(cur.pos, p) ? { ...cur, value: r, hint, hintStrong: moved > 0 } : cur));
+      setTimePop((cur) =>
+        cur && samePos(cur.pos, p) ? { ...cur, value: r, hint, hintStrong: moved > 0 } : cur,
+      );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [update, tt],
@@ -420,7 +468,8 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
     update((cur) => {
       let n = setCellText(cur, p.di, p.ri, p.key, it.value);
       const cell = cellOf(n.days[p.di]?.rows[p.ri], p.key);
-      if (!cell.c && it.color) n = setCellColor(n, p.di, p.ri, p.key, it.color as TimetableCellColor);
+      if (!cell.c && it.color)
+        n = setCellColor(n, p.di, p.ri, p.key, it.color as TimetableCellColor);
       return n;
     }, cellKey(p));
     const el = findCellEl(p) || s.el;
@@ -537,7 +586,8 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
     const col = colOf(contentRef.current, p.key);
     if (col?.type === 'time') {
       const r = parseRange(readText(el));
-      if (r && timePopRef.current) setTimePop((cur) => (cur ? { ...cur, value: r, hint: undefined, hintStrong: false } : cur));
+      if (r && timePopRef.current)
+        setTimePop((cur) => (cur ? { ...cur, value: r, hint: undefined, hintStrong: false } : cur));
     } else if (col?.suggest) {
       openSugg(el, p);
     }
@@ -612,7 +662,9 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
   const focusSibling = (el: HTMLElement, dir: 1 | -1): boolean => {
     const root = rootRef.current;
     if (!root) return false;
-    const cells = Array.from(root.querySelectorAll<HTMLElement>('.tt-cell[contenteditable="true"]'));
+    const cells = Array.from(
+      root.querySelectorAll<HTMLElement>('.tt-cell[contenteditable="true"]'),
+    );
     const i = cells.indexOf(el);
     const j = i + dir;
     if (i < 0 || j < 0 || j >= cells.length) return false;
@@ -671,7 +723,8 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
       const day = contentRef.current.days[sel.di];
       if (!day) return;
       const cur = rangeRef.current;
-      const r = cur && cur.key === sel.key ? { r1: cur.r1, r2: cur.r2 } : { r1: sel.ri, r2: sel.ri };
+      const r =
+        cur && cur.key === sel.key ? { r1: cur.r1, r2: cur.r2 } : { r1: sel.ri, r2: sel.ri };
       if (e.key === 'ArrowDown') {
         if (r.r2 < day.rows.length - 1) r.r2 = r.r2 + spanOf(day, sel.key, r.r2);
       } else if (r.r1 > 0) {
@@ -746,7 +799,11 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
     update((cur) => mergeRange(cur, r.di, r.key, nr.r1, nr.r2));
     setSelected({ di: r.di, ri: nr.r1, key: r.key });
     setRange(null);
-    toast(tt('merged_rows', '{{count}}행을 합쳤습니다. 「병합 해제」로 되돌릴 수 있습니다', { count: nr.r2 - nr.r1 + 1 }));
+    toast(
+      tt('merged_rows', '{{count}}행을 합쳤습니다. 「병합 해제」로 되돌릴 수 있습니다', {
+        count: nr.r2 - nr.r1 + 1,
+      }),
+    );
   };
 
   const doUnmerge = () => {
@@ -775,7 +832,9 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
     setRange(null);
     toast(
       merged
-        ? tt('auto_merged', '{{count}}곳을 합쳤습니다. 각각 「병합 해제」로 되돌릴 수 있습니다', { count: merged })
+        ? tt('auto_merged', '{{count}}곳을 합쳤습니다. 각각 「병합 해제」로 되돌릴 수 있습니다', {
+            count: merged,
+          })
         : tt('auto_merge_none', '연속으로 같은 값인 셀이 없습니다'),
     );
   };
@@ -797,7 +856,9 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
     closePops();
     update(addDay);
     window.setTimeout(() => {
-      rootRef.current?.querySelector('.tt-day:last-of-type')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      rootRef.current
+        ?.querySelector('.tt-day:last-of-type')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 0);
   };
 
@@ -1022,7 +1083,9 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
   };
 
   /* ── 파생 값 ── */
-  const selectedColor: TimetableCellColor = selected ? cellOf(content.days[selected.di]?.rows[selected.ri], selected.key).c || '' : '';
+  const selectedColor: TimetableCellColor = selected
+    ? cellOf(content.days[selected.di]?.rows[selected.ri], selected.key).c || ''
+    : '';
   const canMerge = !!range && range.r2 > range.r1;
   const canUnmerge = (() => {
     if (!selected) return false;
@@ -1094,23 +1157,43 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
             />
           ))}
           <span className="w-px h-4 bg-foreground/10 mx-1" aria-hidden="true" />
-          <button type="button" className={GHOST_BTN_CLS} disabled={!canMerge} onMouseDown={prevent} onClick={doMerge}>
+          <button
+            type="button"
+            className={GHOST_BTN_CLS}
+            disabled={!canMerge}
+            onMouseDown={prevent}
+            onClick={doMerge}
+          >
             ⊟ {tt('merge', '셀 병합')}
           </button>
-          <button type="button" className={GHOST_BTN_CLS} disabled={!canUnmerge} onMouseDown={prevent} onClick={doUnmerge}>
+          <button
+            type="button"
+            className={GHOST_BTN_CLS}
+            disabled={!canUnmerge}
+            onMouseDown={prevent}
+            onClick={doUnmerge}
+          >
             {tt('unmerge', '병합 해제')}
           </button>
           <button
             type="button"
             className={GHOST_BTN_CLS}
-            title={tt('auto_merge_title', '같은 열에서 연속으로 같은 값(같은 색)인 셀을 한 번에 병합')}
+            title={tt(
+              'auto_merge_title',
+              '같은 열에서 연속으로 같은 값(같은 색)인 셀을 한 번에 병합',
+            )}
             onMouseDown={prevent}
             onClick={doAutoMerge}
           >
             {tt('auto_merge', '같은 값 자동 병합')}
           </button>
           <span className="w-px h-4 bg-foreground/10 mx-1" aria-hidden="true" />
-          <button type="button" className={GHOST_BTN_CLS} onMouseDown={prevent} onClick={doAddColumn}>
+          <button
+            type="button"
+            className={GHOST_BTN_CLS}
+            onMouseDown={prevent}
+            onClick={doAddColumn}
+          >
             <Columns3 className="w-3.5 h-3.5" /> {tt('add_column', '열 추가')}
           </button>
           <button type="button" className={GHOST_BTN_CLS} onMouseDown={prevent} onClick={doAddDay}>
@@ -1147,7 +1230,11 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
             onMouseDown={prevent}
             onClick={doCopyImage}
           >
-            {copyingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin text-bridge-accent" /> : <ImageDown className="w-3.5 h-3.5" />}{' '}
+            {copyingImage ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-bridge-accent" />
+            ) : (
+              <ImageDown className="w-3.5 h-3.5" />
+            )}{' '}
             {tt('copy_image', '이미지로 복사')}
           </button>
           <span className="ml-auto text-xs text-slate-500">{hintText}</span>
@@ -1163,7 +1250,10 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
         const summary = daySummary(di);
         const dragHere = rowDrag && rowDrag.di === di ? rowDrag : null;
         return (
-          <section key={di} className="tt-day rounded-2xl border border-foreground/[0.08] overflow-hidden">
+          <section
+            key={di}
+            className="tt-day rounded-2xl border border-foreground/[0.08] overflow-hidden"
+          >
             <header className="flex items-center gap-2.5 px-3 py-2 bg-bridge-obsidian border-b border-foreground/[0.08]">
               <span className="text-xs md:text-sm font-bold text-foreground">
                 {formatDayLabel(day.date, tt('no_date', '날짜 없음'), weekNames)}
@@ -1290,7 +1380,11 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
                         const cell = cellOf(row, col.key);
                         const n = spanOf(day, col.key, ri);
                         const end = ri + n - 1;
-                        const inRange = !!rangeHere && rangeHere.key === col.key && end >= rangeHere.r1 && ri <= rangeHere.r2;
+                        const inRange =
+                          !!rangeHere &&
+                          rangeHere.key === col.key &&
+                          end >= rangeHere.r1 &&
+                          ri <= rangeHere.r2;
                         const warn = col.type === 'time' && isRangeInverted(cell.t);
                         const overlap = col.type === 'time' && !warn && overlaps.has(ri);
                         const tdCls = [
@@ -1307,14 +1401,21 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
                             ? tt('time_overlap', '위 행과 시간이 겹칩니다')
                             : undefined;
                         return (
-                          <td key={col.key} rowSpan={n > 1 ? n : undefined} className={tdCls || undefined} title={tdTitle}>
+                          <td
+                            key={col.key}
+                            rowSpan={n > 1 ? n : undefined}
+                            className={tdCls || undefined}
+                            title={tdTitle}
+                          >
                             <div
                               className={`tt-cell text-xs md:text-sm${cell.c ? ` c-${cell.c}` : ''}${col.type === 'time' ? ' tt-cell-time' : ''}`}
                               data-di={di}
                               data-ri={ri}
                               data-key={col.key}
                               data-ph={editable ? col.label : ''}
-                              data-sel={samePos(selected, { di, ri, key: col.key }) ? '1' : undefined}
+                              data-sel={
+                                samePos(selected, { di, ri, key: col.key }) ? '1' : undefined
+                              }
                               contentEditable={editable}
                               suppressContentEditableWarning
                               spellCheck={false}
@@ -1375,7 +1476,12 @@ export function TimetableEditor({ doc, onChange, terms, onForgetTerm, readOnly }
 
             {editable && (
               <footer className="flex items-center gap-2 px-3 py-2 bg-bridge-obsidian border-t border-foreground/[0.08]">
-                <button type="button" className={GHOST_BTN_CLS} onMouseDown={prevent} onClick={() => doAddRow(di)}>
+                <button
+                  type="button"
+                  className={GHOST_BTN_CLS}
+                  onMouseDown={prevent}
+                  onClick={() => doAddRow(di)}
+                >
                   <Plus className="w-3.5 h-3.5" /> {tt('add_row', '행 추가')}
                 </button>
               </footer>

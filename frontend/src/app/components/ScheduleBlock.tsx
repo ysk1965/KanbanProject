@@ -23,7 +23,10 @@ interface ScheduleBlockProps {
   onContextMenu?: (block: ScheduleBlockInfo) => void;
   onResize?: (blockId: string, startTime: string, endTime: string) => void;
   onMove?: (blockId: string, startTime: string, endTime: string) => void;
-  onSplitResize?: (blockId: string, segments: Array<{ startTime: string; endTime: string }>) => void;
+  onSplitResize?: (
+    blockId: string,
+    segments: Array<{ startTime: string; endTime: string }>,
+  ) => void;
   /**
    * 그리드 밖으로 끌어냈을 때 이 블록을 받아 줄 확정도 축 존들 (예: 배치 레일).
    * 비어 있으면 축 이동을 아예 켜지 않는다 — 세로 이동만 하는 원래 드래그가 된다.
@@ -72,9 +75,28 @@ const MIN_BLOCK_VIS = 32; // 블록 최소 가시 높이 (px) — text-sm 제목
 const TASK_TITLE_MIN_H = 36;
 const FEATURE_TITLE_MIN_H = 58;
 
-export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, otherBlocks = [], breakStartTime, breakEndTime, minutesToPx: minutesToPxProp, pxToMinutes: pxToMinutesProp, onClick, onContextMenu, onResize, onMove, onSplitResize, axisTargets, onAxisDragOut, isOrgOverlay }: ScheduleBlockProps) {
+export function ScheduleBlock({
+  block,
+  slotHeight,
+  workStartHour,
+  workEndHour,
+  otherBlocks = [],
+  breakStartTime,
+  breakEndTime,
+  minutesToPx: minutesToPxProp,
+  pxToMinutes: pxToMinutesProp,
+  onClick,
+  onContextMenu,
+  onResize,
+  onMove,
+  onSplitResize,
+  axisTargets,
+  onAxisDragOut,
+  isOrgOverlay,
+}: ScheduleBlockProps) {
   // 가변 슬롯 높이 지원: prop이 있으면 사용, 없으면 선형 매핑 fallback
-  const mToPx = minutesToPxProp || ((minutes: number) => ((minutes - workStartHour * 60) / 30) * slotHeight);
+  const mToPx =
+    minutesToPxProp || ((minutes: number) => ((minutes - workStartHour * 60) / 30) * slotHeight);
   const pxToM = pxToMinutesProp || ((px: number) => workStartHour * 60 + (px / slotHeight) * 30);
   const { t } = useTranslation();
   const [isResizing, setIsResizing] = useState<'top' | 'bottom' | null>(null);
@@ -99,7 +121,9 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
   const axisTargetsRef = useRef<AxisZone[]>(axisTargets ?? []);
   axisTargetsRef.current = axisTargets ?? [];
   const onAxisDragOutRef = useRef(onAxisDragOut);
-  useEffect(() => { onAxisDragOutRef.current = onAxisDragOut; }, [onAxisDragOut]);
+  useEffect(() => {
+    onAxisDragOutRef.current = onAxisDragOut;
+  }, [onAxisDragOut]);
 
   // 드래그/리사이즈 후 click 이벤트 방지용 ref (React state보다 먼저 동기적으로 체크)
   const wasDraggedOrResizedRef = useRef(false);
@@ -113,11 +137,26 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
   const onResizeRef = useRef(onResize);
   const onMoveRef = useRef(onMove);
   const onSplitResizeRef = useRef(onSplitResize);
-  useEffect(() => { onResizeRef.current = onResize; }, [onResize]);
-  useEffect(() => { onMoveRef.current = onMove; }, [onMove]);
-  useEffect(() => { onSplitResizeRef.current = onSplitResize; }, [onSplitResize]);
+  useEffect(() => {
+    onResizeRef.current = onResize;
+  }, [onResize]);
+  useEffect(() => {
+    onMoveRef.current = onMove;
+  }, [onMove]);
+  useEffect(() => {
+    onSplitResizeRef.current = onSplitResize;
+  }, [onSplitResize]);
 
-  const { top, height, displayInfo, startMinutes, endMinutes, workStartMinutes, workEndMinutes, isOvernight } = useMemo(() => {
+  const {
+    top,
+    height,
+    displayInfo,
+    startMinutes,
+    endMinutes,
+    workStartMinutes,
+    workEndMinutes,
+    isOvernight,
+  } = useMemo(() => {
     const startMinutes = timeToMinutes(block.start_time);
     let endMinutes = timeToMinutes(block.end_time);
     const workStartMinutes = workStartHour * 60;
@@ -137,19 +176,31 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
     const isCustom = block.block_type === 'CUSTOM';
     const hasMeeting = !!block.meeting;
     const title = isCustom
-      ? (block.title || t('scheduleBlock.custom'))
+      ? block.title || t('scheduleBlock.custom')
       : hasMeeting
         ? block.meeting!.title
-        : (block.checklist_item?.title || t('scheduleBlock.unlinked'));
+        : block.checklist_item?.title || t('scheduleBlock.unlinked');
     const taskTitle = isCustom ? null : block.task?.title;
     const featureTitle = isCustom ? null : block.feature?.title;
-    const featureColor = isCustom ? (block.color || '#F59E0B') : hasMeeting ? block.meeting!.color : (block.feature?.color || '#6366f1');
-    const isCompleted = isCustom ? false : (block.checklist_item?.completed || false);
+    const featureColor = isCustom
+      ? block.color || '#F59E0B'
+      : hasMeeting
+        ? block.meeting!.color
+        : block.feature?.color || '#6366f1';
+    const isCompleted = isCustom ? false : block.checklist_item?.completed || false;
 
     return {
       top,
       height,
-      displayInfo: { title, taskTitle, featureTitle, featureColor, isCompleted, hasMeeting, isCustom },
+      displayInfo: {
+        title,
+        taskTitle,
+        featureTitle,
+        featureColor,
+        isCompleted,
+        hasMeeting,
+        isCustom,
+      },
       startMinutes,
       endMinutes,
       workStartMinutes,
@@ -159,11 +210,12 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
   }, [block, slotHeight, workStartHour, workEndHour, mToPx]);
 
   // 리사이즈 중 계산된 값
-  const displayHeight = isResizing === 'top'
-    ? height - resizeOffset
-    : isResizing === 'bottom'
-      ? height + resizeOffset
-      : height;
+  const displayHeight =
+    isResizing === 'top'
+      ? height - resizeOffset
+      : isResizing === 'bottom'
+        ? height + resizeOffset
+        : height;
 
   // 상태별 배경색 (className)
   const getBackgroundColor = () => {
@@ -220,281 +272,148 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
   const breakEndMin = breakEndTime ? timeToMinutes(breakEndTime) : null;
 
   // 분할 세그먼트 계산 (점심시간을 피해 분할)
-  const calculateSplitSegments = useCallback((startMin: number, endMin: number): Array<{ startTime: string; endTime: string }> => {
-    if (breakStartMin === null || breakEndMin === null) return [];
-    const segments: Array<{ startTime: string; endTime: string }> = [];
-    if (startMin < breakStartMin) {
-      segments.push({ startTime: minutesToTime(startMin), endTime: minutesToTime(Math.min(endMin, breakStartMin)) });
-    }
-    if (endMin > breakEndMin) {
-      segments.push({ startTime: minutesToTime(Math.max(startMin, breakEndMin)), endTime: minutesToTime(endMin) });
-    }
-    return segments;
-  }, [breakStartMin, breakEndMin]);
+  const calculateSplitSegments = useCallback(
+    (startMin: number, endMin: number): Array<{ startTime: string; endTime: string }> => {
+      if (breakStartMin === null || breakEndMin === null) return [];
+      const segments: Array<{ startTime: string; endTime: string }> = [];
+      if (startMin < breakStartMin) {
+        segments.push({
+          startTime: minutesToTime(startMin),
+          endTime: minutesToTime(Math.min(endMin, breakStartMin)),
+        });
+      }
+      if (endMin > breakEndMin) {
+        segments.push({
+          startTime: minutesToTime(Math.max(startMin, breakEndMin)),
+          endTime: minutesToTime(endMin),
+        });
+      }
+      return segments;
+    },
+    [breakStartMin, breakEndMin],
+  );
 
   // 겹침 체크 함수: 'none' | 'block' (다른 블록) | 'split' (점심만, 분할 가능)
-  const checkOverlap = useCallback((newStartMinutes: number, newEndMinutes: number): 'none' | 'block' | 'split' => {
-    // 다른 블록과 겹치는지 체크
-    for (const other of otherBlocks) {
-      if (other.id === block.id) continue;
-      const otherStart = timeToMinutes(other.start_time);
-      const otherEnd = timeToMinutes(other.end_time);
-      if (isOverlapping(newStartMinutes, newEndMinutes, otherStart, otherEnd)) {
-        return 'block';
+  const checkOverlap = useCallback(
+    (newStartMinutes: number, newEndMinutes: number): 'none' | 'block' | 'split' => {
+      // 다른 블록과 겹치는지 체크
+      for (const other of otherBlocks) {
+        if (other.id === block.id) continue;
+        const otherStart = timeToMinutes(other.start_time);
+        const otherEnd = timeToMinutes(other.end_time);
+        if (isOverlapping(newStartMinutes, newEndMinutes, otherStart, otherEnd)) {
+          return 'block';
+        }
       }
-    }
-    // 점심시간과 겹치는지 체크
-    if (breakStartMin !== null && breakEndMin !== null) {
-      if (isOverlapping(newStartMinutes, newEndMinutes, breakStartMin, breakEndMin)) {
-        // 분할 후 세그먼트가 다른 블록과 겹치지 않는지 확인
-        const segments = calculateSplitSegments(newStartMinutes, newEndMinutes);
-        if (segments.length === 0) return 'block'; // 분할 결과 없음 (전체가 점심시간 내)
-        for (const seg of segments) {
-          const segStart = timeToMinutes(seg.startTime);
-          const segEnd = timeToMinutes(seg.endTime);
-          if (segEnd - segStart < SNAP_MINUTES) return 'block'; // 최소 SNAP_MINUTES 미만이면 불가
-          for (const other of otherBlocks) {
-            if (other.id === block.id) continue;
-            const otherStart = timeToMinutes(other.start_time);
-            const otherEnd = timeToMinutes(other.end_time);
-            if (isOverlapping(segStart, segEnd, otherStart, otherEnd)) {
-              return 'block';
+      // 점심시간과 겹치는지 체크
+      if (breakStartMin !== null && breakEndMin !== null) {
+        if (isOverlapping(newStartMinutes, newEndMinutes, breakStartMin, breakEndMin)) {
+          // 분할 후 세그먼트가 다른 블록과 겹치지 않는지 확인
+          const segments = calculateSplitSegments(newStartMinutes, newEndMinutes);
+          if (segments.length === 0) return 'block'; // 분할 결과 없음 (전체가 점심시간 내)
+          for (const seg of segments) {
+            const segStart = timeToMinutes(seg.startTime);
+            const segEnd = timeToMinutes(seg.endTime);
+            if (segEnd - segStart < SNAP_MINUTES) return 'block'; // 최소 SNAP_MINUTES 미만이면 불가
+            for (const other of otherBlocks) {
+              if (other.id === block.id) continue;
+              const otherStart = timeToMinutes(other.start_time);
+              const otherEnd = timeToMinutes(other.end_time);
+              if (isOverlapping(segStart, segEnd, otherStart, otherEnd)) {
+                return 'block';
+              }
             }
           }
+          return 'split';
         }
-        return 'split';
       }
-    }
-    return 'none';
-  }, [otherBlocks, block.id, breakStartMin, breakEndMin, calculateSplitSegments]);
+      return 'none';
+    },
+    [otherBlocks, block.id, breakStartMin, breakEndMin, calculateSplitSegments],
+  );
 
   // 리사이즈 시작 핸들러
-  const handleResizeStart = useCallback((e: React.MouseEvent, handle: 'top' | 'bottom') => {
-    e.stopPropagation();
-    e.preventDefault();
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent, handle: 'top' | 'bottom') => {
+      e.stopPropagation();
+      e.preventDefault();
 
-    wasDraggedOrResizedRef.current = true;
-    setIsResizing(handle);
-    setResizeOffset(0);
-    resizeOffsetRef.current = 0;
-    document.body.style.userSelect = 'none';
-
-    const startY = e.clientY;
-
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const deltaY = moveEvent.clientY - startY;
-      let snappedDelta: number;
-      let newStartMin = startMinutes;
-      let newEndMin = endMinutes;
-
-      if (handle === 'top') {
-        const newTopPx = top + deltaY;
-        const rawMin = pxToM(newTopPx);
-        let snappedMin = Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES;
-        snappedMin = Math.max(workStartMinutes, Math.min(endMinutes - SNAP_MINUTES, snappedMin));
-        snappedDelta = mToPx(snappedMin) - top;
-        newStartMin = snappedMin;
-      } else {
-        const newBottomPx = top + height + deltaY;
-        const rawMin = pxToM(newBottomPx);
-        let snappedMin = Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES;
-        snappedMin = Math.min(workEndMinutes, Math.max(startMinutes + SNAP_MINUTES, snappedMin));
-        snappedDelta = mToPx(snappedMin) - (top + height);
-        newEndMin = snappedMin;
-      }
-
-      setResizeOffset(snappedDelta);
-      resizeOffsetRef.current = snappedDelta;
-
-      const overlap = checkOverlap(newStartMin, newEndMin);
-      setOverlapType(overlap);
-      overlapTypeRef.current = overlap;
-    };
-
-    const handleMouseUp = () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.userSelect = '';
-
-      const finalOffset = resizeOffsetRef.current;
-      const finalOverlapType = overlapTypeRef.current;
-
-      // 시각 상태 리셋
+      wasDraggedOrResizedRef.current = true;
+      setIsResizing(handle);
       setResizeOffset(0);
       resizeOffsetRef.current = 0;
-      setIsResizing(null);
-      setOverlapType('none');
-      overlapTypeRef.current = 'none';
-
-      // 다른 블록과 겹침이면 리사이즈 취소
-      if (finalOverlapType === 'block') return;
-
-      if (finalOffset !== 0) {
-        let newStartMinutes = startMinutes;
-        let newEndMinutes = endMinutes;
-
-        if (handle === 'top') {
-          const newTopPx = top + finalOffset;
-          const rawMin = pxToM(newTopPx);
-          newStartMinutes = Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES;
-          newStartMinutes = Math.max(workStartMinutes, Math.min(newEndMinutes - SNAP_MINUTES, newStartMinutes));
-        } else {
-          const newBottomPx = top + height + finalOffset;
-          const rawMin = pxToM(newBottomPx);
-          newEndMinutes = Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES;
-          newEndMinutes = Math.min(workEndMinutes, Math.max(newStartMinutes + SNAP_MINUTES, newEndMinutes));
-        }
-
-        if (finalOverlapType === 'split' && onSplitResizeRef.current) {
-          const segments = calculateSplitSegments(newStartMinutes, newEndMinutes);
-          if (segments.length > 0) {
-            onSplitResizeRef.current(block.id, segments);
-          }
-        } else if (onResizeRef.current) {
-          const newStartTime = minutesToTime(newStartMinutes);
-          const newEndTime = minutesToTime(newEndMinutes);
-          onResizeRef.current(block.id, newStartTime, newEndTime);
-        }
-      }
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  }, [block.id, slotHeight, startMinutes, endMinutes, workStartMinutes, workEndMinutes, checkOverlap, calculateSplitSegments, top, height, mToPx, pxToM]);
-
-  // Long press 시작 핸들러
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    // 왼쪽 버튼만 드래그 시작 — 우클릭은 상세 패널(onContextMenu) 경로
-    if (e.button !== 0) return;
-    // 리사이즈 핸들 영역이면 무시
-    if ((e.target as HTMLElement).dataset.resizeHandle) return;
-
-    e.preventDefault();
-
-    dragStartY.current = e.clientY;
-    dragStartX.current = e.clientX;
-
-    // 0.15초 후 드래그 모드 활성화
-    longPressTimer.current = setTimeout(() => {
-      wasDraggedOrResizedRef.current = true;
-      setIsDragging(true);
-      setDragOffset(0);
-      setOverlapType('none');
-      dragOffsetRef.current = 0;
-      overlapTypeRef.current = 'none';
-      axisZoneRef.current = null;
-      axisNotifiedRef.current = false;
-      setAxisZone(null);
       document.body.style.userSelect = 'none';
 
-      // 드래그 중 마우스 이동 핸들러
-      const handleDragMove = (moveEvent: MouseEvent) => {
-        // 그리드 밖 존(배치 레일 등) 위로 끌어냈는지 먼저 본다 —
-        // 그쪽에서 놓으면 시간 이동이 아니라 확정도 축 이동이 된다.
-        if (axisTargetsRef.current.length > 0) {
-          const movedFar =
-            Math.abs(moveEvent.clientX - dragStartX.current) > AXIS_DRAG_SLOP ||
-            Math.abs(moveEvent.clientY - dragStartY.current) > AXIS_DRAG_SLOP;
-          if (movedFar) {
-            const hovered = findAxisZoneAt(moveEvent.clientX, moveEvent.clientY);
-            const zone = hovered && hovered !== SELF_ZONE && axisTargetsRef.current.includes(hovered)
-              ? hovered
-              : null;
-            if (zone !== axisZoneRef.current || !axisNotifiedRef.current) {
-              axisZoneRef.current = zone;
-              axisNotifiedRef.current = true;
-              setAxisZone(zone);
-              if (zone) {
-                // 나가는 중엔 겹침 경고를 끈다 — 이 드래그는 시간을 바꾸지 않는다
-                setOverlapType('none');
-                overlapTypeRef.current = 'none';
-                // 원래 시각으로 되돌린다. 여기서 놓으면 시간은 저장되지 않으므로
-                // (아래 handleDragEnd의 finalAxisZone 분기) 옮겨진 자리에 머물러 있으면
-                // 지키지 못할 약속이 된다 — 비울 자리는 원래 자리다.
-                setDragOffset(0);
-                dragOffsetRef.current = 0;
-              }
-              updateAxisDragOver(SELF_ZONE, zone);
-            }
-          }
+      const startY = e.clientY;
+
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        const deltaY = moveEvent.clientY - startY;
+        let snappedDelta: number;
+        let newStartMin = startMinutes;
+        let newEndMin = endMinutes;
+
+        if (handle === 'top') {
+          const newTopPx = top + deltaY;
+          const rawMin = pxToM(newTopPx);
+          let snappedMin = Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES;
+          snappedMin = Math.max(workStartMinutes, Math.min(endMinutes - SNAP_MINUTES, snappedMin));
+          snappedDelta = mToPx(snappedMin) - top;
+          newStartMin = snappedMin;
+        } else {
+          const newBottomPx = top + height + deltaY;
+          const rawMin = pxToM(newBottomPx);
+          let snappedMin = Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES;
+          snappedMin = Math.min(workEndMinutes, Math.max(startMinutes + SNAP_MINUTES, snappedMin));
+          snappedDelta = mToPx(snappedMin) - (top + height);
+          newEndMin = snappedMin;
         }
 
-        // 레일 위에 있는 동안은 세로 미리보기를 멈춘다.
-        // 옆으로 끌어내는 동안 블록이 위아래로 튀면 어디에 놓이는지 읽히지 않는다.
-        if (axisZoneRef.current) return;
+        setResizeOffset(snappedDelta);
+        resizeOffsetRef.current = snappedDelta;
 
-        const deltaY = moveEvent.clientY - dragStartY.current;
-        const newTopPx = top + deltaY;
-        const rawMin = pxToM(newTopPx);
-        const duration = endMinutes - startMinutes;
-        let snappedStartMin = Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES;
-        let newEndMin = snappedStartMin + duration;
-
-        if (snappedStartMin < workStartMinutes) {
-          snappedStartMin = workStartMinutes;
-          newEndMin = workStartMinutes + duration;
-        }
-        if (newEndMin > workEndMinutes) {
-          newEndMin = workEndMinutes;
-          snappedStartMin = workEndMinutes - duration;
-        }
-
-        const snappedTopPx = mToPx(snappedStartMin);
-        setDragOffset(snappedTopPx - top);
-        dragOffsetRef.current = snappedTopPx - top;
-
-        const overlap = checkOverlap(snappedStartMin, newEndMin);
+        const overlap = checkOverlap(newStartMin, newEndMin);
         setOverlapType(overlap);
         overlapTypeRef.current = overlap;
       };
 
-      // 드래그 종료 핸들러
-      const handleDragEnd = () => {
-        document.removeEventListener('mousemove', handleDragMove);
-        document.removeEventListener('mouseup', handleDragEnd);
+      const handleMouseUp = () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
         document.body.style.userSelect = '';
 
-        const finalOffset = dragOffsetRef.current;
+        const finalOffset = resizeOffsetRef.current;
         const finalOverlapType = overlapTypeRef.current;
-        const finalAxisZone = axisZoneRef.current;
 
         // 시각 상태 리셋
-        setDragOffset(0);
+        setResizeOffset(0);
+        resizeOffsetRef.current = 0;
+        setIsResizing(null);
         setOverlapType('none');
-        setIsDragging(false);
-        setAxisZone(null);
-        dragOffsetRef.current = 0;
         overlapTypeRef.current = 'none';
-        axisZoneRef.current = null;
-        if (axisNotifiedRef.current) {
-          axisNotifiedRef.current = false;
-          endAxisDrag();
-        }
 
-        // 그리드 밖 존에서 놓았다 — 시간 이동이 아니라 축 이동이다.
-        // 실제 변경은 이 블록을 그린 쪽이 한다(무엇을 지우고 무엇을 남길지는 그쪽 몫이다).
-        if (finalAxisZone) {
-          onAxisDragOutRef.current?.(finalAxisZone);
-          return;
-        }
-
-        // 다른 블록과 겹침이면 이동 취소
+        // 다른 블록과 겹침이면 리사이즈 취소
         if (finalOverlapType === 'block') return;
 
         if (finalOffset !== 0) {
-          const newTopPx = top + finalOffset;
-          const rawMin = pxToM(newTopPx);
-          const duration = endMinutes - startMinutes;
-          let newStartMinutes = Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES;
-          let newEndMinutes = newStartMinutes + duration;
+          let newStartMinutes = startMinutes;
+          let newEndMinutes = endMinutes;
 
-          if (newStartMinutes < workStartMinutes) {
-            newStartMinutes = workStartMinutes;
-            newEndMinutes = workStartMinutes + duration;
-          }
-          if (newEndMinutes > workEndMinutes) {
-            newEndMinutes = workEndMinutes;
-            newStartMinutes = workEndMinutes - duration;
+          if (handle === 'top') {
+            const newTopPx = top + finalOffset;
+            const rawMin = pxToM(newTopPx);
+            newStartMinutes = Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES;
+            newStartMinutes = Math.max(
+              workStartMinutes,
+              Math.min(newEndMinutes - SNAP_MINUTES, newStartMinutes),
+            );
+          } else {
+            const newBottomPx = top + height + finalOffset;
+            const rawMin = pxToM(newBottomPx);
+            newEndMinutes = Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES;
+            newEndMinutes = Math.min(
+              workEndMinutes,
+              Math.max(newStartMinutes + SNAP_MINUTES, newEndMinutes),
+            );
           }
 
           if (finalOverlapType === 'split' && onSplitResizeRef.current) {
@@ -502,18 +421,201 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
             if (segments.length > 0) {
               onSplitResizeRef.current(block.id, segments);
             }
-          } else if (onMoveRef.current) {
+          } else if (onResizeRef.current) {
             const newStartTime = minutesToTime(newStartMinutes);
             const newEndTime = minutesToTime(newEndMinutes);
-            onMoveRef.current(block.id, newStartTime, newEndTime);
+            onResizeRef.current(block.id, newStartTime, newEndTime);
           }
         }
       };
 
-      document.addEventListener('mousemove', handleDragMove);
-      document.addEventListener('mouseup', handleDragEnd);
-    }, 150); // 0.15초 long press
-  }, [block.id, slotHeight, startMinutes, endMinutes, workStartMinutes, workEndMinutes, checkOverlap, calculateSplitSegments, top, mToPx, pxToM]);
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    },
+    [
+      block.id,
+      slotHeight,
+      startMinutes,
+      endMinutes,
+      workStartMinutes,
+      workEndMinutes,
+      checkOverlap,
+      calculateSplitSegments,
+      top,
+      height,
+      mToPx,
+      pxToM,
+    ],
+  );
+
+  // Long press 시작 핸들러
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      // 왼쪽 버튼만 드래그 시작 — 우클릭은 상세 패널(onContextMenu) 경로
+      if (e.button !== 0) return;
+      // 리사이즈 핸들 영역이면 무시
+      if ((e.target as HTMLElement).dataset.resizeHandle) return;
+
+      e.preventDefault();
+
+      dragStartY.current = e.clientY;
+      dragStartX.current = e.clientX;
+
+      // 0.15초 후 드래그 모드 활성화
+      longPressTimer.current = setTimeout(() => {
+        wasDraggedOrResizedRef.current = true;
+        setIsDragging(true);
+        setDragOffset(0);
+        setOverlapType('none');
+        dragOffsetRef.current = 0;
+        overlapTypeRef.current = 'none';
+        axisZoneRef.current = null;
+        axisNotifiedRef.current = false;
+        setAxisZone(null);
+        document.body.style.userSelect = 'none';
+
+        // 드래그 중 마우스 이동 핸들러
+        const handleDragMove = (moveEvent: MouseEvent) => {
+          // 그리드 밖 존(배치 레일 등) 위로 끌어냈는지 먼저 본다 —
+          // 그쪽에서 놓으면 시간 이동이 아니라 확정도 축 이동이 된다.
+          if (axisTargetsRef.current.length > 0) {
+            const movedFar =
+              Math.abs(moveEvent.clientX - dragStartX.current) > AXIS_DRAG_SLOP ||
+              Math.abs(moveEvent.clientY - dragStartY.current) > AXIS_DRAG_SLOP;
+            if (movedFar) {
+              const hovered = findAxisZoneAt(moveEvent.clientX, moveEvent.clientY);
+              const zone =
+                hovered && hovered !== SELF_ZONE && axisTargetsRef.current.includes(hovered)
+                  ? hovered
+                  : null;
+              if (zone !== axisZoneRef.current || !axisNotifiedRef.current) {
+                axisZoneRef.current = zone;
+                axisNotifiedRef.current = true;
+                setAxisZone(zone);
+                if (zone) {
+                  // 나가는 중엔 겹침 경고를 끈다 — 이 드래그는 시간을 바꾸지 않는다
+                  setOverlapType('none');
+                  overlapTypeRef.current = 'none';
+                  // 원래 시각으로 되돌린다. 여기서 놓으면 시간은 저장되지 않으므로
+                  // (아래 handleDragEnd의 finalAxisZone 분기) 옮겨진 자리에 머물러 있으면
+                  // 지키지 못할 약속이 된다 — 비울 자리는 원래 자리다.
+                  setDragOffset(0);
+                  dragOffsetRef.current = 0;
+                }
+                updateAxisDragOver(SELF_ZONE, zone);
+              }
+            }
+          }
+
+          // 레일 위에 있는 동안은 세로 미리보기를 멈춘다.
+          // 옆으로 끌어내는 동안 블록이 위아래로 튀면 어디에 놓이는지 읽히지 않는다.
+          if (axisZoneRef.current) return;
+
+          const deltaY = moveEvent.clientY - dragStartY.current;
+          const newTopPx = top + deltaY;
+          const rawMin = pxToM(newTopPx);
+          const duration = endMinutes - startMinutes;
+          let snappedStartMin = Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES;
+          let newEndMin = snappedStartMin + duration;
+
+          if (snappedStartMin < workStartMinutes) {
+            snappedStartMin = workStartMinutes;
+            newEndMin = workStartMinutes + duration;
+          }
+          if (newEndMin > workEndMinutes) {
+            newEndMin = workEndMinutes;
+            snappedStartMin = workEndMinutes - duration;
+          }
+
+          const snappedTopPx = mToPx(snappedStartMin);
+          setDragOffset(snappedTopPx - top);
+          dragOffsetRef.current = snappedTopPx - top;
+
+          const overlap = checkOverlap(snappedStartMin, newEndMin);
+          setOverlapType(overlap);
+          overlapTypeRef.current = overlap;
+        };
+
+        // 드래그 종료 핸들러
+        const handleDragEnd = () => {
+          document.removeEventListener('mousemove', handleDragMove);
+          document.removeEventListener('mouseup', handleDragEnd);
+          document.body.style.userSelect = '';
+
+          const finalOffset = dragOffsetRef.current;
+          const finalOverlapType = overlapTypeRef.current;
+          const finalAxisZone = axisZoneRef.current;
+
+          // 시각 상태 리셋
+          setDragOffset(0);
+          setOverlapType('none');
+          setIsDragging(false);
+          setAxisZone(null);
+          dragOffsetRef.current = 0;
+          overlapTypeRef.current = 'none';
+          axisZoneRef.current = null;
+          if (axisNotifiedRef.current) {
+            axisNotifiedRef.current = false;
+            endAxisDrag();
+          }
+
+          // 그리드 밖 존에서 놓았다 — 시간 이동이 아니라 축 이동이다.
+          // 실제 변경은 이 블록을 그린 쪽이 한다(무엇을 지우고 무엇을 남길지는 그쪽 몫이다).
+          if (finalAxisZone) {
+            onAxisDragOutRef.current?.(finalAxisZone);
+            return;
+          }
+
+          // 다른 블록과 겹침이면 이동 취소
+          if (finalOverlapType === 'block') return;
+
+          if (finalOffset !== 0) {
+            const newTopPx = top + finalOffset;
+            const rawMin = pxToM(newTopPx);
+            const duration = endMinutes - startMinutes;
+            let newStartMinutes = Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES;
+            let newEndMinutes = newStartMinutes + duration;
+
+            if (newStartMinutes < workStartMinutes) {
+              newStartMinutes = workStartMinutes;
+              newEndMinutes = workStartMinutes + duration;
+            }
+            if (newEndMinutes > workEndMinutes) {
+              newEndMinutes = workEndMinutes;
+              newStartMinutes = workEndMinutes - duration;
+            }
+
+            if (finalOverlapType === 'split' && onSplitResizeRef.current) {
+              const segments = calculateSplitSegments(newStartMinutes, newEndMinutes);
+              if (segments.length > 0) {
+                onSplitResizeRef.current(block.id, segments);
+              }
+            } else if (onMoveRef.current) {
+              const newStartTime = minutesToTime(newStartMinutes);
+              const newEndTime = minutesToTime(newEndMinutes);
+              onMoveRef.current(block.id, newStartTime, newEndTime);
+            }
+          }
+        };
+
+        document.addEventListener('mousemove', handleDragMove);
+        document.addEventListener('mouseup', handleDragEnd);
+      }, 150); // 0.15초 long press
+    },
+    [
+      block.id,
+      slotHeight,
+      startMinutes,
+      endMinutes,
+      workStartMinutes,
+      workEndMinutes,
+      checkOverlap,
+      calculateSplitSegments,
+      top,
+      mToPx,
+      pxToM,
+    ],
+  );
 
   // 마우스 업 시 long press 타이머 취소
   const handleMouseUp = useCallback(() => {
@@ -558,7 +660,11 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       <div
         className={`absolute left-1 right-1 rounded-lg border-l-4 border-dashed px-2.5 py-1.5
           overflow-hidden opacity-60 pointer-events-none cursor-default ${getBackgroundColor()}`}
-        style={{ top: `${displayTop}px`, height: `${Math.max(displayHeight, MIN_BLOCK_VIS)}px`, ...getInlineStyle() }}
+        style={{
+          top: `${displayTop}px`,
+          height: `${Math.max(displayHeight, MIN_BLOCK_VIS)}px`,
+          ...getInlineStyle(),
+        }}
       >
         <div className="flex flex-col h-full overflow-hidden gap-0.5">
           {block.board_name && (
@@ -566,14 +672,18 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
               {t('scheduleBlock.orgScheduleLabel', { boardName: block.board_name })}
             </span>
           )}
-          <span className={`text-sm font-medium truncate ${displayInfo.isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+          <span
+            className={`text-sm font-medium truncate ${displayInfo.isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'}`}
+          >
             {displayInfo.title}
-            {isOvernight && <span className="text-bridge-accent ml-1 text-xs">({t('scheduleBlock.nextDay')})</span>}
+            {isOvernight && (
+              <span className="text-bridge-accent ml-1 text-xs">
+                ({t('scheduleBlock.nextDay')})
+              </span>
+            )}
           </span>
           {displayHeight > TASK_TITLE_MIN_H && displayInfo.taskTitle && (
-            <span className="text-xs text-muted-foreground truncate">
-              {displayInfo.taskTitle}
-            </span>
+            <span className="text-xs text-muted-foreground truncate">{displayInfo.taskTitle}</span>
           )}
         </div>
       </div>
@@ -587,7 +697,11 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
         overflow-hidden ${getBackgroundColor()} ${isResizing || isDragging ? 'z-20' : ''}
         ${axisZone ? 'cursor-grabbing shadow-2xl ring-2 ring-bridge-accent opacity-50' : (isDragging || isResizing) && overlapType === 'block' ? 'cursor-not-allowed shadow-2xl ring-2 ring-red-500 bg-red-500/30' : (isDragging || isResizing) && overlapType === 'split' ? 'cursor-grab shadow-2xl ring-2 ring-amber-400 bg-amber-500/20' : isDragging ? 'cursor-grabbing shadow-2xl ring-2 ring-white/50' : isResizing ? 'cursor-ns-resize shadow-lg' : 'cursor-pointer hover:shadow-lg'}
         ${axisZone ? 'transition-[top] duration-150 ease-out' : isDragging || isResizing ? '' : 'transition-shadow'}`}
-      style={{ top: `${displayTop}px`, height: `${Math.max(displayHeight, MIN_BLOCK_VIS)}px`, ...getInlineStyle() }}
+      style={{
+        top: `${displayTop}px`,
+        height: `${Math.max(displayHeight, MIN_BLOCK_VIS)}px`,
+        ...getInlineStyle(),
+      }}
       onClick={() => {
         if (isResizing || isDragging || wasDraggedOrResizedRef.current) {
           wasDraggedOrResizedRef.current = false;
@@ -613,14 +727,16 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       />
 
       <div className="flex flex-col h-full overflow-hidden gap-0.5">
-        <span className={`text-sm font-medium truncate ${displayInfo.isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+        <span
+          className={`text-sm font-medium truncate ${displayInfo.isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'}`}
+        >
           {displayInfo.title}
-          {isOvernight && <span className="text-bridge-accent ml-1 text-xs">({t('scheduleBlock.nextDay')})</span>}
+          {isOvernight && (
+            <span className="text-bridge-accent ml-1 text-xs">({t('scheduleBlock.nextDay')})</span>
+          )}
         </span>
         {displayHeight > TASK_TITLE_MIN_H && displayInfo.taskTitle && (
-          <span className="text-xs text-muted-foreground truncate">
-            {displayInfo.taskTitle}
-          </span>
+          <span className="text-xs text-muted-foreground truncate">{displayInfo.taskTitle}</span>
         )}
         {displayHeight > FEATURE_TITLE_MIN_H && displayInfo.featureTitle && (
           <div className="flex items-center gap-1 mt-auto">
@@ -644,7 +760,9 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       {/* 겹침 시 경고 오버레이 */}
       {!axisZone && (isDragging || isResizing) && overlapType === 'block' && (
         <div className="absolute inset-0 bg-red-500/60 flex items-center justify-center rounded-md">
-          <span className="text-white text-xs font-bold">{isDragging ? t('scheduleBlock.cannotMove') : t('scheduleBlock.cannotChange')}</span>
+          <span className="text-white text-xs font-bold">
+            {isDragging ? t('scheduleBlock.cannotMove') : t('scheduleBlock.cannotChange')}
+          </span>
         </div>
       )}
       {/* 점심시간 분할 예정 오버레이 */}

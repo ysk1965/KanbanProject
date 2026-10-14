@@ -1,28 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { ArrowDownToLine, GripVertical, Loader2 } from "lucide-react";
-import {
-  PanelCount,
-  PanelFooterHint,
-  PanelShell,
-  panelTabClass,
-} from "./DashboardCard";
-import {
-  boardChecklistAPI,
-  type BoardChecklistItemResponse,
-} from "../../utils/api";
-import type { Milestone } from "../../types";
-import {
-  getTodayDateString,
-  getDDay,
-  toDateInputValue,
-} from "../../utils/dateUtils";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ArrowDownToLine, GripVertical, Loader2 } from 'lucide-react';
+import { PanelCount, PanelFooterHint, PanelShell, panelTabClass } from './DashboardCard';
+import { boardChecklistAPI, type BoardChecklistItemResponse } from '../../utils/api';
+import type { Milestone } from '../../types';
+import { getTodayDateString, getDDay, toDateInputValue } from '../../utils/dateUtils';
 import {
   buildMilestoneColorMap,
   resolveMilestoneColor,
   withAlpha,
-} from "../../utils/milestoneColor";
-import { addDaysToDate } from "../../utils/workloadBar";
+} from '../../utils/milestoneColor';
+import { addDaysToDate } from '../../utils/workloadBar';
 import {
   dispatchAxisDrop,
   endAxisDrag,
@@ -31,18 +19,18 @@ import {
   setAxisDragGhost,
   useAxisDropZone,
   type AxisZone,
-} from "../../utils/axisTransfer";
+} from '../../utils/axisTransfer';
 
 /** 드래그 페이로드 MIME — ScheduleResourceView.handleDrop이 읽는 키와 같아야 한다 */
-export const PLACEMENT_DRAG_TYPE = "application/checklist-item";
+export const PLACEMENT_DRAG_TYPE = 'application/checklist-item';
 
 /**
  * 이 레일이 받아 주는 출발지 — 위(간트 바·타임블록)와 아래(백로그) 양쪽.
  * 타임블록에서 내려오는 건은 블록까지 지워야 하므로 타임블록 쪽이 먼저 처리하고 알린다.
  */
-const ACCEPTS: AxisZone[] = ["workload", "backlog", "timeblock"];
+const ACCEPTS: AxisZone[] = ['workload', 'backlog', 'timeblock'];
 
-type RailTab = "unplaced" | "overdue";
+type RailTab = 'unplaced' | 'overdue';
 
 interface PlacementRailProps {
   boardId: string;
@@ -54,10 +42,7 @@ interface PlacementRailProps {
   /** 뷰어는 드래그·빠른 배치 불가 */
   canEdit: boolean;
   /** 빠른 배치(오늘/내일) — 드래그를 못 쓰는 환경의 대체 경로 */
-  onPlace: (
-    item: BoardChecklistItemResponse,
-    targetDate: string,
-  ) => void | Promise<void>;
+  onPlace: (item: BoardChecklistItemResponse, targetDate: string) => void | Promise<void>;
   onOpenTask: (taskId: string, checklistItemId?: string) => void;
   onOpenKanban: () => void;
 }
@@ -71,10 +56,7 @@ function isUnplaced(item: BoardChecklistItemResponse): boolean {
  * 오늘 만들어진 항목인지 — created_at은 UTC라 로컬 날짜로 바꿔 비교한다.
  * (문자열을 그대로 잘라 쓰면 자정 전후로 하루가 어긋난다)
  */
-function isCreatedToday(
-  item: BoardChecklistItemResponse,
-  today: string,
-): boolean {
+function isCreatedToday(item: BoardChecklistItemResponse, today: string): boolean {
   if (!item.created_at) return false;
   return toDateInputValue(item.created_at) === today;
 }
@@ -108,7 +90,7 @@ export function PlacementRail({
   const [items, setItems] = useState<BoardChecklistItemResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<RailTab>("unplaced");
+  const [tab, setTab] = useState<RailTab>('unplaced');
   // 오늘 생성분만 보기 — 레일이 길어졌을 때 새로 들어온 것만 추려 낸다
   const [onlyToday, setOnlyToday] = useState(false);
   // 빠른 배치 직후 서버 응답을 기다리는 동안 카드를 미리 감춘다
@@ -122,16 +104,13 @@ export function PlacementRail({
     over: dropOver,
     zoneProps,
   } = useAxisDropZone({
-    zone: "placement",
+    zone: 'placement',
     accepts: ACCEPTS,
     disabled: !canEdit,
   });
 
   // 마일스톤 id → 색 (배열 순서 기준 — 간트·마인드맵과 같은 색이 나온다)
-  const milestoneColorMap = useMemo(
-    () => buildMilestoneColorMap(milestones),
-    [milestones],
-  );
+  const milestoneColorMap = useMemo(() => buildMilestoneColorMap(milestones), [milestones]);
 
   /**
    * 마일스톤 id → 정렬 순위. milestones는 시작일 오름차순이라 순위가 곧 시간 순이다.
@@ -172,7 +151,7 @@ export function PlacementRail({
         });
       })
       .catch(() => {
-        if (!cancelled) setError(t("common.error", "불러오지 못했습니다"));
+        if (!cancelled) setError(t('common.error', '불러오지 못했습니다'));
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -191,27 +170,23 @@ export function PlacementRail({
     const unplacedList = openItems.filter(isUnplaced).sort((a, b) => {
       const diff = rankOf(a) - rankOf(b);
       if (diff !== 0) return diff;
-      return (a.task?.title ?? "").localeCompare(b.task?.title ?? "");
+      return (a.task?.title ?? '').localeCompare(b.task?.title ?? '');
     });
 
     // 지연 탭은 마일스톤보다 마감이 급하므로 날짜순을 유지한다
     const overdueList = openItems
       .filter((i) => i.due_date && i.due_date < today)
-      .sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""));
+      .sort((a, b) => (a.due_date ?? '').localeCompare(b.due_date ?? ''));
 
     return { unplaced: unplacedList, overdue: overdueList };
   }, [items, hiddenIds, today, rankOf]);
 
   // 보고 있던 탭이 비면 남아 있는 쪽으로 옮겨 준다
   useEffect(() => {
-    if (tab === "unplaced" && unplaced.length === 0 && overdue.length > 0) {
-      setTab("overdue");
-    } else if (
-      tab === "overdue" &&
-      overdue.length === 0 &&
-      unplaced.length > 0
-    ) {
-      setTab("unplaced");
+    if (tab === 'unplaced' && unplaced.length === 0 && overdue.length > 0) {
+      setTab('overdue');
+    } else if (tab === 'overdue' && overdue.length === 0 && unplaced.length > 0) {
+      setTab('unplaced');
     }
   }, [tab, unplaced.length, overdue.length]);
 
@@ -229,7 +204,7 @@ export function PlacementRail({
     [onPlace],
   );
 
-  const baseList = tab === "unplaced" ? unplaced : overdue;
+  const baseList = tab === 'unplaced' ? unplaced : overdue;
 
   const todayCount = useMemo(
     () => baseList.filter((i) => isCreatedToday(i, today)).length,
@@ -241,19 +216,17 @@ export function PlacementRail({
     if (todayCount === 0 && onlyToday) setOnlyToday(false);
   }, [todayCount, onlyToday]);
 
-  const list = onlyToday
-    ? baseList.filter((i) => isCreatedToday(i, today))
-    : baseList;
+  const list = onlyToday ? baseList.filter((i) => isCreatedToday(i, today)) : baseList;
 
   const TABS: { key: RailTab; label: string; count: number }[] = [
     {
-      key: "unplaced",
-      label: t("boardDashboard.railUnplaced", "미배치"),
+      key: 'unplaced',
+      label: t('boardDashboard.railUnplaced', '미배치'),
       count: unplaced.length,
     },
     {
-      key: "overdue",
-      label: t("boardDashboard.railOverdue", "지연"),
+      key: 'overdue',
+      label: t('boardDashboard.railOverdue', '지연'),
       count: overdue.length,
     },
   ];
@@ -261,13 +234,13 @@ export function PlacementRail({
   return (
     <PanelShell
       /* 단계 도트는 보고 있는 탭을 따른다 — 지연을 보는 동안에는 이 카드가 지연 카드다 */
-      dot={tab === "overdue" ? "rose" : "amber"}
-      title={t("boardDashboard.placementTitle", "배치 대기")}
+      dot={tab === 'overdue' ? 'rose' : 'amber'}
+      title={t('boardDashboard.placementTitle', '배치 대기')}
       tabs={
         <div
           className="flex-none flex items-center gap-1"
           role="tablist"
-          aria-label={t("boardDashboard.railTabsLabel", "배치 대기 항목")}
+          aria-label={t('boardDashboard.railTabsLabel', '배치 대기 항목')}
         >
           {TABS.map((item) => (
             <button
@@ -284,9 +257,7 @@ export function PlacementRail({
               {/* 지연은 쉬고 있을 때도 붉게 둔다 — 탭을 눌러 보게 만드는 건 이 숫자다 */}
               <PanelCount
                 value={item.count}
-                tone={
-                  item.key === "overdue" && item.count > 0 ? "rose" : "muted"
-                }
+                tone={item.key === 'overdue' && item.count > 0 ? 'rose' : 'muted'}
               />
             </button>
           ))}
@@ -300,21 +271,18 @@ export function PlacementRail({
             aria-pressed={onlyToday}
             className={`flex-none flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-xs font-bold transition-colors ${
               onlyToday
-                ? "border-bridge-secondary/40 bg-bridge-secondary/15 text-bridge-secondary"
-                : "border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                ? 'border-bridge-secondary/40 bg-bridge-secondary/15 text-bridge-secondary'
+                : 'border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/5'
             }`}
           >
-            <span
-              className="w-1.5 h-1.5 rounded-full bg-bridge-secondary"
-              aria-hidden="true"
-            />
-            {t("boardDashboard.railTodayCount", "오늘 {{count}}", {
+            <span className="w-1.5 h-1.5 rounded-full bg-bridge-secondary" aria-hidden="true" />
+            {t('boardDashboard.railTodayCount', '오늘 {{count}}', {
               count: todayCount,
             })}
           </button>
         ) : undefined
       }
-      linkLabel={t("boardDashboard.myTasksLink", "칸반에서 보기")}
+      linkLabel={t('boardDashboard.myTasksLink', '칸반에서 보기')}
       onLinkClick={onOpenKanban}
       /*
         힌트는 머리에서 내려온다. 머리 오른쪽은 링크 자리라 문구가 함께 서면
@@ -323,15 +291,12 @@ export function PlacementRail({
       footer={
         <PanelFooterHint emphasized={dropActive}>
           {!canEdit
-            ? t("boardDashboard.railReadOnly", "읽기 전용")
+            ? t('boardDashboard.railReadOnly', '읽기 전용')
             : dropActive
-              ? t(
-                  "boardDashboard.railDropHint",
-                  "여기에 놓으면 일정 없이 카드로 돌아옵니다",
-                )
+              ? t('boardDashboard.railDropHint', '여기에 놓으면 일정 없이 카드로 돌아옵니다')
               : t(
-                  "boardDashboard.railHint",
-                  "끌어서 날짜 칸에 놓으면 배치 · 타임블록에 놓으면 그 시각까지",
+                  'boardDashboard.railHint',
+                  '끌어서 날짜 칸에 놓으면 배치 · 타임블록에 놓으면 그 시각까지',
                 )}
         </PanelFooterHint>
       }
@@ -341,9 +306,9 @@ export function PlacementRail({
       className="flex-1"
       overlayClassName={
         dropOver
-          ? "bg-bridge-accent/[0.12] ring-2 ring-inset ring-bridge-accent"
+          ? 'bg-bridge-accent/[0.12] ring-2 ring-inset ring-bridge-accent'
           : dropActive
-            ? "bg-bridge-accent/[0.05]"
+            ? 'bg-bridge-accent/[0.05]'
             : undefined
       }
     >
@@ -358,16 +323,16 @@ export function PlacementRail({
           <div className="flex items-center justify-center py-6">
             <Loader2
               className="w-5 h-5 animate-spin text-bridge-accent"
-              aria-label={t("common.loading", "불러오는 중")}
+              aria-label={t('common.loading', '불러오는 중')}
             />
           </div>
         ) : error ? (
           <p className="text-xs text-slate-500 text-center py-6">{error}</p>
         ) : list.length === 0 ? (
           <p className="text-xs text-slate-500 text-center py-6 px-3.5 leading-relaxed">
-            {tab === "unplaced"
-              ? t("boardDashboard.railAllPlaced", "모두 배치했습니다.")
-              : t("boardDashboard.railNoOverdue", "지연된 항목이 없습니다.")}
+            {tab === 'unplaced'
+              ? t('boardDashboard.railAllPlaced', '모두 배치했습니다.')
+              : t('boardDashboard.railNoOverdue', '지연된 항목이 없습니다.')}
           </p>
         ) : (
           <ul className="flex flex-col">
@@ -389,7 +354,7 @@ export function PlacementRail({
                     if (!draggable || !taskId) return;
                     // 「오늘」·「내일」·「백로그」를 누르려다 행이 끌려가지 않게 한다.
                     // 행 전체를 잡을 수 있어야 하므로(손잡이만 12px다) 버튼만 예외로 뺀다.
-                    if ((e.target as HTMLElement).closest("button")) {
+                    if ((e.target as HTMLElement).closest('button')) {
                       e.preventDefault();
                       return;
                     }
@@ -405,7 +370,7 @@ export function PlacementRail({
                     );
                     // 축 이동용 페이로드도 함께 싣는다 — 간트는 위의 기존 키를,
                     // 백로그 독은 이 키를 읽는다
-                    setAxisDragData(e.dataTransfer, "placement", {
+                    setAxisDragData(e.dataTransfer, 'placement', {
                       id: item.id,
                       task_id: taskId,
                       title: item.title,
@@ -420,7 +385,7 @@ export function PlacementRail({
                   }}
                   onDragEnd={endAxisDrag}
                   className={`group flex items-center gap-2 px-3.5 py-1.5 border-b border-foreground/[0.06] hover:bg-foreground/[0.03] transition-colors ${
-                    draggable ? "cursor-grab active:cursor-grabbing" : ""
+                    draggable ? 'cursor-grab active:cursor-grabbing' : ''
                   }`}
                 >
                   {draggable && (
@@ -455,7 +420,7 @@ export function PlacementRail({
                         aria-hidden="true"
                       />
                       <span className="truncate">
-                        {t("boardDashboard.railNoMilestone", "마일스톤 없음")}
+                        {t('boardDashboard.railNoMilestone', '마일스톤 없음')}
                       </span>
                     </span>
                   )}
@@ -471,11 +436,11 @@ export function PlacementRail({
 
                   {isNew && (
                     <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
-                      {t("boardDashboard.railNew", "NEW")}
+                      {t('boardDashboard.railNew', 'NEW')}
                     </span>
                   )}
 
-                  {tab === "overdue" && dday.text && (
+                  {tab === 'overdue' && dday.text && (
                     <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400">
                       {dday.text}
                     </span>
@@ -483,7 +448,7 @@ export function PlacementRail({
 
                   {/* 어느 태스크에 붙은 항목인지 — 좁은 폭에서는 제목에 자리를 내준다 */}
                   <span className="hidden lg:block flex-none max-w-[10rem] text-xs text-slate-500 truncate">
-                    {item.task?.title ?? t("boardDashboard.noBlock", "미분류")}
+                    {item.task?.title ?? t('boardDashboard.noBlock', '미분류')}
                   </span>
 
                   {canEdit && (
@@ -503,13 +468,10 @@ export function PlacementRail({
                               assignee_id: item.assignee?.id ?? null,
                             })
                           }
-                          title={t(
-                            "boardDashboard.railNowTitle",
-                            "지금 시각부터 타임블록에 넣기",
-                          )}
+                          title={t('boardDashboard.railNowTitle', '지금 시각부터 타임블록에 넣기')}
                           className="px-2 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                         >
-                          {t("boardDashboard.railNow", "지금")}
+                          {t('boardDashboard.railNow', '지금')}
                         </button>
                       )}
                       <button
@@ -517,16 +479,14 @@ export function PlacementRail({
                         onClick={() => handleQuickPlace(item, today)}
                         className="px-2 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                       >
-                        {t("boardDashboard.railToday", "오늘")}
+                        {t('boardDashboard.railToday', '오늘')}
                       </button>
                       <button
                         type="button"
-                        onClick={() =>
-                          handleQuickPlace(item, addDaysToDate(today, 1))
-                        }
+                        onClick={() => handleQuickPlace(item, addDaysToDate(today, 1))}
                         className="px-2 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                       >
-                        {t("boardDashboard.railTomorrow", "내일")}
+                        {t('boardDashboard.railTomorrow', '내일')}
                       </button>
                       {/* 드래그를 못 쓰는 환경(터치·키보드)의 하향 경로.
                           드래그와 같은 이벤트를 쏘므로 처리도 한 곳에서 끝난다 */}
@@ -535,8 +495,8 @@ export function PlacementRail({
                           type="button"
                           onClick={() =>
                             dispatchAxisDrop({
-                              from: "placement",
-                              to: "backlog",
+                              from: 'placement',
+                              to: 'backlog',
                               item: {
                                 id: item.id,
                                 task_id: taskId,
@@ -546,14 +506,11 @@ export function PlacementRail({
                               },
                             })
                           }
-                          aria-label={t(
-                            "boardDashboard.railToBacklogAria",
-                            "백로그로 내리기",
-                          )}
+                          aria-label={t('boardDashboard.railToBacklogAria', '백로그로 내리기')}
                           className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                         >
                           <ArrowDownToLine size={11} aria-hidden="true" />
-                          {t("boardDashboard.railToBacklog", "백로그")}
+                          {t('boardDashboard.railToBacklog', '백로그')}
                         </button>
                       )}
                     </span>

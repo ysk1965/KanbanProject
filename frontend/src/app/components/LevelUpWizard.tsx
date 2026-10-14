@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
-import { Loader2, Check } from "lucide-react";
-import { toast } from "sonner";
-import { MotionModal } from "./ui/MotionModal";
-import { sprintAPI, milestoneAPI } from "../utils/api";
-import type { SprintBoard as SprintBoardData, SprintItemCard } from "../types";
+import { useEffect, useMemo, useState } from 'react';
+import { Loader2, Check } from 'lucide-react';
+import { toast } from 'sonner';
+import { MotionModal } from './ui/MotionModal';
+import { sprintAPI, milestoneAPI } from '../utils/api';
+import type { SprintBoard as SprintBoardData, SprintItemCard } from '../types';
 
 /**
  * 승급 마법사 — 레벨을 올리는 건 스위치가 아니라 **정리 작업**이다.
@@ -35,8 +35,8 @@ function todayISO(offsetDays = 0): string {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
   // 로컬 기준 yyyy-MM-dd — 기간은 사람이 보는 날짜라 UTC로 밀면 하루가 어긋난다.
-  const m = `${d.getMonth() + 1}`.padStart(2, "0");
-  const day = `${d.getDate()}`.padStart(2, "0");
+  const m = `${d.getMonth() + 1}`.padStart(2, '0');
+  const day = `${d.getDate()}`.padStart(2, '0');
   return `${d.getFullYear()}-${m}-${day}`;
 }
 
@@ -58,7 +58,7 @@ export function LevelUpWizard({
   const [endDate, setEndDate] = useState(todayISO(13));
 
   // 2→3 상태
-  const [msTitle, setMsTitle] = useState("");
+  const [msTitle, setMsTitle] = useState('');
 
   useEffect(() => {
     if (!open || !milestoneId) return;
@@ -78,12 +78,11 @@ export function LevelUpWizard({
           }),
         );
         setPicked(ids);
-        if (current?.start_date)
-          setStartDate(current.start_date.substring(0, 10));
+        if (current?.start_date) setStartDate(current.start_date.substring(0, 10));
         if (current?.end_date) setEndDate(current.end_date.substring(0, 10));
       })
       .catch(() => {
-        if (alive) toast.error("보드 정보를 불러오지 못했습니다.");
+        if (alive) toast.error('보드 정보를 불러오지 못했습니다.');
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -114,11 +113,7 @@ export function LevelUpWizard({
       // 안 고른 것만 백로그로 되돌린다. 고른 것은 이미 담겨 있어 건드릴 필요가 없다.
       const drop = allCards.filter((it) => !picked.has(it.task_id ?? it.id));
       for (const it of drop) {
-        await sprintAPI.removeTask(
-          boardId,
-          currentSprintId,
-          it.task_id ?? it.id,
-        );
+        await sprintAPI.removeTask(boardId, currentSprintId, it.task_id ?? it.id);
       }
       await sprintAPI.updateSprint(boardId, currentSprintId, {
         start_date: startDate,
@@ -130,7 +125,7 @@ export function LevelUpWizard({
       onDone();
       onClose();
     } catch {
-      toast.error("주기를 시작하지 못했습니다. 잠시 후 다시 시도해주세요.");
+      toast.error('주기를 시작하지 못했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setSaving(false);
     }
@@ -145,15 +140,15 @@ export function LevelUpWizard({
     setSaving(true);
     try {
       await milestoneAPI.updateMilestone(boardId, milestoneId, {
-        title: msTitle.trim() || "1단계",
+        title: msTitle.trim() || '1단계',
         start_date: startDate,
         end_date: endDate,
       });
-      toast.success("단계를 만들었습니다 · 지금까지의 주기가 여기 묶였습니다");
+      toast.success('단계를 만들었습니다 · 지금까지의 주기가 여기 묶였습니다');
       onDone();
       onClose();
     } catch {
-      toast.error("단계를 만들지 못했습니다. 잠시 후 다시 시도해주세요.");
+      toast.error('단계를 만들지 못했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setSaving(false);
     }
@@ -174,20 +169,18 @@ export function LevelUpWizard({
 
         <div className="px-5 pt-4 pb-3 border-b border-foreground/[0.08] grid gap-1">
           <span className="text-xs font-bold uppercase tracking-widest text-bridge-accent">
-            {level === 2 ? "1단계 → 2단계" : "2단계 → 3단계"}
+            {level === 2 ? '1단계 → 2단계' : '2단계 → 3단계'}
           </span>
           <h2
             id="levelup-title"
             className="text-sm md:text-lg font-bold text-foreground tracking-tight"
           >
-            {level === 2
-              ? "첫 주기를 시작합니다"
-              : "지금까지 돌린 주기를 단계로 묶습니다"}
+            {level === 2 ? '첫 주기를 시작합니다' : '지금까지 돌린 주기를 단계로 묶습니다'}
           </h2>
           <p className="text-xs text-slate-500 leading-relaxed">
             {level === 2
-              ? "이번 주기에 할 것만 남겨주세요. 고르지 않은 건 사라지지 않고 왼쪽 레일에서 기다립니다."
-              : "주기는 그대로 굴러갑니다. 그 위에 \"이 단계에서 어디까지\"만 얹힙니다."}
+              ? '이번 주기에 할 것만 남겨주세요. 고르지 않은 건 사라지지 않고 왼쪽 레일에서 기다립니다.'
+              : '주기는 그대로 굴러갑니다. 그 위에 "이 단계에서 어디까지"만 얹힙니다.'}
           </p>
         </div>
 
@@ -216,15 +209,15 @@ export function LevelUpWizard({
                       onClick={() => toggle(id)}
                       className={`w-full flex items-center gap-3 text-left rounded-xl border p-3 transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
                         on
-                          ? "border-bridge-secondary bg-bridge-secondary/10"
-                          : "border-foreground/10 hover:bg-foreground/5"
+                          ? 'border-bridge-secondary bg-bridge-secondary/10'
+                          : 'border-foreground/10 hover:bg-foreground/5'
                       }`}
                     >
                       <span
                         className={`shrink-0 w-4 h-4 rounded grid place-items-center border ${
                           on
-                            ? "bg-bridge-secondary border-bridge-secondary"
-                            : "border-foreground/20"
+                            ? 'bg-bridge-secondary border-bridge-secondary'
+                            : 'border-foreground/20'
                         }`}
                       >
                         {on && <Check className="w-3 h-3 text-teal-950" />}
@@ -233,8 +226,8 @@ export function LevelUpWizard({
                         {it.title}
                       </span>
                       <span className="shrink-0 text-xs text-slate-500 tabular-nums">
-                        {it.feature_title ?? "기타"} · 할 일{" "}
-                        {it.checklist_done}/{it.checklist_total}
+                        {it.feature_title ?? '기타'} · 할 일 {it.checklist_done}/
+                        {it.checklist_total}
                       </span>
                     </button>
                   );
@@ -257,8 +250,8 @@ export function LevelUpWizard({
                 className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               />
               <p className="text-xs text-slate-600 leading-relaxed">
-                지금까지의 주기가 전부 이 단계에 들어갑니다. 주기를 여러 단계로 나누는 건
-                다음 단계를 만들 때부터 가능합니다.
+                지금까지의 주기가 전부 이 단계에 들어갑니다. 주기를 여러 단계로 나누는 건 다음
+                단계를 만들 때부터 가능합니다.
               </p>
             </div>
           )}
@@ -266,7 +259,7 @@ export function LevelUpWizard({
           {/* 기간 — 두 흐름 모두 필요하다. 레벨 2는 주기, 레벨 3은 단계의 기간. */}
           <div className="space-y-2">
             <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-              {level === 2 ? "주기 기간" : "단계 기간"}
+              {level === 2 ? '주기 기간' : '단계 기간'}
             </span>
             <div className="flex items-center gap-2 flex-wrap">
               <input
@@ -284,9 +277,7 @@ export function LevelUpWizard({
                 aria-label="종료일"
                 className="bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
               />
-              {level === 2 && (
-                <span className="text-xs text-slate-600">기본 2주</span>
-              )}
+              {level === 2 && <span className="text-xs text-slate-600">기본 2주</span>}
             </div>
           </div>
         </div>
@@ -295,7 +286,7 @@ export function LevelUpWizard({
           <span className="text-xs text-slate-500 flex-1 min-w-0">
             {level === 2
               ? `담김 ${picked.size}장 · 레일 ${Math.max(0, allCards.length - picked.size)}장`
-              : "주기와 카드는 하나도 안 움직입니다"}
+              : '주기와 카드는 하나도 안 움직입니다'}
           </span>
           {/* 정리는 미뤄도 화면이 깨지지 않는다 — 그래서 건너뛸 수 있어야 한다. */}
           <button
@@ -312,7 +303,7 @@ export function LevelUpWizard({
             className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 inline-flex items-center gap-1.5"
           >
             {saving && <Loader2 className="w-3 h-3 animate-spin" />}
-            {level === 2 ? "주기 시작" : "단계 만들기"}
+            {level === 2 ? '주기 시작' : '단계 만들기'}
           </button>
         </div>
       </div>

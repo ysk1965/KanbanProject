@@ -1,7 +1,7 @@
-import { useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import { Layers, Flag } from "lucide-react";
-import type { Feature, Milestone, Task } from "../types";
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Layers, Flag } from 'lucide-react';
+import type { Feature, Milestone, Task } from '../types';
 
 // ========================================
 // Types
@@ -22,12 +22,12 @@ interface CellCount {
   completed: number;
 }
 
-const UNASSIGNED = "__unassigned__";
+const UNASSIGNED = '__unassigned__';
 
 /** "YYYY-MM-DD" → "M/D" (타임존 영향 없이 문자열에서 직접 파싱) */
 function toShortDate(dateStr?: string | null): string {
-  if (!dateStr) return "";
-  const parts = dateStr.split("-");
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
   if (parts.length < 3) return dateStr;
   return `${Number(parts[1])}/${Number(parts[2])}`;
 }
@@ -61,8 +61,7 @@ export function MilestoneMatrix({
   const sortedMilestones = useMemo(
     () =>
       [...milestones].sort(
-        (a, b) =>
-          new Date(a.start_date).getTime() - new Date(b.start_date).getTime(),
+        (a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime(),
       ),
     [milestones],
   );
@@ -109,8 +108,7 @@ export function MilestoneMatrix({
   // 마일스톤별 합계(태스크 스코프) + 미배정 합계
   const columnSums = useMemo(() => {
     const sums = new Map<string, CellCount>();
-    for (const ms of sortedMilestones)
-      sums.set(ms.id, { total: 0, completed: 0 });
+    for (const ms of sortedMilestones) sums.set(ms.id, { total: 0, completed: 0 });
     sums.set(UNASSIGNED, { total: 0, completed: 0 });
     for (const inner of grid.values()) {
       for (const [key, c] of inner) {
@@ -126,7 +124,7 @@ export function MilestoneMatrix({
   const unassignedTotal = columnSums.get(UNASSIGNED)?.total ?? 0;
 
   const cellClass =
-    "px-3 py-2.5 text-center text-xs tabular-nums border-b border-r border-foreground/[0.06] transition-colors";
+    'px-3 py-2.5 text-center text-xs tabular-nums border-b border-r border-foreground/[0.06] transition-colors';
 
   return (
     <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
@@ -135,14 +133,14 @@ export function MilestoneMatrix({
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <Layers className="h-3.5 w-3.5 text-bridge-accent" />
           <span className="font-medium text-foreground">
-            {t("milestone.matrix.title", {
-              defaultValue: "피처 × 마일스톤",
+            {t('milestone.matrix.title', {
+              defaultValue: '피처 × 마일스톤',
             })}
           </span>
         </div>
         <span className="text-xs text-slate-500">
-          {t("milestone.matrix.hint", {
-            defaultValue: "● = 기본 마일스톤 · 셀 클릭 시 피처 상세",
+          {t('milestone.matrix.hint', {
+            defaultValue: '● = 기본 마일스톤 · 셀 클릭 시 피처 상세',
           })}
         </span>
       </div>
@@ -153,34 +151,28 @@ export function MilestoneMatrix({
           <thead>
             <tr>
               <th className="sticky left-0 z-10 bg-bridge-surface px-4 py-3 text-left text-xs font-bold text-foreground border-b border-r border-foreground/[0.08] min-w-[180px]">
-                {t("milestone.matrix.featureCol", {
-                  defaultValue: "Feature ↓ / Milestone →",
+                {t('milestone.matrix.featureCol', {
+                  defaultValue: 'Feature ↓ / Milestone →',
                 })}
               </th>
               {sortedMilestones.map((ms) => (
                 <th
                   key={ms.id}
-                  onClick={
-                    onMilestoneHeaderClick
-                      ? () => onMilestoneHeaderClick(ms.id)
-                      : undefined
-                  }
+                  onClick={onMilestoneHeaderClick ? () => onMilestoneHeaderClick(ms.id) : undefined}
                   className={`bg-bridge-surface px-3 py-3 text-center text-xs font-bold text-foreground border-b border-r border-foreground/[0.08] min-w-[104px]${
                     onMilestoneHeaderClick
-                      ? " cursor-pointer hover:text-bridge-accent transition-colors"
-                      : ""
+                      ? ' cursor-pointer hover:text-bridge-accent transition-colors'
+                      : ''
                   }`}
                   title={
                     onMilestoneHeaderClick
-                      ? t("milestone.detail.open", {
-                          defaultValue: "상세 보기",
+                      ? t('milestone.detail.open', {
+                          defaultValue: '상세 보기',
                         })
                       : undefined
                   }
                 >
-                  <div className="truncate max-w-[140px] mx-auto">
-                    {ms.title}
-                  </div>
+                  <div className="truncate max-w-[140px] mx-auto">{ms.title}</div>
                   <div className="text-xs font-normal text-slate-500 mt-0.5">
                     {toShortDate(ms.start_date)}~{toShortDate(ms.end_date)}
                   </div>
@@ -188,14 +180,14 @@ export function MilestoneMatrix({
               ))}
               {unassignedTotal > 0 && (
                 <th className="bg-amber-500/10 px-3 py-3 text-center text-xs font-bold text-amber-600 dark:text-amber-400 border-b border-r border-foreground/[0.08] min-w-[88px]">
-                  {t("milestone.matrix.unassigned", {
-                    defaultValue: "미배정",
+                  {t('milestone.matrix.unassigned', {
+                    defaultValue: '미배정',
                   })}
                 </th>
               )}
               <th className="bg-black/20 px-3 py-3 text-center text-xs font-bold text-slate-400 border-b border-foreground/[0.08] min-w-[112px]">
-                {t("milestone.matrix.featureTotal", {
-                  defaultValue: "피처 전체",
+                {t('milestone.matrix.featureTotal', {
+                  defaultValue: '피처 전체',
                 })}
               </th>
             </tr>
@@ -205,15 +197,12 @@ export function MilestoneMatrix({
               const inner = grid.get(feature.id);
               const primaryMs = primaryByFeature.get(feature.id);
               return (
-                <tr
-                  key={feature.id}
-                  className="group hover:bg-foreground/[0.02] transition-colors"
-                >
+                <tr key={feature.id} className="group hover:bg-foreground/[0.02] transition-colors">
                   {/* 피처명 (sticky) */}
                   <td
                     className="sticky left-0 z-10 bg-bridge-obsidian group-hover:bg-bridge-obsidian px-4 py-2.5 border-b border-r border-foreground/[0.06]"
                     onClick={() => onFeatureClick?.(feature)}
-                    style={{ cursor: onFeatureClick ? "pointer" : "default" }}
+                    style={{ cursor: onFeatureClick ? 'pointer' : 'default' }}
                   >
                     <div className="flex items-center gap-2">
                       <span
@@ -232,10 +221,7 @@ export function MilestoneMatrix({
                     const isPrimary = primaryMs === ms.id;
                     if (!c || c.total === 0) {
                       return (
-                        <td
-                          key={ms.id}
-                          className={`${cellClass} text-slate-600`}
-                        >
+                        <td key={ms.id} className={`${cellClass} text-slate-600`}>
                           —
                         </td>
                       );
@@ -248,28 +234,27 @@ export function MilestoneMatrix({
                         className={`${cellClass} cursor-pointer ${
                           isDone
                             ? isPrimary
-                              ? "bg-emerald-500/[0.18] text-emerald-600 dark:text-emerald-400 font-bold ring-1 ring-inset ring-emerald-500/40"
-                              : "bg-emerald-500/[0.10] text-emerald-600 dark:text-emerald-400 font-medium hover:bg-emerald-500/[0.16]"
+                              ? 'bg-emerald-500/[0.18] text-emerald-600 dark:text-emerald-400 font-bold ring-1 ring-inset ring-emerald-500/40'
+                              : 'bg-emerald-500/[0.10] text-emerald-600 dark:text-emerald-400 font-medium hover:bg-emerald-500/[0.16]'
                             : isPrimary
-                              ? "bg-bridge-accent/[0.18] text-foreground font-bold ring-1 ring-inset ring-bridge-accent/40"
-                              : "bg-bridge-accent/[0.08] text-bridge-accent font-medium hover:bg-bridge-accent/[0.14]"
+                              ? 'bg-bridge-accent/[0.18] text-foreground font-bold ring-1 ring-inset ring-bridge-accent/40'
+                              : 'bg-bridge-accent/[0.08] text-bridge-accent font-medium hover:bg-bridge-accent/[0.14]'
                         }`}
                         title={
                           isDone
-                            ? t("milestone.matrix.doneTip", {
-                                defaultValue: "모든 태스크 완료",
+                            ? t('milestone.matrix.doneTip', {
+                                defaultValue: '모든 태스크 완료',
                               })
                             : isPrimary
-                              ? t("milestone.matrix.primaryTip", {
-                                  defaultValue:
-                                    "기본 마일스톤 — 새 태스크가 상속됩니다",
+                              ? t('milestone.matrix.primaryTip', {
+                                  defaultValue: '기본 마일스톤 — 새 태스크가 상속됩니다',
                                 })
                               : undefined
                         }
                       >
-                        {isPrimary && "● "}
+                        {isPrimary && '● '}
                         {c.completed}/{c.total}
-                        {isDone && " ✓"}
+                        {isDone && ' ✓'}
                       </td>
                     );
                   })}
@@ -279,9 +264,7 @@ export function MilestoneMatrix({
                     (() => {
                       const c = inner?.get(UNASSIGNED);
                       if (!c || c.total === 0) {
-                        return (
-                          <td className={`${cellClass} text-slate-600`}>—</td>
-                        );
+                        return <td className={`${cellClass} text-slate-600`}>—</td>;
                       }
                       return (
                         <td
@@ -297,7 +280,7 @@ export function MilestoneMatrix({
                   <td className="px-3 py-2.5 text-center text-xs tabular-nums text-slate-400 border-b border-foreground/[0.06] bg-black/10">
                     {feature.completed_tasks}/{feature.total_tasks}
                     <span className="text-slate-500">
-                      {" · "}
+                      {' · '}
                       {Math.round(feature.progress_percentage)}%
                     </span>
                   </td>
@@ -310,8 +293,8 @@ export function MilestoneMatrix({
               <td className="sticky left-0 z-10 bg-bridge-obsidian px-4 py-3 border-r border-foreground/[0.08]">
                 <div className="flex items-center gap-2 text-xs font-bold text-bridge-secondary">
                   <Flag className="h-3.5 w-3.5" />
-                  {t("milestone.matrix.sumRow", {
-                    defaultValue: "마일스톤 합계",
+                  {t('milestone.matrix.sumRow', {
+                    defaultValue: '마일스톤 합계',
                   })}
                 </div>
               </td>
@@ -326,7 +309,7 @@ export function MilestoneMatrix({
                       <>
                         {s.total}
                         <span className="text-slate-500 font-normal">
-                          {" · "}
+                          {' · '}
                           {pct(s)}%
                         </span>
                       </>

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { jiraAPI } from "../utils/api";
+import { useEffect, useState } from 'react';
+import { jiraAPI } from '../utils/api';
 
 /**
  * 보드의 JIRA 사이트 주소(base_url)를 가져온다 — 이슈 원문 링크를 조립하려는 화면용.

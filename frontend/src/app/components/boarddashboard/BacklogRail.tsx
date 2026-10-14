@@ -7,23 +7,17 @@ import {
   type ChangeEvent,
   type ClipboardEvent,
   type KeyboardEvent,
-} from "react";
-import { useTranslation } from "react-i18next";
-import {
-  ChevronDown,
-  ChevronRight,
-  Loader2,
-  RotateCcw,
-  TriangleAlert,
-} from "lucide-react";
-import { checklistAPI, personalTaskAPI } from "../../utils/api";
-import type { Feature, Milestone, PersonalTask } from "../../types";
-import { formatRelativeTime } from "../../utils/dateUtils";
+} from 'react';
+import { useTranslation } from 'react-i18next';
+import { ChevronDown, ChevronRight, Loader2, RotateCcw, TriangleAlert } from 'lucide-react';
+import { checklistAPI, personalTaskAPI } from '../../utils/api';
+import type { Feature, Milestone, PersonalTask } from '../../types';
+import { formatRelativeTime } from '../../utils/dateUtils';
 import {
   BACKLOG_DRAG_TYPE,
   BACKLOG_DROP_EVENT,
   type BacklogDropDetail,
-} from "../../utils/backlogDrag";
+} from '../../utils/backlogDrag';
 import {
   endAxisDrag,
   requestAxisRefresh,
@@ -32,15 +26,10 @@ import {
   useAxisTransfer,
   type AxisItem,
   type AxisZone,
-} from "../../utils/axisTransfer";
-import { PromoteBacklogModal, type PromoteTarget } from "./PromoteBacklogModal";
-import { BACKLOG_STALE_DAYS, daysSince } from "./dashboardUtils";
-import {
-  PanelBanner,
-  PanelCount,
-  PanelFooterHint,
-  PanelShell,
-} from "./DashboardCard";
+} from '../../utils/axisTransfer';
+import { PromoteBacklogModal, type PromoteTarget } from './PromoteBacklogModal';
+import { BACKLOG_STALE_DAYS, daysSince } from './dashboardUtils';
+import { PanelBanner, PanelCount, PanelFooterHint, PanelShell } from './DashboardCard';
 
 /** 백로그 제목 최대 길이 — 백엔드 @Size(max = 200)과 같은 값 */
 const TITLE_MAX = 200;
@@ -51,7 +40,7 @@ const COUNTER_FROM = 190;
 interface PendingItem {
   localId: string;
   title: string;
-  state: "sending" | "failed";
+  state: 'sending' | 'failed';
 }
 
 interface BacklogRailProps {
@@ -85,7 +74,7 @@ interface BacklogRailProps {
 }
 
 /** 이 열이 받아 주는 출발지 — 왼쪽 두 존에서 넘어오는 것만 */
-const ACCEPTS: AxisZone[] = ["workload", "placement"];
+const ACCEPTS: AxisZone[] = ['workload', 'placement'];
 
 /** 강등 안내를 띄워 두는 시간 (ms) — 되돌릴 수 있는 창 */
 const DEMOTE_NOTICE_TTL = 9000;
@@ -136,10 +125,10 @@ export function BacklogRail({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState('');
   // 줄바꿈이 섞인 붙여넣기 — 나눌지 한 번만 묻는다
   const [pastedLines, setPastedLines] = useState<string[] | null>(null);
-  const [pastedRaw, setPastedRaw] = useState("");
+  const [pastedRaw, setPastedRaw] = useState('');
 
   // 접기는 폭 조절과 다른 일이다 — 손잡이가 "얼마나 볼까"라면 이건 "지금은 안 본다"다.
   // 접으면 열이 세로 제목 한 줄만 남기고 손잡이도 사라진다(잡을 칸이 없으므로).
@@ -163,7 +152,7 @@ export function BacklogRail({
     active: rawDropActive,
     over: rawDropOver,
     zoneProps,
-  } = useAxisDropZone({ zone: "backlog", accepts: ACCEPTS });
+  } = useAxisDropZone({ zone: 'backlog', accepts: ACCEPTS });
 
   // 남의 백로그는 받는 곳이 아니다 — 틴트도 힌트도 뜨지 않는다
   const dropActive = !readOnly && rawDropActive;
@@ -172,8 +161,8 @@ export function BacklogRail({
   /* ── 초기 상태 복구 (보드별) ── */
   useEffect(() => {
     try {
-      setDraft(window.localStorage.getItem(draftKey(boardId)) ?? "");
-      setCollapsed(window.localStorage.getItem(collapseKey(boardId)) === "1");
+      setDraft(window.localStorage.getItem(draftKey(boardId)) ?? '');
+      setCollapsed(window.localStorage.getItem(collapseKey(boardId)) === '1');
     } catch {
       // 프라이빗 모드 등에서 localStorage가 막혀도 기능 자체는 동작해야 한다
     }
@@ -199,13 +188,10 @@ export function BacklogRail({
     if (readOnly && !userId) return;
     try {
       setError(null);
-      const list = await personalTaskAPI.getBacklog(
-        boardId,
-        readOnly ? userId : undefined,
-      );
+      const list = await personalTaskAPI.getBacklog(boardId, readOnly ? userId : undefined);
       setItems(list);
     } catch {
-      setError(t("backlog.loadFailed", "백로그를 불러오지 못했습니다."));
+      setError(t('backlog.loadFailed', '백로그를 불러오지 못했습니다.'));
     } finally {
       setIsLoading(false);
     }
@@ -225,10 +211,7 @@ export function BacklogRail({
    * 승격된 항목은 애초에 오지 않는다 — 서버가 승격과 동시에 목록에서 닫는다.
    */
   const openItems = useMemo(
-    () =>
-      [...items].sort((a, b) =>
-        (a.created_at ?? "").localeCompare(b.created_at ?? ""),
-      ),
+    () => [...items].sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? '')),
     [items],
   );
 
@@ -246,7 +229,7 @@ export function BacklogRail({
           title,
           // 백로그의 기본은 "우선순위 없음"이다. 서버 기본값(MEDIUM)을 바꾸면
           // 마이스페이스 기존 동작이 함께 바뀌므로 여기서 명시해 보낸다.
-          priority: "NONE",
+          priority: 'NONE',
           board_id: boardId,
         });
         setPending((prev) => prev.filter((p) => p.localId !== localId));
@@ -254,9 +237,7 @@ export function BacklogRail({
       } catch {
         // 적어둔 걸 날리는 게 최악의 실패다 — 카드를 지우지 않고 재시도할 수 있게 남긴다
         setPending((prev) =>
-          prev.map((p) =>
-            p.localId === localId ? { ...p, state: "failed" } : p,
-          ),
+          prev.map((p) => (p.localId === localId ? { ...p, state: 'failed' } : p)),
         );
       }
     },
@@ -271,7 +252,7 @@ export function BacklogRail({
         .map((title, index) => ({
           localId: `local-${Date.now()}-${index}`,
           title,
-          state: "sending" as const,
+          state: 'sending' as const,
         }));
       if (!fresh.length) return;
 
@@ -282,30 +263,30 @@ export function BacklogRail({
   );
 
   const handleAddKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== "Enter") return;
+    if (e.key !== 'Enter') return;
     // 한글 IME 조합 중 Enter는 조합 확정용이다 — 막지 않으면 확정 전 값과
     // 확정 후 남은 글자로 카드가 두 장 만들어진다
     if (e.nativeEvent.isComposing || e.repeat) return;
     const value = draft.trim();
     if (!value) return;
-    setDraft("");
+    setDraft('');
     addItems([value]);
     // 포커스를 유지해 연속 캡처가 되게 한다 — 백로그의 주 사용 방식이다
     inputRef.current?.focus();
   };
 
   const handlePaste = (e: ClipboardEvent<HTMLInputElement>) => {
-    const text = e.clipboardData.getData("text") ?? "";
+    const text = e.clipboardData.getData('text') ?? '';
     const lines = text
       .split(/\r?\n/)
-      .map((line) => line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
+      .map((line) => line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').trim())
       .filter(Boolean);
     if (lines.length < 2) return; // 한 줄이면 평소대로 붙여넣는다
     e.preventDefault();
     setPastedLines(lines);
     setPastedRaw(
       text
-        .replace(/\s*\r?\n\s*/g, " ")
+        .replace(/\s*\r?\n\s*/g, ' ')
         .trim()
         .slice(0, TITLE_MAX),
     );
@@ -316,7 +297,7 @@ export function BacklogRail({
     (next: boolean) => {
       setCollapsed(next);
       try {
-        window.localStorage.setItem(collapseKey(boardId), next ? "1" : "0");
+        window.localStorage.setItem(collapseKey(boardId), next ? '1' : '0');
       } catch {
         /* 무시 */
       }
@@ -341,14 +322,14 @@ export function BacklogRail({
   useEffect(() => {
     if (readOnly) return; // 남의 백로그에는 적을 칸이 없다
     const onKeyDown = (e: globalThis.KeyboardEvent) => {
-      if (e.key !== "b" && e.key !== "ㅠ") return;
+      if (e.key !== 'b' && e.key !== 'ㅠ') return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const el = document.activeElement as HTMLElement | null;
       if (
         el &&
-        (el.tagName === "INPUT" ||
-          el.tagName === "TEXTAREA" ||
-          el.tagName === "SELECT" ||
+        (el.tagName === 'INPUT' ||
+          el.tagName === 'TEXTAREA' ||
+          el.tagName === 'SELECT' ||
           el.isContentEditable)
       ) {
         return;
@@ -356,8 +337,8 @@ export function BacklogRail({
       e.preventDefault();
       focusAdd();
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, [focusAdd, readOnly]);
 
   /* ── 간트 날짜 칸에 떨어졌을 때 ── */
@@ -370,7 +351,7 @@ export function BacklogRail({
       if (!item) return;
       // 놓은 자리가 날짜를 정했으니 붙일 곳만 고르면 된다.
       // 간트 바는 체크리스트 항목이므로 CHECKLIST_ITEM으로 승격해야 그 날짜에 바가 생긴다.
-      setPromoting({ item, target: "CHECKLIST_ITEM", presetDate: detail.date });
+      setPromoting({ item, target: 'CHECKLIST_ITEM', presetDate: detail.date });
     };
     window.addEventListener(BACKLOG_DROP_EVENT, onDrop);
     return () => window.removeEventListener(BACKLOG_DROP_EVENT, onDrop);
@@ -410,10 +391,7 @@ export function BacklogRail({
   const showDemoted = useCallback((next: DemoteNotice) => {
     setDemoted(next);
     if (demoteTimerRef.current) window.clearTimeout(demoteTimerRef.current);
-    demoteTimerRef.current = window.setTimeout(
-      () => setDemoted(null),
-      DEMOTE_NOTICE_TTL,
-    );
+    demoteTimerRef.current = window.setTimeout(() => setDemoted(null), DEMOTE_NOTICE_TTL);
   }, []);
 
   useEffect(
@@ -425,10 +403,7 @@ export function BacklogRail({
 
   useEffect(() => {
     if (!transferError) return;
-    const timer = window.setTimeout(
-      () => setTransferError(null),
-      DEMOTE_NOTICE_TTL,
-    );
+    const timer = window.setTimeout(() => setTransferError(null), DEMOTE_NOTICE_TTL);
     return () => window.clearTimeout(timer);
   }, [transferError]);
 
@@ -454,13 +429,11 @@ export function BacklogRail({
       try {
         created = await personalTaskAPI.create({
           title: item.title.trim().slice(0, TITLE_MAX),
-          priority: "NONE",
+          priority: 'NONE',
           board_id: boardId,
         });
       } catch {
-        setTransferError(
-          t("backlog.demoteFailed", "백로그로 내리지 못했습니다."),
-        );
+        setTransferError(t('backlog.demoteFailed', '백로그로 내리지 못했습니다.'));
         return;
       }
 
@@ -469,9 +442,7 @@ export function BacklogRail({
       } catch {
         // 원본이 남았는데 백로그에도 생기면 같은 일이 두 곳에 존재한다 — 되돌린다
         await personalTaskAPI.delete(created.id).catch(() => {});
-        setTransferError(
-          t("backlog.demoteFailed", "백로그로 내리지 못했습니다."),
-        );
+        setTransferError(t('backlog.demoteFailed', '백로그로 내리지 못했습니다.'));
         return;
       }
 
@@ -494,16 +465,14 @@ export function BacklogRail({
         title: snapshot.item.title,
         assignee_id: snapshot.item.assignee_id ?? userId ?? null,
         // 워크로드에서 내려온 항목만 날짜를 갖는다 — 있을 때만 되돌린다
-        ...(snapshot.item.start_date
-          ? { start_date: snapshot.item.start_date }
-          : {}),
+        ...(snapshot.item.start_date ? { start_date: snapshot.item.start_date } : {}),
         ...(snapshot.item.due_date ? { due_date: snapshot.item.due_date } : {}),
       });
       await personalTaskAPI.delete(snapshot.backlogId).catch(() => {});
       setItems((prev) => prev.filter((i) => i.id !== snapshot.backlogId));
       requestAxisRefresh();
     } catch {
-      setTransferError(t("backlog.undoFailed", "되돌리지 못했습니다."));
+      setTransferError(t('backlog.undoFailed', '되돌리지 못했습니다.'));
       void load();
     }
   }, [boardId, demoted, userId, load, t]);
@@ -511,15 +480,15 @@ export function BacklogRail({
   useAxisTransfer((detail) => {
     if (readOnly) return; // 남의 백로그는 오가는 곳이 아니다
     // 이 열로 내려온 것 — 내가 목록을 갖고 있으므로 여기서 처리한다
-    if (detail.to === "backlog" && detail.from !== "backlog") {
+    if (detail.to === 'backlog' && detail.from !== 'backlog') {
       void demote(detail.from, detail.item);
       return;
     }
     // 백로그 → 미배치. 날짜 없이 태스크에만 붙이면 되므로 붙일 곳만 고른다.
     // (간트 바·배치 카드는 체크리스트 항목이라 CHECKLIST_ITEM으로 승격해야 그 줄에 나타난다)
-    if (detail.from === "backlog" && detail.to === "placement") {
+    if (detail.from === 'backlog' && detail.to === 'placement') {
       const target = items.find((i) => i.id === detail.item.id);
-      if (target) setPromoting({ item: target, target: "CHECKLIST_ITEM" });
+      if (target) setPromoting({ item: target, target: 'CHECKLIST_ITEM' });
     }
   });
 
@@ -536,13 +505,13 @@ export function BacklogRail({
    * 그 미만에서는 카드가 한 줄로 눕고 옆으로 넘치므로 208px 고정 폭을 유지한다.
    */
   const cardBase =
-    "group flex-none w-[208px] xl:w-full snap-start bg-bridge-dark rounded-xl border pt-2 pb-1.5 pl-2 pr-2.5 flex items-start gap-2 transition-colors";
+    'group flex-none w-[208px] xl:w-full snap-start bg-bridge-dark rounded-xl border pt-2 pb-1.5 pl-2 pr-2.5 flex items-start gap-2 transition-colors';
 
   const openCount = openItems.length + pending.length;
 
   const title = scopeName
-    ? t("backlog.titleOf", "{{name}}의 백로그", { name: scopeName })
-    : t("backlog.title", "내 백로그");
+    ? t('backlog.titleOf', '{{name}}의 백로그', { name: scopeName })
+    : t('backlog.title', '내 백로그');
 
   /* 승격 모달은 접힘과 무관하게 살아 있어야 한다 — 접힌 사이에 열려 있을 수 있다 */
   const promoteModal = promoting ? (
@@ -572,16 +541,13 @@ export function BacklogRail({
           type="button"
           onClick={() => applyCollapsed(false)}
           aria-expanded={false}
-          aria-label={t("backlog.expand", "백로그 열 펼치기")}
+          aria-label={t('backlog.expand', '백로그 열 펼치기')}
           className="w-full h-full flex items-center justify-center gap-2
             bg-bridge-obsidian rounded-2xl border border-foreground/[0.08]
             hover:border-foreground/[0.12] text-slate-400 hover:text-foreground
             transition-colors xl:[writing-mode:vertical-rl]"
         >
-          <span
-            className="flex-none w-1.5 h-1.5 rounded-full bg-slate-500"
-            aria-hidden="true"
-          />
+          <span className="flex-none w-1.5 h-1.5 rounded-full bg-slate-500" aria-hidden="true" />
           <span className="text-xs font-bold">{title}</span>
           {openCount > 0 && <PanelCount value={openCount} />}
         </button>
@@ -595,16 +561,14 @@ export function BacklogRail({
       dot="slate"
       title={title}
       /* 부제는 읽기 전용 안내만 — 평상시엔 제목만으로 충분하다 */
-      subtitle={
-        readOnly ? t("backlog.hintReadOnly", "읽기 전용") : undefined
-      }
+      subtitle={readOnly ? t('backlog.hintReadOnly', '읽기 전용') : undefined}
       /* 목록이 하나뿐이라 탭이 없다 — 제목 옆은 개수 하나로 끝난다 */
       tabs={openCount > 0 ? <PanelCount value={openCount} /> : undefined}
       headerExtra={
         /* 방치 신호 — 다시 열게 만드는 건 개수가 아니라 이 숫자다 */
         oldestDays !== null && oldestDays >= BACKLOG_STALE_DAYS ? (
           <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
-            {t("backlog.oldestDays", "가장 오래된 것 {{count}}일", {
+            {t('backlog.oldestDays', '가장 오래된 것 {{count}}일', {
               count: oldestDays,
             })}
           </span>
@@ -615,37 +579,32 @@ export function BacklogRail({
           type="button"
           onClick={() => applyCollapsed(true)}
           aria-expanded
-          aria-label={t("backlog.collapse", "백로그 열 접기")}
+          aria-label={t('backlog.collapse', '백로그 열 접기')}
           className="flex-none p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
         >
           {/* 열은 오른쪽으로 접힌다 — 화살표가 접히는 방향을 가리킨다 */}
-          <ChevronRight
-            size={14}
-            aria-hidden="true"
-            className="hidden xl:block"
-          />
+          <ChevronRight size={14} aria-hidden="true" className="hidden xl:block" />
           <ChevronDown size={14} aria-hidden="true" className="xl:hidden" />
         </button>
       }
       banner={
         demoted || transferError ? (
-          <PanelBanner tone={transferError ? "error" : "info"}>
+          <PanelBanner tone={transferError ? 'error' : 'info'}>
             {transferError ? (
               <p className="text-xs">{transferError}</p>
             ) : (
               <>
                 <p className="text-xs truncate">
                   {/* 잃은 것을 그대로 쓴다 — 워크로드에서 왔을 때만 일정이 사라진다 */}
-                  {demoted!.source === "workload"
-                    ? t("backlog.demotedNotice", {
+                  {demoted!.source === 'workload'
+                    ? t('backlog.demotedNotice', {
                         title: demoted!.item.title,
                         defaultValue:
-                          "「{{title}}」 백로그로 내렸습니다 · 일정과 담당이 해제됩니다",
+                          '「{{title}}」 백로그로 내렸습니다 · 일정과 담당이 해제됩니다',
                       })
-                    : t("backlog.demotedNoticeUnplaced", {
+                    : t('backlog.demotedNoticeUnplaced', {
                         title: demoted!.item.title,
-                        defaultValue:
-                          "「{{title}}」 백로그로 내렸습니다 · 태스크에서 빠집니다",
+                        defaultValue: '「{{title}}」 백로그로 내렸습니다 · 태스크에서 빠집니다',
                       })}
                 </p>
                 <button
@@ -654,7 +613,7 @@ export function BacklogRail({
                   className="ml-auto flex-none flex items-center gap-1 text-xs font-bold text-bridge-accent hover:underline"
                 >
                   <RotateCcw size={12} aria-hidden="true" />
-                  {t("backlog.undo", "되돌리기")}
+                  {t('backlog.undo', '되돌리기')}
                 </button>
               </>
             )}
@@ -665,10 +624,7 @@ export function BacklogRail({
       footer={
         dropActive ? (
           <PanelFooterHint emphasized>
-            {t(
-              "backlog.dropHint",
-              "여기에 놓으면 일정·담당을 해제하고 백로그 메모로 내려갑니다",
-            )}
+            {t('backlog.dropHint', '여기에 놓으면 일정·담당을 해제하고 백로그 메모로 내려갑니다')}
           </PanelFooterHint>
         ) : undefined
       }
@@ -683,9 +639,9 @@ export function BacklogRail({
       */
       overlayClassName={
         dropOver
-          ? "bg-bridge-accent/[0.12] ring-2 ring-inset ring-bridge-accent"
+          ? 'bg-bridge-accent/[0.12] ring-2 ring-inset ring-bridge-accent'
           : dropActive
-            ? "bg-bridge-accent/[0.05] ring-1 ring-inset ring-bridge-accent/40"
+            ? 'bg-bridge-accent/[0.05] ring-1 ring-inset ring-bridge-accent/40'
             : undefined
       }
     >
@@ -694,7 +650,7 @@ export function BacklogRail({
           <div className="flex-1 flex items-center justify-center py-6">
             <Loader2
               className="w-5 h-5 animate-spin text-bridge-accent"
-              aria-label={t("common.loading", "불러오는 중")}
+              aria-label={t('common.loading', '불러오는 중')}
             />
           </div>
         ) : error ? (
@@ -722,19 +678,17 @@ export function BacklogRail({
                   type="text"
                   value={draft}
                   maxLength={TITLE_MAX}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                    setDraft(e.target.value)
-                  }
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setDraft(e.target.value)}
                   onKeyDown={handleAddKeyDown}
                   onPaste={handlePaste}
                   onFocus={(e) =>
                     e.currentTarget.scrollIntoView({
-                      block: "nearest",
-                      inline: "nearest",
+                      block: 'nearest',
+                      inline: 'nearest',
                     })
                   }
-                  placeholder={t("backlog.placeholder", "떠오른 걸 한 줄로…")}
-                  aria-label={t("backlog.addAria", "백로그 적기")}
+                  placeholder={t('backlog.placeholder', '떠오른 걸 한 줄로…')}
+                  aria-label={t('backlog.addAria', '백로그 적기')}
                   className="flex-1 min-w-0 bg-transparent py-2.5 text-xs text-foreground placeholder-slate-500 focus:outline-none"
                 />
                 {draft.length >= COUNTER_FROM ? (
@@ -744,7 +698,7 @@ export function BacklogRail({
                 ) : (
                   <span
                     className="flex-none text-xs text-slate-600"
-                    title={t("backlog.enterHint", "Enter 로 추가")}
+                    title={t('backlog.enterHint', 'Enter 로 추가')}
                     aria-hidden="true"
                   >
                     ↵
@@ -757,13 +711,13 @@ export function BacklogRail({
             {pastedLines && (
               <div className="flex-none w-[270px] xl:w-full snap-start rounded-xl border border-dashed border-bridge-accent bg-bridge-accent/[0.08] p-2.5 flex flex-col gap-2">
                 <p className="text-xs font-bold text-foreground">
-                  {t("backlog.pasteAsk", "{{count}}개 항목으로 나눌까요?", {
+                  {t('backlog.pasteAsk', '{{count}}개 항목으로 나눌까요?', {
                     count: pastedLines.length,
                   })}
                 </p>
                 <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
-                  {pastedLines.slice(0, 3).join("  ·  ")}
-                  {pastedLines.length > 3 ? "  ·  …" : ""}
+                  {pastedLines.slice(0, 3).join('  ·  ')}
+                  {pastedLines.length > 3 ? '  ·  …' : ''}
                 </p>
                 <div className="flex items-center gap-1.5 mt-auto">
                   <button
@@ -771,12 +725,12 @@ export function BacklogRail({
                     onClick={() => {
                       addItems(pastedLines);
                       setPastedLines(null);
-                      setDraft("");
+                      setDraft('');
                       inputRef.current?.focus();
                     }}
                     className="px-2.5 py-1 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-colors"
                   >
-                    {t("backlog.pasteSplit", "{{count}}개로 추가", {
+                    {t('backlog.pasteSplit', '{{count}}개로 추가', {
                       count: pastedLines.length,
                     })}
                   </button>
@@ -789,7 +743,7 @@ export function BacklogRail({
                     }}
                     className="px-2.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                   >
-                    {t("backlog.pasteOneLine", "한 줄로 붙이기")}
+                    {t('backlog.pasteOneLine', '한 줄로 붙이기')}
                   </button>
                 </div>
               </div>
@@ -800,14 +754,14 @@ export function BacklogRail({
               <div
                 key={p.localId}
                 className={`${cardBase} ${
-                  p.state === "failed"
-                    ? "border-rose-500/60 bg-rose-500/[0.06]"
-                    : "border-foreground/[0.08] opacity-60"
+                  p.state === 'failed'
+                    ? 'border-rose-500/60 bg-rose-500/[0.06]'
+                    : 'border-foreground/[0.08] opacity-60'
                 }`}
               >
                 <span
                   className={`flex-none w-[2px] self-stretch rounded-full ${
-                    p.state === "failed" ? "bg-rose-500" : "bg-slate-600"
+                    p.state === 'failed' ? 'bg-rose-500' : 'bg-slate-600'
                   }`}
                   aria-hidden="true"
                 />
@@ -815,9 +769,9 @@ export function BacklogRail({
                   <p className="text-xs font-medium text-foreground leading-snug line-clamp-2">
                     {p.title}
                   </p>
-                  {p.state === "sending" ? (
+                  {p.state === 'sending' ? (
                     <p className="flex items-center min-h-[22px] text-xs text-slate-500">
-                      {t("backlog.saving", "저장 중…")}
+                      {t('backlog.saving', '저장 중…')}
                     </p>
                   ) : (
                     // 실패는 숨기지 않는다 — 호버로 접는 건 성공한 카드의 액션뿐이다
@@ -826,10 +780,7 @@ export function BacklogRail({
                             이 아이콘의 툴팁과 보조기기용 문장으로 옮긴다 */}
                       <span
                         className="ml-1 flex-none"
-                        title={t(
-                          "backlog.savedLocally",
-                          "저장 안 됨 · 로컬에 보관됨",
-                        )}
+                        title={t('backlog.savedLocally', '저장 안 됨 · 로컬에 보관됨')}
                       >
                         <TriangleAlert
                           size={12}
@@ -837,10 +788,7 @@ export function BacklogRail({
                           aria-hidden="true"
                         />
                         <span className="sr-only">
-                          {t(
-                            "backlog.savedLocally",
-                            "저장 안 됨 · 로컬에 보관됨",
-                          )}
+                          {t('backlog.savedLocally', '저장 안 됨 · 로컬에 보관됨')}
                         </span>
                       </span>
                       <button
@@ -848,27 +796,23 @@ export function BacklogRail({
                         onClick={() => {
                           setPending((prev) =>
                             prev.map((x) =>
-                              x.localId === p.localId
-                                ? { ...x, state: "sending" }
-                                : x,
+                              x.localId === p.localId ? { ...x, state: 'sending' } : x,
                             ),
                           );
                           void persist(p.localId, p.title);
                         }}
                         className="px-1.5 py-1 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
                       >
-                        {t("backlog.retry", "재시도")}
+                        {t('backlog.retry', '재시도')}
                       </button>
                       <button
                         type="button"
                         onClick={() =>
-                          setPending((prev) =>
-                            prev.filter((x) => x.localId !== p.localId),
-                          )
+                          setPending((prev) => prev.filter((x) => x.localId !== p.localId))
                         }
                         className="px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                       >
-                        {t("backlog.discard", "버리기")}
+                        {t('backlog.discard', '버리기')}
                       </button>
                     </div>
                   )}
@@ -878,7 +822,7 @@ export function BacklogRail({
 
             {openItems.length === 0 && pending.length === 0 && (
               <p className="flex-none w-[208px] xl:w-full text-xs text-slate-500 py-4 leading-relaxed">
-                {t("backlog.empty", "백로그가 비었습니다.")}
+                {t('backlog.empty', '백로그가 비었습니다.')}
               </p>
             )}
 
@@ -900,21 +844,21 @@ export function BacklogRail({
                       JSON.stringify({ id: item.id, title: item.title }),
                     );
                     // 배치 레일은 축 페이로드를, 간트는 위의 기존 키를 읽는다
-                    setAxisDragData(e.dataTransfer, "backlog", {
+                    setAxisDragData(e.dataTransfer, 'backlog', {
                       id: item.id,
                       title: item.title,
                     });
                   }}
                   onDragEnd={endAxisDrag}
                   className={`${cardBase} border-foreground/[0.08] hover:border-foreground/[0.12] ${
-                    draggable ? "cursor-grab active:cursor-grabbing" : ""
+                    draggable ? 'cursor-grab active:cursor-grabbing' : ''
                   }`}
                 >
                   {/* 배지를 대신하는 색 레일 — 방치(호박) · 평상(인디고)을
                       한 자리에서 말한다. 카드마다 「백로그」를 다시 적지 않는다. */}
                   <span
                     className={`flex-none w-[2px] self-stretch rounded-full ${
-                      stale ? "bg-amber-500" : "bg-bridge-accent"
+                      stale ? 'bg-amber-500' : 'bg-bridge-accent'
                     }`}
                     aria-hidden="true"
                   />
@@ -932,12 +876,10 @@ export function BacklogRail({
                         {stale ? (
                           <span className="flex-none text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
                             {isOldest
-                              ? t(
-                                  "backlog.staleOldest",
-                                  "{{count}}일 · 가장 오래됨",
-                                  { count: age as number },
-                                )
-                              : t("backlog.staleDays", "{{count}}일", {
+                              ? t('backlog.staleOldest', '{{count}}일 · 가장 오래됨', {
+                                  count: age as number,
+                                })
+                              : t('backlog.staleDays', '{{count}}일', {
                                   count: age as number,
                                 })}
                           </span>
@@ -952,7 +894,7 @@ export function BacklogRail({
                       <div
                         hidden={readOnly}
                         className={`absolute inset-y-0 right-0 items-center gap-0.5 bg-bridge-dark rounded-lg opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 ${
-                          readOnly ? "hidden" : "flex"
+                          readOnly ? 'hidden' : 'flex'
                         }`}
                       >
                         <span
@@ -961,24 +903,22 @@ export function BacklogRail({
                         />
                         <button
                           type="button"
-                          onClick={() =>
-                            setPromoting({ item, target: "TIMEBLOCK" })
-                          }
+                          onClick={() => setPromoting({ item, target: 'TIMEBLOCK' })}
                           className="px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                         >
-                          {t("backlog.kindTimeblock", "타임블록")}
+                          {t('backlog.kindTimeblock', '타임블록')}
                         </button>
                         <button
                           type="button"
-                          onClick={() => setPromoting({ item, target: "TASK" })}
+                          onClick={() => setPromoting({ item, target: 'TASK' })}
                           className="px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                         >
-                          {t("backlog.kindTask", "태스크")}
+                          {t('backlog.kindTask', '태스크')}
                         </button>
                         <button
                           type="button"
                           onClick={() => void handleDelete(item)}
-                          aria-label={t("common.delete", "삭제")}
+                          aria-label={t('common.delete', '삭제')}
                           className="px-1.5 py-1 rounded-lg text-xs font-bold text-slate-600 hover:text-rose-500 hover:bg-foreground/5 transition-colors"
                         >
                           ×

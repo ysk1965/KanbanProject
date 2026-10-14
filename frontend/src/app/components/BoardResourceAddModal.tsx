@@ -74,7 +74,14 @@ export function BoardResourceAddModal({
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} accentColor aria-label={editingResource ? t('boardResource.editResource') : t('boardResource.addResource')}>
+    <MotionModal
+      open={open}
+      onClose={onClose}
+      accentColor
+      aria-label={
+        editingResource ? t('boardResource.editResource') : t('boardResource.addResource')
+      }
+    >
       <form onSubmit={handleSubmit}>
         {/* Header */}
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
@@ -120,9 +127,7 @@ export function BoardResourceAddModal({
               }`}
               maxLength={2000}
             />
-            {urlError && (
-              <p className="text-xs text-red-400 mt-1">{urlError}</p>
-            )}
+            {urlError && <p className="text-xs text-red-400 mt-1">{urlError}</p>}
           </div>
 
           <div>

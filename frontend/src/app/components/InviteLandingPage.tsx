@@ -15,7 +15,7 @@ interface InviteInfo {
   board_id: string;
   board_name: string;
   role: string;
-  valid: boolean;  // API returns 'valid' not 'is_valid'
+  valid: boolean; // API returns 'valid' not 'is_valid'
   message: string;
 }
 
@@ -98,7 +98,7 @@ export function InviteLandingPage({
             {error || inviteInfo?.message || t('invite.defaultInvalidMessage')}
           </p>
           <Button
-            onClick={() => window.location.href = '/'}
+            onClick={() => (window.location.href = '/')}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             {t('invite.goHome')}
@@ -128,11 +128,15 @@ export function InviteLandingPage({
 
           <div className="flex items-center gap-2 text-sm">
             <span className="text-slate-400">{t('invite.role')}</span>
-            <span className={`px-2 py-1 rounded text-xs font-medium ${
-              inviteInfo.role === 'ADMIN' ? 'bg-purple-500/20 text-purple-400' :
-              inviteInfo.role === 'MEMBER' ? 'bg-blue-500/20 text-blue-400' :
-              'bg-slate-500/20 text-slate-400'
-            }`}>
+            <span
+              className={`px-2 py-1 rounded text-xs font-medium ${
+                inviteInfo.role === 'ADMIN'
+                  ? 'bg-purple-500/20 text-purple-400'
+                  : inviteInfo.role === 'MEMBER'
+                    ? 'bg-blue-500/20 text-blue-400'
+                    : 'bg-slate-500/20 text-slate-400'
+              }`}
+            >
               {roleInfo.label}
             </span>
           </div>
@@ -167,17 +171,13 @@ export function InviteLandingPage({
               {t('invite.joinBoard')}
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
-            <p className="text-xs text-slate-400 text-center">
-              {t('invite.joinAfterLogin')}
-            </p>
+            <p className="text-xs text-slate-400 text-center">{t('invite.joinAfterLogin')}</p>
           </div>
         )}
 
         {/* 푸터 */}
         <div className="mt-6 pt-4 border-t border-bridge-border text-center">
-          <p className="text-xs text-slate-400">
-            {t('invite.footer')}
-          </p>
+          <p className="text-xs text-slate-400">{t('invite.footer')}</p>
         </div>
       </div>
     </div>

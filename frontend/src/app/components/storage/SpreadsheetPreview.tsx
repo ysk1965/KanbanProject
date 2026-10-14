@@ -6,7 +6,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
-} from "react";
+} from 'react';
 import {
   Loader2,
   FileSpreadsheet,
@@ -17,11 +17,11 @@ import {
   Copy,
   Check,
   X,
-} from "lucide-react";
+} from 'lucide-react';
 
-import type { StorageFileItem } from "../../utils/api";
-import { IconButton } from "../ui/IconButton";
-import { fileExtension } from "./storageUtils";
+import type { StorageFileItem } from '../../utils/api';
+import { IconButton } from '../ui/IconButton';
+import { fileExtension } from './storageUtils';
 
 /** 파싱 상한 — 이 범위를 넘는 부분은 안내 문구로 알린다. */
 const MAX_ROWS = 10000;
@@ -75,14 +75,13 @@ const cellKey = (r: number, c: number) => `${r}:${c}`;
  */
 function decodeText(buffer: ArrayBuffer): string {
   try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+    return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
   } catch {
-    return new TextDecoder("euc-kr").decode(buffer);
+    return new TextDecoder('euc-kr').decode(buffer);
   }
 }
 
-const clampWidth = (w: number) =>
-  Math.min(MAX_COL_WIDTH, Math.max(MIN_COL_WIDTH, Math.round(w)));
+const clampWidth = (w: number) => Math.min(MAX_COL_WIDTH, Math.max(MIN_COL_WIDTH, Math.round(w)));
 
 /** SheetJS 열 정보 → px. wpx 가 있으면 그대로, 없으면 문자 폭(wch) 기준으로 환산 */
 function columnWidthPx(info?: { wpx?: number; wch?: number; width?: number }) {
@@ -101,25 +100,22 @@ function rowHeightPx(info?: { hpx?: number; hpt?: number }) {
   return undefined;
 }
 
-async function parseWorkbook(
-  file: StorageFileItem,
-  blob: Blob,
-): Promise<SheetData[]> {
+async function parseWorkbook(file: StorageFileItem, blob: Blob): Promise<SheetData[]> {
   // SheetJS 는 무거워서 표 파일을 실제로 열 때만 청크로 받는다
-  const XLSX = await import("xlsx");
+  const XLSX = await import('xlsx');
   const buffer = await blob.arrayBuffer();
   const ext = fileExtension(file.original_filename);
-  const isText = ext === "csv" || ext === "tsv";
+  const isText = ext === 'csv' || ext === 'tsv';
   const workbook = isText
     ? XLSX.read(decodeText(buffer), {
-        type: "string",
-        FS: ext === "tsv" ? "\t" : undefined,
+        type: 'string',
+        FS: ext === 'tsv' ? '\t' : undefined,
       })
-    : XLSX.read(buffer, { type: "array", cellStyles: true });
+    : XLSX.read(buffer, { type: 'array', cellStyles: true });
 
   return workbook.SheetNames.map((name) => {
     const sheet = workbook.Sheets[name];
-    const ref = sheet["!ref"];
+    const ref = sheet['!ref'];
     if (!ref) {
       return {
         name,
@@ -151,7 +147,7 @@ async function parseWorkbook(
     const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
       header: 1,
       raw: false,
-      defval: "",
+      defval: '',
       blankrows: true,
       range: renderRange,
     });
@@ -161,23 +157,23 @@ async function parseWorkbook(
       const row: string[] = new Array(colCount);
       for (let c = 0; c < colCount; c++) {
         const v = src[c];
-        row[c] = v == null ? "" : String(v);
+        row[c] = v == null ? '' : String(v);
       }
       rows.push(row);
     }
 
-    const colInfos = sheet["!cols"] ?? [];
+    const colInfos = sheet['!cols'] ?? [];
     const colWidths = Array.from({ length: colCount }, (_, c) =>
       columnWidthPx(colInfos[range.s.c + c]),
     );
-    const rowInfos = sheet["!rows"] ?? [];
+    const rowInfos = sheet['!rows'] ?? [];
     const rowHeights = Array.from({ length: rowCount }, (_, r) =>
       rowHeightPx(rowInfos[range.s.r + r]),
     );
 
     const merges = new Map<string, CellSpan>();
     const covered = new Set<string>();
-    for (const m of sheet["!merges"] ?? []) {
+    for (const m of sheet['!merges'] ?? []) {
       const sr = m.s.r - range.s.r;
       const sc = m.s.c - range.s.c;
       const er = Math.min(m.e.r, renderRange.e.r) - range.s.r;
@@ -214,7 +210,7 @@ async function parseWorkbook(
 
 /** 열 머리글: 0 → A, 26 → AA */
 function columnLabel(index: number): string {
-  let label = "";
+  let label = '';
   let n = index;
   do {
     label = String.fromCharCode(65 + (n % 26)) + label;
@@ -232,7 +228,7 @@ interface CellPos {
 export function SpreadsheetPreview({
   file,
   loadBlob,
-  heightClass = "h-[56vh]",
+  heightClass = 'h-[56vh]',
 }: SpreadsheetPreviewProps) {
   const [sheets, setSheets] = useState<SheetData[] | null>(null);
   const [active, setActive] = useState(0);
@@ -242,7 +238,7 @@ export function SpreadsheetPreview({
   const [renderedRows, setRenderedRows] = useState(ROW_CHUNK);
   const [wrap, setWrap] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const [matchIndex, setMatchIndex] = useState(0);
   const [selected, setSelected] = useState<CellPos | null>(null);
   const [expanded, setExpanded] = useState<CellPos | null>(null);
@@ -263,8 +259,8 @@ export function SpreadsheetPreview({
         if (!cancelled) setSheets(parsed);
       })
       .catch((err) => {
-        console.error("Failed to parse spreadsheet:", err);
-        if (!cancelled) setError("표 파일을 읽지 못했습니다");
+        console.error('Failed to parse spreadsheet:', err);
+        if (!cancelled) setError('표 파일을 읽지 못했습니다');
       });
     return () => {
       cancelled = true;
@@ -296,12 +292,8 @@ export function SpreadsheetPreview({
     }
     return found;
   }, [sheet, query]);
-  const matchSet = useMemo(
-    () => new Set(matches.map((m) => cellKey(m.r, m.c))),
-    [matches],
-  );
-  const currentMatch =
-    matches.length > 0 ? matches[matchIndex % matches.length] : null;
+  const matchSet = useMemo(() => new Set(matches.map((m) => cellKey(m.r, m.c))), [matches]);
+  const currentMatch = matches.length > 0 ? matches[matchIndex % matches.length] : null;
 
   useEffect(() => {
     setMatchIndex(0);
@@ -321,7 +313,7 @@ export function SpreadsheetPreview({
     );
     if (el) {
       pendingScrollRef.current = null;
-      el.scrollIntoView({ block: "center", inline: "center" });
+      el.scrollIntoView({ block: 'center', inline: 'center' });
     }
   });
 
@@ -361,13 +353,13 @@ export function SpreadsheetPreview({
       });
     };
     const onUp = () => {
-      handle.removeEventListener("pointermove", onMove);
-      handle.removeEventListener("pointerup", onUp);
-      handle.removeEventListener("pointercancel", onUp);
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('pointercancel', onUp);
     };
-    handle.addEventListener("pointermove", onMove);
-    handle.addEventListener("pointerup", onUp);
-    handle.addEventListener("pointercancel", onUp);
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointercancel', onUp);
   };
 
   const resetColumn = (c: number) => {
@@ -382,8 +374,8 @@ export function SpreadsheetPreview({
   // 전체화면
   useEffect(() => {
     const onChange = () => setFullscreen(Boolean(document.fullscreenElement));
-    document.addEventListener("fullscreenchange", onChange);
-    return () => document.removeEventListener("fullscreenchange", onChange);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
@@ -400,16 +392,16 @@ export function SpreadsheetPreview({
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1200);
     } catch (err) {
-      console.error("Failed to copy cell:", err);
+      console.error('Failed to copy cell:', err);
     }
   };
   const handleKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "Escape") {
+    if (e.key === 'Escape') {
       if (expanded) setExpanded(null);
       else setSelected(null);
       return;
     }
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "c" && selected) {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'c' && selected) {
       const value = sheet?.rows[selected.r]?.[selected.c];
       if (value) {
         e.preventDefault();
@@ -435,14 +427,10 @@ export function SpreadsheetPreview({
     );
   }
 
-  const truncated =
-    sheet.totalRows > sheet.rowCount || sheet.totalCols > sheet.colCount;
+  const truncated = sheet.totalRows > sheet.rowCount || sheet.totalCols > sheet.colCount;
   const visibleRowCount = Math.min(renderedRows, sheet.rowCount);
-  const tableWidth =
-    ROW_HEADER_WIDTH + colWidths.reduce((sum, w) => sum + w, 0);
-  const expandedValue = expanded
-    ? (sheet.rows[expanded.r]?.[expanded.c] ?? "")
-    : "";
+  const tableWidth = ROW_HEADER_WIDTH + colWidths.reduce((sum, w) => sum + w, 0);
+  const expandedValue = expanded ? (sheet.rows[expanded.r]?.[expanded.c] ?? '') : '';
 
   return (
     <div
@@ -450,7 +438,7 @@ export function SpreadsheetPreview({
       tabIndex={0}
       onKeyDown={handleKeyDown}
       className={`relative w-full flex flex-col min-h-0 bg-bridge-obsidian outline-none focus:ring-2 focus:ring-bridge-accent/30 ${
-        fullscreen ? "h-screen" : heightClass
+        fullscreen ? 'h-screen' : heightClass
       }`}
     >
       {/* 시트 탭 + 툴바 */}
@@ -468,8 +456,8 @@ export function SpreadsheetPreview({
               onClick={() => setActive(i)}
               className={`px-3 py-1.5 rounded-t-lg text-xs font-bold whitespace-nowrap transition-colors ${
                 i === active
-                  ? "bg-bridge-accent/15 text-bridge-accent"
-                  : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                  ? 'bg-bridge-accent/15 text-bridge-accent'
+                  : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
               }`}
             >
               {s.name}
@@ -485,7 +473,7 @@ export function SpreadsheetPreview({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === 'Enter') {
                   e.preventDefault();
                   stepMatch(e.shiftKey ? -1 : 1);
                 }
@@ -498,21 +486,21 @@ export function SpreadsheetPreview({
             {query && (
               <span className="absolute right-2 text-xs text-slate-500 tabular-nums select-none">
                 {matches.length === 0
-                  ? "0"
+                  ? '0'
                   : `${(matchIndex % matches.length) + 1}/${matches.length}`}
               </span>
             )}
           </div>
           <IconButton
-            aria-label={wrap ? "줄바꿈 끄기" : "줄바꿈 켜기"}
+            aria-label={wrap ? '줄바꿈 끄기' : '줄바꿈 켜기'}
             aria-pressed={wrap}
             onClick={() => setWrap((v) => !v)}
-            className={wrap ? "text-bridge-accent bg-bridge-accent/15" : ""}
+            className={wrap ? 'text-bridge-accent bg-bridge-accent/15' : ''}
           >
             <WrapText />
           </IconButton>
           <IconButton
-            aria-label={fullscreen ? "전체화면 종료" : "전체화면"}
+            aria-label={fullscreen ? '전체화면 종료' : '전체화면'}
             onClick={toggleFullscreen}
           >
             {fullscreen ? <Minimize2 /> : <Maximize2 />}
@@ -550,8 +538,8 @@ export function SpreadsheetPreview({
                     key={c}
                     className={`relative bg-bridge-obsidian border border-foreground/[0.08] px-2 py-1 font-medium text-center select-none overflow-hidden ${
                       selected?.c === c
-                        ? "text-bridge-accent bg-bridge-accent/15"
-                        : "text-slate-500"
+                        ? 'text-bridge-accent bg-bridge-accent/15'
+                        : 'text-slate-500'
                     }`}
                   >
                     {columnLabel(sheet.firstCol + c)}
@@ -578,8 +566,8 @@ export function SpreadsheetPreview({
                   <td
                     className={`sticky left-0 z-10 bg-bridge-obsidian border border-foreground/[0.08] px-2 py-1 text-right select-none ${
                       selected?.r === r
-                        ? "text-bridge-accent bg-bridge-accent/15"
-                        : "text-slate-500"
+                        ? 'text-bridge-accent bg-bridge-accent/15'
+                        : 'text-slate-500'
                     }`}
                   >
                     {sheet.firstRow + r + 1}
@@ -589,8 +577,7 @@ export function SpreadsheetPreview({
                     if (sheet.covered.has(key)) return null;
                     const span = sheet.merges.get(key);
                     const isSelected = selected?.r === r && selected?.c === c;
-                    const isCurrent =
-                      currentMatch?.r === r && currentMatch?.c === c;
+                    const isCurrent = currentMatch?.r === r && currentMatch?.c === c;
                     const isMatch = matchSet.has(key);
                     return (
                       <td
@@ -605,18 +592,18 @@ export function SpreadsheetPreview({
                         }}
                         className={`border border-foreground/[0.08] px-2 py-1 align-top cursor-cell ${
                           wrap
-                            ? "whitespace-pre-wrap break-words"
-                            : "whitespace-nowrap overflow-hidden text-ellipsis"
+                            ? 'whitespace-pre-wrap break-words'
+                            : 'whitespace-nowrap overflow-hidden text-ellipsis'
                         } ${
                           isCurrent
-                            ? "bg-amber-500/40 ring-2 ring-inset ring-amber-500"
+                            ? 'bg-amber-500/40 ring-2 ring-inset ring-amber-500'
                             : isMatch
-                              ? "bg-amber-500/15"
-                              : ""
+                              ? 'bg-amber-500/15'
+                              : ''
                         } ${
                           isSelected
-                            ? "ring-2 ring-inset ring-bridge-accent bg-bridge-accent/10"
-                            : ""
+                            ? 'ring-2 ring-inset ring-bridge-accent bg-bridge-accent/10'
+                            : ''
                         }`}
                       >
                         {value}
@@ -631,8 +618,8 @@ export function SpreadsheetPreview({
         {visibleRowCount < sheet.rowCount && (
           <div className="flex items-center justify-center py-3 text-xs text-slate-500">
             <Loader2 className="w-4 h-4 animate-spin text-bridge-accent mr-2" />
-            {visibleRowCount.toLocaleString()} /{" "}
-            {sheet.rowCount.toLocaleString()}행 · 스크롤하면 더 불러옵니다
+            {visibleRowCount.toLocaleString()} / {sheet.rowCount.toLocaleString()}행 · 스크롤하면 더
+            불러옵니다
           </div>
         )}
       </div>
@@ -651,7 +638,7 @@ export function SpreadsheetPreview({
         <span className="truncate">
           {truncated
             ? `${sheet.rowCount.toLocaleString()}행 × ${sheet.colCount}열까지만 표시합니다. 전체는 다운로드해서 확인하세요.`
-            : "더블클릭으로 셀 내용 확대 · 열 머리글 경계를 드래그해 너비 조절"}
+            : '더블클릭으로 셀 내용 확대 · 열 머리글 경계를 드래그해 너비 조절'}
         </span>
       </div>
 
@@ -672,10 +659,7 @@ export function SpreadsheetPreview({
               {expandedValue.length.toLocaleString()}자
             </span>
             <div className="flex-1" />
-            <IconButton
-              aria-label="셀 내용 복사"
-              onClick={() => void copyText(expandedValue)}
-            >
+            <IconButton aria-label="셀 내용 복사" onClick={() => void copyText(expandedValue)}>
               {copied ? <Check className="text-emerald-500" /> : <Copy />}
             </IconButton>
             <IconButton aria-label="닫기" onClick={() => setExpanded(null)}>

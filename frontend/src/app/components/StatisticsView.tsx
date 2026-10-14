@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { useTranslation } from "react-i18next";
+import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart3,
   Clock,
@@ -18,7 +18,7 @@ import {
   Settings,
   Flag,
   Shield,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -33,7 +33,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-} from "recharts";
+} from 'recharts';
 import {
   BoardStatistics,
   StatisticsFilter,
@@ -41,12 +41,12 @@ import {
   Milestone,
   Tag,
   BoardMember,
-} from "../types";
-import { statisticsService } from "../utils/services";
-import { getInitials, getAssigneeHex } from "../utils/assigneeColor";
-import { WeightLevelSettingsModal } from "./WeightLevelSettingsModal";
-import { ManagementView } from "./ManagementView";
-import { formatDate, formatDateShort } from "../utils/dateUtils";
+} from '../types';
+import { statisticsService } from '../utils/services';
+import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
+import { WeightLevelSettingsModal } from './WeightLevelSettingsModal';
+import { ManagementView } from './ManagementView';
+import { formatDate, formatDateShort } from '../utils/dateUtils';
 
 interface StatisticsViewProps {
   boardId: string;
@@ -72,23 +72,23 @@ const DEFAULT_FILTER: StatisticsFilter = {
 
 // 기간 프리셋
 const PERIOD_PRESETS = [
-  { labelKey: "statistics.periodLast7", value: "7d" },
-  { labelKey: "statistics.periodLast30", value: "30d" },
-  { labelKey: "statistics.periodThisMonth", value: "this_month" },
-  { labelKey: "statistics.periodLastMonth", value: "last_month" },
-  { labelKey: "statistics.periodAll", value: "all" },
+  { labelKey: 'statistics.periodLast7', value: '7d' },
+  { labelKey: 'statistics.periodLast30', value: '30d' },
+  { labelKey: 'statistics.periodThisMonth', value: 'this_month' },
+  { labelKey: 'statistics.periodLastMonth', value: 'last_month' },
+  { labelKey: 'statistics.periodAll', value: 'all' },
 ];
 
 // 차트 색상
 const CHART_COLORS = [
-  "#6366F1", // bridge-accent
-  "#2DD4BF", // bridge-secondary
-  "#F59E0B", // amber
-  "#EF4444", // red
-  "#8B5CF6", // violet
-  "#EC4899", // pink
-  "#10B981", // emerald
-  "#3B82F6", // blue
+  '#6366F1', // bridge-accent
+  '#2DD4BF', // bridge-secondary
+  '#F59E0B', // amber
+  '#EF4444', // red
+  '#8B5CF6', // violet
+  '#EC4899', // pink
+  '#10B981', // emerald
+  '#3B82F6', // blue
 ];
 
 export function StatisticsView({
@@ -101,8 +101,7 @@ export function StatisticsView({
   activeView: controlledActiveView,
   onActiveViewChange,
 }: StatisticsViewProps) {
-  const [internalActiveView, setInternalActiveView] =
-    useState<StatisticsViewType>("overview");
+  const [internalActiveView, setInternalActiveView] = useState<StatisticsViewType>('overview');
   const activeView = controlledActiveView ?? internalActiveView;
   const setActiveView = (view: StatisticsViewType) => {
     if (onActiveViewChange) {
@@ -112,7 +111,7 @@ export function StatisticsView({
     }
   };
   const [filter, setFilter] = useState<StatisticsFilter>(DEFAULT_FILTER);
-  const [periodPreset, setPeriodPreset] = useState("30d");
+  const [periodPreset, setPeriodPreset] = useState('30d');
   const [statistics, setStatistics] = useState<BoardStatistics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -126,22 +125,22 @@ export function StatisticsView({
     let endDate: Date = now;
 
     switch (periodPreset) {
-      case "7d":
+      case '7d':
         startDate = new Date(now);
         startDate.setDate(startDate.getDate() - 7);
         break;
-      case "30d":
+      case '30d':
         startDate = new Date(now);
         startDate.setDate(startDate.getDate() - 30);
         break;
-      case "this_month":
+      case 'this_month':
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
         break;
-      case "last_month":
+      case 'last_month':
         startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         endDate = new Date(now.getFullYear(), now.getMonth(), 0);
         break;
-      case "all":
+      case 'all':
         startDate = null;
         break;
     }
@@ -160,7 +159,7 @@ export function StatisticsView({
       const data = await statisticsService.getBoardStatistics(boardId, filter);
       setStatistics(data);
     } catch (error) {
-      console.error("Failed to load statistics:", error);
+      console.error('Failed to load statistics:', error);
     } finally {
       setIsLoading(false);
     }
@@ -172,12 +171,12 @@ export function StatisticsView({
 
   // 시간 포맷팅 헬퍼
   const formatMinutes = (minutes: number): string => {
-    if (minutes < 60) return t("statistics.minuteUnit", { value: minutes });
+    if (minutes < 60) return t('statistics.minuteUnit', { value: minutes });
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return mins > 0
-      ? t("statistics.hourMinuteUnit", { hours, minutes: mins })
-      : t("statistics.hourUnit", { hours });
+      ? t('statistics.hourMinuteUnit', { hours, minutes: mins })
+      : t('statistics.hourUnit', { hours });
   };
 
   // 퍼센트 포맷팅
@@ -190,7 +189,7 @@ export function StatisticsView({
     if (!statistics?.daily_trend) return [];
     return statistics.daily_trend.map((d) => ({
       ...d,
-      date: formatDate(d.date, "M월 d일"),
+      date: formatDate(d.date, 'M월 d일'),
       hours: Number((d.total_minutes / 60).toFixed(1)),
       completed_hours: Number((d.completed_minutes / 60).toFixed(1)),
     }));
@@ -228,12 +227,12 @@ export function StatisticsView({
     labelKey: string;
     icon: React.ElementType;
   }[] = [
-    { type: "overview", labelKey: "statistics.tabOverview", icon: BarChart3 },
-    { type: "individual", labelKey: "statistics.tabIndividual", icon: Users },
-    { type: "team", labelKey: "statistics.tabTeam", icon: Target },
-    { type: "work", labelKey: "statistics.tabWork", icon: ListTodo },
-    { type: "impact", labelKey: "statistics.tabImpact", icon: Zap },
-    { type: "management", labelKey: "statistics.tabManagement", icon: Shield },
+    { type: 'overview', labelKey: 'statistics.tabOverview', icon: BarChart3 },
+    { type: 'individual', labelKey: 'statistics.tabIndividual', icon: Users },
+    { type: 'team', labelKey: 'statistics.tabTeam', icon: Target },
+    { type: 'work', labelKey: 'statistics.tabWork', icon: ListTodo },
+    { type: 'impact', labelKey: 'statistics.tabImpact', icon: Zap },
+    { type: 'management', labelKey: 'statistics.tabManagement', icon: Shield },
   ];
 
   if (isLoading && !statistics) {
@@ -241,7 +240,7 @@ export function StatisticsView({
       <div className="flex items-center justify-center h-full bg-bridge-dark">
         <div className="text-center">
           <BarChart3 className="h-12 w-12 text-bridge-accent mx-auto mb-4 animate-pulse" />
-          <p className="text-slate-400">{t("statistics.loadingData")}</p>
+          <p className="text-slate-400">{t('statistics.loadingData')}</p>
         </div>
       </div>
     );
@@ -260,8 +259,8 @@ export function StatisticsView({
                 onClick={() => setActiveView(tab.type)}
                 className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex-shrink-0 ${
                   activeView === tab.type
-                    ? "bg-bridge-accent text-white shadow-lg"
-                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                    ? 'bg-bridge-accent text-white shadow-lg'
+                    : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
                 }`}
               >
                 <tab.icon className="h-4 w-4 flex-shrink-0" />
@@ -275,7 +274,7 @@ export function StatisticsView({
             {/* 마일스톤 선택 */}
             <div className="relative flex-shrink-0">
               <select
-                value={filter.milestone_ids[0] || ""}
+                value={filter.milestone_ids[0] || ''}
                 onChange={(e) => {
                   const milestoneId = e.target.value;
                   setFilter((prev) => ({
@@ -284,12 +283,12 @@ export function StatisticsView({
                   }));
                   // 마일스톤 선택 시 기간 프리셋을 전체로 변경
                   if (milestoneId) {
-                    setPeriodPreset("all");
+                    setPeriodPreset('all');
                   }
                 }}
                 className="appearance-none bg-bridge-dark border border-bridge-border rounded-xl py-2 pl-9 pr-8 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent cursor-pointer hover:border-bridge-border transition-all"
               >
-                <option value="">{t("statistics.allMilestones")}</option>
+                <option value="">{t('statistics.allMilestones')}</option>
                 {milestones.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.title}
@@ -312,8 +311,8 @@ export function StatisticsView({
                   }}
                   className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-xs font-medium transition-all whitespace-nowrap ${
                     periodPreset === preset.value
-                      ? "bg-foreground/10 text-foreground"
-                      : "text-slate-400 hover:text-muted-foreground"
+                      ? 'bg-foreground/10 text-foreground'
+                      : 'text-slate-400 hover:text-muted-foreground'
                   }`}
                 >
                   {t(preset.labelKey)}
@@ -325,22 +324,18 @@ export function StatisticsView({
             <button
               onClick={() => setIsFilterOpen(!isFilterOpen)}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all flex-shrink-0 ${
-                isFilterOpen ||
-                filter.member_ids.length > 0 ||
-                filter.tag_ids.length > 0
-                  ? "border-bridge-accent text-bridge-accent bg-bridge-accent/10"
-                  : "border-bridge-border text-slate-400 hover:text-foreground hover:border-bridge-border"
+                isFilterOpen || filter.member_ids.length > 0 || filter.tag_ids.length > 0
+                  ? 'border-bridge-accent text-bridge-accent bg-bridge-accent/10'
+                  : 'border-bridge-border text-slate-400 hover:text-foreground hover:border-bridge-border'
               }`}
             >
               <Filter className="h-4 w-4" />
-              <span className="hidden sm:inline">
-                {t("statistics.filterBtn")}
-              </span>
+              <span className="hidden sm:inline">{t('statistics.filterBtn')}</span>
               {(filter.member_ids.length > 0 || filter.tag_ids.length > 0) && (
                 <span className="w-2 h-2 rounded-full bg-bridge-accent" />
               )}
               <ChevronDown
-                className={`h-4 w-4 transition-transform ${isFilterOpen ? "rotate-180" : ""}`}
+                className={`h-4 w-4 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`}
               />
             </button>
           </div>
@@ -353,10 +348,10 @@ export function StatisticsView({
               {/* 멤버 필터 */}
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">
-                  {t("statistics.memberFilter")}
+                  {t('statistics.memberFilter')}
                 </label>
                 <select
-                  value={filter.member_ids[0] || ""}
+                  value={filter.member_ids[0] || ''}
                   onChange={(e) =>
                     setFilter((prev) => ({
                       ...prev,
@@ -365,7 +360,7 @@ export function StatisticsView({
                   }
                   className="w-full bg-foreground/5 border border-bridge-border rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                 >
-                  <option value="">{t("statistics.totalLabel")}</option>
+                  <option value="">{t('statistics.totalLabel')}</option>
                   {members.map((m) => (
                     <option key={m.id} value={m.user.id}>
                       {m.user.name}
@@ -377,10 +372,10 @@ export function StatisticsView({
               {/* 태그 필터 */}
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">
-                  {t("statistics.tagFilter")}
+                  {t('statistics.tagFilter')}
                 </label>
                 <select
-                  value={filter.tag_ids[0] || ""}
+                  value={filter.tag_ids[0] || ''}
                   onChange={(e) =>
                     setFilter((prev) => ({
                       ...prev,
@@ -389,7 +384,7 @@ export function StatisticsView({
                   }
                   className="w-full bg-foreground/5 border border-bridge-border rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                 >
-                  <option value="">{t("statistics.totalLabel")}</option>
+                  <option value="">{t('statistics.totalLabel')}</option>
                   {tags.map((tag) => (
                     <option key={tag.id} value={tag.id}>
                       {tag.name}
@@ -403,11 +398,11 @@ export function StatisticsView({
                 <button
                   onClick={() => {
                     setFilter(DEFAULT_FILTER);
-                    setPeriodPreset("30d");
+                    setPeriodPreset('30d');
                   }}
                   className="px-4 py-2 text-sm text-slate-400 hover:text-foreground transition-colors"
                 >
-                  {t("statistics.resetFilter")}
+                  {t('statistics.resetFilter')}
                 </button>
               </div>
             </div>
@@ -417,7 +412,7 @@ export function StatisticsView({
 
       {/* 메인 콘텐츠 영역 */}
       <div className="flex-1 overflow-y-auto p-3 sm:p-6">
-        {activeView === "overview" && statistics && (
+        {activeView === 'overview' && statistics && (
           <OverviewDashboard
             statistics={statistics}
             formatMinutes={formatMinutes}
@@ -428,7 +423,7 @@ export function StatisticsView({
           />
         )}
 
-        {activeView === "individual" && statistics && (
+        {activeView === 'individual' && statistics && (
           <IndividualProductivityView
             statistics={statistics}
             boardId={boardId}
@@ -438,7 +433,7 @@ export function StatisticsView({
           />
         )}
 
-        {activeView === "team" && statistics && (
+        {activeView === 'team' && statistics && (
           <TeamProductivityView
             statistics={statistics}
             formatMinutes={formatMinutes}
@@ -446,7 +441,7 @@ export function StatisticsView({
           />
         )}
 
-        {activeView === "work" && statistics && (
+        {activeView === 'work' && statistics && (
           <WorkAnalysisView
             statistics={statistics}
             formatMinutes={formatMinutes}
@@ -454,7 +449,7 @@ export function StatisticsView({
           />
         )}
 
-        {activeView === "impact" && statistics && (
+        {activeView === 'impact' && statistics && (
           <ImpactAnalysisView
             statistics={statistics}
             boardId={boardId}
@@ -466,7 +461,7 @@ export function StatisticsView({
           />
         )}
 
-        {activeView === "management" && (
+        {activeView === 'management' && (
           <ManagementView
             boardId={boardId}
             milestones={milestones}
@@ -524,65 +519,47 @@ function OverviewDashboard({
         {/* 총 작업 시간 */}
         <KPICard
           icon={Clock}
-          label={t("statistics.totalWorkTime")}
+          label={t('statistics.totalWorkTime')}
           value={formatMinutes(summary.total_work_minutes)}
-          subValue={t("statistics.completedPrefix", {
+          subValue={t('statistics.completedPrefix', {
             value: formatMinutes(summary.completed_work_minutes),
           })}
-          trend={
-            summary.focus_rate > 0.7
-              ? "up"
-              : summary.focus_rate > 0.5
-                ? "neutral"
-                : "down"
-          }
+          trend={summary.focus_rate > 0.7 ? 'up' : summary.focus_rate > 0.5 ? 'neutral' : 'down'}
           accentColor="bridge-accent"
         />
 
         {/* 완료율 */}
         <KPICard
           icon={CheckCircle2}
-          label={t("statistics.taskCompletionRate")}
+          label={t('statistics.taskCompletionRate')}
           value={formatPercent(
-            summary.total_tasks > 0
-              ? summary.completed_tasks / summary.total_tasks
-              : 0,
+            summary.total_tasks > 0 ? summary.completed_tasks / summary.total_tasks : 0,
           )}
           subValue={`${summary.completed_tasks} / ${summary.total_tasks} Task`}
-          trend={
-            summary.completed_tasks / summary.total_tasks > 0.7
-              ? "up"
-              : "neutral"
-          }
+          trend={summary.completed_tasks / summary.total_tasks > 0.7 ? 'up' : 'neutral'}
           accentColor="bridge-secondary"
         />
 
         {/* 집중도 */}
         <KPICard
           icon={Target}
-          label={t("statistics.focusRate")}
+          label={t('statistics.focusRate')}
           value={formatPercent(summary.focus_rate)}
-          subValue={t("statistics.focusRateDesc")}
-          trend={
-            summary.focus_rate > 0.8
-              ? "up"
-              : summary.focus_rate > 0.6
-                ? "neutral"
-                : "down"
-          }
+          subValue={t('statistics.focusRateDesc')}
+          trend={summary.focus_rate > 0.8 ? 'up' : summary.focus_rate > 0.6 ? 'neutral' : 'down'}
           accentColor="amber-500"
         />
 
         {/* Feature 진행률 */}
         <KPICard
           icon={TrendingUp}
-          label={t("statistics.avgFeatureProgress")}
+          label={t('statistics.avgFeatureProgress')}
           value={formatPercent(summary.average_feature_progress / 100)}
-          subValue={t("statistics.completedCount", {
+          subValue={t('statistics.completedCount', {
             completed: summary.completed_features,
             total: summary.total_features,
           })}
-          trend={summary.average_feature_progress > 70 ? "up" : "neutral"}
+          trend={summary.average_feature_progress > 70 ? 'up' : 'neutral'}
           accentColor="violet-500"
         />
       </div>
@@ -594,7 +571,7 @@ function OverviewDashboard({
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-foreground font-bold flex items-center gap-2">
               <Activity className="h-5 w-5 text-bridge-accent" />
-              {t("statistics.dailyWorkTime")}
+              {t('statistics.dailyWorkTime')}
             </h3>
           </div>
           <div className="h-[280px]">
@@ -603,34 +580,32 @@ function OverviewDashboard({
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis
                   dataKey="date"
-                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-                  tickLine={{ stroke: "var(--border)" }}
-                  axisLine={{ stroke: "var(--border)" }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                  tickLine={{ stroke: 'var(--border)' }}
+                  axisLine={{ stroke: 'var(--border)' }}
                 />
                 <YAxis
-                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-                  tickLine={{ stroke: "var(--border)" }}
-                  axisLine={{ stroke: "var(--border)" }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                  tickLine={{ stroke: 'var(--border)' }}
+                  axisLine={{ stroke: 'var(--border)' }}
                   tickFormatter={(v) => `${v}h`}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "var(--bridge-obsidian)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "12px",
-                    padding: "12px",
+                    backgroundColor: 'var(--bridge-obsidian)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px',
+                    padding: '12px',
                   }}
                   labelStyle={{
-                    color: "var(--foreground)",
+                    color: 'var(--foreground)',
                     fontWeight: 600,
                     marginBottom: 4,
                   }}
-                  itemStyle={{ color: "var(--muted-foreground)" }}
+                  itemStyle={{ color: 'var(--muted-foreground)' }}
                   formatter={(value: number, name: string) => [
-                    t("statistics.hourSuffix", { value }),
-                    name === "hours"
-                      ? t("statistics.totalLabel")
-                      : t("statistics.completedLabel"),
+                    t('statistics.hourSuffix', { value }),
+                    name === 'hours' ? t('statistics.totalLabel') : t('statistics.completedLabel'),
                   ]}
                 />
                 <Legend
@@ -638,26 +613,24 @@ function OverviewDashboard({
                   align="right"
                   iconType="circle"
                   wrapperStyle={{ paddingBottom: 20 }}
-                  formatter={(value) => (
-                    <span className="text-slate-400 text-xs">{value}</span>
-                  )}
+                  formatter={(value) => <span className="text-slate-400 text-xs">{value}</span>}
                 />
                 <Line
                   type="monotone"
                   dataKey="hours"
-                  name={t("statistics.allWork")}
+                  name={t('statistics.allWork')}
                   stroke="#6366F1"
                   strokeWidth={2}
-                  dot={{ fill: "#6366F1", r: 3 }}
+                  dot={{ fill: '#6366F1', r: 3 }}
                   activeDot={{ r: 5 }}
                 />
                 <Line
                   type="monotone"
                   dataKey="completed_hours"
-                  name={t("statistics.completedWork")}
+                  name={t('statistics.completedWork')}
                   stroke="#2DD4BF"
                   strokeWidth={2}
-                  dot={{ fill: "#2DD4BF", r: 3 }}
+                  dot={{ fill: '#2DD4BF', r: 3 }}
                   activeDot={{ r: 5 }}
                 />
               </LineChart>
@@ -670,7 +643,7 @@ function OverviewDashboard({
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-foreground font-bold flex items-center gap-2">
               <PieChart className="h-5 w-5 text-bridge-secondary" />
-              {t("statistics.featureTimeDistribution")}
+              {t('statistics.featureTimeDistribution')}
             </h3>
           </div>
           <div className="h-[280px]">
@@ -688,29 +661,24 @@ function OverviewDashboard({
                   {featureDistribution.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
-                      fill={
-                        entry.color || CHART_COLORS[index % CHART_COLORS.length]
-                      }
+                      fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]}
                     />
                   ))}
                 </Pie>
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "var(--bridge-obsidian)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "12px",
-                    padding: "12px",
+                    backgroundColor: 'var(--bridge-obsidian)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px',
+                    padding: '12px',
                   }}
                   labelStyle={{
-                    color: "var(--foreground)",
+                    color: 'var(--foreground)',
                     fontWeight: 600,
                     marginBottom: 4,
                   }}
-                  itemStyle={{ color: "var(--muted-foreground)" }}
-                  formatter={(value: number) => [
-                    formatMinutes(value),
-                    t("statistics.workTime"),
-                  ]}
+                  itemStyle={{ color: 'var(--muted-foreground)' }}
+                  formatter={(value: number) => [formatMinutes(value), t('statistics.workTime')]}
                 />
                 <Legend
                   verticalAlign="middle"
@@ -737,57 +705,51 @@ function OverviewDashboard({
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-foreground font-bold flex items-center gap-2">
               <Users className="h-5 w-5 text-amber-500" />
-              {t("statistics.memberWorkTime")}
+              {t('statistics.memberWorkTime')}
             </h3>
           </div>
           <div className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={memberContribution} layout="vertical">
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="var(--border)"
-                  horizontal={false}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                 <XAxis
                   type="number"
-                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-                  tickLine={{ stroke: "var(--border)" }}
-                  axisLine={{ stroke: "var(--border)" }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                  tickLine={{ stroke: 'var(--border)' }}
+                  axisLine={{ stroke: 'var(--border)' }}
                   tickFormatter={(v) => `${v}h`}
                 />
                 <YAxis
                   dataKey="name"
                   type="category"
-                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
                   tickLine={false}
                   axisLine={false}
                   width={80}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "var(--bridge-obsidian)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "12px",
-                    padding: "12px",
+                    backgroundColor: 'var(--bridge-obsidian)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px',
+                    padding: '12px',
                   }}
                   labelStyle={{
-                    color: "var(--foreground)",
+                    color: 'var(--foreground)',
                     fontWeight: 600,
                     marginBottom: 4,
                   }}
-                  itemStyle={{ color: "var(--muted-foreground)" }}
+                  itemStyle={{ color: 'var(--muted-foreground)' }}
                   formatter={(value: number, name: string) => [
-                    name === "hours"
-                      ? t("statistics.hourSuffix", { value })
-                      : t("statistics.itemCount", { value }),
-                    name === "hours"
-                      ? t("statistics.workTime")
-                      : t("statistics.taskCount"),
+                    name === 'hours'
+                      ? t('statistics.hourSuffix', { value })
+                      : t('statistics.itemCount', { value }),
+                    name === 'hours' ? t('statistics.workTime') : t('statistics.taskCount'),
                   ]}
                 />
                 <Bar
                   dataKey="hours"
-                  name={t("statistics.workTime")}
+                  name={t('statistics.workTime')}
                   fill="#6366F1"
                   radius={[0, 4, 4, 0]}
                 />
@@ -801,41 +763,41 @@ function OverviewDashboard({
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-foreground font-bold flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-violet-500" />
-              {t("statistics.detailedSummary")}
+              {t('statistics.detailedSummary')}
             </h3>
           </div>
           <div className="space-y-4">
             <SummaryItem
-              label={t("statistics.analysisPeriod")}
+              label={t('statistics.analysisPeriod')}
               value={`${statistics.summary.period_start} ~ ${statistics.summary.period_end}`}
             />
             <SummaryItem
-              label={t("statistics.totalFeature")}
-              value={t("statistics.itemCount", {
+              label={t('statistics.totalFeature')}
+              value={t('statistics.itemCount', {
                 value: statistics.summary.total_features,
               })}
-              subValue={t("statistics.countCompleted", {
+              subValue={t('statistics.countCompleted', {
                 count: statistics.summary.completed_features,
               })}
             />
             <SummaryItem
-              label={t("statistics.totalTask")}
-              value={t("statistics.itemCount", {
+              label={t('statistics.totalTask')}
+              value={t('statistics.itemCount', {
                 value: statistics.summary.total_tasks,
               })}
-              subValue={t("statistics.countCompleted", {
+              subValue={t('statistics.countCompleted', {
                 count: statistics.summary.completed_tasks,
               })}
             />
             <SummaryItem
-              label={t("statistics.incompleteWorkTime")}
+              label={t('statistics.incompleteWorkTime')}
               value={formatMinutes(statistics.summary.incomplete_work_minutes)}
               highlight
             />
             <SummaryItem
-              label={t("statistics.totalImpactScore")}
-              value={statistics.impact?.total_impact_score?.toFixed(1) || "0"}
-              subValue={t("statistics.weightApplied")}
+              label={t('statistics.totalImpactScore')}
+              value={statistics.impact?.total_impact_score?.toFixed(1) || '0'}
+              subValue={t('statistics.weightApplied')}
             />
           </div>
         </div>
@@ -853,56 +815,49 @@ interface KPICardProps {
   label: string;
   value: string;
   subValue?: string;
-  trend?: "up" | "down" | "neutral";
+  trend?: 'up' | 'down' | 'neutral';
   accentColor: string;
 }
 
-function KPICard({
-  icon: Icon,
-  label,
-  value,
-  subValue,
-  trend,
-  accentColor,
-}: KPICardProps) {
+function KPICard({ icon: Icon, label, value, subValue, trend, accentColor }: KPICardProps) {
   const getTrendColor = () => {
     switch (trend) {
-      case "up":
-        return "text-emerald-400";
-      case "down":
-        return "text-red-400";
+      case 'up':
+        return 'text-emerald-400';
+      case 'down':
+        return 'text-red-400';
       default:
-        return "text-slate-400";
+        return 'text-slate-400';
     }
   };
 
   const getAccentBg = () => {
     switch (accentColor) {
-      case "bridge-accent":
-        return "bg-bridge-accent/20";
-      case "bridge-secondary":
-        return "bg-bridge-secondary/20";
-      case "amber-500":
-        return "bg-amber-500/20";
-      case "violet-500":
-        return "bg-violet-500/20";
+      case 'bridge-accent':
+        return 'bg-bridge-accent/20';
+      case 'bridge-secondary':
+        return 'bg-bridge-secondary/20';
+      case 'amber-500':
+        return 'bg-amber-500/20';
+      case 'violet-500':
+        return 'bg-violet-500/20';
       default:
-        return "bg-foreground/10";
+        return 'bg-foreground/10';
     }
   };
 
   const getIconColor = () => {
     switch (accentColor) {
-      case "bridge-accent":
-        return "text-bridge-accent";
-      case "bridge-secondary":
-        return "text-bridge-secondary";
-      case "amber-500":
-        return "text-amber-500";
-      case "violet-500":
-        return "text-violet-500";
+      case 'bridge-accent':
+        return 'text-bridge-accent';
+      case 'bridge-secondary':
+        return 'text-bridge-secondary';
+      case 'amber-500':
+        return 'text-amber-500';
+      case 'violet-500':
+        return 'text-violet-500';
       default:
-        return "text-foreground";
+        return 'text-foreground';
     }
   };
 
@@ -914,21 +869,15 @@ function KPICard({
         </div>
         {trend && (
           <TrendingUp
-            className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${getTrendColor()} ${trend === "down" ? "rotate-180" : ""}`}
+            className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${getTrendColor()} ${trend === 'down' ? 'rotate-180' : ''}`}
           />
         )}
       </div>
       <p className="text-xs sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 truncate">
         {label}
       </p>
-      <p className="text-lg sm:text-2xl font-bold text-foreground truncate">
-        {value}
-      </p>
-      {subValue && (
-        <p className="text-xs sm:text-sm text-slate-400 mt-1 truncate">
-          {subValue}
-        </p>
-      )}
+      <p className="text-lg sm:text-2xl font-bold text-foreground truncate">{value}</p>
+      {subValue && <p className="text-xs sm:text-sm text-slate-400 mt-1 truncate">{subValue}</p>}
     </div>
   );
 }
@@ -949,14 +898,10 @@ function SummaryItem({ label, value, subValue, highlight }: SummaryItemProps) {
     <div className="flex items-center justify-between py-2 border-b border-bridge-border last:border-0">
       <span className="text-slate-400 text-sm">{label}</span>
       <div className="text-right">
-        <span
-          className={`font-bold ${highlight ? "text-amber-400" : "text-foreground"}`}
-        >
+        <span className={`font-bold ${highlight ? 'text-amber-400' : 'text-foreground'}`}>
           {value}
         </span>
-        {subValue && (
-          <span className="text-slate-400 text-xs ml-2">({subValue})</span>
-        )}
+        {subValue && <span className="text-slate-400 text-xs ml-2">({subValue})</span>}
       </div>
     </div>
   );
@@ -972,11 +917,7 @@ interface WorkAnalysisViewProps {
   formatPercent: (value: number) => string;
 }
 
-function WorkAnalysisView({
-  statistics,
-  formatMinutes,
-  formatPercent,
-}: WorkAnalysisViewProps) {
+function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnalysisViewProps) {
   const { t } = useTranslation();
   // Feature별 상세 데이터
   const featureDetails = useMemo(() => {
@@ -1015,14 +956,14 @@ function WorkAnalysisView({
     const { summary } = statistics;
     return [
       {
-        name: t("statistics.completedStatus"),
+        name: t('statistics.completedStatus'),
         value: summary.completed_tasks,
-        color: "#2DD4BF",
+        color: '#2DD4BF',
       },
       {
-        name: t("statistics.incompleteStatus"),
+        name: t('statistics.incompleteStatus'),
         value: summary.incomplete_tasks,
-        color: "#6366F1",
+        color: '#6366F1',
       },
     ];
   }, [statistics, t]);
@@ -1032,14 +973,14 @@ function WorkAnalysisView({
     const { summary } = statistics;
     return [
       {
-        name: t("statistics.completedTime"),
+        name: t('statistics.completedTime'),
         value: summary.completed_work_minutes,
-        color: "#2DD4BF",
+        color: '#2DD4BF',
       },
       {
-        name: t("statistics.incompleteTime"),
+        name: t('statistics.incompleteTime'),
         value: summary.incomplete_work_minutes,
-        color: "#F59E0B",
+        color: '#F59E0B',
       },
     ];
   }, [statistics, t]);
@@ -1050,42 +991,40 @@ function WorkAnalysisView({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <KPICard
           icon={ListTodo}
-          label={t("statistics.totalFeatureCount")}
-          value={t("statistics.itemCount", {
+          label={t('statistics.totalFeatureCount')}
+          value={t('statistics.itemCount', {
             value: statistics.summary.total_features,
           })}
-          subValue={t("statistics.countCompleted", {
+          subValue={t('statistics.countCompleted', {
             count: statistics.summary.completed_features,
           })}
           accentColor="bridge-accent"
         />
         <KPICard
           icon={CheckCircle2}
-          label={t("statistics.totalTaskCount")}
-          value={t("statistics.itemCount", {
+          label={t('statistics.totalTaskCount')}
+          value={t('statistics.itemCount', {
             value: statistics.summary.total_tasks,
           })}
-          subValue={t("statistics.countCompleted", {
+          subValue={t('statistics.countCompleted', {
             count: statistics.summary.completed_tasks,
           })}
           accentColor="bridge-secondary"
         />
         <KPICard
           icon={Clock}
-          label={t("statistics.totalInputTime")}
+          label={t('statistics.totalInputTime')}
           value={formatMinutes(statistics.summary.total_work_minutes)}
-          subValue={t("statistics.completedPrefix", {
+          subValue={t('statistics.completedPrefix', {
             value: formatMinutes(statistics.summary.completed_work_minutes),
           })}
           accentColor="amber-500"
         />
         <KPICard
           icon={Target}
-          label={t("statistics.avgProgress")}
-          value={formatPercent(
-            statistics.summary.average_feature_progress / 100,
-          )}
-          subValue={t("statistics.featureBasis")}
+          label={t('statistics.avgProgress')}
+          value={formatPercent(statistics.summary.average_feature_progress / 100)}
+          subValue={t('statistics.featureBasis')}
           accentColor="violet-500"
         />
       </div>
@@ -1096,7 +1035,7 @@ function WorkAnalysisView({
         <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
             <CheckCircle2 className="h-5 w-5 text-bridge-secondary" />
-            {t("statistics.taskStatusDistribution")}
+            {t('statistics.taskStatusDistribution')}
           </h3>
           <div className="h-[240px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -1109,11 +1048,9 @@ function WorkAnalysisView({
                   outerRadius={80}
                   paddingAngle={4}
                   dataKey="value"
-                  label={({ name, percent }) =>
-                    `${name} ${(percent * 100).toFixed(0)}%`
-                  }
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   labelLine={{
-                    stroke: "var(--muted-foreground)",
+                    stroke: 'var(--muted-foreground)',
                     strokeWidth: 1,
                   }}
                 >
@@ -1123,20 +1060,20 @@ function WorkAnalysisView({
                 </Pie>
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "var(--bridge-obsidian)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "12px",
-                    padding: "12px",
+                    backgroundColor: 'var(--bridge-obsidian)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px',
+                    padding: '12px',
                   }}
                   labelStyle={{
-                    color: "var(--foreground)",
+                    color: 'var(--foreground)',
                     fontWeight: 600,
                     marginBottom: 4,
                   }}
-                  itemStyle={{ color: "var(--muted-foreground)" }}
+                  itemStyle={{ color: 'var(--muted-foreground)' }}
                   formatter={(value: number) => [
-                    t("statistics.itemCount", { value }),
-                    t("statistics.taskCount"),
+                    t('statistics.itemCount', { value }),
+                    t('statistics.taskCount'),
                   ]}
                 />
               </RechartsPieChart>
@@ -1148,7 +1085,7 @@ function WorkAnalysisView({
         <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
             <Clock className="h-5 w-5 text-amber-500" />
-            {t("statistics.timeStatusDistribution")}
+            {t('statistics.timeStatusDistribution')}
           </h3>
           <div className="h-[240px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -1161,11 +1098,9 @@ function WorkAnalysisView({
                   outerRadius={80}
                   paddingAngle={4}
                   dataKey="value"
-                  label={({ name, percent }) =>
-                    `${name} ${(percent * 100).toFixed(0)}%`
-                  }
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   labelLine={{
-                    stroke: "var(--muted-foreground)",
+                    stroke: 'var(--muted-foreground)',
                     strokeWidth: 1,
                   }}
                 >
@@ -1175,21 +1110,18 @@ function WorkAnalysisView({
                 </Pie>
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "var(--bridge-obsidian)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "12px",
-                    padding: "12px",
+                    backgroundColor: 'var(--bridge-obsidian)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px',
+                    padding: '12px',
                   }}
                   labelStyle={{
-                    color: "var(--foreground)",
+                    color: 'var(--foreground)',
                     fontWeight: 600,
                     marginBottom: 4,
                   }}
-                  itemStyle={{ color: "var(--muted-foreground)" }}
-                  formatter={(value: number) => [
-                    formatMinutes(value),
-                    t("statistics.workTime"),
-                  ]}
+                  itemStyle={{ color: 'var(--muted-foreground)' }}
+                  formatter={(value: number) => [formatMinutes(value), t('statistics.workTime')]}
                 />
               </RechartsPieChart>
             </ResponsiveContainer>
@@ -1201,57 +1133,51 @@ function WorkAnalysisView({
       <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
         <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
           <PieChart className="h-5 w-5 text-violet-500" />
-          {t("statistics.tagWorkTime")}
+          {t('statistics.tagWorkTime')}
         </h3>
         {tagDistribution.length > 0 ? (
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={tagDistribution} layout="vertical">
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="var(--border)"
-                  horizontal={false}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                 <XAxis
                   type="number"
-                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-                  tickLine={{ stroke: "var(--border)" }}
-                  axisLine={{ stroke: "var(--border)" }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                  tickLine={{ stroke: 'var(--border)' }}
+                  axisLine={{ stroke: 'var(--border)' }}
                   tickFormatter={(v) => formatMinutes(v)}
                 />
                 <YAxis
                   dataKey="name"
                   type="category"
-                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
                   tickLine={false}
                   axisLine={false}
                   width={100}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "var(--bridge-obsidian)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "12px",
-                    padding: "12px",
+                    backgroundColor: 'var(--bridge-obsidian)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px',
+                    padding: '12px',
                   }}
                   labelStyle={{
-                    color: "var(--foreground)",
+                    color: 'var(--foreground)',
                     fontWeight: 600,
                     marginBottom: 4,
                   }}
-                  itemStyle={{ color: "var(--muted-foreground)" }}
+                  itemStyle={{ color: 'var(--muted-foreground)' }}
                   formatter={(value: number, name: string) => [
                     formatMinutes(value),
-                    t("statistics.workTime"),
+                    t('statistics.workTime'),
                   ]}
                 />
                 <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                   {tagDistribution.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
-                      fill={
-                        entry.color || CHART_COLORS[index % CHART_COLORS.length]
-                      }
+                      fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]}
                     />
                   ))}
                 </Bar>
@@ -1260,7 +1186,7 @@ function WorkAnalysisView({
           </div>
         ) : (
           <div className="h-[300px] flex items-center justify-center text-slate-400">
-            {t("statistics.noTagData")}
+            {t('statistics.noTagData')}
           </div>
         )}
       </div>
@@ -1269,29 +1195,29 @@ function WorkAnalysisView({
       <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
         <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
           <ListTodo className="h-5 w-5 text-bridge-accent" />
-          {t("statistics.featureDetailAnalysis")}
+          {t('statistics.featureDetailAnalysis')}
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-bridge-border">
                 <th className="text-left py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {t("statistics.featureHeader")}
+                  {t('statistics.featureHeader')}
                 </th>
                 <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {t("statistics.totalTimeHeader")}
+                  {t('statistics.totalTimeHeader')}
                 </th>
                 <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {t("statistics.completedTimeHeader")}
+                  {t('statistics.completedTimeHeader')}
                 </th>
                 <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {t("statistics.taskHeader")}
+                  {t('statistics.taskHeader')}
                 </th>
                 <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {t("statistics.progressHeader")}
+                  {t('statistics.progressHeader')}
                 </th>
                 <th className="py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {t("statistics.statusHeader")}
+                  {t('statistics.statusHeader')}
                 </th>
               </tr>
             </thead>
@@ -1327,10 +1253,10 @@ function WorkAnalysisView({
                     <span
                       className={
                         feature.progress >= 80
-                          ? "text-bridge-secondary"
+                          ? 'text-bridge-secondary'
                           : feature.progress >= 50
-                            ? "text-amber-400"
-                            : "text-slate-400"
+                            ? 'text-amber-400'
+                            : 'text-slate-400'
                       }
                     >
                       {feature.progress}%
@@ -1344,10 +1270,10 @@ function WorkAnalysisView({
                           width: `${feature.progress}%`,
                           backgroundColor:
                             feature.progress >= 80
-                              ? "#2DD4BF"
+                              ? '#2DD4BF'
                               : feature.progress >= 50
-                                ? "#F59E0B"
-                                : "#6366F1",
+                                ? '#F59E0B'
+                                : '#6366F1',
                         }}
                       />
                     </div>
@@ -1357,9 +1283,7 @@ function WorkAnalysisView({
             </tbody>
           </table>
           {featureDetails.length === 0 && (
-            <div className="py-12 text-center text-slate-400">
-              {t("statistics.noFeatureData")}
-            </div>
+            <div className="py-12 text-center text-slate-400">{t('statistics.noFeatureData')}</div>
           )}
         </div>
       </div>
@@ -1397,8 +1321,7 @@ function TeamProductivityView({
         taskCount: m.task_count,
         completedTaskCount: m.completed_task_count,
         impactScore: m.impact_score,
-        completionRate:
-          m.task_count > 0 ? (m.completed_task_count / m.task_count) * 100 : 0,
+        completionRate: m.task_count > 0 ? (m.completed_task_count / m.task_count) * 100 : 0,
         byFeature: m.by_feature,
       }));
   }, [statistics]);
@@ -1425,17 +1348,10 @@ function TeamProductivityView({
   // 팀 전체 통계
   const teamStats = useMemo(() => {
     const totalMembers = memberDetails.length;
-    const totalMinutes = memberDetails.reduce(
-      (sum, m) => sum + m.totalMinutes,
-      0,
-    );
+    const totalMinutes = memberDetails.reduce((sum, m) => sum + m.totalMinutes, 0);
     const totalTasks = memberDetails.reduce((sum, m) => sum + m.taskCount, 0);
-    const completedTasks = memberDetails.reduce(
-      (sum, m) => sum + m.completedTaskCount,
-      0,
-    );
-    const avgMinutesPerMember =
-      totalMembers > 0 ? totalMinutes / totalMembers : 0;
+    const completedTasks = memberDetails.reduce((sum, m) => sum + m.completedTaskCount, 0);
+    const avgMinutesPerMember = totalMembers > 0 ? totalMinutes / totalMembers : 0;
     const avgTasksPerMember = totalMembers > 0 ? totalTasks / totalMembers : 0;
 
     return {
@@ -1491,41 +1407,41 @@ function TeamProductivityView({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <KPICard
           icon={Users}
-          label={t("statistics.teamSize")}
-          value={t("statistics.countPeople", { count: teamStats.totalMembers })}
-          subValue={t("statistics.activeMembers")}
+          label={t('statistics.teamSize')}
+          value={t('statistics.countPeople', { count: teamStats.totalMembers })}
+          subValue={t('statistics.activeMembers')}
           accentColor="bridge-accent"
         />
         <KPICard
           icon={Clock}
-          label={t("statistics.teamTotalWorkTime")}
+          label={t('statistics.teamTotalWorkTime')}
           value={formatMinutes(teamStats.totalMinutes)}
-          subValue={t("statistics.avgPerMember", {
+          subValue={t('statistics.avgPerMember', {
             value: formatMinutes(Math.round(teamStats.avgMinutesPerMember)),
           })}
           accentColor="bridge-secondary"
         />
         <KPICard
           icon={CheckCircle2}
-          label={t("statistics.teamTaskCompletionRate")}
+          label={t('statistics.teamTaskCompletionRate')}
           value={formatPercent(teamStats.completionRate / 100)}
           subValue={`${teamStats.completedTasks} / ${teamStats.totalTasks} Task`}
           trend={
             teamStats.completionRate > 70
-              ? "up"
+              ? 'up'
               : teamStats.completionRate > 50
-                ? "neutral"
-                : "down"
+                ? 'neutral'
+                : 'down'
           }
           accentColor="amber-500"
         />
         <KPICard
           icon={Target}
-          label={t("statistics.avgTaskPerMember")}
-          value={t("statistics.countTasks", {
+          label={t('statistics.avgTaskPerMember')}
+          value={t('statistics.countTasks', {
             count: Number(teamStats.avgTasksPerMember.toFixed(1)),
           })}
-          subValue={t("statistics.perMemberAllocation")}
+          subValue={t('statistics.perMemberAllocation')}
           accentColor="violet-500"
         />
       </div>
@@ -1536,7 +1452,7 @@ function TeamProductivityView({
         <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
             <Clock className="h-5 w-5 text-bridge-accent" />
-            {t("statistics.memberWorkTimeChart")}
+            {t('statistics.memberWorkTimeChart')}
           </h3>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -1544,34 +1460,32 @@ function TeamProductivityView({
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis
                   dataKey="name"
-                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-                  tickLine={{ stroke: "var(--border)" }}
-                  axisLine={{ stroke: "var(--border)" }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                  tickLine={{ stroke: 'var(--border)' }}
+                  axisLine={{ stroke: 'var(--border)' }}
                 />
                 <YAxis
-                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-                  tickLine={{ stroke: "var(--border)" }}
-                  axisLine={{ stroke: "var(--border)" }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                  tickLine={{ stroke: 'var(--border)' }}
+                  axisLine={{ stroke: 'var(--border)' }}
                   tickFormatter={(v) => `${v}h`}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "var(--bridge-obsidian)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "12px",
-                    padding: "12px",
+                    backgroundColor: 'var(--bridge-obsidian)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px',
+                    padding: '12px',
                   }}
                   labelStyle={{
-                    color: "var(--foreground)",
+                    color: 'var(--foreground)',
                     fontWeight: 600,
                     marginBottom: 4,
                   }}
-                  itemStyle={{ color: "var(--muted-foreground)" }}
+                  itemStyle={{ color: 'var(--muted-foreground)' }}
                   formatter={(value: number, name: string) => [
-                    t("statistics.hourSuffix", { value }),
-                    name === "total"
-                      ? t("statistics.totalTime")
-                      : t("statistics.completedTime2"),
+                    t('statistics.hourSuffix', { value }),
+                    name === 'total' ? t('statistics.totalTime') : t('statistics.completedTime2'),
                   ]}
                 />
                 <Legend
@@ -1581,24 +1495,14 @@ function TeamProductivityView({
                   wrapperStyle={{ paddingBottom: 20 }}
                   formatter={(value) => (
                     <span className="text-slate-400 text-xs">
-                      {value === "total"
-                        ? t("statistics.totalLabel")
-                        : t("statistics.completedLabel")}
+                      {value === 'total'
+                        ? t('statistics.totalLabel')
+                        : t('statistics.completedLabel')}
                     </span>
                   )}
                 />
-                <Bar
-                  dataKey="total"
-                  name="total"
-                  fill="#6366F1"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar
-                  dataKey="completed"
-                  name="completed"
-                  fill="#2DD4BF"
-                  radius={[4, 4, 0, 0]}
-                />
+                <Bar dataKey="total" name="total" fill="#6366F1" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="completed" name="completed" fill="#2DD4BF" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -1608,61 +1512,51 @@ function TeamProductivityView({
         <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
             <CheckCircle2 className="h-5 w-5 text-bridge-secondary" />
-            {t("statistics.memberTaskCompletionRate")}
+            {t('statistics.memberTaskCompletionRate')}
           </h3>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={memberCompletionData} layout="vertical">
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="var(--border)"
-                  horizontal={false}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                 <XAxis
                   type="number"
                   domain={[0, 100]}
-                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-                  tickLine={{ stroke: "var(--border)" }}
-                  axisLine={{ stroke: "var(--border)" }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                  tickLine={{ stroke: 'var(--border)' }}
+                  axisLine={{ stroke: 'var(--border)' }}
                   tickFormatter={(v) => `${v}%`}
                 />
                 <YAxis
                   dataKey="name"
                   type="category"
-                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
                   tickLine={false}
                   axisLine={false}
                   width={80}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "var(--bridge-obsidian)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "12px",
-                    padding: "12px",
+                    backgroundColor: 'var(--bridge-obsidian)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px',
+                    padding: '12px',
                   }}
                   labelStyle={{
-                    color: "var(--foreground)",
+                    color: 'var(--foreground)',
                     fontWeight: 600,
                     marginBottom: 4,
                   }}
-                  itemStyle={{ color: "var(--muted-foreground)" }}
+                  itemStyle={{ color: 'var(--muted-foreground)' }}
                   formatter={(value: number, name: string, props: any) => [
                     `${value}% (${props.payload.completed}/${props.payload.total})`,
-                    t("statistics.completionRate"),
+                    t('statistics.completionRate'),
                   ]}
                 />
                 <Bar dataKey="rate" radius={[0, 4, 4, 0]}>
                   {memberCompletionData.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
-                      fill={
-                        entry.rate >= 80
-                          ? "#2DD4BF"
-                          : entry.rate >= 50
-                            ? "#F59E0B"
-                            : "#6366F1"
-                      }
+                      fill={entry.rate >= 80 ? '#2DD4BF' : entry.rate >= 50 ? '#F59E0B' : '#6366F1'}
                     />
                   ))}
                 </Bar>
@@ -1676,7 +1570,7 @@ function TeamProductivityView({
       <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
         <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
           <Target className="h-5 w-5 text-violet-500" />
-          {t("statistics.featureParticipation")}
+          {t('statistics.featureParticipation')}
         </h3>
         {featureParticipation.length > 0 ? (
           <div className="space-y-4">
@@ -1686,15 +1580,10 @@ function TeamProductivityView({
                 className="p-4 bg-bridge-dark rounded-xl border border-bridge-border"
               >
                 <div className="flex items-center gap-3 mb-3">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: fp.color }}
-                  />
-                  <span className="text-foreground font-medium">
-                    {fp.feature}
-                  </span>
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: fp.color }} />
+                  <span className="text-foreground font-medium">{fp.feature}</span>
                   <span className="text-slate-400 text-sm">
-                    {t("statistics.participantCount", {
+                    {t('statistics.participantCount', {
                       count: fp.members.length,
                     })}
                   </span>
@@ -1712,9 +1601,7 @@ function TeamProductivityView({
                             {getInitials(member.name)}
                           </span>
                         </div>
-                        <span className="text-muted-foreground text-sm">
-                          {member.name}
-                        </span>
+                        <span className="text-muted-foreground text-sm">{member.name}</span>
                         <span className="text-slate-400 text-xs">
                           {formatMinutes(member.minutes)}
                         </span>
@@ -1726,7 +1613,7 @@ function TeamProductivityView({
           </div>
         ) : (
           <div className="py-12 text-center text-slate-400">
-            {t("statistics.noParticipationData")}
+            {t('statistics.noParticipationData')}
           </div>
         )}
       </div>
@@ -1735,29 +1622,29 @@ function TeamProductivityView({
       <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
         <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-bridge-accent" />
-          {t("statistics.memberDetailAnalysis")}
+          {t('statistics.memberDetailAnalysis')}
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-bridge-border">
                 <th className="text-left py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {t("statistics.memberHeader")}
+                  {t('statistics.memberHeader')}
                 </th>
                 <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {t("statistics.totalTimeHeader")}
+                  {t('statistics.totalTimeHeader')}
                 </th>
                 <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {t("statistics.completedTimeHeader")}
+                  {t('statistics.completedTimeHeader')}
                 </th>
                 <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {t("statistics.taskCountHeader")}
+                  {t('statistics.taskCountHeader')}
                 </th>
                 <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {t("statistics.completionRate")}
+                  {t('statistics.completionRate')}
                 </th>
                 <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {t("statistics.impactScoreHeader")}
+                  {t('statistics.impactScoreHeader')}
                 </th>
               </tr>
             </thead>
@@ -1782,9 +1669,7 @@ function TeamProductivityView({
                           </span>
                         )}
                       </div>
-                      <span className="text-foreground text-sm font-medium">
-                        {member.name}
-                      </span>
+                      <span className="text-foreground text-sm font-medium">{member.name}</span>
                     </div>
                   </td>
                   <td className="py-3 px-4 text-right text-muted-foreground text-sm">
@@ -1800,10 +1685,10 @@ function TeamProductivityView({
                     <span
                       className={
                         member.completionRate >= 80
-                          ? "text-bridge-secondary"
+                          ? 'text-bridge-secondary'
                           : member.completionRate >= 50
-                            ? "text-amber-400"
-                            : "text-slate-400"
+                            ? 'text-amber-400'
+                            : 'text-slate-400'
                       }
                     >
                       {member.completionRate.toFixed(0)}%
@@ -1819,9 +1704,7 @@ function TeamProductivityView({
             </tbody>
           </table>
           {memberDetails.length === 0 && (
-            <div className="py-12 text-center text-slate-400">
-              {t("statistics.noMemberData")}
-            </div>
+            <div className="py-12 text-center text-slate-400">{t('statistics.noMemberData')}</div>
           )}
         </div>
       </div>
@@ -1849,10 +1732,8 @@ function IndividualProductivityView({
   members,
 }: IndividualProductivityViewProps) {
   const { t } = useTranslation();
-  const [selectedMemberId, setSelectedMemberId] = useState<string>("");
-  const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(
-    new Set(),
-  );
+  const [selectedMemberId, setSelectedMemberId] = useState<string>('');
+  const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(new Set());
 
   // Feature 펼치기/접기 토글
   const toggleFeature = (featureId: string) => {
@@ -1880,10 +1761,7 @@ function IndividualProductivityView({
       .sort((a, b) => b.minutes - a.minutes)
       .slice(0, 8)
       .map((f) => ({
-        name:
-          f.feature_title.length > 15
-            ? `${f.feature_title.slice(0, 15)}...`
-            : f.feature_title,
+        name: f.feature_title.length > 15 ? `${f.feature_title.slice(0, 15)}...` : f.feature_title,
         value: f.minutes,
         color: f.feature_color,
       }));
@@ -1895,12 +1773,11 @@ function IndividualProductivityView({
     // 비율 기반 추정 (실제로는 서버에서 개인별 트렌드를 받아야 함)
     const memberRatio =
       statistics.summary.total_work_minutes > 0
-        ? selectedMemberStats.total_minutes /
-          statistics.summary.total_work_minutes
+        ? selectedMemberStats.total_minutes / statistics.summary.total_work_minutes
         : 0;
 
     return statistics.daily_trend.slice(-14).map((d) => ({
-      date: formatDate(d.date, "M월 d일"),
+      date: formatDate(d.date, 'M월 d일'),
       hours: Number(((d.total_minutes * memberRatio) / 60).toFixed(1)),
     }));
   }, [statistics, selectedMemberStats]);
@@ -1911,17 +1788,14 @@ function IndividualProductivityView({
       <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
         <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-bridge-accent" />
-          {t("statistics.selectMember")}
+          {t('statistics.selectMember')}
         </h3>
         <div className="flex flex-wrap gap-2">
           {statistics.by_member.map((m) => {
             const boardMember = members.find(
               (bm) => bm.user.id === m.member.id || bm.id === m.member.id,
             );
-            const colorHex = getAssigneeHex(
-              m.member.name,
-              boardMember?.assignee_color,
-            );
+            const colorHex = getAssigneeHex(m.member.name, boardMember?.assignee_color);
             const isSelected = selectedMemberId === m.member.id;
             return (
               <button
@@ -1929,8 +1803,8 @@ function IndividualProductivityView({
                 onClick={() => setSelectedMemberId(m.member.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
                   isSelected
-                    ? "text-foreground"
-                    : "border-bridge-border text-slate-400 hover:border-bridge-border hover:text-foreground"
+                    ? 'text-foreground'
+                    : 'border-bridge-border text-slate-400 hover:border-bridge-border hover:text-foreground'
                 }`}
                 style={
                   isSelected
@@ -1952,10 +1826,7 @@ function IndividualProductivityView({
                       className="w-6 h-6 rounded-full"
                     />
                   ) : (
-                    <span
-                      className="text-xs font-medium"
-                      style={{ color: colorHex }}
-                    >
+                    <span className="text-xs font-medium" style={{ color: colorHex }}>
                       {getInitials(m.member.name)}
                     </span>
                   )}
@@ -1973,46 +1844,43 @@ function IndividualProductivityView({
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <KPICard
               icon={Clock}
-              label={t("statistics.personalTotalWorkTime")}
+              label={t('statistics.personalTotalWorkTime')}
               value={formatMinutes(selectedMemberStats.total_minutes)}
-              subValue={t("statistics.completedPrefix", {
+              subValue={t('statistics.completedPrefix', {
                 value: formatMinutes(selectedMemberStats.completed_minutes),
               })}
               accentColor="bridge-accent"
             />
             <KPICard
               icon={CheckCircle2}
-              label={t("statistics.personalTaskCompletionRate")}
+              label={t('statistics.personalTaskCompletionRate')}
               value={formatPercent(
                 selectedMemberStats.task_count > 0
-                  ? selectedMemberStats.completed_task_count /
-                      selectedMemberStats.task_count
+                  ? selectedMemberStats.completed_task_count / selectedMemberStats.task_count
                   : 0,
               )}
               subValue={`${selectedMemberStats.completed_task_count} / ${selectedMemberStats.task_count} Task`}
               trend={
-                selectedMemberStats.completed_task_count /
-                  selectedMemberStats.task_count >
-                0.7
-                  ? "up"
-                  : "neutral"
+                selectedMemberStats.completed_task_count / selectedMemberStats.task_count > 0.7
+                  ? 'up'
+                  : 'neutral'
               }
               accentColor="bridge-secondary"
             />
             <KPICard
               icon={Target}
-              label={t("statistics.participatingFeatures")}
-              value={t("statistics.itemCount", {
+              label={t('statistics.participatingFeatures')}
+              value={t('statistics.itemCount', {
                 value: selectedMemberStats.by_feature.length,
               })}
-              subValue={t("statistics.inProgressLabel")}
+              subValue={t('statistics.inProgressLabel')}
               accentColor="amber-500"
             />
             <KPICard
               icon={Zap}
-              label={t("statistics.impactScore")}
+              label={t('statistics.impactScore')}
               value={selectedMemberStats.impact_score.toFixed(1)}
-              subValue={t("statistics.weightReflected")}
+              subValue={t('statistics.weightReflected')}
               accentColor="violet-500"
             />
           </div>
@@ -2023,7 +1891,7 @@ function IndividualProductivityView({
             <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
               <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
                 <PieChart className="h-5 w-5 text-bridge-accent" />
-                {t("statistics.featureWorkTime")}
+                {t('statistics.featureWorkTime')}
               </h3>
               {memberFeatureData.length > 0 ? (
                 <div className="h-[280px]">
@@ -2041,29 +1909,26 @@ function IndividualProductivityView({
                         {memberFeatureData.map((entry, index) => (
                           <Cell
                             key={`cell-${index}`}
-                            fill={
-                              entry.color ||
-                              CHART_COLORS[index % CHART_COLORS.length]
-                            }
+                            fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]}
                           />
                         ))}
                       </Pie>
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: "var(--bridge-obsidian)",
-                          border: "1px solid rgba(255,255,255,0.1)",
-                          borderRadius: "12px",
-                          padding: "12px",
+                          backgroundColor: 'var(--bridge-obsidian)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '12px',
+                          padding: '12px',
                         }}
                         labelStyle={{
-                          color: "var(--foreground)",
+                          color: 'var(--foreground)',
                           fontWeight: 600,
                           marginBottom: 4,
                         }}
-                        itemStyle={{ color: "var(--muted-foreground)" }}
+                        itemStyle={{ color: 'var(--muted-foreground)' }}
                         formatter={(value: number) => [
                           formatMinutes(value),
-                          t("statistics.workTime"),
+                          t('statistics.workTime'),
                         ]}
                       />
                       <Legend
@@ -2073,9 +1938,7 @@ function IndividualProductivityView({
                         iconType="circle"
                         iconSize={8}
                         formatter={(value) => (
-                          <span className="text-slate-400 text-xs ml-1">
-                            {value}
-                          </span>
+                          <span className="text-slate-400 text-xs ml-1">{value}</span>
                         )}
                       />
                     </RechartsPieChart>
@@ -2083,7 +1946,7 @@ function IndividualProductivityView({
                 </div>
               ) : (
                 <div className="h-[280px] flex items-center justify-center text-slate-400">
-                  {t("statistics.noData")}
+                  {t('statistics.noData')}
                 </div>
               )}
             </div>
@@ -2092,44 +1955,41 @@ function IndividualProductivityView({
             <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
               <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
                 <Activity className="h-5 w-5 text-bridge-secondary" />
-                {t("statistics.dailyWorkTrend")}
+                {t('statistics.dailyWorkTrend')}
               </h3>
               {memberDailyTrend.length > 0 ? (
                 <div className="h-[280px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={memberDailyTrend}>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke="var(--border)"
-                      />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                       <XAxis
                         dataKey="date"
-                        tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
-                        tickLine={{ stroke: "var(--border)" }}
-                        axisLine={{ stroke: "var(--border)" }}
+                        tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
+                        tickLine={{ stroke: 'var(--border)' }}
+                        axisLine={{ stroke: 'var(--border)' }}
                       />
                       <YAxis
-                        tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-                        tickLine={{ stroke: "var(--border)" }}
-                        axisLine={{ stroke: "var(--border)" }}
+                        tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                        tickLine={{ stroke: 'var(--border)' }}
+                        axisLine={{ stroke: 'var(--border)' }}
                         tickFormatter={(v) => `${v}h`}
                       />
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: "var(--bridge-obsidian)",
-                          border: "1px solid rgba(255,255,255,0.1)",
-                          borderRadius: "12px",
-                          padding: "12px",
+                          backgroundColor: 'var(--bridge-obsidian)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '12px',
+                          padding: '12px',
                         }}
                         labelStyle={{
-                          color: "var(--foreground)",
+                          color: 'var(--foreground)',
                           fontWeight: 600,
                           marginBottom: 4,
                         }}
-                        itemStyle={{ color: "var(--muted-foreground)" }}
+                        itemStyle={{ color: 'var(--muted-foreground)' }}
                         formatter={(value: number) => [
-                          t("statistics.hourSuffix", { value }),
-                          t("statistics.workTime"),
+                          t('statistics.hourSuffix', { value }),
+                          t('statistics.workTime'),
                         ]}
                       />
                       <Line
@@ -2137,7 +1997,7 @@ function IndividualProductivityView({
                         dataKey="hours"
                         stroke="#6366F1"
                         strokeWidth={2}
-                        dot={{ fill: "#6366F1", r: 3 }}
+                        dot={{ fill: '#6366F1', r: 3 }}
                         activeDot={{ r: 5 }}
                       />
                     </LineChart>
@@ -2145,7 +2005,7 @@ function IndividualProductivityView({
                 </div>
               ) : (
                 <div className="h-[280px] flex items-center justify-center text-slate-400">
-                  {t("statistics.noData")}
+                  {t('statistics.noData')}
                 </div>
               )}
             </div>
@@ -2155,20 +2015,20 @@ function IndividualProductivityView({
           <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
             <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
               <ListTodo className="h-5 w-5 text-violet-500" />
-              {t("statistics.participatingFeatureDetail")}
+              {t('statistics.participatingFeatureDetail')}
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-bridge-border">
                     <th className="text-left py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                      {t("statistics.featureHeader")}
+                      {t('statistics.featureHeader')}
                     </th>
                     <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                      {t("statistics.workTimeHeader")}
+                      {t('statistics.workTimeHeader')}
                     </th>
                     <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                      {t("statistics.proportionHeader")}
+                      {t('statistics.proportionHeader')}
                     </th>
                   </tr>
                 </thead>
@@ -2183,10 +2043,8 @@ function IndividualProductivityView({
                     return (
                       <React.Fragment key={f.feature_id}>
                         <tr
-                          onClick={() =>
-                            hasTasks && toggleFeature(f.feature_id)
-                          }
-                          className={`border-b border-bridge-border transition-colors ${hasTasks ? "hover:bg-foreground/5 cursor-pointer" : ""}`}
+                          onClick={() => hasTasks && toggleFeature(f.feature_id)}
+                          className={`border-b border-bridge-border transition-colors ${hasTasks ? 'hover:bg-foreground/5 cursor-pointer' : ''}`}
                         >
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-3">
@@ -2203,12 +2061,10 @@ function IndividualProductivityView({
                                 className="w-3 h-3 rounded-full flex-shrink-0"
                                 style={{ backgroundColor: f.feature_color }}
                               />
-                              <span className="text-foreground text-sm">
-                                {f.feature_title}
-                              </span>
+                              <span className="text-foreground text-sm">{f.feature_title}</span>
                               {hasTasks && (
                                 <span className="text-slate-400 text-xs">
-                                  {t("statistics.taskCountSuffix", {
+                                  {t('statistics.taskCountSuffix', {
                                     count: f.tasks?.length,
                                   })}
                                 </span>
@@ -2240,9 +2096,7 @@ function IndividualProductivityView({
                               <td className="py-2 px-4 pl-14">
                                 <div className="flex items-center gap-2">
                                   <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />
-                                  <span className="text-slate-400 text-sm">
-                                    {task.task_title}
-                                  </span>
+                                  <span className="text-slate-400 text-sm">{task.task_title}</span>
                                 </div>
                               </td>
                               <td className="py-2 px-4 text-right text-slate-400 text-sm">
@@ -2275,7 +2129,7 @@ function IndividualProductivityView({
         <div className="flex items-center justify-center h-64 text-slate-400">
           <div className="text-center">
             <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>{t("statistics.selectMemberGuide")}</p>
+            <p>{t('statistics.selectMemberGuide')}</p>
           </div>
         </div>
       )}
@@ -2336,10 +2190,10 @@ function ImpactAnalysisView({
 
   // 가중치 레벨 색상 매핑
   const getWeightLevelColor = (weight: number) => {
-    if (weight >= 2.0) return "#EF4444"; // Critical - red
-    if (weight >= 1.5) return "#F59E0B"; // High - amber
-    if (weight >= 1.0) return "#6366F1"; // Medium - indigo
-    return "#94A3B8"; // Low - slate
+    if (weight >= 2.0) return '#EF4444'; // Critical - red
+    if (weight >= 1.5) return '#F59E0B'; // High - amber
+    if (weight >= 1.0) return '#6366F1'; // Medium - indigo
+    return '#94A3B8'; // Low - slate
   };
 
   return (
@@ -2348,47 +2202,43 @@ function ImpactAnalysisView({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <KPICard
           icon={Zap}
-          label={t("statistics.totalImpact")}
+          label={t('statistics.totalImpact')}
           value={(impact?.total_impact_score || 0).toFixed(1)}
-          subValue={t("statistics.weightTimesTime")}
+          subValue={t('statistics.weightTimesTime')}
           accentColor="bridge-accent"
         />
         <KPICard
           icon={Users}
-          label={t("statistics.contributingMembers")}
-          value={t("statistics.countPeople", {
+          label={t('statistics.contributingMembers')}
+          value={t('statistics.countPeople', {
             count: impact?.by_member?.length || 0,
           })}
-          subValue={t("statistics.activeParticipation")}
+          subValue={t('statistics.activeParticipation')}
           accentColor="bridge-secondary"
         />
         <KPICard
           icon={Target}
-          label={t("statistics.weightLevelCount")}
-          value={t("statistics.itemCount", {
+          label={t('statistics.weightLevelCount')}
+          value={t('statistics.itemCount', {
             value: impact?.by_weight_level?.length || 0,
           })}
-          subValue={t("statistics.configured")}
+          subValue={t('statistics.configured')}
           accentColor="amber-500"
         />
         <KPICard
           icon={TrendingUp}
-          label={t("statistics.avgWeight")}
+          label={t('statistics.avgWeight')}
           value={
             impact?.by_weight_level && impact.by_weight_level.length > 0
               ? (
                   impact.by_weight_level.reduce(
                     (sum, l) => sum + l.level.weight * l.total_minutes,
                     0,
-                  ) /
-                  impact.by_weight_level.reduce(
-                    (sum, l) => sum + l.total_minutes,
-                    0,
-                  )
+                  ) / impact.by_weight_level.reduce((sum, l) => sum + l.total_minutes, 0)
                 ).toFixed(2)
-              : "0"
+              : '0'
           }
-          subValue={t("statistics.timeWeightedAvg")}
+          subValue={t('statistics.timeWeightedAvg')}
           accentColor="violet-500"
         />
       </div>
@@ -2399,60 +2249,50 @@ function ImpactAnalysisView({
         <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
             <Zap className="h-5 w-5 text-bridge-accent" />
-            {t("statistics.memberImpactScore")}
+            {t('statistics.memberImpactScore')}
           </h3>
           {memberImpactData.length > 0 ? (
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={memberImpactData} layout="vertical">
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="var(--border)"
-                    horizontal={false}
-                  />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                   <XAxis
                     type="number"
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-                    tickLine={{ stroke: "var(--border)" }}
-                    axisLine={{ stroke: "var(--border)" }}
+                    tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                    tickLine={{ stroke: 'var(--border)' }}
+                    axisLine={{ stroke: 'var(--border)' }}
                   />
                   <YAxis
                     dataKey="name"
                     type="category"
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                    tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
                     tickLine={false}
                     axisLine={false}
                     width={80}
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "var(--bridge-obsidian)",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      borderRadius: "12px",
-                      padding: "12px",
+                      backgroundColor: 'var(--bridge-obsidian)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '12px',
+                      padding: '12px',
                     }}
                     labelStyle={{
-                      color: "var(--foreground)",
+                      color: 'var(--foreground)',
                       fontWeight: 600,
                       marginBottom: 4,
                     }}
-                    itemStyle={{ color: "var(--muted-foreground)" }}
+                    itemStyle={{ color: 'var(--muted-foreground)' }}
                     formatter={(value: number, name: string) => [
                       value.toFixed(1),
-                      t("statistics.impactScoreLabel"),
+                      t('statistics.impactScoreLabel'),
                     ]}
                   />
                   <Bar dataKey="score" fill="#6366F1" radius={[0, 4, 4, 0]}>
                     {memberImpactData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
-                        fill={
-                          index === 0
-                            ? "#2DD4BF"
-                            : index < 3
-                              ? "#6366F1"
-                              : "#475569"
-                        }
+                        fill={index === 0 ? '#2DD4BF' : index < 3 ? '#6366F1' : '#475569'}
                       />
                     ))}
                   </Bar>
@@ -2461,7 +2301,7 @@ function ImpactAnalysisView({
             </div>
           ) : (
             <div className="h-[300px] flex items-center justify-center text-slate-400">
-              {t("statistics.noData")}
+              {t('statistics.noData')}
             </div>
           )}
         </div>
@@ -2470,7 +2310,7 @@ function ImpactAnalysisView({
         <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
             <Target className="h-5 w-5 text-amber-500" />
-            {t("statistics.weightLevelTimeDistribution")}
+            {t('statistics.weightLevelTimeDistribution')}
           </h3>
           {weightLevelData.length > 0 ? (
             <div className="h-[300px]">
@@ -2484,11 +2324,9 @@ function ImpactAnalysisView({
                     outerRadius={90}
                     paddingAngle={4}
                     dataKey="value"
-                    label={({ name, percent }) =>
-                      `${name} ${(percent * 100).toFixed(0)}%`
-                    }
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     labelLine={{
-                      stroke: "var(--muted-foreground)",
+                      stroke: 'var(--muted-foreground)',
                       strokeWidth: 1,
                     }}
                   >
@@ -2501,17 +2339,17 @@ function ImpactAnalysisView({
                   </Pie>
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "var(--bridge-obsidian)",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      borderRadius: "12px",
-                      padding: "12px",
+                      backgroundColor: 'var(--bridge-obsidian)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '12px',
+                      padding: '12px',
                     }}
                     labelStyle={{
-                      color: "var(--foreground)",
+                      color: 'var(--foreground)',
                       fontWeight: 600,
                       marginBottom: 4,
                     }}
-                    itemStyle={{ color: "var(--muted-foreground)" }}
+                    itemStyle={{ color: 'var(--muted-foreground)' }}
                     formatter={(value: number, name: string, props: any) => [
                       `${formatMinutes(value)} (${props.payload.taskCount} Task)`,
                       props.payload.name,
@@ -2522,7 +2360,7 @@ function ImpactAnalysisView({
             </div>
           ) : (
             <div className="h-[300px] flex items-center justify-center text-slate-400">
-              {t("statistics.noData")}
+              {t('statistics.noData')}
             </div>
           )}
         </div>
@@ -2533,70 +2371,51 @@ function ImpactAnalysisView({
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-foreground font-bold flex items-center gap-2">
             <BarChart3 className="h-5 w-5 text-violet-500" />
-            {t("statistics.weightLevelDetail")}
+            {t('statistics.weightLevelDetail')}
           </h3>
           <button
             onClick={() => setIsWeightSettingsOpen(true)}
             className="flex items-center gap-2 px-3 py-1.5 bg-foreground/5 border border-bridge-border rounded-lg text-sm text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
           >
             <Settings className="h-4 w-4" />
-            {t("statistics.settingsBtn")}
+            {t('statistics.settingsBtn')}
           </button>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {impact?.by_weight_level?.map((level, index) => (
-            <div
-              key={index}
-              className="p-4 bg-bridge-dark rounded-xl border border-bridge-border"
-            >
+            <div key={index} className="p-4 bg-bridge-dark rounded-xl border border-bridge-border">
               <div className="flex items-center gap-3 mb-3">
                 <div
                   className="w-4 h-4 rounded-full"
                   style={{
-                    backgroundColor:
-                      level.level.color ||
-                      getWeightLevelColor(level.level.weight),
+                    backgroundColor: level.level.color || getWeightLevelColor(level.level.weight),
                   }}
                 />
-                <span className="text-foreground font-medium">
-                  {level.level.name}
-                </span>
-                <span className="text-slate-400 text-xs ml-auto">
-                  ×{level.level.weight}
-                </span>
+                <span className="text-foreground font-medium">{level.level.name}</span>
+                <span className="text-slate-400 text-xs ml-auto">×{level.level.weight}</span>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">
-                    {t("statistics.workTime")}
-                  </span>
+                  <span className="text-slate-400">{t('statistics.workTime')}</span>
+                  <span className="text-foreground">{formatMinutes(level.total_minutes)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">{t('statistics.taskCountLabel')}</span>
                   <span className="text-foreground">
-                    {formatMinutes(level.total_minutes)}
+                    {t('statistics.itemCount', { value: level.task_count })}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">
-                    {t("statistics.taskCountLabel")}
-                  </span>
-                  <span className="text-foreground">
-                    {t("statistics.itemCount", { value: level.task_count })}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">
-                    {t("statistics.impactContribution")}
-                  </span>
+                  <span className="text-slate-400">{t('statistics.impactContribution')}</span>
                   <span className="text-bridge-accent font-medium">
-                    {((level.total_minutes * level.level.weight) / 60).toFixed(
-                      1,
-                    )}
+                    {((level.total_minutes * level.level.weight) / 60).toFixed(1)}
                   </span>
                 </div>
               </div>
             </div>
           )) || (
             <div className="col-span-2 lg:col-span-4 py-8 text-center text-slate-400">
-              {t("statistics.noWeightLevels")}
+              {t('statistics.noWeightLevels')}
             </div>
           )}
         </div>
@@ -2606,26 +2425,26 @@ function ImpactAnalysisView({
       <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
         <h3 className="text-foreground font-bold flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-bridge-accent" />
-          {t("statistics.memberImpactDetail")}
+          {t('statistics.memberImpactDetail')}
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-bridge-border">
                 <th className="text-left py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {t("statistics.rankHeader")}
+                  {t('statistics.rankHeader')}
                 </th>
                 <th className="text-left py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {t("statistics.memberHeader")}
+                  {t('statistics.memberHeader')}
                 </th>
                 <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {t("statistics.impactScoreHeader")}
+                  {t('statistics.impactScoreHeader')}
                 </th>
                 <th className="text-right py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {t("statistics.weightedTimeHeader")}
+                  {t('statistics.weightedTimeHeader')}
                 </th>
                 <th className="py-3 px-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {t("statistics.proportionHeader")}
+                  {t('statistics.proportionHeader')}
                 </th>
               </tr>
             </thead>
@@ -2646,12 +2465,12 @@ function ImpactAnalysisView({
                         inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold
                         ${
                           index === 0
-                            ? "bg-amber-500/20 text-amber-400"
+                            ? 'bg-amber-500/20 text-amber-400'
                             : index === 1
-                              ? "bg-slate-400/20 text-muted-foreground"
+                              ? 'bg-slate-400/20 text-muted-foreground'
                               : index === 2
-                                ? "bg-amber-700/20 text-amber-600"
-                                : "bg-foreground/5 text-slate-400"
+                                ? 'bg-amber-700/20 text-amber-600'
+                                : 'bg-foreground/5 text-slate-400'
                         }
                       `}
                       >
@@ -2704,7 +2523,7 @@ function ImpactAnalysisView({
               }) || (
                 <tr>
                   <td colSpan={5} className="py-12 text-center text-slate-400">
-                    {t("statistics.noMemberImpactData")}
+                    {t('statistics.noMemberImpactData')}
                   </td>
                 </tr>
               )}
@@ -2720,15 +2539,9 @@ function ImpactAnalysisView({
             <Zap className="h-4 w-4 text-bridge-accent" />
           </div>
           <div>
-            <p className="text-foreground font-medium mb-1">
-              {t("statistics.impactCalcTitle")}
-            </p>
-            <p className="text-slate-400 text-sm">
-              {t("statistics.impactCalcFormula")}
-            </p>
-            <p className="text-slate-400 text-xs mt-1">
-              {t("statistics.impactCalcDesc")}
-            </p>
+            <p className="text-foreground font-medium mb-1">{t('statistics.impactCalcTitle')}</p>
+            <p className="text-slate-400 text-sm">{t('statistics.impactCalcFormula')}</p>
+            <p className="text-slate-400 text-xs mt-1">{t('statistics.impactCalcDesc')}</p>
           </div>
         </div>
       </div>

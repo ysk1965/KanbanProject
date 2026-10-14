@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { Plus, Pencil, CalendarDays, Loader2 } from "lucide-react";
-import { leaveService } from "../../../utils/services";
-import type { LeavePolicy, LeaveCategory } from "../../../types";
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Plus, Pencil, CalendarDays, Loader2 } from 'lucide-react';
+import { leaveService } from '../../../utils/services';
+import type { LeavePolicy, LeaveCategory } from '../../../types';
 
 interface OrgLeavePoliciesSectionProps {
   orgId: string;
@@ -11,23 +11,23 @@ interface OrgLeavePoliciesSectionProps {
 }
 
 const CATEGORY_COLORS: Record<LeaveCategory, string> = {
-  ANNUAL: "bg-blue-500/20 text-blue-600 dark:text-blue-400",
-  SICK: "bg-red-500/20 text-red-600 dark:text-red-400",
-  REFRESH: "bg-teal-500/20 text-teal-600 dark:text-teal-400",
-  OTHER: "bg-slate-500/20 text-slate-600 dark:text-slate-400",
+  ANNUAL: 'bg-blue-500/20 text-blue-600 dark:text-blue-400',
+  SICK: 'bg-red-500/20 text-red-600 dark:text-red-400',
+  REFRESH: 'bg-teal-500/20 text-teal-600 dark:text-teal-400',
+  OTHER: 'bg-slate-500/20 text-slate-600 dark:text-slate-400',
 };
 
 const CATEGORY_LABEL_KEYS: Record<LeaveCategory, string> = {
-  ANNUAL: "organization.settings.categoryAnnual",
-  SICK: "organization.settings.categorySick",
-  REFRESH: "organization.settings.categoryRefresh",
-  OTHER: "organization.settings.categoryOther",
+  ANNUAL: 'organization.settings.categoryAnnual',
+  SICK: 'organization.settings.categorySick',
+  REFRESH: 'organization.settings.categoryRefresh',
+  OTHER: 'organization.settings.categoryOther',
 };
 
 const selectClass =
-  "bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg py-1.5 px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all appearance-none cursor-pointer";
+  'bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg py-1.5 px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all appearance-none cursor-pointer';
 const inputSmClass =
-  "bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg py-1.5 px-2 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all";
+  'bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg py-1.5 px-2 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all';
 
 export function OrgLeavePoliciesSection({
   orgId,
@@ -38,20 +38,20 @@ export function OrgLeavePoliciesSection({
 
   const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null);
   const [editPolicy, setEditPolicy] = useState({
-    name: "",
+    name: '',
     default_days: 0,
     is_paid: true,
     requires_approval: true,
-    description: "",
+    description: '',
   });
   const [showNewPolicy, setShowNewPolicy] = useState(false);
   const [newPolicy, setNewPolicy] = useState({
-    name: "",
-    leave_category: "OTHER" as LeaveCategory,
+    name: '',
+    leave_category: 'OTHER' as LeaveCategory,
     default_days: 0,
     is_paid: true,
     requires_approval: true,
-    description: "",
+    description: '',
   });
   const [savingPolicy, setSavingPolicy] = useState(false);
   const [togglingPolicyId, setTogglingPolicyId] = useState<string | null>(null);
@@ -65,7 +65,7 @@ export function OrgLeavePoliciesSection({
       default_days: p.default_days,
       is_paid: p.is_paid,
       requires_approval: p.requires_approval,
-      description: p.description || "",
+      description: p.description || '',
     });
   };
 
@@ -76,7 +76,7 @@ export function OrgLeavePoliciesSection({
       setEditingPolicyId(null);
       onRefresh();
     } catch (error) {
-      console.warn("Failed to update policy:", error);
+      console.warn('Failed to update policy:', error);
     } finally {
       setSavingPolicy(false);
     }
@@ -90,7 +90,7 @@ export function OrgLeavePoliciesSection({
       });
       onRefresh();
     } catch (error) {
-      console.warn("Failed to toggle policy:", error);
+      console.warn('Failed to toggle policy:', error);
     } finally {
       setTogglingPolicyId(null);
     }
@@ -107,16 +107,16 @@ export function OrgLeavePoliciesSection({
       });
       setShowNewPolicy(false);
       setNewPolicy({
-        name: "",
-        leave_category: "OTHER",
+        name: '',
+        leave_category: 'OTHER',
         default_days: 0,
         is_paid: true,
         requires_approval: true,
-        description: "",
+        description: '',
       });
       onRefresh();
     } catch (error) {
-      console.warn("Failed to create policy:", error);
+      console.warn('Failed to create policy:', error);
     } finally {
       setSavingPolicy(false);
     }
@@ -129,7 +129,7 @@ export function OrgLeavePoliciesSection({
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
           <CalendarDays size={16} className="text-amber-400" />
-          {t("organization.settings.leavePolicies", "Leave Policies")}
+          {t('organization.settings.leavePolicies', 'Leave Policies')}
         </h3>
         {!showNewPolicy && (
           <button
@@ -137,7 +137,7 @@ export function OrgLeavePoliciesSection({
             className="flex items-center gap-1.5 text-sm text-bridge-accent hover:text-bridge-accent/80 transition-colors"
           >
             <Plus size={14} />
-            {t("organization.settings.addPolicy", "Add Policy")}
+            {t('organization.settings.addPolicy', 'Add Policy')}
           </button>
         )}
       </div>
@@ -147,7 +147,7 @@ export function OrgLeavePoliciesSection({
           <div
             key={p.id}
             className={`p-3 bg-foreground/[0.03] rounded-xl transition-opacity ${
-              !p.is_active && editingPolicyId !== p.id ? "opacity-50" : ""
+              !p.is_active && editingPolicyId !== p.id ? 'opacity-50' : ''
             }`}
           >
             {editingPolicyId === p.id ? (
@@ -157,13 +157,8 @@ export function OrgLeavePoliciesSection({
                   <input
                     type="text"
                     value={editPolicy.name}
-                    onChange={(e) =>
-                      setEditPolicy({ ...editPolicy, name: e.target.value })
-                    }
-                    placeholder={t(
-                      "organization.settings.policyNamePlaceholder",
-                      "Policy name",
-                    )}
+                    onChange={(e) => setEditPolicy({ ...editPolicy, name: e.target.value })}
+                    placeholder={t('organization.settings.policyNamePlaceholder', 'Policy name')}
                     className={inputSmClass}
                   />
                   <input
@@ -193,7 +188,7 @@ export function OrgLeavePoliciesSection({
                       }
                       className="rounded"
                     />
-                    {t("organization.settings.paid", "Paid")}
+                    {t('organization.settings.paid', 'Paid')}
                   </label>
                   <label className="flex items-center gap-1.5 text-xs text-foreground cursor-pointer">
                     <input
@@ -207,10 +202,7 @@ export function OrgLeavePoliciesSection({
                       }
                       className="rounded"
                     />
-                    {t(
-                      "organization.settings.requiresApproval",
-                      "Requires Approval",
-                    )}
+                    {t('organization.settings.requiresApproval', 'Requires Approval')}
                   </label>
                 </div>
                 <input
@@ -223,8 +215,8 @@ export function OrgLeavePoliciesSection({
                     })
                   }
                   placeholder={t(
-                    "organization.settings.policyDescription",
-                    "Description (optional)",
+                    'organization.settings.policyDescription',
+                    'Description (optional)',
                   )}
                   className={`w-full ${inputSmClass}`}
                 />
@@ -233,14 +225,14 @@ export function OrgLeavePoliciesSection({
                     onClick={() => setEditingPolicyId(null)}
                     className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    {t("common.cancel", "Cancel")}
+                    {t('common.cancel', 'Cancel')}
                   </button>
                   <button
                     onClick={() => handleSavePolicy(p.id)}
                     disabled={savingPolicy || !editPolicy.name.trim()}
                     className="px-3 py-1.5 bg-bridge-accent text-white rounded-lg text-xs font-bold hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
                   >
-                    {savingPolicy ? "..." : t("common.save", "Save")}
+                    {savingPolicy ? '...' : t('common.save', 'Save')}
                   </button>
                 </div>
               </div>
@@ -248,7 +240,9 @@ export function OrgLeavePoliciesSection({
               /* ── View mode ── */
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className={`text-sm font-medium ${p.is_active ? "text-foreground" : "text-foreground/60 line-through"}`}>
+                  <span
+                    className={`text-sm font-medium ${p.is_active ? 'text-foreground' : 'text-foreground/60 line-through'}`}
+                  >
                     {p.name}
                   </span>
                   <span
@@ -258,17 +252,15 @@ export function OrgLeavePoliciesSection({
                   </span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-xs text-muted-foreground">
-                    {p.default_days}d
-                  </span>
+                  <span className="text-xs text-muted-foreground">{p.default_days}d</span>
                   {p.is_paid && (
                     <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                      {t("organization.settings.paid", "Paid")}
+                      {t('organization.settings.paid', 'Paid')}
                     </span>
                   )}
                   {p.requires_approval && (
                     <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400">
-                      {t("organization.settings.approval", "Approval")}
+                      {t('organization.settings.approval', 'Approval')}
                     </span>
                   )}
                   {/* ── Toggle switch ── */}
@@ -278,13 +270,13 @@ export function OrgLeavePoliciesSection({
                     className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer shrink-0 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                     style={{
                       backgroundColor: p.is_active
-                        ? "rgb(16 185 129 / 0.4)"
-                        : "rgb(100 116 139 / 0.3)",
+                        ? 'rgb(16 185 129 / 0.4)'
+                        : 'rgb(100 116 139 / 0.3)',
                     }}
                     title={
                       p.is_active
-                        ? t("organization.settings.clickToDeactivate", "Click to deactivate")
-                        : t("organization.settings.clickToActivate", "Click to activate")
+                        ? t('organization.settings.clickToDeactivate', 'Click to deactivate')
+                        : t('organization.settings.clickToActivate', 'Click to activate')
                     }
                   >
                     {togglingPolicyId === p.id ? (
@@ -294,7 +286,7 @@ export function OrgLeavePoliciesSection({
                     ) : (
                       <span
                         className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
-                          p.is_active ? "translate-x-[18px]" : "translate-x-[3px]"
+                          p.is_active ? 'translate-x-[18px]' : 'translate-x-[3px]'
                         }`}
                       />
                     )}
@@ -318,13 +310,8 @@ export function OrgLeavePoliciesSection({
               <input
                 type="text"
                 value={newPolicy.name}
-                onChange={(e) =>
-                  setNewPolicy({ ...newPolicy, name: e.target.value })
-                }
-                placeholder={t(
-                  "organization.settings.policyNamePlaceholder",
-                  "Policy name",
-                )}
+                onChange={(e) => setNewPolicy({ ...newPolicy, name: e.target.value })}
+                placeholder={t('organization.settings.policyNamePlaceholder', 'Policy name')}
                 className={`col-span-1 ${inputSmClass}`}
               />
               <select
@@ -337,13 +324,11 @@ export function OrgLeavePoliciesSection({
                 }
                 className={selectClass}
               >
-                {(Object.keys(CATEGORY_LABEL_KEYS) as LeaveCategory[]).map(
-                  (cat) => (
-                    <option key={cat} value={cat}>
-                      {t(CATEGORY_LABEL_KEYS[cat])}
-                    </option>
-                  ),
-                )}
+                {(Object.keys(CATEGORY_LABEL_KEYS) as LeaveCategory[]).map((cat) => (
+                  <option key={cat} value={cat}>
+                    {t(CATEGORY_LABEL_KEYS[cat])}
+                  </option>
+                ))}
               </select>
               <input
                 type="number"
@@ -356,7 +341,7 @@ export function OrgLeavePoliciesSection({
                 }
                 min={0}
                 step={0.5}
-                placeholder={t("organization.settings.daysPlaceholder", "Days")}
+                placeholder={t('organization.settings.daysPlaceholder', 'Days')}
                 className={inputSmClass}
               />
             </div>
@@ -365,12 +350,10 @@ export function OrgLeavePoliciesSection({
                 <input
                   type="checkbox"
                   checked={newPolicy.is_paid}
-                  onChange={(e) =>
-                    setNewPolicy({ ...newPolicy, is_paid: e.target.checked })
-                  }
+                  onChange={(e) => setNewPolicy({ ...newPolicy, is_paid: e.target.checked })}
                   className="rounded"
                 />
-                {t("organization.settings.paid", "Paid")}
+                {t('organization.settings.paid', 'Paid')}
               </label>
               <label className="flex items-center gap-1.5 text-xs text-foreground cursor-pointer">
                 <input
@@ -384,22 +367,14 @@ export function OrgLeavePoliciesSection({
                   }
                   className="rounded"
                 />
-                {t(
-                  "organization.settings.requiresApproval",
-                  "Requires Approval",
-                )}
+                {t('organization.settings.requiresApproval', 'Requires Approval')}
               </label>
             </div>
             <input
               type="text"
               value={newPolicy.description}
-              onChange={(e) =>
-                setNewPolicy({ ...newPolicy, description: e.target.value })
-              }
-              placeholder={t(
-                "organization.settings.policyDescription",
-                "Description (optional)",
-              )}
+              onChange={(e) => setNewPolicy({ ...newPolicy, description: e.target.value })}
+              placeholder={t('organization.settings.policyDescription', 'Description (optional)')}
               className={`w-full ${inputSmClass}`}
             />
             <div className="flex justify-end gap-2">
@@ -407,14 +382,14 @@ export function OrgLeavePoliciesSection({
                 onClick={() => setShowNewPolicy(false)}
                 className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                {t("common.cancel", "Cancel")}
+                {t('common.cancel', 'Cancel')}
               </button>
               <button
                 onClick={handleCreatePolicy}
                 disabled={savingPolicy || !newPolicy.name.trim()}
                 className="px-3 py-1.5 bg-bridge-accent text-white rounded-lg text-xs font-bold hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
               >
-                {savingPolicy ? "..." : t("common.create", "Create")}
+                {savingPolicy ? '...' : t('common.create', 'Create')}
               </button>
             </div>
           </div>

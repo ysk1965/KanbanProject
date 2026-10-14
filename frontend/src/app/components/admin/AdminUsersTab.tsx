@@ -1,6 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, ChevronLeft, ChevronRight, Shield, User as UserIcon, Mail, Calendar, Check, Minus, Loader2 } from 'lucide-react';
+import {
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Shield,
+  User as UserIcon,
+  Mail,
+  Calendar,
+  Check,
+  Minus,
+  Loader2,
+} from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { UserListResponse } from '../../utils/api';
 import { AdminUserDetailModal } from './AdminUserDetailModal';

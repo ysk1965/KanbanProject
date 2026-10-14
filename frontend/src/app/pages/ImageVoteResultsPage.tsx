@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { useParams } from "react-router-dom";
-import { motion } from "framer-motion";
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   Loader2,
   AlertCircle,
@@ -10,17 +10,17 @@ import {
   Unlock,
   Users,
   ExternalLink,
-} from "lucide-react";
-import { toast } from "sonner";
-import { imageVoteAPI } from "../utils/api";
-import { formatDateTime } from "../utils/dateUtils";
-import { PhotoLightbox } from "../components/organization/photo/PhotoLightbox";
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { imageVoteAPI } from '../utils/api';
+import { formatDateTime } from '../utils/dateUtils';
+import { PhotoLightbox } from '../components/organization/photo/PhotoLightbox';
 import {
   ImageVoteResultList,
   candidateToPhoto,
   MEDALS,
-} from "../components/vote/ImageVoteResultList";
-import type { AdminImageVote, OrgPhoto } from "../types";
+} from '../components/vote/ImageVoteResultList';
+import type { AdminImageVote, OrgPhoto } from '../types';
 
 /**
  * Top3 이미지 투표 결과·관리 페이지 — 인증 불필요 (/vote-results/:adminToken)
@@ -59,12 +59,12 @@ export function ImageVoteResultsPage() {
   }, [vote, load]);
 
   const candidateById = useMemo(() => {
-    const m = new Map<string, AdminImageVote["candidates"][number]>();
+    const m = new Map<string, AdminImageVote['candidates'][number]>();
     vote?.candidates.forEach((c) => m.set(c.id, c));
     return m;
   }, [vote]);
 
-  const voteUrl = vote ? `${window.location.origin}/vote/${vote.token}` : "";
+  const voteUrl = vote ? `${window.location.origin}/vote/${vote.token}` : '';
   const resultsUrl = `${window.location.origin}/vote-results/${adminToken}`;
 
   const copy = async (text: string, label: string) => {
@@ -72,7 +72,7 @@ export function ImageVoteResultsPage() {
       await navigator.clipboard.writeText(text);
       toast.success(`${label}를 복사했습니다`);
     } catch {
-      toast.error("복사에 실패했습니다");
+      toast.error('복사에 실패했습니다');
     }
   };
 
@@ -88,11 +88,9 @@ export function ImageVoteResultsPage() {
         ? await imageVoteAPI.reopen(adminToken)
         : await imageVoteAPI.close(adminToken);
       setVote(data);
-      toast.success(
-        data.closed ? "투표를 종료했습니다" : "투표를 다시 열었습니다",
-      );
+      toast.success(data.closed ? '투표를 종료했습니다' : '투표를 다시 열었습니다');
     } catch {
-      toast.error("처리에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      toast.error('처리에 실패했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setToggling(false);
       setConfirmClose(false);
@@ -141,9 +139,7 @@ export function ImageVoteResultsPage() {
             </div>
             <p className="text-xs text-slate-500">
               총 {vote.total_ballots}명 참여
-              {vote.closed && vote.closed_at
-                ? ` · ${formatDateTime(vote.closed_at)} 종료`
-                : ""}
+              {vote.closed && vote.closed_at ? ` · ${formatDateTime(vote.closed_at)} 종료` : ''}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -180,8 +176,8 @@ export function ImageVoteResultsPage() {
                 disabled={toggling}
                 className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-40 ${
                   vote.closed
-                    ? "bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10"
-                    : "bg-bridge-accent text-white hover:bg-bridge-accent/90"
+                    ? 'bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10'
+                    : 'bg-bridge-accent text-white hover:bg-bridge-accent/90'
                 }`}
               >
                 {toggling ? (
@@ -191,7 +187,7 @@ export function ImageVoteResultsPage() {
                 ) : (
                   <Lock className="w-3.5 h-3.5" />
                 )}
-                {vote.closed ? "다시 열기" : "투표 종료"}
+                {vote.closed ? '다시 열기' : '투표 종료'}
               </button>
             )}
           </div>
@@ -209,22 +205,20 @@ export function ImageVoteResultsPage() {
             label="투표 링크"
             hint="참여자에게 공유"
             url={voteUrl}
-            onCopy={() => copy(voteUrl, "투표 링크")}
+            onCopy={() => copy(voteUrl, '투표 링크')}
             openable
           />
           <LinkRow
             label="결과 링크"
             hint="이 페이지 · 종료 권한 포함, 관리자만"
             url={resultsUrl}
-            onCopy={() => copy(resultsUrl, "결과 링크")}
+            onCopy={() => copy(resultsUrl, '결과 링크')}
           />
         </motion.section>
 
         {/* 결과 */}
         <section>
-          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">
-            순위
-          </h2>
+          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">순위</h2>
           {vote.total_ballots === 0 ? (
             <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-8 text-center text-sm text-slate-500">
               아직 참여한 사람이 없어요
@@ -247,11 +241,7 @@ export function ImageVoteResultsPage() {
             </h2>
             <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] divide-y divide-foreground/[0.06]">
               {vote.ballots.map((b, i) => {
-                const picks = [
-                  b.first_candidate_id,
-                  b.second_candidate_id,
-                  b.third_candidate_id,
-                ];
+                const picks = [b.first_candidate_id, b.second_candidate_id, b.third_candidate_id];
                 return (
                   <motion.div
                     key={`${b.voter_name}-${i}`}
@@ -277,17 +267,15 @@ export function ImageVoteResultsPage() {
                           <button
                             key={rank}
                             type="button"
-                            onClick={() =>
-                              c && setLightboxPhoto(candidateToPhoto(c))
-                            }
+                            onClick={() => c && setLightboxPhoto(candidateToPhoto(c))}
                             className="flex items-center gap-1.5 flex-shrink-0 rounded-lg border border-foreground/[0.08] bg-foreground/[0.03] pr-2 overflow-hidden hover:border-foreground/[0.12] transition-colors"
-                            aria-label={`${rank + 1}위 ${c?.label || ""}`}
+                            aria-label={`${rank + 1}위 ${c?.label || ''}`}
                           >
                             <span className="w-8 h-10 bg-black flex-shrink-0">
                               {c && (
                                 <img
                                   src={c.image_url}
-                                  alt={c.label || "candidate"}
+                                  alt={c.label || 'candidate'}
                                   className="w-full h-full object-cover"
                                   draggable={false}
                                 />
@@ -295,7 +283,7 @@ export function ImageVoteResultsPage() {
                             </span>
                             <span className="text-xs">{MEDALS[rank]}</span>
                             <span className="text-xs text-slate-400 max-w-[80px] truncate">
-                              {c?.label || "이름 없음"}
+                              {c?.label || '이름 없음'}
                             </span>
                           </button>
                         );
@@ -315,7 +303,7 @@ export function ImageVoteResultsPage() {
         isAdmin={false}
         onClose={() => setLightboxPhoto(null)}
         onNavigate={(p) => setLightboxPhoto(p)}
-        onDownload={(p) => window.open(p.url, "_blank", "noopener")}
+        onDownload={(p) => window.open(p.url, '_blank', 'noopener')}
         onDelete={() => {}}
       />
     </div>

@@ -1,17 +1,9 @@
-import { motion } from "framer-motion";
-import {
-  Target,
-  Building2,
-  Layers,
-  User,
-  ChevronDown,
-  Plus,
-  type LucideIcon,
-} from "lucide-react";
-import { useTranslation } from "react-i18next";
-import type { OkrObjective } from "../../../types";
-import { OkrConfidenceBadge } from "./OkrConfidenceBadge";
-import { OkrKeyResultRow } from "./OkrKeyResultRow";
+import { motion } from 'framer-motion';
+import { Target, Building2, Layers, User, ChevronDown, Plus, type LucideIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import type { OkrObjective } from '../../../types';
+import { OkrConfidenceBadge } from './OkrConfidenceBadge';
+import { OkrKeyResultRow } from './OkrKeyResultRow';
 
 const levelIcons: Record<string, LucideIcon> = {
   COMPANY: Building2,
@@ -58,9 +50,7 @@ export function OkrObjectiveNode({
             <LevelIcon size={14} className="text-bridge-accent" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-xs font-bold text-foreground truncate">
-              {objective.title}
-            </div>
+            <div className="text-xs font-bold text-foreground truncate">{objective.title}</div>
             <div className="text-xs text-slate-400 truncate">
               {objective.department_name ||
                 objective.owner?.user_name ||
@@ -72,9 +62,7 @@ export function OkrObjectiveNode({
         {/* Progress Bar */}
         <div className="mt-2.5">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-bold text-foreground">
-              {objective.progress}%
-            </span>
+            <span className="text-xs font-bold text-foreground">{objective.progress}%</span>
             <OkrConfidenceBadge confidence={objective.confidence} size="sm" />
           </div>
           <div className="h-1.5 rounded-full bg-foreground/[0.06] overflow-hidden">
@@ -82,7 +70,7 @@ export function OkrObjectiveNode({
               className="h-full rounded-full bg-bridge-accent"
               initial={{ width: 0 }}
               animate={{ width: `${objective.progress}%` }}
-              transition={{ duration: 0.6, ease: "easeOut" }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
             />
           </div>
         </div>
@@ -117,7 +105,7 @@ export function OkrObjectiveNode({
             {objective.children.length}
             <ChevronDown
               size={10}
-              className={`transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+              className={`transition-transform ${isCollapsed ? '-rotate-90' : ''}`}
             />
           </span>
         </div>

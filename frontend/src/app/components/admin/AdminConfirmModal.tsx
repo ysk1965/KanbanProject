@@ -33,40 +33,41 @@ export function ConfirmModal({
     if (isOpen) confirmRef.current?.focus();
   }, [isOpen]);
 
-  const confirmBg = variant === 'danger'
-    ? 'bg-red-500 hover:bg-red-600'
-    : 'bg-bridge-accent hover:bg-bridge-accent/90';
+  const confirmBg =
+    variant === 'danger'
+      ? 'bg-red-500 hover:bg-red-600'
+      : 'bg-bridge-accent hover:bg-bridge-accent/90';
 
   return (
     <MotionModal open={isOpen} onClose={onCancel} className="sm:max-w-sm p-0 overflow-hidden">
-        <div className="p-6">
-          <div className="flex items-start gap-3 mb-4">
-            {variant === 'danger' && (
-              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="h-5 w-5 text-red-400" />
-              </div>
-            )}
-            <div>
-              <h3 className="text-lg font-bold text-foreground">{title}</h3>
-              <p className="text-slate-400 text-sm mt-1 whitespace-pre-line">{message}</p>
+      <div className="p-6">
+        <div className="flex items-start gap-3 mb-4">
+          {variant === 'danger' && (
+            <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="h-5 w-5 text-red-400" />
             </div>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={onCancel}
-              className="flex-1 px-4 py-2.5 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl hover:bg-foreground/10 transition-all text-sm font-medium"
-            >
-              {cancelLabel || t('common.cancel')}
-            </button>
-            <button
-              ref={confirmRef}
-              onClick={onConfirm}
-              className={`flex-1 px-4 py-2.5 text-white rounded-xl font-bold transition-all text-sm ${confirmBg}`}
-            >
-              {confirmLabel || t('common.confirm')}
-            </button>
+          )}
+          <div>
+            <h3 className="text-lg font-bold text-foreground">{title}</h3>
+            <p className="text-slate-400 text-sm mt-1 whitespace-pre-line">{message}</p>
           </div>
         </div>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 px-4 py-2.5 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl hover:bg-foreground/10 transition-all text-sm font-medium"
+          >
+            {cancelLabel || t('common.cancel')}
+          </button>
+          <button
+            ref={confirmRef}
+            onClick={onConfirm}
+            className={`flex-1 px-4 py-2.5 text-white rounded-xl font-bold transition-all text-sm ${confirmBg}`}
+          >
+            {confirmLabel || t('common.confirm')}
+          </button>
+        </div>
+      </div>
     </MotionModal>
   );
 }
@@ -118,34 +119,34 @@ export function PromptModal({
 
   return (
     <MotionModal open={isOpen} onClose={onCancel} className="sm:max-w-sm p-0 overflow-hidden">
-        <div className="p-6">
-          <h3 className="text-lg font-bold text-foreground mb-1">{title}</h3>
-          <p className="text-slate-400 text-sm mb-4 whitespace-pre-line">{message}</p>
-          <input
-            ref={inputRef}
-            type={inputType}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-            placeholder={placeholder}
-            className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all mb-4"
-          />
-          <div className="flex gap-3">
-            <button
-              onClick={onCancel}
-              className="flex-1 px-4 py-2.5 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl hover:bg-foreground/10 transition-all text-sm font-medium"
-            >
-              {cancelLabel || t('common.cancel')}
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={required && !value.trim()}
-              className="flex-1 px-4 py-2.5 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 disabled:opacity-50 transition-all text-sm"
-            >
-              {confirmLabel || t('common.confirm')}
-            </button>
-          </div>
+      <div className="p-6">
+        <h3 className="text-lg font-bold text-foreground mb-1">{title}</h3>
+        <p className="text-slate-400 text-sm mb-4 whitespace-pre-line">{message}</p>
+        <input
+          ref={inputRef}
+          type={inputType}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+          placeholder={placeholder}
+          className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all mb-4"
+        />
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 px-4 py-2.5 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl hover:bg-foreground/10 transition-all text-sm font-medium"
+          >
+            {cancelLabel || t('common.cancel')}
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={required && !value.trim()}
+            className="flex-1 px-4 py-2.5 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 disabled:opacity-50 transition-all text-sm"
+          >
+            {confirmLabel || t('common.confirm')}
+          </button>
         </div>
+      </div>
     </MotionModal>
   );
 }
@@ -181,44 +182,48 @@ export function SelectModal({
   }, [isOpen]);
 
   return (
-    <MotionModal open={isOpen} onClose={onCancel} className="p-0 overflow-hidden max-h-[80dvh] flex flex-col">
-        <div className="p-6 flex flex-col flex-1 min-h-0">
-          <h3 className="text-lg font-bold text-foreground mb-1">{title}</h3>
-          <p className="text-slate-400 text-sm mb-4">{message}</p>
-          <div className="space-y-2 overflow-y-auto flex-1 mb-4">
-            {options.map((opt) => (
-              <button
-                key={opt.id}
-                onClick={() => setSelectedId(opt.id)}
-                className={`w-full text-left p-3 rounded-xl border transition-all ${
-                  selectedId === opt.id
-                    ? 'border-bridge-accent bg-bridge-accent/10'
-                    : 'border-foreground/[0.08] bg-foreground/5 hover:bg-foreground/10'
-                }`}
-              >
-                <p className="text-foreground text-sm font-medium">{opt.label}</p>
-                {opt.description && (
-                  <p className="text-slate-400 text-xs mt-0.5">{opt.description}</p>
-                )}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-3">
+    <MotionModal
+      open={isOpen}
+      onClose={onCancel}
+      className="p-0 overflow-hidden max-h-[80dvh] flex flex-col"
+    >
+      <div className="p-6 flex flex-col flex-1 min-h-0">
+        <h3 className="text-lg font-bold text-foreground mb-1">{title}</h3>
+        <p className="text-slate-400 text-sm mb-4">{message}</p>
+        <div className="space-y-2 overflow-y-auto flex-1 mb-4">
+          {options.map((opt) => (
             <button
-              onClick={onCancel}
-              className="flex-1 px-4 py-2.5 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl hover:bg-foreground/10 transition-all text-sm font-medium"
+              key={opt.id}
+              onClick={() => setSelectedId(opt.id)}
+              className={`w-full text-left p-3 rounded-xl border transition-all ${
+                selectedId === opt.id
+                  ? 'border-bridge-accent bg-bridge-accent/10'
+                  : 'border-foreground/[0.08] bg-foreground/5 hover:bg-foreground/10'
+              }`}
             >
-              {cancelLabel || t('common.cancel')}
+              <p className="text-foreground text-sm font-medium">{opt.label}</p>
+              {opt.description && (
+                <p className="text-slate-400 text-xs mt-0.5">{opt.description}</p>
+              )}
             </button>
-            <button
-              onClick={() => selectedId && onConfirm(selectedId)}
-              disabled={!selectedId}
-              className="flex-1 px-4 py-2.5 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 disabled:opacity-50 transition-all text-sm"
-            >
-              {confirmLabel || t('common.confirm')}
-            </button>
-          </div>
+          ))}
         </div>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 px-4 py-2.5 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl hover:bg-foreground/10 transition-all text-sm font-medium"
+          >
+            {cancelLabel || t('common.cancel')}
+          </button>
+          <button
+            onClick={() => selectedId && onConfirm(selectedId)}
+            disabled={!selectedId}
+            className="flex-1 px-4 py-2.5 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 disabled:opacity-50 transition-all text-sm"
+          >
+            {confirmLabel || t('common.confirm')}
+          </button>
+        </div>
+      </div>
     </MotionModal>
   );
 }
@@ -242,17 +247,22 @@ export function Toast({ message, type = 'success', isVisible, onClose }: ToastPr
 
   if (!isVisible) return null;
 
-  const bgColor = type === 'success'
-    ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
-    : type === 'error'
-    ? 'bg-red-500/20 border-red-500/30 text-red-400'
-    : 'bg-blue-500/20 border-blue-500/30 text-blue-400';
+  const bgColor =
+    type === 'success'
+      ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
+      : type === 'error'
+        ? 'bg-red-500/20 border-red-500/30 text-red-400'
+        : 'bg-blue-500/20 border-blue-500/30 text-blue-400';
 
   return (
     <div className="fixed top-4 right-4 z-[70] animate-fade-in-up">
       <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border shadow-lg ${bgColor}`}>
         <span className="text-sm font-medium">{message}</span>
-        <button onClick={onClose} className="ml-2 opacity-60 hover:opacity-100 transition-opacity" aria-label="닫기">
+        <button
+          onClick={onClose}
+          className="ml-2 opacity-60 hover:opacity-100 transition-opacity"
+          aria-label="닫기"
+        >
           <X className="h-4 w-4" />
         </button>
       </div>

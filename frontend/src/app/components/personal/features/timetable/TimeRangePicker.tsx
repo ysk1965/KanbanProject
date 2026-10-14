@@ -50,7 +50,14 @@ export function usePopoverPosition(anchorEl: HTMLElement | null, deps: unknown[]
   return { ref, style };
 }
 
-export function TimeRangePicker({ anchorEl, value, onChange, hint, hintStrong, onClose }: TimeRangePickerProps) {
+export function TimeRangePicker({
+  anchorEl,
+  value,
+  onChange,
+  hint,
+  hintStrong,
+  onClose,
+}: TimeRangePickerProps) {
   const { ref, style } = usePopoverPosition(anchorEl);
   const inverted = value.e <= value.s;
 
@@ -65,7 +72,11 @@ export function TimeRangePicker({ anchorEl, value, onChange, hint, hintStrong, o
     onChange({ s, e });
   };
 
-  const hintText = hint || (inverted ? '종료가 시작보다 앞섭니다 (자정 넘김이면 그대로 두세요)' : '5분 단위 · 직접 타이핑도 됩니다');
+  const hintText =
+    hint ||
+    (inverted
+      ? '종료가 시작보다 앞섭니다 (자정 넘김이면 그대로 두세요)'
+      : '5분 단위 · 직접 타이핑도 됩니다');
 
   return createPortal(
     <div
@@ -86,7 +97,12 @@ export function TimeRangePicker({ anchorEl, value, onChange, hint, hintStrong, o
         <label className="flex flex-col gap-1">
           <span className="text-xs font-bold uppercase tracking-widest text-slate-400">시작</span>
           <span className="flex items-center gap-1">
-            <select className={SELECT_CLS} value={sh} onChange={(e) => set({ sh: +e.target.value })} aria-label="시작 시">
+            <select
+              className={SELECT_CLS}
+              value={sh}
+              onChange={(e) => set({ sh: +e.target.value })}
+              aria-label="시작 시"
+            >
               {HOURS.map((h) => (
                 <option key={h} value={h}>
                   {pad2(h)}
@@ -94,7 +110,12 @@ export function TimeRangePicker({ anchorEl, value, onChange, hint, hintStrong, o
               ))}
             </select>
             <span className="text-slate-500">:</span>
-            <select className={SELECT_CLS} value={sm} onChange={(e) => set({ sm: +e.target.value })} aria-label="시작 분">
+            <select
+              className={SELECT_CLS}
+              value={sm}
+              onChange={(e) => set({ sm: +e.target.value })}
+              aria-label="시작 분"
+            >
               {MINUTES.map((m) => (
                 <option key={m} value={m}>
                   {pad2(m)}
@@ -106,7 +127,12 @@ export function TimeRangePicker({ anchorEl, value, onChange, hint, hintStrong, o
         <label className="flex flex-col gap-1">
           <span className="text-xs font-bold uppercase tracking-widest text-slate-400">종료</span>
           <span className="flex items-center gap-1">
-            <select className={SELECT_CLS} value={eh} onChange={(e) => set({ eh: +e.target.value })} aria-label="종료 시">
+            <select
+              className={SELECT_CLS}
+              value={eh}
+              onChange={(e) => set({ eh: +e.target.value })}
+              aria-label="종료 시"
+            >
               {HOURS.map((h) => (
                 <option key={h} value={h}>
                   {pad2(h)}
@@ -114,7 +140,12 @@ export function TimeRangePicker({ anchorEl, value, onChange, hint, hintStrong, o
               ))}
             </select>
             <span className="text-slate-500">:</span>
-            <select className={SELECT_CLS} value={em} onChange={(e) => set({ em: +e.target.value })} aria-label="종료 분">
+            <select
+              className={SELECT_CLS}
+              value={em}
+              onChange={(e) => set({ em: +e.target.value })}
+              aria-label="종료 분"
+            >
               {MINUTES.map((m) => (
                 <option key={m} value={m}>
                   {pad2(m)}
@@ -138,7 +169,9 @@ export function TimeRangePicker({ anchorEl, value, onChange, hint, hintStrong, o
           </button>
         ))}
       </div>
-      <p className={`text-xs ${inverted ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'}`}>
+      <p
+        className={`text-xs ${inverted ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'}`}
+      >
         {hintStrong ? <b className="font-bold text-foreground">{hintText}</b> : hintText}
       </p>
     </div>,

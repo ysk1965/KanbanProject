@@ -41,8 +41,14 @@ export function CelebrationModal({
   const Icon = isBirthday ? Cake : PartyPopper;
 
   const title = isBirthday
-    ? t('organization.anniversary.celebrationTitle_BIRTHDAY', "Happy Birthday, {{name}}!", { name: memberName })
-    : t('organization.anniversary.celebrationTitle_HIRE_ANNIVERSARY', "Congratulations on {{name}}'s {{years}} Year Work Anniversary!", { name: memberName, years: String(years || '') });
+    ? t('organization.anniversary.celebrationTitle_BIRTHDAY', 'Happy Birthday, {{name}}!', {
+        name: memberName,
+      })
+    : t(
+        'organization.anniversary.celebrationTitle_HIRE_ANNIVERSARY',
+        "Congratulations on {{name}}'s {{years}} Year Work Anniversary!",
+        { name: memberName, years: String(years || '') },
+      );
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -69,7 +75,11 @@ export function CelebrationModal({
     try {
       setSending(true);
       setError(null);
-      await anniversaryService.createMessage(orgId, memberId, { type, date, message: newMessage.trim() });
+      await anniversaryService.createMessage(orgId, memberId, {
+        type,
+        date,
+        message: newMessage.trim(),
+      });
       setNewMessage('');
       await fetchMessages();
       // Scroll to top to see new message
@@ -78,7 +88,12 @@ export function CelebrationModal({
       }
     } catch (err: any) {
       if (err?.code === 'CB001') {
-        setError(t('organization.anniversary.duplicateMessage', 'You have already sent a celebration message'));
+        setError(
+          t(
+            'organization.anniversary.duplicateMessage',
+            'You have already sent a celebration message',
+          ),
+        );
       } else {
         setError(err?.message || 'Failed to send message');
       }
@@ -94,7 +109,9 @@ export function CelebrationModal({
 
       {/* Header */}
       <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isBirthday ? 'bg-pink-500/15' : 'bg-amber-500/15'}`}>
+        <div
+          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isBirthday ? 'bg-pink-500/15' : 'bg-amber-500/15'}`}
+        >
           <Icon size={18} className={isBirthday ? 'text-pink-500' : 'text-amber-500'} />
         </div>
         <h2 className="text-sm font-bold text-foreground leading-snug">{title}</h2>
@@ -105,7 +122,10 @@ export function CelebrationModal({
         <textarea
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value.slice(0, 500))}
-          placeholder={t('organization.anniversary.messagePlaceholder', 'Leave a celebration message...')}
+          placeholder={t(
+            'organization.anniversary.messagePlaceholder',
+            'Leave a celebration message...',
+          )}
           rows={3}
           className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-foreground placeholder-slate-500 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
           onKeyDown={(e) => {
@@ -126,9 +146,7 @@ export function CelebrationModal({
             {t('organization.anniversary.send', 'Send')}
           </button>
         </div>
-        {error && (
-          <p className="text-xs text-red-500 mt-1">{error}</p>
-        )}
+        {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
       </div>
 
       {/* Messages List */}
@@ -169,7 +187,9 @@ export function CelebrationModal({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-foreground">{msg.author_name}</span>
-                    <span className="text-xs text-slate-500">{formatRelativeTime(msg.created_at)}</span>
+                    <span className="text-xs text-slate-500">
+                      {formatRelativeTime(msg.created_at)}
+                    </span>
                   </div>
                   <p className="text-xs text-foreground/80 leading-relaxed mt-0.5">{msg.message}</p>
                 </div>
@@ -184,7 +204,9 @@ export function CelebrationModal({
         <span className="text-xs text-slate-500">Esc {t('common.close', 'Close')}</span>
         {messages.length > 0 && (
           <span className="text-xs text-muted-foreground">
-            {t('organization.anniversary.messageCount', '{{count}} messages', { count: messages.length })}
+            {t('organization.anniversary.messageCount', '{{count}} messages', {
+              count: messages.length,
+            })}
           </span>
         )}
       </div>

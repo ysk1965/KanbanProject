@@ -79,7 +79,14 @@ export function ServerDownPage({ onRetry, isOffline = false, since }: ServerDown
         {/* Icon */}
         <div className="relative inline-flex items-center justify-center mb-10">
           <svg className="w-32 h-32 -rotate-90">
-            <circle cx="64" cy="64" r="58" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4" />
+            <circle
+              cx="64"
+              cy="64"
+              r="58"
+              fill="none"
+              stroke="rgba(255,255,255,0.05)"
+              strokeWidth="4"
+            />
             <circle
               cx="64"
               cy="64"
@@ -111,7 +118,9 @@ export function ServerDownPage({ onRetry, isOffline = false, since }: ServerDown
         </div>
 
         {/* Title */}
-        <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4 tracking-tight">{title}</h1>
+        <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4 tracking-tight">
+          {title}
+        </h1>
 
         {/* Subtitle */}
         <p className="text-lg text-transparent bg-clip-text bg-gradient-to-r from-slate-400 to-slate-500 font-normal mb-8 max-w-md mx-auto">

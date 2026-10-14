@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { motion } from "framer-motion";
-import { AlertCircle, Check, ChevronDown, ChevronUp, Loader2, RotateCcw, X } from "lucide-react";
-import { IconButton } from "../../ui/IconButton";
-import { useReducedMotion } from "../../../hooks/useReducedMotion";
-import { usePhotoUploadQueue } from "../../../hooks/usePhotoUploadQueue";
-import type { PhotoUploadQueue } from "../../../utils/photoUploadQueue";
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
+import { AlertCircle, Check, ChevronDown, ChevronUp, Loader2, RotateCcw, X } from 'lucide-react';
+import { IconButton } from '../../ui/IconButton';
+import { useReducedMotion } from '../../../hooks/useReducedMotion';
+import { usePhotoUploadQueue } from '../../../hooks/usePhotoUploadQueue';
+import type { PhotoUploadQueue } from '../../../utils/photoUploadQueue';
 
 interface PhotoUploadProgressProps {
   queue: PhotoUploadQueue;
@@ -28,25 +28,25 @@ export function PhotoUploadProgress({ queue, floating = false }: PhotoUploadProg
     snap.bytesTotal > 0 ? Math.min(100, Math.round((snap.bytesDone / snap.bytesTotal) * 100)) : 100;
   const reasonLabel = (reason: string) => {
     switch (reason) {
-      case "UNSUPPORTED_TYPE":
-      case "FILE_TYPE_NOT_ALLOWED":
-      case "INVALID_CONTENT":
-        return t("photoGallery.failUnsupported", "Unsupported format");
-      case "FILE_TOO_LARGE":
-        return t("photoGallery.failTooLarge", "Over 30MB");
-      case "NETWORK":
-        return t("photoGallery.failNetwork", "Network error");
+      case 'UNSUPPORTED_TYPE':
+      case 'FILE_TYPE_NOT_ALLOWED':
+      case 'INVALID_CONTENT':
+        return t('photoGallery.failUnsupported', 'Unsupported format');
+      case 'FILE_TOO_LARGE':
+        return t('photoGallery.failTooLarge', 'Over 30MB');
+      case 'NETWORK':
+        return t('photoGallery.failNetwork', 'Network error');
       default:
-        return t("photoGallery.failGeneric", "Upload failed");
+        return t('photoGallery.failGeneric', 'Upload failed');
     }
   };
 
   const title = snap.active
-    ? t("photoGallery.queueUploading", "Uploading {{done}}/{{total}}", {
+    ? t('photoGallery.queueUploading', 'Uploading {{done}}/{{total}}', {
         done: snap.confirmed,
         total: snap.total,
       })
-    : t("photoGallery.queueDone", "{{count}} photos uploaded", { count: snap.confirmed });
+    : t('photoGallery.queueDone', '{{count}} photos uploaded', { count: snap.confirmed });
 
   const panel = (
     <div
@@ -70,14 +70,20 @@ export function PhotoUploadProgress({ queue, floating = false }: PhotoUploadProg
             <p className="text-sm font-bold text-foreground truncate">{title}</p>
             <p className="text-xs text-slate-500">
               {snap.active
-                ? t("photoGallery.queueKeepsRunning", "Keeps uploading even if you close this window")
+                ? t(
+                    'photoGallery.queueKeepsRunning',
+                    'Keeps uploading even if you close this window',
+                  )
                 : snap.failed > 0
-                  ? t("photoGallery.queueFailedCount", "{{count}} failed", { count: snap.failed })
-                  : t("photoGallery.queueAllDone", "All photos are in the album")}
+                  ? t('photoGallery.queueFailedCount', '{{count}} failed', { count: snap.failed })
+                  : t('photoGallery.queueAllDone', 'All photos are in the album')}
             </p>
           </div>
           {!snap.active && (
-            <IconButton aria-label={t("common.close", "Close")} onClick={() => queue.clearFinished()}>
+            <IconButton
+              aria-label={t('common.close', 'Close')}
+              onClick={() => queue.clearFinished()}
+            >
               <X />
             </IconButton>
           )}
@@ -96,7 +102,7 @@ export function PhotoUploadProgress({ queue, floating = false }: PhotoUploadProg
             <span>{percent}%</span>
             {snap.active && snap.failed > 0 && (
               <span className="text-amber-600 dark:text-amber-400">
-                {t("photoGallery.queueFailedCount", "{{count}} failed", { count: snap.failed })}
+                {t('photoGallery.queueFailedCount', '{{count}} failed', { count: snap.failed })}
               </span>
             )}
           </div>
@@ -112,7 +118,7 @@ export function PhotoUploadProgress({ queue, floating = false }: PhotoUploadProg
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bridge-accent text-white text-xs font-bold hover:bg-bridge-accent/90 transition-all"
                 >
                   <RotateCcw size={12} />
-                  {t("photoGallery.retryFailed", "Retry {{count}} failed", { count: snap.failed })}
+                  {t('photoGallery.retryFailed', 'Retry {{count}} failed', { count: snap.failed })}
                 </button>
               )}
               <button
@@ -121,7 +127,7 @@ export function PhotoUploadProgress({ queue, floating = false }: PhotoUploadProg
                 className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
                 {showFailures ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                {t("photoGallery.showFailures", "Details")}
+                {t('photoGallery.showFailures', 'Details')}
               </button>
             </div>
             {showFailures && (
@@ -134,7 +140,7 @@ export function PhotoUploadProgress({ queue, floating = false }: PhotoUploadProg
                 ))}
                 {snap.failures.length > FAILURE_PREVIEW && (
                   <li className="text-xs text-slate-500">
-                    {t("photoGallery.moreSelected", "+{{count}} more", {
+                    {t('photoGallery.moreSelected', '+{{count}} more', {
                       count: snap.failures.length - FAILURE_PREVIEW,
                     })}
                   </li>

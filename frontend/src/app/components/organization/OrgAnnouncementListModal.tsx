@@ -24,22 +24,25 @@ export function OrgAnnouncementListModal({ open, onClose, orgId, role, onEditCli
   const [loading, setLoading] = useState(true);
   const isAdmin = role === 'OWNER' || role === 'ADMIN';
 
-  const fetchData = useCallback(async (reset = false) => {
-    try {
-      setLoading(true);
-      const data = await orgAnnouncementService.list(orgId, {
-        cursor: reset ? undefined : cursor || undefined,
-        limit: 20,
-      });
-      setAnnouncements(prev => reset ? data.announcements : [...prev, ...data.announcements]);
-      setHasMore(data.has_more);
-      setCursor(data.next_cursor);
-    } catch {
-      // error
-    } finally {
-      setLoading(false);
-    }
-  }, [orgId, cursor]);
+  const fetchData = useCallback(
+    async (reset = false) => {
+      try {
+        setLoading(true);
+        const data = await orgAnnouncementService.list(orgId, {
+          cursor: reset ? undefined : cursor || undefined,
+          limit: 20,
+        });
+        setAnnouncements((prev) => (reset ? data.announcements : [...prev, ...data.announcements]));
+        setHasMore(data.has_more);
+        setCursor(data.next_cursor);
+      } catch {
+        // error
+      } finally {
+        setLoading(false);
+      }
+    },
+    [orgId, cursor],
+  );
 
   useEffect(() => {
     if (open) fetchData(true);
@@ -49,7 +52,7 @@ export function OrgAnnouncementListModal({ open, onClose, orgId, role, onEditCli
     if (!confirm(t('organization.announcement.deleteConfirm', 'Delete this announcement?'))) return;
     try {
       await orgAnnouncementService.delete(orgId, id);
-      setAnnouncements(prev => prev.filter(a => a.id !== id));
+      setAnnouncements((prev) => prev.filter((a) => a.id !== id));
     } catch {
       toast.error(t('organization.announcement.deleteError', 'Failed to delete announcement'));
     }
@@ -58,8 +61,10 @@ export function OrgAnnouncementListModal({ open, onClose, orgId, role, onEditCli
   const handleTogglePin = async (id: string) => {
     try {
       const updated = await orgAnnouncementService.togglePin(orgId, id);
-      setAnnouncements(prev => prev.map(a => a.id === id ? updated : a));
-    } catch { /* */ }
+      setAnnouncements((prev) => prev.map((a) => (a.id === id ? updated : a)));
+    } catch {
+      /* */
+    }
   };
 
   return (
@@ -94,7 +99,9 @@ export function OrgAnnouncementListModal({ open, onClose, orgId, role, onEditCli
                   <span className="text-sm font-medium text-foreground">{a.title}</span>
                 </div>
                 {a.content && (
-                  <p className="text-xs text-muted-foreground mb-1.5 whitespace-pre-wrap">{a.content}</p>
+                  <p className="text-xs text-muted-foreground mb-1.5 whitespace-pre-wrap">
+                    {a.content}
+                  </p>
                 )}
                 <div className="flex items-center gap-2 text-xs text-slate-500">
                   <span>{a.author_name}</span>
@@ -104,16 +111,28 @@ export function OrgAnnouncementListModal({ open, onClose, orgId, role, onEditCli
               </div>
               {isAdmin && (
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  <button onClick={() => handleTogglePin(a.id)}
-                    className="p-1 rounded-md hover:bg-foreground/5 transition-colors">
-                    <Pin size={12} className={a.is_pinned ? 'text-bridge-accent' : 'text-slate-500'} />
+                  <button
+                    onClick={() => handleTogglePin(a.id)}
+                    className="p-1 rounded-md hover:bg-foreground/5 transition-colors"
+                  >
+                    <Pin
+                      size={12}
+                      className={a.is_pinned ? 'text-bridge-accent' : 'text-slate-500'}
+                    />
                   </button>
-                  <button onClick={() => { onEditClick(a); onClose(); }}
-                    className="p-1 rounded-md hover:bg-foreground/5 transition-colors">
+                  <button
+                    onClick={() => {
+                      onEditClick(a);
+                      onClose();
+                    }}
+                    className="p-1 rounded-md hover:bg-foreground/5 transition-colors"
+                  >
                     <Pencil size={12} className="text-slate-500" />
                   </button>
-                  <button onClick={() => handleDelete(a.id)}
-                    className="p-1 rounded-md hover:bg-rose-500/10 transition-colors">
+                  <button
+                    onClick={() => handleDelete(a.id)}
+                    className="p-1 rounded-md hover:bg-rose-500/10 transition-colors"
+                  >
                     <Trash2 size={12} className="text-slate-500 hover:text-rose-500" />
                   </button>
                 </div>
@@ -124,8 +143,11 @@ export function OrgAnnouncementListModal({ open, onClose, orgId, role, onEditCli
 
         {hasMore && (
           <div className="px-5 py-3 border-t border-foreground/[0.08]">
-            <button onClick={() => fetchData(false)} disabled={loading}
-              className="w-full text-xs text-bridge-accent hover:text-bridge-accent/80 font-bold transition-colors">
+            <button
+              onClick={() => fetchData(false)}
+              disabled={loading}
+              className="w-full text-xs text-bridge-accent hover:text-bridge-accent/80 font-bold transition-colors"
+            >
               {loading ? '...' : t('common.loadMore', 'Load more')}
             </button>
           </div>

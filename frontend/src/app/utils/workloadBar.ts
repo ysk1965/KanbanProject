@@ -8,15 +8,15 @@
 
 /** "yyyy-MM-dd" → 로컬 Date */
 export function parseDate(dateStr: string): Date {
-  const [y, m, d] = dateStr.split("-").map(Number);
+  const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d);
 }
 
 /** Date → "yyyy-MM-dd" */
 export function formatDateStr(date: Date): string {
   const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
 
@@ -29,8 +29,8 @@ export function addDaysToDate(dateStr: string, days: number): string {
 
 /** b - a (일 단위, UTC 기준) */
 export function diffDays(a: string, b: string): number {
-  const [ay, am, ad] = a.split("-").map(Number);
-  const [by, bm, bd] = b.split("-").map(Number);
+  const [ay, am, ad] = a.split('-').map(Number);
+  const [by, bm, bd] = b.split('-').map(Number);
   const utcA = Date.UTC(ay, am - 1, ad);
   const utcB = Date.UTC(by, bm - 1, bd);
   return Math.round((utcB - utcA) / (1000 * 60 * 60 * 24));
@@ -73,7 +73,7 @@ export function isWorkingDay(input: WorkingDayInput): boolean {
 
 /** 멤버 단위 설정 없이 보드 달력만으로 본 비근무일(주말·휴무일) 여부 */
 export function isBoardOffDay(
-  input: Pick<WorkingDayInput, "weekend" | "holiday" | "forcedWorkday">,
+  input: Pick<WorkingDayInput, 'weekend' | 'holiday' | 'forcedWorkday'>,
 ): boolean {
   return !isWorkingDay(input);
 }
@@ -90,8 +90,7 @@ export interface BarRange {
  */
 export function computeBarLanes(bars: BarRange[]): Record<string, number> {
   const sorted = [...bars].sort((a, b) => {
-    if (a.startDayIndex !== b.startDayIndex)
-      return a.startDayIndex - b.startDayIndex;
+    if (a.startDayIndex !== b.startDayIndex) return a.startDayIndex - b.startDayIndex;
     return b.endDayIndex - b.startDayIndex - (a.endDayIndex - a.startDayIndex);
   });
 

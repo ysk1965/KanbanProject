@@ -1,5 +1,5 @@
-import type { KeyboardEvent, PointerEvent } from "react";
-import { useTranslation } from "react-i18next";
+import type { KeyboardEvent, PointerEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface SplitHandleProps {
   /**
@@ -7,7 +7,7 @@ interface SplitHandleProps {
    * vertical   = 좌우로 놓인 칸 사이 (위아래로 길게 선다)
    * WAI-ARIA separator의 aria-orientation과 같은 뜻이다 — 손잡이가 아니라 "경계"의 방향.
    */
-  orientation: "horizontal" | "vertical";
+  orientation: 'horizontal' | 'vertical';
   /** 현재 앞 칸 크기 (px) */
   value: number;
   min: number;
@@ -41,7 +41,7 @@ export function SplitHandle({
   className,
 }: SplitHandleProps) {
   const { t } = useTranslation();
-  const isRow = orientation === "horizontal";
+  const isRow = orientation === 'horizontal';
 
   return (
     <div
@@ -52,26 +52,21 @@ export function SplitHandle({
       aria-valuemin={min}
       aria-valuemax={Number.isFinite(max) ? max : undefined}
       tabIndex={0}
-      title={t(
-        "boardDashboard.splitHandleHint",
-        "끌어서 조절 · 더블클릭 초기화",
-      )}
+      title={t('boardDashboard.splitHandleHint', '끌어서 조절 · 더블클릭 초기화')}
       onPointerDown={onPointerDown}
       onKeyDown={onKeyDown}
       onDoubleClick={onReset}
       /* display는 부르는 쪽이 정한다 — 여기서 flex를 박으면 "좁은 화면에선 숨김"과 충돌한다 */
       className={`group flex-none items-center justify-center rounded-lg touch-none
         focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-accent/50 ${
-          isRow
-            ? "h-3 w-full cursor-row-resize"
-            : "w-3 h-full cursor-col-resize"
+          isRow ? 'h-3 w-full cursor-row-resize' : 'w-3 h-full cursor-col-resize'
         } ${className}`}
     >
       <span
         aria-hidden="true"
         className={`rounded-full bg-foreground/10 transition-colors
           group-hover:bg-bridge-accent/60 group-focus-visible:bg-bridge-accent/60 ${
-            isRow ? "h-[3px] w-10" : "w-[3px] h-10"
+            isRow ? 'h-[3px] w-10' : 'w-[3px] h-10'
           }`}
       />
     </div>

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, type ReactNode } from "react";
-import { useTranslation } from "react-i18next";
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Link2,
   FileText,
@@ -18,9 +18,9 @@ import {
   Plus,
   Zap,
   Puzzle,
-} from "lucide-react";
-import { MotionModal } from "./ui/MotionModal";
-import { patAPI, PatSummary, PatCreated, BACKEND_ORIGIN } from "../utils/api";
+} from 'lucide-react';
+import { MotionModal } from './ui/MotionModal';
+import { patAPI, PatSummary, PatCreated, BACKEND_ORIGIN } from '../utils/api';
 
 interface McpConnectModalProps {
   open: boolean;
@@ -29,15 +29,14 @@ interface McpConnectModalProps {
   boardName?: string;
 }
 
-type Tab = "features" | "connect";
-type TokenMode = "status" | "form";
+type Tab = 'features' | 'connect';
+type TokenMode = 'status' | 'form';
 
-const INSTALL_CMD =
-  "/plugin marketplace add bridge-internal\n/plugin install bridge";
+const INSTALL_CMD = '/plugin marketplace add bridge-internal\n/plugin install bridge';
 const EXPIRY_OPTIONS = [0, 30, 90, 365]; // 0 = 만료 없음
 
 /** npm 배포될 MCP 서버 패키지명 (원커맨드 npx 실행 대상). */
-const MCP_PACKAGE = "bridgespots-mcp";
+const MCP_PACKAGE = 'bridgespots-mcp';
 
 /**
  * 값(토큰·API 주소·보드 id)이 박힌 `claude mcp add` 한 줄 명령을 조립한다.
@@ -47,38 +46,29 @@ const MCP_PACKAGE = "bridgespots-mcp";
  * (로컬 → localhost, milkyway.pe.kr → milkyway API, bridgespots.com → bridgespots API).
  * 이게 없으면 MCP 서버가 localhost 기본값을 써서 배포 환경 사용자가 연결 실패한다.
  */
-function buildInstallCommand(
-  token: string,
-  apiUrl: string,
-  boardId: string,
-): string {
+function buildInstallCommand(token: string, apiUrl: string, boardId: string): string {
   return [
-    "claude mcp add bridge --scope user \\",
+    'claude mcp add bridge --scope user \\',
     `  --env BRIDGE_PAT="${token}" \\`,
     `  --env BRIDGE_API_URL="${apiUrl}" \\`,
     `  --env BRIDGE_DEFAULT_BOARD_ID="${boardId}" \\`,
     `  -- npx -y ${MCP_PACKAGE}`,
-  ].join("\n");
+  ].join('\n');
 }
 
-type ConnectMethod = "oneCommand" | "plugin";
+type ConnectMethod = 'oneCommand' | 'plugin';
 
-export function McpConnectModal({
-  open,
-  onClose,
-  boardId,
-  boardName,
-}: McpConnectModalProps) {
+export function McpConnectModal({ open, onClose, boardId, boardName }: McpConnectModalProps) {
   const { t } = useTranslation();
 
-  const [tab, setTab] = useState<Tab>("features");
-  const [method, setMethod] = useState<ConnectMethod>("oneCommand");
+  const [tab, setTab] = useState<Tab>('features');
+  const [method, setMethod] = useState<ConnectMethod>('oneCommand');
   const [pats, setPats] = useState<PatSummary[]>([]);
   const [loading, setLoading] = useState(false);
 
   // 토큰 발급 상태머신
-  const [tokenMode, setTokenMode] = useState<TokenMode>("status");
-  const [name, setName] = useState("Claude Code");
+  const [tokenMode, setTokenMode] = useState<TokenMode>('status');
+  const [name, setName] = useState('Claude Code');
   const [expiryDays, setExpiryDays] = useState(0);
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<PatCreated | null>(null); // 1회 노출 원문
@@ -99,9 +89,9 @@ export function McpConnectModal({
 
   useEffect(() => {
     if (open) {
-      setTab("features");
-      setMethod("oneCommand");
-      setTokenMode("status");
+      setTab('features');
+      setMethod('oneCommand');
+      setTokenMode('status');
       setCreated(null);
       setError(null);
       fetchPats();
@@ -127,15 +117,10 @@ export function McpConnectModal({
         expiresInDays: expiryDays === 0 ? null : expiryDays,
       });
       setCreated(result);
-      setTokenMode("status");
+      setTokenMode('status');
       fetchPats();
     } catch {
-      setError(
-        t(
-          "mcp.issueError",
-          "토큰 발급에 실패했습니다. 잠시 후 다시 시도해주세요.",
-        ),
-      );
+      setError(t('mcp.issueError', '토큰 발급에 실패했습니다. 잠시 후 다시 시도해주세요.'));
     } finally {
       setCreating(false);
     }
@@ -143,105 +128,92 @@ export function McpConnectModal({
 
   const latest = pats[0];
   const shortBoard =
-    boardName ||
-    (boardId ? `${boardId.slice(0, 8)}…` : t("mcp.thisBoard", "이 보드"));
+    boardName || (boardId ? `${boardId.slice(0, 8)}…` : t('mcp.thisBoard', '이 보드'));
 
   const featureGroups = [
     {
-      label: t("mcp.groupDocs", "문서"),
+      label: t('mcp.groupDocs', '문서'),
       items: [
         {
           icon: FileText,
-          title: t("mcp.featSaveTitle", "이 보드에 문서 저장"),
-          tool: "save_document",
-          desc: t(
-            "mcp.featSaveDesc",
-            "AI가 만든 리포트·회의록·기획서를 이 보드 노트로 바로 저장.",
-          ),
+          title: t('mcp.featSaveTitle', '이 보드에 문서 저장'),
+          tool: 'save_document',
+          desc: t('mcp.featSaveDesc', 'AI가 만든 리포트·회의록·기획서를 이 보드 노트로 바로 저장.'),
         },
         {
           icon: Share2,
-          title: t("mcp.featShareTitle", "공유 링크 발급"),
-          tool: "share_document",
-          desc: t(
-            "mcp.featShareDesc",
-            "로그인 없이 열람 가능한 링크로 팀에 공유.",
-          ),
+          title: t('mcp.featShareTitle', '공유 링크 발급'),
+          tool: 'share_document',
+          desc: t('mcp.featShareDesc', '로그인 없이 열람 가능한 링크로 팀에 공유.'),
         },
         {
           icon: SquarePen,
-          title: t("mcp.featEditTitle", "문서 조회·수정"),
-          tool: "get / update_document",
-          desc: t("mcp.featEditDesc", "저장한 문서를 다시 불러오거나 이어서 고치기."),
+          title: t('mcp.featEditTitle', '문서 조회·수정'),
+          tool: 'get / update_document',
+          desc: t('mcp.featEditDesc', '저장한 문서를 다시 불러오거나 이어서 고치기.'),
         },
         {
           icon: LayoutGrid,
-          title: t("mcp.featListTitle", "문서 목록·보드 선택"),
-          tool: "list_documents / list_boards",
-          desc: t(
-            "mcp.featListDesc",
-            "이 보드에 쌓인 문서를 훑거나, 저장할 다른 보드를 고르기.",
-          ),
+          title: t('mcp.featListTitle', '문서 목록·보드 선택'),
+          tool: 'list_documents / list_boards',
+          desc: t('mcp.featListDesc', '이 보드에 쌓인 문서를 훑거나, 저장할 다른 보드를 고르기.'),
         },
       ],
     },
     {
-      label: t("mcp.groupBriefing", "내 작업 브리핑"),
+      label: t('mcp.groupBriefing', '내 작업 브리핑'),
       items: [
         {
           icon: ListChecks,
-          title: t("mcp.featMyTitle", "오늘·태스크·일정 모아보기"),
-          tool: "get_my_today / board_tasks / calendar",
+          title: t('mcp.featMyTitle', '오늘·태스크·일정 모아보기'),
+          tool: 'get_my_today / board_tasks / calendar',
           desc: t(
-            "mcp.featMyDesc",
-            "여러 보드에 흩어진 내 오늘 할 일·태스크·일정을 한 번에 브리핑.",
+            'mcp.featMyDesc',
+            '여러 보드에 흩어진 내 오늘 할 일·태스크·일정을 한 번에 브리핑.',
           ),
         },
         {
           icon: CheckSquare,
-          title: t("mcp.featMyChecklistTitle", "내 체크리스트 모아보기"),
-          tool: "list_my_checklist_items",
+          title: t('mcp.featMyChecklistTitle', '내 체크리스트 모아보기'),
+          tool: 'list_my_checklist_items',
           desc: t(
-            "mcp.featMyChecklistDesc",
-            "여러 보드에 걸친 내 미완료 체크리스트를 모아, 커밋과 대조.",
+            'mcp.featMyChecklistDesc',
+            '여러 보드에 걸친 내 미완료 체크리스트를 모아, 커밋과 대조.',
           ),
         },
       ],
     },
     {
-      label: t("mcp.groupChecklist", "체크리스트 관리"),
+      label: t('mcp.groupChecklist', '체크리스트 관리'),
       items: [
         {
           icon: Check,
-          title: t("mcp.featChecklistWriteTitle", "체크리스트 완료·추가"),
-          tool: "toggle / add_checklist_item",
+          title: t('mcp.featChecklistWriteTitle', '체크리스트 완료·추가'),
+          tool: 'toggle / add_checklist_item',
           desc: t(
-            "mcp.featChecklistWriteDesc",
-            "커밋에 맞는 항목을 완료 처리하거나, 빠진 작업을 새 항목으로 추가.",
+            'mcp.featChecklistWriteDesc',
+            '커밋에 맞는 항목을 완료 처리하거나, 빠진 작업을 새 항목으로 추가.',
           ),
         },
       ],
     },
     {
-      label: t("mcp.groupAnalytics", "보드·조직 분석"),
+      label: t('mcp.groupAnalytics', '보드·조직 분석'),
       items: [
         {
           icon: BarChart3,
-          title: t("mcp.featBoardStatsTitle", "보드 통계·리포트"),
-          tool: "get_board_stats / tasks / milestones / report",
+          title: t('mcp.featBoardStatsTitle', '보드 통계·리포트'),
+          tool: 'get_board_stats / tasks / milestones / report',
           desc: t(
-            "mcp.featBoardStatsDesc",
-            "완료율·정체 태스크·마일스톤 진척으로 주간 리포트 근거를 뽑기.",
+            'mcp.featBoardStatsDesc',
+            '완료율·정체 태스크·마일스톤 진척으로 주간 리포트 근거를 뽑기.',
           ),
         },
         {
           icon: Building2,
-          title: t("mcp.featOrgTitle", "조직 인사이트"),
-          tool: "list_org_boards / get_org_insights",
-          desc: t(
-            "mcp.featOrgDesc",
-            "프로젝트 전체 롤업과 보드별 하이라이트로 조직 보고서 작성.",
-          ),
+          title: t('mcp.featOrgTitle', '조직 인사이트'),
+          tool: 'list_org_boards / get_org_insights',
+          desc: t('mcp.featOrgDesc', '프로젝트 전체 롤업과 보드별 하이라이트로 조직 보고서 작성.'),
         },
       ],
     },
@@ -252,7 +224,7 @@ export function McpConnectModal({
       open={open}
       onClose={onClose}
       accentColor
-      aria-label={t("mcp.title", "MCP 연결")}
+      aria-label={t('mcp.title', 'MCP 연결')}
       className="sm:max-w-lg p-0 gap-0"
     >
       {/* Header */}
@@ -262,18 +234,15 @@ export function McpConnectModal({
         </div>
         <div className="min-w-0">
           <h2 className="text-sm md:text-base font-bold text-foreground leading-tight">
-            {t("mcp.title", "MCP 연결")}
+            {t('mcp.title', 'MCP 연결')}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5 truncate">
-            {t(
-              "mcp.subtitle",
-              "이 보드를 AI 어시스턴트에 연결 · Claude Code, Cursor 등 지원",
-            )}
+            {t('mcp.subtitle', '이 보드를 AI 어시스턴트에 연결 · Claude Code, Cursor 등 지원')}
           </p>
         </div>
         <button
           onClick={onClose}
-          aria-label={t("common.close", "닫기")}
+          aria-label={t('common.close', '닫기')}
           className="ml-auto text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg p-1.5 transition-colors flex-none"
         >
           <X className="w-4 h-4" />
@@ -282,19 +251,17 @@ export function McpConnectModal({
 
       {/* Tabs */}
       <div className="flex items-center gap-1 px-4 pt-3 border-b border-foreground/[0.08]">
-        {(["features", "connect"] as Tab[]).map((tk) => (
+        {(['features', 'connect'] as Tab[]).map((tk) => (
           <button
             key={tk}
             onClick={() => setTab(tk)}
             className={`relative px-3 pb-2.5 pt-1 text-xs md:text-sm font-medium transition-colors ${
-              tab === tk
-                ? "text-foreground"
-                : "text-slate-400 hover:text-foreground"
+              tab === tk ? 'text-foreground' : 'text-slate-400 hover:text-foreground'
             }`}
           >
-            {tk === "features"
-              ? t("mcp.tabFeatures", "사용 가능한 기능")
-              : t("mcp.tabConnect", "연결 설명")}
+            {tk === 'features'
+              ? t('mcp.tabFeatures', '사용 가능한 기능')
+              : t('mcp.tabConnect', '연결 설명')}
             {tab === tk && (
               <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded bg-bridge-accent" />
             )}
@@ -304,12 +271,12 @@ export function McpConnectModal({
 
       {/* Body */}
       <div className="px-5 pb-5 pt-4">
-        {tab === "features" ? (
+        {tab === 'features' ? (
           <div>
             <p className="text-xs md:text-sm text-slate-400 mb-4">
               {t(
-                "mcp.featIntro",
-                "연결하면 AI가 이 보드에 직접 다음을 할 수 있어요. (내 계정 권한으로 동작)",
+                'mcp.featIntro',
+                '연결하면 AI가 이 보드에 직접 다음을 할 수 있어요. (내 계정 권한으로 동작)',
               )}
             </p>
             <div className="flex flex-col gap-4">
@@ -322,10 +289,7 @@ export function McpConnectModal({
                     {group.items.map((f) => {
                       const Icon = f.icon;
                       return (
-                        <div
-                          key={f.tool}
-                          className="flex items-start gap-3 py-3"
-                        >
+                        <div key={f.tool} className="flex items-start gap-3 py-3">
                           <div className="w-8 h-8 rounded-lg bg-bridge-secondary/15 text-bridge-secondary flex items-center justify-center flex-none">
                             <Icon className="w-4 h-4" />
                           </div>
@@ -336,9 +300,7 @@ export function McpConnectModal({
                                 {f.tool}
                               </span>
                             </h4>
-                            <p className="text-xs text-slate-400 mt-0.5">
-                              {f.desc}
-                            </p>
+                            <p className="text-xs text-slate-400 mt-0.5">{f.desc}</p>
                           </div>
                         </div>
                       );
@@ -349,13 +311,13 @@ export function McpConnectModal({
             </div>
             <div className="mt-4 rounded-xl border border-foreground/10 bg-foreground/[0.03] p-3.5">
               <div className="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">
-                {t("mcp.exampleLabel", "이렇게 말하면 돼요")}
+                {t('mcp.exampleLabel', '이렇게 말하면 돼요')}
               </div>
               <p className="text-sm text-foreground">
                 <span className="text-bridge-accent">"</span>
                 {t(
-                  "mcp.exampleText",
-                  "방금 커밋한 내용에 맞는 체크리스트 있으면 체크하고, 없으면 추가해줘",
+                  'mcp.exampleText',
+                  '방금 커밋한 내용에 맞는 체크리스트 있으면 체크하고, 없으면 추가해줘',
                 )}
                 <span className="text-bridge-accent">"</span>
               </p>
@@ -366,86 +328,70 @@ export function McpConnectModal({
             {/* 방식 토글 */}
             <div className="flex gap-1 bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl p-1">
               <button
-                onClick={() => setMethod("oneCommand")}
+                onClick={() => setMethod('oneCommand')}
                 className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-colors ${
-                  method === "oneCommand"
-                    ? "bg-bridge-accent text-white"
-                    : "text-slate-400 hover:text-foreground"
+                  method === 'oneCommand'
+                    ? 'bg-bridge-accent text-white'
+                    : 'text-slate-400 hover:text-foreground'
                 }`}
               >
                 <Zap className="w-3.5 h-3.5" />
-                {t("mcp.methodOneCommand", "원커맨드")}
+                {t('mcp.methodOneCommand', '원커맨드')}
                 <span className="font-normal opacity-70">
-                  {t("mcp.methodOneCommandHint", "빠름")}
+                  {t('mcp.methodOneCommandHint', '빠름')}
                 </span>
               </button>
               <button
-                onClick={() => setMethod("plugin")}
+                onClick={() => setMethod('plugin')}
                 className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-colors ${
-                  method === "plugin"
-                    ? "bg-bridge-accent text-white"
-                    : "text-slate-400 hover:text-foreground"
+                  method === 'plugin'
+                    ? 'bg-bridge-accent text-white'
+                    : 'text-slate-400 hover:text-foreground'
                 }`}
               >
                 <Puzzle className="w-3.5 h-3.5" />
-                {t("mcp.methodPlugin", "플러그인")}
-                <span className="font-normal opacity-70">
-                  {t("mcp.methodPluginHint", "보안")}
-                </span>
+                {t('mcp.methodPlugin', '플러그인')}
+                <span className="font-normal opacity-70">{t('mcp.methodPluginHint', '보안')}</span>
               </button>
             </div>
 
             {/* ── 원커맨드: 값이 박힌 한 줄 ── */}
-            {method === "oneCommand" && (
+            {method === 'oneCommand' && (
               <div>
                 <p className="text-xs text-slate-400 mb-3">
                   {t(
-                    "mcp.oneCmdIntro",
-                    "명령 하나로 설치와 연결이 한 번에 끝나요. 토큰·보드 id가 이미 박혀 있어 프롬프트가 없습니다.",
+                    'mcp.oneCmdIntro',
+                    '명령 하나로 설치와 연결이 한 번에 끝나요. 토큰·보드 id가 이미 박혀 있어 프롬프트가 없습니다.',
                   )}
                 </p>
                 {created ? (
                   <>
                     <div className="flex items-start gap-2 rounded-lg bg-bridge-dark border border-foreground/10 px-3 py-2.5">
                       <pre className="flex-1 font-mono text-xs text-foreground whitespace-pre overflow-x-auto custom-scrollbar m-0">
-                        {buildInstallCommand(
-                          created.token,
-                          BACKEND_ORIGIN,
-                          boardId,
-                        )}
+                        {buildInstallCommand(created.token, BACKEND_ORIGIN, boardId)}
                       </pre>
                       <CopyBtn
-                        copied={copied === "onecmd"}
+                        copied={copied === 'onecmd'}
                         onClick={() =>
                           copy(
-                            "onecmd",
-                            buildInstallCommand(
-                              created.token,
-                              BACKEND_ORIGIN,
-                              boardId,
-                            ),
+                            'onecmd',
+                            buildInstallCommand(created.token, BACKEND_ORIGIN, boardId),
                           )
                         }
                       />
                     </div>
                     <p className="text-[11px] text-slate-500 mt-2">
-                      {t(
-                        "mcp.oneCmdHint",
-                        "터미널에 붙여넣고 Enter 한 번이면 끝.",
-                      )}
+                      {t('mcp.oneCmdHint', '터미널에 붙여넣고 Enter 한 번이면 끝.')}
                     </p>
                     <div className="mt-2.5 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.08] px-3 py-2 text-[11px] text-slate-400">
                       <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-none mt-0.5" />
                       <span>
                         <b className="text-amber-500 dark:text-amber-400">
-                          {t(
-                            "mcp.oneCmdSecStrong",
-                            "토큰이 셸 히스토리에 남습니다.",
-                          )}
-                        </b>{" "}
+                          {t('mcp.oneCmdSecStrong', '토큰이 셸 히스토리에 남습니다.')}
+                        </b>{' '}
                         {t(
-                          "mcp.oneCmdSec",
-                          "단기·폐기 가능 토큰을 권장해요. 다시 생성하면 새 토큰이 발급됩니다.",
+                          'mcp.oneCmdSec',
+                          '단기·폐기 가능 토큰을 권장해요. 다시 생성하면 새 토큰이 발급됩니다.',
                         )}
                       </span>
                     </div>
@@ -456,14 +402,12 @@ export function McpConnectModal({
                       }}
                       className="mt-2 text-[11px] text-slate-400 hover:text-foreground transition-colors"
                     >
-                      {t("mcp.regen", "명령 다시 생성")}
+                      {t('mcp.regen', '명령 다시 생성')}
                     </button>
                   </>
                 ) : (
                   <>
-                    {error && (
-                      <p className="text-xs text-rose-400 mb-2">{error}</p>
-                    )}
+                    {error && <p className="text-xs text-rose-400 mb-2">{error}</p>}
                     <button
                       onClick={handleCreate}
                       disabled={creating}
@@ -474,12 +418,12 @@ export function McpConnectModal({
                       ) : (
                         <Zap className="w-4 h-4" />
                       )}
-                      {t("mcp.genCommand", "연결 명령 생성")}
+                      {t('mcp.genCommand', '연결 명령 생성')}
                     </button>
                     <p className="text-[11px] text-slate-500 mt-2 text-center">
                       {t(
-                        "mcp.genHint",
-                        "새 액세스 토큰을 발급하고, 값이 박힌 설치 명령을 만들어요.",
+                        'mcp.genHint',
+                        '새 액세스 토큰을 발급하고, 값이 박힌 설치 명령을 만들어요.',
                       )}
                     </p>
                   </>
@@ -488,17 +432,14 @@ export function McpConnectModal({
             )}
 
             {/* ── 플러그인: 단계별 ── */}
-            {method === "plugin" && (
+            {method === 'plugin' && (
               <>
                 {/* STEP 1 — 토큰 */}
-                <ConnectStep
-                  n={1}
-                  title={t("mcp.step1Title", "내 액세스 토큰 (PAT)")}
-                >
+                <ConnectStep n={1} title={t('mcp.step1Title', '내 액세스 토큰 (PAT)')}>
                   <p className="text-xs text-slate-400 mb-2.5">
                     {t(
-                      "mcp.step1Desc",
-                      "AI가 내 계정으로 접근할 키. 사람 단위라 이미 있으면 재사용합니다.",
+                      'mcp.step1Desc',
+                      'AI가 내 계정으로 접근할 키. 사람 단위라 이미 있으면 재사용합니다.',
                     )}
                   </p>
 
@@ -508,11 +449,11 @@ export function McpConnectModal({
                         <AlertTriangle className="w-4 h-4 text-amber-500 flex-none mt-0.5" />
                         <span>
                           <b className="text-amber-500 dark:text-amber-400">
-                            {t("mcp.revealWarnStrong", "지금만 볼 수 있어요.")}
-                          </b>{" "}
+                            {t('mcp.revealWarnStrong', '지금만 볼 수 있어요.')}
+                          </b>{' '}
                           {t(
-                            "mcp.revealWarn",
-                            "창을 닫으면 다시 확인 불가. 안전한 곳에 복사하세요.",
+                            'mcp.revealWarn',
+                            '창을 닫으면 다시 확인 불가. 안전한 곳에 복사하세요.',
                           )}
                         </span>
                       </div>
@@ -521,14 +462,14 @@ export function McpConnectModal({
                           {created.token}
                         </code>
                         <CopyBtn
-                          copied={copied === "token"}
-                          onClick={() => copy("token", created.token)}
+                          copied={copied === 'token'}
+                          onClick={() => copy('token', created.token)}
                         />
                       </div>
                     </div>
                   )}
 
-                  {tokenMode === "status" ? (
+                  {tokenMode === 'status' ? (
                     <div className="flex items-center justify-between gap-2 rounded-lg bg-foreground/[0.03] border border-foreground/[0.08] px-3 py-2.5">
                       <div className="flex items-center gap-2 min-w-0 text-xs">
                         {loading ? (
@@ -536,14 +477,14 @@ export function McpConnectModal({
                         ) : (
                           <span
                             className={`w-1.5 h-1.5 rounded-full flex-none ${
-                              latest ? "bg-emerald-400" : "bg-slate-500"
+                              latest ? 'bg-emerald-400' : 'bg-slate-500'
                             }`}
                           />
                         )}
                         <span className="text-foreground truncate">
                           {latest
-                            ? t("mcp.tokenIssued", "발급됨")
-                            : t("mcp.tokenNone", "아직 없음")}
+                            ? t('mcp.tokenIssued', '발급됨')
+                            : t('mcp.tokenNone', '아직 없음')}
                           {latest && (
                             <span className="ml-1.5 font-mono text-slate-500">
                               {latest.token_prefix}…
@@ -554,21 +495,19 @@ export function McpConnectModal({
                       <button
                         onClick={() => {
                           setCreated(null);
-                          setTokenMode("form");
+                          setTokenMode('form');
                         }}
                         className="flex-none inline-flex items-center gap-1 text-[11px] font-bold text-bridge-accent bg-bridge-accent/15 rounded-lg px-2.5 py-1.5 hover:bg-bridge-accent/25 transition-colors"
                       >
                         <Plus className="w-3 h-3" />
-                        {latest
-                          ? t("mcp.tokenReissue", "새로 발급")
-                          : t("mcp.tokenIssue", "발급")}
+                        {latest ? t('mcp.tokenReissue', '새로 발급') : t('mcp.tokenIssue', '발급')}
                       </button>
                     </div>
                   ) : (
                     <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] p-3 flex flex-col gap-3">
                       <div>
                         <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">
-                          {t("mcp.tokenName", "토큰 이름")}
+                          {t('mcp.tokenName', '토큰 이름')}
                         </label>
                         <input
                           value={name}
@@ -579,7 +518,7 @@ export function McpConnectModal({
                       </div>
                       <div>
                         <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">
-                          {t("mcp.tokenExpiry", "만료")}
+                          {t('mcp.tokenExpiry', '만료')}
                         </label>
                         <div className="flex flex-wrap gap-1.5">
                           {EXPIRY_OPTIONS.map((d) => (
@@ -588,36 +527,30 @@ export function McpConnectModal({
                               onClick={() => setExpiryDays(d)}
                               className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
                                 expiryDays === d
-                                  ? "bg-bridge-accent/15 border-transparent text-bridge-accent font-bold"
-                                  : "border-foreground/10 text-slate-400 hover:text-foreground"
+                                  ? 'bg-bridge-accent/15 border-transparent text-bridge-accent font-bold'
+                                  : 'border-foreground/10 text-slate-400 hover:text-foreground'
                               }`}
                             >
-                              {d === 0
-                                ? t("mcp.expiryNone", "없음")
-                                : `${d}${t("mcp.days", "일")}`}
+                              {d === 0 ? t('mcp.expiryNone', '없음') : `${d}${t('mcp.days', '일')}`}
                             </button>
                           ))}
                         </div>
                       </div>
-                      {error && (
-                        <p className="text-xs text-rose-400">{error}</p>
-                      )}
+                      {error && <p className="text-xs text-rose-400">{error}</p>}
                       <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => setTokenMode("status")}
+                          onClick={() => setTokenMode('status')}
                           className="text-xs text-slate-400 hover:text-foreground px-3 py-1.5 rounded-lg hover:bg-foreground/5 transition-colors"
                         >
-                          {t("common.cancel", "취소")}
+                          {t('common.cancel', '취소')}
                         </button>
                         <button
                           onClick={handleCreate}
                           disabled={creating || !name.trim()}
                           className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-bridge-accent rounded-lg px-4 py-1.5 hover:bg-bridge-accent/90 disabled:opacity-50 transition-all"
                         >
-                          {creating && (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          )}
-                          {t("mcp.issueBtn", "발급")}
+                          {creating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                          {t('mcp.issueBtn', '발급')}
                         </button>
                       </div>
                     </div>
@@ -625,44 +558,35 @@ export function McpConnectModal({
                 </ConnectStep>
 
                 {/* STEP 2 — 이 보드 연결값 */}
-                <ConnectStep
-                  n={2}
-                  title={t("mcp.step2Title", "이 보드 연결값")}
-                >
+                <ConnectStep n={2} title={t('mcp.step2Title', '이 보드 연결값')}>
                   <p className="text-xs text-slate-400 mb-2.5">
                     {t(
-                      "mcp.step2Desc",
-                      "플러그인 설치 때 넣을 값. 보드 id는 이 보드로 이미 채워져 있어요.",
+                      'mcp.step2Desc',
+                      '플러그인 설치 때 넣을 값. 보드 id는 이 보드로 이미 채워져 있어요.',
                     )}
                   </p>
                   <CopyRow
-                    label={t("mcp.cfgBoardId", "기본 저장 보드 id ← 이 보드")}
+                    label={t('mcp.cfgBoardId', '기본 저장 보드 id ← 이 보드')}
                     value={boardId}
                     valueClass="text-bridge-secondary"
-                    copied={copied === "board"}
-                    onCopy={() => copy("board", boardId)}
+                    copied={copied === 'board'}
+                    onCopy={() => copy('board', boardId)}
                   />
                 </ConnectStep>
 
                 {/* STEP 3 — 설치 */}
-                <ConnectStep
-                  n={3}
-                  title={t("mcp.step3Title", "플러그인 설치 · 붙여넣기")}
-                >
+                <ConnectStep n={3} title={t('mcp.step3Title', '플러그인 설치 · 붙여넣기')}>
                   <p className="text-xs text-slate-400 mb-2.5">
                     {t(
-                      "mcp.step3Desc",
-                      "Claude Code(또는 다른 MCP 클라이언트)에서 아래 실행 후, 프롬프트에 토큰과 보드 id를 입력.",
+                      'mcp.step3Desc',
+                      'Claude Code(또는 다른 MCP 클라이언트)에서 아래 실행 후, 프롬프트에 토큰과 보드 id를 입력.',
                     )}
                   </p>
                   <div className="flex items-start gap-2 rounded-lg bg-bridge-dark border border-foreground/10 px-3 py-2.5">
                     <pre className="flex-1 font-mono text-xs text-foreground whitespace-pre overflow-x-auto custom-scrollbar m-0">
                       {INSTALL_CMD}
                     </pre>
-                    <CopyBtn
-                      copied={copied === "cmd"}
-                      onClick={() => copy("cmd", INSTALL_CMD)}
-                    />
+                    <CopyBtn copied={copied === 'cmd'} onClick={() => copy('cmd', INSTALL_CMD)} />
                   </div>
                 </ConnectStep>
               </>
@@ -674,7 +598,7 @@ export function McpConnectModal({
       {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
         <span className="inline-flex items-center gap-2 text-[11px] text-slate-500">
-          {t("mcp.targetBoard", "연결 대상")}
+          {t('mcp.targetBoard', '연결 대상')}
           <span className="font-mono text-slate-400 bg-foreground/[0.04] border border-foreground/[0.08] px-2 py-0.5 rounded">
             {shortBoard}
           </span>
@@ -687,15 +611,7 @@ export function McpConnectModal({
 
 /* ── 하위 프리젠테이션 컴포넌트 ── */
 
-function ConnectStep({
-  n,
-  title,
-  children,
-}: {
-  n: number;
-  title: string;
-  children: ReactNode;
-}) {
+function ConnectStep({ n, title, children }: { n: number; title: string; children: ReactNode }) {
   return (
     <div className="flex gap-3">
       <div className="w-6 h-6 rounded-lg bg-bridge-accent text-white font-mono font-bold text-xs flex items-center justify-center flex-none mt-0.5">
@@ -712,7 +628,7 @@ function ConnectStep({
 function CopyRow({
   label,
   value,
-  valueClass = "",
+  valueClass = '',
   copied,
   onCopy,
 }: {
@@ -726,9 +642,7 @@ function CopyRow({
     <div className="flex items-center justify-between gap-2 rounded-lg bg-foreground/[0.03] border border-foreground/[0.08] px-3 py-2">
       <div className="min-w-0">
         <div className="text-[10px] text-slate-500">{label}</div>
-        <div
-          className={`font-mono text-xs break-all ${valueClass || "text-foreground"}`}
-        >
+        <div className={`font-mono text-xs break-all ${valueClass || 'text-foreground'}`}>
           {value}
         </div>
       </div>
@@ -737,13 +651,7 @@ function CopyRow({
   );
 }
 
-function CopyBtn({
-  copied,
-  onClick,
-}: {
-  copied: boolean;
-  onClick: () => void;
-}) {
+function CopyBtn({ copied, onClick }: { copied: boolean; onClick: () => void }) {
   const { t } = useTranslation();
   return (
     <button
@@ -751,7 +659,7 @@ function CopyBtn({
       className="flex-none inline-flex items-center gap-1 text-[11px] font-bold text-bridge-accent bg-bridge-accent/15 rounded-lg px-2.5 py-1.5 hover:bg-bridge-accent/25 transition-colors"
     >
       {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-      {copied ? t("mcp.copied", "복사됨") : t("mcp.copy", "복사")}
+      {copied ? t('mcp.copied', '복사됨') : t('mcp.copy', '복사')}
     </button>
   );
 }

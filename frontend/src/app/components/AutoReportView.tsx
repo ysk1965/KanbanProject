@@ -1,12 +1,6 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react";
-import { createPortal } from "react-dom";
-import { motion } from "framer-motion";
+import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -30,7 +24,7 @@ import {
   Play,
   Sparkles,
   X,
-} from "lucide-react";
+} from 'lucide-react';
 
 import type {
   AutoReport,
@@ -49,10 +43,10 @@ import type {
   AutoReportMetric,
   AutoReportSourceStatus,
   AutoReportSprint,
-} from "../utils/api";
-import { formatDate, formatRelativeTime } from "../utils/dateUtils";
-import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
-import { useReducedMotion } from "../hooks/useReducedMotion";
+} from '../utils/api';
+import { formatDate, formatRelativeTime } from '../utils/dateUtils';
+import { getAssigneeHex, getInitials } from '../utils/assigneeColor';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 /** 수집 원본에서 커밋 목록만 꺼낸다. 형태가 다르면 조용히 비운다 — 화면이 깨지면 안 된다. */
 interface CommitRow {
@@ -70,7 +64,7 @@ function parseCommits(rawData: string | null): Record<string, CommitRow[]> {
     const parsed = JSON.parse(rawData);
     const github = parsed?.github ?? parsed;
     const byRepo = github?.commits_by_repo;
-    if (!byRepo || typeof byRepo !== "object") return {};
+    if (!byRepo || typeof byRepo !== 'object') return {};
     return byRepo as Record<string, CommitRow[]>;
   } catch {
     return {};
@@ -124,7 +118,7 @@ function parseConfluence(rawData: string | null): ConfluenceData {
   if (!rawData) return empty;
   try {
     const c = JSON.parse(rawData)?.confluence;
-    if (!c || typeof c !== "object") return empty;
+    if (!c || typeof c !== 'object') return empty;
     return {
       pages: Array.isArray(c.pages) ? c.pages : [],
       changelogs: Array.isArray(c.changelogs) ? c.changelogs : [],
@@ -136,42 +130,36 @@ function parseConfluence(rawData: string | null): ConfluenceData {
 
 /** 변경내역 그룹 표기 — 추가/수정/삭제. 상태 텍스트만 dark: 분기(디자인 가이드). */
 const CONFLUENCE_CHANGE_META: Array<{
-  key: "added" | "modified" | "deleted";
+  key: 'added' | 'modified' | 'deleted';
   label: string;
   pill: string;
 }> = [
   {
-    key: "added",
-    label: "추가된 문서",
-    pill: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+    key: 'added',
+    label: '추가된 문서',
+    pill: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
   },
   {
-    key: "modified",
-    label: "수정된 문서",
-    pill: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+    key: 'modified',
+    label: '수정된 문서',
+    pill: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
   },
   {
-    key: "deleted",
-    label: "삭제된 문서",
-    pill: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+    key: 'deleted',
+    label: '삭제된 문서',
+    pill: 'bg-rose-500/15 text-rose-600 dark:text-rose-400',
   },
 ];
 
 /** 변경내역 문서 한 장 — 삭제 문서는 제목만 취소선으로 남긴다. */
-function ConfluenceDocCard({
-  doc,
-  deleted,
-}: {
-  doc: ConfluenceDoc;
-  deleted?: boolean;
-}) {
+function ConfluenceDocCard({ doc, deleted }: { doc: ConfluenceDoc; deleted?: boolean }) {
   return (
     <article className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-2.5">
       <div className="flex items-center gap-2">
         <FileText className="w-4 h-4 text-bridge-secondary shrink-0" />
         <h3
           className={`text-sm font-bold break-words ${
-            deleted ? "text-slate-500 line-through" : "text-foreground"
+            deleted ? 'text-slate-500 line-through' : 'text-foreground'
           }`}
         >
           {doc.title}
@@ -181,7 +169,7 @@ function ConfluenceDocCard({
         <div className="text-xs text-slate-500">
           {[doc.author, doc.updated_at ? formatDate(doc.updated_at) : null]
             .filter(Boolean)
-            .join(" · ")}
+            .join(' · ')}
         </div>
       )}
       {!deleted && doc.body && (
@@ -239,7 +227,7 @@ function parseKanban(rawData: string | null): KanbanGroups {
   if (!rawData) return empty;
   try {
     const k = JSON.parse(rawData)?.kanban;
-    if (!k || typeof k !== "object") return empty;
+    if (!k || typeof k !== 'object') return empty;
     return {
       completed: Array.isArray(k.completed) ? k.completed : [],
       in_progress: Array.isArray(k.in_progress) ? k.in_progress : [],
@@ -280,7 +268,7 @@ function parseSlack(rawData: string | null): SlackChannel | null {
   if (!rawData) return null;
   try {
     const s = JSON.parse(rawData)?.slack;
-    if (!s || typeof s !== "object" || !Array.isArray(s.messages)) return null;
+    if (!s || typeof s !== 'object' || !Array.isArray(s.messages)) return null;
     return s as SlackChannel;
   } catch {
     return null;
@@ -294,46 +282,36 @@ const KANBAN_GROUP_META: Array<{
   pill: string;
 }> = [
   {
-    key: "completed",
-    label: "완료",
-    pill: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+    key: 'completed',
+    label: '완료',
+    pill: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
   },
   {
-    key: "in_progress",
-    label: "진행 중",
-    pill: "bg-bridge-accent/15 text-bridge-accent",
+    key: 'in_progress',
+    label: '진행 중',
+    pill: 'bg-bridge-accent/15 text-bridge-accent',
   },
   {
-    key: "overdue",
-    label: "지연",
-    pill: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+    key: 'overdue',
+    label: '지연',
+    pill: 'bg-rose-500/15 text-rose-600 dark:text-rose-400',
   },
 ];
 
 /** 태스크 한 장 — 체크리스트 항목으로 "무슨 작업인지"와 커밋 매칭 단서를 드러낸다. */
-function KanbanTaskCard({
-  task,
-  overdue,
-}: {
-  task: KanbanTask;
-  overdue?: boolean;
-}) {
+function KanbanTaskCard({ task, overdue }: { task: KanbanTask; overdue?: boolean }) {
   const done = task.checklist_done ?? 0;
   const total = task.checklist_total ?? 0;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   return (
     <article
       className={`bg-bridge-obsidian rounded-2xl border p-5 flex flex-col gap-2.5 ${
-        overdue ? "border-rose-500/25" : "border-foreground/[0.08]"
+        overdue ? 'border-rose-500/25' : 'border-foreground/[0.08]'
       }`}
     >
-      <h3 className="text-sm font-bold text-foreground break-words">
-        {task.title}
-      </h3>
+      <h3 className="text-sm font-bold text-foreground break-words">{task.title}</h3>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-        {task.key && (
-          <span className="font-mono text-slate-400">{task.key}</span>
-        )}
+        {task.key && <span className="font-mono text-slate-400">{task.key}</span>}
         {task.feature && (
           <span className="px-1.5 py-0.5 rounded bg-foreground/[0.06] text-slate-400">
             {task.feature}
@@ -344,23 +322,17 @@ function KanbanTaskCard({
             {task.column}
           </span>
         )}
-        {task.assignees?.length ? (
-          <span>{task.assignees.join(", ")}</span>
-        ) : null}
+        {task.assignees?.length ? <span>{task.assignees.join(', ')}</span> : null}
         {overdue && task.due_date && (
           <span className="text-rose-600 dark:text-rose-400">
             마감 {formatDate(task.due_date)}
-            {task.days_overdue ? ` · ${task.days_overdue}일 지연` : ""}
+            {task.days_overdue ? ` · ${task.days_overdue}일 지연` : ''}
           </span>
         )}
-        {!overdue && task.completed_at && (
-          <span>완료 {formatDate(task.completed_at)}</span>
-        )}
+        {!overdue && task.completed_at && <span>완료 {formatDate(task.completed_at)}</span>}
       </div>
       {task.description && (
-        <p className="text-xs text-slate-400 leading-relaxed break-words">
-          {task.description}
-        </p>
+        <p className="text-xs text-slate-400 leading-relaxed break-words">{task.description}</p>
       )}
       {total > 0 && (
         <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -381,26 +353,16 @@ function KanbanTaskCard({
             <li key={i} className="flex items-center gap-2 text-sm">
               <span
                 className={`shrink-0 w-4 h-4 rounded flex items-center justify-center border ${
-                  item.done
-                    ? "bg-emerald-500 border-emerald-500"
-                    : "border-slate-600"
+                  item.done ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600'
                 }`}
               >
-                {item.done && (
-                  <Check className="w-2.5 h-2.5 text-white" strokeWidth={3.5} />
-                )}
+                {item.done && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3.5} />}
               </span>
-              <span
-                className={
-                  item.done ? "text-slate-500 line-through" : "text-foreground"
-                }
-              >
+              <span className={item.done ? 'text-slate-500 line-through' : 'text-foreground'}>
                 {item.title}
               </span>
               {item.assignee && (
-                <span className="ml-auto shrink-0 text-xs text-slate-500">
-                  {item.assignee}
-                </span>
+                <span className="ml-auto shrink-0 text-xs text-slate-500">{item.assignee}</span>
               )}
             </li>
           ))}
@@ -409,7 +371,7 @@ function KanbanTaskCard({
       {task.blocked_by?.length ? (
         <span className="inline-flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400">
           <Ban className="w-3.5 h-3.5 shrink-0" />
-          {task.blocked_by.join(", ")}에 막힘
+          {task.blocked_by.join(', ')}에 막힘
         </span>
       ) : null}
     </article>
@@ -418,14 +380,12 @@ function KanbanTaskCard({
 
 /** 슬랙 메시지 한 줄 — 답글(replies)은 자기 자신을 재귀 렌더해 스레드 결론까지 보여준다. */
 function SlackMessageItem({ msg }: { msg: SlackMessage }) {
-  const name = msg.author || msg.user || "알 수 없음";
+  const name = msg.author || msg.user || '알 수 없음';
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline gap-2">
         <span className="text-sm font-bold text-foreground">{name}</span>
-        {msg.at && (
-          <span className="text-xs text-slate-500 tabular-nums">{msg.at}</span>
-        )}
+        {msg.at && <span className="text-xs text-slate-500 tabular-nums">{msg.at}</span>}
       </div>
       {msg.text && (
         <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
@@ -454,12 +414,12 @@ function SlackMessageItem({ msg }: { msg: SlackMessage }) {
               rel="noreferrer noopener"
               className="inline-flex items-center gap-1.5 text-xs text-slate-400 bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg px-2.5 py-1.5 w-fit hover:text-foreground transition-colors"
             >
-              {f.type === "video" ? (
+              {f.type === 'video' ? (
                 <Play className="w-3 h-3 text-bridge-secondary shrink-0" />
               ) : (
                 <Paperclip className="w-3 h-3 text-bridge-secondary shrink-0" />
               )}
-              {f.title || f.type || "첨부"}
+              {f.title || f.type || '첨부'}
             </a>
           ))}
         </div>
@@ -476,24 +436,24 @@ function SlackMessageItem({ msg }: { msg: SlackMessage }) {
 }
 
 const SOURCE_LABEL: Record<string, string> = {
-  GITHUB: "GitHub",
-  KANBAN: "칸반",
-  CONFLUENCE: "Confluence",
-  SLACK: "슬랙",
+  GITHUB: 'GitHub',
+  KANBAN: '칸반',
+  CONFLUENCE: 'Confluence',
+  SLACK: '슬랙',
 };
 
 const SOURCE_CHIP: Record<string, string> = {
-  GITHUB: "bg-slate-500/15 text-slate-400",
-  KANBAN: "bg-bridge-accent/15 text-bridge-accent",
-  CONFLUENCE: "bg-bridge-secondary/15 text-bridge-secondary",
-  SLACK: "bg-purple-500/15 text-purple-600 dark:text-purple-400",
+  GITHUB: 'bg-slate-500/15 text-slate-400',
+  KANBAN: 'bg-bridge-accent/15 text-bridge-accent',
+  CONFLUENCE: 'bg-bridge-secondary/15 text-bridge-secondary',
+  SLACK: 'bg-purple-500/15 text-purple-600 dark:text-purple-400',
 };
 
 function SourceChip({ source }: { source: string }) {
   return (
     <span
       className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
-        SOURCE_CHIP[source] ?? "bg-foreground/10 text-slate-400"
+        SOURCE_CHIP[source] ?? 'bg-foreground/10 text-slate-400'
       }`}
     >
       {SOURCE_LABEL[source] ?? source}
@@ -504,12 +464,12 @@ function SourceChip({ source }: { source: string }) {
 /* ── 기능 상태 표기 ── */
 const FEATURE_STATUS: Record<string, { label: string; chip: string }> = {
   DONE: {
-    label: "완료",
-    chip: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+    label: '완료',
+    chip: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
   },
   IN_PROGRESS: {
-    label: "진행 중",
-    chip: "bg-bridge-accent/15 text-bridge-accent",
+    label: '진행 중',
+    chip: 'bg-bridge-accent/15 text-bridge-accent',
   },
 };
 
@@ -548,25 +508,25 @@ function sprintStatusMeta(status: string): {
   pulse: boolean;
 } {
   switch (status) {
-    case "DONE":
-    case "COMPLETED":
+    case 'DONE':
+    case 'COMPLETED':
       return {
-        label: "완료",
-        cls: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/15",
+        label: '완료',
+        cls: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/15',
         pulse: false,
       };
-    case "PLANNED":
-    case "NOT_STARTED":
+    case 'PLANNED':
+    case 'NOT_STARTED':
       return {
-        label: "예정",
-        cls: "text-slate-400 bg-foreground/[0.06]",
+        label: '예정',
+        cls: 'text-slate-400 bg-foreground/[0.06]',
         pulse: false,
       };
-    case "IN_PROGRESS":
+    case 'IN_PROGRESS':
     default:
       return {
-        label: "진행중",
-        cls: "text-bridge-secondary bg-bridge-secondary/15",
+        label: '진행중',
+        cls: 'text-bridge-secondary bg-bridge-secondary/15',
         pulse: true,
       };
   }
@@ -577,23 +537,21 @@ function SprintBar({ sprint }: { sprint: AutoReportSprint }) {
   const remaining = Math.max(0, total - done - in_progress - delayed);
   const status = sprintStatusMeta(sprint.status);
   const segments = [
-    { key: "done", value: done, cls: "bg-bridge-accent" },
-    { key: "prog", value: in_progress, cls: "bg-bridge-secondary" },
-    { key: "delayed", value: delayed, cls: "bg-amber-500" },
-    { key: "rem", value: remaining, cls: "bg-foreground/15" },
+    { key: 'done', value: done, cls: 'bg-bridge-accent' },
+    { key: 'prog', value: in_progress, cls: 'bg-bridge-secondary' },
+    { key: 'delayed', value: delayed, cls: 'bg-amber-500' },
+    { key: 'rem', value: remaining, cls: 'bg-foreground/15' },
   ];
   return (
     <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3.5">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2.5">
-          <span className="text-sm font-bold text-foreground">
-            {sprint.name}
-          </span>
+          <span className="text-sm font-bold text-foreground">{sprint.name}</span>
           <span
             className={`inline-flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-full ${status.cls}`}
           >
             <span
-              className={`w-1.5 h-1.5 rounded-full bg-current ${status.pulse ? "animate-pulse" : ""}`}
+              className={`w-1.5 h-1.5 rounded-full bg-current ${status.pulse ? 'animate-pulse' : ''}`}
             />
             {status.label}
           </span>
@@ -647,23 +605,15 @@ function Legend({ cls, label, n }: { cls: string; label: string; n: number }) {
 
 /* ── 태스크 상태 마커 ── */
 function TaskMark({ status }: { status: string }) {
-  if (status === "DONE") {
+  if (status === 'DONE') {
     return (
       <span className="w-[15px] h-[15px] rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-        <Check
-          className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400"
-          strokeWidth={3}
-        />
+        <Check className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
       </span>
     );
   }
-  const ring =
-    status === "IN_PROGRESS" ? "border-bridge-accent" : "border-foreground/20";
-  return (
-    <span
-      className={`w-[15px] h-[15px] rounded-full border-2 ${ring} shrink-0`}
-    />
-  );
+  const ring = status === 'IN_PROGRESS' ? 'border-bridge-accent' : 'border-foreground/20';
+  return <span className={`w-[15px] h-[15px] rounded-full border-2 ${ring} shrink-0`} />;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -712,9 +662,9 @@ function Pager({
   const from = page * size + 1;
   const to = Math.min(total, (page + 1) * size);
   const btn =
-    "w-7 h-7 grid place-items-center rounded-lg text-slate-400 transition-colors " +
-    "hover:bg-foreground/5 hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent " +
-    "disabled:hover:text-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50";
+    'w-7 h-7 grid place-items-center rounded-lg text-slate-400 transition-colors ' +
+    'hover:bg-foreground/5 hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent ' +
+    'disabled:hover:text-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50';
   return (
     <div className="flex items-center justify-between gap-2 pt-2 mt-1 border-t border-foreground/[0.06]">
       <span className="text-xs text-slate-500 tabular-nums">
@@ -748,16 +698,10 @@ function Pager({
 }
 
 /* ── 커밋 레포 그룹 (드롭다운, 기본 펼침) ── */
-function CommitRepoGroup({
-  repo,
-  list,
-}: {
-  repo: string;
-  list: AutoReportFeatureCommit[];
-}) {
+function CommitRepoGroup({ repo, list }: { repo: string; list: AutoReportFeatureCommit[] }) {
   const [open, setOpen] = useState(true);
   const paged = usePaged(list);
-  const latest = list[0]?.subject ?? ""; // 헤더 요약 = 최근 커밋 제목
+  const latest = list[0]?.subject ?? ''; // 헤더 요약 = 최근 커밋 제목
   return (
     <div className="border-t border-foreground/[0.06] first:border-t-0">
       <button
@@ -772,12 +716,10 @@ function CommitRepoGroup({
         <span className="shrink-0 text-xs font-bold px-1.5 rounded-full bg-slate-500/15 text-slate-400 tabular-nums">
           {list.length}
         </span>
-        <span className="min-w-0 flex-1 truncate text-xs text-slate-500">
-          {latest}
-        </span>
+        <span className="min-w-0 flex-1 truncate text-xs text-slate-500">{latest}</span>
         <ChevronDown
           className={`w-3.5 h-3.5 text-slate-500 shrink-0 transition-transform ${
-            open ? "rotate-180" : ""
+            open ? 'rotate-180' : ''
           }`}
         />
       </button>
@@ -789,11 +731,7 @@ function CommitRepoGroup({
               className="flex flex-col gap-0.5 py-2 border-t border-foreground/[0.06]"
             >
               <div className="flex items-center gap-2">
-                {c.sha && (
-                  <span className="text-xs font-mono text-bridge-accent">
-                    {c.sha}
-                  </span>
-                )}
+                {c.sha && <span className="text-xs font-mono text-bridge-accent">{c.sha}</span>}
                 {c.estimated && (
                   <span
                     className="text-xs font-bold px-1.5 rounded-full bg-amber-500/15 text-amber-500 ml-auto"
@@ -814,16 +752,12 @@ function CommitRepoGroup({
                   <ArrowUpRight className="w-3 h-3 shrink-0 mt-1" />
                 </a>
               ) : (
-                <span className="text-sm text-foreground leading-snug">
-                  {c.subject}
-                </span>
+                <span className="text-sm text-foreground leading-snug">{c.subject}</span>
               )}
               <div className="text-xs text-slate-500 tabular-nums flex gap-2 flex-wrap">
                 {c.author && <span>{c.author}</span>}
                 {c.at && <span>· {c.at}</span>}
-                {c.changed_files != null && (
-                  <span>· {c.changed_files} files</span>
-                )}
+                {c.changed_files != null && <span>· {c.changed_files} files</span>}
               </div>
             </div>
           ))}
@@ -844,13 +778,11 @@ function CommitRepoGroup({
 /* ── 커밋 목록 (레포별 드롭다운) ── */
 function CommitList({ commits }: { commits: AutoReportFeatureCommit[] }) {
   if (commits.length === 0) {
-    return (
-      <p className="text-xs text-slate-500 py-1">연결된 커밋이 없습니다.</p>
-    );
+    return <p className="text-xs text-slate-500 py-1">연결된 커밋이 없습니다.</p>;
   }
   const byRepo = new Map<string, AutoReportFeatureCommit[]>();
   for (const c of commits) {
-    const repo = c.repo ?? "기타";
+    const repo = c.repo ?? '기타';
     if (!byRepo.has(repo)) byRepo.set(repo, []);
     byRepo.get(repo)!.push(c);
   }
@@ -890,13 +822,11 @@ function EvidenceSection({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         className={`w-full flex items-center gap-1.5 px-4 py-3 bg-foreground/[0.03] text-left transition-colors hover:bg-foreground/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-accent/50 ${
-          open ? "border-b border-foreground/[0.06]" : ""
+          open ? 'border-b border-foreground/[0.06]' : ''
         }`}
       >
         {icon}
-        <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-          {label}
-        </span>
+        <span className="text-xs font-bold uppercase tracking-widest text-slate-400">{label}</span>
         {isNew && (
           <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
             신규
@@ -909,7 +839,7 @@ function EvidenceSection({
         </span>
         <ChevronDown
           className={`w-3.5 h-3.5 text-slate-500 shrink-0 transition-transform ${
-            open ? "" : "-rotate-90"
+            open ? '' : '-rotate-90'
           }`}
         />
       </button>
@@ -925,16 +855,14 @@ function FeatureTaskRow({ task }: { task: AutoReportFeatureTask }) {
 
   const total = checklist.length;
   const done = checklist.filter((c) => c.done).length;
-  const people = [
-    ...new Set(checklist.map((c) => c.assignee).filter(Boolean) as string[]),
-  ];
+  const people = [...new Set(checklist.map((c) => c.assignee).filter(Boolean) as string[])];
   // 헤더 요약 한 줄: "2/4 완료 · 정소연 외 2명"
   const summary =
     total > 0
       ? `${done}/${total} 완료` +
         (people.length
-          ? ` · ${people[0]}${people.length > 1 ? ` 외 ${people.length - 1}명` : ""}`
-          : "")
+          ? ` · ${people[0]}${people.length > 1 ? ` 외 ${people.length - 1}명` : ''}`
+          : '')
       : null;
 
   return (
@@ -949,21 +877,19 @@ function FeatureTaskRow({ task }: { task: AutoReportFeatureTask }) {
         <TaskMark status={task.status} />
         <span
           className={`text-sm font-medium truncate ${
-            task.status === "DONE" ? "text-slate-400" : "text-foreground"
+            task.status === 'DONE' ? 'text-slate-400' : 'text-foreground'
           }`}
         >
           {task.title}
         </span>
         {summary && (
-          <span className="ml-auto shrink-0 text-xs text-slate-500 tabular-nums">
-            {summary}
-          </span>
+          <span className="ml-auto shrink-0 text-xs text-slate-500 tabular-nums">{summary}</span>
         )}
         {total > 0 && (
           <ChevronDown
             className={`w-3.5 h-3.5 text-slate-500 shrink-0 transition-transform ${
-              open ? "rotate-180" : ""
-            } ${summary ? "" : "ml-auto"}`}
+              open ? 'rotate-180' : ''
+            } ${summary ? '' : 'ml-auto'}`}
           />
         )}
       </button>
@@ -973,26 +899,16 @@ function FeatureTaskRow({ task }: { task: AutoReportFeatureTask }) {
             <li key={i} className="flex items-center gap-2 text-sm">
               <span
                 className={`shrink-0 w-4 h-4 rounded flex items-center justify-center border ${
-                  item.done
-                    ? "bg-emerald-500 border-emerald-500"
-                    : "border-slate-600"
+                  item.done ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600'
                 }`}
               >
-                {item.done && (
-                  <Check className="w-2.5 h-2.5 text-white" strokeWidth={3.5} />
-                )}
+                {item.done && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3.5} />}
               </span>
-              <span
-                className={
-                  item.done ? "text-slate-500 line-through" : "text-foreground"
-                }
-              >
+              <span className={item.done ? 'text-slate-500 line-through' : 'text-foreground'}>
                 {item.title}
               </span>
               {item.assignee && (
-                <span className="ml-auto shrink-0 text-xs text-slate-500">
-                  {item.assignee}
-                </span>
+                <span className="ml-auto shrink-0 text-xs text-slate-500">{item.assignee}</span>
               )}
             </li>
           ))}
@@ -1005,26 +921,19 @@ function FeatureTaskRow({ task }: { task: AutoReportFeatureTask }) {
 /* ── 연관 문서 한 줄 (Confluence, 기능 근거용 컴팩트 뷰) ── */
 function FeatureConfluenceRow({ doc }: { doc: AutoReportConfluenceDoc }) {
   const meta =
-    CONFLUENCE_CHANGE_META.find((m) => m.key === doc.change_type) ??
-    CONFLUENCE_CHANGE_META[1];
-  const deleted = doc.change_type === "deleted";
+    CONFLUENCE_CHANGE_META.find((m) => m.key === doc.change_type) ?? CONFLUENCE_CHANGE_META[1];
+  const deleted = doc.change_type === 'deleted';
   const label =
-    doc.change_type === "added"
-      ? "추가"
-      : doc.change_type === "deleted"
-        ? "삭제"
-        : "수정";
+    doc.change_type === 'added' ? '추가' : doc.change_type === 'deleted' ? '삭제' : '수정';
   return (
     <div className="py-3 border-t border-foreground/[0.06] first:border-t-0 flex items-start gap-2.5">
-      <span
-        className={`shrink-0 mt-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full ${meta.pill}`}
-      >
+      <span className={`shrink-0 mt-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full ${meta.pill}`}>
         {label}
       </span>
       <div className="flex flex-col gap-0.5 min-w-0">
         <span
           className={`text-sm font-medium break-words ${
-            deleted ? "text-slate-500 line-through" : "text-foreground"
+            deleted ? 'text-slate-500 line-through' : 'text-foreground'
           }`}
         >
           {doc.title}
@@ -1033,7 +942,7 @@ function FeatureConfluenceRow({ doc }: { doc: AutoReportConfluenceDoc }) {
           <span className="text-xs text-slate-500">
             {[doc.author, doc.updated_at ? formatDate(doc.updated_at) : null]
               .filter(Boolean)
-              .join(" · ")}
+              .join(' · ')}
           </span>
         )}
         {!deleted && doc.url && (
@@ -1055,8 +964,7 @@ function FeatureConfluenceRow({ doc }: { doc: AutoReportConfluenceDoc }) {
 /* ── 기능 상세 (헤더 + 요약 + 근거: 태스크·체크리스트 / 커밋 / 연관 문서) ── */
 function FeatureDetail({ feature }: { feature: AutoReportFeature }) {
   const status = FEATURE_STATUS[feature.status] ?? FEATURE_STATUS.IN_PROGRESS;
-  const barColor =
-    feature.status === "DONE" ? "bg-emerald-500" : "bg-bridge-accent";
+  const barColor = feature.status === 'DONE' ? 'bg-emerald-500' : 'bg-bridge-accent';
   const assignees = (feature.assignees ?? []).filter(Boolean);
   const tasks = feature.tasks ?? [];
   const commits = feature.commits ?? [];
@@ -1067,19 +975,13 @@ function FeatureDetail({ feature }: { feature: AutoReportFeature }) {
       {/* 헤더 + 요약 */}
       <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3">
         <div className="flex items-center gap-2">
-          <h3 className="text-base font-bold text-foreground flex-1">
-            {feature.name}
-          </h3>
-          <span
-            className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${status.chip}`}
-          >
+          <h3 className="text-base font-bold text-foreground flex-1">{feature.name}</h3>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${status.chip}`}>
             {status.label}
           </span>
         </div>
         {feature.description && (
-          <p className="text-sm text-slate-400 leading-relaxed">
-            {feature.description}
-          </p>
+          <p className="text-sm text-slate-400 leading-relaxed">{feature.description}</p>
         )}
         <div className="flex items-center gap-2.5">
           <span className="flex-1 h-1.5 rounded-full bg-foreground/10 overflow-hidden">
@@ -1170,15 +1072,13 @@ function FeatureDetail({ feature }: { feature: AutoReportFeature }) {
 /** 그 기간에 변경/추가된 근거가 있는 기능인지 — 백엔드 요약 생성 기준과 동일(커밋·연관 문서·완료 태스크). */
 function featureHasEvidence(f: AutoReportFeature): boolean {
   return (
-    (f.commits?.length ?? 0) > 0 ||
-    (f.confluence_docs?.length ?? 0) > 0 ||
-    (f.task_done ?? 0) > 0
+    (f.commits?.length ?? 0) > 0 || (f.confluence_docs?.length ?? 0) > 0 || (f.task_done ?? 0) > 0
   );
 }
 
 type FeatureTabItem =
-  | { id: string; kind: "feature"; feature: AutoReportFeature }
-  | { id: string; kind: "category"; category: AutoReportCommitCategory };
+  | { id: string; kind: 'feature'; feature: AutoReportFeature }
+  | { id: string; kind: 'category'; category: AutoReportCommitCategory };
 
 /* ── 기능별 진행 현황: 기능 탭 + 미매핑 커밋 카테고리 탭 ── */
 function FeatureProgressTabs({
@@ -1195,53 +1095,50 @@ function FeatureProgressTabs({
       i,
       ev: featureHasEvidence(f),
     }));
-    const ordered = [
-      ...indexed.filter((x) => x.ev),
-      ...indexed.filter((x) => !x.ev),
-    ];
+    const ordered = [...indexed.filter((x) => x.ev), ...indexed.filter((x) => !x.ev)];
     const fx: FeatureTabItem[] = ordered.map((x) => ({
       id: `f${x.i}`,
-      kind: "feature",
+      kind: 'feature',
       feature: x.f,
     }));
     const cx: FeatureTabItem[] = categories
       .filter((c) => (c.commits?.length ?? 0) > 0)
-      .map((c, i) => ({ id: `c${i}`, kind: "category", category: c }));
+      .map((c, i) => ({ id: `c${i}`, kind: 'category', category: c }));
     return [...fx, ...cx];
   }, [features, categories]);
 
-  const [active, setActive] = useState<string>(items[0]?.id ?? "");
+  const [active, setActive] = useState<string>(items[0]?.id ?? '');
   const activeItem = items.find((it) => it.id === active) ?? items[0];
   if (!activeItem) return null;
 
-  const featureItems = items.filter((it) => it.kind === "feature");
-  const categoryItems = items.filter((it) => it.kind === "category");
+  const featureItems = items.filter((it) => it.kind === 'feature');
+  const categoryItems = items.filter((it) => it.kind === 'category');
   const evidencedItems = featureItems.filter(
-    (it) => it.kind === "feature" && featureHasEvidence(it.feature),
+    (it) => it.kind === 'feature' && featureHasEvidence(it.feature),
   );
   const idleItems = featureItems.filter(
-    (it) => it.kind === "feature" && !featureHasEvidence(it.feature),
+    (it) => it.kind === 'feature' && !featureHasEvidence(it.feature),
   );
 
   const tabClass = (selected: boolean) =>
     `shrink-0 whitespace-nowrap flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
       selected
-        ? "bg-bridge-obsidian text-foreground shadow"
-        : "text-slate-400 hover:text-foreground"
+        ? 'bg-bridge-obsidian text-foreground shadow'
+        : 'text-slate-400 hover:text-foreground'
     }`;
   const countClass = (selected: boolean, accent: boolean) =>
     `text-xs font-bold px-1.5 rounded-full tabular-nums ${
       selected
         ? accent
-          ? "bg-bridge-accent/15 text-bridge-accent"
-          : "bg-slate-500/15 text-slate-400"
-        : "bg-foreground/[0.06] text-slate-500"
+          ? 'bg-bridge-accent/15 text-bridge-accent'
+          : 'bg-slate-500/15 text-slate-400'
+        : 'bg-foreground/[0.06] text-slate-500'
     }`;
 
   const renderFeatureTab = (it: FeatureTabItem, idle: boolean) => {
-    if (it.kind !== "feature") return null;
+    if (it.kind !== 'feature') return null;
     const selected = it.id === activeItem.id;
-    const done = it.feature.status === "DONE";
+    const done = it.feature.status === 'DONE';
     return (
       <button
         key={it.id}
@@ -1249,11 +1146,11 @@ function FeatureProgressTabs({
         type="button"
         aria-selected={selected}
         onClick={() => setActive(it.id)}
-        className={`${tabClass(selected)}${idle ? " opacity-50" : ""}`}
+        className={`${tabClass(selected)}${idle ? ' opacity-50' : ''}`}
       >
         <span
           className={`w-1.5 h-1.5 rounded-full ${
-            idle ? "bg-slate-500" : done ? "bg-emerald-500" : "bg-bridge-accent"
+            idle ? 'bg-slate-500' : done ? 'bg-emerald-500' : 'bg-bridge-accent'
           }`}
         />
         {it.feature.name}
@@ -1274,9 +1171,7 @@ function FeatureProgressTabs({
 
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-xs md:text-sm font-bold text-foreground">
-        기능별 진행 현황
-      </h2>
+      <h2 className="text-xs md:text-sm font-bold text-foreground">기능별 진행 현황</h2>
 
       {/* 가로 스크롤 한 줄 — 근거 있는 기능 앞, 구분선 뒤로 미착수·미매핑 */}
       <div
@@ -1286,19 +1181,17 @@ function FeatureProgressTabs({
       >
         {evidencedItems.map((it) => renderFeatureTab(it, false))}
 
-        {evidencedItems.length > 0 &&
-          idleItems.length > 0 &&
-          tabDivider("d-idle")}
+        {evidencedItems.length > 0 && idleItems.length > 0 && tabDivider('d-idle')}
         {idleItems.map((it) => renderFeatureTab(it, true))}
 
         {categoryItems.length > 0 && (
           <>
-            {tabDivider("d-cat")}
+            {tabDivider('d-cat')}
             <span className="shrink-0 self-center whitespace-nowrap text-xs font-bold uppercase tracking-widest text-slate-600 px-1">
               미매핑 커밋
             </span>
             {categoryItems.map((it) => {
-              if (it.kind !== "category") return null;
+              if (it.kind !== 'category') return null;
               const selected = it.id === activeItem.id;
               return (
                 <button
@@ -1322,21 +1215,17 @@ function FeatureProgressTabs({
 
       {/* 선택된 탭의 내용을 하나의 트레이로 묶어 "이 탭의 결과"임을 드러낸다 */}
       <div className="rounded-[18px] border border-foreground/[0.08] bg-foreground/[0.03] p-3">
-        {activeItem.kind === "feature" ? (
+        {activeItem.kind === 'feature' ? (
           <FeatureDetail feature={activeItem.feature} />
         ) : (
           <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-foreground">
-                {activeItem.category.label}
-              </h3>
+              <h3 className="text-sm font-bold text-foreground">{activeItem.category.label}</h3>
               <span className="text-xs text-slate-500 ml-auto tabular-nums">
                 커밋 {activeItem.category.commits?.length ?? 0}건
               </span>
             </div>
-            <p className="text-xs text-slate-500">
-              어느 기능에도 연결되지 않은 커밋입니다.
-            </p>
+            <p className="text-xs text-slate-500">어느 기능에도 연결되지 않은 커밋입니다.</p>
             <CommitList commits={activeItem.category.commits ?? []} />
           </div>
         )}
@@ -1350,11 +1239,7 @@ function FeatureProgressTabs({
    ══════════════════════════════════════════════════════════════════════ */
 
 /* ── 클러스터가 어떤 신호로 묶였는지 칩 ── */
-function ClusterSignalChips({
-  signals,
-}: {
-  signals: AutoReportClusterSignal[];
-}) {
+function ClusterSignalChips({ signals }: { signals: AutoReportClusterSignal[] }) {
   if (signals.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -1374,33 +1259,25 @@ function ClusterSignalChips({
 }
 
 /* ── 클러스터 신뢰도 뱃지 ── */
-function ConfidenceBadge({
-  confidence,
-  kind,
-}: {
-  confidence: string | null;
-  kind: string | null;
-}) {
-  if (kind === "infra") {
+function ConfidenceBadge({ confidence, kind }: { confidence: string | null; kind: string | null }) {
+  if (kind === 'infra') {
     return (
       <span className="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full bg-slate-500/15 text-slate-400">
         귀속 안 함
       </span>
     );
   }
-  const high = confidence === "HIGH";
+  const high = confidence === 'HIGH';
   return (
     <span
       className={`shrink-0 inline-flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-full ${
         high
-          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-          : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+          : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
       }`}
     >
-      <span
-        className={`w-1.5 h-1.5 rounded-full ${high ? "bg-emerald-500" : "bg-amber-500"}`}
-      />
-      신뢰도 {high ? "높음" : "보통"}
+      <span className={`w-1.5 h-1.5 rounded-full ${high ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+      신뢰도 {high ? '높음' : '보통'}
     </span>
   );
 }
@@ -1411,27 +1288,22 @@ function ClusterDetail({ cluster }: { cluster: AutoReportCluster }) {
   const tasks = cluster.tasks ?? [];
   const docs = cluster.confluence_docs ?? [];
   const signals = cluster.signals ?? [];
-  const isInfra = cluster.kind === "infra";
+  const isInfra = cluster.kind === 'infra';
 
   return (
     <div className="flex flex-col gap-3">
       {/* 헤더 + 요약 + 신호 */}
       <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3">
         <div className="flex items-start gap-2">
-          <h3 className="text-base font-bold text-foreground flex-1">
-            {cluster.title}
-          </h3>
-          <ConfidenceBadge
-            confidence={cluster.confidence}
-            kind={cluster.kind}
-          />
+          <h3 className="text-base font-bold text-foreground flex-1">{cluster.title}</h3>
+          <ConfidenceBadge confidence={cluster.confidence} kind={cluster.kind} />
         </div>
         {cluster.summary && (
           <div
             className={
               isInfra
-                ? "text-sm text-slate-400 leading-relaxed"
-                : "rounded-xl bg-bridge-accent/[0.06] border border-bridge-accent/20 p-4 flex flex-col gap-1.5"
+                ? 'text-sm text-slate-400 leading-relaxed'
+                : 'rounded-xl bg-bridge-accent/[0.06] border border-bridge-accent/20 p-4 flex flex-col gap-1.5'
             }
           >
             {!isInfra && (
@@ -1442,9 +1314,7 @@ function ClusterDetail({ cluster }: { cluster: AutoReportCluster }) {
             )}
             <p
               className={
-                isInfra
-                  ? ""
-                  : "text-sm text-foreground leading-relaxed whitespace-pre-wrap"
+                isInfra ? '' : 'text-sm text-foreground leading-relaxed whitespace-pre-wrap'
               }
             >
               {cluster.summary}
@@ -1508,15 +1378,15 @@ function ClusterDetail({ cluster }: { cluster: AutoReportCluster }) {
 
 /* ── 구성원 뷰: 커밋 한 줄 (소속 클러스터 태그) ── */
 function MemberCommitRow({ commit }: { commit: AutoReportMemberCommit }) {
-  const type = commit.type ?? "other";
+  const type = commit.type ?? 'other';
   const typeClass =
-    type === "fix"
-      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-      : type === "refactor" || type === "perf"
-        ? "bg-bridge-secondary/15 text-bridge-secondary"
-        : type === "chore" || type === "ci" || type === "build"
-          ? "bg-slate-500/15 text-slate-400"
-          : "bg-bridge-accent/15 text-bridge-accent";
+    type === 'fix'
+      ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+      : type === 'refactor' || type === 'perf'
+        ? 'bg-bridge-secondary/15 text-bridge-secondary'
+        : type === 'chore' || type === 'ci' || type === 'build'
+          ? 'bg-slate-500/15 text-slate-400'
+          : 'bg-bridge-accent/15 text-bridge-accent';
   return (
     <div className="py-2.5 border-t border-foreground/[0.06] first:border-t-0 flex items-start gap-2.5">
       <span
@@ -1535,20 +1405,14 @@ function MemberCommitRow({ commit }: { commit: AutoReportMemberCommit }) {
             {commit.subject}
           </a>
         ) : (
-          <span className="text-sm text-foreground break-words">
-            {commit.subject}
-          </span>
+          <span className="text-sm text-foreground break-words">{commit.subject}</span>
         )}
         <span className="text-xs text-slate-500 flex flex-wrap gap-x-2 gap-y-0.5">
           {commit.sha && (
-            <span className="font-mono text-bridge-accent">
-              {commit.sha.slice(0, 8)}
-            </span>
+            <span className="font-mono text-bridge-accent">{commit.sha.slice(0, 8)}</span>
           )}
           {commit.at && <span>{formatDate(commit.at)}</span>}
-          {commit.cluster_title && (
-            <span className="text-slate-600">→ {commit.cluster_title}</span>
-          )}
+          {commit.cluster_title && <span className="text-slate-600">→ {commit.cluster_title}</span>}
         </span>
       </div>
     </div>
@@ -1561,9 +1425,7 @@ function MemberSlackRow({ msg }: { msg: AutoReportMemberSlackMessage }) {
     <div className="py-2.5 border-t border-foreground/[0.06] first:border-t-0 flex flex-col gap-2">
       <div className="text-sm text-foreground">
         {msg.channel && (
-          <span className="font-mono text-xs text-bridge-secondary mr-1.5">
-            #{msg.channel}
-          </span>
+          <span className="font-mono text-xs text-bridge-secondary mr-1.5">#{msg.channel}</span>
         )}
         {msg.text}
       </div>
@@ -1572,10 +1434,8 @@ function MemberSlackRow({ msg }: { msg: AutoReportMemberSlackMessage }) {
 }
 
 function MemberMediaThumb({ media }: { media: AutoReportAttachment }) {
-  const isVideo = media.type === "video";
-  const href = isVideo
-    ? (media.link ?? media.url ?? undefined)
-    : (media.url ?? undefined);
+  const isVideo = media.type === 'video';
+  const href = isVideo ? (media.link ?? media.url ?? undefined) : (media.url ?? undefined);
   return (
     <a
       href={href}
@@ -1587,7 +1447,7 @@ function MemberMediaThumb({ media }: { media: AutoReportAttachment }) {
       {media.url ? (
         <img
           src={media.url}
-          alt={media.title ?? "공유 자료"}
+          alt={media.title ?? '공유 자료'}
           loading="lazy"
           className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
         />
@@ -1599,10 +1459,7 @@ function MemberMediaThumb({ media }: { media: AutoReportAttachment }) {
       {isVideo && (
         <span className="absolute inset-0 flex items-center justify-center">
           <span className="flex items-center justify-center w-7 h-7 rounded-full bg-black/60">
-            <Play
-              className="w-3.5 h-3.5 text-white translate-x-[1px]"
-              fill="currentColor"
-            />
+            <Play className="w-3.5 h-3.5 text-white translate-x-[1px]" fill="currentColor" />
           </span>
         </span>
       )}
@@ -1611,41 +1468,39 @@ function MemberMediaThumb({ media }: { media: AutoReportAttachment }) {
 }
 
 /* ── 담당자 체크리스트 버킷(지연/진행중/오늘 완료) ── */
-type ChecklistBucket = "late" | "progress" | "done";
+type ChecklistBucket = 'late' | 'progress' | 'done';
 
-const CHECKLIST_BUCKET_META: Record<
-  ChecklistBucket,
-  { label: string; text: string; box: string }
-> = {
-  late: {
-    label: "지연",
-    text: "text-rose-600 dark:text-rose-400",
-    box: "border-rose-500/60",
-  },
-  progress: {
-    label: "진행중",
-    text: "text-amber-600 dark:text-amber-400",
-    box: "border-amber-500/60",
-  },
-  done: {
-    label: "완료",
-    text: "text-emerald-600 dark:text-emerald-400",
-    box: "border-emerald-500",
-  },
-};
+const CHECKLIST_BUCKET_META: Record<ChecklistBucket, { label: string; text: string; box: string }> =
+  {
+    late: {
+      label: '지연',
+      text: 'text-rose-600 dark:text-rose-400',
+      box: 'border-rose-500/60',
+    },
+    progress: {
+      label: '진행중',
+      text: 'text-amber-600 dark:text-amber-400',
+      box: 'border-amber-500/60',
+    },
+    done: {
+      label: '완료',
+      text: 'text-emerald-600 dark:text-emerald-400',
+      box: 'border-emerald-500',
+    },
+  };
 
 /**
  * 완료 버킷 라벨은 <b>보고 주기를 따른다</b> — 백엔드가 일간은 직전 24시간, 주간은 그 주 전체를
  * 완료로 노출하기 때문이다. 라벨을 "오늘 완료"로 고정하면 주간에서 사실과 어긋난다.
  */
 function doneBucketLabel(isWeekly: boolean): string {
-  return isWeekly ? "이번 주 완료" : "오늘 완료";
+  return isWeekly ? '이번 주 완료' : '오늘 완료';
 }
 
 function bucketOf(item: AutoReportMemberChecklistChange): ChecklistBucket {
   const s = item.status;
-  if (s === "late" || s === "progress" || s === "done") return s;
-  return item.done ? "done" : "progress";
+  if (s === 'late' || s === 'progress' || s === 'done') return s;
+  return item.done ? 'done' : 'progress';
 }
 
 /**
@@ -1661,9 +1516,7 @@ function checklistItemHref(
 ): string | null {
   // view=kanban을 반드시 실어야 한다 — 보드는 마지막으로 보던 탭을 localStorage에서 복원하므로,
   // 이게 없으면 보고서 탭 위에 모달만 뜨거나 엉뚱한 화면에 착지한다.
-  const highlight = item.item_id
-    ? `&checklist=${encodeURIComponent(item.item_id)}`
-    : "";
+  const highlight = item.item_id ? `&checklist=${encodeURIComponent(item.item_id)}` : '';
   if (item.task_key) {
     return `/t/${encodeURIComponent(item.task_key)}?view=kanban${highlight}`;
   }
@@ -1679,11 +1532,7 @@ function checklistItemHref(
  * 보고서 → 보드 진입점. 담당자 필터를 걸고, 지연이 있으면 마감 지난 카드만 남긴 상태로 연다.
  * 항목 단위 딥링크가 못 주는 "이 사람 앞에 쌓인 것 전체"를 한 화면에 세우는 용도다.
  */
-function boardMemberHref(
-  boardId: string,
-  memberName: string,
-  overdueOnly: boolean,
-): string {
+function boardMemberHref(boardId: string, memberName: string, overdueOnly: boolean): string {
   const base = `/boards/${encodeURIComponent(boardId)}?view=kanban&member=${encodeURIComponent(memberName)}`;
   return overdueOnly ? `${base}&overdue=1` : base;
 }
@@ -1697,7 +1546,7 @@ function ChecklistBucketRow({
   bucket: ChecklistBucket;
   boardId?: string | null;
 }) {
-  const done = bucket === "done";
+  const done = bucket === 'done';
   const href = checklistItemHref(item, boardId);
   const body = (
     <>
@@ -1712,8 +1561,8 @@ function ChecklistBucketRow({
       )}
       <div className="min-w-0 flex-1">
         <div
-          className={`${done ? "text-slate-400 line-through" : "text-foreground"} ${
-            href ? "group-hover/item:text-bridge-accent transition-colors" : ""
+          className={`${done ? 'text-slate-400 line-through' : 'text-foreground'} ${
+            href ? 'group-hover/item:text-bridge-accent transition-colors' : ''
           }`}
         >
           {item.title}
@@ -1723,25 +1572,21 @@ function ChecklistBucketRow({
         </div>
         <div className="flex items-center gap-2 flex-wrap mt-0.5">
           {item.context && (
-            <span className="text-xs text-slate-500 truncate max-w-[60%]">
-              {item.context}
-            </span>
+            <span className="text-xs text-slate-500 truncate max-w-[60%]">{item.context}</span>
           )}
-          {bucket === "late" && item.due_date && (
+          {bucket === 'late' && item.due_date && (
             <span className="text-xs text-slate-500">
               마감 {formatDate(item.due_date)}
               {(item.overdue_days ?? 0) > 0 && (
                 <span className="text-rose-600 dark:text-rose-400 font-bold">
-                  {" "}
+                  {' '}
                   · {item.overdue_days}일 지남
                 </span>
               )}
             </span>
           )}
-          {bucket === "progress" && item.due_date && (
-            <span className="text-xs text-slate-500">
-              마감 {formatDate(item.due_date)}
-            </span>
+          {bucket === 'progress' && item.due_date && (
+            <span className="text-xs text-slate-500">마감 {formatDate(item.due_date)}</span>
           )}
         </div>
       </div>
@@ -1805,25 +1650,19 @@ function MemberDetail({
             {getInitials(member.name)}
           </span>
           <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-base font-bold text-foreground truncate">
-              {member.name}
-            </span>
+            <span className="text-base font-bold text-foreground truncate">{member.name}</span>
             {member.login && (
-              <span className="text-xs text-slate-500 font-mono">
-                @{member.login}
-              </span>
+              <span className="text-xs text-slate-500 font-mono">@{member.login}</span>
             )}
           </div>
           <div className="flex gap-3 shrink-0">
             {[
-              { n: member.commit_count, c: "커밋" },
-              { n: member.slack_count, c: "슬랙" },
-              { n: member.checklist_count, c: "체크리스트" },
+              { n: member.commit_count, c: '커밋' },
+              { n: member.slack_count, c: '슬랙' },
+              { n: member.checklist_count, c: '체크리스트' },
             ].map((t) => (
               <div key={t.c} className="text-center">
-                <div className="text-base font-bold text-foreground tabular-nums">
-                  {t.n}
-                </div>
+                <div className="text-base font-bold text-foreground tabular-nums">{t.n}</div>
                 <div className="text-xs text-slate-500">{t.c}</div>
               </div>
             ))}
@@ -1834,17 +1673,13 @@ function MemberDetail({
             지연이 있으면 색으로 급함을 드러낸다. */}
         {boardId && (
           <a
-            href={boardMemberHref(
-              boardId,
-              member.name,
-              (member.late_count ?? 0) > 0,
-            )}
+            href={boardMemberHref(boardId, member.name, (member.late_count ?? 0) > 0)}
             target="_blank"
             rel="noreferrer noopener"
             className={`inline-flex items-center gap-1.5 self-start text-xs font-bold px-2.5 py-1.5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
               (member.late_count ?? 0) > 0
-                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25"
-                : "bg-foreground/5 text-slate-400 hover:bg-foreground/10 hover:text-foreground"
+                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25'
+                : 'bg-foreground/5 text-slate-400 hover:bg-foreground/10 hover:text-foreground'
             }`}
           >
             <Columns3 className="w-3.5 h-3.5" />
@@ -1882,7 +1717,7 @@ function MemberDetail({
                 </>
               );
               const cls =
-                "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-bridge-secondary/15 text-bridge-secondary";
+                'inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-bridge-secondary/15 text-bridge-secondary';
               return clickable ? (
                 <button
                   key={i}
@@ -1954,9 +1789,7 @@ function MemberDetail({
       {/* 슬랙 */}
       {slack.length > 0 && (
         <EvidenceSection
-          icon={
-            <MessagesSquare className="w-3.5 h-3.5 text-bridge-secondary" />
-          }
+          icon={<MessagesSquare className="w-3.5 h-3.5 text-bridge-secondary" />}
           label="슬랙"
           count={slack.length}
           countClass="bg-bridge-secondary/15 text-bridge-secondary"
@@ -1994,7 +1827,7 @@ function MemberDetail({
           countClass="bg-bridge-accent/15 text-bridge-accent"
         >
           <div className="px-4 py-3 flex flex-col gap-3">
-            {(["late", "progress", "done"] as const).map((bucket) => {
+            {(['late', 'progress', 'done'] as const).map((bucket) => {
               const items = checklist.filter((c) => bucketOf(c) === bucket);
               if (items.length === 0) return null;
               const meta = CHECKLIST_BUCKET_META[bucket];
@@ -2003,28 +1836,15 @@ function MemberDetail({
                   <div
                     className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider ${meta.text}`}
                   >
-                    {bucket === "late" && <AlertTriangle className="w-3 h-3" />}
-                    {bucket === "progress" && <Clock className="w-3 h-3" />}
-                    {bucket === "done" && (
-                      <Check className="w-3 h-3" strokeWidth={3} />
-                    )}
-                    <span>
-                      {bucket === "done"
-                        ? doneBucketLabel(isWeekly)
-                        : meta.label}
-                    </span>
-                    <span className="text-slate-500 tabular-nums">
-                      {items.length}
-                    </span>
+                    {bucket === 'late' && <AlertTriangle className="w-3 h-3" />}
+                    {bucket === 'progress' && <Clock className="w-3 h-3" />}
+                    {bucket === 'done' && <Check className="w-3 h-3" strokeWidth={3} />}
+                    <span>{bucket === 'done' ? doneBucketLabel(isWeekly) : meta.label}</span>
+                    <span className="text-slate-500 tabular-nums">{items.length}</span>
                   </div>
                   <ul className="flex flex-col gap-1">
                     {items.map((item, i) => (
-                      <ChecklistBucketRow
-                        key={i}
-                        item={item}
-                        bucket={bucket}
-                        boardId={boardId}
-                      />
+                      <ChecklistBucketRow key={i} item={item} bucket={bucket} boardId={boardId} />
                     ))}
                   </ul>
                 </div>
@@ -2067,16 +1887,16 @@ function ReportDrawer({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.stopPropagation();
         onClose();
       }
     };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [open, onClose]);
 
-  if (typeof document === "undefined") return null;
+  if (typeof document === 'undefined') return null;
 
   return createPortal(
     <>
@@ -2084,7 +1904,7 @@ function ReportDrawer({
         aria-hidden={!open}
         onClick={onClose}
         className={`fixed inset-0 z-[90] bg-black/50 transition-opacity duration-200 ${
-          open ? "opacity-100" : "opacity-0 pointer-events-none"
+          open ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       />
       <aside
@@ -2092,13 +1912,11 @@ function ReportDrawer({
         aria-modal="true"
         aria-label={title}
         className={`fixed top-0 right-0 bottom-0 z-[100] w-full sm:max-w-md bg-bridge-dark border-l border-foreground/10 shadow-2xl flex flex-col transition-transform duration-300 ease-out ${
-          open ? "translate-x-0" : "translate-x-full"
+          open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-foreground/[0.08]">
-          <h2 className="text-sm font-bold text-foreground truncate">
-            {title}
-          </h2>
+          <h2 className="text-sm font-bold text-foreground truncate">{title}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -2118,11 +1936,7 @@ function ReportDrawer({
 }
 
 /* ── 원본 소스 패널: GitHub 커밋 ── */
-function GithubSourcePanel({
-  commitsByRepo,
-}: {
-  commitsByRepo: Record<string, CommitRow[]>;
-}) {
+function GithubSourcePanel({ commitsByRepo }: { commitsByRepo: Record<string, CommitRow[]> }) {
   return (
     <>
       {Object.entries(commitsByRepo).map(([repo, commits]) => (
@@ -2159,16 +1973,12 @@ function GithubSourcePanel({
                       <ArrowUpRight className="w-3 h-3 shrink-0 mt-1" />
                     </a>
                   ) : (
-                    <span className="text-sm text-foreground break-words">
-                      {commit.subject}
-                    </span>
+                    <span className="text-sm text-foreground break-words">{commit.subject}</span>
                   )}
                 </div>
                 <span className="text-xs text-slate-500 tabular-nums">
-                  {[commit.author, commit.at].filter(Boolean).join(" · ")}
-                  {commit.changed_files
-                    ? ` · ${commit.changed_files} files`
-                    : ""}
+                  {[commit.author, commit.at].filter(Boolean).join(' · ')}
+                  {commit.changed_files ? ` · ${commit.changed_files} files` : ''}
                 </span>
               </div>
             ))}
@@ -2197,7 +2007,7 @@ function KanbanSourcePanel({ groups }: { groups: KanbanGroups }) {
               <KanbanTaskCard
                 key={task.key ?? `${key}-${i}`}
                 task={task}
-                overdue={key === "overdue"}
+                overdue={key === 'overdue'}
               />
             ))}
           </div>
@@ -2212,20 +2022,14 @@ function ConfluenceSourcePanel({ confluence }: { confluence: ConfluenceData }) {
   return (
     <>
       {confluence.changelogs.map((cl, ci) => {
-        const groups = CONFLUENCE_CHANGE_META.filter(
-          (g) => (cl[g.key]?.length ?? 0) > 0,
-        );
+        const groups = CONFLUENCE_CHANGE_META.filter((g) => (cl[g.key]?.length ?? 0) > 0);
         if (groups.length === 0) return null;
         return (
           <div key={ci} className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-bridge-secondary" />
-              <h3 className="text-xs md:text-sm font-bold text-foreground">
-                문서 변경내역
-              </h3>
-              {cl.space && (
-                <span className="text-xs text-slate-500">{cl.space}</span>
-              )}
+              <h3 className="text-xs md:text-sm font-bold text-foreground">문서 변경내역</h3>
+              {cl.space && <span className="text-xs text-slate-500">{cl.space}</span>}
             </div>
             {groups.map((g) => {
               const docs = cl[g.key] ?? [];
@@ -2240,16 +2044,14 @@ function ConfluenceSourcePanel({ confluence }: { confluence: ConfluenceData }) {
                     <ConfluenceDocCard
                       key={doc.id ?? `${doc.title}-${di}`}
                       doc={doc}
-                      deleted={g.key === "deleted"}
+                      deleted={g.key === 'deleted'}
                     />
                   ))}
                 </div>
               );
             })}
             {cl.truncated && (
-              <span className="text-xs text-slate-600">
-                일부 문서는 분량 제한으로 생략됨
-              </span>
+              <span className="text-xs text-slate-600">일부 문서는 분량 제한으로 생략됨</span>
             )}
           </div>
         );
@@ -2259,9 +2061,7 @@ function ConfluenceSourcePanel({ confluence }: { confluence: ConfluenceData }) {
         <>
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4 text-bridge-secondary" />
-            <h3 className="text-xs md:text-sm font-bold text-foreground">
-              주간보고 원문
-            </h3>
+            <h3 className="text-xs md:text-sm font-bold text-foreground">주간보고 원문</h3>
             <span className="text-xs text-slate-500">요약하지 않음</span>
           </div>
           {confluence.pages.map((page, i) => (
@@ -2271,9 +2071,7 @@ function ConfluenceSourcePanel({ confluence }: { confluence: ConfluenceData }) {
             >
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-bridge-secondary shrink-0" />
-                <h4 className="text-sm font-bold text-foreground">
-                  {page.title}
-                </h4>
+                <h4 className="text-sm font-bold text-foreground">{page.title}</h4>
               </div>
               {(page.space || page.author || page.last_updated) && (
                 <div className="text-xs text-slate-500">
@@ -2283,7 +2081,7 @@ function ConfluenceSourcePanel({ confluence }: { confluence: ConfluenceData }) {
                     page.last_updated ? formatDate(page.last_updated) : null,
                   ]
                     .filter(Boolean)
-                    .join(" · ")}
+                    .join(' · ')}
                 </div>
               )}
               {page.body && (
@@ -2315,12 +2113,7 @@ function SlackSourcePanel({ channel }: { channel: SlackChannel }) {
   return (
     <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-4">
       {channel.messages.map((msg, i) => (
-        <div
-          key={i}
-          className={
-            i > 0 ? "pt-4 border-t border-foreground/[0.06]" : undefined
-          }
-        >
+        <div key={i} className={i > 0 ? 'pt-4 border-t border-foreground/[0.06]' : undefined}>
           <SlackMessageItem msg={msg} />
         </div>
       ))}
@@ -2370,12 +2163,8 @@ function DataSourceBar({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:ml-auto pl-1">
           {metrics.map((m) => (
             <span key={m.label} className="inline-flex items-baseline gap-1.5">
-              <span className="text-xs font-medium text-slate-500">
-                {m.label}
-              </span>
-              <span className="text-sm font-bold text-slate-300 tabular-nums">
-                {m.value}
-              </span>
+              <span className="text-xs font-medium text-slate-500">{m.label}</span>
+              <span className="text-sm font-bold text-slate-300 tabular-nums">{m.value}</span>
             </span>
           ))}
         </div>
@@ -2385,19 +2174,19 @@ function DataSourceBar({
 }
 
 /* ── 활동 강도 칩(게이지 X, 상대 강도만) ── */
-function ActivityChip({ level }: { level: "hot" | "warm" | "mild" }) {
+function ActivityChip({ level }: { level: 'hot' | 'warm' | 'mild' }) {
   const meta =
-    level === "hot"
+    level === 'hot'
       ? {
-          cls: "text-bridge-secondary bg-bridge-secondary/15",
-          label: "매우 활발",
+          cls: 'text-bridge-secondary bg-bridge-secondary/15',
+          label: '매우 활발',
         }
-      : level === "warm"
+      : level === 'warm'
         ? {
-            cls: "text-teal-600 dark:text-teal-300 bg-foreground/[0.06]",
-            label: "활발",
+            cls: 'text-teal-600 dark:text-teal-300 bg-foreground/[0.06]',
+            label: '활발',
           }
-        : { cls: "text-slate-400 bg-foreground/[0.06]", label: "보통" };
+        : { cls: 'text-slate-400 bg-foreground/[0.06]', label: '보통' };
   return (
     <span
       className={`inline-flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-full ${meta.cls}`}
@@ -2410,7 +2199,7 @@ function ActivityChip({ level }: { level: "hot" | "warm" | "mild" }) {
 
 /* 기능/구성원 공통 카드 껍데기 — 누르면 상세 드로어 */
 const ENTRY_CARD_CLASS =
-  "group w-full text-left flex items-start gap-3 bg-foreground/[0.03] border border-foreground/[0.08] rounded-2xl p-4 hover:border-foreground/[0.12] hover:bg-foreground/[0.05] transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-bridge-accent/50";
+  'group w-full text-left flex items-start gap-3 bg-foreground/[0.03] border border-foreground/[0.08] rounded-2xl p-4 hover:border-foreground/[0.12] hover:bg-foreground/[0.05] transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-bridge-accent/50';
 
 /* 카드 하단 수치 칩 (커밋/파일/문서 등) */
 function SignalChip({ label, value }: { label: string; value: number }) {
@@ -2438,9 +2227,9 @@ function ClusterCards({
   const [expanded, setExpanded] = useState(false);
   const ordered = useMemo(() => {
     const feature = clusters
-      .filter((c) => c.kind !== "infra")
+      .filter((c) => c.kind !== 'infra')
       .sort((a, b) => (b.commits?.length ?? 0) - (a.commits?.length ?? 0));
-    const infra = clusters.filter((c) => c.kind === "infra");
+    const infra = clusters.filter((c) => c.kind === 'infra');
     return [...feature, ...infra];
   }, [clusters]);
   const maxCommits = Math.max(1, ...ordered.map((c) => c.commits?.length ?? 0));
@@ -2451,9 +2240,7 @@ function ClusterCards({
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex items-baseline gap-2 flex-wrap">
-        <h2 className="text-xs md:text-sm font-bold text-foreground">
-          기능별 진행 현황
-        </h2>
+        <h2 className="text-xs md:text-sm font-bold text-foreground">기능별 진행 현황</h2>
         <span className="text-xs text-slate-500">
           커밋을 {clusters.length}개 기능군으로 분류 · 활동 강도 순
         </span>
@@ -2463,9 +2250,9 @@ function ClusterCards({
           const commits = cluster.commits ?? [];
           const tasks = cluster.tasks ?? [];
           const docs = cluster.confluence_docs ?? [];
-          const isInfra = cluster.kind === "infra";
+          const isInfra = cluster.kind === 'infra';
           const ratio = commits.length / maxCommits;
-          const level = ratio >= 0.66 ? "hot" : ratio >= 0.33 ? "warm" : "mild";
+          const level = ratio >= 0.66 ? 'hot' : ratio >= 0.33 ? 'warm' : 'mild';
           return (
             <button
               key={cluster.key}
@@ -2474,15 +2261,13 @@ function ClusterCards({
               className={ENTRY_CARD_CLASS}
             >
               <span className="shrink-0 w-6 h-6 grid place-items-center rounded-lg text-xs font-bold tabular-nums text-slate-400 bg-foreground/[0.06] border border-foreground/[0.08]">
-                {isInfra ? "·" : i + 1}
+                {isInfra ? '·' : i + 1}
               </span>
               <div className="flex-1 min-w-0 flex flex-col gap-3">
                 <div className="flex items-start gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-sm font-bold text-foreground">
-                        {cluster.title}
-                      </span>
+                      <span className="text-sm font-bold text-foreground">{cluster.title}</span>
                       {/* 전일 대비 새로 등장 — 하루치 보고서에서 어제와의 차이가 곧 소식이다 */}
                       {cluster.is_new && (
                         <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
@@ -2499,21 +2284,12 @@ function ClusterCards({
                   <ChevronRight className="w-4 h-4 text-slate-500 shrink-0 mt-0.5 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {!isInfra && (
-                    <ActivityChip level={level as "hot" | "warm" | "mild"} />
-                  )}
-                  <ConfidenceBadge
-                    confidence={cluster.confidence}
-                    kind={cluster.kind}
-                  />
+                  {!isInfra && <ActivityChip level={level as 'hot' | 'warm' | 'mild'} />}
+                  <ConfidenceBadge confidence={cluster.confidence} kind={cluster.kind} />
                   <span className="w-px h-3 bg-foreground/10 mx-0.5" />
                   <SignalChip label="커밋" value={commits.length} />
-                  {tasks.length > 0 && (
-                    <SignalChip label="태스크" value={tasks.length} />
-                  )}
-                  {docs.length > 0 && (
-                    <SignalChip label="문서" value={docs.length} />
-                  )}
+                  {tasks.length > 0 && <SignalChip label="태스크" value={tasks.length} />}
+                  {docs.length > 0 && <SignalChip label="문서" value={docs.length} />}
                 </div>
               </div>
             </button>
@@ -2595,16 +2371,16 @@ function StatusChip({
   label,
   n,
 }: {
-  tone: "done" | "progress" | "late";
+  tone: 'done' | 'progress' | 'late';
   label: string;
   n: number;
 }) {
   const cls =
-    tone === "done"
-      ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/15"
-      : tone === "progress"
-        ? "text-bridge-secondary bg-bridge-secondary/15"
-        : "text-amber-600 dark:text-amber-400 bg-amber-500/15";
+    tone === 'done'
+      ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/15'
+      : tone === 'progress'
+        ? 'text-bridge-secondary bg-bridge-secondary/15'
+        : 'text-amber-600 dark:text-amber-400 bg-amber-500/15';
   return (
     <span
       className={`inline-flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-full tabular-nums ${cls}`}
@@ -2627,35 +2403,22 @@ function MemberCards({
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex items-baseline gap-2 flex-wrap">
-        <h2 className="text-xs md:text-sm font-bold text-foreground">
-          구성원별 활동
-        </h2>
+        <h2 className="text-xs md:text-sm font-bold text-foreground">구성원별 활동</h2>
         <span className="text-xs text-slate-500">
-          깃 · 슬랙 · 칸반을 사람 기준으로 ·{" "}
-          {isWeekly ? "활동량 순" : "지연 우선"}
+          깃 · 슬랙 · 칸반을 사람 기준으로 · {isWeekly ? '활동량 순' : '지연 우선'}
         </span>
       </div>
       <div className="flex flex-col gap-2">
         {/* 순서는 백엔드가 정한다 — 일간은 지연 보유자 우선, 주간은 활동량 순. */}
         {members.map((member, i) => (
-          <MemberCard
-            key={memberKey(member, i)}
-            member={member}
-            onOpen={() => onOpen(member)}
-          />
+          <MemberCard key={memberKey(member, i)} member={member} onOpen={() => onOpen(member)} />
         ))}
       </div>
     </div>
   );
 }
 
-function MemberCard({
-  member,
-  onOpen,
-}: {
-  member: AutoReportMember;
-  onOpen: () => void;
-}) {
+function MemberCard({ member, onOpen }: { member: AutoReportMember; onOpen: () => void }) {
   const hex = getAssigneeHex(member.name);
   const doneToday = member.done_today_count ?? 0;
   const progress = member.progress_count ?? 0;
@@ -2668,8 +2431,7 @@ function MemberCard({
     if (fromFocus) return fromFocus;
     const freq = new Map<string, number>();
     for (const c of member.commits ?? []) {
-      if (c.cluster_title)
-        freq.set(c.cluster_title, (freq.get(c.cluster_title) ?? 0) + 1);
+      if (c.cluster_title) freq.set(c.cluster_title, (freq.get(c.cluster_title) ?? 0) + 1);
     }
     let best: string | null = null;
     let bestN = 0;
@@ -2697,9 +2459,7 @@ function MemberCard({
               {member.name}
             </span>
             {topCluster && (
-              <span className="text-xs text-slate-400 truncate min-w-0">
-                주력: {topCluster}
-              </span>
+              <span className="text-xs text-slate-400 truncate min-w-0">주력: {topCluster}</span>
             )}
           </div>
           <ChevronRight className="w-4 h-4 text-slate-500 shrink-0 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
@@ -2714,28 +2474,22 @@ function MemberCard({
           {/* 상태 — 이 사람이 지금 어디 서 있나(가장 행동가능한 신호) */}
           {hasStatus ? (
             <>
-              {doneToday > 0 && (
-                <StatusChip tone="done" label="완료" n={doneToday} />
-              )}
-              {progress > 0 && (
-                <StatusChip tone="progress" label="진행" n={progress} />
-              )}
+              {doneToday > 0 && <StatusChip tone="done" label="완료" n={doneToday} />}
+              {progress > 0 && <StatusChip tone="progress" label="진행" n={progress} />}
               {late > 0 && <StatusChip tone="late" label="지연" n={late} />}
               <span className="w-px h-3 bg-foreground/10 mx-0.5" />
             </>
           ) : null}
           <SignalChip label="커밋" value={member.commit_count} />
           <SignalChip label="슬랙" value={member.slack_count} />
-          {member.doc_count > 0 && (
-            <SignalChip label="문서" value={member.doc_count} />
-          )}
+          {member.doc_count > 0 && <SignalChip label="문서" value={member.doc_count} />}
         </div>
       </div>
     </button>
   );
 }
 
-type TabKey = "changes" | "features" | "members";
+type TabKey = 'changes' | 'features' | 'members';
 
 /**
  * 자동 보고서 본문 렌더러. 발행된 공유 페이지({@link AutoReportPage})와 설정 화면의
@@ -2746,36 +2500,18 @@ type TabKey = "changes" | "features" | "members";
  * <b>Confluence</b>(주간보고 원문), <b>채널 대화</b>(슬랙 스레드·리액션·첨부). 각 소스는
  * 데이터가 있을 때만 탭으로 노출된다.
  */
-export function AutoReportView({
-  report,
-  className,
-}: {
-  report: AutoReport;
-  className?: string;
-}) {
+export function AutoReportView({ report, className }: { report: AutoReport; className?: string }) {
   const reduceMotion = useReducedMotion();
-  const [tab, setTab] = useState<TabKey>("changes");
+  const [tab, setTab] = useState<TabKey>('changes');
   const [drawer, setDrawer] = useState<{
     title: string;
     body: ReactNode;
   } | null>(null);
 
-  const commitsByRepo = useMemo(
-    () => parseCommits(report.raw_data ?? null),
-    [report],
-  );
-  const kanbanGroups = useMemo(
-    () => parseKanban(report.raw_data ?? null),
-    [report],
-  );
-  const confluence = useMemo(
-    () => parseConfluence(report.raw_data ?? null),
-    [report],
-  );
-  const slackChannel = useMemo(
-    () => parseSlack(report.raw_data ?? null),
-    [report],
-  );
+  const commitsByRepo = useMemo(() => parseCommits(report.raw_data ?? null), [report]);
+  const kanbanGroups = useMemo(() => parseKanban(report.raw_data ?? null), [report]);
+  const confluence = useMemo(() => parseConfluence(report.raw_data ?? null), [report]);
+  const slackChannel = useMemo(() => parseSlack(report.raw_data ?? null), [report]);
 
   const failedSources = useMemo(
     () => (report.source_status ?? []).filter((s) => !s.success),
@@ -2783,21 +2519,16 @@ export function AutoReportView({
   );
 
   const content = report.content;
-  const isWeekly = report.report_type === "WEEKLY_INTEGRATED";
-  const usedSources = (report.source_status ?? [])
-    .filter((s) => s.has_data)
-    .map((s) => s.source);
+  const isWeekly = report.report_type === 'WEEKLY_INTEGRATED';
+  const usedSources = (report.source_status ?? []).filter((s) => s.has_data).map((s) => s.source);
 
   const commitCount = useMemo(
-    () =>
-      Object.values(commitsByRepo).reduce((sum, list) => sum + list.length, 0),
+    () => Object.values(commitsByRepo).reduce((sum, list) => sum + list.length, 0),
     [commitsByRepo],
   );
   const kanbanCount = useMemo(
     () =>
-      kanbanGroups.completed.length +
-      kanbanGroups.in_progress.length +
-      kanbanGroups.overdue.length,
+      kanbanGroups.completed.length + kanbanGroups.in_progress.length + kanbanGroups.overdue.length,
     [kanbanGroups],
   );
   const slackCount = slackChannel
@@ -2808,10 +2539,7 @@ export function AutoReportView({
       confluence.pages.length +
       confluence.changelogs.reduce(
         (sum, cl) =>
-          sum +
-          (cl.added?.length ?? 0) +
-          (cl.modified?.length ?? 0) +
-          (cl.deleted?.length ?? 0),
+          sum + (cl.added?.length ?? 0) + (cl.modified?.length ?? 0) + (cl.deleted?.length ?? 0),
         0,
       ),
     [confluence],
@@ -2830,20 +2558,20 @@ export function AutoReportView({
     const list: Array<{ key: TabKey; label: string; count: number }> = [];
     if (hasChanges)
       list.push({
-        key: "changes",
-        label: "주요 변화",
+        key: 'changes',
+        label: '주요 변화',
         count: highlights.length || risks.length,
       });
     if (hasFeatures)
       list.push({
-        key: "features",
-        label: "기능별 진행 현황",
+        key: 'features',
+        label: '기능별 진행 현황',
         count: clusters.length > 0 ? clusters.length : features.length,
       });
     if (hasMembers)
       list.push({
-        key: "members",
-        label: "구성원별 활동",
+        key: 'members',
+        label: '구성원별 활동',
         count: members.length,
       });
     return list;
@@ -2858,17 +2586,13 @@ export function AutoReportView({
     members.length,
   ]);
 
-  const activeTab = tabs.some((t) => t.key === tab)
-    ? tab
-    : (tabs[0]?.key ?? "features");
+  const activeTab = tabs.some((t) => t.key === tab) ? tab : (tabs[0]?.key ?? 'features');
 
   const onTabKeyDown = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
-    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
     e.preventDefault();
     const next =
-      e.key === "ArrowRight"
-        ? (index + 1) % tabs.length
-        : (index - 1 + tabs.length) % tabs.length;
+      e.key === 'ArrowRight' ? (index + 1) % tabs.length : (index - 1 + tabs.length) % tabs.length;
     setTab(tabs[next].key);
   };
 
@@ -2882,51 +2606,51 @@ export function AutoReportView({
   }> = [];
   if (commitCount > 0)
     sourceChips.push({
-      key: "github",
-      label: "GitHub",
+      key: 'github',
+      label: 'GitHub',
       count: commitCount,
       Icon: GitCommit,
       onOpen: () =>
         setDrawer({
-          title: "GitHub 커밋",
+          title: 'GitHub 커밋',
           body: <GithubSourcePanel commitsByRepo={commitsByRepo} />,
         }),
     });
   if (kanbanCount > 0)
     sourceChips.push({
-      key: "kanban",
-      label: "보드 태스크",
+      key: 'kanban',
+      label: '보드 태스크',
       count: kanbanCount,
       Icon: Columns3,
       onOpen: () =>
         setDrawer({
-          title: "보드 태스크",
+          title: '보드 태스크',
           body: <KanbanSourcePanel groups={kanbanGroups} />,
         }),
     });
   if (confluenceCount > 0)
     sourceChips.push({
-      key: "confluence",
-      label: "Confluence",
+      key: 'confluence',
+      label: 'Confluence',
       count: confluenceCount,
       Icon: FileText,
       onOpen: () =>
         setDrawer({
-          title: "Confluence",
+          title: 'Confluence',
           body: <ConfluenceSourcePanel confluence={confluence} />,
         }),
     });
   if (slackCount > 0 && slackChannel)
     sourceChips.push({
-      key: "slack",
-      label: "채널 대화",
+      key: 'slack',
+      label: '채널 대화',
       count: slackCount,
       Icon: MessagesSquare,
       onOpen: () =>
         setDrawer({
           title: slackChannel.channel_name
             ? `채널 대화 · #${slackChannel.channel_name}`
-            : "채널 대화",
+            : '채널 대화',
           body: <SlackSourcePanel channel={slackChannel} />,
         }),
     });
@@ -2951,21 +2675,15 @@ export function AutoReportView({
       ),
     });
 
-  const fade = reduceMotion
-    ? {}
-    : { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 } };
+  const fade = reduceMotion ? {} : { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 } };
 
   return (
-    <div
-      className={
-        className ?? "max-w-4xl mx-auto px-5 py-8 md:py-12 flex flex-col gap-6"
-      }
-    >
+    <div className={className ?? 'max-w-4xl mx-auto px-5 py-8 md:py-12 flex flex-col gap-6'}>
       {/* 헤더 (탭 위 고정) */}
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-            {isWeekly ? "주간 보고서" : "일일 개발 보고서"}
+            {isWeekly ? '주간 보고서' : '일일 개발 보고서'}
           </span>
           {usedSources.map((source) => (
             <SourceChip key={source} source={source} />
@@ -2977,7 +2695,7 @@ export function AutoReportView({
         <div className="flex items-center gap-1.5 text-xs text-slate-500">
           <CalendarDays className="w-4 h-4" />
           <span>
-            {report.board_name} · {formatDate(report.period_start)} ~{" "}
+            {report.board_name} · {formatDate(report.period_start)} ~{' '}
             {formatDate(report.period_end)}
           </span>
         </div>
@@ -2998,8 +2716,7 @@ export function AutoReportView({
               </span>
               {failedSources.map((s: AutoReportSourceStatus) => (
                 <p key={s.source} className="text-xs text-slate-400">
-                  {SOURCE_LABEL[s.source] ?? s.source} —{" "}
-                  {s.error ?? "연결 확인 필요"}
+                  {SOURCE_LABEL[s.source] ?? s.source} — {s.error ?? '연결 확인 필요'}
                 </p>
               ))}
             </div>
@@ -3008,11 +2725,7 @@ export function AutoReportView({
 
         {/* 일간 지연 롤업 — 하루치 보고서에서 가장 먼저 봐야 할 신호 */}
         {!isWeekly && members.length > 0 && (
-          <LateRollup
-            members={members}
-            onOpen={openMember}
-            boardId={report.board_id}
-          />
+          <LateRollup members={members} onOpen={openMember} boardId={report.board_id} />
         )}
 
         {/* 스프린트 진행 현황 — 진짜 분모가 있는 유일한 진행률 게이지 */}
@@ -3046,16 +2759,16 @@ export function AutoReportView({
                 onKeyDown={(e) => onTabKeyDown(e, index)}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs md:text-sm font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 ${
                   selected
-                    ? "bg-bridge-obsidian text-foreground shadow"
-                    : "text-slate-400 hover:text-foreground"
+                    ? 'bg-bridge-obsidian text-foreground shadow'
+                    : 'text-slate-400 hover:text-foreground'
                 }`}
               >
                 {t.label}
                 <span
                   className={`text-xs font-bold px-1.5 rounded-full tabular-nums ${
                     selected
-                      ? "bg-bridge-accent/15 text-bridge-accent"
-                      : "bg-foreground/[0.06] text-slate-500"
+                      ? 'bg-bridge-accent/15 text-bridge-accent'
+                      : 'bg-foreground/[0.06] text-slate-500'
                   }`}
                 >
                   {t.count}
@@ -3067,19 +2780,14 @@ export function AutoReportView({
       )}
 
       {/* 탭 내용 — 주요 변화 */}
-      {activeTab === "changes" && hasChanges && (
+      {activeTab === 'changes' && hasChanges && (
         <motion.div key="changes" {...fade} className="flex flex-col gap-6">
           {highlights.length > 0 && (
             <section className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3">
-              <h2 className="text-xs md:text-sm font-bold text-foreground">
-                주요 변화
-              </h2>
+              <h2 className="text-xs md:text-sm font-bold text-foreground">주요 변화</h2>
               <ul className="flex flex-col gap-2">
                 {highlights.map((item, index) => (
-                  <li
-                    key={index}
-                    className="flex gap-2 text-sm text-foreground"
-                  >
+                  <li key={index} className="flex gap-2 text-sm text-foreground">
                     <span className="text-bridge-accent">•</span>
                     <span>{item}</span>
                   </li>
@@ -3107,14 +2815,10 @@ export function AutoReportView({
       )}
 
       {/* 탭 내용 — 기능별 */}
-      {activeTab === "features" && hasFeatures && (
+      {activeTab === 'features' && hasFeatures && (
         <motion.div key="features" {...fade}>
           {clusters.length > 0 ? (
-            <ClusterCards
-              clusters={clusters}
-              onOpen={openCluster}
-              isWeekly={isWeekly}
-            />
+            <ClusterCards clusters={clusters} onOpen={openCluster} isWeekly={isWeekly} />
           ) : (
             <FeatureProgressTabs
               features={features}
@@ -3125,13 +2829,9 @@ export function AutoReportView({
       )}
 
       {/* 탭 내용 — 구성원별 */}
-      {activeTab === "members" && hasMembers && (
+      {activeTab === 'members' && hasMembers && (
         <motion.div key="members" {...fade}>
-          <MemberCards
-            members={members}
-            onOpen={openMember}
-            isWeekly={isWeekly}
-          />
+          <MemberCards members={members} onOpen={openMember} isWeekly={isWeekly} />
         </motion.div>
       )}
 
@@ -3144,9 +2844,7 @@ export function AutoReportView({
               className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xs md:text-sm font-bold text-foreground">
-                  {section.title}
-                </h2>
+                <h2 className="text-xs md:text-sm font-bold text-foreground">{section.title}</h2>
                 {section.sources?.map((source) => (
                   <SourceChip key={source} source={source} />
                 ))}
@@ -3160,9 +2858,7 @@ export function AutoReportView({
           {content?.attachments && content.attachments.length > 0 && (
             <section className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5 flex flex-col gap-3">
               <div className="flex items-center gap-2">
-                <h2 className="text-xs md:text-sm font-bold text-foreground">
-                  공유된 자료
-                </h2>
+                <h2 className="text-xs md:text-sm font-bold text-foreground">공유된 자료</h2>
                 <SourceChip source="SLACK" />
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -3171,7 +2867,7 @@ export function AutoReportView({
                     key={index}
                     className="flex flex-col gap-1.5 rounded-xl overflow-hidden border border-foreground/[0.08] bg-bridge-dark"
                   >
-                    {att.type === "video" ? (
+                    {att.type === 'video' ? (
                       <a
                         href={att.link ?? att.url ?? undefined}
                         target="_blank"
@@ -3182,7 +2878,7 @@ export function AutoReportView({
                         {att.url ? (
                           <img
                             src={att.url}
-                            alt={att.title ?? "공유된 영상"}
+                            alt={att.title ?? '공유된 영상'}
                             loading="lazy"
                             className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
                           />
@@ -3197,14 +2893,10 @@ export function AutoReportView({
                         </span>
                       </a>
                     ) : (
-                      <a
-                        href={att.url ?? undefined}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
+                      <a href={att.url ?? undefined} target="_blank" rel="noreferrer">
                         <img
                           src={att.url ?? undefined}
-                          alt={att.title ?? "공유된 이미지"}
+                          alt={att.title ?? '공유된 이미지'}
                           loading="lazy"
                           className="w-full aspect-video object-cover hover:opacity-90 transition-opacity"
                         />
@@ -3234,7 +2926,7 @@ export function AutoReportView({
       {/* 원본 소스 · 상세 드로어 */}
       <ReportDrawer
         open={drawer !== null}
-        title={drawer?.title ?? ""}
+        title={drawer?.title ?? ''}
         onClose={() => setDrawer(null)}
       >
         {drawer?.body}
@@ -3243,9 +2935,7 @@ export function AutoReportView({
       <footer className="pt-4 border-t border-foreground/[0.08] flex flex-wrap gap-x-4 gap-y-1">
         <span className="text-xs text-slate-600">BRIDGE 자동 생성 보고서</span>
         {report.created_at && (
-          <span className="text-xs text-slate-600">
-            {formatDate(report.created_at)}
-          </span>
+          <span className="text-xs text-slate-600">{formatDate(report.created_at)}</span>
         )}
       </footer>
     </div>

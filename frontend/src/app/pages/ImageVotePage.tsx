@@ -1,24 +1,17 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { useParams } from "react-router-dom";
-import { motion } from "framer-motion";
-import {
-  Loader2,
-  AlertCircle,
-  Trophy,
-  Check,
-  RotateCcw,
-  Lock,
-} from "lucide-react";
-import { imageVoteAPI } from "../utils/api";
-import { PhotoLightbox } from "../components/organization/photo/PhotoLightbox";
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Loader2, AlertCircle, Trophy, Check, RotateCcw, Lock } from 'lucide-react';
+import { imageVoteAPI } from '../utils/api';
+import { PhotoLightbox } from '../components/organization/photo/PhotoLightbox';
 import {
   ImageVoteResultList,
   candidateToPhoto,
   MEDALS,
-} from "../components/vote/ImageVoteResultList";
-import type { PublicImageVote, OrgPhoto } from "../types";
+} from '../components/vote/ImageVoteResultList';
+import type { PublicImageVote, OrgPhoto } from '../types';
 
-const VOTER_KEY_STORAGE = "bridge-image-vote-key";
+const VOTER_KEY_STORAGE = 'bridge-image-vote-key';
 
 function getVoterKey(): string {
   let key = localStorage.getItem(VOTER_KEY_STORAGE);
@@ -29,7 +22,7 @@ function getVoterKey(): string {
   return key;
 }
 
-const RANK_LABELS = ["1위", "2위", "3위"];
+const RANK_LABELS = ['1위', '2위', '3위'];
 
 /** 공개 Top3 이미지 투표 페이지 — 인증 불필요 (/vote/:token) */
 export function ImageVotePage() {
@@ -38,9 +31,9 @@ export function ImageVotePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [picks, setPicks] = useState<string[]>([]); // candidate id, index = rank-1
-  const [voterName, setVoterName] = useState("");
+  const [voterName, setVoterName] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [view, setView] = useState<"vote" | "results">("vote");
+  const [view, setView] = useState<'vote' | 'results'>('vote');
   const [lightboxPhoto, setLightboxPhoto] = useState<OrgPhoto | null>(null);
 
   const voterKey = useMemo(() => getVoterKey(), []);
@@ -56,7 +49,7 @@ export function ImageVotePage() {
       const data = await imageVoteAPI.getPublic(token, voterKey);
       setVote(data);
       if (data.closed) {
-        setView("results");
+        setView('results');
       }
       if (data.my_ballot) {
         setVoterName(data.my_ballot.voter_name);
@@ -65,7 +58,7 @@ export function ImageVotePage() {
           data.my_ballot.second_candidate_id,
           data.my_ballot.third_candidate_id,
         ]);
-        setView("results");
+        setView('results');
       }
     } catch {
       setError(true);
@@ -103,9 +96,9 @@ export function ImageVotePage() {
       });
       const data = await imageVoteAPI.getPublic(token, voterKey);
       setVote(data);
-      setView("results");
+      setView('results');
     } catch {
-      alert("투표 제출에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      alert('투표 제출에 실패했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setSubmitting(false);
     }
@@ -128,7 +121,7 @@ export function ImageVotePage() {
     );
   }
 
-  const showVoteForm = view === "vote" && !vote.closed;
+  const showVoteForm = view === 'vote' && !vote.closed;
 
   return (
     <div className="min-h-screen bg-bridge-dark">
@@ -144,7 +137,7 @@ export function ImageVotePage() {
             </h1>
             <p className="text-xs text-slate-500">
               {showVoteForm
-                ? "마음에 드는 이미지를 순서대로 3개 골라주세요 (1위 → 3위)"
+                ? '마음에 드는 이미지를 순서대로 3개 골라주세요 (1위 → 3위)'
                 : `총 ${vote.total_ballots}명 참여`}
             </p>
           </div>
@@ -174,14 +167,14 @@ export function ImageVotePage() {
                     onClick={() => togglePick(c.id)}
                     className={`relative rounded-2xl overflow-hidden border-2 transition-all text-left ${
                       picked
-                        ? "border-bridge-accent shadow-[0_0_30px_rgba(99,102,241,0.3)]"
-                        : "border-foreground/[0.08] hover:border-foreground/[0.12]"
+                        ? 'border-bridge-accent shadow-[0_0_30px_rgba(99,102,241,0.3)]'
+                        : 'border-foreground/[0.08] hover:border-foreground/[0.12]'
                     }`}
                   >
                     <div className="aspect-[3/4] bg-black">
                       <img
                         src={c.image_url}
-                        alt={c.label || "candidate"}
+                        alt={c.label || 'candidate'}
                         className="w-full h-full object-contain"
                         loading="lazy"
                         draggable={false}
@@ -189,9 +182,7 @@ export function ImageVotePage() {
                     </div>
                     {c.label && (
                       <div className="px-2 py-1.5 bg-bridge-obsidian">
-                        <p className="text-xs text-slate-400 truncate text-center">
-                          {c.label}
-                        </p>
+                        <p className="text-xs text-slate-400 truncate text-center">{c.label}</p>
                       </div>
                     )}
                     {picked && (
@@ -224,13 +215,13 @@ export function ImageVotePage() {
                         key={r}
                         className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-bold ${
                           c
-                            ? "border-bridge-accent/40 bg-bridge-accent/15 text-bridge-accent"
-                            : "border-foreground/10 bg-foreground/[0.03] text-slate-600"
+                            ? 'border-bridge-accent/40 bg-bridge-accent/15 text-bridge-accent'
+                            : 'border-foreground/10 bg-foreground/[0.03] text-slate-600'
                         }`}
                       >
                         <span>{MEDALS[r]}</span>
                         <span className="max-w-[72px] truncate">
-                          {c ? c.label || `${r + 1}위 선택됨` : "미선택"}
+                          {c ? c.label || `${r + 1}위 선택됨` : '미선택'}
                         </span>
                       </div>
                     );
@@ -277,7 +268,7 @@ export function ImageVotePage() {
               <div className="mt-6 flex justify-center">
                 <button
                   type="button"
-                  onClick={() => setView("vote")}
+                  onClick={() => setView('vote')}
                   className="px-5 py-2.5 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl text-sm font-medium hover:bg-foreground/10 transition-all flex items-center gap-1.5"
                 >
                   <RotateCcw className="w-4 h-4" />
@@ -296,7 +287,7 @@ export function ImageVotePage() {
         isAdmin={false}
         onClose={() => setLightboxPhoto(null)}
         onNavigate={(p) => setLightboxPhoto(p)}
-        onDownload={(p) => window.open(p.url, "_blank", "noopener")}
+        onDownload={(p) => window.open(p.url, '_blank', 'noopener')}
         onDelete={() => {}}
       />
     </div>

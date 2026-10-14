@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { jiraAutofixAPI, JiraAutofixQueueStatus } from "../utils/api";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { jiraAutofixAPI, JiraAutofixQueueStatus } from '../utils/api';
 
 /**
  * "지금 맥에 맡길 수 있나"를 답하는 훅.
@@ -104,10 +104,9 @@ export function useAutofixRunnerStatus(
 
   let blockedReason: string | null = null;
   if (status && !online) {
-    blockedReason = "맥이 연결되지 않았습니다";
+    blockedReason = '맥이 연결되지 않았습니다';
   } else if (verifyNotReady) {
-    blockedReason =
-      "검증 클론이 준비되지 않았습니다. 지금 맡기면 PR 직전에 실패합니다";
+    blockedReason = '검증 클론이 준비되지 않았습니다. 지금 맡기면 PR 직전에 실패합니다';
   }
 
   return {

@@ -1,4 +1,4 @@
-import type { BoardUiLevel, BoardUiOption } from "../hooks/useBoardFeatures";
+import type { BoardUiLevel, BoardUiOption } from '../hooks/useBoardFeatures';
 
 /**
  * 이 설정으로 보드가 어떻게 서는지 보여주는 미니 와이어.
@@ -12,7 +12,7 @@ import type { BoardUiLevel, BoardUiOption } from "../hooks/useBoardFeatures";
  */
 
 /** 미리보기에서 짚을 수 있는 자리. 옵션 행 hover·변경 시 여기에 링을 두른다. */
-export type PreviewZone = "tabs" | "phase" | "sprint" | "cols" | "card";
+export type PreviewZone = 'tabs' | 'phase' | 'sprint' | 'cols' | 'card';
 
 interface BoardMiniPreviewProps {
   level: BoardUiLevel;
@@ -25,42 +25,37 @@ interface BoardMiniPreviewProps {
 
 /** 사람 컬럼일 때 세울 이름. 실제 멤버가 아니라 형태만 보여주는 자리표시자. */
 const SAMPLE_MEMBERS: [string, string][] = [
-  ["수현", "3"],
-  ["도윤", "2"],
-  ["민아", "4"],
+  ['수현', '3'],
+  ['도윤', '2'],
+  ['민아', '4'],
 ];
 
-export function BoardMiniPreview({
-  level,
-  options,
-  highlight,
-  flash,
-}: BoardMiniPreviewProps) {
+export function BoardMiniPreview({ level, options, highlight, flash }: BoardMiniPreviewProps) {
   const has = (o: BoardUiOption) => options.includes(o);
 
   const ring = (zone: PreviewZone) =>
     highlight === zone || flash === zone
-      ? "ring-2 ring-bridge-accent ring-offset-2 ring-offset-bridge-dark"
-      : "ring-0 ring-transparent";
+      ? 'ring-2 ring-bridge-accent ring-offset-2 ring-offset-bridge-dark'
+      : 'ring-0 ring-transparent';
 
-  const columns: [string, string][] = has("members")
+  const columns: [string, string][] = has('members')
     ? SAMPLE_MEMBERS
-    : has("review")
+    : has('review')
       ? [
-          ["진행", "5"],
-          ["리뷰", "2"],
-          ["완료", "9"],
+          ['진행', '5'],
+          ['리뷰', '2'],
+          ['완료', '9'],
         ]
       : [
-          ["진행", "5"],
-          ["완료", "9"],
+          ['진행', '5'],
+          ['완료', '9'],
         ];
 
-  const summary = has("members")
-    ? "구성원별 보기가 켜져 컬럼이 사람으로 섰습니다."
-    : has("review")
-      ? "진행 → 리뷰 → 완료 세 칸입니다."
-      : "진행 → 완료 두 칸입니다.";
+  const summary = has('members')
+    ? '구성원별 보기가 켜져 컬럼이 사람으로 섰습니다.'
+    : has('review')
+      ? '진행 → 리뷰 → 완료 세 칸입니다.'
+      : '진행 → 완료 두 칸입니다.';
 
   return (
     <div className="flex flex-col gap-3">
@@ -73,9 +68,7 @@ export function BoardMiniPreview({
         aria-hidden="true"
       >
         {/* 화면 선택 줄 */}
-        <div
-          className={`flex gap-1 rounded-md transition-shadow ${ring("tabs")}`}
-        >
+        <div className={`flex gap-1 rounded-md transition-shadow ${ring('tabs')}`}>
           <span className="text-xs px-2 py-0.5 rounded-md bg-bridge-accent/15 text-bridge-accent border border-bridge-accent/40">
             보드
           </span>
@@ -89,7 +82,7 @@ export function BoardMiniPreview({
               </span>
             </>
           )}
-          {has("jira") && (
+          {has('jira') && (
             <span className="text-xs px-2 py-0.5 rounded-md border border-foreground/10 text-slate-500">
               JIRA
             </span>
@@ -98,8 +91,8 @@ export function BoardMiniPreview({
 
         {/* 단계 레일 — 레벨 3에서만 */}
         {level === 3 && (
-          <div className={`flex gap-1 rounded-md transition-shadow ${ring("phase")}`}>
-            {["기획", "제작", "검수"].map((p) => (
+          <div className={`flex gap-1 rounded-md transition-shadow ${ring('phase')}`}>
+            {['기획', '제작', '검수'].map((p) => (
               <span
                 key={p}
                 className="flex-1 text-center text-xs py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
@@ -113,10 +106,10 @@ export function BoardMiniPreview({
         {/* 주기 바 — 레벨 2 이상 */}
         {level >= 2 && (
           <div
-            className={`flex items-center gap-2 px-2 py-1 rounded-md bg-bridge-secondary/15 border border-bridge-secondary/30 transition-shadow ${ring("sprint")}`}
+            className={`flex items-center gap-2 px-2 py-1 rounded-md bg-bridge-secondary/15 border border-bridge-secondary/30 transition-shadow ${ring('sprint')}`}
           >
             <span className="text-xs font-bold text-bridge-secondary">스프린트 7</span>
-            {has("members") && (
+            {has('members') && (
               <span className="text-xs px-1.5 rounded-full border border-bridge-accent/40 text-bridge-accent">
                 구성원별
               </span>
@@ -126,7 +119,7 @@ export function BoardMiniPreview({
         )}
 
         {/* 컬럼 */}
-        <div className={`flex gap-1.5 rounded-md transition-shadow ${ring("cols")}`}>
+        <div className={`flex gap-1.5 rounded-md transition-shadow ${ring('cols')}`}>
           {columns.map(([name, count], i) => (
             <div
               key={name}
@@ -141,12 +134,12 @@ export function BoardMiniPreview({
                   <div
                     key={k}
                     className={`rounded-md border border-foreground/[0.08] bg-bridge-obsidian p-1.5 transition-shadow ${
-                      isAnchor ? ring("card") : ""
+                      isAnchor ? ring('card') : ''
                     }`}
                   >
                     <span className="block h-[3px] rounded-full bg-foreground/20" />
                     <span className="block h-[3px] w-2/3 rounded-full bg-foreground/10 mt-1" />
-                    {has("timeblock") && isAnchor && (
+                    {has('timeblock') && isAnchor && (
                       <span className="inline-block mt-1.5 text-xs leading-none px-1 py-0.5 rounded bg-bridge-secondary/15 text-bridge-secondary border border-bridge-secondary/30 tabular-nums">
                         14:00
                       </span>

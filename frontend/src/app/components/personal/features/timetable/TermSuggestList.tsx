@@ -31,7 +31,15 @@ function highlight(value: string, q: string) {
   );
 }
 
-export function TermSuggestList({ anchorEl, fieldLabel, query, items, highlightIndex, onPick, onForget }: TermSuggestListProps) {
+export function TermSuggestList({
+  anchorEl,
+  fieldLabel,
+  query,
+  items,
+  highlightIndex,
+  onPick,
+  onForget,
+}: TermSuggestListProps) {
   const { ref, style } = usePopoverPosition(anchorEl, [items.length]);
   const q = query.trim();
 

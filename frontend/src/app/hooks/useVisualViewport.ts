@@ -38,14 +38,8 @@ export function useVisualViewport() {
       const viewportHeight = vv.height;
       const fullHeight = window.innerHeight;
 
-      document.documentElement.style.setProperty(
-        '--visual-viewport-height',
-        `${viewportHeight}px`,
-      );
-      document.documentElement.style.setProperty(
-        '--vvh',
-        `${viewportHeight * 0.01}px`,
-      );
+      document.documentElement.style.setProperty('--visual-viewport-height', `${viewportHeight}px`);
+      document.documentElement.style.setProperty('--vvh', `${viewportHeight * 0.01}px`);
 
       const isKeyboardOpen = viewportHeight < fullHeight * KEYBOARD_THRESHOLD;
 
@@ -69,7 +63,8 @@ export function useVisualViewport() {
     vv.addEventListener('scroll', update);
 
     // iOS: focusout 시 키보드 닫힘 → 뷰포트 강제 복원
-    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    const isIOSDevice =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
     const handleFocusOut = (e: FocusEvent) => {
@@ -79,7 +74,8 @@ export function useVisualViewport() {
         !(target instanceof HTMLInputElement) &&
         !(target instanceof HTMLTextAreaElement) &&
         !target.isContentEditable
-      ) return;
+      )
+        return;
 
       // focusout 후 다른 input으로 이동하는 경우 무시
       setTimeout(() => {
@@ -88,7 +84,8 @@ export function useVisualViewport() {
           active instanceof HTMLInputElement ||
           active instanceof HTMLTextAreaElement ||
           (active as HTMLElement)?.isContentEditable
-        ) return;
+        )
+          return;
         forceViewportRestore();
       }, 100);
     };
@@ -135,10 +132,7 @@ export function useKeyboardAutoScroll() {
   useEffect(() => {
     const handleFocusIn = (e: FocusEvent) => {
       const target = e.target as HTMLElement;
-      if (
-        !(target instanceof HTMLInputElement) &&
-        !(target instanceof HTMLTextAreaElement)
-      ) {
+      if (!(target instanceof HTMLInputElement) && !(target instanceof HTMLTextAreaElement)) {
         return;
       }
 
@@ -146,7 +140,11 @@ export function useKeyboardAutoScroll() {
       setTimeout(() => {
         // Find the closest scrollable container (modal, overlay, etc.)
         const scrollParent = findScrollParent(target);
-        if (scrollParent && scrollParent !== document.documentElement && scrollParent !== document.body) {
+        if (
+          scrollParent &&
+          scrollParent !== document.documentElement &&
+          scrollParent !== document.body
+        ) {
           // Inside a scrollable container (e.g. modal) — scroll within it
           const parentRect = scrollParent.getBoundingClientRect();
           const targetRect = target.getBoundingClientRect();

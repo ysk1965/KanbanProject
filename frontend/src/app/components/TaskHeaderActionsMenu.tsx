@@ -1,14 +1,7 @@
-import { useState, useRef, useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import {
-  ArrowRight,
-  ArrowRightLeft,
-  Copy,
-  MoreHorizontal,
-  Sparkles,
-  Trash2,
-} from "lucide-react";
-import { Button } from "./ui/button";
+import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ArrowRight, ArrowRightLeft, Copy, MoreHorizontal, Sparkles, Trash2 } from 'lucide-react';
+import { Button } from './ui/button';
 
 interface TaskHeaderActionsMenuProps {
   canEdit: boolean;
@@ -47,18 +40,18 @@ export function TaskHeaderActionsMenu({
         setOpen(false);
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
   if (!canEdit) return null;
 
   const items = [
     ...(hasMultipleFeatures
-      ? [{ icon: ArrowRightLeft, label: t("task.moveFeature"), onClick: onMoveFeature }]
+      ? [{ icon: ArrowRightLeft, label: t('task.moveFeature'), onClick: onMoveFeature }]
       : []),
-    { icon: ArrowRight, label: t("task.moveToBoard"), onClick: onMoveToBoard },
-    { icon: Copy, label: t("task.copyToBoard"), onClick: onCopyToBoard },
+    { icon: ArrowRight, label: t('task.moveToBoard'), onClick: onMoveToBoard },
+    { icon: Copy, label: t('task.copyToBoard'), onClick: onCopyToBoard },
   ];
 
   return (
@@ -67,8 +60,8 @@ export function TaskHeaderActionsMenu({
         variant="ghost"
         size="sm"
         className="text-slate-400 hover:text-foreground hover:bg-foreground/10"
-        title={t("task.moreActions")}
-        aria-label={t("task.moreActions")}
+        title={t('task.moreActions')}
+        aria-label={t('task.moreActions')}
         onClick={() => setOpen((v) => !v)}
       >
         <MoreHorizontal className="h-4 w-4" />
@@ -78,13 +71,18 @@ export function TaskHeaderActionsMenu({
           {onDelegate && (
             <>
               <button
-                onClick={() => { if (delegateReady) { onDelegate(); setOpen(false); } }}
+                onClick={() => {
+                  if (delegateReady) {
+                    onDelegate();
+                    setOpen(false);
+                  }
+                }}
                 disabled={!delegateReady}
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-lg hover:bg-foreground/5 outline-none disabled:opacity-50 disabled:cursor-default"
               >
                 <Sparkles className="h-4 w-4 text-bridge-accent" />
                 <span className="text-bridge-accent font-bold">
-                  {t("autofix.delegateTask", "맥에 맡기기")}
+                  {t('autofix.delegateTask', '맥에 맡기기')}
                 </span>
               </button>
               {/*
@@ -92,9 +90,7 @@ export function TaskHeaderActionsMenu({
                 사용자는 왜 안 되는지 물어볼 자리를 잃는다.
               */}
               {delegateHint && (
-                <p className="px-3 pb-1.5 text-xs text-slate-500 leading-relaxed">
-                  {delegateHint}
-                </p>
+                <p className="px-3 pb-1.5 text-xs text-slate-500 leading-relaxed">{delegateHint}</p>
               )}
               <div className="my-1 h-px bg-foreground/[0.08]" />
             </>
@@ -102,7 +98,10 @@ export function TaskHeaderActionsMenu({
           {items.map(({ icon: Icon, label, onClick }) => (
             <button
               key={label}
-              onClick={() => { onClick(); setOpen(false); }}
+              onClick={() => {
+                onClick();
+                setOpen(false);
+              }}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-lg hover:bg-foreground/5 outline-none"
             >
               <Icon className="h-4 w-4 text-slate-400" />
@@ -111,11 +110,14 @@ export function TaskHeaderActionsMenu({
           ))}
           <div className="my-1 h-px bg-foreground/[0.08]" />
           <button
-            onClick={() => { onDelete(); setOpen(false); }}
+            onClick={() => {
+              onDelete();
+              setOpen(false);
+            }}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-lg hover:bg-red-500/10 outline-none text-red-400"
           >
             <Trash2 className="h-4 w-4" />
-            <span>{t("common.delete")}</span>
+            <span>{t('common.delete')}</span>
           </button>
         </div>
       )}

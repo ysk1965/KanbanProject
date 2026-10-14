@@ -1,39 +1,33 @@
-import { Suspense, useState, useMemo } from "react";
-import {
-  Feature,
-  Milestone,
-  JobRole,
-  JobRoleInfo,
-  BoardWebSocketEvent,
-} from "../types";
-import { DailyScheduleView } from "../components/DailyScheduleView";
-import { ScheduleSubTab } from "../components/ScheduleSubTabBar";
-import { BoardMember as ShareBoardMember } from "../components/ShareBoardModal";
-import { checklistAPI } from "../utils/api";
-import { lazyWithRetry } from "../utils/lazyWithRetry";
-import type { PanelDragState } from "../components/schedule/ChecklistItemPanel";
-import { buildMilestoneColorMap } from "../utils/milestoneColor";
+import { Suspense, useState, useMemo } from 'react';
+import { Feature, Milestone, JobRole, JobRoleInfo, BoardWebSocketEvent } from '../types';
+import { DailyScheduleView } from '../components/DailyScheduleView';
+import { ScheduleSubTab } from '../components/ScheduleSubTabBar';
+import { BoardMember as ShareBoardMember } from '../components/ShareBoardModal';
+import { checklistAPI } from '../utils/api';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
+import type { PanelDragState } from '../components/schedule/ChecklistItemPanel';
+import { buildMilestoneColorMap } from '../utils/milestoneColor';
 
 const ScheduleCalendarView = lazyWithRetry(
   () =>
-    import("../components/schedule/ScheduleCalendarView").then((m) => ({
+    import('../components/schedule/ScheduleCalendarView').then((m) => ({
       default: m.ScheduleCalendarView,
     })),
-  "ScheduleCalendarView",
+  'ScheduleCalendarView',
 );
 const ScheduleResourceView = lazyWithRetry(
   () =>
-    import("../components/schedule/ScheduleResourceView").then((m) => ({
+    import('../components/schedule/ScheduleResourceView').then((m) => ({
       default: m.ScheduleResourceView,
     })),
-  "ScheduleResourceView",
+  'ScheduleResourceView',
 );
 const ChecklistItemPanel = lazyWithRetry(
   () =>
-    import("../components/schedule/ChecklistItemPanel").then((m) => ({
+    import('../components/schedule/ChecklistItemPanel').then((m) => ({
       default: m.ChecklistItemPanel,
     })),
-  "ChecklistItemPanel",
+  'ChecklistItemPanel',
 );
 
 interface ScheduleViewProps {
@@ -96,27 +90,20 @@ export function ScheduleView({
   onUpdateMilestoneDates,
 }: ScheduleViewProps) {
   // ChecklistItemPanel drag state (calendar/resource DnD integration)
-  const [panelDragState, setPanelDragState] = useState<PanelDragState | null>(
-    null,
-  );
+  const [panelDragState, setPanelDragState] = useState<PanelDragState | null>(null);
   const [scrollToItem, setScrollToItem] = useState<{
     id: string;
     ts: number;
   } | null>(null);
   // 워크로드 바 우클릭 → 같은 태스크의 체크리스트 항목 하이라이트 (단일 태스크)
-  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(
-    null,
-  );
+  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
 
   // 마일스톤 id → 색 (배열 순서 기준 — 하위 뷰에 전달해 색 일관성 유지)
-  const milestoneColorMap = useMemo(
-    () => buildMilestoneColorMap(milestones),
-    [milestones],
-  );
+  const milestoneColorMap = useMemo(() => buildMilestoneColorMap(milestones), [milestones]);
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden">
-      {scheduleSubTab === "timeblock" ? (
+      {scheduleSubTab === 'timeblock' ? (
         <DailyScheduleView
           boardId={boardId}
           boardMembers={boardMembersData}
@@ -133,9 +120,9 @@ export function ScheduleView({
           refreshTrigger={scheduleRefreshKey}
           wsChecklistEvent={wsChecklistEvent}
           currentUserRole={currentUserRole}
-          initialSubTab={urlTab as "timeblock" | "meeting" | undefined}
+          initialSubTab={urlTab as 'timeblock' | 'meeting' | undefined}
         />
-      ) : scheduleSubTab === "calendar" ? (
+      ) : scheduleSubTab === 'calendar' ? (
         <div className="flex flex-1 h-full overflow-hidden">
           <Suspense
             fallback={
@@ -154,7 +141,7 @@ export function ScheduleView({
             />
           </Suspense>
         </div>
-      ) : scheduleSubTab === "resource" ? (
+      ) : scheduleSubTab === 'resource' ? (
         <div className="flex flex-1 overflow-hidden">
           <Suspense
             fallback={
@@ -179,44 +166,30 @@ export function ScheduleView({
                   try {
                     // targetAssigneeId 가 "contractor:<id>" 라면 외주 행, 아니면 user 행
                     const isContractorRow =
-                      typeof targetAssigneeId === "string" &&
-                      targetAssigneeId.startsWith("contractor:");
+                      typeof targetAssigneeId === 'string' &&
+                      targetAssigneeId.startsWith('contractor:');
                     const payload = isContractorRow
                       ? {
                           start_date: targetDate,
                           due_date: targetDate,
                           assignee_id: null,
-                          contractor_id: targetAssigneeId!.substring(
-                            "contractor:".length,
-                          ),
+                          contractor_id: targetAssigneeId!.substring('contractor:'.length),
                         }
                       : {
                           start_date: targetDate,
                           due_date: targetDate,
                           assignee_id:
-                            targetAssigneeId === "__unassigned__"
-                              ? null
-                              : targetAssigneeId,
+                            targetAssigneeId === '__unassigned__' ? null : targetAssigneeId,
                           contractor_id: null,
                         };
-                    await checklistAPI.updateItem(
-                      boardId,
-                      item.task_id,
-                      item.id,
-                      payload,
-                    );
+                    await checklistAPI.updateItem(boardId, item.task_id, item.id, payload);
                   } catch (err) {
-                    console.warn(
-                      "Failed to drop checklist item on resource",
-                      err,
-                    );
+                    console.warn('Failed to drop checklist item on resource', err);
                   }
                 }
                 notifyScheduleRefresh();
               }}
-              externalDragItem={
-                panelDragState?.isActive ? panelDragState.item : null
-              }
+              externalDragItem={panelDragState?.isActive ? panelDragState.item : null}
               refreshTrigger={scheduleRefreshPanel}
               onMilestoneClick={onMilestoneClick}
               onUpdateMilestoneDates={onUpdateMilestoneDates}
@@ -224,9 +197,7 @@ export function ScheduleView({
               features={allFeatures}
               highlightedTaskId={highlightedTaskId}
               onToggleHighlight={(taskId) =>
-                setHighlightedTaskId((prev) =>
-                  prev === taskId ? null : taskId,
-                )
+                setHighlightedTaskId((prev) => (prev === taskId ? null : taskId))
               }
             />
           </Suspense>
@@ -236,9 +207,7 @@ export function ScheduleView({
               boardId={boardId}
               onDragStateChange={setPanelDragState}
               onItemDetailClick={onItemDetailClick}
-              onScheduledItemClick={(item) =>
-                setScrollToItem({ id: item.id, ts: Date.now() })
-              }
+              onScheduledItemClick={(item) => setScrollToItem({ id: item.id, ts: Date.now() })}
               boardMembers={boardMembersData}
               onItemAdded={() => notifyScheduleRefresh()}
               milestones={milestones}

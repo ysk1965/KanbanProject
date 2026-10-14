@@ -14,9 +14,9 @@
  *   4. give up → ORPHANED (caller shows the quote without a highlight)
  */
 
-import type { NoteCommentAnchor } from "./api";
+import type { NoteCommentAnchor } from './api';
 
-export const MEMO_MARK_CLASS = "note-inline-memo";
+export const MEMO_MARK_CLASS = 'note-inline-memo';
 export const ANCHOR_CONTEXT_CHARS = 32;
 export const ANCHOR_TEXT_MAX = 500;
 
@@ -48,7 +48,7 @@ interface TextSlice {
 export function blockOf(node: Node | null): HTMLElement | null {
   if (!node) return null;
   const el = node.nodeType === 1 ? (node as Element) : node.parentElement;
-  return (el?.closest("[data-id]") as HTMLElement | null) ?? null;
+  return (el?.closest('[data-id]') as HTMLElement | null) ?? null;
 }
 
 /**
@@ -59,8 +59,7 @@ export function blockOf(node: Node | null): HTMLElement | null {
 export function ownTextSlices(block: HTMLElement): TextSlice[] {
   const slices: TextSlice[] = [];
   const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, {
-    acceptNode: (n) =>
-      blockOf(n) === block ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
+    acceptNode: (n) => (blockOf(n) === block ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
   });
   let offset = 0;
   let cur: Node | null;
@@ -76,14 +75,10 @@ export function ownTextSlices(block: HTMLElement): TextSlice[] {
 export function ownText(block: HTMLElement): string {
   return ownTextSlices(block)
     .map((s) => s.node.data)
-    .join("");
+    .join('');
 }
 
-function offsetOfBoundary(
-  slices: TextSlice[],
-  container: Node,
-  offset: number,
-): number | null {
+function offsetOfBoundary(slices: TextSlice[], container: Node, offset: number): number | null {
   if (container.nodeType === 3) {
     const s = slices.find((x) => x.node === container);
     return s ? s.start + offset : null;
@@ -115,7 +110,7 @@ export function anchorFromRange(range: Range): AnchorDraft | null {
   if (!block || !block.dataset.id) return null;
   const slices = ownTextSlices(block);
   if (!slices.length) return null;
-  const full = slices.map((s) => s.node.data).join("");
+  const full = slices.map((s) => s.node.data).join('');
 
   let start = offsetOfBoundary(slices, range.startContainer, range.startOffset);
   if (start == null) return null;
@@ -145,11 +140,7 @@ export function anchorFromRange(range: Range): AnchorDraft | null {
 }
 
 /** Range covering [start, end) of the block's own text. */
-export function rangeFromOffsets(
-  block: HTMLElement,
-  start: number,
-  end: number,
-): Range | null {
+export function rangeFromOffsets(block: HTMLElement, start: number, end: number): Range | null {
   const slices = ownTextSlices(block);
   const startSlice = slices.find((s) => start >= s.start && start < s.end);
   const endSlice = slices.find((s) => end > s.start && end <= s.end);
@@ -205,10 +196,10 @@ export function resolveAnchor(
   blockId: string | null,
   anchor: NoteCommentAnchor,
 ): ResolvedAnchor | null {
-  const text = anchor.text ?? "";
+  const text = anchor.text ?? '';
   if (!text) return null;
-  const prefix = anchor.prefix ?? "";
-  const suffix = anchor.suffix ?? "";
+  const prefix = anchor.prefix ?? '';
+  const suffix = anchor.suffix ?? '';
 
   const block = blockId
     ? (container.querySelector(`[data-id="${CSS.escape(blockId)}"]`) as HTMLElement | null)
@@ -219,7 +210,14 @@ export function resolveAnchor(
     const full = ownText(block);
     if (full.slice(anchor.start, anchor.end) === text) {
       const range = rangeFromOffsets(block, anchor.start, anchor.end);
-      if (range) return { range, blockId: block.dataset.id!, start: anchor.start, end: anchor.end, moved: false };
+      if (range)
+        return {
+          range,
+          blockId: block.dataset.id!,
+          start: anchor.start,
+          end: anchor.end,
+          moved: false,
+        };
     }
   }
 
@@ -229,12 +227,19 @@ export function resolveAnchor(
     const idx = findBestOccurrence(full, text, prefix, suffix, anchor.start ?? undefined);
     if (idx !== -1) {
       const range = rangeFromOffsets(block, idx, idx + text.length);
-      if (range) return { range, blockId: block.dataset.id!, start: idx, end: idx + text.length, moved: true };
+      if (range)
+        return {
+          range,
+          blockId: block.dataset.id!,
+          start: idx,
+          end: idx + text.length,
+          moved: true,
+        };
     }
   }
 
   // 3. every block in the note
-  const blocks = Array.from(container.querySelectorAll<HTMLElement>("[data-id]"));
+  const blocks = Array.from(container.querySelectorAll<HTMLElement>('[data-id]'));
   let bestBlock: HTMLElement | null = null;
   let bestIdx = -1;
   let bestScore = -1;
@@ -254,7 +259,14 @@ export function resolveAnchor(
   }
   if (bestBlock && bestBlock.dataset.id) {
     const range = rangeFromOffsets(bestBlock, bestIdx, bestIdx + text.length);
-    if (range) return { range, blockId: bestBlock.dataset.id, start: bestIdx, end: bestIdx + text.length, moved: true };
+    if (range)
+      return {
+        range,
+        blockId: bestBlock.dataset.id,
+        start: bestIdx,
+        end: bestIdx + text.length,
+        moved: true,
+      };
   }
 
   return null;
@@ -272,7 +284,8 @@ export function wrapRangeWithMarks(
   const root = range.commonAncestorContainer;
   const rootEl = root.nodeType === 1 ? (root as Element) : root.parentElement!;
   const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, {
-    acceptNode: (n) => (range.intersectsNode(n) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
+    acceptNode: (n) =>
+      range.intersectsNode(n) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
   });
   const targets: Text[] = [];
   let cur: Node | null;
@@ -288,7 +301,7 @@ export function wrapRangeWithMarks(
       t = t.splitText(range.startOffset);
     }
     if (!t.data.length) continue;
-    const mark = document.createElement("mark");
+    const mark = document.createElement('mark');
     mark.className = className;
     for (const [k, v] of Object.entries(attrs)) mark.setAttribute(k, v);
     t.parentNode!.insertBefore(mark, t);

@@ -32,7 +32,10 @@ export function SlackOAuthCallback() {
           <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-4" />
           <h2 className="text-foreground font-bold mb-2">{error}</h2>
           <p className="text-slate-400 text-sm mb-4">
-            {t('slackApp.tryAgainDesc', 'Please try installing Slack again from your board settings.')}
+            {t(
+              'slackApp.tryAgainDesc',
+              'Please try installing Slack again from your board settings.',
+            )}
           </p>
           <button
             onClick={() => navigate('/', { replace: true })}
@@ -50,8 +53,12 @@ export function SlackOAuthCallback() {
     <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
       <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-8 max-w-sm text-center">
         <Loader2 className="w-8 h-8 animate-spin text-bridge-accent mx-auto mb-4" />
-        <h2 className="text-foreground font-bold mb-1">{t('slackApp.connecting', 'Connecting to Slack...')}</h2>
-        <p className="text-slate-400 text-sm">{t('slackApp.redirecting', 'Redirecting you back...')}</p>
+        <h2 className="text-foreground font-bold mb-1">
+          {t('slackApp.connecting', 'Connecting to Slack...')}
+        </h2>
+        <p className="text-slate-400 text-sm">
+          {t('slackApp.redirecting', 'Redirecting you back...')}
+        </p>
       </div>
     </div>
   );

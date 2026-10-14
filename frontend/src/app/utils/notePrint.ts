@@ -69,11 +69,11 @@ details>*:not(summary){margin-top:.5rem;padding-left:1rem}
 
 export function escapeHtml(value: string): string {
   return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 export interface NotePrintOptions {
@@ -90,27 +90,27 @@ export interface NotePrintOptions {
  * 팝업이 차단되면 false를 돌려준다 — 호출 측이 안내 토스트를 띄운다.
  */
 export function openNotePrintWindow(options: NotePrintOptions): boolean {
-  const win = window.open("", "_blank");
+  const win = window.open('', '_blank');
   if (!win) return false;
 
-  const safeTitle = escapeHtml(options.title || "");
+  const safeTitle = escapeHtml(options.title || '');
   const html = [
-    "<!doctype html>",
-    `<html lang="${escapeHtml(options.lang || "ko")}">`,
-    "<head>",
+    '<!doctype html>',
+    `<html lang="${escapeHtml(options.lang || 'ko')}">`,
+    '<head>',
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
     `<title>${safeTitle}</title>`,
     `<style>${PRINT_CSS}</style>`,
-    "</head>",
-    "<body>",
+    '</head>',
+    '<body>',
     '<article class="note-print">',
     `<h1 class="note-print-title">${safeTitle}</h1>`,
     `<p class="note-print-meta">${options.metaHtml}</p>`,
     `<div class="note-view-render">${options.bodyHtml}</div>`,
-    "</article>",
-    "</body></html>",
-  ].join("");
+    '</article>',
+    '</body></html>',
+  ].join('');
 
   let printed = false;
   const triggerPrint = () => {
@@ -120,9 +120,9 @@ export function openNotePrintWindow(options: NotePrintOptions): boolean {
     win.print();
   };
 
-  win.addEventListener("afterprint", () => win.close());
+  win.addEventListener('afterprint', () => win.close());
   // load는 이미지 등 하위 리소스까지 내려온 뒤 발화 — 그 뒤에 인쇄해야 그림이 빠지지 않는다.
-  win.addEventListener("load", () => window.setTimeout(triggerPrint, 120));
+  win.addEventListener('load', () => window.setTimeout(triggerPrint, 120));
 
   win.document.open();
   win.document.write(html);

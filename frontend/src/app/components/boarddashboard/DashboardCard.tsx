@@ -1,5 +1,5 @@
-import type { HTMLAttributes, ReactNode, Ref } from "react";
-import { Loader2, ExternalLink } from "lucide-react";
+import type { HTMLAttributes, ReactNode, Ref } from 'react';
+import { Loader2, ExternalLink } from 'lucide-react';
 
 /**
  * 보드 대시보드의 네 패널이 공유하는 단 하나의 셸.
@@ -18,7 +18,7 @@ import { Loader2, ExternalLink } from "lucide-react";
 export const PANEL_HEADER_HEIGHT = 40;
 
 /** 머리와 본문 행이 함께 쓰는 좌우 여백 */
-export const PANEL_PAD_X = "px-3.5";
+export const PANEL_PAD_X = 'px-3.5';
 
 /**
  * 단계 표식 — 대시보드는 성숙도 순으로 쌓여 있다.
@@ -27,46 +27,40 @@ export const PANEL_PAD_X = "px-3.5";
  * 단계는 6px 도트 하나로만 말한다. 배경 틴트는 드래그 상태 전용으로 비워 둔다 —
  * 상시 정체성과 일시적 상태가 같은 색을 나눠 쓰면 둘 다 안 읽힌다.
  */
-export type PanelDot = "teal" | "accent" | "amber" | "rose" | "slate";
+export type PanelDot = 'teal' | 'accent' | 'amber' | 'rose' | 'slate';
 
 const DOT_CLASS: Record<PanelDot, string> = {
-  teal: "bg-bridge-secondary",
-  accent: "bg-bridge-accent",
-  amber: "bg-amber-500",
-  rose: "bg-rose-500",
-  slate: "bg-slate-500",
+  teal: 'bg-bridge-secondary',
+  accent: 'bg-bridge-accent',
+  amber: 'bg-amber-500',
+  rose: 'bg-rose-500',
+  slate: 'bg-slate-500',
 };
 
 /** 머리 안 탭 버튼 — 배치 대기·백로그가 같은 모양을 쓴다 */
 export function panelTabClass(active: boolean): string {
   return `flex-none flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-bold transition-colors ${
     active
-      ? "bg-foreground/[0.08] text-foreground"
-      : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+      ? 'bg-foreground/[0.08] text-foreground'
+      : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
   }`;
 }
 
-type CountTone = "muted" | "rose" | "amber" | "accent" | "teal";
+type CountTone = 'muted' | 'rose' | 'amber' | 'accent' | 'teal';
 
 const COUNT_TONE: Record<CountTone, string> = {
-  muted: "bg-foreground/[0.06] text-slate-500",
-  rose: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
-  amber: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  accent: "bg-bridge-accent/15 text-bridge-accent",
-  teal: "bg-bridge-secondary/15 text-bridge-secondary",
+  muted: 'bg-foreground/[0.06] text-slate-500',
+  rose: 'bg-rose-500/15 text-rose-600 dark:text-rose-400',
+  amber: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  accent: 'bg-bridge-accent/15 text-bridge-accent',
+  teal: 'bg-bridge-secondary/15 text-bridge-secondary',
 };
 
 /**
  * 개수 하나짜리 알약. 탭 안 숫자·"오늘 N"·백로그 개수가 전부 이 하나를 쓴다 —
  * 숫자가 어디에 있든 같은 물건으로 읽혀야 한다.
  */
-export function PanelCount({
-  value,
-  tone = "muted",
-}: {
-  value: number;
-  tone?: CountTone;
-}) {
+export function PanelCount({ value, tone = 'muted' }: { value: number; tone?: CountTone }) {
   return (
     <span
       className={`flex-none text-xs font-bold px-1.5 rounded-full tabular-nums ${COUNT_TONE[tone]}`}
@@ -132,8 +126,8 @@ export function PanelShell({
   footer,
   isLoading = false,
   padded = true,
-  className = "",
-  bodyClassName = "",
+  className = '',
+  bodyClassName = '',
   overlayClassName,
   sectionProps,
   sectionRef,
@@ -155,9 +149,7 @@ export function PanelShell({
           />
         )}
         {/* min-w-0 — flex 안에서 truncate가 실제로 먹으려면 줄어들 수 있어야 한다 */}
-        <h2 className="min-w-0 text-xs md:text-sm font-bold text-foreground truncate">
-          {title}
-        </h2>
+        <h2 className="min-w-0 text-xs md:text-sm font-bold text-foreground truncate">{title}</h2>
         {subtitle && (
           <span className="hidden sm:block min-w-0 text-xs text-slate-500 truncate">
             {subtitle}
@@ -185,17 +177,10 @@ export function PanelShell({
 
       {isLoading ? (
         <div className="flex-1 min-h-0 flex items-center justify-center py-12">
-          <Loader2
-            className="w-6 h-6 animate-spin text-bridge-accent"
-            aria-label="불러오는 중"
-          />
+          <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" aria-label="불러오는 중" />
         </div>
       ) : (
-        <div
-          className={`flex-1 min-h-0 ${padded ? "p-3.5" : ""} ${bodyClassName}`}
-        >
-          {children}
-        </div>
+        <div className={`flex-1 min-h-0 ${padded ? 'p-3.5' : ''} ${bodyClassName}`}>{children}</div>
       )}
 
       {footer}
@@ -216,16 +201,16 @@ export function PanelShell({
  */
 export function PanelBanner({
   children,
-  tone = "info",
+  tone = 'info',
 }: {
   children: ReactNode;
-  tone?: "info" | "error";
+  tone?: 'info' | 'error';
 }) {
   return (
     <div
       role="status"
       className={`flex-none flex items-center gap-2 ${PANEL_PAD_X} py-1.5 border-b border-foreground/[0.08] bg-foreground/[0.03] ${
-        tone === "error" ? "text-rose-600 dark:text-rose-400" : "text-slate-400"
+        tone === 'error' ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'
       }`}
     >
       {children}
@@ -244,7 +229,7 @@ export function PanelFooterHint({
   return (
     <p
       className={`flex-none ${PANEL_PAD_X} py-1 border-t border-foreground/[0.06] text-xs truncate ${
-        emphasized ? "font-bold text-bridge-accent" : "text-slate-600"
+        emphasized ? 'font-bold text-bridge-accent' : 'text-slate-600'
       }`}
     >
       {children}
