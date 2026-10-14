@@ -3,7 +3,7 @@ package com.kanban.domain.meeting.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.meeting.MeetingRepository;
 import com.kanban.domain.meeting.dto.MeetingResponse;
@@ -43,7 +43,8 @@ import org.springframework.web.multipart.MultipartFile;
 public class MeetingTranscriptionService {
 
     private final MeetingRepository meetingRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final AiCreditService aiCreditService;
     private final WebSocketEventService webSocketEventService;
     private final AIProvider aiProvider;
@@ -54,7 +55,7 @@ public class MeetingTranscriptionService {
 
     public MeetingTranscriptionService(
             MeetingRepository meetingRepository,
-            BoardService boardService,
+            BoardPermissionService boardPermissionService,
             AiCreditService aiCreditService,
             WebSocketEventService webSocketEventService,
             AIProvider aiProvider,
@@ -63,7 +64,7 @@ public class MeetingTranscriptionService {
             @Lazy MeetingTranscriptionAsyncService asyncService,
             AiApiKeyResolver apiKeyResolver) {
         this.meetingRepository = meetingRepository;
-        this.boardService = boardService;
+        this.boardPermissionService = boardPermissionService;
         this.aiCreditService = aiCreditService;
         this.webSocketEventService = webSocketEventService;
         this.aiProvider = aiProvider;
@@ -145,7 +146,7 @@ public class MeetingTranscriptionService {
     public void startTranscription(String boardId, String meetingId, String userId, MultipartFile audioFile)
             throws IOException {
         // --- Validation (synchronous, within HTTP request) ---
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         if (openaiApiKey() == null || openaiApiKey().isBlank()) {
             throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);

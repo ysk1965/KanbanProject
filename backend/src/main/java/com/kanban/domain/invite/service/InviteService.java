@@ -1,12 +1,12 @@
 package com.kanban.domain.invite.service;
 
 import com.kanban.domain.board.*;
-import com.kanban.domain.board.service.BoardService;
-import com.kanban.domain.organization.repository.OrgMemberRepository;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.invite.InviteLink;
 import com.kanban.domain.invite.InviteLinkRepository;
 import com.kanban.domain.invite.dto.InviteRequest;
 import com.kanban.domain.invite.dto.InviteResponse;
+import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.subscription.OrgSubscription;
 import com.kanban.domain.subscription.OrgSubscriptionRepository;
 import com.kanban.domain.subscription.Subscription;
@@ -17,15 +17,14 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.exception.OrgSeatLimitException;
 import com.kanban.global.exception.SeatLimitException;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -39,12 +38,13 @@ public class InviteService {
     private final UserRepository userRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final OrgSubscriptionRepository orgSubscriptionRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final CacheManager cacheManager;
     private final OrgMemberRepository orgMemberRepository;
 
     public InviteResponse.ListResponse getInviteLinks(String boardId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
         List<InviteLink> links = inviteLinkRepository.findByBoardIdAndIsActiveTrue(boardId);
         return InviteResponse.ListResponse.of(links);
@@ -52,13 +52,13 @@ public class InviteService {
 
     @Transactional
     public InviteResponse.Detail createInviteLink(String boardId, String userId, InviteRequest.Create request) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        User creator = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User creator =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         BoardRole role = request.getRole() != null ? request.getRole() : BoardRole.MEMBER;
 
@@ -89,9 +89,10 @@ public class InviteService {
 
     @Transactional
     public void deleteInviteLink(String boardId, String inviteId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        InviteLink link = inviteLinkRepository.findById(inviteId)
+        InviteLink link = inviteLinkRepository
+                .findById(inviteId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVITE_LINK_NOT_FOUND));
 
         if (!link.getBoard().getId().equals(boardId)) {
@@ -104,7 +105,8 @@ public class InviteService {
     }
 
     public InviteResponse.Info getInviteLinkInfo(String code) {
-        InviteLink link = inviteLinkRepository.findByCode(code)
+        InviteLink link = inviteLinkRepository
+                .findByCode(code)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVITE_LINK_NOT_FOUND));
 
         return InviteResponse.Info.of(link);
@@ -112,7 +114,8 @@ public class InviteService {
 
     @Transactional
     public InviteResponse.AcceptResult acceptInvite(String code, String userId) {
-        InviteLink link = inviteLinkRepository.findByCodeWithBoardAndCreator(code)
+        InviteLink link = inviteLinkRepository
+                .findByCodeWithBoardAndCreator(code)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVITE_LINK_NOT_FOUND));
 
         if (!link.isValid()) {
@@ -122,8 +125,7 @@ public class InviteService {
             throw new BusinessException(ErrorCode.INVITE_LINK_INVALID);
         }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         Board board = link.getBoard();
 
@@ -144,22 +146,29 @@ public class InviteService {
         if (link.getRole() != BoardRole.VIEWER) {
             if (board.isOrgManaged()) {
                 String orgId = board.getOrganization().getId();
-                OrgSubscription orgSub = orgSubscriptionRepository.findByOrganizationId(orgId).orElse(null);
+                OrgSubscription orgSub =
+                        orgSubscriptionRepository.findByOrganizationId(orgId).orElse(null);
                 if (orgSub != null && !orgSub.canInviteMember()) {
                     throw new OrgSeatLimitException(
-                            orgId, orgSub.getSeatCount(), orgSub.getActiveMemberCount(),
-                            OrgSubscription.MONTHLY_PRICE_PER_SEAT, OrgSubscription.YEARLY_PRICE_PER_SEAT,
+                            orgId,
+                            orgSub.getSeatCount(),
+                            orgSub.getActiveMemberCount(),
+                            OrgSubscription.MONTHLY_PRICE_PER_SEAT,
+                            OrgSubscription.YEARLY_PRICE_PER_SEAT,
                             false);
                 }
             } else {
-                Subscription subscription = subscriptionRepository.findByBoardId(board.getId()).orElse(null);
+                Subscription subscription =
+                        subscriptionRepository.findByBoardId(board.getId()).orElse(null);
                 if (subscription != null) {
                     int currentBillable = boardMemberRepository.countBillableMembers(board.getId());
                     if (currentBillable >= subscription.getMemberLimit()) {
                         if (subscription.isActive()) {
                             throw new SeatLimitException(
-                                    subscription.getSeatCount(), currentBillable,
-                                    Subscription.MONTHLY_PRICE_PER_SEAT, Subscription.YEARLY_PRICE_PER_SEAT);
+                                    subscription.getSeatCount(),
+                                    currentBillable,
+                                    Subscription.MONTHLY_PRICE_PER_SEAT,
+                                    Subscription.YEARLY_PRICE_PER_SEAT);
                         }
                         throw new BusinessException(ErrorCode.MEMBER_LIMIT_EXCEEDED);
                     }

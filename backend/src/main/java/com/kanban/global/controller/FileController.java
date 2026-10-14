@@ -1,12 +1,14 @@
 package com.kanban.global.controller;
 
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.organization.service.OrganizationService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.security.UserPrincipal;
 import com.kanban.global.service.FileUploadService;
 import com.kanban.global.util.MediaUtils;
+import java.util.Map;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
@@ -15,16 +17,14 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Map;
-import java.util.UUID;
-
 @RestController
 @RequestMapping("/api/v1/files")
 @RequiredArgsConstructor
 public class FileController {
 
     private final FileUploadService fileUploadService;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final OrganizationService organizationService;
 
     /**
@@ -33,25 +33,20 @@ public class FileController {
      */
     @PostMapping("/presign")
     public ResponseEntity<?> presignUpload(@RequestBody PresignRequest request) {
-        FileUploadService.PresignResult result = fileUploadService.presignUpload(
-                request.getFileName(),
-                request.getContentType(),
-                request.getFileSize()
-        );
+        FileUploadService.PresignResult result =
+                fileUploadService.presignUpload(request.getFileName(), request.getContentType(), request.getFileSize());
 
         if (result == null) {
             // Local mode — presigned URL 미지원
             return ResponseEntity.ok(Map.of(
                     "mode", "direct",
-                    "message", "Presigned URL not supported. Use POST /api/v1/files/upload instead."
-            ));
+                    "message", "Presigned URL not supported. Use POST /api/v1/files/upload instead."));
         }
 
         return ResponseEntity.ok(Map.of(
                 "mode", result.getMode(),
                 "tempKey", result.getTempKey(),
-                "uploadUrl", result.getUploadUrl()
-        ));
+                "uploadUrl", result.getUploadUrl()));
     }
 
     /**
@@ -64,8 +59,7 @@ public class FileController {
 
         return ResponseEntity.ok(Map.of(
                 "tempKey", result.getTempKey(),
-                "previewUrl", result.getUrl()
-        ));
+                "previewUrl", result.getUrl()));
     }
 
     /**
@@ -91,7 +85,7 @@ public class FileController {
 
         String scopeId;
         if (hasBoard) {
-            boardService.checkMemberOrAbove(boardId, principal.getUserId());
+            boardPermissionService.checkMemberOrAbove(boardId, principal.getUserId());
             scopeId = boardId;
         } else if (hasOrg) {
             organizationService.getOrgMemberOrThrow(organizationId, principal.getUserId());

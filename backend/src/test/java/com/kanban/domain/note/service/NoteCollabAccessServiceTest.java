@@ -1,7 +1,13 @@
 package com.kanban.domain.note.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.kanban.domain.board.Board;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.note.Note;
 import com.kanban.domain.note.NoteRepository;
 import com.kanban.domain.note.service.NoteCollabAccessService.Access;
@@ -10,19 +16,12 @@ import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.user.User;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class NoteCollabAccessServiceTest {
@@ -32,11 +31,17 @@ class NoteCollabAccessServiceTest {
     private static final String BOARD = "board-1";
     private static final String ORG = "org-1";
 
-    @Mock NoteRepository noteRepository;
-    @Mock BoardService boardService;
-    @Mock OrgMemberRepository orgMemberRepository;
+    @Mock
+    NoteRepository noteRepository;
 
-    @InjectMocks NoteCollabAccessService service;
+    @Mock
+    BoardPermissionService boardPermissionService;
+
+    @Mock
+    OrgMemberRepository orgMemberRepository;
+
+    @InjectMocks
+    NoteCollabAccessService service;
 
     @Test
     void unknownNote_isDenied() {
@@ -64,7 +69,8 @@ class NoteCollabAccessServiceTest {
         Note note = boardNote();
         when(noteRepository.findById(NOTE)).thenReturn(Optional.of(note));
         doThrow(new BusinessException(ErrorCode.BOARD_ACCESS_DENIED))
-                .when(boardService).checkMemberOrAbove(eq(BOARD), eq(USER));
+                .when(boardPermissionService)
+                .checkMemberOrAbove(eq(BOARD), eq(USER));
         assertThat(service.resolve(NOTE, USER)).isEqualTo(Access.VIEW);
     }
 
@@ -73,9 +79,11 @@ class NoteCollabAccessServiceTest {
         Note note = boardNote();
         when(noteRepository.findById(NOTE)).thenReturn(Optional.of(note));
         doThrow(new BusinessException(ErrorCode.BOARD_ACCESS_DENIED))
-                .when(boardService).checkMemberOrAbove(eq(BOARD), eq(USER));
+                .when(boardPermissionService)
+                .checkMemberOrAbove(eq(BOARD), eq(USER));
         doThrow(new BusinessException(ErrorCode.BOARD_ACCESS_DENIED))
-                .when(boardService).checkViewerOrAbove(eq(BOARD), eq(USER));
+                .when(boardPermissionService)
+                .checkViewerOrAbove(eq(BOARD), eq(USER));
         assertThat(service.resolve(NOTE, USER)).isEqualTo(Access.NONE);
     }
 

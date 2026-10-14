@@ -1,6 +1,6 @@
 package com.kanban.domain.meeting.controller;
 
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.integration.FrontendOriginResolver;
 import com.kanban.domain.meeting.dto.MeetingAIRequest;
 import com.kanban.domain.meeting.dto.MeetingAIResponse;
@@ -14,6 +14,9 @@ import com.kanban.global.security.UserPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.io.IOException;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -22,16 +25,12 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
-
 @RestController
 @RequestMapping("/api/v1/boards/{boardId}/meetings")
 @RequiredArgsConstructor
 public class MeetingController {
 
-    private final BoardService boardService;
+    private final BoardPermissionService boardPermissionService;
     private final MeetingService meetingService;
     private final MeetingAIService meetingAIService;
     private final MeetingTranscriptionService meetingTranscriptionService;
@@ -41,8 +40,7 @@ public class MeetingController {
             @PathVariable String boardId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @AuthenticationPrincipal UserPrincipal principal) {
-        List<MeetingResponse.Summary> response = meetingService.getMeetingsByDate(
-                boardId, date, principal.getUserId());
+        List<MeetingResponse.Summary> response = meetingService.getMeetingsByDate(boardId, date, principal.getUserId());
         return ResponseEntity.ok(response);
     }
 
@@ -52,8 +50,8 @@ public class MeetingController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @AuthenticationPrincipal UserPrincipal principal) {
-        List<MeetingResponse.Summary> response = meetingService.getMeetingsByDateRange(
-                boardId, startDate, endDate, principal.getUserId());
+        List<MeetingResponse.Summary> response =
+                meetingService.getMeetingsByDateRange(boardId, startDate, endDate, principal.getUserId());
         return ResponseEntity.ok(response);
     }
 
@@ -62,8 +60,7 @@ public class MeetingController {
             @PathVariable String boardId,
             @PathVariable String meetingId,
             @AuthenticationPrincipal UserPrincipal principal) {
-        MeetingResponse.Detail response = meetingService.getMeetingDetail(
-                boardId, meetingId, principal.getUserId());
+        MeetingResponse.Detail response = meetingService.getMeetingDetail(boardId, meetingId, principal.getUserId());
         return ResponseEntity.ok(response);
     }
 
@@ -72,9 +69,8 @@ public class MeetingController {
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody MeetingRequest.Create request) {
-        boardService.checkTeamBoardOnly(boardId);
-        MeetingResponse.Detail response = meetingService.createMeeting(
-                boardId, principal.getUserId(), request);
+        boardPermissionService.checkTeamBoardOnly(boardId);
+        MeetingResponse.Detail response = meetingService.createMeeting(boardId, principal.getUserId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -85,8 +81,8 @@ public class MeetingController {
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody MeetingRequest.Update request,
             @RequestParam(defaultValue = "THIS_ONLY") String scope) {
-        MeetingResponse.Detail response = meetingService.updateMeeting(
-                boardId, meetingId, principal.getUserId(), request, scope);
+        MeetingResponse.Detail response =
+                meetingService.updateMeeting(boardId, meetingId, principal.getUserId(), request, scope);
         return ResponseEntity.ok(response);
     }
 
@@ -107,8 +103,8 @@ public class MeetingController {
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestHeader(value = "Origin", required = false) String origin,
             HttpServletRequest httpRequest) {
-        String resolvedOrigin = FrontendOriginResolver.resolveFrontendUrl(
-                origin, httpRequest.getHeader("X-Forwarded-Host"), null);
+        String resolvedOrigin =
+                FrontendOriginResolver.resolveFrontendUrl(origin, httpRequest.getHeader("X-Forwarded-Host"), null);
         meetingService.notifyParticipants(boardId, meetingId, principal.getUserId(), resolvedOrigin);
         return ResponseEntity.ok(Map.of("message", "회의록 알림을 보냈습니다"));
     }
@@ -118,9 +114,9 @@ public class MeetingController {
             @PathVariable String boardId,
             @PathVariable String meetingId,
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestPart("file") MultipartFile audioFile) throws IOException {
-        meetingTranscriptionService.startTranscription(
-                boardId, meetingId, principal.getUserId(), audioFile);
+            @RequestPart("file") MultipartFile audioFile)
+            throws IOException {
+        meetingTranscriptionService.startTranscription(boardId, meetingId, principal.getUserId(), audioFile);
         return ResponseEntity.accepted().body(Map.of("message", "Transcription started"));
     }
 
@@ -130,10 +126,8 @@ public class MeetingController {
             @PathVariable String meetingId,
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody Map<String, String> body) {
-        MeetingResponse.TranscriptResult result =
-                meetingService.updateTranscript(
-                        boardId, meetingId, principal.getUserId(),
-                        body.get("transcript"), body.get("diarized_transcript"));
+        MeetingResponse.TranscriptResult result = meetingService.updateTranscript(
+                boardId, meetingId, principal.getUserId(), body.get("transcript"), body.get("diarized_transcript"));
         return ResponseEntity.ok(result);
     }
 
@@ -143,10 +137,8 @@ public class MeetingController {
             @PathVariable String meetingId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody MeetingRequest.SpeakerMappingUpdate request) {
-        MeetingResponse.SpeakerMappingResult result =
-                meetingService.updateSpeakerMapping(
-                        boardId, meetingId, principal.getUserId(),
-                        request.getSpeakerMapping());
+        MeetingResponse.SpeakerMappingResult result = meetingService.updateSpeakerMapping(
+                boardId, meetingId, principal.getUserId(), request.getSpeakerMapping());
         return ResponseEntity.ok(result);
     }
 
@@ -156,8 +148,8 @@ public class MeetingController {
             @PathVariable String meetingId,
             @RequestParam(required = false) String language,
             @AuthenticationPrincipal UserPrincipal principal) {
-        MeetingAIResponse.Suggestions response = meetingAIService.generateSuggestions(
-                boardId, meetingId, principal.getUserId(), language);
+        MeetingAIResponse.Suggestions response =
+                meetingAIService.generateSuggestions(boardId, meetingId, principal.getUserId(), language);
         return ResponseEntity.ok(response);
     }
 
@@ -167,8 +159,8 @@ public class MeetingController {
             @PathVariable String meetingId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody MeetingAIRequest.Apply request) {
-        MeetingAIResponse.ApplyResult response = meetingAIService.applySuggestions(
-                boardId, meetingId, principal.getUserId(), request);
+        MeetingAIResponse.ApplyResult response =
+                meetingAIService.applySuggestions(boardId, meetingId, principal.getUserId(), request);
         return ResponseEntity.ok(response);
     }
 
@@ -177,8 +169,7 @@ public class MeetingController {
             @PathVariable String boardId,
             @PathVariable String meetingId,
             @AuthenticationPrincipal UserPrincipal principal) {
-        NoteResponse.Detail response = meetingService.saveToNote(
-                boardId, meetingId, principal.getUserId());
+        NoteResponse.Detail response = meetingService.saveToNote(boardId, meetingId, principal.getUserId());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

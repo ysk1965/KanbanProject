@@ -1,11 +1,14 @@
 package com.kanban.domain.integration.discord.controller;
 
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.integration.FrontendOriginResolver;
 import com.kanban.domain.integration.discord.dto.DiscordRequest;
 import com.kanban.domain.integration.discord.dto.DiscordResponse;
 import com.kanban.domain.integration.discord.service.DiscordService;
 import com.kanban.global.security.UserPrincipal;
+import java.net.URI;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,17 +18,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URI;
-import java.util.List;
-import java.util.Map;
-
 @Slf4j
 @RestController
 @RequiredArgsConstructor
 public class DiscordController {
 
     private final DiscordService discordService;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -40,7 +40,8 @@ public class DiscordController {
             @RequestParam(value = "origin", required = false) String origin,
             @AuthenticationPrincipal UserPrincipal principal) {
         String resolvedOrigin = FrontendOriginResolver.resolve(origin, frontendUrl);
-        DiscordResponse.OAuthUrl response = discordService.getOAuthUrl(boardId, principal.getUserId(), type, resolvedOrigin);
+        DiscordResponse.OAuthUrl response =
+                discordService.getOAuthUrl(boardId, principal.getUserId(), type, resolvedOrigin);
         return ResponseEntity.ok(response);
     }
 
@@ -68,7 +69,9 @@ public class DiscordController {
             return new ResponseEntity<>(headers, HttpStatus.FOUND);
         } catch (Exception e) {
             log.warn("Discord OAuth callback failed: {}", e.getMessage(), e);
-            String detail = e.getMessage() != null ? java.net.URLEncoder.encode(e.getMessage(), java.nio.charset.StandardCharsets.UTF_8) : "unknown";
+            String detail = e.getMessage() != null
+                    ? java.net.URLEncoder.encode(e.getMessage(), java.nio.charset.StandardCharsets.UTF_8)
+                    : "unknown";
             String errorRedirect = buildErrorRedirect(state, "error") + "&reason=" + detail;
             HttpHeaders headers = new HttpHeaders();
             headers.setLocation(URI.create(errorRedirect));
@@ -88,7 +91,8 @@ public class DiscordController {
                     return frontendUrl + "/boards/" + parts[1] + "?view=settings&tab=discord&discord=" + reason;
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         return frontendUrl + "?discord=" + reason;
     }
 
@@ -97,9 +101,8 @@ public class DiscordController {
      */
     @GetMapping("/api/v1/boards/{boardId}/discord/config")
     public ResponseEntity<DiscordResponse.BotConfig> getBotConfig(
-            @PathVariable String boardId,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        boardService.checkViewerOrAbove(boardId, principal.getUserId());
+            @PathVariable String boardId, @AuthenticationPrincipal UserPrincipal principal) {
+        boardPermissionService.checkViewerOrAbove(boardId, principal.getUserId());
         DiscordResponse.BotConfig response = discordService.getBotConfig(boardId);
         return ResponseEntity.ok(response);
     }
@@ -109,8 +112,7 @@ public class DiscordController {
      */
     @DeleteMapping("/api/v1/boards/{boardId}/discord/config")
     public ResponseEntity<Map<String, String>> deleteBotConfig(
-            @PathVariable String boardId,
-            @AuthenticationPrincipal UserPrincipal principal) {
+            @PathVariable String boardId, @AuthenticationPrincipal UserPrincipal principal) {
         discordService.deleteBotConfig(boardId, principal.getUserId());
         return ResponseEntity.ok(Map.of("message", "Discord Bot이 제거되었습니다"));
     }
@@ -120,8 +122,7 @@ public class DiscordController {
      */
     @GetMapping("/api/v1/boards/{boardId}/discord/me")
     public ResponseEntity<DiscordResponse.UserLinkStatus> getUserLink(
-            @PathVariable String boardId,
-            @AuthenticationPrincipal UserPrincipal principal) {
+            @PathVariable String boardId, @AuthenticationPrincipal UserPrincipal principal) {
         DiscordResponse.UserLinkStatus response = discordService.getUserLink(principal.getUserId());
         return ResponseEntity.ok(response);
     }
@@ -131,8 +132,7 @@ public class DiscordController {
      */
     @DeleteMapping("/api/v1/boards/{boardId}/discord/me")
     public ResponseEntity<Map<String, String>> unlinkUser(
-            @PathVariable String boardId,
-            @AuthenticationPrincipal UserPrincipal principal) {
+            @PathVariable String boardId, @AuthenticationPrincipal UserPrincipal principal) {
         discordService.unlinkUser(principal.getUserId());
         return ResponseEntity.ok(Map.of("message", "Discord 계정 연동이 해제되었습니다"));
     }
@@ -142,9 +142,8 @@ public class DiscordController {
      */
     @GetMapping("/api/v1/boards/{boardId}/discord/channels")
     public ResponseEntity<List<DiscordResponse.ChannelInfo>> getChannels(
-            @PathVariable String boardId,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        boardService.checkViewerOrAbove(boardId, principal.getUserId());
+            @PathVariable String boardId, @AuthenticationPrincipal UserPrincipal principal) {
+        boardPermissionService.checkViewerOrAbove(boardId, principal.getUserId());
         List<DiscordResponse.ChannelInfo> channels = discordService.getChannels(boardId);
         return ResponseEntity.ok(channels);
     }
@@ -166,9 +165,8 @@ public class DiscordController {
      */
     @GetMapping("/api/v1/boards/{boardId}/discord/statuses")
     public ResponseEntity<List<DiscordResponse.MemberStatus>> getMemberStatuses(
-            @PathVariable String boardId,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        boardService.checkViewerOrAbove(boardId, principal.getUserId());
+            @PathVariable String boardId, @AuthenticationPrincipal UserPrincipal principal) {
+        boardPermissionService.checkViewerOrAbove(boardId, principal.getUserId());
         List<DiscordResponse.MemberStatus> statuses = discordService.getMemberStatuses(boardId);
         return ResponseEntity.ok(statuses);
     }

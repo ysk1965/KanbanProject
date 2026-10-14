@@ -1,6 +1,6 @@
 package com.kanban.domain.note.service;
 
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.note.Note;
 import com.kanban.domain.note.NoteRepository;
 import com.kanban.domain.organization.repository.OrgMemberRepository;
@@ -23,7 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class NoteCollabAccessService {
 
     public enum Access {
-        NONE, VIEW, EDIT;
+        NONE,
+        VIEW,
+        EDIT;
 
         public boolean canView() {
             return this != NONE;
@@ -35,7 +37,8 @@ public class NoteCollabAccessService {
     }
 
     private final NoteRepository noteRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final OrgMemberRepository orgMemberRepository;
 
     @Transactional(readOnly = true)
@@ -49,10 +52,10 @@ public class NoteCollabAccessService {
 
         if (note.getBoard() != null) {
             String boardId = note.getBoard().getId();
-            if (passes(() -> boardService.checkMemberOrAbove(boardId, userId))) {
+            if (passes(() -> boardPermissionService.checkMemberOrAbove(boardId, userId))) {
                 return Access.EDIT;
             }
-            if (passes(() -> boardService.checkViewerOrAbove(boardId, userId))) {
+            if (passes(() -> boardPermissionService.checkViewerOrAbove(boardId, userId))) {
                 return Access.VIEW;
             }
             return Access.NONE;
@@ -60,8 +63,7 @@ public class NoteCollabAccessService {
 
         if (note.getOrganization() != null) {
             String orgId = note.getOrganization().getId();
-            return orgMemberRepository.existsByOrganizationIdAndUserId(orgId, userId)
-                    ? Access.EDIT : Access.NONE;
+            return orgMemberRepository.existsByOrganizationIdAndUserId(orgId, userId) ? Access.EDIT : Access.NONE;
         }
 
         if (note.getOwner() != null) {

@@ -1,6 +1,6 @@
 package com.kanban.domain.storage.service;
 
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.organization.service.OrganizationService;
 import com.kanban.domain.storage.StorageScope;
 import lombok.RequiredArgsConstructor;
@@ -16,29 +16,35 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class StoragePermissionService {
 
-    private final BoardService boardService;
+    private final BoardPermissionService boardPermissionService;
     private final OrganizationService organizationService;
 
     public void checkRead(StorageScope scope, String userId) {
         switch (scope.type()) {
-            case OWNER -> { /* 쿼리 레벨 격리 */ }
-            case BOARD -> boardService.checkViewerOrAbove(scope.boardId(), userId);
+            case OWNER -> {
+                /* 쿼리 레벨 격리 */
+            }
+            case BOARD -> boardPermissionService.checkViewerOrAbove(scope.boardId(), userId);
             case ORG -> organizationService.getOrgMemberOrThrow(scope.organizationId(), userId);
         }
     }
 
     public void checkWrite(StorageScope scope, String userId) {
         switch (scope.type()) {
-            case OWNER -> { /* 쿼리 레벨 격리 */ }
-            case BOARD -> boardService.checkMemberOrAbove(scope.boardId(), userId);
+            case OWNER -> {
+                /* 쿼리 레벨 격리 */
+            }
+            case BOARD -> boardPermissionService.checkMemberOrAbove(scope.boardId(), userId);
             case ORG -> organizationService.getOrgMemberOrThrow(scope.organizationId(), userId);
         }
     }
 
     public void checkStrong(StorageScope scope, String userId) {
         switch (scope.type()) {
-            case OWNER -> { /* 쿼리 레벨 격리 */ }
-            case BOARD -> boardService.checkAdminOrAbove(scope.boardId(), userId);
+            case OWNER -> {
+                /* 쿼리 레벨 격리 */
+            }
+            case BOARD -> boardPermissionService.checkAdminOrAbove(scope.boardId(), userId);
             case ORG -> organizationService.checkAdminOrAbove(scope.organizationId(), userId);
         }
     }

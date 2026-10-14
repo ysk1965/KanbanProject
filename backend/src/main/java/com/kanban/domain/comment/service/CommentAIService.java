@@ -2,7 +2,7 @@ package com.kanban.domain.comment.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.comment.Comment;
 import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.comment.dto.CommentAIResponse;
@@ -12,16 +12,15 @@ import com.kanban.global.ai.AiInvocationRequest;
 import com.kanban.global.ai.AiInvocationTemplate;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
-
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -32,7 +31,8 @@ public class CommentAIService {
     private final TransactionTemplate transactionTemplate;
     private final CommentRepository commentRepository;
     private final TaskRepository taskRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
 
     @Value("${ai.provider:claude}")
     private String provider;
@@ -61,22 +61,20 @@ public class CommentAIService {
             Map.entry("th", "Thai"),
             Map.entry("hi", "Hindi"),
             Map.entry("es", "Spanish"),
-            Map.entry("pt-BR", "Portuguese (Brazil)")
-    );
+            Map.entry("pt-BR", "Portuguese (Brazil)"));
 
     /**
      * 트랜잭션 밖에서 실행된다 — 댓글 읽기는 {@code transactionTemplate}으로 짧게 묶고, LLM 호출은
      * {@link AiInvocationTemplate}이 트랜잭션 없이 수행한다(크레딧 차감·사용량 로그는 각자 짧은 트랜잭션).
      */
-    public CommentAIResponse.Summary summarizeComments(
-            String boardId, String taskId, String userId, String language) {
+    public CommentAIResponse.Summary summarizeComments(String boardId, String taskId, String userId, String language) {
 
         // 1. 입력 읽기 (tx) — Comment.author는 LAZY라 본문 텍스트까지 여기서 만든다
         PromptInput input = transactionTemplate.execute(status -> {
-            boardService.checkMemberOrAbove(boardId, userId);
+            boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-            Task task = taskRepository.findById(taskId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+            Task task =
+                    taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
             List<Comment> comments = commentRepository.findByTaskIdWithAuthor(taskId);
             if (comments.size() < MIN_COMMENTS) {
@@ -89,32 +87,39 @@ public class CommentAIService {
             }
 
             String commentsText = buildCommentsText(comments);
-            return new PromptInput(comments.size(),
-                    buildSystemPrompt(language),
-                    buildUserPrompt(task.getTitle(), commentsText));
+            return new PromptInput(
+                    comments.size(), buildSystemPrompt(language), buildUserPrompt(task.getTitle(), commentsText));
         });
 
         // 2. 크레딧 차감 → AI 호출 → 사용량 로그 → 파싱 (트랜잭션 없음)
-        log.info("Generating AI comment summary for task: {} in board: {} ({} comments)",
-                taskId, boardId, input.commentCount());
+        log.info(
+                "Generating AI comment summary for task: {} in board: {} ({} comments)",
+                taskId,
+                boardId,
+                input.commentCount());
         AiInvocationRequest request = AiInvocationRequest.builder()
-                .boardId(boardId).userId(userId)
-                .featureType("COMMENT_SUMMARY").creditCost(1)
-                .systemPrompt(input.systemPrompt()).userPrompt(input.userPrompt())
-                .model(getModel()).maxTokens(MAX_TOKENS)
+                .boardId(boardId)
+                .userId(userId)
+                .featureType("COMMENT_SUMMARY")
+                .creditCost(1)
+                .systemPrompt(input.systemPrompt())
+                .userPrompt(input.userPrompt())
+                .model(getModel())
+                .maxTokens(MAX_TOKENS)
                 .build();
         return aiInvocationTemplate.invoke(request, content -> parseAIResponse(content, taskId));
     }
 
-    private record PromptInput(int commentCount, String systemPrompt, String userPrompt) {
-    }
+    private record PromptInput(int commentCount, String systemPrompt, String userPrompt) {}
 
     private String buildSystemPrompt(String language) {
         String langName = language != null ? LANGUAGE_NAMES.getOrDefault(language, "English") : null;
         String langInstruction;
         String langReminder;
         if (langName != null) {
-            langInstruction = "CRITICAL LANGUAGE RULE: You MUST write ALL output text (summary, decisions, open_questions, action_items) in " + langName + ". Do NOT use English for any content values.";
+            langInstruction =
+                    "CRITICAL LANGUAGE RULE: You MUST write ALL output text (summary, decisions, open_questions, action_items) in "
+                            + langName + ". Do NOT use English for any content values.";
             langReminder = "REMINDER: All text content in the JSON output MUST be in " + langName + ".";
         } else {
             langInstruction = "CRITICAL LANGUAGE RULE: Match the language of the comments for all output text.";

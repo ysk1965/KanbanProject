@@ -1,15 +1,15 @@
 package com.kanban.domain.member.service;
 
 import com.kanban.domain.board.*;
-import com.kanban.domain.board.service.BoardService;
-import com.kanban.domain.jobrole.entity.JobRole;
-import com.kanban.domain.jobrole.repository.JobRoleRepository;
-import com.kanban.domain.organization.OrganizationMember;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.invite.InviteLink;
 import com.kanban.domain.invite.InviteLinkRepository;
-import com.kanban.domain.organization.repository.OrgMemberRepository;
+import com.kanban.domain.jobrole.entity.JobRole;
+import com.kanban.domain.jobrole.repository.JobRoleRepository;
 import com.kanban.domain.member.dto.MemberRequest;
 import com.kanban.domain.member.dto.MemberResponse;
+import com.kanban.domain.organization.OrganizationMember;
+import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.subscription.OrgSubscription;
 import com.kanban.domain.subscription.OrgSubscriptionRepository;
 import com.kanban.domain.subscription.Subscription;
@@ -23,6 +23,13 @@ import com.kanban.global.exception.OrgSeatLimitException;
 import com.kanban.global.exception.SeatLimitException;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,14 +38,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -52,7 +51,8 @@ public class MemberService {
     private final SubscriptionRepository subscriptionRepository;
     private final OrgSubscriptionRepository orgSubscriptionRepository;
     private final InviteLinkRepository inviteLinkRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final EmailService emailService;
     private final WebSocketEventService webSocketEventService;
     private final OrgMemberRepository orgMemberRepository;
@@ -65,7 +65,7 @@ public class MemberService {
 
     public MemberResponse.ListResponse getMembers(String boardId, String userId) {
         // 뷰어 이상 권한 확인 (컨트롤러 경로 전용 — Facade는 멤버십을 1회 검증 후 internal 직접 호출)
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         // this.getMembersInternal()로 직접 호출하면 @Cacheable이 동작하지 않으므로 self 프록시 경유
         return self.getMembersInternal(boardId);
     }
@@ -84,13 +84,13 @@ public class MemberService {
     @Transactional
     @CacheEvict(value = "members", key = "#boardId")
     public MemberResponse.InviteResult inviteMember(String boardId, String userId, MemberRequest.Invite request) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        User inviter = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User inviter =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // Owner 역할은 부여 불가
         if (request.getRole() == BoardRole.OWNER) {
@@ -110,7 +110,8 @@ public class MemberService {
         }
     }
 
-    private MemberResponse.InviteResult addExistingUserAsMember(Board board, User inviter, User invitee, BoardRole role, String boardId) {
+    private MemberResponse.InviteResult addExistingUserAsMember(
+            Board board, User inviter, User invitee, BoardRole role, String boardId) {
         // Pessimistic Lock으로 Board 조회 - 멤버 제한 동시성 제어
         boardRepository.findByIdWithLock(boardId);
 
@@ -132,14 +133,17 @@ public class MemberService {
             if (board.isOrgManaged()) {
                 checkOrgSeatLimit(board, inviter.getId());
             } else {
-                Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
+                Subscription subscription =
+                        subscriptionRepository.findByBoardId(boardId).orElse(null);
                 if (subscription != null) {
                     int currentBillable = boardMemberRepository.countBillableMembers(boardId);
                     if (currentBillable >= subscription.getMemberLimit()) {
                         if (subscription.isActive()) {
                             throw new SeatLimitException(
-                                    subscription.getSeatCount(), currentBillable,
-                                    Subscription.MONTHLY_PRICE_PER_SEAT, Subscription.YEARLY_PRICE_PER_SEAT);
+                                    subscription.getSeatCount(),
+                                    currentBillable,
+                                    Subscription.MONTHLY_PRICE_PER_SEAT,
+                                    Subscription.YEARLY_PRICE_PER_SEAT);
                         }
                         throw new BusinessException(ErrorCode.MEMBER_LIMIT_EXCEEDED);
                     }
@@ -156,8 +160,12 @@ public class MemberService {
 
         boardMemberRepository.save(newMember);
 
-        log.info("Member added directly: {} to board: {} with role: {} by user: {}",
-                invitee.getId(), boardId, role, inviter.getId());
+        log.info(
+                "Member added directly: {} to board: {} with role: {} by user: {}",
+                invitee.getId(),
+                boardId,
+                role,
+                inviter.getId());
 
         return MemberResponse.InviteResult.ofDirectAdd(newMember);
     }
@@ -175,29 +183,29 @@ public class MemberService {
         inviteLinkRepository.save(inviteLink);
 
         // 이메일 발송 (비동기)
-        emailService.sendInviteEmail(
-                email,
-                board.getName(),
-                inviter.getName(),
-                inviteLink.getCode(),
-                role.name()
-        );
+        emailService.sendInviteEmail(email, board.getName(), inviter.getName(), inviteLink.getCode(), role.name());
 
-        log.info("Invite email sent to: {} for board: {} with role: {} by user: {}",
-                email, board.getId(), role, inviter.getId());
+        log.info(
+                "Invite email sent to: {} for board: {} with role: {} by user: {}",
+                email,
+                board.getId(),
+                role,
+                inviter.getId());
 
         return MemberResponse.InviteResult.ofEmailSent(email, role.name());
     }
 
     @Transactional
     @CacheEvict(value = "members", key = "#boardId")
-    public MemberResponse.Detail updateMemberRole(String boardId, String memberId, String userId, MemberRequest.UpdateRole request) {
-        boardService.checkAdminOrAbove(boardId, userId);
+    public MemberResponse.Detail updateMemberRole(
+            String boardId, String memberId, String userId, MemberRequest.UpdateRole request) {
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
         // Pessimistic Lock으로 Board 조회 - 멤버 제한 동시성 제어
         boardRepository.findByIdWithLock(boardId);
 
-        BoardMember member = boardMemberRepository.findById(memberId)
+        BoardMember member = boardMemberRepository
+                .findById(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         if (!member.getBoard().getId().equals(boardId)) {
@@ -220,14 +228,17 @@ public class MemberService {
             if (board.isOrgManaged()) {
                 checkOrgSeatLimit(board, userId);
             } else {
-                Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
+                Subscription subscription =
+                        subscriptionRepository.findByBoardId(boardId).orElse(null);
                 if (subscription != null) {
                     int currentBillable = boardMemberRepository.countBillableMembers(boardId);
                     if (currentBillable >= subscription.getMemberLimit()) {
                         if (subscription.isActive()) {
                             throw new SeatLimitException(
-                                    subscription.getSeatCount(), currentBillable,
-                                    Subscription.MONTHLY_PRICE_PER_SEAT, Subscription.YEARLY_PRICE_PER_SEAT);
+                                    subscription.getSeatCount(),
+                                    currentBillable,
+                                    Subscription.MONTHLY_PRICE_PER_SEAT,
+                                    Subscription.YEARLY_PRICE_PER_SEAT);
                         }
                         throw new BusinessException(ErrorCode.MEMBER_LIMIT_EXCEEDED);
                     }
@@ -237,18 +248,20 @@ public class MemberService {
 
         member.updateRole(request.getRole());
 
-        log.info("Member role updated: {} to {} in board: {} by user: {}",
-                memberId, request.getRole(), boardId, userId);
+        log.info(
+                "Member role updated: {} to {} in board: {} by user: {}", memberId, request.getRole(), boardId, userId);
 
         return MemberResponse.Detail.of(member);
     }
 
     @Transactional
     @CacheEvict(value = "members", key = "#boardId")
-    public MemberResponse.Detail updateMemberColor(String boardId, String memberId, String userId, MemberRequest.UpdateColor request) {
-        boardService.checkViewerOrAbove(boardId, userId);
+    public MemberResponse.Detail updateMemberColor(
+            String boardId, String memberId, String userId, MemberRequest.UpdateColor request) {
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
-        BoardMember member = boardMemberRepository.findById(memberId)
+        BoardMember member = boardMemberRepository
+                .findById(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         if (!member.getBoard().getId().equals(boardId)) {
@@ -258,28 +271,34 @@ public class MemberService {
         // 본인 또는 Admin 이상만 색상 변경 가능
         boolean isSelf = member.getUser().getId().equals(userId);
         if (!isSelf) {
-            boardService.checkAdminOrAbove(boardId, userId);
+            boardPermissionService.checkAdminOrAbove(boardId, userId);
         }
 
         member.updateAssigneeColor(request.getAssigneeColor());
 
-        log.info("Member color updated: {} to {} in board: {} by user: {}",
-                memberId, request.getAssigneeColor(), boardId, userId);
+        log.info(
+                "Member color updated: {} to {} in board: {} by user: {}",
+                memberId,
+                request.getAssigneeColor(),
+                boardId,
+                userId);
 
         MemberResponse.Detail response = MemberResponse.Detail.of(member);
         User user = userRepository.findById(userId).orElse(null);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEMBER_UPDATED,
-                userId, user != null ? user.getName() : null, response);
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.MEMBER_UPDATED, userId, user != null ? user.getName() : null, response);
 
         return response;
     }
 
     @Transactional
     @CacheEvict(value = "members", key = "#boardId")
-    public MemberResponse.Detail updateMemberGithubLogin(String boardId, String memberId, String userId, MemberRequest.UpdateGithubLogin request) {
-        boardService.checkViewerOrAbove(boardId, userId);
+    public MemberResponse.Detail updateMemberGithubLogin(
+            String boardId, String memberId, String userId, MemberRequest.UpdateGithubLogin request) {
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
-        BoardMember member = boardMemberRepository.findById(memberId)
+        BoardMember member = boardMemberRepository
+                .findById(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         if (!member.getBoard().getId().equals(boardId)) {
@@ -289,7 +308,7 @@ public class MemberService {
         // 본인 또는 Admin 이상만 GitHub 계정 연결 가능
         boolean isSelf = member.getUser().getId().equals(userId);
         if (!isSelf) {
-            boardService.checkAdminOrAbove(boardId, userId);
+            boardPermissionService.checkAdminOrAbove(boardId, userId);
         }
 
         String login = request.getGithubLogin();
@@ -299,23 +318,24 @@ public class MemberService {
         }
         member.updateGithubLogin(login);
 
-        log.info("Member githubLogin updated: {} to {} in board: {} by user: {}",
-                memberId, login, boardId, userId);
+        log.info("Member githubLogin updated: {} to {} in board: {} by user: {}", memberId, login, boardId, userId);
 
         MemberResponse.Detail response = MemberResponse.Detail.of(member);
         User user = userRepository.findById(userId).orElse(null);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEMBER_UPDATED,
-                userId, user != null ? user.getName() : null, response);
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.MEMBER_UPDATED, userId, user != null ? user.getName() : null, response);
 
         return response;
     }
 
     @Transactional
     @CacheEvict(value = "members", key = "#boardId")
-    public MemberResponse.Detail updateMemberJobRole(String boardId, String memberId, String userId, MemberRequest.UpdateJobRole request) {
-        boardService.checkAdminOrAbove(boardId, userId);
+    public MemberResponse.Detail updateMemberJobRole(
+            String boardId, String memberId, String userId, MemberRequest.UpdateJobRole request) {
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        BoardMember member = boardMemberRepository.findById(memberId)
+        BoardMember member = boardMemberRepository
+                .findById(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         if (!member.getBoard().getId().equals(boardId)) {
@@ -324,31 +344,36 @@ public class MemberService {
 
         JobRole jobRole = null;
         if (request.getJobRoleId() != null && !request.getJobRoleId().isBlank()) {
-            jobRole = jobRoleRepository.findByIdAndBoardId(request.getJobRoleId(), boardId)
+            jobRole = jobRoleRepository
+                    .findByIdAndBoardId(request.getJobRoleId(), boardId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.JOB_ROLE_NOT_FOUND));
         }
 
         member.updateJobRole(jobRole);
 
-        log.info("Member jobRole updated: {} to {} in board: {} by user: {}",
-                memberId, jobRole != null ? jobRole.getId() : "null", boardId, userId);
+        log.info(
+                "Member jobRole updated: {} to {} in board: {} by user: {}",
+                memberId,
+                jobRole != null ? jobRole.getId() : "null",
+                boardId,
+                userId);
 
         MemberResponse.Detail response = MemberResponse.Detail.of(member);
         User user = userRepository.findById(userId).orElse(null);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEMBER_UPDATED,
-                userId, user != null ? user.getName() : null, response);
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.MEMBER_UPDATED, userId, user != null ? user.getName() : null, response);
 
         return response;
     }
 
     @Transactional
     @CacheEvict(value = "members", key = "#boardId")
-    public MemberResponse.ListResponse reorderMembers(String boardId, String userId, MemberRequest.ReorderMembers request) {
-        boardService.checkAdminOrAbove(boardId, userId);
+    public MemberResponse.ListResponse reorderMembers(
+            String boardId, String userId, MemberRequest.ReorderMembers request) {
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
         List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
-        Map<String, BoardMember> memberMap = members.stream()
-                .collect(Collectors.toMap(BoardMember::getId, m -> m));
+        Map<String, BoardMember> memberMap = members.stream().collect(Collectors.toMap(BoardMember::getId, m -> m));
 
         List<String> memberIds = request.getMemberIds();
         for (int i = 0; i < memberIds.size(); i++) {
@@ -368,9 +393,10 @@ public class MemberService {
     @Transactional
     @CacheEvict(value = "members", key = "#boardId")
     public void removeMember(String boardId, String memberId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        BoardMember member = boardMemberRepository.findById(memberId)
+        BoardMember member = boardMemberRepository
+                .findById(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         if (!member.getBoard().getId().equals(boardId)) {
@@ -389,23 +415,28 @@ public class MemberService {
 
     private void checkOrgSeatLimit(Board board, String userId) {
         String orgId = board.getOrganization().getId();
-        OrgSubscription orgSub = orgSubscriptionRepository.findByOrganizationId(orgId).orElse(null);
+        OrgSubscription orgSub =
+                orgSubscriptionRepository.findByOrganizationId(orgId).orElse(null);
         if (orgSub != null && !orgSub.canInviteMember()) {
-            boolean isOrgAdmin = orgMemberRepository.findByOrganizationIdAndUserId(orgId, userId)
+            boolean isOrgAdmin = orgMemberRepository
+                    .findByOrganizationIdAndUserId(orgId, userId)
                     .map(OrganizationMember::isAdminOrAbove)
                     .orElse(false);
             throw new OrgSeatLimitException(
-                    orgId, orgSub.getSeatCount(), orgSub.getActiveMemberCount(),
-                    OrgSubscription.MONTHLY_PRICE_PER_SEAT, OrgSubscription.YEARLY_PRICE_PER_SEAT,
+                    orgId,
+                    orgSub.getSeatCount(),
+                    orgSub.getActiveMemberCount(),
+                    OrgSubscription.MONTHLY_PRICE_PER_SEAT,
+                    OrgSubscription.YEARLY_PRICE_PER_SEAT,
                     isOrgAdmin);
         }
     }
 
     public List<MemberResponse.OrgCandidate> getOrgCandidates(String boardId, String userId, String search) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         if (!board.isOrganizationBoard()) {
             return List.of();
@@ -436,13 +467,15 @@ public class MemberService {
 
     @Transactional
     @CacheEvict(value = "members", key = "#boardId")
-    public MemberResponse.ListResponse transferOwnership(String boardId, String userId, MemberRequest.TransferOwnership request) {
-        boardService.checkOwner(boardId, userId);
+    public MemberResponse.ListResponse transferOwnership(
+            String boardId, String userId, MemberRequest.TransferOwnership request) {
+        boardPermissionService.checkOwner(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        User newOwner = userRepository.findById(request.getNewOwnerUserId())
+        User newOwner = userRepository
+                .findById(request.getNewOwnerUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         User oldOwner = board.getOwner();
@@ -451,21 +484,25 @@ public class MemberService {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
-        BoardMember targetMember = boardMemberRepository.findByBoardIdAndUserId(boardId, newOwner.getId())
+        BoardMember targetMember = boardMemberRepository
+                .findByBoardIdAndUserId(boardId, newOwner.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         targetMember.updateRole(BoardRole.OWNER);
 
-        boardMemberRepository.findByBoardIdAndUserId(boardId, oldOwner.getId())
+        boardMemberRepository
+                .findByBoardIdAndUserId(boardId, oldOwner.getId())
                 .ifPresent(member -> member.updateRole(BoardRole.ADMIN));
 
         board.updateOwner(newOwner);
 
-        log.info("Board ownership transferred: boardId={}, oldOwner={}, newOwner={}",
-                boardId, oldOwner.getId(), newOwner.getId());
+        log.info(
+                "Board ownership transferred: boardId={}, oldOwner={}, newOwner={}",
+                boardId,
+                oldOwner.getId(),
+                newOwner.getId());
 
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEMBER_UPDATED,
-                userId, oldOwner.getName(), null);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEMBER_UPDATED, userId, oldOwner.getName(), null);
 
         return MemberResponse.ListResponse.of(boardMemberRepository.findByBoardId(boardId));
     }

@@ -2,7 +2,7 @@ package com.kanban.domain.report.service;
 
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.report.BoardReportConfig;
 import com.kanban.domain.report.BoardReportConfigRepository;
 import com.kanban.domain.report.ReportDeliveryStatus;
@@ -11,13 +11,12 @@ import com.kanban.domain.report.dto.AutoReportResponse;
 import com.kanban.domain.report.dto.ReportConfigDto;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.time.*;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.*;
-import java.util.List;
 
 /**
  * 보드별 발송 설정 조회·수정.
@@ -30,7 +29,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ReportConfigService {
 
-    private final BoardService boardService;
+    private final BoardPermissionService boardPermissionService;
     private final BoardRepository boardRepository;
     private final BoardReportConfigRepository configRepository;
     private final ReportDispatchService dispatchService;
@@ -41,13 +40,16 @@ public class ReportConfigService {
      * 발송 테스트 결과. success=true면 <b>모든</b> 대상 채널에 게시가 성공해 자동 예약 잠금이 풀린다.
      * 채널별 성패는 {@code results}에 담긴다.
      */
-    public record TestDispatchResult(boolean success, String channelId, String channelName,
-                                     String message,
-                                     List<ReportSlackPublisher.ChannelTestResult> results) {}
+    public record TestDispatchResult(
+            boolean success,
+            String channelId,
+            String channelName,
+            String message,
+            List<ReportSlackPublisher.ChannelTestResult> results) {}
 
     @Transactional
     public ReportConfigDto.Detail get(String boardId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         return toDetail(getOrCreate(boardId));
     }
 
@@ -73,21 +75,22 @@ public class ReportConfigService {
                         target.isDefault()
                                 ? target.channelId().equals(config.getTestPassedChannelId())
                                 : config.findChannel(target.channelId())
-                                        .map(ch -> ch.isTestPassed()).orElse(false)))
+                                        .map(ch -> ch.isTestPassed())
+                                        .orElse(false)))
                 .toList();
     }
 
     @Transactional
     public ReportConfigDto.Detail update(String boardId, String userId, ReportConfigDto.Update request) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         BoardReportConfig config = getOrCreate(boardId);
 
         // 타임존이 함께 바뀌면 새 타임존 기준으로 환산해야 한다.
         String timezone = request.getTimezone() != null ? request.getTimezone() : config.getTimezone();
         ZoneId zone = parseZone(timezone);
 
-        config.updateCommon(timezone, request.getLanguage(),
-                request.getSlackChannelId(), request.getSlackChannelName());
+        config.updateCommon(
+                timezone, request.getLanguage(), request.getSlackChannelId(), request.getSlackChannelName());
 
         // 목록이 함께 오면 그쪽이 이긴다 — 단일 채널 필드는 구버전 호환 경로다.
         if (request.getDeliveryChannels() != null) {
@@ -96,23 +99,35 @@ public class ReportConfigService {
                     .toList());
         }
 
-        if (request.getDailyHour() != null || request.getDailyMinute() != null
-                || request.getDailyEnabled() != null) {
-            int[] utc = toUtc(request.getDailyHour(), request.getDailyMinute(), zone,
-                    config.getDailySendHourUtc(), config.getDailySendMinuteUtc());
+        if (request.getDailyHour() != null || request.getDailyMinute() != null || request.getDailyEnabled() != null) {
+            int[] utc = toUtc(
+                    request.getDailyHour(),
+                    request.getDailyMinute(),
+                    zone,
+                    config.getDailySendHourUtc(),
+                    config.getDailySendMinuteUtc());
             config.updateDaily(request.getDailyEnabled(), utc[0], utc[1]);
         }
 
-        if (request.getWeeklyHour() != null || request.getWeeklyMinute() != null
-                || request.getWeeklyEnabled() != null || request.getWeeklyDayOfWeek() != null) {
-            int[] utc = toUtc(request.getWeeklyHour(), request.getWeeklyMinute(), zone,
-                    config.getWeeklySendHourUtc(), config.getWeeklySendMinuteUtc());
+        if (request.getWeeklyHour() != null
+                || request.getWeeklyMinute() != null
+                || request.getWeeklyEnabled() != null
+                || request.getWeeklyDayOfWeek() != null) {
+            int[] utc = toUtc(
+                    request.getWeeklyHour(),
+                    request.getWeeklyMinute(),
+                    zone,
+                    config.getWeeklySendHourUtc(),
+                    config.getWeeklySendMinuteUtc());
             Integer dayOfWeek = resolveUtcDayOfWeek(request, zone, config);
             config.updateWeekly(request.getWeeklyEnabled(), utc[0], utc[1], dayOfWeek);
         }
 
-        config.updateSources(request.getSourceGithubEnabled(), request.getSourceKanbanEnabled(),
-                request.getSourceConfluenceEnabled(), request.getSourceSlackEnabled());
+        config.updateSources(
+                request.getSourceGithubEnabled(),
+                request.getSourceKanbanEnabled(),
+                request.getSourceConfluenceEnabled(),
+                request.getSourceSlackEnabled());
         config.updateSlackSource(request.getSourceSlackChannelId(), request.getSourceSlackChannelName());
         config.updateShareLink(request.getShareLinkEnabled());
         config.updateAiModel(validateAiModel(request.getAiModel()));
@@ -125,16 +140,16 @@ public class ReportConfigService {
      * 화면에서 채널을 고르는 즉시 저장되고, 기존 채널의 테스트 통과 기록은 건드리지 않는다.
      */
     @Transactional
-    public ReportConfigDto.Detail addChannel(String boardId, String userId,
-                                             String channelId, String channelName) {
-        boardService.checkAdminOrAbove(boardId, userId);
+    public ReportConfigDto.Detail addChannel(String boardId, String userId, String channelId, String channelName) {
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         if (channelId == null || channelId.isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "채널 id가 필요합니다");
         }
         BoardReportConfig config = getOrCreate(boardId);
         if (config.findChannel(channelId).isEmpty()
                 && config.getDeliveryChannels().size() >= BoardReportConfig.MAX_DELIVERY_CHANNELS) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE,
+            throw new BusinessException(
+                    ErrorCode.INVALID_INPUT_VALUE,
                     "발송 채널은 최대 " + BoardReportConfig.MAX_DELIVERY_CHANNELS + "개까지 지정할 수 있습니다");
         }
         config.addDeliveryChannel(channelId.trim(), channelName);
@@ -144,7 +159,7 @@ public class ReportConfigService {
     /** 발송 채널 한 개 제거. 마지막 채널을 지우면 설치 기본 채널로 되돌아간다. */
     @Transactional
     public ReportConfigDto.Detail removeChannel(String boardId, String userId, String channelId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         BoardReportConfig config = getOrCreate(boardId);
         config.removeDeliveryChannel(channelId);
         return toDetail(config);
@@ -174,19 +189,19 @@ public class ReportConfigService {
      */
     @Transactional
     public ReportDispatchService.DispatchResult dispatchNow(String boardId, String userId, ReportType reportType) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         BoardReportConfig config = getOrCreate(boardId);
         Board board = config.getBoard();
 
         ZonedDateTime sendAt = ZonedDateTime.now(parseZone(config.getTimezone()));
-        ReportDispatchService.DispatchResult result =
-                dispatchService.dispatch(board, config, reportType, sendAt);
+        ReportDispatchService.DispatchResult result = dispatchService.dispatch(board, config, reportType, sendAt);
 
         if (result.status() == ReportDeliveryStatus.SKIPPED) {
             return result;
         }
         if (result.reportId() == null) {
-            throw new BusinessException(ErrorCode.AI_REPORT_GENERATION_FAILED,
+            throw new BusinessException(
+                    ErrorCode.AI_REPORT_GENERATION_FAILED,
                     result.message() != null ? result.message() : "보고서를 만들지 못했습니다");
         }
         // 실제로 게시된 채널만 "테스트 통과"로 기록한다 — 즉시 발송도 게이트를 만족시킨다.
@@ -203,22 +218,23 @@ public class ReportConfigService {
      */
     @Transactional
     public TestDispatchResult sendTest(String boardId, String userId, String channelId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         BoardReportConfig config = getOrCreate(boardId);
         Board board = config.getBoard();
 
-        ReportSlackPublisher.TestOutcome outcome =
-                slackPublisher.sendTestMessage(board, config, channelId);
+        ReportSlackPublisher.TestOutcome outcome = slackPublisher.sendTestMessage(board, config, channelId);
         outcome.results().stream()
                 .filter(ReportSlackPublisher.ChannelTestResult::sent)
                 .forEach(r -> config.markTestPassed(r.channelId()));
 
         ReportSlackPublisher.ChannelTestResult first =
                 outcome.results().isEmpty() ? null : outcome.results().get(0);
-        return new TestDispatchResult(outcome.sent(),
+        return new TestDispatchResult(
+                outcome.sent(),
                 first != null ? first.channelId() : null,
                 first != null ? first.channelName() : null,
-                outcome.error(), outcome.results());
+                outcome.error(),
+                outcome.results());
     }
 
     /**
@@ -229,25 +245,31 @@ public class ReportConfigService {
      */
     @Transactional
     public AutoReportResponse renderPreview(String boardId, String userId, ReportType reportType) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         BoardReportConfig config = getOrCreate(boardId);
         Board board = config.getBoard();
 
         ZonedDateTime sendAt = ZonedDateTime.now(parseZone(config.getTimezone()));
-        ReportDispatchService.RenderResult result =
-                dispatchService.renderPreview(board, config, reportType, sendAt);
+        ReportDispatchService.RenderResult result = dispatchService.renderPreview(board, config, reportType, sendAt);
 
-        return AutoReportResponse.preview(board.getId(), board.getName(), reportType,
-                result.period(), result.content(), result.chunks(), result.mergedInput());
+        return AutoReportResponse.preview(
+                board.getId(),
+                board.getName(),
+                reportType,
+                result.period(),
+                result.content(),
+                result.chunks(),
+                result.mergedInput());
     }
 
     private BoardReportConfig getOrCreate(String boardId) {
-        return configRepository.findByBoardId(boardId)
-                .orElseGet(() -> {
-                    Board board = boardRepository.findById(boardId)
-                            .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-                    return configRepository.save(BoardReportConfig.builder().board(board).build());
-                });
+        return configRepository.findByBoardId(boardId).orElseGet(() -> {
+            Board board = boardRepository
+                    .findById(boardId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+            return configRepository.save(
+                    BoardReportConfig.builder().board(board).build());
+        });
     }
 
     private ZoneId parseZone(String timezone) {
@@ -261,16 +283,17 @@ public class ReportConfigService {
     /** 보드 타임존의 시:분 → UTC 시:분 */
     private int[] toUtc(Integer hour, Integer minute, ZoneId zone, int fallbackHourUtc, int fallbackMinuteUtc) {
         if (hour == null && minute == null) {
-            return new int[]{fallbackHourUtc, fallbackMinuteUtc};
+            return new int[] {fallbackHourUtc, fallbackMinuteUtc};
         }
         int h = hour != null ? hour : 0;
         int m = minute != null ? minute : 0;
         if (h < 0 || h > 23 || m < 0 || m > 59) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "발송 시각이 올바르지 않습니다");
         }
-        ZonedDateTime local = ZonedDateTime.now(zone).withHour(h).withMinute(m).withSecond(0).withNano(0);
+        ZonedDateTime local =
+                ZonedDateTime.now(zone).withHour(h).withMinute(m).withSecond(0).withNano(0);
         ZonedDateTime utc = local.withZoneSameInstant(ZoneOffset.UTC);
-        return new int[]{utc.getHour(), utc.getMinute()};
+        return new int[] {utc.getHour(), utc.getMinute()};
     }
 
     /**
@@ -290,7 +313,10 @@ public class ReportConfigService {
 
         ZonedDateTime local = ZonedDateTime.now(zone)
                 .with(java.time.temporal.TemporalAdjusters.nextOrSame(DayOfWeek.of(dow)))
-                .withHour(hour).withMinute(minute).withSecond(0).withNano(0);
+                .withHour(hour)
+                .withMinute(minute)
+                .withSecond(0)
+                .withNano(0);
         return local.withZoneSameInstant(ZoneOffset.UTC).getDayOfWeek().getValue();
     }
 }

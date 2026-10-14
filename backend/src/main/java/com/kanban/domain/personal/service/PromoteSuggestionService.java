@@ -2,7 +2,7 @@ package com.kanban.domain.personal.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.feature.dto.FeatureResponse;
 import com.kanban.domain.feature.service.FeatureService;
 import com.kanban.domain.personal.PersonalTask;
@@ -76,7 +76,8 @@ public class PromoteSuggestionService {
             Map.entry("pt-BR", "Portuguese (Brazil)"));
 
     private final PersonalTaskRepository personalTaskRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final TaskService taskService;
     private final FeatureService featureService;
     private final AiCreditService aiCreditService;
@@ -122,7 +123,7 @@ public class PromoteSuggestionService {
             }
 
             String boardId = backlog.getBoardId();
-            boardService.checkMemberOrAbove(boardId, userId);
+            boardPermissionService.checkMemberOrAbove(boardId, userId);
 
             boolean featureMode = request.getTarget() == PersonalTaskPromotionType.TASK;
             Map<String, String> titles = new LinkedHashMap<>();

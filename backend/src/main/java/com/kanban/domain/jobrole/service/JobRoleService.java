@@ -4,7 +4,7 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.jobrole.dto.JobRoleRequest;
 import com.kanban.domain.jobrole.dto.JobRoleResponse;
 import com.kanban.domain.jobrole.entity.JobRole;
@@ -15,14 +15,13 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -33,12 +32,13 @@ public class JobRoleService {
     private final JobRoleRepository jobRoleRepository;
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final UserRepository userRepository;
     private final WebSocketEventService webSocketEventService;
 
     public JobRoleResponse.ListResponse list(String boardId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
         List<JobRole> roles = jobRoleRepository.findAllByBoardIdOrdered(boardId);
         Map<String, Long> counts = loadMemberCounts(boardId);
@@ -52,10 +52,10 @@ public class JobRoleService {
 
     @Transactional
     public JobRoleResponse.Detail create(String boardId, String userId, JobRoleRequest.Create request) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         if (jobRoleRepository.existsByBoardIdAndName(boardId, request.getName())) {
             throw new BusinessException(ErrorCode.JOB_ROLE_ALREADY_EXISTS);
@@ -81,9 +81,10 @@ public class JobRoleService {
 
     @Transactional
     public JobRoleResponse.Detail update(String boardId, String roleId, String userId, JobRoleRequest.Update request) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        JobRole role = jobRoleRepository.findByIdAndBoardId(roleId, boardId)
+        JobRole role = jobRoleRepository
+                .findByIdAndBoardId(roleId, boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.JOB_ROLE_NOT_FOUND));
 
         if (request.getName() != null && !request.getName().equals(role.getName())) {
@@ -103,9 +104,10 @@ public class JobRoleService {
 
     @Transactional
     public void delete(String boardId, String roleId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        JobRole role = jobRoleRepository.findByIdAndBoardId(roleId, boardId)
+        JobRole role = jobRoleRepository
+                .findByIdAndBoardId(roleId, boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.JOB_ROLE_NOT_FOUND));
 
         // 멤버에 부여된 직군 해제 (FK ON DELETE SET NULL이지만 영속성 컨텍스트 동기화)
@@ -125,7 +127,7 @@ public class JobRoleService {
 
     @Transactional
     public JobRoleResponse.ListResponse reorder(String boardId, String userId, JobRoleRequest.Reorder request) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
         List<JobRole> roles = jobRoleRepository.findAllByBoardIdOrdered(boardId);
         Map<String, JobRole> roleMap = new HashMap<>();
@@ -157,12 +159,7 @@ public class JobRoleService {
         try {
             User user = userRepository.findById(userId).orElse(null);
             webSocketEventService.sendBoardEvent(
-                    boardId,
-                    BoardEventType.JOB_ROLE_UPDATED,
-                    userId,
-                    user != null ? user.getName() : null,
-                    null
-            );
+                    boardId, BoardEventType.JOB_ROLE_UPDATED, userId, user != null ? user.getName() : null, null);
         } catch (Exception e) {
             log.warn("Failed to broadcast JOB_ROLE_UPDATED for board {}: {}", boardId, e.getMessage());
         }

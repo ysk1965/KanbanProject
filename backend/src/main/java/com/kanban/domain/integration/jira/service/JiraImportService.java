@@ -3,14 +3,14 @@ package com.kanban.domain.integration.jira.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kanban.domain.block.Block;
+import com.kanban.domain.block.BlockRepository;
+import com.kanban.domain.block.FixedBlockType;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
-import com.kanban.domain.block.Block;
-import com.kanban.domain.block.BlockRepository;
-import com.kanban.domain.block.FixedBlockType;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.Comment;
@@ -36,16 +36,15 @@ import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.service.FileUploadService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * JIRA 이슈 → BRIDGE 카드 가져오기.
@@ -92,7 +91,7 @@ public class JiraImportService {
     private final JiraMilestoneScopeRepository scopeRepository;
     private final ObjectMapper objectMapper;
 
-    private final BoardService boardService;
+    private final BoardPermissionService boardPermissionService;
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
     private final UserRepository userRepository;
@@ -136,11 +135,12 @@ public class JiraImportService {
 
     /** 스코프 폴링 전용 증분 pull — {@link #pullIssues} 와 같은 규칙. */
     @Transactional
-    public JiraResponse.ImportResult pullScopeIssues(String boardId, String userId, String milestoneId,
-                                                     Integer sinceMinutes) {
-        JiraMilestoneScope scope = scopeRepository.findActiveByMilestoneId(milestoneId)
-            .filter(s -> s.getBoard().getId().equals(boardId) && s.hasOwnProject())
-            .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
+    public JiraResponse.ImportResult pullScopeIssues(
+            String boardId, String userId, String milestoneId, Integer sinceMinutes) {
+        JiraMilestoneScope scope = scopeRepository
+                .findActiveByMilestoneId(milestoneId)
+                .filter(s -> s.getBoard().getId().equals(boardId) && s.hasOwnProject())
+                .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
         return doImport(boardId, userId, new JiraRequest.Import(null, false), scope, sinceMinutes);
     }
 
@@ -149,11 +149,12 @@ public class JiraImportService {
      *                     HTTP 조회(fetchAll)가 트랜잭션 안에 남아 있는 것은 의도적 — 이후 reconcile/첨부/반려사유
      *                     조회도 같은 ctx 로 JIRA 를 호출하므로 앞단만 떼어내도 실익이 없다.
      */
-    private JiraResponse.ImportResult doImport(String boardId, String userId, JiraRequest.Import request,
-                                               JiraMilestoneScope scope, Integer sinceMinutes) {
-        boardService.checkMemberOrAbove(boardId, userId);
-        JiraIntegrationConfig config = configRepository.findActiveByBoardId(boardId)
-            .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
+    private JiraResponse.ImportResult doImport(
+            String boardId, String userId, JiraRequest.Import request, JiraMilestoneScope scope, Integer sinceMinutes) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
+        JiraIntegrationConfig config = configRepository
+                .findActiveByBoardId(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
         String token = oauthService.resolveToken(config);
         JiraAuthContext ctx = JiraAuthContext.of(config, token);
         String baseJql = scope != null ? resolveScopeJql(scope) : resolveJql(request, config);
@@ -172,10 +173,11 @@ public class JiraImportService {
             return buildPreview(boardId, issues, config);
         }
 
-        Board board = boardRepository.findByIdWithLock(boardId)
-            .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        User importer = userRepository.findById(userId)
-            .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        Board board = boardRepository
+                .findByIdWithLock(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        User importer =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         Map<String, String> statusToBlock = readMap(config.getStatusToBlockJson());
         Map<String, String> priorityToTag = readMap(config.getPriorityToTagJson());
@@ -183,25 +185,26 @@ public class JiraImportService {
         // 스코프 import: 블록 매핑·미러는 스코프 것만 쓴다 — 보드 매핑은 보드 프로젝트의 상태 id 기준이라
         // 다른 프로젝트 이슈에 적용하면 엉뚱한 컬럼으로 흐른다. (태그 매핑은 이름 기반이라 공유해도 안전)
         BlockStatusMap blockMap = scope != null
-            ? BlockStatusMap.parse(objectMapper, null)
-            : BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
+                ? BlockStatusMap.parse(objectMapper, null)
+                : BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
         MirrorColumns mirror = scope != null
-            ? MirrorColumns.parse(objectMapper, scope.getMirrorColumnsJson())
-            : MirrorColumns.parse(objectMapper, config.getMirrorColumnsJson());
+                ? MirrorColumns.parse(objectMapper, scope.getMirrorColumnsJson())
+                : MirrorColumns.parse(objectMapper, config.getMirrorColumnsJson());
 
         // 스코프 import는 그 스코프의 마일스톤으로 고정 배정 — 그러려고 스코프를 파는 것이다.
-        Milestone currentMilestone = scope != null ? scope.getMilestone()
-            : (Boolean.TRUE.equals(config.getMilestoneAutoAssign()) ? resolveCurrentMilestone(boardId) : null);
+        Milestone currentMilestone = scope != null
+                ? scope.getMilestone()
+                : (Boolean.TRUE.equals(config.getMilestoneAutoAssign()) ? resolveCurrentMilestone(boardId) : null);
         List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
-        Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
-            .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
-        SyncMaps syncMaps = new SyncMaps(blockMap, mirror, statusToBlock, taskBlock,
-            members, priorityToTag, componentToTag);
+        Block taskBlock = blockRepository
+                .findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
+        SyncMaps syncMaps =
+                new SyncMaps(blockMap, mirror, statusToBlock, taskBlock, members, priorityToTag, componentToTag);
 
         // 에픽은 그룹핑에 쓰지 않으므로 제외 (프로젝트 Space = Feature)
-        List<ParsedJiraIssue> importable = issues.stream()
-            .filter(i -> !i.isEpic())
-            .toList();
+        List<ParsedJiraIssue> importable =
+                issues.stream().filter(i -> !i.isEpic()).toList();
 
         // 원장 재조정(reconcile): BRIDGE에서 대상(Task/Feature)이 삭제된 고아 링크는 제거해
         // 재가져오기 시 다시 생성되게 한다. 살아있는 링크만 맵으로 구성한다.
@@ -211,8 +214,8 @@ public class JiraImportService {
         List<JiraIssueLink> orphans = new ArrayList<>();
         for (JiraIssueLink link : existing) {
             boolean targetAlive = link.getTargetType() == JiraLinkTargetType.TASK
-                ? taskRepository.existsById(link.getTargetId())
-                : featureRepository.existsById(link.getTargetId());
+                    ? taskRepository.existsById(link.getTargetId())
+                    : featureRepository.existsById(link.getTargetId());
             if (!targetAlive) {
                 orphans.add(link);
                 continue;
@@ -244,15 +247,15 @@ public class JiraImportService {
             JiraIssueLink taskLink = taskLinkByKey.get(issue.key());
             if (taskLink != null) {
                 // 대상 Task가 살아있음 → JIRA 최신값으로 갱신(제목/설명/상태→블록)
-                Task existingTask = taskRepository.findById(taskLink.getTargetId()).orElse(null);
+                Task existingTask =
+                        taskRepository.findById(taskLink.getTargetId()).orElse(null);
                 if (existingTask != null) {
                     // 스코프 import가 만난 이슈는 이 스코프 소속 — 비어 있을 때만 새긴다(선점 유지).
                     if (scope != null && taskLink.getScopeId() == null) {
                         taskLink.assignScope(scope.getId());
                     }
                     boolean stale = taskLink.isStaleAgainst(issue.updated());
-                    boolean batched = stale && commentSyncOn
-                        && commentReconcileKeys.size() < MAX_COMMENT_RECONCILES;
+                    boolean batched = stale && commentSyncOn && commentReconcileKeys.size() < MAX_COMMENT_RECONCILES;
                     if (batched) commentReconcileKeys.add(issue.key());
 
                     // 대조 배치에서 밀린 이슈는 워터마크를 올리지 않는다 — 올려버리면 다음 주기에 stale이
@@ -268,18 +271,20 @@ public class JiraImportService {
                     // JIRA가 안 바뀐 이슈라도 메타를 한 번도 기록한 적 없으면(이 기능 이전에 링크된 카드)
                     // 이번에 채운다. 다만 253건짜리 보드가 배포 직후 첫 폴링 한 번에 전량을 훑으면
                     // 트랜잭션 하나가 수백 번 질의한다 — 주기당 상한을 걸어 몇 바퀴에 나눠 채운다.
-                    boolean backfillMeta = !stale && taskLink.needsIssueMetaBackfill()
-                        && metaBackfills < MAX_META_BACKFILLS;
+                    boolean backfillMeta =
+                            !stale && taskLink.needsIssueMetaBackfill() && metaBackfills < MAX_META_BACKFILLS;
                     if (backfillMeta) metaBackfills++;
-                    updateTaskFromIssue(existingTask, board, importer, issue, syncMaps, ctx, taskLink,
-                        stale || backfillMeta);
+                    updateTaskFromIssue(
+                            existingTask, board, importer, issue, syncMaps, ctx, taskLink, stale || backfillMeta);
 
                     // 첨부는 신규 생성 때만 가져오고 있었다. QA가 이슈를 올린 뒤 댓글로 스크린샷을
                     // 덧붙이는 것이 오히려 흔한데, 그 그림들이 BRIDGE에 영영 들어오지 않았다.
                     // 이슈가 바뀐 주기에만 본다 — 첨부가 늘면 updated도 함께 움직인다.
                     if (stale) reconcileAttachments(board, importer, existingTask, issue, ctx, c);
-                    taskLink.touchImport(JiraLinkTargetType.TASK, existingTask.getId(),
-                        hold ? taskLink.getJiraUpdatedAt() : issue.updated());
+                    taskLink.touchImport(
+                            JiraLinkTargetType.TASK,
+                            existingTask.getId(),
+                            hold ? taskLink.getJiraUpdatedAt() : issue.updated());
                     c.updated++;
                     continue;
                 }
@@ -287,13 +292,18 @@ public class JiraImportService {
 
             // 신규 생성 (또는 삭제 후 재생성)
             Feature feature = resolveProjectFeature(board, importer, issue, projectKeyToFeatureId, c);
-            Task task = createTask(board, importer, feature, issue, blockMap, mirror, statusToBlock, taskBlock, currentMilestone);
+            Task task = createTask(
+                    board, importer, feature, issue, blockMap, mirror, statusToBlock, taskBlock, currentMilestone);
             // 신규 이슈도 대조 배치 상한을 함께 쓴다. 밀렸으면 워터마크를 비워 다음 주기에 stale로 잡히게 한다.
             boolean batchedNew = commentSyncOn && commentReconcileKeys.size() < MAX_COMMENT_RECONCILES;
             if (batchedNew) commentReconcileKeys.add(issue.key());
-            JiraIssueLink newLink = saveLink(board, issue, JiraLinkTargetType.TASK, task.getId(),
-                commentSyncOn && !batchedNew ? null : issue.updated(),
-                scope != null ? scope.getId() : null);
+            JiraIssueLink newLink = saveLink(
+                    board,
+                    issue,
+                    JiraLinkTargetType.TASK,
+                    task.getId(),
+                    commentSyncOn && !batchedNew ? null : issue.updated(),
+                    scope != null ? scope.getId() : null);
             c.tasks++;
             c.created++;
 
@@ -316,7 +326,11 @@ public class JiraImportService {
                     importAttachmentAsComment(board, importer, task, att, ctx);
                     c.comments++;
                 } catch (Exception ex) {
-                    log.warn("JIRA attachment import failed ({} / {}): {}", issue.key(), att.filename(), ex.getMessage());
+                    log.warn(
+                            "JIRA attachment import failed ({} / {}): {}",
+                            issue.key(),
+                            att.filename(),
+                            ex.getMessage());
                     c.errors.add(issue.key() + " 첨부 '" + att.filename() + "' 실패");
                 }
             }
@@ -339,13 +353,29 @@ public class JiraImportService {
         reconcileComments(boardId, commentReconcileKeys);
 
         config.markSynced();
-        log.info("JIRA import to board {}: created={} updated={} orphans={} jiraDeleted={} (F{} T{} CL{} C{})",
-            boardId, c.created, c.updated, orphans.size(), deleted, c.features, c.tasks, c.checklists, c.comments);
+        log.info(
+                "JIRA import to board {}: created={} updated={} orphans={} jiraDeleted={} (F{} T{} CL{} C{})",
+                boardId,
+                c.created,
+                c.updated,
+                orphans.size(),
+                deleted,
+                c.features,
+                c.tasks,
+                c.checklists,
+                c.comments);
 
         return JiraResponse.ImportResult.builder()
-            .total(importable.size()).created(c.created).updated(c.updated).skipped(0)
-            .features(c.features).tasks(c.tasks).checklists(c.checklists).comments(c.comments)
-            .errors(c.errors).build();
+                .total(importable.size())
+                .created(c.created)
+                .updated(c.updated)
+                .skipped(0)
+                .features(c.features)
+                .tasks(c.tasks)
+                .checklists(c.checklists)
+                .comments(c.comments)
+                .errors(c.errors)
+                .build();
     }
 
     /**
@@ -354,17 +384,20 @@ public class JiraImportService {
      * updatedAt 충돌 규칙: JIRA가 원장보다 최신일 때만 반영. 변경된 Task를 반환(없으면 null).
      */
     /** 단건 pull 결과 스냅샷 — 트랜잭션 밖(웹훅 브로드캐스트)에서 안전하게 쓰도록 값만 담는다. */
-    public record PulledTask(String taskId, String blockId, String blockName,
-                             Integer position, boolean completed, String qaState) {}
+    public record PulledTask(
+            String taskId, String blockId, String blockName, Integer position, boolean completed, String qaState) {}
 
     @Transactional
     public PulledTask syncSingleIssue(String boardId, String actorUserId, String issueKey) {
-        JiraIntegrationConfig config = configRepository.findActiveByBoardId(boardId).orElse(null);
+        JiraIntegrationConfig config =
+                configRepository.findActiveByBoardId(boardId).orElse(null);
         if (config == null) return null;
 
-        JiraIssueLink link = issueLinkRepository.findByBoardIdAndJiraIssueKey(boardId, issueKey).orElse(null);
+        JiraIssueLink link = issueLinkRepository
+                .findByBoardIdAndJiraIssueKey(boardId, issueKey)
+                .orElse(null);
         if (link == null || link.getTargetType() != JiraLinkTargetType.TASK) return null;
-        if (link.isJiraDeleted()) return null;   // JIRA에서 삭제된 이슈 — 연동 해제 상태
+        if (link.isJiraDeleted()) return null; // JIRA에서 삭제된 이슈 — 연동 해제 상태
         Task task = taskRepository.findById(link.getTargetId()).orElse(null);
         if (task == null) return null;
 
@@ -380,31 +413,40 @@ public class JiraImportService {
         User importer = userRepository.findById(actorUserId).orElse(task.getCreatedBy());
         // 스코프 소속 이슈면 그 스코프의 미러 컬럼으로 배치한다(웹훅 단건 pull의 스코프 라우팅).
         JiraMilestoneScope linkScope = link.getScopeId() != null
-            ? scopeRepository.findById(link.getScopeId()).orElse(null) : null;
-        boolean scopeMirror = linkScope != null && linkScope.hasOwnProject()
-            && linkScope.getMirrorColumnsJson() != null;
+                ? scopeRepository.findById(link.getScopeId()).orElse(null)
+                : null;
+        boolean scopeMirror =
+                linkScope != null && linkScope.hasOwnProject() && linkScope.getMirrorColumnsJson() != null;
         Map<String, String> statusToBlock = scopeMirror ? Map.of() : readMap(config.getStatusToBlockJson());
         BlockStatusMap blockMap = scopeMirror
-            ? BlockStatusMap.parse(objectMapper, null)
-            : BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
-        MirrorColumns mirror = MirrorColumns.parse(objectMapper,
-            scopeMirror ? linkScope.getMirrorColumnsJson() : config.getMirrorColumnsJson());
-        Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK).orElse(null);
-        SyncMaps maps = new SyncMaps(blockMap, mirror, statusToBlock, taskBlock,
-            boardMemberRepository.findByBoardId(boardId),
-            readMap(config.getPriorityToTagJson()), readMap(config.getComponentToTagJson()));
+                ? BlockStatusMap.parse(objectMapper, null)
+                : BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
+        MirrorColumns mirror = MirrorColumns.parse(
+                objectMapper, scopeMirror ? linkScope.getMirrorColumnsJson() : config.getMirrorColumnsJson());
+        Block taskBlock = blockRepository
+                .findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
+                .orElse(null);
+        SyncMaps maps = new SyncMaps(
+                blockMap,
+                mirror,
+                statusToBlock,
+                taskBlock,
+                boardMemberRepository.findByBoardId(boardId),
+                readMap(config.getPriorityToTagJson()),
+                readMap(config.getComponentToTagJson()));
 
         // 여기까지 온 것 자체가 "JIRA가 원장보다 최신"이라는 판정을 통과했다는 뜻 → 소유 필드도 함께 맞춘다.
         updateTaskFromIssue(task, board, importer, issue, maps, ctx, link, true);
         link.touchImport(JiraLinkTargetType.TASK, task.getId(), issue.updated());
         config.markSynced();
 
-        return new PulledTask(task.getId(),
-            task.getBlock() != null ? task.getBlock().getId() : null,
-            task.getBlock() != null ? task.getBlock().getName() : null,
-            task.getPosition(),
-            Boolean.TRUE.equals(task.getIsCompleted()),
-            task.getQaState() != null ? task.getQaState().name() : null);
+        return new PulledTask(
+                task.getId(),
+                task.getBlock() != null ? task.getBlock().getId() : null,
+                task.getBlock() != null ? task.getBlock().getName() : null,
+                task.getPosition(),
+                Boolean.TRUE.equals(task.getIsCompleted()),
+                task.getQaState() != null ? task.getQaState().name() : null);
     }
 
     /**
@@ -416,9 +458,11 @@ public class JiraImportService {
     public String markIssueDeleted(String boardId, String issueKey) {
         if (configRepository.findActiveByBoardId(boardId).isEmpty()) return null;
 
-        JiraIssueLink link = issueLinkRepository.findByBoardIdAndJiraIssueKey(boardId, issueKey).orElse(null);
+        JiraIssueLink link = issueLinkRepository
+                .findByBoardIdAndJiraIssueKey(boardId, issueKey)
+                .orElse(null);
         if (link == null || link.getTargetType() != JiraLinkTargetType.TASK) return null;
-        if (link.isJiraDeleted()) return null;   // 멱등 — 중복 웹훅 무시
+        if (link.isJiraDeleted()) return null; // 멱등 — 중복 웹훅 무시
 
         link.markJiraDeleted();
         log.info("JIRA issue deleted: board {} issue {} → task {} 연동 해제", boardId, issueKey, link.getTargetId());
@@ -453,18 +497,20 @@ public class JiraImportService {
      *
      * @return 이번에 삭제로 표시한 링크 수
      */
-    private int reconcileDeletedInJira(String boardId, JiraAuthContext ctx,
-                                       Map<String, JiraIssueLink> taskLinkByKey,
-                                       List<ParsedJiraIssue> fetched) {
+    private int reconcileDeletedInJira(
+            String boardId,
+            JiraAuthContext ctx,
+            Map<String, JiraIssueLink> taskLinkByKey,
+            List<ParsedJiraIssue> fetched) {
         if (taskLinkByKey.isEmpty()) return 0;
 
         Set<String> fetchedKeys = fetched.stream().map(ParsedJiraIssue::key).collect(Collectors.toSet());
         List<String> candidates = taskLinkByKey.entrySet().stream()
-            .filter(e -> !fetchedKeys.contains(e.getKey()))
-            .filter(e -> !e.getValue().isJiraDeleted())
-            .map(Map.Entry::getKey)
-            .sorted()
-            .toList();
+                .filter(e -> !fetchedKeys.contains(e.getKey()))
+                .filter(e -> !e.getValue().isJiraDeleted())
+                .map(Map.Entry::getKey)
+                .sorted()
+                .toList();
         if (candidates.isEmpty()) return 0;
 
         int probed = 0, deleted = 0;
@@ -494,10 +540,14 @@ public class JiraImportService {
      * 한 번의 동기화 동안 고정인 매핑 묶음. 이슈마다 다시 읽지 않도록 모아 둔다.
      * (인자를 열 개 넘게 늘어놓지 않으려는 목적도 겸한다)
      */
-    private record SyncMaps(BlockStatusMap blockMap, MirrorColumns mirrorCols,
-                            Map<String, String> statusToBlock, Block taskBlock,
-                            List<BoardMember> members,
-                            Map<String, String> priorityToTag, Map<String, String> componentToTag) {}
+    private record SyncMaps(
+            BlockStatusMap blockMap,
+            MirrorColumns mirrorCols,
+            Map<String, String> statusToBlock,
+            Block taskBlock,
+            List<BoardMember> members,
+            Map<String, String> priorityToTag,
+            Map<String, String> componentToTag) {}
 
     /**
      * 기존 Task를 JIRA 이슈 최신값으로 갱신(동기화 = pull). 재가져오기/폴링이 동기화 역할을 한다.
@@ -516,11 +566,21 @@ public class JiraImportService {
      *                        (판단은 호출 측이 한다. 메타 미기록 링크의 소급 채움도 거기서 함께 조절한다)
      *                        담당자는 이 게이트 밖이다 — 아래 호출부 주석 참고.
      */
-    private void updateTaskFromIssue(Task task, Board board, User importer, ParsedJiraIssue issue,
-                                     SyncMaps maps, JiraAuthContext ctx, JiraIssueLink link,
-                                     boolean syncOwnedFields) {
-        task.updateInfo(truncate(issue.summary(), 200), issue.description(),
-            task.getStartDate(), task.getDueDate(), task.getEstimatedMinutes());
+    private void updateTaskFromIssue(
+            Task task,
+            Board board,
+            User importer,
+            ParsedJiraIssue issue,
+            SyncMaps maps,
+            JiraAuthContext ctx,
+            JiraIssueLink link,
+            boolean syncOwnedFields) {
+        task.updateInfo(
+                truncate(issue.summary(), 200),
+                issue.description(),
+                task.getStartDate(),
+                task.getDueDate(),
+                task.getEstimatedMinutes());
 
         // 미러 모드: 상태=위치. 대응 미러 컬럼으로 이동 후, QA 검토 중 → 할 일 역행이면 반려 처리.
         Block mirror = resolveMirrorBlock(board.getId(), issue.statusId(), maps.mirrorCols());
@@ -530,9 +590,10 @@ public class JiraImportService {
         } else if (!maps.blockMap().isEmpty()) {
             applyPullReflection(task, board, importer, issue, maps.blockMap(), ctx, link.getLastJiraStatusId());
         } else {
-            moveTaskToBlockEnd(task, resolveBlock(board.getId(), issue.statusName(), maps.statusToBlock(), maps.taskBlock()));
+            moveTaskToBlockEnd(
+                    task, resolveBlock(board.getId(), issue.statusName(), maps.statusToBlock(), maps.taskBlock()));
         }
-        link.markJiraStatus(issue.statusId());   // 다음 전환 감지용 직전 status 기록
+        link.markJiraStatus(issue.statusId()); // 다음 전환 감지용 직전 status 기록
 
         // 담당자는 소유 필드 게이트 밖이다. 게이트는 "조회 비용"을 묶으려는 장치인데, 담당자 동기화는
         // 기준선이 어긋나지 않는 한 질의 없이 즉시 빠져나온다(원장 UPDATE는 어차피 매 주기 일어난다).
@@ -542,8 +603,10 @@ public class JiraImportService {
         if (syncOwnedFields) {
             syncJiraTags(task, board, issue, link, maps.priorityToTag(), maps.componentToTag());
             // 태그를 반영한 바로 그 값으로 원장을 갱신한다 — 둘이 어긋나면 다음 주기에 낡은 태그가 남는다.
-            link.applyIssueMeta(truncate(issue.issueTypeName(), 60),
-                truncate(issue.priorityName(), 60), joinComponents(issue.componentNames()));
+            link.applyIssueMeta(
+                    truncate(issue.issueTypeName(), 60),
+                    truncate(issue.priorityName(), 60),
+                    joinComponents(issue.componentNames()));
         }
     }
 
@@ -579,8 +642,8 @@ public class JiraImportService {
      * <p>같은 이유로, 담당 항목이 없더라도 카드에 체크리스트 항목이 하나라도 있으면 새로 만들지 않는다.
      * 비어 있는 카드만 JIRA 담당자를 자동으로 받는다.
      */
-    private void syncAssignee(Task task, Board board, List<BoardMember> members, ParsedJiraIssue issue,
-                              JiraIssueLink link) {
+    private void syncAssignee(
+            Task task, Board board, List<BoardMember> members, ParsedJiraIssue issue, JiraIssueLink link) {
         String accountId = issue.assigneeAccountId();
 
         boolean baselineOnly = link.needsAssigneeBaseline();
@@ -589,8 +652,8 @@ public class JiraImportService {
         if (baselineOnly || !jiraChanged) return;
 
         boolean unassignedInJira = accountId == null;
-        User resolved = unassignedInJira
-            ? null : resolveAssignee(board, members, accountId, issue.assigneeDisplayName());
+        User resolved =
+                unassignedInJira ? null : resolveAssignee(board, members, accountId, issue.assigneeDisplayName());
 
         ChecklistItem owned = JiraAssigneeChecklist.findOwned(checklistItemRepository, task.getId(), link);
 
@@ -625,8 +688,13 @@ public class JiraImportService {
      * 사람이 BRIDGE에서 직접 붙인 태그를 JIRA 동기화가 뜯어가면 안 되기 때문이다.
      * 태그 자체(Tag 행)는 지우지 않고 Task와의 연결만 끊는다. 다른 카드가 쓰고 있을 수 있다.
      */
-    private void syncJiraTags(Task task, Board board, ParsedJiraIssue issue, JiraIssueLink link,
-                              Map<String, String> priorityToTag, Map<String, String> componentToTag) {
+    private void syncJiraTags(
+            Task task,
+            Board board,
+            ParsedJiraIssue issue,
+            JiraIssueLink link,
+            Map<String, String> priorityToTag,
+            Map<String, String> componentToTag) {
         // 이번 동기화 후에도 남아 있어야 할 태그. 매핑 설정(priority_to_tag/component_to_tag)에서
         // 서로 다른 JIRA 값이 같은 태그를 가리킬 수 있어, "떼기"는 반드시 이 집합을 피해서 한다.
         // 이 보호가 없으면 우선순위 High→Highest가 같은 태그로 매핑된 보드에서 태그가 사라진다.
@@ -660,8 +728,7 @@ public class JiraImportService {
     }
 
     /** JIRA가 심었던 태그를 카드에서 떼어낸다. 이미 없거나 아직 쓰이는 태그면 조용히 넘어간다. */
-    private void detachTag(Task task, Board board, String jiraValue,
-                           Map<String, String> mapping, Set<String> keep) {
+    private void detachTag(Task task, Board board, String jiraValue, Map<String, String> mapping, Set<String> keep) {
         Tag tag = findTag(board, jiraValue, mapping);
         if (tag == null || keep.contains(tag.getId())) return;
         taskTagRepository.deleteByTaskIdAndTagId(task.getId(), tag.getId());
@@ -675,7 +742,9 @@ public class JiraImportService {
         if (jiraValue == null || jiraValue.isBlank()) return null;
         if (mapping.containsKey(jiraValue)) {
             Tag mapped = tagRepository.findById(mapping.get(jiraValue)).orElse(null);
-            if (mapped != null && mapped.getBoard() != null && board.getId().equals(mapped.getBoard().getId())) {
+            if (mapped != null
+                    && mapped.getBoard() != null
+                    && board.getId().equals(mapped.getBoard().getId())) {
                 return mapped;
             }
         }
@@ -690,12 +759,17 @@ public class JiraImportService {
      *
      * @param prevStatusId 직전 pull 때의 JIRA status(없으면 null) — 반려 전환 판정 기준
      */
-    private void applyPullReflection(Task task, Board board, User importer, ParsedJiraIssue issue,
-                                     BlockStatusMap blockMap, JiraAuthContext ctx, String prevStatusId) {
+    private void applyPullReflection(
+            Task task,
+            Board board,
+            User importer,
+            ParsedJiraIssue issue,
+            BlockStatusMap blockMap,
+            JiraAuthContext ctx,
+            String prevStatusId) {
         // 반려 감지: 검토중(from)에 있다가 개발 소유 status로 되돌아온 전환
         BlockStatusMap.RejectionRule rule = blockMap.rejectionRule();
-        if (rule != null && rule.fromStatusId().equals(prevStatusId)
-                && blockMap.pullFor(issue.statusId()) == null) {
+        if (rule != null && rule.fromStatusId().equals(prevStatusId) && blockMap.pullFor(issue.statusId()) == null) {
             moveToPullBlock(task, board, rule.returnBlockId());
             task.applyQaState(com.kanban.domain.task.QaState.REJECTED);
             pullRejectionReason(task, board, importer, issue, ctx);
@@ -704,7 +778,7 @@ public class JiraImportService {
 
         BlockStatusMap.PullTarget pull = blockMap.pullFor(issue.statusId());
         if (pull == null) {
-            if (task.getQaState() != null) task.applyQaState(null);  // 개발이 되가져감 → 뱃지 해제
+            if (task.getQaState() != null) task.applyQaState(null); // 개발이 되가져감 → 뱃지 해제
             return;
         }
         // 검토중/완료는 QA가 위치를 소유 → 매핑 블록으로 유지 + 뱃지 반영.
@@ -719,28 +793,38 @@ public class JiraImportService {
      *
      * @param prevStatusId 직전 pull 때의 JIRA status(없으면 null)
      */
-    private void applyMirrorRejection(Task task, Board board, User importer, ParsedJiraIssue issue,
-                                      MirrorColumns mirrorCols, JiraAuthContext ctx, String prevStatusId) {
-        boolean cameFromQaReview = prevStatusId != null
-            && mirrorCols.qaReviewStatusIds().contains(prevStatusId);
+    private void applyMirrorRejection(
+            Task task,
+            Board board,
+            User importer,
+            ParsedJiraIssue issue,
+            MirrorColumns mirrorCols,
+            JiraAuthContext ctx,
+            String prevStatusId) {
+        boolean cameFromQaReview =
+                prevStatusId != null && mirrorCols.qaReviewStatusIds().contains(prevStatusId);
         boolean nowTodo = "new".equalsIgnoreCase(issue.statusCategory());
         if (cameFromQaReview && nowTodo) {
             task.applyQaState(com.kanban.domain.task.QaState.REJECTED);
             pullRejectionReason(task, board, importer, issue, ctx);
         } else if (task.getQaState() == com.kanban.domain.task.QaState.REJECTED && !nowTodo) {
-            task.applyQaState(null);   // 다시 앞으로 진행 → 반려 뱃지 해제
+            task.applyQaState(null); // 다시 앞으로 진행 → 반려 뱃지 해제
         }
     }
 
     private void moveToPullBlock(Task task, Board board, String blockId) {
         Block target = blockRepository.findById(blockId).orElse(null);
-        if (target != null && target.getBoard() != null && board.getId().equals(target.getBoard().getId())) {
+        if (target != null
+                && target.getBoard() != null
+                && board.getId().equals(target.getBoard().getId())) {
             moveTaskToBlockEnd(task, target);
         }
     }
 
     private void moveTaskToBlockEnd(Task task, Block target) {
-        if (target != null && (task.getBlock() == null || !target.getId().equals(task.getBlock().getId()))) {
+        if (target != null
+                && (task.getBlock() == null
+                        || !target.getId().equals(task.getBlock().getId()))) {
             task.moveToBlock(target);
             Integer maxPos = taskRepository.findMaxPositionByBlockId(target.getId());
             task.updatePosition(maxPos != null ? maxPos + 1 : 0);
@@ -748,17 +832,23 @@ public class JiraImportService {
     }
 
     /** 반려 시 JIRA 최신 댓글을 사유로 pull해 BRIDGE 댓글로 남긴다. 실패는 무시(반려 반영 자체는 유지). */
-    private void pullRejectionReason(Task task, Board board, User importer, ParsedJiraIssue issue, JiraAuthContext ctx) {
+    private void pullRejectionReason(
+            Task task, Board board, User importer, ParsedJiraIssue issue, JiraAuthContext ctx) {
         try {
             JsonNode full = jiraApiClient.getIssue(ctx, issue.key());
             JsonNode comments = full.path("fields").path("comment").path("comments");
             String reason = null;
             if (comments.isArray() && comments.size() > 0) {
-                reason = JiraAdfConverter.toPlainText(comments.get(comments.size() - 1).path("body"));
+                reason = JiraAdfConverter.toPlainText(
+                        comments.get(comments.size() - 1).path("body"));
             }
             String content = "↩ JIRA에서 반려되었습니다" + (reason != null ? "\n\n" + reason : "");
             commentRepository.save(Comment.builder()
-                .task(task).board(board).author(importer).content(truncate(content, 1000)).build());
+                    .task(task)
+                    .board(board)
+                    .author(importer)
+                    .content(truncate(content, 1000))
+                    .build());
         } catch (Exception e) {
             log.warn("JIRA rejection reason pull failed for {}: {}", issue.key(), e.getMessage());
         }
@@ -770,8 +860,8 @@ public class JiraImportService {
      * 가져오기 전에 "이슈 1건 → BRIDGE에서 무엇이 되는지"를 계산한다.
      * 실제 생성/매핑 저장 없이 상태 블록·담당자 매칭·스킵 여부만 판별한다.
      */
-    private JiraResponse.ImportResult buildPreview(String boardId, List<ParsedJiraIssue> issues,
-                                                   JiraIntegrationConfig config) {
+    private JiraResponse.ImportResult buildPreview(
+            String boardId, List<ParsedJiraIssue> issues, JiraIntegrationConfig config) {
         // 살아있는 링크만: TASK 대상이 존재하는 이슈 키(→갱신 예정), FEATURE 대상이 존재하는 프로젝트 키
         Set<String> liveTaskKeys = new HashSet<>();
         Set<String> liveFeatureProjectKeys = new HashSet<>();
@@ -786,18 +876,20 @@ public class JiraImportService {
         BlockStatusMap blockMap = BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
         MirrorColumns mirror = MirrorColumns.parse(objectMapper, config.getMirrorColumnsJson());
         List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
-        Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK).orElse(null);
-        Milestone currentMilestone = Boolean.TRUE.equals(config.getMilestoneAutoAssign())
-            ? resolveCurrentMilestone(boardId) : null;
+        Block taskBlock = blockRepository
+                .findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
+                .orElse(null);
+        Milestone currentMilestone =
+                Boolean.TRUE.equals(config.getMilestoneAutoAssign()) ? resolveCurrentMilestone(boardId) : null;
 
         List<JiraResponse.PreviewItem> items = new ArrayList<>();
         int tasks = 0, updated = 0, checklists = 0, attachments = 0;
-        Set<String> newFeatureProjectKeys = new LinkedHashSet<>();  // 새로 생성될 Feature(프로젝트) 수
+        Set<String> newFeatureProjectKeys = new LinkedHashSet<>(); // 새로 생성될 Feature(프로젝트) 수
 
         for (ParsedJiraIssue issue : issues) {
-            if (issue.isEpic()) continue;   // 에픽은 가져오지 않음 (프로젝트가 Feature)
+            if (issue.isEpic()) continue; // 에픽은 가져오지 않음 (프로젝트가 Feature)
 
-            boolean willUpdate = liveTaskKeys.contains(issue.key());  // 기존 Task 갱신 예정
+            boolean willUpdate = liveTaskKeys.contains(issue.key()); // 기존 Task 갱신 예정
             boolean hasAssignee = issue.assigneeAccountId() != null;
             int attCount = issue.attachments() != null ? issue.attachments().size() : 0;
 
@@ -816,37 +908,46 @@ public class JiraImportService {
             }
 
             items.add(JiraResponse.PreviewItem.builder()
-                .key(issue.key())
-                .summary(issue.summary())
-                .targetType("TASK")
-                .blockName(blockName)
-                .assigneeName(issue.assigneeDisplayName())
-                .assigneeMatched(hasAssignee && previewAssigneeMatched(
-                    boardId, members, issue.assigneeAccountId(), issue.assigneeDisplayName()))
-                .parentKey(issue.parentKey())
-                .attachmentCount(attCount)
-                .skipped(false)
-                .skipReason(null)
-                .willUpdate(willUpdate)
-                .build());
+                    .key(issue.key())
+                    .summary(issue.summary())
+                    .targetType("TASK")
+                    .blockName(blockName)
+                    .assigneeName(issue.assigneeDisplayName())
+                    .assigneeMatched(hasAssignee
+                            && previewAssigneeMatched(
+                                    boardId, members, issue.assigneeAccountId(), issue.assigneeDisplayName()))
+                    .parentKey(issue.parentKey())
+                    .attachmentCount(attCount)
+                    .skipped(false)
+                    .skipReason(null)
+                    .willUpdate(willUpdate)
+                    .build());
         }
 
         return JiraResponse.ImportResult.builder()
-            .total(items.size()).created(0).updated(updated).skipped(0)
-            .features(newFeatureProjectKeys.size()).tasks(tasks).checklists(checklists).comments(attachments)
-            .milestoneName(currentMilestone != null ? currentMilestone.getTitle() : null)
-            .items(items).errors(List.of()).build();
+                .total(items.size())
+                .created(0)
+                .updated(updated)
+                .skipped(0)
+                .features(newFeatureProjectKeys.size())
+                .tasks(tasks)
+                .checklists(checklists)
+                .comments(attachments)
+                .milestoneName(currentMilestone != null ? currentMilestone.getTitle() : null)
+                .items(items)
+                .errors(List.of())
+                .build();
     }
 
     /** resolveAssignee의 읽기 전용 버전 — 매핑 저장 없이 매칭 여부만 반환. */
-    private boolean previewAssigneeMatched(String boardId, List<BoardMember> members,
-                                           String accountId, String displayName) {
+    private boolean previewAssigneeMatched(
+            String boardId, List<BoardMember> members, String accountId, String displayName) {
         Optional<JiraUserMapping> stored = userMappingRepository.findByBoardIdAndJiraAccountId(boardId, accountId);
         if (stored.isPresent()) return stored.get().getBridgeUser() != null;
         if (displayName == null) return false;
         return members.stream()
-            .map(BoardMember::getUser)
-            .anyMatch(u -> u != null && displayName.equalsIgnoreCase(u.getName()));
+                .map(BoardMember::getUser)
+                .anyMatch(u -> u != null && displayName.equalsIgnoreCase(u.getName()));
     }
 
     // ── fetch ─────────────────────────────────────
@@ -873,24 +974,23 @@ public class JiraImportService {
     // ── 생성 헬퍼 ─────────────────────────────────
 
     /** 프로젝트(Space) 단위 Feature 확보 — 이미 있으면 재사용, 없으면 생성 후 원장 기록. */
-    private Feature resolveProjectFeature(Board board, User importer, ParsedJiraIssue issue,
-                                          Map<String, String> projectKeyToFeatureId, Counters c) {
+    private Feature resolveProjectFeature(
+            Board board, User importer, ParsedJiraIssue issue, Map<String, String> projectKeyToFeatureId, Counters c) {
         String projectKey = issue.projectKey() != null ? issue.projectKey() : "JIRA";
         String existingId = projectKeyToFeatureId.get(projectKey);
         if (existingId != null) {
             Feature found = featureRepository.findById(existingId).orElse(null);
             if (found != null) return found;
         }
-        String name = issue.projectName() != null && !issue.projectName().isBlank()
-            ? issue.projectName() : projectKey;
+        String name = issue.projectName() != null && !issue.projectName().isBlank() ? issue.projectName() : projectKey;
         Feature feature = createProjectFeature(board, importer, name);
         // 프로젝트키를 원장에 기록 → 재가져오기 때 같은 Feature 재사용
         issueLinkRepository.save(JiraIssueLink.builder()
-            .board(board)
-            .jiraIssueKey(projectKey)
-            .targetType(JiraLinkTargetType.FEATURE)
-            .targetId(feature.getId())
-            .build());
+                .board(board)
+                .jiraIssueKey(projectKey)
+                .targetType(JiraLinkTargetType.FEATURE)
+                .targetId(feature.getId())
+                .build());
         projectKeyToFeatureId.put(projectKey, feature.getId());
         c.features++;
         return feature;
@@ -899,18 +999,25 @@ public class JiraImportService {
     private Feature createProjectFeature(Board board, User importer, String name) {
         Integer maxPos = featureRepository.findMaxPositionByBoardId(board.getId());
         Feature feature = Feature.builder()
-            .board(board)
-            .title(truncate(name, 200))
-            .description("JIRA에서 가져온 이슈")
-            .createdBy(importer)
-            .position(maxPos != null ? maxPos + 1 : 0)
-            .build();
+                .board(board)
+                .title(truncate(name, 200))
+                .description("JIRA에서 가져온 이슈")
+                .createdBy(importer)
+                .position(maxPos != null ? maxPos + 1 : 0)
+                .build();
         return featureRepository.save(feature);
     }
 
-    private Task createTask(Board board, User importer, Feature feature, ParsedJiraIssue issue,
-                            BlockStatusMap blockMap, MirrorColumns mirrorCols, Map<String, String> statusToBlock,
-                            Block taskBlock, Milestone milestone) {
+    private Task createTask(
+            Board board,
+            User importer,
+            Feature feature,
+            ParsedJiraIssue issue,
+            BlockStatusMap blockMap,
+            MirrorColumns mirrorCols,
+            Map<String, String> statusToBlock,
+            Block taskBlock,
+            Milestone milestone) {
         Block block = resolvePlacementBlock(board.getId(), issue, blockMap, mirrorCols, statusToBlock, taskBlock);
 
         if (board.getKeyPrefix() == null || board.getKeyPrefix().isBlank()) {
@@ -923,18 +1030,18 @@ public class JiraImportService {
         Integer maxFeaturePos = taskRepository.findMaxFeaturePositionByFeatureId(feature.getId());
 
         Task task = Task.builder()
-            .feature(feature)
-            .board(board)
-            .block(block)
-            .milestone(milestone)
-            .title(truncate(issue.summary(), 200))
-            .description(issue.description())
-            .position(maxPos != null ? maxPos + 1 : 0)
-            .featurePosition(maxFeaturePos != null ? maxFeaturePos + 1 : 0)
-            .taskNumber(taskNumber)
-            .taskKey(taskKey)
-            .createdBy(importer)
-            .build();
+                .feature(feature)
+                .board(board)
+                .block(block)
+                .milestone(milestone)
+                .title(truncate(issue.summary(), 200))
+                .description(issue.description())
+                .position(maxPos != null ? maxPos + 1 : 0)
+                .featurePosition(maxFeaturePos != null ? maxFeaturePos + 1 : 0)
+                .taskNumber(taskNumber)
+                .taskKey(taskKey)
+                .createdBy(importer)
+                .build();
         // 신규 이슈가 pull/반려 status로 들어오면 QA 뱃지도 함께 반영
         if (!blockMap.isEmpty()) {
             BlockStatusMap.PullTarget pull = blockMap.pullFor(issue.statusId());
@@ -956,8 +1063,13 @@ public class JiraImportService {
         return (b != null && b.getBoard() != null && boardId.equals(b.getBoard().getId())) ? b : null;
     }
 
-    private Block resolvePlacementBlock(String boardId, ParsedJiraIssue issue, BlockStatusMap blockMap,
-                                        MirrorColumns mirrorCols, Map<String, String> statusToBlock, Block defaultBlock) {
+    private Block resolvePlacementBlock(
+            String boardId,
+            ParsedJiraIssue issue,
+            BlockStatusMap blockMap,
+            MirrorColumns mirrorCols,
+            Map<String, String> statusToBlock,
+            Block defaultBlock) {
         // 미러 모드: 상태가 속한 컬럼이 있으면 그리로. (미러 컬럼은 미러 보드에만 존재)
         Block mirror = resolveMirrorBlock(boardId, issue.statusId(), mirrorCols);
         if (mirror != null) return mirror;
@@ -965,7 +1077,9 @@ public class JiraImportService {
             String blockId = blockMap.blockForStatusId(issue.statusId());
             if (blockId != null) {
                 Block b = blockRepository.findById(blockId).orElse(null);
-                if (b != null && b.getBoard() != null && boardId.equals(b.getBoard().getId())) return b;
+                if (b != null
+                        && b.getBoard() != null
+                        && boardId.equals(b.getBoard().getId())) return b;
             }
         }
         return resolveBlock(boardId, issue.statusName(), statusToBlock, defaultBlock);
@@ -974,11 +1088,11 @@ public class JiraImportService {
     /** 담당자 항목 생성 + 원장에 소유권 표식. 표식을 함께 심어야 제목이 바뀌어도 이 항목을 계속 따라간다. */
     private void createAssigneeChecklist(Task task, JiraIssueLink link, User assignee, String displayName) {
         ChecklistItem item = ChecklistItem.builder()
-            .task(task)
-            .title(JiraAssigneeChecklist.titleFor(displayName))
-            .assignee(assignee)
-            .position(0)
-            .build();
+                .task(task)
+                .title(JiraAssigneeChecklist.titleFor(displayName))
+                .assignee(assignee)
+                .position(0)
+                .build();
         checklistItemRepository.save(item);
         link.linkAssigneeItem(item.getId());
     }
@@ -991,13 +1105,13 @@ public class JiraImportService {
      *
      * <p>개별 실패는 삼킨다 — 그림 하나 못 받은 것이 이슈 동기화 전체를 세울 이유는 못 된다.
      */
-    private void reconcileAttachments(Board board, User importer, Task task,
-                                      ParsedJiraIssue issue, JiraAuthContext ctx, Counters c) {
+    private void reconcileAttachments(
+            Board board, User importer, Task task, ParsedJiraIssue issue, JiraAuthContext ctx, Counters c) {
         if (issue.attachments().isEmpty()) return;
 
         Set<String> existing = commentAttachmentRepository.findByTaskId(task.getId()).stream()
-            .map(a -> a.getOriginalFileName() + " " + (a.getFileSize() != null ? a.getFileSize() : 0L))
-            .collect(Collectors.toSet());
+                .map(a -> a.getOriginalFileName() + " " + (a.getFileSize() != null ? a.getFileSize() : 0L))
+                .collect(Collectors.toSet());
 
         for (ParsedJiraIssue.Attachment att : issue.attachments()) {
             if (existing.contains(att.filename() + " " + att.size())) continue;
@@ -1006,22 +1120,22 @@ public class JiraImportService {
                 c.comments++;
                 log.info("JIRA reconcile: {} 첨부 추가 수집 — {}", issue.key(), att.filename());
             } catch (Exception ex) {
-                log.warn("JIRA attachment reconcile failed ({} / {}): {}",
-                    issue.key(), att.filename(), ex.getMessage());
+                log.warn(
+                        "JIRA attachment reconcile failed ({} / {}): {}", issue.key(), att.filename(), ex.getMessage());
             }
         }
     }
 
-    private void importAttachmentAsComment(Board board, User importer, Task task,
-                                           ParsedJiraIssue.Attachment att, JiraAuthContext ctx) {
+    private void importAttachmentAsComment(
+            Board board, User importer, Task task, ParsedJiraIssue.Attachment att, JiraAuthContext ctx) {
         byte[] data = jiraApiClient.downloadAttachment(ctx, att.contentUrl());
 
         Comment comment = Comment.builder()
-            .task(task)
-            .board(board)
-            .author(importer)
-            .content("📎 JIRA 첨부: " + att.filename())
-            .build();
+                .task(task)
+                .board(board)
+                .author(importer)
+                .content("📎 JIRA 첨부: " + att.filename())
+                .build();
         commentRepository.save(comment);
 
         String ext = extension(att.filename());
@@ -1029,23 +1143,26 @@ public class JiraImportService {
         String url = fileUploadService.uploadDirect(data, key, att.mimeType());
 
         CommentAttachment attachment = CommentAttachment.builder()
-            .comment(comment)
-            .originalFileName(att.filename())
-            .s3Key(key)
-            .url(url)
-            .contentType(att.mimeType())
-            .fileSize(att.size() > 0 ? att.size() : (long) data.length)
-            .build();
+                .comment(comment)
+                .originalFileName(att.filename())
+                .s3Key(key)
+                .url(url)
+                .contentType(att.mimeType())
+                .fileSize(att.size() > 0 ? att.size() : (long) data.length)
+                .build();
         commentAttachmentRepository.save(attachment);
     }
 
     // ── 해석 헬퍼 ─────────────────────────────────
 
-    private Block resolveBlock(String boardId, String statusName, Map<String, String> statusToBlock, Block defaultBlock) {
+    private Block resolveBlock(
+            String boardId, String statusName, Map<String, String> statusToBlock, Block defaultBlock) {
         if (statusName != null && statusToBlock.containsKey(statusName)) {
             String blockId = statusToBlock.get(statusName);
             Block block = blockRepository.findById(blockId).orElse(null);
-            if (block != null && block.getBoard() != null && boardId.equals(block.getBoard().getId())) {
+            if (block != null
+                    && block.getBoard() != null
+                    && boardId.equals(block.getBoard().getId())) {
                 return block;
             }
         }
@@ -1055,16 +1172,17 @@ public class JiraImportService {
     private Milestone resolveCurrentMilestone(String boardId) {
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
         return milestoneRepository.findByBoardIdOrderByStartDateAsc(boardId).stream()
-            .filter(m -> !today.isBefore(m.getStartDate()) && !today.isAfter(m.getEndDate()))
-            .min(Comparator.comparing(Milestone::getEndDate))
-            .orElse(null);
+                .filter(m -> !today.isBefore(m.getStartDate()) && !today.isAfter(m.getEndDate()))
+                .min(Comparator.comparing(Milestone::getEndDate))
+                .orElse(null);
     }
 
     /** 담당자 사다리: 저장된 매핑 → 이름 일치 → 미배정. 결과는 accountId로 영구 저장. */
     private User resolveAssignee(Board board, List<BoardMember> members, String accountId, String displayName) {
         if (accountId == null) return null;
 
-        Optional<JiraUserMapping> stored = userMappingRepository.findByBoardIdAndJiraAccountId(board.getId(), accountId);
+        Optional<JiraUserMapping> stored =
+                userMappingRepository.findByBoardIdAndJiraAccountId(board.getId(), accountId);
         if (stored.isPresent()) {
             return stored.get().getBridgeUser();
         }
@@ -1072,18 +1190,18 @@ public class JiraImportService {
         User matched = null;
         if (displayName != null) {
             matched = members.stream()
-                .map(BoardMember::getUser)
-                .filter(u -> u != null && displayName.equalsIgnoreCase(u.getName()))
-                .findFirst()
-                .orElse(null);
+                    .map(BoardMember::getUser)
+                    .filter(u -> u != null && displayName.equalsIgnoreCase(u.getName()))
+                    .findFirst()
+                    .orElse(null);
         }
 
         userMappingRepository.save(JiraUserMapping.builder()
-            .board(board)
-            .jiraAccountId(accountId)
-            .jiraDisplayName(displayName)
-            .bridgeUser(matched)
-            .build());
+                .board(board)
+                .jiraAccountId(accountId)
+                .jiraDisplayName(displayName)
+                .bridgeUser(matched)
+                .build());
         return matched;
     }
 
@@ -1092,13 +1210,19 @@ public class JiraImportService {
 
         if (mapping.containsKey(jiraValue)) {
             Tag mapped = tagRepository.findById(mapping.get(jiraValue)).orElse(null);
-            if (mapped != null && mapped.getBoard() != null && board.getId().equals(mapped.getBoard().getId())) {
+            if (mapped != null
+                    && mapped.getBoard() != null
+                    && board.getId().equals(mapped.getBoard().getId())) {
                 return mapped;
             }
         }
-        return tagRepository.findByBoardIdAndName(board.getId(), jiraValue)
-            .orElseGet(() -> tagRepository.save(Tag.builder()
-                .board(board).name(truncate(jiraValue, 50)).color(DEFAULT_TAG_COLOR).build()));
+        return tagRepository
+                .findByBoardIdAndName(board.getId(), jiraValue)
+                .orElseGet(() -> tagRepository.save(Tag.builder()
+                        .board(board)
+                        .name(truncate(jiraValue, 50))
+                        .color(DEFAULT_TAG_COLOR)
+                        .build()));
     }
 
     private void applyTag(Task task, Tag tag) {
@@ -1115,23 +1239,28 @@ public class JiraImportService {
      * 트랜잭션에서 JIRA 값 그대로 만들어지므로, 기준선을 비워 두고 다음 주기에 관측시키면
      * 그 한 바퀴 동안 담당자 변경만 반영되지 않는 구멍이 생긴다.
      */
-    private JiraIssueLink saveLink(Board board, ParsedJiraIssue issue, JiraLinkTargetType type, String targetId,
-                                   LocalDateTime jiraUpdatedAt, String scopeId) {
+    private JiraIssueLink saveLink(
+            Board board,
+            ParsedJiraIssue issue,
+            JiraLinkTargetType type,
+            String targetId,
+            LocalDateTime jiraUpdatedAt,
+            String scopeId) {
         return issueLinkRepository.save(JiraIssueLink.builder()
-            .board(board)
-            .jiraIssueKey(issue.key())
-            .jiraIssueId(issue.id())
-            .targetType(type)
-            .targetId(targetId)
-            .scopeId(scopeId)
-            .jiraUpdatedAt(jiraUpdatedAt)
-            .lastJiraStatusId(issue.statusId())
-            .jiraIssueType(truncate(issue.issueTypeName(), 60))
-            .jiraPriority(truncate(issue.priorityName(), 60))
-            .jiraComponentNames(joinComponents(issue.componentNames()))
-            .jiraAssigneeAccountId(issue.assigneeAccountId())
-            .assigneeSyncedAt(LocalDateTime.now(ZoneOffset.UTC))
-            .build());
+                .board(board)
+                .jiraIssueKey(issue.key())
+                .jiraIssueId(issue.id())
+                .targetType(type)
+                .targetId(targetId)
+                .scopeId(scopeId)
+                .jiraUpdatedAt(jiraUpdatedAt)
+                .lastJiraStatusId(issue.statusId())
+                .jiraIssueType(truncate(issue.issueTypeName(), 60))
+                .jiraPriority(truncate(issue.priorityName(), 60))
+                .jiraComponentNames(joinComponents(issue.componentNames()))
+                .jiraAssigneeAccountId(issue.assigneeAccountId())
+                .assigneeSyncedAt(LocalDateTime.now(ZoneOffset.UTC))
+                .build());
     }
 
     /** 컴포넌트 이름들을 원장 보관용 한 줄로. 빈 목록은 null(= "심은 것 없음")로 둔다. */
@@ -1144,9 +1273,9 @@ public class JiraImportService {
     private Set<String> splitComponents(String joined) {
         if (joined == null || joined.isBlank()) return Set.of();
         return Arrays.stream(joined.split(","))
-            .map(String::trim)
-            .filter(s -> !s.isEmpty())
-            .collect(Collectors.toCollection(LinkedHashSet::new));
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     // ── 유틸 ──────────────────────────────────────

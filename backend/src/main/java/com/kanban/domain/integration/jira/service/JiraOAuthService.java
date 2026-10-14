@@ -3,7 +3,7 @@ package com.kanban.domain.integration.jira.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.integration.jira.JiraConnectionStatus;
 import com.kanban.domain.integration.jira.JiraIntegrationConfig;
 import com.kanban.domain.integration.jira.JiraIntegrationConfigRepository;
@@ -14,6 +14,13 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.*;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,14 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.*;
 
 /**
  * JIRA OAuth 2.0 (3LO). "Atlassian으로 연결" 버튼 → 동의 → 콜백 → 사이트 선택 흐름.
@@ -57,6 +56,7 @@ public class JiraOAuthService {
      *    콘솔에서도 granular 스코프를 모두 제거하고 순수 classic 으로 맞춘 뒤 재연결해야 한다.
      */
     private static final String SCOPES = "read:jira-work write:jira-work read:jira-user offline_access";
+
     private static final long STATE_EXPIRY_SECONDS = 600; // 10분
     private static final long REFRESH_BUFFER_SECONDS = 60;
 
@@ -64,7 +64,8 @@ public class JiraOAuthService {
     private final JiraOAuthProperties oauthProps;
     private final SlackTokenEncryptor tokenEncryptor;
     private final JiraIntegrationConfigRepository configRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
 
@@ -74,19 +75,19 @@ public class JiraOAuthService {
     // ── 인증 URL ──────────────────────────────────
 
     public JiraResponse.OAuthUrl getAuthorizeUrl(String boardId, String userId, String origin) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         if (!oauthProps.isConfigured()) {
             throw new BusinessException(ErrorCode.JIRA_CONNECTION_FAILED, "JIRA OAuth 앱이 설정되지 않았습니다");
         }
         String state = generateState(boardId, userId, origin);
         String url = AUTH_BASE + "/authorize"
-            + "?audience=api.atlassian.com"
-            + "&client_id=" + enc(oauthProps.getClientId())
-            + "&scope=" + enc(SCOPES)
-            + "&redirect_uri=" + enc(oauthProps.getRedirectUri())
-            + "&state=" + enc(state)
-            + "&response_type=code"
-            + "&prompt=consent";
+                + "?audience=api.atlassian.com"
+                + "&client_id=" + enc(oauthProps.getClientId())
+                + "&scope=" + enc(SCOPES)
+                + "&redirect_uri=" + enc(oauthProps.getRedirectUri())
+                + "&state=" + enc(state)
+                + "&response_type=code"
+                + "&prompt=consent";
         return JiraResponse.OAuthUrl.builder().oauth_url(url).build();
     }
 
@@ -109,33 +110,43 @@ public class JiraOAuthService {
         String refreshToken = text(tokens, "refresh_token");
         long expiresIn = tokens.path("expires_in").asLong(3600);
         // 진단: 토큰이 실제로 부여받은 스코프 (board-scope 포함 여부 확인용)
-        log.info("JIRA OAuth granted scopes for board {}: {}", sd.boardId, tokens.path("scope").asText("(none)"));
+        log.info(
+                "JIRA OAuth granted scopes for board {}: {}",
+                sd.boardId,
+                tokens.path("scope").asText("(none)"));
         if (accessToken == null) {
             throw new BusinessException(ErrorCode.JIRA_CONNECTION_FAILED);
         }
         LocalDateTime expiresAt = LocalDateTime.now(ZoneOffset.UTC).plusSeconds(expiresIn);
 
-        JiraIntegrationConfig config = configRepository.findByBoardId(sd.boardId).orElse(null);
+        JiraIntegrationConfig config =
+                configRepository.findByBoardId(sd.boardId).orElse(null);
         if (config == null) {
-            Board board = boardRepository.findById(sd.boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-            User user = userRepository.findById(sd.userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            Board board = boardRepository
+                    .findById(sd.boardId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+            User user = userRepository
+                    .findById(sd.userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
             config = JiraIntegrationConfig.builder()
-                .board(board)
-                .connectedBy(user)
-                .apiTokenEncrypted(tokenEncryptor.encrypt(accessToken))
-                .refreshTokenEncrypted(tokenEncryptor.encrypt(refreshToken))
-                .tokenExpiresAt(expiresAt)
-                .status(JiraConnectionStatus.DISCONNECTED) // 사이트/프로젝트 확정 전까지 pending
-                .active(false)
-                .build();
-            config.applyOAuthTokens(tokenEncryptor.encrypt(accessToken),
-                refreshToken != null ? tokenEncryptor.encrypt(refreshToken) : null, expiresAt);
+                    .board(board)
+                    .connectedBy(user)
+                    .apiTokenEncrypted(tokenEncryptor.encrypt(accessToken))
+                    .refreshTokenEncrypted(tokenEncryptor.encrypt(refreshToken))
+                    .tokenExpiresAt(expiresAt)
+                    .status(JiraConnectionStatus.DISCONNECTED) // 사이트/프로젝트 확정 전까지 pending
+                    .active(false)
+                    .build();
+            config.applyOAuthTokens(
+                    tokenEncryptor.encrypt(accessToken),
+                    refreshToken != null ? tokenEncryptor.encrypt(refreshToken) : null,
+                    expiresAt);
             configRepository.save(config);
         } else {
-            config.applyOAuthTokens(tokenEncryptor.encrypt(accessToken),
-                refreshToken != null ? tokenEncryptor.encrypt(refreshToken) : null, expiresAt);
+            config.applyOAuthTokens(
+                    tokenEncryptor.encrypt(accessToken),
+                    refreshToken != null ? tokenEncryptor.encrypt(refreshToken) : null,
+                    expiresAt);
         }
         log.info("JIRA OAuth tokens stored for board {} (pending site selection)", sd.boardId);
         return sd.origin + "?jira=oauth_success&board=" + enc(sd.boardId);
@@ -145,9 +156,10 @@ public class JiraOAuthService {
 
     @Transactional
     public List<JiraResponse.SiteRef> getAccessibleSites(String boardId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
-        JiraIntegrationConfig config = configRepository.findByBoardId(boardId)
-            .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
+        JiraIntegrationConfig config = configRepository
+                .findByBoardId(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
         if (!config.isOAuth()) {
             throw new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED, "OAuth 연결이 아닙니다");
         }
@@ -158,10 +170,10 @@ public class JiraOAuthService {
         if (resources != null && resources.isArray()) {
             for (JsonNode r : resources) {
                 sites.add(JiraResponse.SiteRef.builder()
-                    .cloud_id(r.path("id").asText(null))
-                    .url(r.path("url").asText(null))
-                    .name(r.path("name").asText(null))
-                    .build());
+                        .cloud_id(r.path("id").asText(null))
+                        .url(r.path("url").asText(null))
+                        .name(r.path("name").asText(null))
+                        .build());
             }
         }
         return sites;
@@ -170,10 +182,12 @@ public class JiraOAuthService {
     // ── 사이트/프로젝트 확정 ──────────────────────
 
     @Transactional
-    public JiraIntegrationConfig finalizeTarget(String boardId, String userId, String cloudId, String baseUrl, String projectKey) {
-        boardService.checkAdminOrAbove(boardId, userId);
-        JiraIntegrationConfig config = configRepository.findByBoardId(boardId)
-            .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
+    public JiraIntegrationConfig finalizeTarget(
+            String boardId, String userId, String cloudId, String baseUrl, String projectKey) {
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
+        JiraIntegrationConfig config = configRepository
+                .findByBoardId(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
         if (!config.isOAuth()) {
             throw new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED, "OAuth 연결이 아닙니다");
         }
@@ -186,8 +200,13 @@ public class JiraOAuthService {
             // BusinessException만 잡으면 이게 그대로 새어나가 500이 되므로 상태코드별로 명시 매핑한다.
             int status = e.getStatusCode().value();
             String body = e.getResponseBodyAsString();
-            log.warn("JIRA 프로젝트 검증 실패 board={} cloudId={} projectKey={} status={} body={}",
-                boardId, cloudId, projectKey, status, body);
+            log.warn(
+                    "JIRA 프로젝트 검증 실패 board={} cloudId={} projectKey={} status={} body={}",
+                    boardId,
+                    cloudId,
+                    projectKey,
+                    status,
+                    body);
             if (status == 401 || status == 403) {
                 // 토큰 만료·스코프 불일치(예: "scope does not match") → 재인증 필요
                 // (예외로 트랜잭션이 롤백되므로 lastError는 저장하지 않는다.)
@@ -201,8 +220,12 @@ public class JiraOAuthService {
             throw new BusinessException(ErrorCode.JIRA_PROJECT_NOT_FOUND);
         } catch (RestClientException e) {
             // 타임아웃·네트워크 오류(ResourceAccessException 등)
-            log.warn("JIRA 프로젝트 검증 통신 실패 board={} cloudId={} projectKey={}: {}",
-                boardId, cloudId, projectKey, e.getMessage());
+            log.warn(
+                    "JIRA 프로젝트 검증 통신 실패 board={} cloudId={} projectKey={}: {}",
+                    boardId,
+                    cloudId,
+                    projectKey,
+                    e.getMessage());
             throw new BusinessException(ErrorCode.JIRA_CONNECTION_FAILED);
         }
         config.finalizeOAuthTarget(normalizeHost(baseUrl), cloudId, projectKey);
@@ -219,7 +242,7 @@ public class JiraOAuthService {
         }
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         boolean expiring = config.getTokenExpiresAt() == null
-            || !now.plusSeconds(REFRESH_BUFFER_SECONDS).isBefore(config.getTokenExpiresAt());
+                || !now.plusSeconds(REFRESH_BUFFER_SECONDS).isBefore(config.getTokenExpiresAt());
         if (!expiring) {
             return tokenEncryptor.decrypt(config.getApiTokenEncrypted());
         }
@@ -249,8 +272,10 @@ public class JiraOAuthService {
         long expiresIn = tokens.path("expires_in").asLong(3600);
         LocalDateTime expiresAt = LocalDateTime.now(ZoneOffset.UTC).plusSeconds(expiresIn);
 
-        config.applyOAuthTokens(tokenEncryptor.encrypt(newAccess),
-            newRefresh != null ? tokenEncryptor.encrypt(newRefresh) : null, expiresAt);
+        config.applyOAuthTokens(
+                tokenEncryptor.encrypt(newAccess),
+                newRefresh != null ? tokenEncryptor.encrypt(newRefresh) : null,
+                expiresAt);
         return newAccess;
     }
 
@@ -260,7 +285,8 @@ public class JiraOAuthService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         if (bearer != null) headers.setBearerAuth(bearer);
-        ResponseEntity<JsonNode> res = restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(body, headers), JsonNode.class);
+        ResponseEntity<JsonNode> res =
+                restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(body, headers), JsonNode.class);
         if (!res.getStatusCode().is2xxSuccessful() || res.getBody() == null) {
             throw new BusinessException(ErrorCode.JIRA_CONNECTION_FAILED);
         }
@@ -270,7 +296,8 @@ public class JiraOAuthService {
     private JsonNode getJson(String url, String bearer) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(bearer);
-        ResponseEntity<JsonNode> res = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class);
+        ResponseEntity<JsonNode> res =
+                restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class);
         if (!res.getStatusCode().is2xxSuccessful()) {
             throw new BusinessException(ErrorCode.JIRA_API_ERROR);
         }

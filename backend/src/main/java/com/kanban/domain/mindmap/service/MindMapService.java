@@ -4,20 +4,19 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.mindmap.BoardMindMap;
 import com.kanban.domain.mindmap.BoardMindMapRepository;
 import com.kanban.domain.mindmap.dto.MindMapRequest;
 import com.kanban.domain.mindmap.dto.MindMapResponse;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -26,14 +25,16 @@ import java.util.List;
 public class MindMapService {
 
     private final BoardMindMapRepository mindMapRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final ObjectMapper objectMapper;
 
     /** 마인드맵 조회 (Viewer 이상). 저장된 행이 없으면 빈 문서를 반환한다. */
     public MindMapResponse getMindMap(String boardId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
-        return mindMapRepository.findByBoardId(boardId)
+        return mindMapRepository
+                .findByBoardId(boardId)
                 .map(this::toResponse)
                 .orElseGet(() -> MindMapResponse.builder()
                         .nodes(new ArrayList<>())
@@ -45,11 +46,12 @@ public class MindMapService {
     /** 마인드맵 저장 (Member 이상). 보드당 1행 upsert. */
     @Transactional
     public MindMapResponse saveMindMap(String boardId, String userId, MindMapRequest.Save request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         String data = serialize(request);
 
-        BoardMindMap mindMap = mindMapRepository.findByBoardId(boardId)
+        BoardMindMap mindMap = mindMapRepository
+                .findByBoardId(boardId)
                 .orElseGet(() -> BoardMindMap.builder().boardId(boardId).build());
         mindMap.updateData(data, userId);
         mindMap = mindMapRepository.save(mindMap);
@@ -86,7 +88,8 @@ public class MindMapService {
                 if (root.has("edges") && root.get("edges").isArray()) {
                     root.get("edges").forEach(edges::add);
                 }
-                if (root.has("expanded_features") && root.get("expanded_features").isArray()) {
+                if (root.has("expanded_features")
+                        && root.get("expanded_features").isArray()) {
                     root.get("expanded_features").forEach(n -> {
                         if (n.isTextual()) expandedFeatures.add(n.asText());
                     });
@@ -95,6 +98,10 @@ public class MindMapService {
                 log.warn("Failed to parse stored mindmap data for board {}", mindMap.getBoardId(), e);
             }
         }
-        return MindMapResponse.builder().nodes(nodes).edges(edges).expandedFeatures(expandedFeatures).build();
+        return MindMapResponse.builder()
+                .nodes(nodes)
+                .edges(edges)
+                .expandedFeatures(expandedFeatures)
+                .build();
     }
 }

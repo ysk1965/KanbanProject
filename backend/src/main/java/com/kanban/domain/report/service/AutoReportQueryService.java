@@ -2,21 +2,25 @@ package com.kanban.domain.report.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.report.ReportDeliveryLog;
 import com.kanban.domain.report.ReportDeliveryLogRepository;
+import com.kanban.domain.report.ReportDeliveryStatus;
 import com.kanban.domain.report.ReportDispatchMessage;
 import com.kanban.domain.report.ReportDispatchMessageRepository;
-import com.kanban.domain.report.ReportDeliveryStatus;
+import com.kanban.domain.report.ReportRepository;
 import com.kanban.domain.report.ReportType;
 import com.kanban.domain.report.WeeklyReport;
-import com.kanban.domain.report.ReportRepository;
 import com.kanban.domain.report.dto.AutoReportResponse;
 import com.kanban.domain.report.dto.ReportContent;
 import com.kanban.domain.report.dto.ReportDeliveryLogResponse;
 import com.kanban.domain.storage.service.ReportFileFiler;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -24,11 +28,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.List;
-import java.util.Map;
 
 /**
  * 보고서 페이지 조회. 같은 보고서를 두 경로로 연다 —
@@ -43,14 +42,16 @@ public class AutoReportQueryService {
     private final ReportDeliveryLogRepository deliveryLogRepository;
     private final ReportDispatchMessageRepository dispatchMessageRepository;
     private final ReportSlackPublisher slackPublisher;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final ReportFileFiler reportFileFiler;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public AutoReportResponse getForMember(String boardId, String reportId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
-        WeeklyReport report = reportRepository.findById(reportId)
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
+        WeeklyReport report = reportRepository
+                .findById(reportId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND));
         if (!report.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND);
@@ -64,7 +65,8 @@ public class AutoReportQueryService {
      */
     @Transactional(readOnly = true)
     public AutoReportResponse getByShareToken(String shareToken) {
-        WeeklyReport report = reportRepository.findByShareToken(shareToken)
+        WeeklyReport report = reportRepository
+                .findByShareToken(shareToken)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND));
         if (!report.isShareLinkValid(LocalDateTime.now(ZoneOffset.UTC))) {
             throw new BusinessException(ErrorCode.REPORT_SHARE_LINK_EXPIRED);
@@ -78,10 +80,10 @@ public class AutoReportQueryService {
      */
     @Transactional(readOnly = true)
     public List<AutoReportResponse> listAuto(String boardId, String userId, int limit) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         return reportRepository.findByBoardIdOrderByCreatedAtDesc(boardId).stream()
-                .filter(r -> r.getReportType() == ReportType.DAILY_DEV
-                        || r.getReportType() == ReportType.WEEKLY_INTEGRATED)
+                .filter(r ->
+                        r.getReportType() == ReportType.DAILY_DEV || r.getReportType() == ReportType.WEEKLY_INTEGRATED)
                 .limit(Math.max(1, Math.min(limit, 100)))
                 .map(r -> AutoReportResponse.base(r)
                         .sourceStatus(parseSourceStatus(r.getSourceStatusJson()))
@@ -99,18 +101,15 @@ public class AutoReportQueryService {
      */
     @Transactional(readOnly = true)
     public ReportDeliveryLogResponse.Page listDeliveryLogs(String boardId, String userId, int page, int size) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         int safePage = Math.max(0, page);
         int safeSize = Math.max(1, Math.min(size, 50));
         Pageable pageable = PageRequest.of(safePage, safeSize);
-        Page<ReportDeliveryLog> result =
-                deliveryLogRepository.findByBoardIdOrderByCreatedAtDesc(boardId, pageable);
+        Page<ReportDeliveryLog> result = deliveryLogRepository.findByBoardIdOrderByCreatedAtDesc(boardId, pageable);
 
-        List<ReportDeliveryLogResponse> items = result.getContent().stream()
-                .map(this::toLogResponse)
-                .toList();
-        boolean hasRunning = result.getContent().stream()
-                .anyMatch(l -> l.getStatus() == ReportDeliveryStatus.RUNNING);
+        List<ReportDeliveryLogResponse> items =
+                result.getContent().stream().map(this::toLogResponse).toList();
+        boolean hasRunning = result.getContent().stream().anyMatch(l -> l.getStatus() == ReportDeliveryStatus.RUNNING);
 
         return ReportDeliveryLogResponse.Page.builder()
                 .items(items)
@@ -149,8 +148,9 @@ public class AutoReportQueryService {
     /** 공유 링크 무효화 — 유출됐을 때 즉시 막는 수단 */
     @Transactional
     public void revokeShareLink(String boardId, String reportId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
-        WeeklyReport report = reportRepository.findById(reportId)
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
+        WeeklyReport report = reportRepository
+                .findById(reportId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND));
         if (!report.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND);
@@ -164,8 +164,9 @@ public class AutoReportQueryService {
      */
     @Transactional
     public void deleteReport(String boardId, String reportId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
-        WeeklyReport report = reportRepository.findById(reportId)
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
+        WeeklyReport report = reportRepository
+                .findById(reportId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND));
         if (!report.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND);

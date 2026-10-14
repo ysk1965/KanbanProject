@@ -4,13 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.milestone.Milestone;
-import com.kanban.domain.milestone.MilestoneFeature;
 import com.kanban.domain.milestone.MilestoneFeatureRepository;
 import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.mindmap.BoardMindMap;
@@ -25,11 +24,6 @@ import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -40,6 +34,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 마인드맵 외부 공유 — 설정 CRUD(보드 멤버용)와 공개 스냅샷 조회(인증 불요)를 담당한다.
@@ -55,7 +53,8 @@ public class MindMapShareService {
     private final MindMapShareRepository shareRepository;
     private final BoardMindMapRepository mindMapRepository;
     private final BoardRepository boardRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final FeatureRepository featureRepository;
     private final TaskRepository taskRepository;
     private final MilestoneRepository milestoneRepository;
@@ -67,22 +66,30 @@ public class MindMapShareService {
 
     /** 공유 설정 조회 (Member 이상). 행이 없으면 기본값을 반환한다. */
     public MindMapShareResponse getShareSettings(String boardId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
-        return shareRepository.findByBoardId(boardId)
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
+        return shareRepository
+                .findByBoardId(boardId)
                 .map(MindMapShareResponse::of)
                 .orElseGet(MindMapShareResponse::empty);
     }
 
     /** 공유 설정 upsert (Member 이상). 최초 enable 시 share_code를 발급한다. */
     @Transactional
-    public MindMapShareResponse updateShareSettings(String boardId, String userId,
-                                                    MindMapShareRequest.Update request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public MindMapShareResponse updateShareSettings(String boardId, String userId, MindMapShareRequest.Update request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        MindMapShare share = shareRepository.findByBoardId(boardId)
-                .orElseGet(() -> MindMapShare.builder().boardId(boardId).createdBy(userId).build());
-        share.updateSettings(request.isEnabled(), request.isShowTasks(), request.isShowAssignees(),
-                request.isShowMemos(), request.getExpiresAt());
+        MindMapShare share = shareRepository
+                .findByBoardId(boardId)
+                .orElseGet(() -> MindMapShare.builder()
+                        .boardId(boardId)
+                        .createdBy(userId)
+                        .build());
+        share.updateSettings(
+                request.isEnabled(),
+                request.isShowTasks(),
+                request.isShowAssignees(),
+                request.isShowMemos(),
+                request.getExpiresAt());
         share = shareRepository.save(share);
         return MindMapShareResponse.of(share);
     }
@@ -90,10 +97,14 @@ public class MindMapShareService {
     /** share_code 재발급 (Member 이상). 기존 링크는 즉시 무효화된다. 행이 없으면 생성 후 enable. */
     @Transactional
     public MindMapShareResponse rotateShareCode(String boardId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        MindMapShare share = shareRepository.findByBoardId(boardId)
-                .orElseGet(() -> MindMapShare.builder().boardId(boardId).createdBy(userId).build());
+        MindMapShare share = shareRepository
+                .findByBoardId(boardId)
+                .orElseGet(() -> MindMapShare.builder()
+                        .boardId(boardId)
+                        .createdBy(userId)
+                        .build());
         share.rotateShareCode();
         share = shareRepository.save(share);
         return MindMapShareResponse.of(share);
@@ -106,7 +117,8 @@ public class MindMapShareService {
      * 코드 무차별 대입으로 상태를 탐색할 수 없게 한다.
      */
     public PublicMindMapResponse getPublicSnapshot(String shareCode) {
-        MindMapShare share = shareRepository.findByShareCode(shareCode)
+        MindMapShare share = shareRepository
+                .findByShareCode(shareCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MINDMAP_SHARE_NOT_FOUND));
 
         LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
@@ -115,7 +127,8 @@ public class MindMapShareService {
             throw new BusinessException(ErrorCode.MINDMAP_SHARE_NOT_FOUND);
         }
 
-        Board board = boardRepository.findById(share.getBoardId())
+        Board board = boardRepository
+                .findById(share.getBoardId())
                 .filter(b -> !b.isDeleted())
                 .orElseThrow(() -> new BusinessException(ErrorCode.MINDMAP_SHARE_NOT_FOUND));
 
@@ -128,11 +141,13 @@ public class MindMapShareService {
         Map<String, PublicMindMapResponse.MilestoneItem> milestoneItemById = new LinkedHashMap<>();
         for (int i = 0; i < milestones.size(); i++) {
             Milestone ms = milestones.get(i);
-            milestoneItemById.put(ms.getId(), PublicMindMapResponse.MilestoneItem.builder()
-                    .id(ms.getId())
-                    .title(ms.getTitle())
-                    .idx(i)
-                    .build());
+            milestoneItemById.put(
+                    ms.getId(),
+                    PublicMindMapResponse.MilestoneItem.builder()
+                            .id(ms.getId())
+                            .title(ms.getTitle())
+                            .idx(i)
+                            .build());
         }
 
         List<Feature> features = featureRepository.findByBoardIdWithFetch(board.getId());
@@ -161,7 +176,8 @@ public class MindMapShareService {
                 Set<String> removedNodeIds = new HashSet<>();
                 if (root.has("nodes") && root.get("nodes").isArray()) {
                     root.get("nodes").forEach(n -> {
-                        boolean isMemo = n.has("kind") && "memo".equals(n.get("kind").asText());
+                        boolean isMemo =
+                                n.has("kind") && "memo".equals(n.get("kind").asText());
                         if (isMemo && !showMemos) {
                             if (n.has("id")) removedNodeIds.add(n.get("id").asText());
                             return;
@@ -177,7 +193,8 @@ public class MindMapShareService {
                         edges.add(e);
                     });
                 }
-                if (root.has("expanded_features") && root.get("expanded_features").isArray()) {
+                if (root.has("expanded_features")
+                        && root.get("expanded_features").isArray()) {
                     root.get("expanded_features").forEach(n -> {
                         if (n.isTextual()) expandedFeatures.add(n.asText());
                     });
@@ -198,29 +215,32 @@ public class MindMapShareService {
      * 배정이 하나도 없으면 피처-마일스톤 멤버십으로 폴백한다 (프론트 featureMilestonesMap 파생과 동일).
      */
     private List<PublicMindMapResponse.FeatureItem> buildFeatures(
-            List<Feature> features, List<Task> tasks,
+            List<Feature> features,
+            List<Task> tasks,
             Map<String, PublicMindMapResponse.MilestoneItem> milestoneItemById,
-            boolean showAssignees, String boardId) {
+            boolean showAssignees,
+            String boardId) {
 
         // feature_id → 태스크에 배정된 마일스톤 id 집합
         Map<String, Set<String>> taskMsByFeature = new HashMap<>();
         for (Task task : tasks) {
             if (task.getMilestone() == null) continue;
-            taskMsByFeature.computeIfAbsent(task.getFeature().getId(), k -> new HashSet<>())
+            taskMsByFeature
+                    .computeIfAbsent(task.getFeature().getId(), k -> new HashSet<>())
                     .add(task.getMilestone().getId());
         }
 
         // feature_id → 멤버십 마일스톤 id 집합 (태스크 배정이 없을 때 폴백)
-        Map<String, Set<String>> membershipMsByFeature = milestoneFeatureRepository
-                .findByBoardIdWithFeatures(boardId).stream()
-                .collect(Collectors.groupingBy(
-                        mf -> mf.getFeature().getId(),
-                        Collectors.mapping(mf -> mf.getMilestone().getId(), Collectors.toSet())));
+        Map<String, Set<String>> membershipMsByFeature =
+                milestoneFeatureRepository.findByBoardIdWithFeatures(boardId).stream()
+                        .collect(Collectors.groupingBy(
+                                mf -> mf.getFeature().getId(),
+                                Collectors.mapping(mf -> mf.getMilestone().getId(), Collectors.toSet())));
 
         return features.stream()
                 .map(f -> {
-                    Set<String> msIds = taskMsByFeature.getOrDefault(f.getId(),
-                            membershipMsByFeature.getOrDefault(f.getId(), Set.of()));
+                    Set<String> msIds = taskMsByFeature.getOrDefault(
+                            f.getId(), membershipMsByFeature.getOrDefault(f.getId(), Set.of()));
                     List<PublicMindMapResponse.MilestoneItem> featureMilestones = msIds.stream()
                             .map(milestoneItemById::get)
                             .filter(java.util.Objects::nonNull)
@@ -236,12 +256,13 @@ public class MindMapShareService {
                             .progressPercentage(f.getProgressPercentage())
                             .position(f.getPosition() != null ? f.getPosition() : 0)
                             .milestones(featureMilestones)
-                            .assignee(showAssignees && f.getAssignee() != null
-                                    ? PublicMindMapResponse.AssigneeItem.builder()
-                                            .id(f.getAssignee().getId())
-                                            .name(f.getAssignee().getName())
-                                            .build()
-                                    : null)
+                            .assignee(
+                                    showAssignees && f.getAssignee() != null
+                                            ? PublicMindMapResponse.AssigneeItem.builder()
+                                                    .id(f.getAssignee().getId())
+                                                    .name(f.getAssignee().getName())
+                                                    .build()
+                                            : null)
                             .build();
                 })
                 .toList();
@@ -263,7 +284,8 @@ public class MindMapShareService {
                                 ci -> ci.getAssignee(),
                                 (existing, replacement) -> existing,
                                 LinkedHashMap::new))
-                        .values().stream()
+                        .values()
+                        .stream()
                         .map(u -> PublicMindMapResponse.AssigneeItem.builder()
                                 .id(u.getId())
                                 .name(u.getName())

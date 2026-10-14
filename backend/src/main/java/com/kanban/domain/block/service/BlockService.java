@@ -10,7 +10,7 @@ import com.kanban.domain.block.dto.BlockRequest;
 import com.kanban.domain.block.dto.BlockResponse;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.milestone.MilestoneBlockConfigRepository;
 import com.kanban.domain.milestone.MilestoneRepository;
@@ -21,6 +21,13 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,14 +37,6 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -46,7 +45,8 @@ public class BlockService {
 
     private final BlockRepository blockRepository;
     private final BoardRepository boardRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final ActivityService activityService;
@@ -61,7 +61,7 @@ public class BlockService {
 
     public BlockResponse.ListResponse getBlocks(String boardId, String userId, String milestoneId) {
         // 뷰어 이상 권한 확인 (컨트롤러 경로 전용 — Facade는 멤버십을 1회 검증 후 internal 직접 호출)
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         // this.getBlocksInternal()로 직접 호출하면 @Cacheable이 동작하지 않으므로 self 프록시 경유
         return self.getBlocksInternal(boardId, milestoneId);
     }
@@ -70,7 +70,10 @@ public class BlockService {
      * 권한 검증 없는 내부 조회 (BoardFacadeService처럼 호출 측에서 이미 멤버십을 검증한 경우 사용).
      * 캐시 이름/키는 기존 getBlocks와 동일 — 컨트롤러/Facade 경로가 같은 캐시 엔트리를 공유한다.
      */
-    @Cacheable(value = "blocks", key = "#boardId + '_' + (#milestoneId != null ? #milestoneId : 'all')", unless = "#result == null")
+    @Cacheable(
+            value = "blocks",
+            key = "#boardId + '_' + (#milestoneId != null ? #milestoneId : 'all')",
+            unless = "#result == null")
     public BlockResponse.ListResponse getBlocksInternal(String boardId, String milestoneId) {
         if (milestoneId == null) {
             // 마일스톤 필터 없음: 보드의 모든 블록 반환
@@ -111,13 +114,14 @@ public class BlockService {
     @CacheEvict(value = "blocks", allEntries = true)
     public BlockResponse.Detail createBlock(String boardId, String userId, BlockRequest.Create request) {
         // Admin 이상 권한 확인
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         // Done 블록 찾기 (커스텀 블록은 Done 블록 앞에 생성)
-        Block doneBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.DONE)
+        Block doneBlock = blockRepository
+                .findByBoardIdAndFixedType(boardId, FixedBlockType.DONE)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
 
         // Done 블록 전 위치에 새 블록 생성
@@ -134,7 +138,8 @@ public class BlockService {
 
         Block newBlock;
         if (request.getMilestoneId() != null) {
-            Milestone milestone = milestoneRepository.findById(request.getMilestoneId())
+            Milestone milestone = milestoneRepository
+                    .findById(request.getMilestoneId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
             if (!milestone.getBoard().getId().equals(boardId)) {
                 throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
@@ -145,9 +150,13 @@ public class BlockService {
         }
         blockRepository.save(newBlock);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        activityService.logActivity(board, user, ActivityAction.BLOCK_CREATED, TargetType.BLOCK, newBlock.getId(),
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(
+                board,
+                user,
+                ActivityAction.BLOCK_CREATED,
+                TargetType.BLOCK,
+                newBlock.getId(),
                 Map.of("blockName", newBlock.getName()));
 
         log.info("Block created: {} in board: {} by user: {}", newBlock.getId(), boardId, userId);
@@ -159,12 +168,13 @@ public class BlockService {
 
     @Transactional
     @CacheEvict(value = "blocks", allEntries = true)
-    public BlockResponse.Detail updateBlock(String boardId, String blockId, String userId, BlockRequest.Update request) {
+    public BlockResponse.Detail updateBlock(
+            String boardId, String blockId, String userId, BlockRequest.Update request) {
         // Admin 이상 권한 확인
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        Block block = blockRepository.findById(blockId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
+        Block block =
+                blockRepository.findById(blockId).orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
 
         // 보드 소속 확인
         if (!block.getBoard().getId().equals(boardId)) {
@@ -178,9 +188,13 @@ public class BlockService {
 
         block.updateInfo(request.getName(), request.getColor(), request.getShowProgressBar());
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        activityService.logActivity(block.getBoard(), user, ActivityAction.BLOCK_UPDATED, TargetType.BLOCK, blockId,
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(
+                block.getBoard(),
+                user,
+                ActivityAction.BLOCK_UPDATED,
+                TargetType.BLOCK,
+                blockId,
                 Map.of("blockName", block.getName()));
 
         log.info("Block updated: {} by user: {}", blockId, userId);
@@ -194,10 +208,10 @@ public class BlockService {
     @CacheEvict(value = "blocks", allEntries = true)
     public void deleteBlock(String boardId, String blockId, String userId) {
         // Admin 이상 권한 확인
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        Block block = blockRepository.findById(blockId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
+        Block block =
+                blockRepository.findById(blockId).orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
 
         // 보드 소속 확인
         if (!block.getBoard().getId().equals(boardId)) {
@@ -211,13 +225,18 @@ public class BlockService {
 
         // 활동 로그 기록 (삭제 전에 기록)
         String blockName = block.getName();
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        activityService.logActivity(block.getBoard(), user, ActivityAction.BLOCK_DELETED, TargetType.BLOCK, blockId,
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(
+                block.getBoard(),
+                user,
+                ActivityAction.BLOCK_DELETED,
+                TargetType.BLOCK,
+                blockId,
                 Map.of("blockName", blockName));
 
         // 블록 내 Task들을 Task 고정 블록으로 이동
-        Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
+        Block taskBlock = blockRepository
+                .findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
         taskRepository.moveTasksToBlock(blockId, taskBlock);
 
@@ -238,18 +257,18 @@ public class BlockService {
 
         log.info("Block deleted: {} by user: {}", blockId, userId);
 
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.BLOCK_DELETED, userId, user.getName(), Map.of("id", blockId));
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.BLOCK_DELETED, userId, user.getName(), Map.of("id", blockId));
     }
 
     @Transactional
     @CacheEvict(value = "blocks", allEntries = true)
     public BlockResponse.ListResponse reorderBlocks(String boardId, String userId, BlockRequest.Reorder request) {
         // Admin 이상 권한 확인
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
         List<Block> allBlocks = blockRepository.findByBoardIdOrderByPositionAsc(boardId);
-        Map<String, Block> blockMap = allBlocks.stream()
-                .collect(Collectors.toMap(Block::getId, Function.identity()));
+        Map<String, Block> blockMap = allBlocks.stream().collect(Collectors.toMap(Block::getId, Function.identity()));
 
         // 요청된 블록 ID들이 모두 해당 보드의 블록인지 확인
         for (String blockId : request.getBlockIds()) {
@@ -308,9 +327,9 @@ public class BlockService {
         List<Block> reorderedBlocks = blockRepository.findByBoardIdOrderByPositionAsc(boardId);
         BlockResponse.ListResponse response = BlockResponse.ListResponse.of(reorderedBlocks);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.BLOCKS_REORDERED, userId, user.getName(), response);
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.BLOCKS_REORDERED, userId, user.getName(), response);
         return response;
     }
 }

@@ -1,32 +1,30 @@
 package com.kanban.domain.member.controller;
 
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.member.dto.MemberRequest;
 import com.kanban.domain.member.dto.MemberResponse;
 import com.kanban.domain.member.service.MemberService;
 import com.kanban.global.security.UserPrincipal;
 import jakarta.validation.Valid;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Map;
-
 @RestController
 @RequestMapping("/api/v1/boards/{boardId}/members")
 @RequiredArgsConstructor
 public class MemberController {
 
-    private final BoardService boardService;
+    private final BoardPermissionService boardPermissionService;
     private final MemberService memberService;
 
     @GetMapping
     public ResponseEntity<MemberResponse.ListResponse> getMembers(
-            @PathVariable String boardId,
-            @AuthenticationPrincipal UserPrincipal principal) {
+            @PathVariable String boardId, @AuthenticationPrincipal UserPrincipal principal) {
         MemberResponse.ListResponse response = memberService.getMembers(boardId, principal.getUserId());
         return ResponseEntity.ok(response);
     }
@@ -36,7 +34,7 @@ public class MemberController {
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody MemberRequest.Invite request) {
-        boardService.checkTeamBoardOnly(boardId);
+        boardPermissionService.checkTeamBoardOnly(boardId);
         MemberResponse.InviteResult response = memberService.inviteMember(boardId, principal.getUserId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -47,7 +45,8 @@ public class MemberController {
             @PathVariable String memberId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody MemberRequest.UpdateRole request) {
-        MemberResponse.Detail response = memberService.updateMemberRole(boardId, memberId, principal.getUserId(), request);
+        MemberResponse.Detail response =
+                memberService.updateMemberRole(boardId, memberId, principal.getUserId(), request);
         return ResponseEntity.ok(response);
     }
 
@@ -57,7 +56,8 @@ public class MemberController {
             @PathVariable String memberId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody MemberRequest.UpdateColor request) {
-        MemberResponse.Detail response = memberService.updateMemberColor(boardId, memberId, principal.getUserId(), request);
+        MemberResponse.Detail response =
+                memberService.updateMemberColor(boardId, memberId, principal.getUserId(), request);
         return ResponseEntity.ok(response);
     }
 
@@ -67,7 +67,8 @@ public class MemberController {
             @PathVariable String memberId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody MemberRequest.UpdateJobRole request) {
-        MemberResponse.Detail response = memberService.updateMemberJobRole(boardId, memberId, principal.getUserId(), request);
+        MemberResponse.Detail response =
+                memberService.updateMemberJobRole(boardId, memberId, principal.getUserId(), request);
         return ResponseEntity.ok(response);
     }
 
@@ -77,7 +78,8 @@ public class MemberController {
             @PathVariable String memberId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody MemberRequest.UpdateGithubLogin request) {
-        MemberResponse.Detail response = memberService.updateMemberGithubLogin(boardId, memberId, principal.getUserId(), request);
+        MemberResponse.Detail response =
+                memberService.updateMemberGithubLogin(boardId, memberId, principal.getUserId(), request);
         return ResponseEntity.ok(response);
     }
 
@@ -95,8 +97,7 @@ public class MemberController {
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody MemberRequest.TransferOwnership request) {
-        MemberResponse.ListResponse response = memberService.transferOwnership(
-                boardId, principal.getUserId(), request);
+        MemberResponse.ListResponse response = memberService.transferOwnership(boardId, principal.getUserId(), request);
         return ResponseEntity.ok(response);
     }
 
@@ -114,7 +115,8 @@ public class MemberController {
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) String search) {
-        List<MemberResponse.OrgCandidate> candidates = memberService.getOrgCandidates(boardId, principal.getUserId(), search);
+        List<MemberResponse.OrgCandidate> candidates =
+                memberService.getOrgCandidates(boardId, principal.getUserId(), search);
         return ResponseEntity.ok(candidates);
     }
 }

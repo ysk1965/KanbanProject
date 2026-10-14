@@ -7,7 +7,7 @@ import com.kanban.domain.activity.TargetType;
 import com.kanban.domain.activity.service.ActivityService;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.checklist.dto.ChecklistAIRequest;
@@ -23,16 +23,15 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -45,7 +44,8 @@ public class ChecklistAIService {
     private final ChecklistItemRepository checklistItemRepository;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final ActivityService activityService;
     private final WebSocketEventService webSocketEventService;
 
@@ -74,8 +74,7 @@ public class ChecklistAIService {
             Map.entry("th", "Thai"),
             Map.entry("hi", "Hindi"),
             Map.entry("es", "Spanish"),
-            Map.entry("pt-BR", "Portuguese (Brazil)")
-    );
+            Map.entry("pt-BR", "Portuguese (Brazil)"));
 
     /**
      * 트랜잭션 밖에서 실행된다 — 입력 읽기는 {@code transactionTemplate}으로 짧게 묶고, LLM 호출은
@@ -86,10 +85,10 @@ public class ChecklistAIService {
 
         // 1. 입력 읽기 (tx) — 프롬프트에 들어갈 값은 여기서 전부 문자열로 뽑아둔다 (Task.feature는 LAZY)
         PromptInput input = transactionTemplate.execute(status -> {
-            boardService.checkMemberOrAbove(boardId, userId);
+            boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-            Task task = taskRepository.findById(taskId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+            Task task =
+                    taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
             if (!task.getBoard().getId().equals(boardId)) {
                 throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
@@ -109,38 +108,41 @@ public class ChecklistAIService {
             return new PromptInput(
                     taskTitle,
                     buildSystemPrompt(language),
-                    buildUserPrompt(feature.getTitle(), feature.getDescription(),
-                            taskTitle, taskDescription, existingContext));
+                    buildUserPrompt(
+                            feature.getTitle(), feature.getDescription(), taskTitle, taskDescription, existingContext));
         });
 
         // 2. 크레딧 차감 → AI 호출 → 사용량 로그 → 파싱 (트랜잭션 없음)
         log.info("Generating AI checklist suggestions for task: {} in board: {}", taskId, boardId);
         AiInvocationRequest request = AiInvocationRequest.builder()
-                .boardId(boardId).userId(userId)
-                .featureType("CHECKLIST_DECOMPOSE").creditCost(1)
-                .systemPrompt(input.systemPrompt()).userPrompt(input.userPrompt())
-                .model(getModel()).maxTokens(MAX_TOKENS)
+                .boardId(boardId)
+                .userId(userId)
+                .featureType("CHECKLIST_DECOMPOSE")
+                .creditCost(1)
+                .systemPrompt(input.systemPrompt())
+                .userPrompt(input.userPrompt())
+                .model(getModel())
+                .maxTokens(MAX_TOKENS)
                 .build();
         return aiInvocationTemplate.invoke(request, content -> parseAIResponse(content, taskId, input.taskTitle()));
     }
 
-    private record PromptInput(String taskTitle, String systemPrompt, String userPrompt) {
-    }
+    private record PromptInput(String taskTitle, String systemPrompt, String userPrompt) {}
 
     @Transactional
     public ChecklistAIResponse.ApplyResult applyChecklistSuggestions(
             String boardId, String taskId, String userId, ChecklistAIRequest.ApplyChecklist request) {
 
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Board board = boardRepository.findByIdWithLock(boardId)
+        Board board = boardRepository
+                .findByIdWithLock(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
-        User creator = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User creator =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         int itemsCreated = 0;
 
@@ -160,13 +162,16 @@ public class ChecklistAIService {
 
         log.info("AI checklist decomposition applied for task: {}. Items: {}", taskId, itemsCreated);
 
-        activityService.logActivity(board, creator,
-                ActivityAction.CHECKLIST_CREATED, TargetType.TASK, taskId,
-                Map.of("taskTitle", task.getTitle(),
-                        "itemsCreated", String.valueOf(itemsCreated)));
+        activityService.logActivity(
+                board,
+                creator,
+                ActivityAction.CHECKLIST_CREATED,
+                TargetType.TASK,
+                taskId,
+                Map.of("taskTitle", task.getTitle(), "itemsCreated", String.valueOf(itemsCreated)));
 
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_CREATED,
-                userId, creator.getName(), Map.of("taskId", taskId));
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.CHECKLIST_CREATED, userId, creator.getName(), Map.of("taskId", taskId));
 
         return ChecklistAIResponse.ApplyResult.builder()
                 .itemsCreated(itemsCreated)
@@ -178,10 +183,12 @@ public class ChecklistAIService {
         String langInstruction;
         String langReminder;
         if (langName != null) {
-            langInstruction = "CRITICAL LANGUAGE RULE: You MUST write ALL output text (checklist item titles) in " + langName + ". Do NOT use English for any content values.";
+            langInstruction = "CRITICAL LANGUAGE RULE: You MUST write ALL output text (checklist item titles) in "
+                    + langName + ". Do NOT use English for any content values.";
             langReminder = "REMINDER: All text content in the JSON output MUST be in " + langName + ".";
         } else {
-            langInstruction = "CRITICAL LANGUAGE RULE: Match the language of the task title and description for all output text.";
+            langInstruction =
+                    "CRITICAL LANGUAGE RULE: Match the language of the task title and description for all output text.";
             langReminder = "REMINDER: Match the output language to the task's language.";
         }
 
@@ -213,16 +220,19 @@ public class ChecklistAIService {
                 """, langInstruction, langReminder);
     }
 
-    private String buildUserPrompt(String featureTitle, String featureDescription,
-                                    String taskTitle, String taskDescription, String existingContext) {
-        String featDesc = featureDescription != null && !featureDescription.isBlank()
-                ? featureDescription : "(no description)";
+    private String buildUserPrompt(
+            String featureTitle,
+            String featureDescription,
+            String taskTitle,
+            String taskDescription,
+            String existingContext) {
+        String featDesc =
+                featureDescription != null && !featureDescription.isBlank() ? featureDescription : "(no description)";
         if (featDesc.length() > 2000) {
             featDesc = featDesc.substring(0, 2000) + "...";
         }
 
-        String taskDesc = taskDescription != null && !taskDescription.isBlank()
-                ? taskDescription : "(no description)";
+        String taskDesc = taskDescription != null && !taskDescription.isBlank() ? taskDescription : "(no description)";
         if (taskDesc.length() > 2000) {
             taskDesc = taskDesc.substring(0, 2000) + "...";
         }
@@ -252,7 +262,8 @@ public class ChecklistAIService {
         return sb.toString();
     }
 
-    private ChecklistAIResponse.ChecklistDecomposition parseAIResponse(String aiResponse, String taskId, String taskTitle) {
+    private ChecklistAIResponse.ChecklistDecomposition parseAIResponse(
+            String aiResponse, String taskId, String taskTitle) {
         try {
             JsonNode root = aiInvocationTemplate.readJsonTree(aiResponse);
 

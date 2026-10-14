@@ -5,7 +5,7 @@ import com.kanban.domain.activity.TargetType;
 import com.kanban.domain.activity.service.ActivityService;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.CommentAttachment;
 import com.kanban.domain.comment.CommentAttachmentRepository;
@@ -24,27 +24,17 @@ import com.kanban.domain.tag.FeatureTag;
 import com.kanban.domain.tag.FeatureTagRepository;
 import com.kanban.domain.tag.Tag;
 import com.kanban.domain.tag.TaskTagRepository;
+import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.domain.weight.TaskWeightRepository;
-import com.kanban.global.service.FileUploadService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.service.FileUploadService;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
 import jakarta.persistence.EntityManager;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.kanban.domain.task.Task;
-
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -54,6 +44,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -65,7 +63,8 @@ public class FeatureService {
     private final FeatureTagRepository featureTagRepository;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final MilestoneFeatureRepository milestoneFeatureRepository;
     private final TaskRepository taskRepository;
     private final TaskTagRepository taskTagRepository;
@@ -89,7 +88,7 @@ public class FeatureService {
 
     public FeatureResponse.ListResponse getFeatures(String boardId, String userId, String milestoneId) {
         // 뷰어 이상 권한 확인 (컨트롤러 경로 전용 — Facade는 멤버십을 1회 검증 후 internal 직접 호출)
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         // this.getFeaturesInternal()로 직접 호출하면 @Cacheable이 동작하지 않으므로 self 프록시 경유
         return self.getFeaturesInternal(boardId, milestoneId);
     }
@@ -108,16 +107,14 @@ public class FeatureService {
         if (milestoneId != null && !milestoneId.isEmpty()) {
             if ("none".equals(milestoneId)) {
                 // 마일스톤 미지정 피처만 필터링
-                Set<String> allMilestoneFeatureIds = new HashSet<>(
-                        milestoneFeatureRepository.findAllFeatureIdsByBoardId(boardId)
-                );
+                Set<String> allMilestoneFeatureIds =
+                        new HashSet<>(milestoneFeatureRepository.findAllFeatureIdsByBoardId(boardId));
                 features = features.stream()
                         .filter(f -> !allMilestoneFeatureIds.contains(f.getId()))
                         .collect(Collectors.toList());
             } else {
-                Set<String> milestoneFeatureIds = new HashSet<>(
-                        milestoneFeatureRepository.findFeatureIdsByMilestoneId(milestoneId)
-                );
+                Set<String> milestoneFeatureIds =
+                        new HashSet<>(milestoneFeatureRepository.findFeatureIdsByMilestoneId(milestoneId));
                 features = features.stream()
                         .filter(f -> milestoneFeatureIds.contains(f.getId()))
                         .collect(Collectors.toList());
@@ -130,9 +127,10 @@ public class FeatureService {
     }
 
     public FeatureResponse.Detail getFeature(String boardId, String featureId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
-        Feature feature = featureRepository.findById(featureId)
+        Feature feature = featureRepository
+                .findById(featureId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
 
         if (!feature.getBoard().getId().equals(boardId)) {
@@ -149,21 +147,23 @@ public class FeatureService {
     @Transactional
     @CacheEvict(value = "features", key = "#boardId")
     public FeatureResponse.Detail createFeature(String boardId, String userId, FeatureRequest.Create request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        User creator = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User creator =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         User assignee = null;
         BoardContractor contractor = null;
         if (request.getAssigneeId() != null) {
-            assignee = userRepository.findById(request.getAssigneeId())
+            assignee = userRepository
+                    .findById(request.getAssigneeId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         } else if (request.getContractorId() != null) {
-            contractor = contractorRepository.findByIdAndBoardId(request.getContractorId(), boardId)
+            contractor = contractorRepository
+                    .findByIdAndBoardId(request.getContractorId(), boardId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
         }
 
@@ -186,23 +186,34 @@ public class FeatureService {
         featureRepository.save(feature);
 
         // Map.of 는 null 값을 허용하지 않는다 — color 미지정 시 NPE 방지를 위해 빈 문자열로 대체.
-        activityService.logActivity(board, creator, ActivityAction.FEATURE_CREATED, TargetType.FEATURE, feature.getId(),
-                Map.of("featureTitle", feature.getTitle(),
-                        "featureColor", feature.getColor() != null ? feature.getColor() : ""));
+        activityService.logActivity(
+                board,
+                creator,
+                ActivityAction.FEATURE_CREATED,
+                TargetType.FEATURE,
+                feature.getId(),
+                Map.of(
+                        "featureTitle",
+                        feature.getTitle(),
+                        "featureColor",
+                        feature.getColor() != null ? feature.getColor() : ""));
 
         log.info("Feature created: {} in board: {} by user: {}", feature.getId(), boardId, userId);
 
         FeatureResponse.Detail response = FeatureResponse.Detail.of(feature, List.of());
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.FEATURE_CREATED, userId, creator.getName(), response);
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.FEATURE_CREATED, userId, creator.getName(), response);
         return response;
     }
 
     @Transactional
     @CacheEvict(value = "features", key = "#boardId")
-    public FeatureResponse.Detail updateFeature(String boardId, String featureId, String userId, FeatureRequest.Update request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public FeatureResponse.Detail updateFeature(
+            String boardId, String featureId, String userId, FeatureRequest.Update request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Feature feature = featureRepository.findById(featureId)
+        Feature feature = featureRepository
+                .findById(featureId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
 
         if (!feature.getBoard().getId().equals(boardId)) {
@@ -218,22 +229,28 @@ public class FeatureService {
                 request.getDescription(),
                 request.getColor(),
                 request.getStartDate(),
-                request.getDueDate()
-        );
+                request.getDueDate());
 
         if (request.getAssigneeId() != null) {
-            User assignee = userRepository.findById(request.getAssigneeId())
+            User assignee = userRepository
+                    .findById(request.getAssigneeId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
             feature.updateAssignee(assignee);
         } else if (request.getContractorId() != null) {
-            BoardContractor contractor = contractorRepository.findByIdAndBoardId(request.getContractorId(), boardId)
+            BoardContractor contractor = contractorRepository
+                    .findByIdAndBoardId(request.getContractorId(), boardId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
             feature.updateContractor(contractor);
         }
 
-        User updater = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        activityService.logActivity(feature.getBoard(), updater, ActivityAction.FEATURE_UPDATED, TargetType.FEATURE, featureId,
+        User updater =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(
+                feature.getBoard(),
+                updater,
+                ActivityAction.FEATURE_UPDATED,
+                TargetType.FEATURE,
+                featureId,
                 Map.of("featureTitle", feature.getTitle()));
 
         List<Tag> tags = featureTagRepository.findByFeatureIdWithFetch(featureId).stream()
@@ -243,7 +260,8 @@ public class FeatureService {
         log.info("Feature updated: {} by user: {}", featureId, userId);
 
         FeatureResponse.Detail response = FeatureResponse.Detail.of(feature, tags);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.FEATURE_UPDATED, userId, updater.getName(), response);
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.FEATURE_UPDATED, userId, updater.getName(), response);
         return response;
     }
 
@@ -255,9 +273,10 @@ public class FeatureService {
     @Transactional
     @CacheEvict(value = "features", key = "#boardId")
     public void deleteFeature(String boardId, String featureId, String userId, FeatureRequest.Delete request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Feature feature = featureRepository.findById(featureId)
+        Feature feature = featureRepository
+                .findById(featureId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
 
         if (!feature.getBoard().getId().equals(boardId)) {
@@ -270,23 +289,32 @@ public class FeatureService {
 
         // 활동 로그 기록 (삭제 전에 기록)
         String featureTitle = feature.getTitle();
-        User deleter = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        activityService.logActivity(feature.getBoard(), deleter, ActivityAction.FEATURE_DELETED, TargetType.FEATURE, featureId,
+        User deleter =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(
+                feature.getBoard(),
+                deleter,
+                ActivityAction.FEATURE_DELETED,
+                TargetType.FEATURE,
+                featureId,
                 Map.of("featureTitle", featureTitle));
 
         // 태스크 이관 처리 (요청이 있는 경우) — 이관된 태스크는 살아남는다
         List<Map<String, String>> migratedTasks = new ArrayList<>();
-        if (request != null && request.getTaskMigrations() != null && !request.getTaskMigrations().isEmpty()) {
+        if (request != null
+                && request.getTaskMigrations() != null
+                && !request.getTaskMigrations().isEmpty()) {
             for (FeatureRequest.Delete.TaskMigration migration : request.getTaskMigrations()) {
-                Task task = taskRepository.findById(migration.getTaskId())
+                Task task = taskRepository
+                        .findById(migration.getTaskId())
                         .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
                 if (!task.getFeature().getId().equals(featureId)) {
                     throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
                 }
 
-                Feature targetFeature = featureRepository.findById(migration.getTargetFeatureId())
+                Feature targetFeature = featureRepository
+                        .findById(migration.getTargetFeatureId())
                         .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
 
                 if (!targetFeature.getBoard().getId().equals(boardId)) {
@@ -300,8 +328,7 @@ public class FeatureService {
                 task.moveToFeature(targetFeature);
                 migratedTasks.add(Map.of(
                         "task_id", task.getId(),
-                        "target_feature_id", targetFeature.getId()
-                ));
+                        "target_feature_id", targetFeature.getId()));
             }
             taskRepository.flush();
         }
@@ -320,7 +347,8 @@ public class FeatureService {
         entityManager.clear();
 
         // 3) Feature 삭제 전 position 조정 (살아있는 형제만 shift — @SQLRestriction 자동 적용)
-        feature = featureRepository.findById(featureId)
+        feature = featureRepository
+                .findById(featureId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
         int deletedPosition = feature.getPosition();
         List<Feature> featuresToShift = featureRepository.findByBoardIdOrderByPositionAsc(boardId).stream()
@@ -342,7 +370,8 @@ public class FeatureService {
         if (!migratedTasks.isEmpty()) {
             eventData.put("migrated_tasks", migratedTasks);
         }
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.FEATURE_DELETED, userId, deleter.getName(), eventData);
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.FEATURE_DELETED, userId, deleter.getName(), eventData);
     }
 
     /**
@@ -352,7 +381,8 @@ public class FeatureService {
     @Transactional
     @CacheEvict(value = "features", key = "#boardId")
     public void hardDeleteFeature(String boardId, String featureId) {
-        Feature feature = featureRepository.findByIdIncludingDeleted(featureId)
+        Feature feature = featureRepository
+                .findByIdIncludingDeleted(featureId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
 
         if (!feature.getBoard().getId().equals(boardId)) {
@@ -397,7 +427,8 @@ public class FeatureService {
         entityManager.clear();
 
         // 5) Feature row 삭제 — @SQLRestriction이 SELECT만 영향, delete()는 PK 기준이라 무관
-        feature = featureRepository.findByIdIncludingDeleted(featureId)
+        feature = featureRepository
+                .findByIdIncludingDeleted(featureId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
         featureRepository.delete(feature);
 
@@ -407,11 +438,10 @@ public class FeatureService {
     @Transactional
     @CacheEvict(value = "features", key = "#boardId")
     public FeatureResponse.ListResponse reorderFeatures(String boardId, String userId, FeatureRequest.Reorder request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         List<Feature> allFeatures = featureRepository.findByBoardIdOrderByPositionAsc(boardId);
-        Map<String, Feature> featureMap = allFeatures.stream()
-                .collect(Collectors.toMap(Feature::getId, f -> f));
+        Map<String, Feature> featureMap = allFeatures.stream().collect(Collectors.toMap(Feature::getId, f -> f));
 
         // 요청된 Feature ID들이 모두 해당 보드의 Feature인지 확인
         for (String featureId : request.getFeatureIds()) {
@@ -435,14 +465,12 @@ public class FeatureService {
 
         Map<String, List<Tag>> featureTagsMap = getFeatureTagsMap(allFeatures);
         // Fetch Join으로 N+1 방지
-        FeatureResponse.ListResponse response = FeatureResponse.ListResponse.of(
-                featureRepository.findByBoardIdWithFetch(boardId),
-                featureTagsMap
-        );
+        FeatureResponse.ListResponse response =
+                FeatureResponse.ListResponse.of(featureRepository.findByBoardIdWithFetch(boardId), featureTagsMap);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.FEATURES_REORDERED, userId, user.getName(), response);
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.FEATURES_REORDERED, userId, user.getName(), response);
         return response;
     }
 
@@ -455,8 +483,6 @@ public class FeatureService {
 
         return featureTags.stream()
                 .collect(Collectors.groupingBy(
-                        ft -> ft.getFeature().getId(),
-                        Collectors.mapping(FeatureTag::getTag, Collectors.toList())
-                ));
+                        ft -> ft.getFeature().getId(), Collectors.mapping(FeatureTag::getTag, Collectors.toList())));
     }
 }

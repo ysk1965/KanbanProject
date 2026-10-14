@@ -3,32 +3,32 @@ package com.kanban.domain.checklist.service;
 import com.kanban.domain.activity.ActivityAction;
 import com.kanban.domain.activity.TargetType;
 import com.kanban.domain.activity.service.ActivityService;
+import com.kanban.domain.block.Block;
+import com.kanban.domain.block.BlockRepository;
+import com.kanban.domain.block.FixedBlockType;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.checklist.dto.ChecklistBatchRequest;
 import com.kanban.domain.checklist.dto.ChecklistBatchResponse;
 import com.kanban.domain.checklist.dto.ChecklistRequest;
 import com.kanban.domain.checklist.dto.ChecklistResponse;
-import com.kanban.domain.block.Block;
-import com.kanban.domain.block.BlockRepository;
-import com.kanban.domain.block.FixedBlockType;
 import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.contractor.entity.BoardContractor;
 import com.kanban.domain.contractor.repository.BoardContractorRepository;
+import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.feature.service.InboxFeatureService;
-import com.kanban.domain.jobrole.dto.JobRoleResponse;
-import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.integration.discord.service.DiscordNotificationService;
 import com.kanban.domain.integration.jira.JiraIssueLink;
 import com.kanban.domain.integration.jira.JiraIssueLinkRepository;
 import com.kanban.domain.integration.slack.service.SlackNotificationService;
+import com.kanban.domain.jobrole.dto.JobRoleResponse;
 import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.milestone.MilestoneFeature;
 import com.kanban.domain.milestone.MilestoneFeatureRepository;
@@ -47,19 +47,18 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 @Service
@@ -71,7 +70,8 @@ public class ChecklistService {
     private final TaskRepository taskRepository;
     private final TaskService taskService;
     private final UserRepository userRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final BoardMemberRepository boardMemberRepository;
     private final BoardRepository boardRepository;
     private final BoardContractorRepository contractorRepository;
@@ -83,6 +83,7 @@ public class ChecklistService {
     private final ScheduleBlockRepository scheduleBlockRepository;
     /** 항목이 옮겨지거나 합쳐지거나 사라질 때, 그 항목에 달린 댓글의 소속을 맞춰주기 위해 쓴다. */
     private final CommentRepository commentRepository;
+
     private final DailyChecklistRepository dailyChecklistRepository;
     private final ActivityService activityService;
     private final NotificationService notificationService;
@@ -95,10 +96,9 @@ public class ChecklistService {
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public ChecklistResponse.ListResponse getChecklist(String boardId, String taskId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
@@ -118,11 +118,11 @@ public class ChecklistService {
     }
 
     @Transactional
-    public ChecklistResponse.Detail createChecklistItem(String boardId, String taskId, String userId, ChecklistRequest.Create request, String originUrl) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public ChecklistResponse.Detail createChecklistItem(
+            String boardId, String taskId, String userId, ChecklistRequest.Create request, String originUrl) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
@@ -131,10 +131,12 @@ public class ChecklistService {
         User assignee = null;
         BoardContractor contractor = null;
         if (request.getAssigneeId() != null) {
-            assignee = userRepository.findById(request.getAssigneeId())
+            assignee = userRepository
+                    .findById(request.getAssigneeId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         } else if (request.getContractorId() != null) {
-            contractor = contractorRepository.findByIdAndBoardId(request.getContractorId(), boardId)
+            contractor = contractorRepository
+                    .findByIdAndBoardId(request.getContractorId(), boardId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
         }
 
@@ -158,8 +160,8 @@ public class ChecklistService {
         // 스프린트 편입은 부모 태스크가 들고 있으므로 여기서 할 일이 없다 — 태스크가 담겨 있으면 이 항목도 자동으로 그 안이다.
 
         // 활동 로그 기록
-        User creator = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User creator =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         activityService.logActivity(
                 task.getBoard(),
@@ -170,14 +172,16 @@ public class ChecklistService {
                 Map.of(
                         "checklistTitle", item.getTitle(),
                         "taskTitle", task.getTitle(),
-                        "taskId", task.getId()
-                )
-        );
+                        "taskId", task.getId()));
 
         log.info("Checklist item created: {} in task: {} by user: {}", item.getId(), taskId, userId);
 
         ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_CREATED, userId, creator.getName(),
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.CHECKLIST_CREATED,
+                userId,
+                creator.getName(),
                 Map.of("task_id", taskId, "item", response));
 
         // 알림 발송: 트랜잭션 커밋 후 실행 (알림 실패가 체크리스트 생성을 롤백하지 않도록)
@@ -193,8 +197,10 @@ public class ChecklistService {
                     } catch (Exception e) {
                         log.warn("Failed to create checklist assigned notification for item: {}", savedItem.getId(), e);
                     }
-                    slackNotificationService.sendChecklistAssignedNotification(savedItem, savedCreator, savedBoard, originUrl);
-                    discordNotificationService.sendChecklistAssignedNotification(savedItem, savedCreator, savedBoard, originUrl);
+                    slackNotificationService.sendChecklistAssignedNotification(
+                            savedItem, savedCreator, savedBoard, originUrl);
+                    discordNotificationService.sendChecklistAssignedNotification(
+                            savedItem, savedCreator, savedBoard, originUrl);
                 }
             });
         } else if (contractor != null) {
@@ -205,7 +211,8 @@ public class ChecklistService {
                 @Override
                 public void afterCommit() {
                     try {
-                        notificationService.createContractorChecklistAssignedNotification(savedItem, savedCreator, savedBoard);
+                        notificationService.createContractorChecklistAssignedNotification(
+                                savedItem, savedCreator, savedBoard);
                     } catch (Exception e) {
                         log.warn("Failed to create contractor notification for item: {}", savedItem.getId(), e);
                     }
@@ -217,17 +224,23 @@ public class ChecklistService {
     }
 
     @Transactional
-    public ChecklistResponse.Detail updateChecklistItem(String boardId, String taskId, String itemId, String userId, ChecklistRequest.Update request, String originUrl) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public ChecklistResponse.Detail updateChecklistItem(
+            String boardId,
+            String taskId,
+            String itemId,
+            String userId,
+            ChecklistRequest.Update request,
+            String originUrl) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
         }
 
-        ChecklistItem item = checklistItemRepository.findById(itemId)
+        ChecklistItem item = checklistItemRepository
+                .findById(itemId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
 
         if (!item.getTask().getId().equals(taskId)) {
@@ -235,7 +248,8 @@ public class ChecklistService {
         }
 
         String oldAssigneeId = item.getAssignee() != null ? item.getAssignee().getId() : null;
-        String oldContractorId = item.getContractor() != null ? item.getContractor().getId() : null;
+        String oldContractorId =
+                item.getContractor() != null ? item.getContractor().getId() : null;
 
         // 변경 이력용 이전 값 스냅샷 (제목/기간/담당자)
         String oldTitle = item.getTitle();
@@ -247,12 +261,14 @@ public class ChecklistService {
 
         // assignee 와 contractor 는 mutually exclusive — assignee 우선
         if (request.getAssigneeId() != null) {
-            User assignee = userRepository.findById(request.getAssigneeId())
+            User assignee = userRepository
+                    .findById(request.getAssigneeId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
             item.updateAssignee(assignee);
 
             if (!request.getAssigneeId().equals(oldAssigneeId)) {
-                User assigner = userRepository.findById(userId)
+                User assigner = userRepository
+                        .findById(userId)
                         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
                 final ChecklistItem savedItem = item;
                 final User savedAssigner = assigner;
@@ -261,22 +277,30 @@ public class ChecklistService {
                     @Override
                     public void afterCommit() {
                         try {
-                            notificationService.createChecklistAssignedNotification(savedItem, savedAssigner, savedBoard);
+                            notificationService.createChecklistAssignedNotification(
+                                    savedItem, savedAssigner, savedBoard);
                         } catch (Exception e) {
-                            log.warn("Failed to create checklist assigned notification for item: {}", savedItem.getId(), e);
+                            log.warn(
+                                    "Failed to create checklist assigned notification for item: {}",
+                                    savedItem.getId(),
+                                    e);
                         }
-                        slackNotificationService.sendChecklistAssignedNotification(savedItem, savedAssigner, savedBoard, originUrl);
-                        discordNotificationService.sendChecklistAssignedNotification(savedItem, savedAssigner, savedBoard, originUrl);
+                        slackNotificationService.sendChecklistAssignedNotification(
+                                savedItem, savedAssigner, savedBoard, originUrl);
+                        discordNotificationService.sendChecklistAssignedNotification(
+                                savedItem, savedAssigner, savedBoard, originUrl);
                     }
                 });
             }
         } else if (request.getContractorId() != null) {
-            BoardContractor contractor = contractorRepository.findByIdAndBoardId(request.getContractorId(), boardId)
+            BoardContractor contractor = contractorRepository
+                    .findByIdAndBoardId(request.getContractorId(), boardId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
             item.updateContractor(contractor);
 
             if (!request.getContractorId().equals(oldContractorId)) {
-                User assigner = userRepository.findById(userId)
+                User assigner = userRepository
+                        .findById(userId)
                         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
                 final ChecklistItem savedItem = item;
                 final User savedAssigner = assigner;
@@ -285,7 +309,8 @@ public class ChecklistService {
                     @Override
                     public void afterCommit() {
                         try {
-                            notificationService.createContractorChecklistAssignedNotification(savedItem, savedAssigner, savedBoard);
+                            notificationService.createContractorChecklistAssignedNotification(
+                                    savedItem, savedAssigner, savedBoard);
                         } catch (Exception e) {
                             log.warn("Failed to create contractor notification for item: {}", savedItem.getId(), e);
                         }
@@ -301,14 +326,17 @@ public class ChecklistService {
         log.info("Checklist item updated: {} by user: {}", itemId, userId);
 
         ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // 변경 이력 기록 (제목/기간/담당자 변경분을 각각 로깅)
         logChecklistDiffs(task.getBoard(), user, item, oldTitle, oldStart, oldDue, oldAssigneeName);
         publishAssigneeChangeIfAny(boardId, taskId, item, oldAssigneeId);
 
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_UPDATED, userId, user.getName(),
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.CHECKLIST_UPDATED,
+                userId,
+                user.getName(),
                 Map.of("task_id", taskId, "item", response));
         return response;
     }
@@ -322,17 +350,23 @@ public class ChecklistService {
      * 동시에 담당자 + 일정을 부분 갱신할 때 한쪽이 사라지는 버그를 방지하기 위해 도입.
      */
     @Transactional
-    public ChecklistResponse.Detail patchChecklistItem(String boardId, String taskId, String itemId, String userId, ChecklistRequest.Patch request, String originUrl) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public ChecklistResponse.Detail patchChecklistItem(
+            String boardId,
+            String taskId,
+            String itemId,
+            String userId,
+            ChecklistRequest.Patch request,
+            String originUrl) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
         }
 
-        ChecklistItem item = checklistItemRepository.findById(itemId)
+        ChecklistItem item = checklistItemRepository
+                .findById(itemId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
 
         if (!item.getTask().getId().equals(taskId)) {
@@ -340,7 +374,8 @@ public class ChecklistService {
         }
 
         String oldAssigneeId = item.getAssignee() != null ? item.getAssignee().getId() : null;
-        String oldContractorId = item.getContractor() != null ? item.getContractor().getId() : null;
+        String oldContractorId =
+                item.getContractor() != null ? item.getContractor().getId() : null;
 
         // 변경 이력용 이전 값 스냅샷 (제목/기간/담당자)
         String oldTitle = item.getTitle();
@@ -362,7 +397,8 @@ public class ChecklistService {
         if (request.hasAssigneeId()) {
             String newAssigneeId = request.getAssigneeId();
             if (newAssigneeId != null) {
-                User assignee = userRepository.findById(newAssigneeId)
+                User assignee = userRepository
+                        .findById(newAssigneeId)
                         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
                 item.updateAssignee(assignee);
                 assigneeNewlyAssigned = !newAssigneeId.equals(oldAssigneeId);
@@ -375,7 +411,8 @@ public class ChecklistService {
         if (request.hasContractorId()) {
             String newContractorId = request.getContractorId();
             if (newContractorId != null) {
-                BoardContractor contractor = contractorRepository.findByIdAndBoardId(newContractorId, boardId)
+                BoardContractor contractor = contractorRepository
+                        .findByIdAndBoardId(newContractorId, boardId)
                         .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
                 item.updateContractor(contractor);
                 contractorNewlyAssigned = !newContractorId.equals(oldContractorId);
@@ -385,8 +422,8 @@ public class ChecklistService {
         }
 
         if (assigneeNewlyAssigned) {
-            User assigner = userRepository.findById(userId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            User assigner =
+                    userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
             final ChecklistItem savedItem = item;
             final User savedAssigner = assigner;
             final Board savedBoard = task.getBoard();
@@ -398,13 +435,15 @@ public class ChecklistService {
                     } catch (Exception e) {
                         log.warn("Failed to create checklist assigned notification for item: {}", savedItem.getId(), e);
                     }
-                    slackNotificationService.sendChecklistAssignedNotification(savedItem, savedAssigner, savedBoard, originUrl);
-                    discordNotificationService.sendChecklistAssignedNotification(savedItem, savedAssigner, savedBoard, originUrl);
+                    slackNotificationService.sendChecklistAssignedNotification(
+                            savedItem, savedAssigner, savedBoard, originUrl);
+                    discordNotificationService.sendChecklistAssignedNotification(
+                            savedItem, savedAssigner, savedBoard, originUrl);
                 }
             });
         } else if (contractorNewlyAssigned) {
-            User assigner = userRepository.findById(userId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            User assigner =
+                    userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
             final ChecklistItem savedItem = item;
             final User savedAssigner = assigner;
             final Board savedBoard = task.getBoard();
@@ -412,7 +451,8 @@ public class ChecklistService {
                 @Override
                 public void afterCommit() {
                     try {
-                        notificationService.createContractorChecklistAssignedNotification(savedItem, savedAssigner, savedBoard);
+                        notificationService.createContractorChecklistAssignedNotification(
+                                savedItem, savedAssigner, savedBoard);
                     } catch (Exception e) {
                         log.warn("Failed to create contractor notification for item: {}", savedItem.getId(), e);
                     }
@@ -423,14 +463,17 @@ public class ChecklistService {
         log.info("Checklist item patched: {} by user: {}", itemId, userId);
 
         ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // 변경 이력 기록 (제목/기간/담당자 변경분을 각각 로깅)
         logChecklistDiffs(task.getBoard(), user, item, oldTitle, oldStart, oldDue, oldAssigneeName);
         publishAssigneeChangeIfAny(boardId, taskId, item, oldAssigneeId);
 
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_UPDATED, userId, user.getName(),
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.CHECKLIST_UPDATED,
+                userId,
+                user.getName(),
                 Map.of("task_id", taskId, "item", response));
         return response;
     }
@@ -455,32 +498,41 @@ public class ChecklistService {
      */
     @Transactional
     public void deleteChecklistItem(String boardId, String taskId, String itemId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
         }
 
-        ChecklistItem item = checklistItemRepository.findById(itemId)
+        ChecklistItem item = checklistItemRepository
+                .findById(itemId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
 
         if (!item.getTask().getId().equals(taskId)) {
             throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
         }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        activityService.logActivity(task.getBoard(), user, ActivityAction.CHECKLIST_DELETED, TargetType.CHECKLIST, itemId,
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(
+                task.getBoard(),
+                user,
+                ActivityAction.CHECKLIST_DELETED,
+                TargetType.CHECKLIST,
+                itemId,
                 Map.of("checklistTitle", item.getTitle(), "taskTitle", task.getTitle(), "taskId", task.getId()));
 
         item.softDelete(userId, LocalDateTime.now(ZoneOffset.UTC));
 
         log.info("Checklist item soft-deleted: {} by user: {}", itemId, userId);
 
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_DELETED, userId, user.getName(), Map.of("id", itemId, "task_id", taskId));
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.CHECKLIST_DELETED,
+                userId,
+                user.getName(),
+                Map.of("id", itemId, "task_id", taskId));
     }
 
     /**
@@ -488,7 +540,8 @@ public class ChecklistService {
      */
     @Transactional
     public void hardDeleteChecklistItem(String boardId, String itemId) {
-        ChecklistItem item = checklistItemRepository.findByIdIncludingDeleted(itemId)
+        ChecklistItem item = checklistItemRepository
+                .findByIdIncludingDeleted(itemId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
 
         // 연관된 데일리 체크리스트 / 스케줄 블록 연결 해제 (타임블럭 업무 기록 보존)
@@ -505,16 +558,16 @@ public class ChecklistService {
 
     @Transactional
     public ChecklistResponse.Detail toggleChecklistItem(String boardId, String taskId, String itemId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
         }
 
-        ChecklistItem item = checklistItemRepository.findById(itemId)
+        ChecklistItem item = checklistItemRepository
+                .findById(itemId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
 
         if (!item.getTask().getId().equals(taskId)) {
@@ -529,35 +582,54 @@ public class ChecklistService {
 
         // 액티비티 로깅은 별도 트랜잭션으로 실행 (실패해도 토글에 영향 없음)
         try {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-            activityService.logActivityInNewTransaction(task.getBoard(), user, ActivityAction.CHECKLIST_CHECKED, TargetType.CHECKLIST, itemId,
-                    Map.of("checklistTitle", item.getTitle(), "taskTitle", task.getTitle(), "taskId", task.getId(), "isCompleted", item.getIsCompleted()));
+            User user =
+                    userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            activityService.logActivityInNewTransaction(
+                    task.getBoard(),
+                    user,
+                    ActivityAction.CHECKLIST_CHECKED,
+                    TargetType.CHECKLIST,
+                    itemId,
+                    Map.of(
+                            "checklistTitle",
+                            item.getTitle(),
+                            "taskTitle",
+                            task.getTitle(),
+                            "taskId",
+                            task.getId(),
+                            "isCompleted",
+                            item.getIsCompleted()));
         } catch (Exception e) {
             log.warn("Failed to log checklist toggle activity for item: {}", itemId, e);
         }
 
         ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_TOGGLED, userId, user.getName(),
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.CHECKLIST_TOGGLED,
+                userId,
+                user.getName(),
                 Map.of("task_id", taskId, "item", response));
         return response;
     }
 
     @Transactional
-    public ChecklistResponse.Detail createChecklistItemFromWorkload(String boardId, String userId, ChecklistRequest.CreateFromWorkload request, String originUrl) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public ChecklistResponse.Detail createChecklistItemFromWorkload(
+            String boardId, String userId, ChecklistRequest.CreateFromWorkload request, String originUrl) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         Task targetTask = resolveTargetTask(boardId, userId, request);
 
         User assignee = null;
         BoardContractor contractor = null;
         if (request.getAssigneeId() != null) {
-            assignee = userRepository.findById(request.getAssigneeId())
+            assignee = userRepository
+                    .findById(request.getAssigneeId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         } else if (request.getContractorId() != null) {
-            contractor = contractorRepository.findByIdAndBoardId(request.getContractorId(), boardId)
+            contractor = contractorRepository
+                    .findByIdAndBoardId(request.getContractorId(), boardId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACTOR_NOT_FOUND));
         }
 
@@ -580,18 +652,35 @@ public class ChecklistService {
 
         // 스프린트 편입은 부모 태스크가 들고 있으므로 여기서 할 일이 없다.
 
-        User creator = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User creator =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         activityService.logActivity(
-                targetTask.getBoard(), creator,
-                ActivityAction.CHECKLIST_CREATED, TargetType.CHECKLIST, item.getId(),
-                Map.of("checklistTitle", item.getTitle(), "taskTitle", targetTask.getTitle(), "taskId", targetTask.getId()));
+                targetTask.getBoard(),
+                creator,
+                ActivityAction.CHECKLIST_CREATED,
+                TargetType.CHECKLIST,
+                item.getId(),
+                Map.of(
+                        "checklistTitle",
+                        item.getTitle(),
+                        "taskTitle",
+                        targetTask.getTitle(),
+                        "taskId",
+                        targetTask.getId()));
 
-        log.info("Checklist item created from workload: {} in task: {} by user: {}", item.getId(), targetTask.getId(), userId);
+        log.info(
+                "Checklist item created from workload: {} in task: {} by user: {}",
+                item.getId(),
+                targetTask.getId(),
+                userId);
 
         ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_CREATED, userId, creator.getName(),
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.CHECKLIST_CREATED,
+                userId,
+                creator.getName(),
                 Map.of("task_id", targetTask.getId(), "item", response));
 
         if (assignee != null) {
@@ -606,8 +695,10 @@ public class ChecklistService {
                     } catch (Exception e) {
                         log.warn("Failed to create checklist assigned notification for item: {}", savedItem.getId(), e);
                     }
-                    slackNotificationService.sendChecklistAssignedNotification(savedItem, savedCreator, savedBoard, originUrl);
-                    discordNotificationService.sendChecklistAssignedNotification(savedItem, savedCreator, savedBoard, originUrl);
+                    slackNotificationService.sendChecklistAssignedNotification(
+                            savedItem, savedCreator, savedBoard, originUrl);
+                    discordNotificationService.sendChecklistAssignedNotification(
+                            savedItem, savedCreator, savedBoard, originUrl);
                 }
             });
         } else if (contractor != null) {
@@ -618,7 +709,8 @@ public class ChecklistService {
                 @Override
                 public void afterCommit() {
                     try {
-                        notificationService.createContractorChecklistAssignedNotification(savedItem, savedCreator, savedBoard);
+                        notificationService.createContractorChecklistAssignedNotification(
+                                savedItem, savedCreator, savedBoard);
                     } catch (Exception e) {
                         log.warn("Failed to create contractor notification for item: {}", savedItem.getId(), e);
                     }
@@ -631,7 +723,8 @@ public class ChecklistService {
 
     private Task resolveTargetTask(String boardId, String userId, ChecklistRequest.CreateFromWorkload request) {
         if (request.getTaskId() != null) {
-            Task task = taskRepository.findById(request.getTaskId())
+            Task task = taskRepository
+                    .findById(request.getTaskId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
             if (!task.getBoard().getId().equals(boardId)) {
                 throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
@@ -641,12 +734,14 @@ public class ChecklistService {
 
         Feature feature;
         if (request.getFeatureId() != null) {
-            feature = featureRepository.findById(request.getFeatureId())
+            feature = featureRepository
+                    .findById(request.getFeatureId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
             if (!feature.getBoard().getId().equals(boardId)) {
                 throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
             }
-        } else if (request.getNewFeatureTitle() != null && !request.getNewFeatureTitle().isBlank()) {
+        } else if (request.getNewFeatureTitle() != null
+                && !request.getNewFeatureTitle().isBlank()) {
             feature = createInlineFeature(boardId, userId, request.getNewFeatureTitle());
         } else {
             return inboxFeatureService.getOrCreateInboxTask(boardId, userId);
@@ -660,23 +755,26 @@ public class ChecklistService {
      * 불변식(Task.milestone은 피처가 연결된 마일스톤 중 하나) 유지 — TaskService.resolveAndLinkMilestone과 동일.
      */
     private Milestone resolveAndLinkMilestone(String boardId, Feature feature, String milestoneId) {
-        Milestone milestone = milestoneRepository.findById(milestoneId)
+        Milestone milestone = milestoneRepository
+                .findById(milestoneId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
         if (!milestone.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
         }
-        if (milestoneFeatureRepository.findByMilestoneIdAndFeatureId(milestone.getId(), feature.getId()).isEmpty()) {
+        if (milestoneFeatureRepository
+                .findByMilestoneIdAndFeatureId(milestone.getId(), feature.getId())
+                .isEmpty()) {
             milestoneFeatureRepository.save(MilestoneFeature.create(milestone, feature));
         }
         return milestone;
     }
 
     private Feature createInlineFeature(String boardId, String userId, String title) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        User creator = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User creator =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         Integer maxPos = featureRepository.findMaxPositionByBoardId(boardId);
         int newPos = (maxPos != null) ? maxPos + 1 : 0;
@@ -694,14 +792,15 @@ public class ChecklistService {
     }
 
     private Task createInlineTask(String boardId, String userId, Feature feature, String title, String milestoneId) {
-        Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
+        Block taskBlock = blockRepository
+                .findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
 
         Integer maxPosition = taskRepository.findMaxPositionByBlockId(taskBlock.getId());
         int newPosition = (maxPosition != null) ? maxPosition + 1 : 0;
 
-        User creator = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User creator =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         Task task = Task.builder()
                 .feature(feature)
@@ -722,17 +821,19 @@ public class ChecklistService {
     }
 
     @Transactional
-    public ChecklistResponse.Detail moveChecklistItemToTask(String boardId, String taskId, String itemId, String userId, ChecklistRequest.MoveTask request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public ChecklistResponse.Detail moveChecklistItemToTask(
+            String boardId, String taskId, String itemId, String userId, ChecklistRequest.MoveTask request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Task sourceTask = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task sourceTask =
+                taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!sourceTask.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
         }
 
-        ChecklistItem item = checklistItemRepository.findById(itemId)
+        ChecklistItem item = checklistItemRepository
+                .findById(itemId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
 
         if (!item.getTask().getId().equals(taskId)) {
@@ -744,7 +845,8 @@ public class ChecklistService {
         TaskResponse.Detail createdTask = null;
         Task targetTask;
         if (request.hasNewTask()) {
-            if (request.getTargetFeatureId() == null || request.getTargetFeatureId().isBlank()) {
+            if (request.getTargetFeatureId() == null
+                    || request.getTargetFeatureId().isBlank()) {
                 throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
             }
             String title = request.getNewTask().getTitle().trim();
@@ -752,15 +854,20 @@ public class ChecklistService {
                 throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
             }
             // TaskService.createTask 를 그대로 태워 Task 키 발급·제한 검사·활동 로그·TASK_CREATED 이벤트를 재사용한다.
-            createdTask = taskService.createTask(boardId, request.getTargetFeatureId(), userId,
+            createdTask = taskService.createTask(
+                    boardId,
+                    request.getTargetFeatureId(),
+                    userId,
                     TaskRequest.Create.withMilestone(title, request.getTargetMilestoneId()));
-            targetTask = taskRepository.findById(createdTask.getId())
+            targetTask = taskRepository
+                    .findById(createdTask.getId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
         } else {
             if (request.getTargetTaskId() == null || request.getTargetTaskId().isBlank()) {
                 throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
             }
-            targetTask = taskRepository.findById(request.getTargetTaskId())
+            targetTask = taskRepository
+                    .findById(request.getTargetTaskId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
             if (!targetTask.getBoard().getId().equals(boardId)) {
@@ -783,29 +890,47 @@ public class ChecklistService {
         // 항목만 새 태스크로 가고 대화는 원래 태스크 댓글 목록에 고아로 남는다.
         int movedComments = commentRepository.moveCommentsToTask(itemId, targetTask.getId());
         if (movedComments > 0) {
-            log.info("Checklist item {} moved with {} comment(s) to task {}", itemId, movedComments, targetTask.getId());
+            log.info(
+                    "Checklist item {} moved with {} comment(s) to task {}", itemId, movedComments, targetTask.getId());
         }
 
         // 항목이 다른 태스크로 옮겨가면 스프린트 소속도 대상 태스크의 것을 그대로 따른다(재정합 불필요).
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        activityService.logActivity(sourceTask.getBoard(), user, ActivityAction.CHECKLIST_MOVED, TargetType.CHECKLIST, item.getId(),
-                Map.of("checklistTitle", item.getTitle(),
-                        "fromTask", sourceTask.getTitle(),
-                        "toTask", targetTask.getTitle(),
-                        "taskId", targetTask.getId(),
-                        "createdTask", createdTask != null));
+        activityService.logActivity(
+                sourceTask.getBoard(),
+                user,
+                ActivityAction.CHECKLIST_MOVED,
+                TargetType.CHECKLIST,
+                item.getId(),
+                Map.of(
+                        "checklistTitle",
+                        item.getTitle(),
+                        "fromTask",
+                        sourceTask.getTitle(),
+                        "toTask",
+                        targetTask.getTitle(),
+                        "taskId",
+                        targetTask.getId(),
+                        "createdTask",
+                        createdTask != null));
 
-        log.info("Checklist item moved: {} from task {} to task {} (new task: {}) by user: {}",
-                itemId, taskId, targetTask.getId(), createdTask != null, userId);
+        log.info(
+                "Checklist item moved: {} from task {} to task {} (new task: {}) by user: {}",
+                itemId,
+                taskId,
+                targetTask.getId(),
+                createdTask != null,
+                userId);
 
         ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_MOVED, userId, user.getName(),
-                Map.of("item", response,
-                        "source_task_id", taskId,
-                        "target_task_id", targetTask.getId()));
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.CHECKLIST_MOVED,
+                userId,
+                user.getName(),
+                Map.of("item", response, "source_task_id", taskId, "target_task_id", targetTask.getId()));
 
         if (createdTask != null) {
             response.withCreatedTask(createdTask);
@@ -815,10 +940,9 @@ public class ChecklistService {
 
     @Transactional
     public void reorderChecklistItems(String boardId, String taskId, String userId, ChecklistRequest.Reorder request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
@@ -828,9 +952,8 @@ public class ChecklistService {
         List<ChecklistItem> items = checklistItemRepository.findByTaskIdOrderByPositionAsc(taskId);
 
         // 유효성 검사: 모든 아이템이 해당 Task에 속하는지 확인
-        java.util.Set<String> taskItemIds = items.stream()
-                .map(ChecklistItem::getId)
-                .collect(java.util.stream.Collectors.toSet());
+        java.util.Set<String> taskItemIds =
+                items.stream().map(ChecklistItem::getId).collect(java.util.stream.Collectors.toSet());
 
         for (String itemId : itemIds) {
             if (!taskItemIds.contains(itemId)) {
@@ -839,8 +962,8 @@ public class ChecklistService {
         }
 
         // position 업데이트
-        java.util.Map<String, ChecklistItem> itemMap = items.stream()
-                .collect(java.util.stream.Collectors.toMap(ChecklistItem::getId, item -> item));
+        java.util.Map<String, ChecklistItem> itemMap =
+                items.stream().collect(java.util.stream.Collectors.toMap(ChecklistItem::getId, item -> item));
 
         for (int i = 0; i < itemIds.size(); i++) {
             ChecklistItem item = itemMap.get(itemIds.get(i));
@@ -863,11 +986,11 @@ public class ChecklistService {
      * 웹소켓은 신규 이벤트 없이 기존 CHECKLIST_DELETED(소스) + CHECKLIST_UPDATED(대표)를 재사용한다.
      */
     @Transactional
-    public ChecklistResponse.Detail mergeChecklistItems(String boardId, String taskId, String userId, ChecklistRequest.Merge request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public ChecklistResponse.Detail mergeChecklistItems(
+            String boardId, String taskId, String userId, ChecklistRequest.Merge request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
@@ -884,7 +1007,8 @@ public class ChecklistService {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
-        ChecklistItem target = checklistItemRepository.findById(targetId)
+        ChecklistItem target = checklistItemRepository
+                .findById(targetId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
         if (!target.getTask().getId().equals(taskId)) {
             throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
@@ -935,14 +1059,18 @@ public class ChecklistService {
         if (finalDue != null) target.updateDueDate(finalDue);
 
         // 소스 소프트 삭제 + 활동 로그
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         List<String> mergedTitles = new java.util.ArrayList<>();
         for (ChecklistItem s : sources) {
             mergedTitles.add(s.getTitle());
             s.softDelete(userId, now);
-            activityService.logActivity(task.getBoard(), user, ActivityAction.CHECKLIST_DELETED, TargetType.CHECKLIST, s.getId(),
+            activityService.logActivity(
+                    task.getBoard(),
+                    user,
+                    ActivityAction.CHECKLIST_DELETED,
+                    TargetType.CHECKLIST,
+                    s.getId(),
                     Map.of("checklistTitle", s.getTitle(), "taskTitle", task.getTitle(), "taskId", task.getId()));
         }
 
@@ -960,10 +1088,18 @@ public class ChecklistService {
 
         // 웹소켓: 소스 삭제 + 대표 업데이트 (기존 핸들러 재사용)
         for (String sid : sourceIds) {
-            webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_DELETED, userId, user.getName(),
+            webSocketEventService.sendBoardEvent(
+                    boardId,
+                    BoardEventType.CHECKLIST_DELETED,
+                    userId,
+                    user.getName(),
                     Map.of("id", sid, "task_id", taskId));
         }
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_UPDATED, userId, user.getName(),
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.CHECKLIST_UPDATED,
+                userId,
+                user.getName(),
                 Map.of("task_id", taskId, "item", response));
 
         return response;
@@ -979,7 +1115,8 @@ public class ChecklistService {
     }
 
     /** 체크리스트 변경 이력을 남긴다. 로깅 실패가 본 트랜잭션을 롤백하지 않도록 방어한다. */
-    private void logChecklistChange(Board board, User user, ActivityAction action, String itemId, Map<String, Object> metadata) {
+    private void logChecklistChange(
+            Board board, User user, ActivityAction action, String itemId, Map<String, Object> metadata) {
         try {
             activityService.logActivity(board, user, action, TargetType.CHECKLIST, itemId, metadata);
         } catch (Exception e) {
@@ -988,8 +1125,14 @@ public class ChecklistService {
     }
 
     /** 제목/기간/담당자 변경분을 이전 스냅샷과 비교해 각각 이력으로 남긴다. (update/patch 공용) */
-    private void logChecklistDiffs(Board board, User actor, ChecklistItem item,
-                                   String oldTitle, LocalDate oldStart, LocalDate oldDue, String oldAssignee) {
+    private void logChecklistDiffs(
+            Board board,
+            User actor,
+            ChecklistItem item,
+            String oldTitle,
+            LocalDate oldStart,
+            LocalDate oldDue,
+            String oldAssignee) {
         if (!java.util.Objects.equals(oldTitle, item.getTitle())) {
             Map<String, Object> m = new java.util.HashMap<>();
             m.put("checklistTitle", item.getTitle());
@@ -1031,7 +1174,7 @@ public class ChecklistService {
 
     public ChecklistResponse.BoardListResponse getBoardChecklistItems(
             String boardId, String userId, String assigneeId, Boolean isScheduled, Boolean excludeJira) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
         List<ChecklistItem> items;
 
@@ -1095,13 +1238,12 @@ public class ChecklistService {
      */
     public ChecklistResponse.BoardListResponse getCompletedChecklistItems(
             String boardId, String userId, LocalDate startDate, LocalDate endDate) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.plusDays(1).atStartOfDay(); // end_date 당일 포함(반열림 구간)
 
-        List<ChecklistItem> items = checklistItemRepository.findCompletedByBoardIdAndDateRange(
-                boardId, start, end);
+        List<ChecklistItem> items = checklistItemRepository.findCompletedByBoardIdAndDateRange(boardId, start, end);
 
         return ChecklistResponse.BoardListResponse.of(items);
     }
@@ -1114,17 +1256,15 @@ public class ChecklistService {
      */
     public ChecklistResponse.ByAssigneeResponse getChecklistItemsByAssignee(
             String boardId, String userId, LocalDate startDate, LocalDate endDate) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
-        List<ChecklistItem> items = checklistItemRepository.findByBoardIdAndDateRange(
-                boardId, startDate, endDate);
+        List<ChecklistItem> items = checklistItemRepository.findByBoardIdAndDateRange(boardId, startDate, endDate);
 
         // 보드 멤버 → 직군 매핑 (assignee.id → JobRoleInfo)
         Map<String, JobRoleResponse.JobRoleInfo> jobRoleByUserId = new java.util.HashMap<>();
         for (BoardMember m : boardMemberRepository.findByBoardId(boardId)) {
             if (m.getJobRole() != null) {
-                jobRoleByUserId.put(m.getUser().getId(),
-                        JobRoleResponse.JobRoleInfo.of(m.getJobRole()));
+                jobRoleByUserId.put(m.getUser().getId(), JobRoleResponse.JobRoleInfo.of(m.getJobRole()));
             }
         }
 
@@ -1136,12 +1276,10 @@ public class ChecklistService {
      * IN 쿼리를 사용하여 N+1 문제 방지
      */
     public ChecklistBatchResponse getBatchChecklists(String boardId, String userId, ChecklistBatchRequest request) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
         if (request.getTaskIds() == null || request.getTaskIds().isEmpty()) {
-            return ChecklistBatchResponse.builder()
-                    .checklists(List.of())
-                    .build();
+            return ChecklistBatchResponse.builder().checklists(List.of()).build();
         }
 
         // IN 쿼리로 한 번에 조회 (N+1 방지)

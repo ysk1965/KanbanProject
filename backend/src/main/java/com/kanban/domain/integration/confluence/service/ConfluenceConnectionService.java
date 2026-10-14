@@ -2,19 +2,18 @@ package com.kanban.domain.integration.confluence.service;
 
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.integration.confluence.*;
 import com.kanban.domain.integration.confluence.config.ConfluenceOAuthProperties;
 import com.kanban.domain.integration.confluence.dto.ConfluenceRequest;
 import com.kanban.domain.integration.confluence.dto.ConfluenceResponse;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.*;
 
 /**
  * 보드 ↔ Confluence 연결과 스페이스 선택. GitHub 쪽과 같은 모양(연결/선택 분리)을 따른다.
@@ -24,7 +23,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class ConfluenceConnectionService {
 
-    private final BoardService boardService;
+    private final BoardPermissionService boardPermissionService;
     private final BoardRepository boardRepository;
     private final ConfluenceIntegrationConfigRepository configRepository;
     private final BoardConfluenceSourceRepository sourceRepository;
@@ -35,7 +34,7 @@ public class ConfluenceConnectionService {
 
     @Transactional
     public List<ConfluenceResponse.SpaceRef> listSpaces(String boardId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         ConfluenceIntegrationConfig config = requireConnected(boardId);
         if (config.getCloudId() == null) {
             throw new BusinessException(ErrorCode.CONFLUENCE_SITE_NOT_SELECTED);
@@ -48,15 +47,15 @@ public class ConfluenceConnectionService {
      * 스페이스 선택을 통째로 교체한다.
      */
     @Transactional
-    public ConfluenceResponse.Status selectSpaces(String boardId, String userId,
-                                                  ConfluenceRequest.SelectSpaces request) {
-        boardService.checkAdminOrAbove(boardId, userId);
+    public ConfluenceResponse.Status selectSpaces(
+            String boardId, String userId, ConfluenceRequest.SelectSpaces request) {
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         ConfluenceIntegrationConfig config = requireConnected(boardId);
         if (config.getCloudId() == null) {
             throw new BusinessException(ErrorCode.CONFLUENCE_SITE_NOT_SELECTED);
         }
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         List<ConfluenceRequest.SpaceSelection> requested =
                 request.getSpaces() != null ? request.getSpaces() : List.of();
@@ -74,8 +73,8 @@ public class ConfluenceConnectionService {
 
             BoardConfluenceSource source = existing.get(selection.getSpaceKey());
             if (source != null) {
-                source.update(rule, selection.getLabel(), selection.getParentPageId(),
-                        selection.getTitlePattern(), true);
+                source.update(
+                        rule, selection.getLabel(), selection.getParentPageId(), selection.getTitlePattern(), true);
             } else {
                 sourceRepository.save(BoardConfluenceSource.builder()
                         .board(board)
@@ -103,21 +102,19 @@ public class ConfluenceConnectionService {
 
     @Transactional(readOnly = true)
     public ConfluenceResponse.Status getStatus(String boardId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         return buildStatus(boardId, targetResolver.resolveConfig(boardId));
     }
 
     @Transactional
     public void disconnect(String boardId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         sourceRepository.deleteAll(sourceRepository.findByBoardId(boardId));
         // 조직 연결은 다른 보드가 쓰고 있으므로 건드리지 않는다.
-        configRepository.findByBoardIdAndActiveTrue(boardId)
-                .ifPresent(ConfluenceIntegrationConfig::deactivate);
+        configRepository.findByBoardIdAndActiveTrue(boardId).ifPresent(ConfluenceIntegrationConfig::deactivate);
     }
 
-    private ConfluenceResponse.Status buildStatus(String boardId,
-                                                  Optional<ConfluenceIntegrationConfig> configOpt) {
+    private ConfluenceResponse.Status buildStatus(String boardId, Optional<ConfluenceIntegrationConfig> configOpt) {
         List<ConfluenceResponse.SelectedSpace> spaces = sourceRepository.findByBoardId(boardId).stream()
                 .map(source -> ConfluenceResponse.SelectedSpace.builder()
                         .spaceKey(source.getSpaceKey())
@@ -152,7 +149,8 @@ public class ConfluenceConnectionService {
     }
 
     private ConfluenceIntegrationConfig requireConnected(String boardId) {
-        return targetResolver.resolveConfig(boardId)
+        return targetResolver
+                .resolveConfig(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CONFLUENCE_NOT_CONNECTED));
     }
 
@@ -163,7 +161,8 @@ public class ConfluenceConnectionService {
         try {
             return ConfluenceMatchRule.valueOf(rule.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE,
+            throw new BusinessException(
+                    ErrorCode.INVALID_INPUT_VALUE,
                     "match_rule은 LABEL, PARENT_PAGE, TITLE_PATTERN, PARENT_TREE_CHANGELOG 중 하나여야 합니다");
         }
     }
@@ -173,12 +172,15 @@ public class ConfluenceConnectionService {
         boolean valid = switch (rule) {
             case LABEL -> selection.getLabel() != null && !selection.getLabel().isBlank();
             case PARENT_PAGE, PARENT_TREE_CHANGELOG ->
-                    selection.getParentPageId() != null && !selection.getParentPageId().isBlank();
-            case TITLE_PATTERN -> selection.getTitlePattern() != null && !selection.getTitlePattern().isBlank();
+                selection.getParentPageId() != null
+                        && !selection.getParentPageId().isBlank();
+            case TITLE_PATTERN ->
+                selection.getTitlePattern() != null
+                        && !selection.getTitlePattern().isBlank();
         };
         if (!valid) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE,
-                    "선택한 식별 규칙에 필요한 값이 비어 있습니다 (" + rule.name() + ")");
+            throw new BusinessException(
+                    ErrorCode.INVALID_INPUT_VALUE, "선택한 식별 규칙에 필요한 값이 비어 있습니다 (" + rule.name() + ")");
         }
     }
 }

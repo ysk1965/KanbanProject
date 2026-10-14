@@ -2,7 +2,7 @@ package com.kanban.domain.task.service;
 
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskDependency;
 import com.kanban.domain.task.TaskDependencyRepository;
@@ -10,13 +10,12 @@ import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.task.dto.TaskDependencyDto;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -27,42 +26,43 @@ public class TaskDependencyService {
     private final TaskDependencyRepository taskDependencyRepository;
     private final TaskRepository taskRepository;
     private final BoardRepository boardRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
 
     public List<TaskDependencyDto.Response> getDependencies(String boardId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
         List<TaskDependency> dependencies = taskDependencyRepository.findByBoardIdWithFetch(boardId);
-        return dependencies.stream()
-                .map(TaskDependencyDto.Response::from)
-                .collect(Collectors.toList());
+        return dependencies.stream().map(TaskDependencyDto.Response::from).collect(Collectors.toList());
     }
 
     @Transactional
-    public TaskDependencyDto.Response createDependency(String boardId, String userId,
-                                                        TaskDependencyDto.CreateRequest request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public TaskDependencyDto.Response createDependency(
+            String boardId, String userId, TaskDependencyDto.CreateRequest request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         // 같은 태스크끼리의 의존성 검증
         if (request.predecessorId().equals(request.successorId())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "같은 Task 간에는 의존성을 생성할 수 없습니다");
         }
 
-        Task predecessor = taskRepository.findById(request.predecessorId())
+        Task predecessor = taskRepository
+                .findById(request.predecessorId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND, "선행 Task를 찾을 수 없습니다"));
 
-        Task successor = taskRepository.findById(request.successorId())
+        Task successor = taskRepository
+                .findById(request.successorId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND, "후행 Task를 찾을 수 없습니다"));
 
         // 이미 존재하는 의존성인지 확인
-        taskDependencyRepository.findByPredecessorIdAndSuccessorId(
-                request.predecessorId(), request.successorId()
-        ).ifPresent(dep -> {
-            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "이미 존재하는 의존성입니다");
-        });
+        taskDependencyRepository
+                .findByPredecessorIdAndSuccessorId(request.predecessorId(), request.successorId())
+                .ifPresent(dep -> {
+                    throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "이미 존재하는 의존성입니다");
+                });
 
         // 순환 의존성 검증
         validateNoCycle(request.successorId(), request.predecessorId());
@@ -70,16 +70,21 @@ public class TaskDependencyService {
         TaskDependency dependency = TaskDependency.create(board, predecessor, successor);
         taskDependencyRepository.save(dependency);
 
-        log.info("Task dependency created: {} -> {} in board {}", request.predecessorId(), request.successorId(), boardId);
+        log.info(
+                "Task dependency created: {} -> {} in board {}",
+                request.predecessorId(),
+                request.successorId(),
+                boardId);
 
         return TaskDependencyDto.Response.from(dependency);
     }
 
     @Transactional
     public void deleteDependency(String boardId, String userId, String dependencyId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        TaskDependency dependency = taskDependencyRepository.findById(dependencyId)
+        TaskDependency dependency = taskDependencyRepository
+                .findById(dependencyId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "의존성을 찾을 수 없습니다"));
 
         // 해당 보드의 의존성인지 확인

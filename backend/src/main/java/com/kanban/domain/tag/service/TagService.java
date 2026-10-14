@@ -2,7 +2,7 @@ package com.kanban.domain.tag.service;
 
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.tag.*;
@@ -12,12 +12,11 @@ import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Slf4j
 @Service
@@ -31,11 +30,12 @@ public class TagService {
     private final FeatureRepository featureRepository;
     private final TaskRepository taskRepository;
     private final BoardRepository boardRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
 
     public TagResponse.ListResponse getTags(String boardId, String userId) {
         // 뷰어 이상 권한 확인 (컨트롤러 경로 전용 — Facade는 멤버십을 1회 검증 후 internal 직접 호출)
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         return getTagsInternal(boardId);
     }
 
@@ -47,10 +47,10 @@ public class TagService {
 
     @Transactional
     public TagResponse.Detail createTag(String boardId, String userId, TagRequest.Create request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         // 중복 이름 확인
         if (tagRepository.existsByBoardIdAndName(boardId, request.getName())) {
@@ -72,10 +72,9 @@ public class TagService {
 
     @Transactional
     public TagResponse.Detail updateTag(String boardId, String tagId, String userId, TagRequest.Update request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Tag tag = tagRepository.findById(tagId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TAG_NOT_FOUND));
+        Tag tag = tagRepository.findById(tagId).orElseThrow(() -> new BusinessException(ErrorCode.TAG_NOT_FOUND));
 
         if (!tag.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TAG_NOT_FOUND);
@@ -97,10 +96,9 @@ public class TagService {
 
     @Transactional
     public void deleteTag(String boardId, String tagId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Tag tag = tagRepository.findById(tagId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TAG_NOT_FOUND));
+        Tag tag = tagRepository.findById(tagId).orElseThrow(() -> new BusinessException(ErrorCode.TAG_NOT_FOUND));
 
         if (!tag.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TAG_NOT_FOUND);
@@ -117,17 +115,20 @@ public class TagService {
 
     // Feature 태그 관리
     @Transactional
-    public TagResponse.ListResponse addTagToFeature(String boardId, String featureId, String userId, TagRequest.AddTag request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public TagResponse.ListResponse addTagToFeature(
+            String boardId, String featureId, String userId, TagRequest.AddTag request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Feature feature = featureRepository.findById(featureId)
+        Feature feature = featureRepository
+                .findById(featureId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
 
         if (!feature.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
         }
 
-        Tag tag = tagRepository.findById(request.getTagId())
+        Tag tag = tagRepository
+                .findById(request.getTagId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.TAG_NOT_FOUND));
 
         if (!tag.getBoard().getId().equals(boardId)) {
@@ -153,9 +154,10 @@ public class TagService {
 
     @Transactional
     public void removeTagFromFeature(String boardId, String featureId, String tagId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Feature feature = featureRepository.findById(featureId)
+        Feature feature = featureRepository
+                .findById(featureId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
 
         if (!feature.getBoard().getId().equals(boardId)) {
@@ -169,17 +171,18 @@ public class TagService {
 
     // Task 태그 관리
     @Transactional
-    public TagResponse.ListResponse addTagToTask(String boardId, String taskId, String userId, TagRequest.AddTag request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public TagResponse.ListResponse addTagToTask(
+            String boardId, String taskId, String userId, TagRequest.AddTag request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
         }
 
-        Tag tag = tagRepository.findById(request.getTagId())
+        Tag tag = tagRepository
+                .findById(request.getTagId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.TAG_NOT_FOUND));
 
         if (!tag.getBoard().getId().equals(boardId)) {
@@ -205,10 +208,9 @@ public class TagService {
 
     @Transactional
     public void removeTagFromTask(String boardId, String taskId, String tagId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);

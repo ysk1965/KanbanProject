@@ -2,10 +2,9 @@ package com.kanban.domain.task.service;
 
 import com.kanban.domain.block.Block;
 import com.kanban.domain.block.BlockRepository;
-import com.kanban.domain.block.FixedBlockType;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.feature.Feature;
@@ -14,18 +13,16 @@ import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.task.dto.TaskRequest;
 import com.kanban.domain.task.dto.TaskResponse;
-import com.kanban.domain.task.dto.TaskResponse.AssigneeInfo;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -37,8 +34,8 @@ public class TaskMoveService {
     private final FeatureRepository featureRepository;
     private final ChecklistItemRepository checklistItemRepository;
     private final UserRepository userRepository;
-    private final BoardService boardService;
 
+    private final BoardPermissionService boardPermissionService;
     /**
      * Task를 다른 보드로 이동
      * - 소스/타겟 보드 모두 멤버 권한 필요
@@ -47,21 +44,22 @@ public class TaskMoveService {
      */
     @Transactional
     public TaskResponse.Simple moveTaskToBoard(String taskId, String userId, TaskRequest.MoveToBoard request) {
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         String sourceBoardId = task.getBoard().getId();
 
         // 소스 보드 권한 확인
-        boardService.checkMemberOrAbove(sourceBoardId, userId);
+        boardPermissionService.checkMemberOrAbove(sourceBoardId, userId);
 
         // 타겟 보드 권한 확인
-        boardService.checkMemberOrAbove(request.getTargetBoardId(), userId);
+        boardPermissionService.checkMemberOrAbove(request.getTargetBoardId(), userId);
 
-        Board targetBoard = boardRepository.findById(request.getTargetBoardId())
+        Board targetBoard = boardRepository
+                .findById(request.getTargetBoardId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        Block targetBlock = blockRepository.findById(request.getTargetBlockId())
+        Block targetBlock = blockRepository
+                .findById(request.getTargetBlockId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
 
         // 타겟 블록이 타겟 보드에 속하는지 확인
@@ -108,19 +106,21 @@ public class TaskMoveService {
      */
     @Transactional
     public TaskResponse.Simple copyTaskToBoard(String taskId, String userId, TaskRequest.CopyToBoard request) {
-        Task sourceTask = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task sourceTask =
+                taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         // 소스 보드 권한 확인
-        boardService.checkMemberOrAbove(sourceTask.getBoard().getId(), userId);
+        boardPermissionService.checkMemberOrAbove(sourceTask.getBoard().getId(), userId);
 
         // 타겟 보드 권한 확인
-        boardService.checkMemberOrAbove(request.getTargetBoardId(), userId);
+        boardPermissionService.checkMemberOrAbove(request.getTargetBoardId(), userId);
 
-        Board targetBoard = boardRepository.findById(request.getTargetBoardId())
+        Board targetBoard = boardRepository
+                .findById(request.getTargetBoardId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        Block targetBlock = blockRepository.findById(request.getTargetBlockId())
+        Block targetBlock = blockRepository
+                .findById(request.getTargetBlockId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
 
         if (!targetBlock.getBoard().getId().equals(targetBoard.getId())) {
@@ -128,8 +128,7 @@ public class TaskMoveService {
         }
 
         Feature targetFeature = getOrCreateDefaultFeature(targetBoard);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // 새 position
         Integer maxPos = taskRepository.findMaxPositionByBlockId(targetBlock.getId());

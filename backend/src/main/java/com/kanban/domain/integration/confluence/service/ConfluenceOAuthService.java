@@ -3,7 +3,7 @@ package com.kanban.domain.integration.confluence.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.integration.IntegrationScope;
 import com.kanban.domain.integration.confluence.ConfluenceAuthType;
 import com.kanban.domain.integration.confluence.ConfluenceIntegrationConfig;
@@ -15,6 +15,13 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.*;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,14 +29,6 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.*;
 
 /**
  * Confluence Cloud OAuth 3LO. 흐름은 {@code JiraOAuthService}와 같은 모양이지만
@@ -71,8 +70,7 @@ public class ConfluenceOAuthService {
      * 문서 작성자 이름 매칭만 조용히 건너뛴다(보고서 수집 자체는 그대로 된다).
      * 작성자 이름을 붙이려면 해당 보드에서 Confluence를 <b>다시 연결</b>해 동의를 갱신해야 한다.
      */
-    private static final String SCOPES =
-            "read:space:confluence read:page:confluence "
+    private static final String SCOPES = "read:space:confluence read:page:confluence "
             + "read:content-details:confluence read:hierarchical-content:confluence "
             + "read:user:confluence search:confluence "
             + "offline_access";
@@ -84,23 +82,22 @@ public class ConfluenceOAuthService {
     private final ConfluenceOAuthProperties oauthProps;
     private final SlackTokenEncryptor tokenEncryptor;
     private final ConfluenceIntegrationConfigRepository configRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
 
     @Value("${jwt.secret:bridge-default-secret-key-change-me}")
     private String jwtSecret;
 
-    private record StateData(String boardId, String userId, String origin) {
-    }
+    private record StateData(String boardId, String userId, String origin) {}
 
     // ── 인증 URL ────────────────────────────────
 
     public ConfluenceResponse.OAuthUrl getAuthorizeUrl(String boardId, String userId, String origin) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         if (!oauthProps.isConfigured()) {
-            throw new BusinessException(ErrorCode.CONFLUENCE_NOT_CONFIGURED,
-                    "Confluence OAuth 앱이 설정되지 않았습니다");
+            throw new BusinessException(ErrorCode.CONFLUENCE_NOT_CONFIGURED, "Confluence OAuth 앱이 설정되지 않았습니다");
         }
         String state = generateState(boardId, userId, origin);
         String url = AUTH_BASE + "/authorize"
@@ -133,17 +130,22 @@ public class ConfluenceOAuthService {
         if (accessToken == null) {
             throw new BusinessException(ErrorCode.CONFLUENCE_CONNECTION_FAILED);
         }
-        log.info("Confluence OAuth granted scopes for board {}: {}",
-                sd.boardId(), tokens.path("scope").asText("(none)"));
+        log.info(
+                "Confluence OAuth granted scopes for board {}: {}",
+                sd.boardId(),
+                tokens.path("scope").asText("(none)"));
 
         LocalDateTime expiresAt = LocalDateTime.now(ZoneOffset.UTC)
                 .plusSeconds(tokens.path("expires_in").asLong(3600));
 
-        ConfluenceIntegrationConfig config = configRepository.findByBoardId(sd.boardId())
+        ConfluenceIntegrationConfig config = configRepository
+                .findByBoardId(sd.boardId())
                 .orElseGet(() -> {
-                    Board board = boardRepository.findById(sd.boardId())
+                    Board board = boardRepository
+                            .findById(sd.boardId())
                             .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-                    User user = userRepository.findById(sd.userId())
+                    User user = userRepository
+                            .findById(sd.userId())
                             .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
                     return configRepository.save(ConfluenceIntegrationConfig.builder()
                             .board(board)
@@ -153,8 +155,10 @@ public class ConfluenceOAuthService {
                             .build());
                 });
 
-        config.applyOAuthTokens(tokenEncryptor.encrypt(accessToken),
-                refreshToken != null ? tokenEncryptor.encrypt(refreshToken) : null, expiresAt);
+        config.applyOAuthTokens(
+                tokenEncryptor.encrypt(accessToken),
+                refreshToken != null ? tokenEncryptor.encrypt(refreshToken) : null,
+                expiresAt);
 
         return sd.origin() + "?confluence=oauth_success&board=" + enc(sd.boardId());
     }
@@ -167,7 +171,7 @@ public class ConfluenceOAuthService {
      */
     @Transactional
     public List<ConfluenceResponse.SiteRef> getAccessibleSites(String boardId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         ConfluenceIntegrationConfig config = requireConfig(boardId);
         String token = resolveToken(config);
 
@@ -195,9 +199,9 @@ public class ConfluenceOAuthService {
      * <b>스페이스를 한 번 실제로 조회해</b> 200을 확인한 뒤에만 저장한다.
      */
     @Transactional
-    public ConfluenceIntegrationConfig finalizeSite(String boardId, String userId,
-                                                    String cloudId, String baseUrl, String siteName) {
-        boardService.checkAdminOrAbove(boardId, userId);
+    public ConfluenceIntegrationConfig finalizeSite(
+            String boardId, String userId, String cloudId, String baseUrl, String siteName) {
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         ConfluenceIntegrationConfig config = requireConfig(boardId);
         String token = resolveToken(config);
 
@@ -206,8 +210,8 @@ public class ConfluenceOAuthService {
             getJson(API_BASE + "/ex/confluence/" + cloudId + "/wiki/api/v2/spaces?limit=1", token);
         } catch (Exception e) {
             log.warn("Confluence 사이트 검증 실패 board={} cloudId={}: {}", boardId, cloudId, e.getMessage());
-            throw new BusinessException(ErrorCode.CONFLUENCE_CONNECTION_FAILED,
-                    "이 사이트의 Confluence에 접근할 수 없습니다. 권한을 확인하거나 다시 인증해주세요");
+            throw new BusinessException(
+                    ErrorCode.CONFLUENCE_CONNECTION_FAILED, "이 사이트의 Confluence에 접근할 수 없습니다. 권한을 확인하거나 다시 인증해주세요");
         }
         config.applySite(cloudId, normalizeHost(baseUrl), siteName);
         log.info("Confluence 사이트 확정 board={} → {}", boardId, cloudId);
@@ -248,17 +252,20 @@ public class ConfluenceOAuthService {
             throw new BusinessException(ErrorCode.CONFLUENCE_AUTH_FAILED);
         }
         String newAccess = text(tokens, "access_token");
-        String newRefresh = text(tokens, "refresh_token");   // 회전형
+        String newRefresh = text(tokens, "refresh_token"); // 회전형
         LocalDateTime expiresAt = LocalDateTime.now(ZoneOffset.UTC)
                 .plusSeconds(tokens.path("expires_in").asLong(3600));
 
-        config.applyOAuthTokens(tokenEncryptor.encrypt(newAccess),
-                newRefresh != null ? tokenEncryptor.encrypt(newRefresh) : null, expiresAt);
+        config.applyOAuthTokens(
+                tokenEncryptor.encrypt(newAccess),
+                newRefresh != null ? tokenEncryptor.encrypt(newRefresh) : null,
+                expiresAt);
         return newAccess;
     }
 
     private ConfluenceIntegrationConfig requireConfig(String boardId) {
-        return configRepository.findByBoardId(boardId)
+        return configRepository
+                .findByBoardId(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CONFLUENCE_NOT_CONNECTED));
     }
 
@@ -267,8 +274,8 @@ public class ConfluenceOAuthService {
     private JsonNode postJson(String url, Map<String, Object> body) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        ResponseEntity<JsonNode> response = restTemplate.exchange(
-                url, HttpMethod.POST, new HttpEntity<>(body, headers), JsonNode.class);
+        ResponseEntity<JsonNode> response =
+                restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(body, headers), JsonNode.class);
         return response.getBody();
     }
 
@@ -276,8 +283,8 @@ public class ConfluenceOAuthService {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(bearer);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        ResponseEntity<JsonNode> response = restTemplate.exchange(
-                url, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class);
+        ResponseEntity<JsonNode> response =
+                restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class);
         return response.getBody();
     }
 
@@ -286,8 +293,7 @@ public class ConfluenceOAuthService {
     private String generateState(String boardId, String userId, String origin) {
         long ts = System.currentTimeMillis() / 1000;
         String payload = boardId + "|" + userId + "|" + origin + "|" + ts;
-        String b64 = Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(payload.getBytes(StandardCharsets.UTF_8));
+        String b64 = Base64.getUrlEncoder().withoutPadding().encodeToString(payload.getBytes(StandardCharsets.UTF_8));
         return b64 + "." + computeHmac(b64);
     }
 
@@ -316,7 +322,8 @@ public class ConfluenceOAuthService {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            return Base64.getUrlEncoder().withoutPadding()
+            return Base64.getUrlEncoder()
+                    .withoutPadding()
                     .encodeToString(mac.doFinal(value.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.CONFLUENCE_CONNECTION_FAILED, "state 서명 실패");

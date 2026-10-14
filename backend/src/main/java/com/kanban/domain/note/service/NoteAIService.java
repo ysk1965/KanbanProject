@@ -11,7 +11,7 @@ import com.kanban.domain.block.BlockRepository;
 import com.kanban.domain.block.FixedBlockType;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.feature.Feature;
@@ -28,6 +28,7 @@ import com.kanban.global.ai.AiInvocationRequest;
 import com.kanban.global.ai.AiInvocationTemplate;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,9 +36,6 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -54,7 +52,8 @@ public class NoteAIService {
     private final BlockRepository blockRepository;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final ActivityService activityService;
 
     @Value("${ai.provider:claude}")
@@ -76,12 +75,14 @@ public class NoteAIService {
      * 트랜잭션 밖에서 실행된다 — 입력 읽기와 결과 저장은 {@code transactionTemplate}으로 각각 짧게 묶고,
      * LLM 호출은 {@link AiInvocationTemplate}이 트랜잭션 없이 수행한다(크레딧 차감·사용량 로그는 각자 짧은 트랜잭션).
      */
-    public NoteAIResponse.Suggestions generateSuggestions(String boardId, String noteId, String userId, String language) {
+    public NoteAIResponse.Suggestions generateSuggestions(
+            String boardId, String noteId, String userId, String language) {
         // 1. 입력 읽기 (tx) — 보드 컨텍스트 JSON까지 여기서 문자열로 만든다 (Feature/Task 연관은 LAZY)
         PromptInput input = transactionTemplate.execute(status -> {
-            boardService.checkMemberOrAbove(boardId, userId);
+            boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-            Note note = noteRepository.findByIdAndBoardId(noteId, boardId)
+            Note note = noteRepository
+                    .findByIdAndBoardId(noteId, boardId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_NOT_FOUND));
 
             if (note.getIsDeleted()) {
@@ -113,7 +114,9 @@ public class NoteAIService {
             }
 
             String boardContext = buildBoardContextJson(existingFeatures, featureTasksMap);
-            return new PromptInput(note.getTitle(), rawContent,
+            return new PromptInput(
+                    note.getTitle(),
+                    rawContent,
                     buildSystemPrompt(language),
                     buildUserPrompt(note.getTitle(), plainText, boardContext));
         });
@@ -121,17 +124,22 @@ public class NoteAIService {
         // 2. 크레딧 차감 → AI 호출 → 사용량 로그 → 파싱 (트랜잭션 없음)
         log.info("Generating AI suggestions for note: {} in board: {}", noteId, boardId);
         AiInvocationRequest request = AiInvocationRequest.builder()
-                .boardId(boardId).userId(userId)
-                .featureType("NOTE").creditCost(1)
-                .systemPrompt(input.systemPrompt()).userPrompt(input.userPrompt())
-                .model(getModel()).maxTokens(MAX_TOKENS)
+                .boardId(boardId)
+                .userId(userId)
+                .featureType("NOTE")
+                .creditCost(1)
+                .systemPrompt(input.systemPrompt())
+                .userPrompt(input.userPrompt())
+                .model(getModel())
+                .maxTokens(MAX_TOKENS)
                 .build();
-        NoteAIResponse.Suggestions suggestions = aiInvocationTemplate.invoke(request,
-                content -> parseAIResponse(content, noteId, input.noteTitle()));
+        NoteAIResponse.Suggestions suggestions =
+                aiInvocationTemplate.invoke(request, content -> parseAIResponse(content, noteId, input.noteTitle()));
 
         // 3. 결과 저장 (tx) — AI 제안과 당시 본문 스냅샷을 노트에 남긴다
-        transactionTemplate.executeWithoutResult(status ->
-                noteRepository.findByIdAndBoardId(noteId, boardId).ifPresent(note -> {
+        transactionTemplate.executeWithoutResult(status -> noteRepository
+                .findByIdAndBoardId(noteId, boardId)
+                .ifPresent(note -> {
                     try {
                         note.updateAiSuggestions(objectMapper.writeValueAsString(suggestions));
                         note.updateAiContentSnapshot(input.rawContent());
@@ -143,22 +151,23 @@ public class NoteAIService {
         return suggestions;
     }
 
-    private record PromptInput(String noteTitle, String rawContent, String systemPrompt, String userPrompt) {
-    }
+    private record PromptInput(String noteTitle, String rawContent, String systemPrompt, String userPrompt) {}
 
     @Transactional
     @CacheEvict(value = "features", key = "#boardId")
-    public NoteAIResponse.ApplyResult applySuggestions(String boardId, String noteId, String userId,
-                                                        NoteAIRequest.Apply request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public NoteAIResponse.ApplyResult applySuggestions(
+            String boardId, String noteId, String userId, NoteAIRequest.Apply request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Board board = boardRepository.findByIdWithLock(boardId)
+        Board board = boardRepository
+                .findByIdWithLock(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        User creator = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User creator =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
+        Block taskBlock = blockRepository
+                .findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
 
         int featuresCreated = 0;
@@ -171,7 +180,8 @@ public class NoteAIService {
             Feature feature;
 
             if ("EXISTING".equals(fs.getType())) {
-                feature = featureRepository.findById(fs.getFeatureId())
+                feature = featureRepository
+                        .findById(fs.getFeatureId())
                         .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
             } else {
                 Integer maxPos = featureRepository.findMaxPositionByBoardId(boardId);
@@ -189,10 +199,13 @@ public class NoteAIService {
                 createdFeatureIds.add(feature.getId());
                 featuresCreated++;
 
-                activityService.logActivity(board, creator,
-                        ActivityAction.FEATURE_CREATED, TargetType.FEATURE, feature.getId(),
-                        Map.of("featureTitle", feature.getTitle(),
-                                "featureColor", feature.getColor()));
+                activityService.logActivity(
+                        board,
+                        creator,
+                        ActivityAction.FEATURE_CREATED,
+                        TargetType.FEATURE,
+                        feature.getId(),
+                        Map.of("featureTitle", feature.getTitle(), "featureColor", feature.getColor()));
             }
 
             if (fs.getTasks() != null) {
@@ -220,11 +233,19 @@ public class NoteAIService {
                     createdTaskIds.add(task.getId());
                     tasksCreated++;
 
-                    activityService.logActivity(board, creator,
-                            ActivityAction.TASK_CREATED, TargetType.TASK, task.getId(),
-                            Map.of("taskTitle", task.getTitle(),
-                                    "featureTitle", feature.getTitle(),
-                                    "featureColor", feature.getColor()));
+                    activityService.logActivity(
+                            board,
+                            creator,
+                            ActivityAction.TASK_CREATED,
+                            TargetType.TASK,
+                            task.getId(),
+                            Map.of(
+                                    "taskTitle",
+                                    task.getTitle(),
+                                    "featureTitle",
+                                    feature.getTitle(),
+                                    "featureColor",
+                                    feature.getColor()));
 
                     if (ts.getChecklists() != null) {
                         for (NoteAIRequest.ChecklistSuggestionApply cs : ts.getChecklists()) {
@@ -244,8 +265,12 @@ public class NoteAIService {
             }
         }
 
-        log.info("AI suggestions applied for note: {}. Features: {}, Tasks: {}, Checklists: {}",
-                noteId, featuresCreated, tasksCreated, checklistsCreated);
+        log.info(
+                "AI suggestions applied for note: {}. Features: {}, Tasks: {}, Checklists: {}",
+                noteId,
+                featuresCreated,
+                tasksCreated,
+                checklistsCreated);
 
         return NoteAIResponse.ApplyResult.builder()
                 .featuresCreated(featuresCreated)
@@ -350,8 +375,7 @@ public class NoteAIService {
             Map.entry("th", "Thai"),
             Map.entry("hi", "Hindi"),
             Map.entry("es", "Spanish"),
-            Map.entry("pt-BR", "Portuguese (Brazil)")
-    );
+            Map.entry("pt-BR", "Portuguese (Brazil)"));
 
     private String getLanguageName(String lang) {
         if (lang == null) return null;
@@ -363,15 +387,16 @@ public class NoteAIService {
         String langInstruction;
         String langReminder;
         if (langName != null) {
-            langInstruction = "CRITICAL LANGUAGE RULE: You MUST write ALL output text in " + langName + ". " +
-                    "Every value in key_points, summary (topic, decisions, discussions, action_items), " +
-                    "and features (title, description), tasks (title, description), checklists (title) MUST be in " + langName + ". " +
-                    "Do NOT use English for any content values.";
-            langReminder = "REMINDER: All text content in the JSON output MUST be in " + langName + ". This is mandatory.";
+            langInstruction = "CRITICAL LANGUAGE RULE: You MUST write ALL output text in " + langName + ". "
+                    + "Every value in key_points, summary (topic, decisions, discussions, action_items), "
+                    + "and features (title, description), tasks (title, description), checklists (title) MUST be in "
+                    + langName + ". " + "Do NOT use English for any content values.";
+            langReminder =
+                    "REMINDER: All text content in the JSON output MUST be in " + langName + ". This is mandatory.";
         } else {
-            langInstruction = "CRITICAL LANGUAGE RULE: You MUST match the language of the note content. " +
-                    "If the note is in Korean, write ALL output in Korean. If in English, write in English. " +
-                    "Detect the language from the note and use that same language for all output values.";
+            langInstruction = "CRITICAL LANGUAGE RULE: You MUST match the language of the note content. "
+                    + "If the note is in Korean, write ALL output in Korean. If in English, write in English. "
+                    + "Detect the language from the note and use that same language for all output values.";
             langReminder = "REMINDER: Match the output language to the note content language.";
         }
 
@@ -487,13 +512,15 @@ public class NoteAIService {
             List<Task> tasks = taskMap.getOrDefault(f.getId(), List.of());
             String desc = f.getDescription() != null ? escapeJson(f.getDescription()) : "";
 
-            sb.append(String.format("  {\"id\":\"%s\", \"title\":\"%s\", \"description\":\"%s\", \"tasks\": [",
+            sb.append(String.format(
+                    "  {\"id\":\"%s\", \"title\":\"%s\", \"description\":\"%s\", \"tasks\": [",
                     f.getId(), escapeJson(f.getTitle()), desc));
 
             for (int j = 0; j < tasks.size(); j++) {
                 Task t = tasks.get(j);
                 String taskDesc = t.getDescription() != null ? escapeJson(t.getDescription()) : "";
-                sb.append(String.format("{\"title\":\"%s\", \"description\":\"%s\"}", escapeJson(t.getTitle()), taskDesc));
+                sb.append(String.format(
+                        "{\"title\":\"%s\", \"description\":\"%s\"}", escapeJson(t.getTitle()), taskDesc));
                 if (j < tasks.size() - 1) sb.append(", ");
             }
 
@@ -536,7 +563,8 @@ public class NoteAIService {
                     List<String> decisions = parseStringArray(topicNode, "decisions");
                     List<String> discussions = parseStringArray(topicNode, "discussions");
                     List<String> actionItems = parseStringArray(topicNode, "action_items");
-                    boolean important = topicNode.has("important") && topicNode.get("important").asBoolean();
+                    boolean important = topicNode.has("important")
+                            && topicNode.get("important").asBoolean();
                     summaryTopics.add(NoteAIResponse.SummaryTopic.builder()
                             .topic(getTextOrNull(topicNode, "topic"))
                             .important(important)
@@ -624,8 +652,11 @@ public class NoteAIService {
         if (taskLimit != null) {
             int currentTaskCount = taskRepository.countByBoardId(board.getId());
             if (currentTaskCount >= taskLimit) {
-                log.warn("Task limit exceeded for board: {} (current: {}, limit: {})",
-                        board.getId(), currentTaskCount, taskLimit);
+                log.warn(
+                        "Task limit exceeded for board: {} (current: {}, limit: {})",
+                        board.getId(),
+                        currentTaskCount,
+                        taskLimit);
                 throw new BusinessException(ErrorCode.TASK_LIMIT_EXCEEDED);
             }
         }

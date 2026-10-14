@@ -4,7 +4,7 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardCustomEmoji;
 import com.kanban.domain.board.BoardCustomEmojiRepository;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.Comment;
@@ -29,14 +29,13 @@ import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.service.FileUploadService;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.*;
 
 @Slf4j
 @Service
@@ -51,7 +50,8 @@ public class CommentService {
     private final TaskRepository taskRepository;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final NotificationService notificationService;
     private final SlackNotificationService slackNotificationService;
     private final DiscordNotificationService discordNotificationService;
@@ -66,15 +66,14 @@ public class CommentService {
      * 특정 보드 + 작성자의 기간별 댓글 조회 (주간 요약용)
      */
     public CommentResponse.SummaryListResponse getCommentsByAuthorAndDateRange(
-            String boardId, String authorId, String requesterId,
-            LocalDate startDate, LocalDate endDate) {
-        boardService.checkViewerOrAbove(boardId, requesterId);
+            String boardId, String authorId, String requesterId, LocalDate startDate, LocalDate endDate) {
+        boardPermissionService.checkViewerOrAbove(boardId, requesterId);
 
         LocalDateTime startDateTime = startDate.atStartOfDay();
         LocalDateTime endDateTime = endDate.plusDays(1).atStartOfDay();
 
-        List<Comment> comments = commentRepository.findByBoardAndAuthorAndDateRange(
-                boardId, authorId, startDateTime, endDateTime);
+        List<Comment> comments =
+                commentRepository.findByBoardAndAuthorAndDateRange(boardId, authorId, startDateTime, endDateTime);
         return CommentResponse.SummaryListResponse.of(comments);
     }
 
@@ -82,9 +81,8 @@ public class CommentService {
      * 특정 보드 + 멘션된 사용자의 기간별 댓글 조회
      */
     public CommentResponse.MentionSummaryListResponse getCommentsByMentionedUserAndDateRange(
-            String boardId, String mentionedUserId, String requesterId,
-            LocalDate startDate, LocalDate endDate) {
-        boardService.checkViewerOrAbove(boardId, requesterId);
+            String boardId, String mentionedUserId, String requesterId, LocalDate startDate, LocalDate endDate) {
+        boardPermissionService.checkViewerOrAbove(boardId, requesterId);
 
         LocalDateTime startDateTime = startDate.atStartOfDay();
         LocalDateTime endDateTime = endDate.plusDays(1).atStartOfDay();
@@ -109,12 +107,12 @@ public class CommentService {
      * 댓글 목록 조회
      */
     public CommentResponse.ListResponse getComments(String boardId, String taskId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
         List<Comment> comments = commentRepository.findByTaskIdWithAuthorAndReactions(taskId);
         Map<String, String> customEmojiUrlMap = buildCustomEmojiUrlMap(boardId);
-        return CommentResponse.ListResponse.of(comments, customEmojiUrlMap, fileUploadService::resolveUrl,
-                buildChecklistRefMap(comments));
+        return CommentResponse.ListResponse.of(
+                comments, customEmojiUrlMap, fileUploadService::resolveUrl, buildChecklistRefMap(comments));
     }
 
     /**
@@ -131,10 +129,12 @@ public class CommentService {
 
         Map<String, CommentResponse.ChecklistRef> refs = new HashMap<>();
         for (Object[] row : checklistItemRepository.findTitlesByIdsIncludingDeleted(itemIds)) {
-            refs.put((String) row[0], CommentResponse.ChecklistRef.builder()
-                    .title((String) row[1])
-                    .deleted(Boolean.TRUE.equals(row[2]))
-                    .build());
+            refs.put(
+                    (String) row[0],
+                    CommentResponse.ChecklistRef.builder()
+                            .title((String) row[1])
+                            .deleted(Boolean.TRUE.equals(row[2]))
+                            .build());
         }
         return refs;
     }
@@ -143,9 +143,9 @@ public class CommentService {
      * 댓글 작성 (fileKeys: 미리 업로드된 임시 파일 키 목록)
      */
     @Transactional
-    public CommentResponse.Detail createComment(String boardId, String taskId, String userId,
-                                                  CommentRequest.Create request, String originUrl) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public CommentResponse.Detail createComment(
+            String boardId, String taskId, String userId, CommentRequest.Create request, String originUrl) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         List<String> fileKeys = request.getFileKeys();
         if (fileKeys != null && fileKeys.size() > MAX_ATTACHMENTS) {
@@ -161,20 +161,20 @@ public class CommentService {
             content = ""; // 이미지만 첨부한 경우
         }
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        String mentionsStr = request.getMentions() != null && !request.getMentions().isEmpty()
-                ? String.join(",", request.getMentions())
-                : null;
+        String mentionsStr =
+                request.getMentions() != null && !request.getMentions().isEmpty()
+                        ? String.join(",", request.getMentions())
+                        : null;
 
         Comment parentComment = null;
         if (request.getParentId() != null && !request.getParentId().isBlank()) {
-            parentComment = commentRepository.findById(request.getParentId())
+            parentComment = commentRepository
+                    .findById(request.getParentId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
         }
 
@@ -183,7 +183,8 @@ public class CommentService {
         ChecklistItem checklistItem = null;
         String checklistItemId = request.getChecklistItemId();
         if (checklistItemId != null && !checklistItemId.isBlank()) {
-            checklistItem = checklistItemRepository.findById(checklistItemId)
+            checklistItem = checklistItemRepository
+                    .findById(checklistItemId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
             if (!checklistItem.getTask().getId().equals(taskId)) {
                 throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
@@ -241,26 +242,42 @@ public class CommentService {
             List<String> taskRelatedUserIds = new ArrayList<>(taskRelatedUserIdSet);
 
             if (!taskRelatedUserIds.isEmpty()) {
-                notificationService.createTaskCommentNotifications(comment, user, board, taskRelatedUserIds, mentionedUserIds);
-                slackNotificationService.sendTaskCommentNotifications(comment, user, board, taskRelatedUserIds, mentionedUserIds, originUrl);
-                discordNotificationService.sendTaskCommentNotifications(comment, user, board, taskRelatedUserIds, mentionedUserIds, originUrl);
+                notificationService.createTaskCommentNotifications(
+                        comment, user, board, taskRelatedUserIds, mentionedUserIds);
+                slackNotificationService.sendTaskCommentNotifications(
+                        comment, user, board, taskRelatedUserIds, mentionedUserIds, originUrl);
+                discordNotificationService.sendTaskCommentNotifications(
+                        comment, user, board, taskRelatedUserIds, mentionedUserIds, originUrl);
             }
         } catch (Exception e) {
-            log.error("Failed to send comment notifications for comment: {} on task: {}: {}",
-                    comment.getId(), taskId, e.getMessage(), e);
+            log.error(
+                    "Failed to send comment notifications for comment: {} on task: {}: {}",
+                    comment.getId(),
+                    taskId,
+                    e.getMessage(),
+                    e);
         }
 
-        log.info("Comment created: {} on task: {} by user: {} with {} attachments",
-                comment.getId(), taskId, userId, comment.getAttachments().size());
+        log.info(
+                "Comment created: {} on task: {} by user: {} with {} attachments",
+                comment.getId(),
+                taskId,
+                userId,
+                comment.getAttachments().size());
 
         // 항목 제목을 응답에 실어 보낸다. 이 응답이 그대로 WebSocket 페이로드가 되므로,
         // 다른 사람 화면도 재조회 없이 "체크리스트 · 제목" 칩을 그릴 수 있어야 한다.
         Map<String, CommentResponse.ChecklistRef> refs = checklistItem != null
-                ? Map.of(checklistItem.getId(), CommentResponse.ChecklistRef.builder()
-                        .title(checklistItem.getTitle()).deleted(false).build())
+                ? Map.of(
+                        checklistItem.getId(),
+                        CommentResponse.ChecklistRef.builder()
+                                .title(checklistItem.getTitle())
+                                .deleted(false)
+                                .build())
                 : Map.of();
 
-        CommentResponse.Detail response = CommentResponse.Detail.of(comment, Map.of(), fileUploadService::resolveUrl, refs);
+        CommentResponse.Detail response =
+                CommentResponse.Detail.of(comment, Map.of(), fileUploadService::resolveUrl, refs);
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_CREATED, userId, user.getName(), response);
 
         // JIRA 연동 카드면 댓글을 JIRA 코멘트로 push (커밋 후 비동기). core→jira 역의존 회피용 이벤트.
@@ -272,20 +289,22 @@ public class CommentService {
      * 댓글 수정 (텍스트 + 첨부파일 추가/삭제)
      */
     @Transactional
-    public CommentResponse.Detail updateComment(String boardId, String commentId, String userId,
-                                                  CommentRequest.Update request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public CommentResponse.Detail updateComment(
+            String boardId, String commentId, String userId, CommentRequest.Update request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Comment comment = commentRepository.findById(commentId)
+        Comment comment = commentRepository
+                .findById(commentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
 
         if (!comment.isAuthor(userId)) {
             throw new BusinessException(ErrorCode.COMMENT_NOT_AUTHOR);
         }
 
-        String mentionsStr = request.getMentions() != null && !request.getMentions().isEmpty()
-                ? String.join(",", request.getMentions())
-                : null;
+        String mentionsStr =
+                request.getMentions() != null && !request.getMentions().isEmpty()
+                        ? String.join(",", request.getMentions())
+                        : null;
 
         comment.updateContent(request.getContent(), mentionsStr);
 
@@ -314,14 +333,16 @@ public class CommentService {
             processFileKeys(newFileKeys, boardId, comment);
         }
 
-        log.info("Comment updated: {} by user: {} (attachments: {})",
-                commentId, userId, comment.getAttachments().size());
+        log.info(
+                "Comment updated: {} by user: {} (attachments: {})",
+                commentId,
+                userId,
+                comment.getAttachments().size());
 
         // 수정 응답도 WS 페이로드로 나간다 — 칩이 사라지지 않도록 항목 제목을 다시 실어 준다.
-        CommentResponse.Detail response = CommentResponse.Detail.of(comment, Map.of(),
-                fileUploadService::resolveUrl, buildChecklistRefMap(List.of(comment)));
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        CommentResponse.Detail response = CommentResponse.Detail.of(
+                comment, Map.of(), fileUploadService::resolveUrl, buildChecklistRefMap(List.of(comment)));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_UPDATED, userId, user.getName(), response);
         return response;
     }
@@ -331,13 +352,14 @@ public class CommentService {
      */
     @Transactional
     public void deleteComment(String boardId, String commentId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Comment comment = commentRepository.findById(commentId)
+        Comment comment = commentRepository
+                .findById(commentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
 
         if (!comment.isAuthor(userId)) {
-            boardService.checkAdminOrAbove(boardId, userId);
+            boardPermissionService.checkAdminOrAbove(boardId, userId);
         }
 
         // 첨부파일 S3/로컬 삭제
@@ -349,8 +371,7 @@ public class CommentService {
         commentRepository.delete(comment);
         log.info("Comment deleted: {} by user: {}", commentId, userId);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         String taskId = comment.getTask().getId();
 
         // 항목 id를 함께 보낸다 — 받는 쪽이 어느 체크리스트 행의 댓글 수를 줄여야 하는지 알아야 한다.
@@ -359,7 +380,8 @@ public class CommentService {
         deletePayload.put("id", commentId);
         deletePayload.put("task_id", taskId);
         deletePayload.put("checklist_item_id", checklistItemId);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_DELETED, userId, user.getName(), deletePayload);
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.COMMENT_DELETED, userId, user.getName(), deletePayload);
 
         // JIRA로 연동된 댓글이면 JIRA 코멘트도 삭제 (커밋 후 비동기).
         eventPublisher.publishEvent(new CommentDeletedEvent(boardId, taskId, commentId));
@@ -384,8 +406,8 @@ public class CommentService {
         commentRepository.save(comment);
 
         CommentResponse.Detail response = CommentResponse.Detail.of(comment, Map.of(), fileUploadService::resolveUrl);
-        webSocketEventService.sendBoardEvent(board.getId(), BoardEventType.COMMENT_CREATED,
-                "jira-sync", "JIRA", response);
+        webSocketEventService.sendBoardEvent(
+                board.getId(), BoardEventType.COMMENT_CREATED, "jira-sync", "JIRA", response);
         return response;
     }
 
@@ -403,8 +425,12 @@ public class CommentService {
         commentRepository.delete(comment);
         log.info("Comment deleted by JIRA sync: {}", commentId);
 
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_DELETED,
-                "jira-sync", "JIRA", Map.of("id", commentId, "task_id", taskId));
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.COMMENT_DELETED,
+                "jira-sync",
+                "JIRA",
+                Map.of("id", commentId, "task_id", taskId));
     }
 
     /**
@@ -412,16 +438,18 @@ public class CommentService {
      */
     @Transactional
     public void deleteAttachment(String boardId, String commentId, String attachmentId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Comment comment = commentRepository.findById(commentId)
+        Comment comment = commentRepository
+                .findById(commentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
 
         if (!comment.isAuthor(userId)) {
-            boardService.checkAdminOrAbove(boardId, userId);
+            boardPermissionService.checkAdminOrAbove(boardId, userId);
         }
 
-        CommentAttachment attachment = commentAttachmentRepository.findById(attachmentId)
+        CommentAttachment attachment = commentAttachmentRepository
+                .findById(attachmentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ATTACHMENT_NOT_FOUND));
 
         // ★ 소속 검증: 첨부파일이 해당 댓글에 속하는지 확인
@@ -440,8 +468,9 @@ public class CommentService {
      * 이모지 리액션 토글 (추가/제거)
      */
     @Transactional
-    public CommentResponse.ReactionsResponse toggleReaction(String boardId, String commentId, String userId, String emoji) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public CommentResponse.ReactionsResponse toggleReaction(
+            String boardId, String commentId, String userId, String emoji) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         // 커스텀 이모지인 경우 보드에 존재하는지 검증
         if (emoji.startsWith("custom:")) {
@@ -451,14 +480,14 @@ public class CommentService {
             }
         }
 
-        Comment comment = commentRepository.findById(commentId)
+        Comment comment = commentRepository
+                .findById(commentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        Optional<CommentReaction> existing = commentReactionRepository.findByCommentIdAndUserIdAndEmoji(
-                commentId, userId, emoji);
+        Optional<CommentReaction> existing =
+                commentReactionRepository.findByCommentIdAndUserIdAndEmoji(commentId, userId, emoji);
 
         if (existing.isPresent()) {
             comment.getReactions().remove(existing.get());
@@ -477,12 +506,14 @@ public class CommentService {
 
         // 업데이트된 리액션 목록 반환
         Map<String, String> customEmojiUrlMap = buildCustomEmojiUrlMap(boardId);
-        List<CommentResponse.ReactionInfo> reactionList = buildReactionInfoList(comment.getReactions(), customEmojiUrlMap);
+        List<CommentResponse.ReactionInfo> reactionList =
+                buildReactionInfoList(comment.getReactions(), customEmojiUrlMap);
         CommentResponse.ReactionsResponse response = CommentResponse.ReactionsResponse.builder()
                 .reactions(reactionList)
                 .build();
 
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_REACTION_TOGGLED, userId, user.getName(), response);
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.COMMENT_REACTION_TOGGLED, userId, user.getName(), response);
         return response;
     }
 
@@ -495,15 +526,13 @@ public class CommentService {
         return map;
     }
 
-    private List<CommentResponse.ReactionInfo> buildReactionInfoList(List<CommentReaction> reactions,
-                                                                      Map<String, String> customEmojiUrlMap) {
+    private List<CommentResponse.ReactionInfo> buildReactionInfoList(
+            List<CommentReaction> reactions, Map<String, String> customEmojiUrlMap) {
         if (reactions == null || reactions.isEmpty()) return List.of();
 
         Map<String, List<CommentReaction>> grouped = reactions.stream()
                 .collect(java.util.stream.Collectors.groupingBy(
-                        CommentReaction::getEmoji,
-                        java.util.LinkedHashMap::new,
-                        java.util.stream.Collectors.toList()));
+                        CommentReaction::getEmoji, java.util.LinkedHashMap::new, java.util.stream.Collectors.toList()));
 
         return grouped.entrySet().stream()
                 .map(entry -> {
@@ -548,9 +577,7 @@ public class CommentService {
                 processedKeys.add(result.getS3Key());
 
                 // 원본 파일명 추출 (temp key에서 확장자 추출)
-                String originalName = tempKey.contains("/")
-                        ? tempKey.substring(tempKey.lastIndexOf("/") + 1)
-                        : tempKey;
+                String originalName = tempKey.contains("/") ? tempKey.substring(tempKey.lastIndexOf("/") + 1) : tempKey;
 
                 CommentAttachment attachment = CommentAttachment.builder()
                         .comment(comment)

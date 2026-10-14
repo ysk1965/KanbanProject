@@ -3,7 +3,7 @@ package com.kanban.domain.schedule.service;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.dailychecklist.service.DailyChecklistResolver;
 import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.meeting.MeetingRepository;
@@ -11,22 +11,20 @@ import com.kanban.domain.meeting.dto.MeetingResponse;
 import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.schedule.dto.ScheduleResponse;
-import com.kanban.domain.task.Task;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Schedule + DailyChecklist 통합 Facade 서비스
@@ -44,17 +42,18 @@ public class ScheduleFacadeService {
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
     private final UserRepository userRepository;
-    private final BoardService boardService;
 
+    private final BoardPermissionService boardPermissionService;
     /**
      * Day 모드 통합 조회 (스케줄 + 데일리 체크리스트)
      * 기존 2개 API 호출 → 1개로 통합하여 50% 감소
      */
-    public ScheduleResponse.DailyFull getDailyFull(String boardId, LocalDate date, List<String> assigneeIds, String userId, boolean includeOrgSchedules) {
-        boardService.checkViewerOrAbove(boardId, userId);
+    public ScheduleResponse.DailyFull getDailyFull(
+            String boardId, LocalDate date, List<String> assigneeIds, String userId, boolean includeOrgSchedules) {
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         if (!board.canAccessSchedule()) {
             return ScheduleResponse.DailyFull.builder()
                     .date(date)
@@ -77,8 +76,9 @@ public class ScheduleFacadeService {
         }
 
         // 1. 스케줄 블록 조회
-        List<ScheduleBlock> blocks = scheduleBlockRepository
-                .findByBoardIdAndScheduledDateAndAssigneeIdInOrderByStartTimeAsc(boardId, date, targetAssigneeIds);
+        List<ScheduleBlock> blocks =
+                scheduleBlockRepository.findByBoardIdAndScheduledDateAndAssigneeIdInOrderByStartTimeAsc(
+                        boardId, date, targetAssigneeIds);
 
         Map<String, List<ScheduleBlock>> blocksByAssignee = blocks.stream()
                 .collect(Collectors.groupingBy(b -> b.getAssignee().getId()));
@@ -89,9 +89,8 @@ public class ScheduleFacadeService {
             if (user == null) continue;
 
             List<ScheduleBlock> userBlocks = blocksByAssignee.getOrDefault(assigneeId, new ArrayList<>());
-            List<ScheduleResponse.BlockInfo> blockInfos = userBlocks.stream()
-                    .map(ScheduleResponse.BlockInfo::of)
-                    .collect(Collectors.toList());
+            List<ScheduleResponse.BlockInfo> blockInfos =
+                    userBlocks.stream().map(ScheduleResponse.BlockInfo::of).collect(Collectors.toList());
 
             scheduleColumns.add(ScheduleResponse.ColumnInfo.builder()
                     .user(ScheduleResponse.UserInfo.of(user))
@@ -107,8 +106,9 @@ public class ScheduleFacadeService {
             List<String> orgBoardIds = boardRepository.findBoardIdsByOrgId(orgId);
 
             // 유저가 멤버인 보드만 필터 (현재 보드 제외)
-            Set<String> userBoardIds = boardMemberRepository.findByUserIdWithActiveBoards(userId)
-                    .stream().map(bm -> bm.getBoard().getId()).collect(Collectors.toSet());
+            Set<String> userBoardIds = boardMemberRepository.findByUserIdWithActiveBoards(userId).stream()
+                    .map(bm -> bm.getBoard().getId())
+                    .collect(Collectors.toSet());
 
             List<String> crossBoardIds = orgBoardIds.stream()
                     .filter(id -> !id.equals(boardId))
@@ -116,8 +116,8 @@ public class ScheduleFacadeService {
                     .collect(Collectors.toList());
 
             if (!crossBoardIds.isEmpty()) {
-                List<ScheduleBlock> crossBlocks = scheduleBlockRepository
-                        .findByBoardIdInAndScheduledDateAndAssigneeIdIn(
+                List<ScheduleBlock> crossBlocks =
+                        scheduleBlockRepository.findByBoardIdInAndScheduledDateAndAssigneeIdIn(
                                 crossBoardIds, date, targetAssigneeIds);
 
                 Map<String, List<ScheduleBlock>> crossByAssignee = crossBlocks.stream()
@@ -180,5 +180,4 @@ public class ScheduleFacadeService {
                 .meetings(meetingSummaries)
                 .build();
     }
-
 }

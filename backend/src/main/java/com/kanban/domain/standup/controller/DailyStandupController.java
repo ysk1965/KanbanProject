@@ -1,6 +1,6 @@
 package com.kanban.domain.standup.controller;
 
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.standup.dto.StandupConfigRequest;
 import com.kanban.domain.standup.dto.StandupConfigResponse;
 import com.kanban.domain.standup.service.DailyStandupService;
@@ -16,15 +16,13 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class DailyStandupController {
 
-    private final BoardService boardService;
+    private final BoardPermissionService boardPermissionService;
     private final DailyStandupService dailyStandupService;
 
     @GetMapping
     public ResponseEntity<StandupConfigResponse.Detail> getConfig(
-            @PathVariable String boardId,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        StandupConfigResponse.Detail response =
-                dailyStandupService.getConfig(boardId, principal.getUserId());
+            @PathVariable String boardId, @AuthenticationPrincipal UserPrincipal principal) {
+        StandupConfigResponse.Detail response = dailyStandupService.getConfig(boardId, principal.getUserId());
         if (response == null) {
             return ResponseEntity.noContent().build();
         }
@@ -36,8 +34,7 @@ public class DailyStandupController {
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody StandupConfigRequest.Upsert request) {
-        boardService.checkTeamBoardOnly(boardId);
-        return ResponseEntity.ok(
-                dailyStandupService.upsertConfig(boardId, principal.getUserId(), request));
+        boardPermissionService.checkTeamBoardOnly(boardId);
+        return ResponseEntity.ok(dailyStandupService.upsertConfig(boardId, principal.getUserId(), request));
     }
 }

@@ -5,7 +5,7 @@ import com.kanban.domain.block.BlockRepository;
 import com.kanban.domain.block.FixedBlockType;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
@@ -29,23 +29,21 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -64,12 +62,13 @@ public class MilestoneService {
     private final ChecklistItemRepository checklistItemRepository;
     private final UserRepository userRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final WebSocketEventService webSocketEventService;
 
     public MilestoneResponse.ListResponse getMilestones(String boardId, String userId) {
         // 뷰어 이상 권한 확인 (컨트롤러 경로 전용 — Facade는 멤버십을 1회 검증 후 internal 직접 호출)
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         return getMilestonesInternal(boardId);
     }
 
@@ -92,8 +91,8 @@ public class MilestoneService {
                 .collect(Collectors.groupingBy(mf -> mf.getMilestone().getId()));
 
         // 피처별 홈(대표) 마일스톤 파생: 연결된 마일스톤 중 가장 이른 시작일(동률 시 마일스톤 id)
-        Map<String, LocalDate> msStart = milestones.stream()
-                .collect(Collectors.toMap(Milestone::getId, Milestone::getStartDate));
+        Map<String, LocalDate> msStart =
+                milestones.stream().collect(Collectors.toMap(Milestone::getId, Milestone::getStartDate));
         Map<String, String> homeByFeature = deriveHomeMilestones(allMilestoneFeatures, msStart);
 
         // (마일스톤, 피처)별 태스크/체크리스트 카운트 각 1회 집계 — 진행률 + 피처별 카운트 공용
@@ -106,13 +105,15 @@ public class MilestoneService {
             progressMap.put(milestone.getId(), progressFromCounts(itemCountsMap.get(milestone.getId())));
         }
 
-        return MilestoneResponse.ListResponse.of(milestones, linksMap, progressMap, taskCountsMap, itemCountsMap, homeByFeature);
+        return MilestoneResponse.ListResponse.of(
+                milestones, linksMap, progressMap, taskCountsMap, itemCountsMap, homeByFeature);
     }
 
     public MilestoneResponse.Detail getMilestone(String boardId, String milestoneId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
-        Milestone milestone = milestoneRepository.findById(milestoneId)
+        Milestone milestone = milestoneRepository
+                .findById(milestoneId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
 
         if (!milestone.getBoard().getId().equals(boardId)) {
@@ -124,14 +125,14 @@ public class MilestoneService {
 
     @Transactional
     public MilestoneResponse.Detail createMilestone(String boardId, String userId, MilestoneRequest.Create request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
         validateMilestoneAccess(boardId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        User creator = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User creator =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         Milestone milestone = Milestone.builder()
                 .board(board)
@@ -167,10 +168,12 @@ public class MilestoneService {
     }
 
     @Transactional
-    public MilestoneResponse.Detail updateMilestone(String boardId, String milestoneId, String userId, MilestoneRequest.Update request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public MilestoneResponse.Detail updateMilestone(
+            String boardId, String milestoneId, String userId, MilestoneRequest.Update request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Milestone milestone = milestoneRepository.findById(milestoneId)
+        Milestone milestone = milestoneRepository
+                .findById(milestoneId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
 
         if (!milestone.getBoard().getId().equals(boardId)) {
@@ -178,11 +181,7 @@ public class MilestoneService {
         }
 
         milestone.updateInfo(
-                request.getTitle(),
-                request.getDescription(),
-                request.getStartDate(),
-                request.getEndDate()
-        );
+                request.getTitle(), request.getDescription(), request.getStartDate(), request.getEndDate());
 
         log.info("Milestone updated: {} by user: {}", milestoneId, userId);
 
@@ -191,9 +190,10 @@ public class MilestoneService {
 
     @Transactional
     public void deleteMilestone(String boardId, String milestoneId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Milestone milestone = milestoneRepository.findById(milestoneId)
+        Milestone milestone = milestoneRepository
+                .findById(milestoneId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
 
         if (!milestone.getBoard().getId().equals(boardId)) {
@@ -210,7 +210,8 @@ public class MilestoneService {
         // 마일스톤 전용 블록의 태스크를 Task 고정 블록으로 이동 후 삭제
         List<Block> milestoneBlocks = blockRepository.findByMilestoneIdOrderByPositionAsc(milestoneId);
         if (!milestoneBlocks.isEmpty()) {
-            Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
+            Block taskBlock = blockRepository
+                    .findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
                     .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
             for (Block milestoneBlock : milestoneBlocks) {
                 taskRepository.moveTasksToBlock(milestoneBlock.getId(), taskBlock);
@@ -233,10 +234,12 @@ public class MilestoneService {
     }
 
     @Transactional
-    public MilestoneResponse.Detail addFeatures(String boardId, String milestoneId, String userId, MilestoneRequest.AddFeatures request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public MilestoneResponse.Detail addFeatures(
+            String boardId, String milestoneId, String userId, MilestoneRequest.AddFeatures request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Milestone milestone = milestoneRepository.findById(milestoneId)
+        Milestone milestone = milestoneRepository
+                .findById(milestoneId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
 
         if (!milestone.getBoard().getId().equals(boardId)) {
@@ -244,8 +247,8 @@ public class MilestoneService {
         }
 
         // 이미 연결된 Feature ID 배치 조회 (N+1 방지)
-        Set<String> existingFeatureIds = milestoneFeatureRepository.findFeatureIdsByMilestoneId(milestoneId)
-                .stream().collect(Collectors.toSet());
+        Set<String> existingFeatureIds = milestoneFeatureRepository.findFeatureIdsByMilestoneId(milestoneId).stream()
+                .collect(Collectors.toSet());
 
         List<String> newFeatureIds = request.getFeatureIds().stream()
                 .filter(id -> !existingFeatureIds.contains(id))
@@ -271,9 +274,10 @@ public class MilestoneService {
 
     @Transactional
     public void removeFeature(String boardId, String milestoneId, String featureId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Milestone milestone = milestoneRepository.findById(milestoneId)
+        Milestone milestone = milestoneRepository
+                .findById(milestoneId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
 
         if (!milestone.getBoard().getId().equals(boardId)) {
@@ -281,7 +285,8 @@ public class MilestoneService {
         }
 
         MilestoneFeature target = milestoneFeatureRepository
-                .findByMilestoneIdAndFeatureId(milestoneId, featureId).orElse(null);
+                .findByMilestoneIdAndFeatureId(milestoneId, featureId)
+                .orElse(null);
         if (target == null) {
             return;
         }
@@ -289,8 +294,8 @@ public class MilestoneService {
         milestoneFeatureRepository.flush();
 
         // 제거 후 남은 링크 중 가장 이른 마일스톤이 새 홈(대표). 삭제를 먼저 flush해야 파생이 정확.
-        Milestone newHome = milestoneFeatureRepository.findByFeatureIdOrderByMilestoneStartDate(featureId)
-                .stream().findFirst()
+        Milestone newHome = milestoneFeatureRepository.findByFeatureIdOrderByMilestoneStartDate(featureId).stream()
+                .findFirst()
                 .map(MilestoneFeature::getMilestone)
                 .orElse(null);
 
@@ -301,8 +306,12 @@ public class MilestoneService {
             tk.assignMilestone(newHome);
         }
 
-        log.info("Feature {} removed from milestone {} by user: {} ({} tasks reassigned)",
-                featureId, milestoneId, userId, orphanTasks.size());
+        log.info(
+                "Feature {} removed from milestone {} by user: {} ({} tasks reassigned)",
+                featureId,
+                milestoneId,
+                userId,
+                orphanTasks.size());
     }
 
     /**
@@ -312,10 +321,9 @@ public class MilestoneService {
     private MilestoneResponse.Detail buildDetail(Milestone milestone) {
         String boardId = milestone.getBoard().getId();
         List<MilestoneFeature> links = milestoneFeatureRepository.findWithFeatureByMilestoneId(milestone.getId());
-        Map<String, int[]> taskCounts = taskCountsByMilestoneFeature(boardId)
-                .getOrDefault(milestone.getId(), Map.of());
-        Map<String, int[]> itemCounts = checklistCountsByMilestoneFeature(boardId)
-                .getOrDefault(milestone.getId(), Map.of());
+        Map<String, int[]> taskCounts = taskCountsByMilestoneFeature(boardId).getOrDefault(milestone.getId(), Map.of());
+        Map<String, int[]> itemCounts =
+                checklistCountsByMilestoneFeature(boardId).getOrDefault(milestone.getId(), Map.of());
         int progress = progressFromCounts(itemCounts);
 
         // 이 마일스톤에 속한 각 피처의 홈(대표) 마일스톤 파생 (가장 이른 시작일, 동률 시 마일스톤 id)
@@ -327,7 +335,8 @@ public class MilestoneService {
             }
             milestoneFeatureRepository.findByFeatureIdOrderByMilestoneStartDate(featureId).stream()
                     .findFirst()
-                    .ifPresent(first -> homeByFeature.put(featureId, first.getMilestone().getId()));
+                    .ifPresent(first ->
+                            homeByFeature.put(featureId, first.getMilestone().getId()));
         }
 
         return MilestoneResponse.Detail.of(milestone, links, progress, taskCounts, itemCounts, homeByFeature);
@@ -362,13 +371,14 @@ public class MilestoneService {
 
     @Transactional
     @CacheEvict(value = "blocks", allEntries = true)
-    public void toggleBlockVisibility(String boardId, String milestoneId, String blockId, boolean hidden, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+    public void toggleBlockVisibility(
+            String boardId, String milestoneId, String blockId, boolean hidden, String userId) {
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
         Milestone milestone = getMilestoneWithBoardCheck(boardId, milestoneId);
 
-        Block block = blockRepository.findById(blockId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
+        Block block =
+                blockRepository.findById(blockId).orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
 
         if (!block.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.BLOCK_NOT_FOUND);
@@ -384,7 +394,8 @@ public class MilestoneService {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
-        Optional<MilestoneBlockConfig> existingConfig = milestoneBlockConfigRepository.findByMilestoneIdAndBlockId(milestoneId, blockId);
+        Optional<MilestoneBlockConfig> existingConfig =
+                milestoneBlockConfigRepository.findByMilestoneIdAndBlockId(milestoneId, blockId);
 
         if (existingConfig.isPresent()) {
             existingConfig.get().updateHidden(hidden);
@@ -393,10 +404,19 @@ public class MilestoneService {
             milestoneBlockConfigRepository.save(config);
         }
 
-        log.info("Block {} visibility changed to hidden={} in milestone {} by user: {}", blockId, hidden, milestoneId, userId);
+        log.info(
+                "Block {} visibility changed to hidden={} in milestone {} by user: {}",
+                blockId,
+                hidden,
+                milestoneId,
+                userId);
 
         // WebSocket 이벤트
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.BLOCK_VISIBILITY_CHANGED, userId, null,
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.BLOCK_VISIBILITY_CHANGED,
+                userId,
+                null,
                 Map.of("blockId", blockId, "milestoneId", milestoneId, "hidden", hidden));
     }
 
@@ -411,8 +431,7 @@ public class MilestoneService {
             String featureId = (String) row[1];
             int total = ((Number) row[2]).intValue();
             int completed = ((Number) row[3]).intValue();
-            result.computeIfAbsent(milestoneId, k -> new HashMap<>())
-                    .put(featureId, new int[]{total, completed});
+            result.computeIfAbsent(milestoneId, k -> new HashMap<>()).put(featureId, new int[] {total, completed});
         }
         return result;
     }
@@ -433,7 +452,7 @@ public class MilestoneService {
             int overdue = ((Number) row[4]).intValue();
             int unassigned = ((Number) row[5]).intValue();
             result.computeIfAbsent(milestoneId, k -> new HashMap<>())
-                    .put(featureId, new int[]{total, completed, overdue, unassigned});
+                    .put(featureId, new int[] {total, completed, overdue, unassigned});
         }
         return result;
     }
@@ -458,7 +477,7 @@ public class MilestoneService {
     // ==================== Allocation Methods ====================
 
     public MilestoneResponse.AllocationListResponse getAllocations(String boardId, String milestoneId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
         Milestone milestone = getMilestoneWithBoardCheck(boardId, milestoneId);
 
@@ -469,7 +488,8 @@ public class MilestoneService {
 
         List<MilestoneResponse.AllocationDto> allocationDtos = allocations.stream()
                 .map(allocation -> {
-                    Double actualHours = memberActualHours.getOrDefault(allocation.getMember().getId(), 0.0);
+                    Double actualHours = memberActualHours.getOrDefault(
+                            allocation.getMember().getId(), 0.0);
                     return MilestoneResponse.AllocationDto.of(allocation, actualHours);
                 })
                 .collect(Collectors.toList());
@@ -479,13 +499,13 @@ public class MilestoneService {
 
     @Transactional
     public MilestoneResponse.AllocationDto createAllocation(
-            String boardId, String milestoneId, String userId,
-            MilestoneRequest.CreateAllocation request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+            String boardId, String milestoneId, String userId, MilestoneRequest.CreateAllocation request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         Milestone milestone = getMilestoneWithBoardCheck(boardId, milestoneId);
 
-        User member = userRepository.findById(request.getMemberId())
+        User member = userRepository
+                .findById(request.getMemberId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // 이미 할당되어 있는지 확인
@@ -494,28 +514,34 @@ public class MilestoneService {
         }
 
         MilestoneAllocation allocation = MilestoneAllocation.create(
-                milestone, member, request.getWorkingDays(), request.getTotalAllocatedHours()
-        );
+                milestone, member, request.getWorkingDays(), request.getTotalAllocatedHours());
         milestoneAllocationRepository.save(allocation);
 
         Map<String, Double> memberActualHours = calculateMemberActualHours(milestone);
         Double actualHours = memberActualHours.getOrDefault(member.getId(), 0.0);
 
-        log.info("Allocation created for member {} in milestone {} by user: {}",
-                request.getMemberId(), milestoneId, userId);
+        log.info(
+                "Allocation created for member {} in milestone {} by user: {}",
+                request.getMemberId(),
+                milestoneId,
+                userId);
 
         return MilestoneResponse.AllocationDto.of(allocation, actualHours);
     }
 
     @Transactional
     public MilestoneResponse.AllocationDto updateAllocation(
-            String boardId, String milestoneId, String allocationId, String userId,
+            String boardId,
+            String milestoneId,
+            String allocationId,
+            String userId,
             MilestoneRequest.UpdateAllocation request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         Milestone milestone = getMilestoneWithBoardCheck(boardId, milestoneId);
 
-        MilestoneAllocation allocation = milestoneAllocationRepository.findById(allocationId)
+        MilestoneAllocation allocation = milestoneAllocationRepository
+                .findById(allocationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_ALLOCATION_NOT_FOUND));
 
         if (!allocation.getMilestone().getId().equals(milestoneId)) {
@@ -525,7 +551,8 @@ public class MilestoneService {
         allocation.updateAllocation(request.getWorkingDays(), request.getTotalAllocatedHours());
 
         Map<String, Double> memberActualHours = calculateMemberActualHours(milestone);
-        Double actualHours = memberActualHours.getOrDefault(allocation.getMember().getId(), 0.0);
+        Double actualHours =
+                memberActualHours.getOrDefault(allocation.getMember().getId(), 0.0);
 
         log.info("Allocation {} updated in milestone {} by user: {}", allocationId, milestoneId, userId);
 
@@ -534,11 +561,12 @@ public class MilestoneService {
 
     @Transactional
     public void deleteAllocation(String boardId, String milestoneId, String allocationId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         getMilestoneWithBoardCheck(boardId, milestoneId);
 
-        MilestoneAllocation allocation = milestoneAllocationRepository.findById(allocationId)
+        MilestoneAllocation allocation = milestoneAllocationRepository
+                .findById(allocationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_ALLOCATION_NOT_FOUND));
 
         if (!allocation.getMilestone().getId().equals(milestoneId)) {
@@ -551,7 +579,8 @@ public class MilestoneService {
     }
 
     private Milestone getMilestoneWithBoardCheck(String boardId, String milestoneId) {
-        Milestone milestone = milestoneRepository.findById(milestoneId)
+        Milestone milestone = milestoneRepository
+                .findById(milestoneId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
 
         if (!milestone.getBoard().getId().equals(boardId)) {
@@ -578,28 +607,25 @@ public class MilestoneService {
 
         // 보드의 모든 ScheduleBlock 중 마일스톤 기간 내, 해당 Feature에 속한 것만 필터링
         List<ScheduleBlock> scheduleBlocks = scheduleBlockRepository.findByBoardIdAndScheduledDateBetween(
-                boardId, milestone.getStartDate(), milestone.getEndDate()
-        );
+                boardId, milestone.getStartDate(), milestone.getEndDate());
 
         return scheduleBlocks.stream()
-                .filter(sb -> sb.getChecklistItem() != null &&
-                        sb.getChecklistItem().getTask() != null &&
-                        sb.getChecklistItem().getTask().getFeature() != null &&
-                        featureIdSet.contains(sb.getChecklistItem().getTask().getFeature().getId()))
-                .collect(Collectors.groupingBy(
-                        sb -> sb.getAssignee().getId(),
-                        Collectors.summingDouble(sb -> {
-                            if (sb.getStartTime() == null || sb.getEndTime() == null) {
-                                return 0.0;
-                            }
-                            return Duration.between(sb.getStartTime(), sb.getEndTime()).toMinutes() / 60.0;
-                        })
-                ));
+                .filter(sb -> sb.getChecklistItem() != null
+                        && sb.getChecklistItem().getTask() != null
+                        && sb.getChecklistItem().getTask().getFeature() != null
+                        && featureIdSet.contains(
+                                sb.getChecklistItem().getTask().getFeature().getId()))
+                .collect(Collectors.groupingBy(sb -> sb.getAssignee().getId(), Collectors.summingDouble(sb -> {
+                    if (sb.getStartTime() == null || sb.getEndTime() == null) {
+                        return 0.0;
+                    }
+                    return Duration.between(sb.getStartTime(), sb.getEndTime()).toMinutes() / 60.0;
+                })));
     }
 
     private void validateMilestoneAccess(String boardId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         if (!board.canAccessMilestone()) {
             throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
         }

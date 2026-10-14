@@ -6,8 +6,7 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
-import com.kanban.domain.checklist.ChecklistItem;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.Comment;
 import com.kanban.domain.comment.CommentRepository;
@@ -21,14 +20,13 @@ import com.kanban.domain.standup.dto.StandupConfigResponse;
 import com.kanban.domain.task.Task;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.time.*;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.*;
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -38,7 +36,8 @@ public class DailyStandupService {
 
     private final DailyStandupConfigRepository configRepository;
     private final BoardRepository boardRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final BoardMemberRepository boardMemberRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final CommentRepository commentRepository;
@@ -49,19 +48,20 @@ public class DailyStandupService {
     private static final int MAX_COMMENT_LENGTH = 150;
 
     public StandupConfigResponse.Detail getConfig(String boardId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
-        return configRepository.findByBoardId(boardId)
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
+        return configRepository
+                .findByBoardId(boardId)
                 .map(StandupConfigResponse.Detail::from)
                 .orElse(null);
     }
 
     @Transactional
-    public StandupConfigResponse.Detail upsertConfig(String boardId, String userId,
-                                                      StandupConfigRequest.Upsert request) {
-        boardService.checkAdminOrAbove(boardId, userId);
+    public StandupConfigResponse.Detail upsertConfig(
+            String boardId, String userId, StandupConfigRequest.Upsert request) {
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         if (!board.canAccessSlack()) {
             throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
@@ -86,8 +86,7 @@ public class DailyStandupService {
         String lang = request.getLanguage() != null ? request.getLanguage() : "ko";
 
         if (config != null) {
-            config.update(request.getEnabled(), utcHour, utcMinute,
-                    request.getTimezone(), lang);
+            config.update(request.getEnabled(), utcHour, utcMinute, request.getTimezone(), lang);
         } else {
             config = DailyStandupConfig.builder()
                     .board(board)
@@ -100,8 +99,12 @@ public class DailyStandupService {
         }
 
         configRepository.save(config);
-        log.info("Standup config updated for board: {}, enabled: {}, UTC {}:{}",
-                boardId, request.getEnabled(), utcHour, utcMinute);
+        log.info(
+                "Standup config updated for board: {}, enabled: {}, UTC {}:{}",
+                boardId,
+                request.getEnabled(),
+                utcHour,
+                utcMinute);
 
         return StandupConfigResponse.Detail.from(config);
     }
@@ -127,12 +130,11 @@ public class DailyStandupService {
         data.put("date", yesterday.toString());
 
         // 1. 어제의 ScheduleBlocks
-        List<ScheduleBlock> scheduleBlocks = scheduleBlockRepository
-                .findByBoardIdAndScheduledDateBetween(boardId, yesterday, yesterday);
+        List<ScheduleBlock> scheduleBlocks =
+                scheduleBlockRepository.findByBoardIdAndScheduledDateBetween(boardId, yesterday, yesterday);
 
         // 2. 어제의 Comments
-        List<Comment> comments = commentRepository.findByBoardAndDateRange(
-                boardId, utcStart, utcEnd);
+        List<Comment> comments = commentRepository.findByBoardAndDateRange(boardId, utcStart, utcEnd);
 
         // 3. 팀 크기
         List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
@@ -183,7 +185,8 @@ public class DailyStandupService {
 
             // Task 시간 계산
             int taskMinutes = taskBlocks.stream()
-                    .mapToInt(sb -> (int) Duration.between(sb.getStartTime(), sb.getEndTime()).toMinutes())
+                    .mapToInt(sb -> (int)
+                            Duration.between(sb.getStartTime(), sb.getEndTime()).toMinutes())
                     .sum();
             totalMinutes += taskMinutes;
 
@@ -199,8 +202,8 @@ public class DailyStandupService {
                         .filter(sb -> sb.getAssignee() != null)
                         .collect(Collectors.groupingBy(
                                 sb -> sb.getAssignee().getName(),
-                                Collectors.summingInt(sb ->
-                                        (int) Duration.between(sb.getStartTime(), sb.getEndTime()).toMinutes())));
+                                Collectors.summingInt(sb -> (int) Duration.between(sb.getStartTime(), sb.getEndTime())
+                                        .toMinutes())));
                 taskData.put("time_by_member", byMember);
             }
 
@@ -217,7 +220,8 @@ public class DailyStandupService {
                             m.put("title", ci.getTitle());
                             m.put("completed", ci.getIsCompleted());
                             return m;
-                        }).toList();
+                        })
+                        .toList();
                 if (!clList.isEmpty()) {
                     taskData.put("checklists", clList);
                 }
@@ -229,14 +233,17 @@ public class DailyStandupService {
                         .limit(5)
                         .map(c -> {
                             Map<String, String> m = new LinkedHashMap<>();
-                            m.put("author", c.getAuthor() != null ? c.getAuthor().getName() : "Unknown");
+                            m.put(
+                                    "author",
+                                    c.getAuthor() != null ? c.getAuthor().getName() : "Unknown");
                             String content = c.getContent();
                             if (content != null && content.length() > MAX_COMMENT_LENGTH) {
                                 content = content.substring(0, MAX_COMMENT_LENGTH) + "...";
                             }
                             m.put("content", content != null ? content : "");
                             return m;
-                        }).toList();
+                        })
+                        .toList();
                 taskData.put("comments", cmList);
             }
 

@@ -1,6 +1,6 @@
 package com.kanban.domain.report.service;
 
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.report.BoardReportConfig;
 import com.kanban.domain.report.BoardReportConfigRepository;
 import com.kanban.domain.report.ReportType;
@@ -8,17 +8,16 @@ import com.kanban.domain.report.dto.ReportPreviewResponse;
 import com.kanban.domain.report.source.ReportPeriod;
 import com.kanban.domain.report.source.ReportSource;
 import com.kanban.domain.report.source.SourceChunk;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.DayOfWeek;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 저장 전에 "실제로 이만큼 잡힌다"를 보여주는 미리보기.
@@ -31,13 +30,13 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ReportSourcePreviewService {
 
-    private final BoardService boardService;
+    private final BoardPermissionService boardPermissionService;
     private final BoardReportConfigRepository configRepository;
     private final List<ReportSource> sources;
 
     @Transactional(readOnly = true)
     public ReportPreviewResponse preview(String boardId, String userId, ReportType reportType) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         Optional<BoardReportConfig> configOpt = configRepository.findByBoardId(boardId);
         ZoneId zone = configOpt.map(c -> ZoneId.of(c.getTimezone())).orElse(ZoneId.of("Asia/Seoul"));
@@ -66,8 +65,7 @@ public class ReportSourcePreviewService {
     /**
      * 소스 하나가 터져도 미리보기 전체가 실패하면 안 된다 — 어느 소스가 문제인지 보려고 부르는 화면이다.
      */
-    private ReportPreviewResponse.SourceResult runOne(ReportSource source, String boardId,
-                                                      ReportPeriod period) {
+    private ReportPreviewResponse.SourceResult runOne(ReportSource source, String boardId, ReportPeriod period) {
         try {
             if (!source.isConfigured(boardId)) {
                 return ReportPreviewResponse.SourceResult.builder()
@@ -102,7 +100,7 @@ public class ReportSourcePreviewService {
 
     private boolean isEnabled(ReportSource source, Optional<BoardReportConfig> configOpt) {
         if (configOpt.isEmpty()) {
-            return true;   // 설정 저장 전에도 미리보기는 돌아야 한다
+            return true; // 설정 저장 전에도 미리보기는 돌아야 한다
         }
         BoardReportConfig config = configOpt.get();
         return switch (source.kind()) {
@@ -117,12 +115,11 @@ public class ReportSourcePreviewService {
      * 미리보기 구간은 <b>가장 최근에 지나간 발송 시각</b>을 끝점으로 잡는다.
      * 지금 시각까지로 잡으면 실제 발송과 구간 모양이 달라 "이만큼 잡힌다"가 거짓이 된다.
      */
-    private ReportPeriod resolvePeriod(ReportType reportType, Optional<BoardReportConfig> configOpt,
-                                       ZonedDateTime now, ZoneId zone) {
+    private ReportPeriod resolvePeriod(
+            ReportType reportType, Optional<BoardReportConfig> configOpt, ZonedDateTime now, ZoneId zone) {
         if (reportType == ReportType.WEEKLY_INTEGRATED) {
-            DayOfWeek boundary = configOpt
-                    .map(c -> DayOfWeek.of(c.getWeeklyDayOfWeek()))
-                    .orElse(DayOfWeek.SATURDAY);
+            DayOfWeek boundary =
+                    configOpt.map(c -> DayOfWeek.of(c.getWeeklyDayOfWeek())).orElse(DayOfWeek.SATURDAY);
             int[] hm = localSendTime(configOpt, zone, true);
             return ReportPeriod.previewWeekly(now, boundary, hm[0], hm[1]);
         }
@@ -132,12 +129,19 @@ public class ReportSourcePreviewService {
 
     /** 저장은 UTC로 하므로 보드 타임존의 시:분으로 되돌린다. */
     private int[] localSendTime(Optional<BoardReportConfig> configOpt, ZoneId zone, boolean weekly) {
-        int hourUtc = configOpt.map(c -> weekly ? c.getWeeklySendHourUtc() : c.getDailySendHourUtc()).orElse(0);
-        int minuteUtc = configOpt.map(c -> weekly ? c.getWeeklySendMinuteUtc() : c.getDailySendMinuteUtc()).orElse(0);
+        int hourUtc = configOpt
+                .map(c -> weekly ? c.getWeeklySendHourUtc() : c.getDailySendHourUtc())
+                .orElse(0);
+        int minuteUtc = configOpt
+                .map(c -> weekly ? c.getWeeklySendMinuteUtc() : c.getDailySendMinuteUtc())
+                .orElse(0);
 
         ZonedDateTime utc = ZonedDateTime.now(ZoneId.of("UTC"))
-                .withHour(hourUtc).withMinute(minuteUtc).withSecond(0).withNano(0);
+                .withHour(hourUtc)
+                .withMinute(minuteUtc)
+                .withSecond(0)
+                .withNano(0);
         ZonedDateTime local = utc.withZoneSameInstant(zone);
-        return new int[]{local.getHour(), local.getMinute()};
+        return new int[] {local.getHour(), local.getMinute()};
     }
 }

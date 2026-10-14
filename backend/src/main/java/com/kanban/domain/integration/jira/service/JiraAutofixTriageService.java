@@ -7,7 +7,7 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.Comment;
@@ -25,16 +25,14 @@ import com.kanban.domain.user.User;
 import com.kanban.global.config.ClaudeAIProvider;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * 자동수정 트리아지 — JIRA 연동 이슈가 <b>자동 검증 가능한지</b> 판정한다.
@@ -67,6 +65,7 @@ public class JiraAutofixTriageService {
      * 판정을 뒤집는 말은 대개 뒤에 온다.
      */
     private static final int COMMENT_COUNT = 5;
+
     private static final int COMMENT_CLIP = 300;
 
     /**
@@ -76,6 +75,7 @@ public class JiraAutofixTriageService {
      * 근거가 없을 때는 아무 말도 하지 않는 편이 낫다.
      */
     private static final int OUTCOME_MIN_TOTAL = 5;
+
     private static final int OUTCOME_MIN_PER_CATEGORY = 2;
 
     private static final String FEATURE_TYPE = "JIRA_AUTOFIX_TRIAGE";
@@ -83,7 +83,8 @@ public class JiraAutofixTriageService {
     private final ClaudeAIProvider claudeAIProvider;
     private final ObjectMapper objectMapper;
     private final BoardRepository boardRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final TaskRepository taskRepository;
     private final JiraIssueLinkRepository issueLinkRepository;
     private final JiraMilestoneScopeRepository milestoneScopeRepository;
@@ -91,6 +92,7 @@ public class JiraAutofixTriageService {
     private final JiraAutofixTriageRepository triageRepository;
     /** 실행 진행률 원장. 판정이 백그라운드로 도는 동안 화면이 보는 유일한 상태다. */
     private final JiraAutofixTriageRunRepository runRepository;
+
     private final ApplicationEventPublisher eventPublisher;
     private final AiUsageLogRepository aiUsageLogRepository;
     private final AiCreditService aiCreditService;
@@ -98,42 +100,47 @@ public class JiraAutofixTriageService {
     private final CommentAttachmentRepository commentAttachmentRepository;
     /** 목록에 붙일 담당자·색을 위한 조회 전용 의존성. 판정 자체에는 쓰이지 않는다. */
     private final ChecklistItemRepository checklistItemRepository;
+
     private final BoardMemberRepository boardMemberRepository;
 
     @Value("${ai.claude.model.jira-triage:claude-sonnet-5}")
     private String model;
 
-    private static final List<String> VERDICT_VALUES =
-            List.of("CANDIDATE", "CONDITIONAL", "EXCLUDED");
+    private static final List<String> VERDICT_VALUES = List.of("CANDIDATE", "CONDITIONAL", "EXCLUDED");
 
     private static final List<String> CATEGORY_VALUES =
             List.of("TEXT", "NULL_GUARD", "CONSTANT", "LOGIC", "UI_STATE", "ASSET", "DESIGN_INTENT", "OTHER");
 
     /** 출력 스키마. structured outputs로 강제되므로 파싱 실패가 없다. */
     private static final Map<String, Object> OUTPUT_SCHEMA = Map.of(
-            "type", "object",
-            "additionalProperties", false,
-            "required", List.of("results"),
-            "properties", Map.of(
-                    "results", Map.of(
-                            "type", "array",
-                            "items", Map.of(
-                                    "type", "object",
-                                    "additionalProperties", false,
-                                    "required", List.of("issue_key", "verdict", "category",
-                                            "confidence", "verification", "reason"),
-                                    "properties", Map.of(
+            "type",
+            "object",
+            "additionalProperties",
+            false,
+            "required",
+            List.of("results"),
+            "properties",
+            Map.of(
+                    "results",
+                    Map.of(
+                            "type",
+                            "array",
+                            "items",
+                            Map.of(
+                                    "type",
+                                    "object",
+                                    "additionalProperties",
+                                    false,
+                                    "required",
+                                    List.of("issue_key", "verdict", "category", "confidence", "verification", "reason"),
+                                    "properties",
+                                    Map.of(
                                             "issue_key", Map.of("type", "string"),
                                             "verdict", Map.of("type", "string", "enum", VERDICT_VALUES),
                                             "category", Map.of("type", "string", "enum", CATEGORY_VALUES),
                                             "confidence", Map.of("type", "number"),
                                             "verification", Map.of("type", "string"),
-                                            "reason", Map.of("type", "string")
-                                    )
-                            )
-                    )
-            )
-    );
+                                            "reason", Map.of("type", "string"))))));
 
     /**
      * 저장소의 검증 기반 수준별 프롬프트 조각. 이게 빠지면 모델은 테스트가 갖춰진 저장소를
@@ -165,8 +172,7 @@ public class JiraAutofixTriageService {
                     이 저장소는 테스트 기반이 갖춰져 있고 CI에서 EditMode/PlayMode 테스트가 돈다.
                     기존 테스트 확장이나 신규 테스트 작성을 정상적인 검증 수단으로 인정한다.
                     </repo_reality>
-                    """
-    );
+                    """);
 
     private static final String SYSTEM_PROMPT_TEMPLATE = """
             너는 Unity 게임 프로젝트의 QA 이슈를 분류하는 트리아지 담당이다.
@@ -229,12 +235,12 @@ public class JiraAutofixTriageService {
      *                  변경된 건만 다시" 누르는 경로다 — 카드가 BRIDGE 안에서만 움직였을 때는
      *                  JIRA 갱신 시각이 그대로라 평소 기준으로는 전부 건너뛰어 버튼이 아무 일도 안 한다.
      */
-    public JiraAutofixResponse.TriageRun startTriage(String boardId, String userId,
-                                                     boolean force, List<String> issueKeys) {
-        boardService.checkAdminOrAbove(boardId, userId);
+    public JiraAutofixResponse.TriageRun startTriage(
+            String boardId, String userId, boolean force, List<String> issueKeys) {
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         JiraAutofixTriageRun previous = runRepository.findLatest(boardId).orElse(null);
         if (previous != null && previous.isRunning()) {
@@ -251,8 +257,12 @@ public class JiraAutofixTriageService {
         }
 
         JiraAutofixTriageRun run = runRepository.save(JiraAutofixTriageRun.start(
-                board, userId, scope.links().size(), scope.targets().size(),
-                scope.links().size() - scope.targets().size(), scope.scoped()));
+                board,
+                userId,
+                scope.links().size(),
+                scope.targets().size(),
+                scope.links().size() - scope.targets().size(),
+                scope.scoped()));
 
         // 판정할 게 없으면 백그라운드로 보낼 이유가 없다 — 화면이 폴링만 한 바퀴 헛돈다
         if (scope.targets().isEmpty()) {
@@ -268,7 +278,7 @@ public class JiraAutofixTriageService {
 
     /** 마지막 실행 상태. 화면은 RUNNING인 동안 이걸 폴링해 진행률을 그린다. */
     public JiraAutofixResponse.TriageRun getRunStatus(String boardId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
         JiraAutofixTriageRun run = runRepository.findLatest(boardId).orElse(null);
         if (run == null) {
@@ -293,8 +303,7 @@ public class JiraAutofixTriageService {
      * 잡고 있으면 안 된다. 저장은 배치 단위로 {@code saveAll}이 각자의 트랜잭션에서 처리한다.
      * 중간에 실패해도 거기까지의 판정은 남는다.
      */
-    public void executeRun(String runId, String boardId, String userId,
-                           boolean force, List<String> issueKeys) {
+    public void executeRun(String runId, String boardId, String userId, boolean force, List<String> issueKeys) {
         JiraAutofixTriageRun run = runRepository.findById(runId).orElse(null);
         if (run == null) {
             log.warn("JIRA autofix triage: run not found ({})", runId);
@@ -302,7 +311,8 @@ public class JiraAutofixTriageService {
         }
 
         try {
-            Board board = boardRepository.findById(boardId)
+            Board board = boardRepository
+                    .findById(boardId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
             // 시작 때와 같은 기준으로 다시 뽑는다 — 대상 목록은 스레드를 건너 넘기지 않는다
@@ -316,8 +326,7 @@ public class JiraAutofixTriageService {
             run.succeed();
             runRepository.save(run);
         } catch (Exception e) {
-            log.error("JIRA autofix triage run failed (board={}, run={}): {}",
-                    boardId, runId, e.getMessage(), e);
+            log.error("JIRA autofix triage run failed (board={}, run={}): {}", boardId, runId, e.getMessage(), e);
             run.fail(e.getMessage() != null ? e.getMessage() : "트리아지 실행에 실패했습니다");
             runRepository.save(run);
         }
@@ -333,19 +342,19 @@ public class JiraAutofixTriageService {
     }
 
     /** 범위를 좁힌 동기 실행. {@link #triageBoard(String, String, boolean)} 참고. */
-    public JiraAutofixResponse.TriageRun triageBoard(String boardId, String userId,
-                                                     boolean force, List<String> issueKeys) {
-        boardService.checkAdminOrAbove(boardId, userId);
+    public JiraAutofixResponse.TriageRun triageBoard(
+            String boardId, String userId, boolean force, List<String> issueKeys) {
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         Scope scope = resolveScope(boardId, force, issueKeys);
         if (scope.links().isEmpty()) {
             throw new BusinessException(ErrorCode.JIRA_AUTOFIX_NO_LINKED_ISSUES);
         }
 
-        int[] result = runBatches(board, userId, scope, (triagedDelta, batchFailed) -> { });
+        int[] result = runBatches(board, userId, scope, (triagedDelta, batchFailed) -> {});
 
         return JiraAutofixResponse.TriageRun.builder()
                 .status(AutofixTriageRunStatus.SUCCEEDED.name())
@@ -366,8 +375,11 @@ public class JiraAutofixTriageService {
     }
 
     /** 판정 대상 산출 결과. 시작과 실행이 같은 기준을 봐야 진행률의 분모가 맞는다. */
-    private record Scope(List<JiraIssueLink> links, List<JiraIssueLink> targets,
-                         Map<String, JiraAutofixTriage> existing, boolean scoped) { }
+    private record Scope(
+            List<JiraIssueLink> links,
+            List<JiraIssueLink> targets,
+            Map<String, JiraAutofixTriage> existing,
+            boolean scoped) {}
 
     private Scope resolveScope(String boardId, boolean force, List<String> issueKeys) {
         boolean scoped = issueKeys != null && !issueKeys.isEmpty();
@@ -378,17 +390,19 @@ public class JiraAutofixTriageService {
         Set<String> endedScopeIds = new HashSet<>();
         java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneOffset.UTC);
         for (JiraMilestoneScope s : milestoneScopeRepository.findByBoardId(boardId)) {
-            if (s.getMilestone().getEndDate() != null && s.getMilestone().getEndDate().isBefore(today)) {
+            if (s.getMilestone().getEndDate() != null
+                    && s.getMilestone().getEndDate().isBefore(today)) {
                 endedScopeIds.add(s.getId());
             }
         }
 
-        List<JiraIssueLink> links = issueLinkRepository
-                .findByBoardIdAndTargetType(boardId, JiraLinkTargetType.TASK).stream()
-                .filter(link -> !link.isJiraDeleted())
-                .filter(link -> !scoped || wanted.contains(link.getJiraIssueKey()))
-                .filter(link -> scoped || link.getScopeId() == null || !endedScopeIds.contains(link.getScopeId()))
-                .toList();
+        List<JiraIssueLink> links =
+                issueLinkRepository.findByBoardIdAndTargetType(boardId, JiraLinkTargetType.TASK).stream()
+                        .filter(link -> !link.isJiraDeleted())
+                        .filter(link -> !scoped || wanted.contains(link.getJiraIssueKey()))
+                        .filter(link ->
+                                scoped || link.getScopeId() == null || !endedScopeIds.contains(link.getScopeId()))
+                        .toList();
 
         Map<String, JiraAutofixTriage> existing = new HashMap<>();
         for (JiraAutofixTriage triage : triageRepository.findByBoardId(boardId)) {
@@ -412,14 +426,20 @@ public class JiraAutofixTriageService {
         List<JiraIssueLink> targets = scope.targets();
 
         // 저장소에 어떤 검증 수단이 실제로 있는지가 판정을 좌우한다 — 없는 테스트를 전제하면 후보가 부푼다
-        TestInfraLevel testInfra = configRepository.findByBoardId(boardId)
+        TestInfraLevel testInfra = configRepository
+                .findByBoardId(boardId)
                 .map(JiraIntegrationConfig::resolveAutofixTestInfra)
                 .orElse(TestInfraLevel.NONE);
         String systemPrompt = buildSystemPrompt(testInfra, boardId);
 
-        log.info("JIRA autofix triage: board={} scanned={} targets={} skipped={} scoped={} testInfra={}",
-                boardId, scope.links().size(), targets.size(),
-                scope.links().size() - targets.size(), scope.scoped(), testInfra);
+        log.info(
+                "JIRA autofix triage: board={} scanned={} targets={} skipped={} scoped={} testInfra={}",
+                boardId,
+                scope.links().size(),
+                targets.size(),
+                scope.links().size() - targets.size(),
+                scope.scoped(),
+                testInfra);
 
         Map<String, Task> tasks = loadTasks(targets);
 
@@ -438,18 +458,16 @@ public class JiraAutofixTriageService {
                 if (e.getErrorCode() == ErrorCode.AI_CREDITS_EXHAUSTED) throw e;
                 failedBatches++;
                 progress.accept(0, true);
-                log.warn("JIRA autofix triage batch failed (board={}, from={}): {}",
-                        boardId, from, e.getMessage());
+                log.warn("JIRA autofix triage batch failed (board={}, from={}): {}", boardId, from, e.getMessage());
             } catch (Exception e) {
                 // 한 배치가 죽어도 나머지는 계속 간다 — 100건 중 15건 때문에 전부 날리지 않는다
                 failedBatches++;
                 progress.accept(0, true);
-                log.warn("JIRA autofix triage batch failed (board={}, from={}): {}",
-                        boardId, from, e.getMessage());
+                log.warn("JIRA autofix triage batch failed (board={}, from={}): {}", boardId, from, e.getMessage());
             }
         }
 
-        return new int[] { triaged, failedBatches };
+        return new int[] {triaged, failedBatches};
     }
 
     private JiraAutofixResponse.TriageRun toRunResponse(JiraAutofixTriageRun run, String boardId) {
@@ -501,7 +519,7 @@ public class JiraAutofixTriageService {
                 case SUCCEEDED -> slot[0] += count;
                 case NO_CHANGE -> slot[1] += count;
                 case FAILED -> slot[2] += count;
-                default -> { }
+                default -> {}
             }
             total += count;
         }
@@ -518,10 +536,17 @@ public class JiraAutofixTriageService {
             int sum = v[0] + v[1] + v[2];
             if (sum < OUTCOME_MIN_PER_CATEGORY) continue;
             any = true;
-            sb.append("- ").append(e.getKey().name())
-              .append(": ").append(sum).append("건 중 PR ").append(v[0])
-              .append(" / 변경없음 ").append(v[1])
-              .append(" / 실패 ").append(v[2]).append('\n');
+            sb.append("- ")
+                    .append(e.getKey().name())
+                    .append(": ")
+                    .append(sum)
+                    .append("건 중 PR ")
+                    .append(v[0])
+                    .append(" / 변경없음 ")
+                    .append(v[1])
+                    .append(" / 실패 ")
+                    .append(v[2])
+                    .append('\n');
         }
         if (!any) return "";
         sb.append("변경없음은 에이전트가 고칠 수 없다고 판단한 것이다 — 그 유형을 후보로 본 판정이\n");
@@ -531,14 +556,20 @@ public class JiraAutofixTriageService {
     }
 
     /** 배치 1건 판정 + 저장. 반환값은 실제로 반영된 건수. */
-    private int triageBatch(Board board, String userId, List<JiraIssueLink> batch,
-                            Map<String, Task> tasks, Map<String, JiraAutofixTriage> existing,
-                            String systemPrompt) {
+    private int triageBatch(
+            Board board,
+            String userId,
+            List<JiraIssueLink> batch,
+            Map<String, Task> tasks,
+            Map<String, JiraAutofixTriage> existing,
+            String systemPrompt) {
 
         List<JiraIssueLink> withContent = batch.stream()
                 .filter(link -> {
                     Task task = tasks.get(link.getTargetId());
-                    return task != null && task.getTitle() != null && !task.getTitle().isBlank();
+                    return task != null
+                            && task.getTitle() != null
+                            && !task.getTitle().isBlank();
                 })
                 .toList();
 
@@ -594,8 +625,15 @@ public class JiraAutofixTriageService {
 
             JiraAutofixTriage prior = existing.get(key);
             if (prior != null) {
-                prior.applyVerdict(verdict, category, confidence, verification, reason,
-                        link.getJiraUpdatedAt(), model, link.getTargetId());
+                prior.applyVerdict(
+                        verdict,
+                        category,
+                        confidence,
+                        verification,
+                        reason,
+                        link.getJiraUpdatedAt(),
+                        model,
+                        link.getTargetId());
                 toSave.add(prior);
             } else {
                 JiraAutofixTriage created = JiraAutofixTriage.builder()
@@ -623,15 +661,16 @@ public class JiraAutofixTriageService {
 
     @Transactional(readOnly = true)
     public JiraAutofixResponse.Summary getSummary(String boardId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
         return buildSummary(boardId);
     }
 
     /** 현재 설정된 저장소 검증 기반 수준. UI 초기값. */
     @Transactional(readOnly = true)
     public String getTestInfra(String boardId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
-        return configRepository.findByBoardId(boardId)
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
+        return configRepository
+                .findByBoardId(boardId)
                 .map(JiraIntegrationConfig::resolveAutofixTestInfra)
                 .orElse(TestInfraLevel.NONE)
                 .name();
@@ -643,17 +682,17 @@ public class JiraAutofixTriageService {
      */
     @Transactional
     public String updateTestInfra(String boardId, String userId, String level) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        JiraIntegrationConfig config = configRepository.findByBoardId(boardId)
+        JiraIntegrationConfig config = configRepository
+                .findByBoardId(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
 
         TestInfraLevel resolved = TestInfraLevel.fromOrDefault(level);
         if (resolved != config.resolveAutofixTestInfra()) {
             config.updateAutofixTestInfra(resolved);
             triageRepository.deleteByBoardId(boardId);
-            log.info("JIRA autofix test-infra changed to {} for board {} — prior verdicts cleared",
-                    resolved, boardId);
+            log.info("JIRA autofix test-infra changed to {} for board {} — prior verdicts cleared", resolved, boardId);
         }
         return resolved.name();
     }
@@ -667,7 +706,7 @@ public class JiraAutofixTriageService {
      */
     @Transactional(readOnly = true)
     public List<JiraAutofixResponse.TriageItem> getItems(String boardId, String userId, String verdict) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         List<JiraAutofixTriage> rows;
         if (verdict == null || verdict.isBlank()) {
@@ -682,16 +721,17 @@ public class JiraAutofixTriageService {
                 .distinct()
                 .toList();
 
-        Map<String, Task> taskById = taskIds.isEmpty() ? Map.of()
+        Map<String, Task> taskById = taskIds.isEmpty()
+                ? Map.of()
                 : taskRepository.findByIdInWithBlockAndFeature(taskIds).stream()
                         .collect(Collectors.toMap(Task::getId, t -> t, (a, b) -> a));
 
-        Map<String, List<JiraAutofixResponse.Assignee>> assigneesByTask =
-                loadChecklistAssignees(boardId, taskIds);
+        Map<String, List<JiraAutofixResponse.Assignee>> assigneesByTask = loadChecklistAssignees(boardId, taskIds);
 
         return rows.stream()
                 .sorted(Comparator.comparingDouble(
-                        (JiraAutofixTriage t) -> t.getConfidence() == null ? 0.0 : t.getConfidence()).reversed())
+                                (JiraAutofixTriage t) -> t.getConfidence() == null ? 0.0 : t.getConfidence())
+                        .reversed())
                 .map(t -> {
                     Task task = t.getTaskId() != null ? taskById.get(t.getTaskId()) : null;
                     return JiraAutofixResponse.TriageItem.builder()
@@ -702,11 +742,11 @@ public class JiraAutofixTriageService {
                             .confidence(t.getConfidence())
                             .verification(t.getVerification())
                             .reason(t.getReason())
-                            .triagedAt(t.getUpdatedAt() != null ? t.getUpdatedAt().toString() : null)
+                            .triagedAt(
+                                    t.getUpdatedAt() != null ? t.getUpdatedAt().toString() : null)
                             .taskTitle(task != null ? task.getTitle() : null)
                             .taskState(toTaskState(task))
-                            .assignees(assigneesByTask.getOrDefault(
-                                    t.getTaskId(), List.of()))
+                            .assignees(assigneesByTask.getOrDefault(t.getTaskId(), List.of()))
                             .staleTriage(isStale(t, task))
                             .build();
                 })
@@ -726,8 +766,10 @@ public class JiraAutofixTriageService {
                 .blockId(block != null ? block.getId() : null)
                 .blockName(block != null ? block.getName() : null)
                 .blockPosition(block != null ? block.getPosition() : null)
-                .blockFixedType(block != null && block.getFixedType() != null
-                        ? block.getFixedType().name() : null)
+                .blockFixedType(
+                        block != null && block.getFixedType() != null
+                                ? block.getFixedType().name()
+                                : null)
                 .qaState(task.getQaState() != null ? task.getQaState().name() : null)
                 .completed(Boolean.TRUE.equals(task.getIsCompleted()))
                 .alreadyDone(AutofixTaskStage.isAlreadyDone(task))
@@ -746,8 +788,7 @@ public class JiraAutofixTriageService {
 
         Map<String, String> colorByUserId = boardMemberRepository.findByBoardId(boardId).stream()
                 .filter(m -> m.getUser() != null && m.getAssigneeColor() != null)
-                .collect(Collectors.toMap(m -> m.getUser().getId(),
-                        BoardMember::getAssigneeColor, (a, b) -> a));
+                .collect(Collectors.toMap(m -> m.getUser().getId(), BoardMember::getAssigneeColor, (a, b) -> a));
 
         Map<String, List<JiraAutofixResponse.Assignee>> byTask = new LinkedHashMap<>();
         Map<String, Set<String>> seenByTask = new HashMap<>();
@@ -795,9 +836,18 @@ public class JiraAutofixTriageService {
 
             int[] slot = byCategory.computeIfAbsent(category, k -> new int[3]);
             switch (verdict) {
-                case CANDIDATE -> { slot[0] += count; candidate += count; }
-                case CONDITIONAL -> { slot[1] += count; conditional += count; }
-                case EXCLUDED -> { slot[2] += count; excluded += count; }
+                case CANDIDATE -> {
+                    slot[0] += count;
+                    candidate += count;
+                }
+                case CONDITIONAL -> {
+                    slot[1] += count;
+                    conditional += count;
+                }
+                case EXCLUDED -> {
+                    slot[2] += count;
+                    excluded += count;
+                }
             }
         }
 
@@ -813,7 +863,8 @@ public class JiraAutofixTriageService {
                             .total(slot[0] + slot[1] + slot[2])
                             .build();
                 })
-                .sorted(Comparator.comparingInt(JiraAutofixResponse.CategoryCount::getTotal).reversed())
+                .sorted(Comparator.comparingInt(JiraAutofixResponse.CategoryCount::getTotal)
+                        .reversed())
                 .toList();
 
         double ratio = total == 0 ? 0.0 : Math.round(candidate * 10000.0 / total) / 100.0;
@@ -831,7 +882,8 @@ public class JiraAutofixTriageService {
     // ── 내부 헬퍼 ──────────────────────────────────
 
     private Map<String, Task> loadTasks(List<JiraIssueLink> links) {
-        List<String> ids = links.stream().map(JiraIssueLink::getTargetId).distinct().toList();
+        List<String> ids =
+                links.stream().map(JiraIssueLink::getTargetId).distinct().toList();
         Map<String, Task> map = new HashMap<>();
         for (Task task : taskRepository.findAllById(ids)) {
             map.put(task.getId(), task);
@@ -850,9 +902,8 @@ public class JiraAutofixTriageService {
 
             String description = task.getDescription();
             sb.append("본문: ")
-              .append(description == null || description.isBlank()
-                      ? "(없음)" : clip(description, DESC_CLIP))
-              .append('\n');
+                    .append(description == null || description.isBlank() ? "(없음)" : clip(description, DESC_CLIP))
+                    .append('\n');
 
             appendComments(sb, task.getId());
             appendMaterialNote(sb, task.getId());
@@ -864,24 +915,21 @@ public class JiraAutofixTriageService {
     /** 댓글 — 오래된 순으로 보이되, 넘치면 최신 쪽을 남긴다. */
     private void appendComments(StringBuilder sb, String taskId) {
         List<Comment> all = commentRepository.findByTaskIdWithAuthor(taskId).stream()
-                .sorted(Comparator.comparing(Comment::getCreatedAt,
-                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .sorted(Comparator.comparing(Comment::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
         if (all.isEmpty()) return;
 
-        List<Comment> shown = all.size() > COMMENT_COUNT
-                ? all.subList(all.size() - COMMENT_COUNT, all.size())
-                : all;
+        List<Comment> shown = all.size() > COMMENT_COUNT ? all.subList(all.size() - COMMENT_COUNT, all.size()) : all;
 
         sb.append("댓글 ").append(all.size()).append("건");
         if (shown.size() < all.size()) sb.append(" (최근 ").append(shown.size()).append("건만)");
         sb.append(":\n");
         for (Comment c : shown) {
             sb.append("  - ")
-              .append(c.getAuthor() != null ? c.getAuthor().getName() : "?")
-              .append(": ")
-              .append(c.getContent() == null ? "" : clip(c.getContent(), COMMENT_CLIP))
-              .append('\n');
+                    .append(c.getAuthor() != null ? c.getAuthor().getName() : "?")
+                    .append(": ")
+                    .append(c.getContent() == null ? "" : clip(c.getContent(), COMMENT_CLIP))
+                    .append('\n');
         }
     }
 
@@ -896,11 +944,10 @@ public class JiraAutofixTriageService {
         long images = commentAttachmentRepository.findByTaskId(taskId).stream()
                 .filter(a -> a.getContentType() != null
                         && (a.getContentType().startsWith("image/")
-                            || a.getContentType().startsWith("video/")))
+                                || a.getContentType().startsWith("video/")))
                 .count();
         if (images > 0) {
-            sb.append("첨부: 재현 화면 ").append(images)
-              .append("건 있음 (수정 담당 에이전트는 이 그림을 직접 본다)\n");
+            sb.append("첨부: 재현 화면 ").append(images).append("건 있음 (수정 담당 에이전트는 이 그림을 직접 본다)\n");
         }
     }
 
@@ -941,8 +988,8 @@ public class JiraAutofixTriageService {
                     .model(response.model())
                     .inputTokens(response.inputTokens())
                     .outputTokens(response.outputTokens())
-                    .estimatedCostUsd(AiUsageLog.calculateCost(
-                            response.model(), response.inputTokens(), response.outputTokens()))
+                    .estimatedCostUsd(
+                            AiUsageLog.calculateCost(response.model(), response.inputTokens(), response.outputTokens()))
                     .creditsUsed(1)
                     .build());
         } catch (Exception e) {

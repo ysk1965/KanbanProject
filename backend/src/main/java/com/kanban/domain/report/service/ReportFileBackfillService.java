@@ -1,15 +1,10 @@
 package com.kanban.domain.report.service;
 
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.report.ReportRepository;
 import com.kanban.domain.report.ReportType;
 import com.kanban.domain.report.WeeklyReport;
 import com.kanban.domain.storage.service.ReportFileFiler;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -17,6 +12,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 폴더화 이전에 자료실 루트에 쌓인 보고서 수집 파일을 뒤늦게 제자리로 보내는 <b>1회성 정리</b>.
@@ -35,8 +34,8 @@ public class ReportFileBackfillService {
 
     private final ReportRepository reportRepository;
     private final ReportFileFiler reportFileFiler;
-    private final BoardService boardService;
 
+    private final BoardPermissionService boardPermissionService;
     /**
      * @param scanned   루트에 있던 자동 수집 파일 수
      * @param matched   보고서를 찾아낸 파일 수
@@ -44,12 +43,11 @@ public class ReportFileBackfillService {
      * @param folders   손댈(댄) 보고서 폴더 수
      * @param moved     실제로 옮긴 파일 수 (dryRun 이면 0)
      */
-    public record Result(int scanned, int matched, int unmatched, int folders, int moved, boolean dryRun) {
-    }
+    public record Result(int scanned, int matched, int unmatched, int folders, int moved, boolean dryRun) {}
 
     @Transactional(readOnly = true)
     public Result organize(String boardId, String userId, boolean dryRun) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
         List<String> keys = reportFileFiler.unfiledReportFileKeys(boardId);
         if (keys.isEmpty()) {
@@ -58,8 +56,8 @@ public class ReportFileBackfillService {
 
         // 오래된 보고서부터 살펴 첫 소유자를 확정한다.
         List<WeeklyReport> reports = reportRepository.findByBoardIdOrderByCreatedAtDesc(boardId).stream()
-                .filter(r -> r.getReportType() == ReportType.DAILY_DEV
-                        || r.getReportType() == ReportType.WEEKLY_INTEGRATED)
+                .filter(r ->
+                        r.getReportType() == ReportType.DAILY_DEV || r.getReportType() == ReportType.WEEKLY_INTEGRATED)
                 .sorted(Comparator.comparing(WeeklyReport::getCreatedAt))
                 .toList();
 
@@ -72,12 +70,15 @@ public class ReportFileBackfillService {
             }
             for (String key : keys) {
                 if (!matched.contains(key) && haystack.contains(key)) {
-                    keysByReport.computeIfAbsent(report.getId(), id -> new ArrayList<>()).add(key);
+                    keysByReport
+                            .computeIfAbsent(report.getId(), id -> new ArrayList<>())
+                            .add(key);
                     matched.add(key);
                 }
             }
         }
-        List<String> unmatched = keys.stream().filter(key -> !matched.contains(key)).toList();
+        List<String> unmatched =
+                keys.stream().filter(key -> !matched.contains(key)).toList();
 
         if (dryRun) {
             return new Result(keys.size(), matched.size(), unmatched.size(), keysByReport.size(), 0, true);
@@ -89,17 +90,24 @@ public class ReportFileBackfillService {
             if (reportKeys == null) {
                 continue;
             }
-            reportFileFiler.fileReportFiles(boardId, report.getId(),
+            reportFileFiler.fileReportFiles(
+                    boardId,
+                    report.getId(),
                     ReportFolderNaming.monthKey(report.getPeriodEnd()),
-                    ReportFolderNaming.folderName(report.getReportType(),
-                            report.getPeriodStart(), report.getPeriodEnd()),
+                    ReportFolderNaming.folderName(
+                            report.getReportType(), report.getPeriodStart(), report.getPeriodEnd()),
                     reportKeys);
             moved += reportKeys.size();
         }
         moved += reportFileFiler.fileUnsorted(boardId, unmatched);
 
-        log.info("Report file backfill done: board={}, scanned={}, matched={}, unmatched={}, moved={}",
-                boardId, keys.size(), matched.size(), unmatched.size(), moved);
+        log.info(
+                "Report file backfill done: board={}, scanned={}, matched={}, unmatched={}, moved={}",
+                boardId,
+                keys.size(),
+                matched.size(),
+                unmatched.size(),
+                moved);
         return new Result(keys.size(), matched.size(), unmatched.size(), keysByReport.size(), moved, false);
     }
 

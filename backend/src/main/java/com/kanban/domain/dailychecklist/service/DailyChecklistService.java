@@ -3,7 +3,7 @@ package com.kanban.domain.dailychecklist.service;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.checklist.dto.ChecklistResponse;
@@ -23,16 +23,15 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -46,7 +45,8 @@ public class DailyChecklistService {
     private final ChecklistItemRepository checklistItemRepository;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final ChecklistService checklistService;
     private final MeetingService meetingService;
     private final WebSocketEventService webSocketEventService;
@@ -58,7 +58,7 @@ public class DailyChecklistService {
      */
     public DailyChecklistResponse.TimeblockDataResponse getTimeblockData(
             String boardId, LocalDate date, String assigneeId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         validateDailyChecklistAccess(boardId);
 
         // 1. 해당 날짜/담당자의 오늘의 체크리스트 (파생 + 핀 - 제외, 미완료만)
@@ -88,22 +88,20 @@ public class DailyChecklistService {
      */
     public List<DailyChecklistResponse.ItemResponse> getChecklistItemsInRange(
             String boardId, LocalDate startDate, LocalDate endDate, String assigneeId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         validateDailyChecklistAccess(boardId);
 
-        List<DailyChecklist> items = dailyChecklistRepository
-                .findByBoardIdAndAssignedDateBetweenAndAssigneeId(boardId, startDate, endDate, assigneeId);
+        List<DailyChecklist> items = dailyChecklistRepository.findByBoardIdAndAssignedDateBetweenAndAssigneeId(
+                boardId, startDate, endDate, assigneeId);
 
-        return items.stream()
-                .map(DailyChecklistResponse.ItemResponse::of)
-                .collect(Collectors.toList());
+        return items.stream().map(DailyChecklistResponse.ItemResponse::of).collect(Collectors.toList());
     }
 
     /**
      * 오늘의 체크리스트 조회 (멤버별 컬럼 구조로 반환)
      */
     public DailyChecklistResponse.ListResponse getDailyChecklist(String boardId, LocalDate date, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         validateDailyChecklistAccess(boardId);
 
         // 파생 + 핀 - 제외를 병합한 담당자별 목록
@@ -112,9 +110,8 @@ public class DailyChecklistService {
 
         // 보드의 모든 멤버 조회 (JOIN FETCH user)
         var boardMembers = boardMemberRepository.findByBoardId(boardId);
-        List<String> memberIds = boardMembers.stream()
-                .map(bm -> bm.getUser().getId())
-                .collect(Collectors.toList());
+        List<String> memberIds =
+                boardMembers.stream().map(bm -> bm.getUser().getId()).collect(Collectors.toList());
         Map<String, User> userCache = new java.util.HashMap<>();
         boardMembers.forEach(bm -> userCache.put(bm.getUser().getId(), bm.getUser()));
 
@@ -145,13 +142,15 @@ public class DailyChecklistService {
      * 기존 체크리스트 아이템을 데일리 체크리스트에 추가
      */
     @Transactional
-    public DailyChecklistResponse.ItemResponse addItem(String boardId, DailyChecklistRequest.Create request, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public DailyChecklistResponse.ItemResponse addItem(
+            String boardId, DailyChecklistRequest.Create request, String userId) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        ChecklistItem checklistItem = checklistItemRepository.findById(request.getChecklistItemId())
+        ChecklistItem checklistItem = checklistItemRepository
+                .findById(request.getChecklistItemId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
 
         // 체크리스트가 해당 보드에 속하는지 확인
@@ -159,7 +158,8 @@ public class DailyChecklistService {
             throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
         }
 
-        User assignee = userRepository.findById(request.getAssigneeId())
+        User assignee = userRepository
+                .findById(request.getAssigneeId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // 다음 position 계산
@@ -169,8 +169,8 @@ public class DailyChecklistService {
 
         // 같은 날짜에 예외 행이 이미 있으면 재사용한다.
         // (board_id, checklist_item_id, assigned_date) 유니크 제약상 최대 1건.
-        var existing = dailyChecklistRepository.findOverride(
-                boardId, request.getChecklistItemId(), request.getAssignedDate());
+        var existing =
+                dailyChecklistRepository.findOverride(boardId, request.getChecklistItemId(), request.getAssignedDate());
         if (existing.isPresent()) {
             DailyChecklist override = existing.get();
             if (override.isPin()) {
@@ -183,8 +183,12 @@ public class DailyChecklistService {
             log.info("Daily checklist exclude reverted to pin: {} by user: {}", override.getId(), userId);
 
             User actor = userRepository.findById(userId).orElse(null);
-            webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_CREATED,
-                    userId, actor != null ? actor.getName() : null, Map.of("id", override.getId()));
+            webSocketEventService.sendBoardEvent(
+                    boardId,
+                    BoardEventType.SCHEDULE_CREATED,
+                    userId,
+                    actor != null ? actor.getName() : null,
+                    Map.of("id", override.getId()));
 
             return DailyChecklistResponse.ItemResponse.of(override);
         }
@@ -203,8 +207,12 @@ public class DailyChecklistService {
         log.info("Daily checklist item added: {} by user: {}", dailyChecklist.getId(), userId);
 
         User user = userRepository.findById(userId).orElse(null);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_CREATED,
-                userId, user != null ? user.getName() : null, Map.of("id", dailyChecklist.getId()));
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.SCHEDULE_CREATED,
+                userId,
+                user != null ? user.getName() : null,
+                Map.of("id", dailyChecklist.getId()));
 
         return DailyChecklistResponse.ItemResponse.of(dailyChecklist);
     }
@@ -213,13 +221,15 @@ public class DailyChecklistService {
      * 새 체크리스트 아이템을 생성하면서 데일리 체크리스트에 추가
      */
     @Transactional
-    public DailyChecklistResponse.ItemResponse addWithNewItem(String boardId, DailyChecklistRequest.CreateWithItem request, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public DailyChecklistResponse.ItemResponse addWithNewItem(
+            String boardId, DailyChecklistRequest.CreateWithItem request, String userId) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        Task task = taskRepository.findById(request.getTaskId())
+        Task task = taskRepository
+                .findById(request.getTaskId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         // Task가 해당 보드에 속하는지 확인
@@ -227,7 +237,8 @@ public class DailyChecklistService {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
         }
 
-        User assignee = userRepository.findById(request.getAssigneeId())
+        User assignee = userRepository
+                .findById(request.getAssigneeId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // 새 체크리스트 아이템 생성
@@ -263,8 +274,12 @@ public class DailyChecklistService {
         log.info("Daily checklist item added with new checklist: {} by user: {}", dailyChecklist.getId(), userId);
 
         User user = userRepository.findById(userId).orElse(null);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_CREATED,
-                userId, user != null ? user.getName() : null, Map.of("id", dailyChecklist.getId()));
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.SCHEDULE_CREATED,
+                userId,
+                user != null ? user.getName() : null,
+                Map.of("id", dailyChecklist.getId()));
 
         return DailyChecklistResponse.ItemResponse.of(dailyChecklist);
     }
@@ -273,10 +288,12 @@ public class DailyChecklistService {
      * 데일리 체크리스트 아이템 순서 변경
      */
     @Transactional
-    public DailyChecklistResponse.ItemResponse updatePosition(String boardId, String itemId, DailyChecklistRequest.UpdatePosition request, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public DailyChecklistResponse.ItemResponse updatePosition(
+            String boardId, String itemId, DailyChecklistRequest.UpdatePosition request, String userId) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        DailyChecklist dailyChecklist = dailyChecklistRepository.findById(itemId)
+        DailyChecklist dailyChecklist = dailyChecklistRepository
+                .findById(itemId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DAILY_CHECKLIST_NOT_FOUND));
 
         // 보드 소속 확인
@@ -293,9 +310,11 @@ public class DailyChecklistService {
         }
 
         // 같은 담당자, 같은 날짜의 모든 항목 조회 (position 순)
-        List<DailyChecklist> items = dailyChecklistRepository
-                .findByBoardIdAndAssignedDateAndAssigneeIdOrderByPositionAsc(
-                        boardId, dailyChecklist.getAssignedDate(), dailyChecklist.getAssignee().getId());
+        List<DailyChecklist> items =
+                dailyChecklistRepository.findByBoardIdAndAssignedDateAndAssigneeIdOrderByPositionAsc(
+                        boardId,
+                        dailyChecklist.getAssignedDate(),
+                        dailyChecklist.getAssignee().getId());
 
         // newPosition이 범위를 벗어나면 조정
         if (newPosition < 0) {
@@ -327,7 +346,12 @@ public class DailyChecklistService {
         // 이동 대상 항목의 position 업데이트
         dailyChecklist.updatePosition(newPosition);
 
-        log.info("Daily checklist item position updated: {} from {} to {} by user: {}", itemId, oldPosition, newPosition, userId);
+        log.info(
+                "Daily checklist item position updated: {} from {} to {} by user: {}",
+                itemId,
+                oldPosition,
+                newPosition,
+                userId);
 
         return DailyChecklistResponse.ItemResponse.of(dailyChecklist);
     }
@@ -341,12 +365,13 @@ public class DailyChecklistService {
      */
     @Transactional
     public void excludeItem(String boardId, DailyChecklistRequest.Exclude request, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        ChecklistItem checklistItem = checklistItemRepository.findById(request.getChecklistItemId())
+        ChecklistItem checklistItem = checklistItemRepository
+                .findById(request.getChecklistItemId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
 
         if (!checklistItem.getTask().getBoard().getId().equals(boardId)) {
@@ -354,8 +379,8 @@ public class DailyChecklistService {
         }
 
         String excludedId;
-        var existing = dailyChecklistRepository.findOverride(
-                boardId, request.getChecklistItemId(), request.getAssignedDate());
+        var existing =
+                dailyChecklistRepository.findOverride(boardId, request.getChecklistItemId(), request.getAssignedDate());
 
         if (existing.isPresent()) {
             DailyChecklist override = existing.get();
@@ -364,11 +389,14 @@ public class DailyChecklistService {
         } else {
             String assigneeId = request.getAssigneeId() != null
                     ? request.getAssigneeId()
-                    : (checklistItem.getAssignee() != null ? checklistItem.getAssignee().getId() : null);
+                    : (checklistItem.getAssignee() != null
+                            ? checklistItem.getAssignee().getId()
+                            : null);
             if (assigneeId == null) {
                 throw new BusinessException(ErrorCode.USER_NOT_FOUND);
             }
-            User assignee = userRepository.findById(assigneeId)
+            User assignee = userRepository
+                    .findById(assigneeId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
             DailyChecklist override = DailyChecklist.builder()
@@ -384,12 +412,19 @@ public class DailyChecklistService {
             excludedId = override.getId();
         }
 
-        log.info("Daily checklist item excluded: {} ({}) by user: {}",
-                request.getChecklistItemId(), request.getAssignedDate(), userId);
+        log.info(
+                "Daily checklist item excluded: {} ({}) by user: {}",
+                request.getChecklistItemId(),
+                request.getAssignedDate(),
+                userId);
 
         User user = userRepository.findById(userId).orElse(null);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_DELETED,
-                userId, user != null ? user.getName() : null, Map.of("id", excludedId));
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.SCHEDULE_DELETED,
+                userId,
+                user != null ? user.getName() : null,
+                Map.of("id", excludedId));
     }
 
     /**
@@ -401,9 +436,10 @@ public class DailyChecklistService {
      */
     @Transactional
     public void removeItem(String boardId, String itemId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        DailyChecklist dailyChecklist = dailyChecklistRepository.findById(itemId)
+        DailyChecklist dailyChecklist = dailyChecklistRepository
+                .findById(itemId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DAILY_CHECKLIST_NOT_FOUND));
 
         // 보드 소속 확인
@@ -421,13 +457,17 @@ public class DailyChecklistService {
         }
 
         User user = userRepository.findById(userId).orElse(null);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_DELETED,
-                userId, user != null ? user.getName() : null, Map.of("id", removedId));
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.SCHEDULE_DELETED,
+                userId,
+                user != null ? user.getName() : null,
+                Map.of("id", removedId));
     }
 
     private void validateDailyChecklistAccess(String boardId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         if (!board.canAccessDailyChecklist()) {
             throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
         }

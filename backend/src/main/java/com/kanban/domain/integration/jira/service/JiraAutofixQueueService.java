@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.Comment;
@@ -23,6 +23,16 @@ import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.service.FileUploadService;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -30,17 +40,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * 자동수정 작업 큐 — 트리아지 후보를 담고, 러너가 가져가게 하고, 콜백을 받아 마무리한다.
@@ -63,7 +62,8 @@ public class JiraAutofixQueueService {
     private final AutofixProperties properties;
     private final ObjectMapper objectMapper;
     private final BoardRepository boardRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final JiraAutofixTriageRepository triageRepository;
     private final JiraAutofixJobRepository jobRepository;
     private final JiraAutofixJobMaterialRepository jobMaterialRepository;
@@ -99,17 +99,17 @@ public class JiraAutofixQueueService {
      *                  가드레일을 우회하는 통로가 되면 안 된다.
      */
     @Transactional
-    public JiraAutofixResponse.EnqueueResult enqueueCandidates(String boardId, String userId,
-                                                               Integer limit, List<String> issueKeys) {
-        boardService.checkAdminOrAbove(boardId, userId);
+    public JiraAutofixResponse.EnqueueResult enqueueCandidates(
+            String boardId, String userId, Integer limit, List<String> issueKeys) {
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         DispatchTarget target = resolveTarget(boardId);
 
-        int cap = Math.min(limit != null ? limit : properties.getMaxEnqueuePerRequest(),
-                properties.getMaxEnqueuePerRequest());
+        int cap = Math.min(
+                limit != null ? limit : properties.getMaxEnqueuePerRequest(), properties.getMaxEnqueuePerRequest());
 
         List<JiraAutofixTriage> candidates =
                 triageRepository.findByBoardIdAndVerdict(boardId, AutofixVerdict.CANDIDATE);
@@ -131,7 +131,8 @@ public class JiraAutofixQueueService {
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
-        Map<String, Task> taskById = candidateTaskIds.isEmpty() ? Map.of()
+        Map<String, Task> taskById = candidateTaskIds.isEmpty()
+                ? Map.of()
                 : taskRepository.findByIdInWithBlockAndFeature(candidateTaskIds).stream()
                         .collect(Collectors.toMap(Task::getId, t -> t, (a, b) -> a));
 
@@ -153,8 +154,7 @@ public class JiraAutofixQueueService {
                 skippedAlreadyQueued++;
                 continue;
             }
-            if (triage.getTaskId() != null
-                    && AutofixTaskStage.isAlreadyDone(taskById.get(triage.getTaskId()))) {
+            if (triage.getTaskId() != null && AutofixTaskStage.isAlreadyDone(taskById.get(triage.getTaskId()))) {
                 skippedAlreadyDone++;
                 continue;
             }
@@ -167,8 +167,13 @@ public class JiraAutofixQueueService {
         }
 
         jobRepository.saveAll(toSave);
-        log.info("Autofix enqueue: board={} queued={} lowConfidence={} alreadyQueued={} alreadyDone={}",
-                boardId, queued, skippedLowConfidence, skippedAlreadyQueued, skippedAlreadyDone);
+        log.info(
+                "Autofix enqueue: board={} queued={} lowConfidence={} alreadyQueued={} alreadyDone={}",
+                boardId,
+                queued,
+                skippedLowConfidence,
+                skippedAlreadyQueued,
+                skippedAlreadyDone);
 
         return JiraAutofixResponse.EnqueueResult.builder()
                 .queued(queued)
@@ -193,9 +198,9 @@ public class JiraAutofixQueueService {
      * 작업의 지시문을 고쳐 다시 맡기는 것이 정상 흐름이라, 대신 <b>동시에 하나</b>만 막는다.
      */
     @Transactional
-    public JiraAutofixResponse.DelegateResult delegate(String boardId, String userId,
-                                                       JiraAutofixRequest.Delegate request) {
-        boardService.checkAdminOrAbove(boardId, userId);
+    public JiraAutofixResponse.DelegateResult delegate(
+            String boardId, String userId, JiraAutofixRequest.Delegate request) {
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
         String instruction = request != null ? trimToNull(request.getInstruction()) : null;
         if (instruction == null) {
@@ -205,11 +210,13 @@ public class JiraAutofixQueueService {
             instruction = instruction.substring(0, MAX_INSTRUCTION);
         }
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        Task task = taskRepository.findById(nullToEmpty(request.getTaskId()))
-                .filter(t -> t.getBlock() != null && t.getBlock().getBoard() != null
+        Task task = taskRepository
+                .findById(nullToEmpty(request.getTaskId()))
+                .filter(t -> t.getBlock() != null
+                        && t.getBlock().getBoard() != null
                         && boardId.equals(t.getBlock().getBoard().getId()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
@@ -225,7 +232,10 @@ public class JiraAutofixQueueService {
         DispatchTarget target = resolveTarget(boardId);
 
         List<String> itemIds = request.getChecklistItemIds() != null
-                ? request.getChecklistItemIds().stream().filter(Objects::nonNull).distinct().toList()
+                ? request.getChecklistItemIds().stream()
+                        .filter(Objects::nonNull)
+                        .distinct()
+                        .toList()
                 : List.of();
 
         List<JiraAutofixJob> created = new ArrayList<>();
@@ -257,26 +267,30 @@ public class JiraAutofixQueueService {
 
             for (String itemId : itemIds) {
                 if (jobRepository.existsPendingForChecklistItem(boardId, itemId)) {
-                    skipped++;   // 이미 맡긴 항목은 조용히 건너뛴다 — 나머지까지 막을 이유가 없다
+                    skipped++; // 이미 맡긴 항목은 조용히 건너뛴다 — 나머지까지 막을 이유가 없다
                     continue;
                 }
-                created.add(JiraAutofixJob.forManualChecklistItem(
-                        board, task.getId(), itemId, instruction, userId));
+                created.add(JiraAutofixJob.forManualChecklistItem(board, task.getId(), itemId, instruction, userId));
             }
             if (created.isEmpty()) {
                 throw new BusinessException(ErrorCode.JIRA_AUTOFIX_ALREADY_DELEGATED);
             }
         }
 
-        created.forEach(job ->
-                job.assignTarget(target.installationId(), target.repoFullName(), target.baseRef()));
+        created.forEach(job -> job.assignTarget(target.installationId(), target.repoFullName(), target.baseRef()));
         jobRepository.saveAll(created);
 
         attachDelegateMaterials(boardId, task.getId(), request.getFileKeys(), created);
 
-        log.info("Autofix delegate: board={} task={} items={} queued={} skipped={} files={} by={}",
-                boardId, task.getId(), itemIds.size(), created.size(), skipped,
-                request.getFileKeys() != null ? request.getFileKeys().size() : 0, userId);
+        log.info(
+                "Autofix delegate: board={} task={} items={} queued={} skipped={} files={} by={}",
+                boardId,
+                task.getId(),
+                itemIds.size(),
+                created.size(),
+                skipped,
+                request.getFileKeys() != null ? request.getFileKeys().size() : 0,
+                userId);
 
         return JiraAutofixResponse.DelegateResult.builder()
                 .queued(created.size())
@@ -296,8 +310,8 @@ public class JiraAutofixQueueService {
      * <p>실패하면 이미 옮긴 것을 되돌린다 — 트랜잭션이 롤백돼도 S3는 함께 돌아가지 않아서,
      * 정리하지 않으면 아무 행도 가리키지 않는 객체가 버킷에 남는다. (댓글 첨부와 같은 처리다.)
      */
-    private void attachDelegateMaterials(String boardId, String taskId, List<String> fileKeys,
-                                         List<JiraAutofixJob> jobs) {
+    private void attachDelegateMaterials(
+            String boardId, String taskId, List<String> fileKeys, List<JiraAutofixJob> jobs) {
         if (fileKeys == null || jobs.isEmpty()) return;
 
         List<String> keys = fileKeys.stream()
@@ -327,8 +341,7 @@ public class JiraAutofixQueueService {
                     throw new BusinessException(ErrorCode.JIRA_AUTOFIX_MATERIAL_TOO_LARGE);
                 }
 
-                FileUploadService.PermanentResult moved =
-                        fileUploadService.moveToPermanent(tempKey, boardId, taskId);
+                FileUploadService.PermanentResult moved = fileUploadService.moveToPermanent(tempKey, boardId, taskId);
                 movedKeys.add(moved.getS3Key());
 
                 if (moved.getFileSize() > maxBytes) {
@@ -343,13 +356,16 @@ public class JiraAutofixQueueService {
                     throw new BusinessException(ErrorCode.JIRA_AUTOFIX_MATERIAL_NOT_MEDIA);
                 }
 
-                String filename = tempKey.contains("/")
-                        ? tempKey.substring(tempKey.lastIndexOf("/") + 1)
-                        : tempKey;
+                String filename = tempKey.contains("/") ? tempKey.substring(tempKey.lastIndexOf("/") + 1) : tempKey;
 
                 for (JiraAutofixJob job : jobs) {
-                    rows.add(JiraAutofixJobMaterial.of(job.getId(), filename, moved.getS3Key(),
-                            moved.getUrl(), moved.getContentType(), moved.getFileSize()));
+                    rows.add(JiraAutofixJobMaterial.of(
+                            job.getId(),
+                            filename,
+                            moved.getS3Key(),
+                            moved.getUrl(),
+                            moved.getContentType(),
+                            moved.getFileSize()));
                 }
             }
             jobMaterialRepository.saveAll(rows);
@@ -372,7 +388,8 @@ public class JiraAutofixQueueService {
      * 멀쩡한 맥을 세우게 된다 — 이건 러너 자가진단 전반에 걸친 규칙이다.
      */
     private boolean isRunnerVerifyNotReady(String boardId) {
-        JsonNode status = parseRunnerStatus(configRepository.findByBoardId(boardId).orElse(null));
+        JsonNode status =
+                parseRunnerStatus(configRepository.findByBoardId(boardId).orElse(null));
         if (status == null) return false;
         JsonNode verifyReady = status.get("verify_ready");
         return verifyReady != null && verifyReady.isBoolean() && !verifyReady.asBoolean();
@@ -387,17 +404,20 @@ public class JiraAutofixQueueService {
      * <p>말을 걸어온 사실 자체를 기록한다(내줄 게 없어도). 이 값이 화면의 "러너 연결됨" 근거다.
      */
     @Transactional
-    public JiraAutofixResponse.ClaimResult claim(String boardId, String runnerName,
-                                                 Integer contractVersion,
-                                                 JiraAutofixRequest.RunnerStatus status) {
+    public JiraAutofixResponse.ClaimResult claim(
+            String boardId, String runnerName, Integer contractVersion, JiraAutofixRequest.RunnerStatus status) {
         touchRunner(boardId, runnerName, contractVersion, status);
 
         // 계약 검사는 다른 어떤 판정보다 앞에 온다. 낡은 러너에게 작업을 내주면 그 건은 반드시
         // 실패하고, 실패 한 건이 회수 시각까지 큐 전체를 막은 뒤 그 대상을 영구히 태운다.
         // 여기서 막으면 작업은 QUEUED로 그대로 남아, 스크립트를 갱신하는 즉시 이어서 돈다.
         if (!AutofixRunnerContract.matches(contractVersion)) {
-            log.warn("Autofix claim rejected — 계약 불일치: board={} runner={} runnerContract={} serverContract={}",
-                    boardId, runnerName, contractVersion, AutofixRunnerContract.VERSION);
+            log.warn(
+                    "Autofix claim rejected — 계약 불일치: board={} runner={} runnerContract={} serverContract={}",
+                    boardId,
+                    runnerName,
+                    contractVersion,
+                    AutofixRunnerContract.VERSION);
             return JiraAutofixResponse.ClaimResult.of(null, "CONTRACT_MISMATCH");
         }
 
@@ -414,8 +434,8 @@ public class JiraAutofixQueueService {
             return JiraAutofixResponse.ClaimResult.of(null, "DAILY_LIMIT");
         }
 
-        List<JiraAutofixJob> next = jobRepository.findByBoardIdAndStatus(
-                boardId, AutofixJobStatus.QUEUED, PageRequest.of(0, 1));
+        List<JiraAutofixJob> next =
+                jobRepository.findByBoardIdAndStatus(boardId, AutofixJobStatus.QUEUED, PageRequest.of(0, 1));
         if (next.isEmpty()) {
             return JiraAutofixResponse.ClaimResult.of(null, "EMPTY");
         }
@@ -428,15 +448,19 @@ public class JiraAutofixQueueService {
         }
 
         job.markClaimed(runnerName);
-        log.info("Autofix claimed: board={} issue={} repo={} runner={}",
-                boardId, job.getJobKey(), job.getRepoFullName(), runnerName);
+        log.info(
+                "Autofix claimed: board={} issue={} repo={} runner={}",
+                boardId,
+                job.getJobKey(),
+                job.getRepoFullName(),
+                runnerName);
         return JiraAutofixResponse.ClaimResult.of(buildRunnerJob(job), "CLAIMED");
     }
 
     /** 러너가 살아 있다는 신호만 받는다 — 긴 작업 중에는 claim을 부르지 않기 때문이다. */
     @Transactional
-    public void heartbeat(String boardId, String runnerName, Integer contractVersion,
-                          JiraAutofixRequest.RunnerStatus status) {
+    public void heartbeat(
+            String boardId, String runnerName, Integer contractVersion, JiraAutofixRequest.RunnerStatus status) {
         /*
          * 계약 버전은 claim만 권위를 갖는다.
          *
@@ -459,19 +483,18 @@ public class JiraAutofixQueueService {
      * <p>러너가 보낸 값을 그대로 저장하지 않고 서버가 아는 필드만 뽑아 다시 직렬화한다 —
      * 이 엔드포인트는 보드 토큰만으로 열려 있어서, 임의의 문자열이 DB에 들어가는 통로가 되면 안 된다.
      */
-    private void touchRunner(String boardId, String runnerName, Integer contractVersion,
-                             JiraAutofixRequest.RunnerStatus status) {
+    private void touchRunner(
+            String boardId, String runnerName, Integer contractVersion, JiraAutofixRequest.RunnerStatus status) {
         String json = serializeRunnerStatus(boardId, status);
-        configRepository.findByBoardId(boardId)
+        configRepository
+                .findByBoardId(boardId)
                 .ifPresent(config -> config.touchAutofixRunner(runnerName, json, contractVersion));
     }
 
     /** 생존 신호만 반영한다. 계약 버전을 밝히지 않은 호출(하트비트)의 경로다. */
-    private void touchRunnerAlive(String boardId, String runnerName,
-                                  JiraAutofixRequest.RunnerStatus status) {
+    private void touchRunnerAlive(String boardId, String runnerName, JiraAutofixRequest.RunnerStatus status) {
         String json = serializeRunnerStatus(boardId, status);
-        configRepository.findByBoardId(boardId)
-                .ifPresent(config -> config.touchAutofixRunnerAlive(runnerName, json));
+        configRepository.findByBoardId(boardId).ifPresent(config -> config.touchAutofixRunnerAlive(runnerName, json));
     }
 
     private String serializeRunnerStatus(String boardId, JiraAutofixRequest.RunnerStatus status) {
@@ -495,15 +518,16 @@ public class JiraAutofixQueueService {
      */
     private JiraAutofixResponse.RunnerJob buildRunnerJob(JiraAutofixJob job) {
         Task task = job.getTaskId() != null
-                ? taskRepository.findById(job.getTaskId()).orElse(null) : null;
+                ? taskRepository.findById(job.getTaskId()).orElse(null)
+                : null;
 
         ChecklistItem item = job.getChecklistItemId() != null
-                ? checklistItemRepository.findById(job.getChecklistItemId()).orElse(null) : null;
+                ? checklistItemRepository.findById(job.getChecklistItemId()).orElse(null)
+                : null;
 
         String title = resolveJobTitle(job, task, item);
-        String instruction = job.getJobKind().isManual()
-                ? buildManualInstruction(job, task, item)
-                : buildJiraInstruction(job, task);
+        String instruction =
+                job.getJobKind().isManual() ? buildManualInstruction(job, task, item) : buildJiraInstruction(job, task);
 
         return JiraAutofixResponse.RunnerJob.builder()
                 .jobId(job.getId())
@@ -514,8 +538,7 @@ public class JiraAutofixQueueService {
                 .repoFullName(job.getRepoFullName())
                 .baseRef(nullToEmpty(job.getBaseRef()))
                 .branch(defaultIfBlank(job.getBranchName(), "autofix/" + job.getJobKey()))
-                .timeoutMinutes(Math.min(properties.getRunnerTimeoutMinutes(),
-                        properties.getDispatchTimeoutMinutes()))
+                .timeoutMinutes(Math.min(properties.getRunnerTimeoutMinutes(), properties.getDispatchTimeoutMinutes()))
                 .comments(collectComments(job.getTaskId()))
                 .materials(collectMaterials(job))
                 .build();
@@ -544,7 +567,8 @@ public class JiraAutofixQueueService {
                 .map(JiraAutofixTriage::getVerification)
                 .orElse("");
 
-        TestInfraLevel testInfra = configRepository.findByBoardId(job.getBoard().getId())
+        TestInfraLevel testInfra = configRepository
+                .findByBoardId(job.getBoard().getId())
                 .map(JiraIntegrationConfig::resolveAutofixTestInfra)
                 .orElse(TestInfraLevel.NONE);
 
@@ -553,7 +577,8 @@ public class JiraAutofixQueueService {
         sb.append("이슈 ").append(job.getJobKey());
         if (task != null && task.getTitle() != null) sb.append(": ").append(task.getTitle());
         sb.append("\n\n");
-        if (task != null) sb.append(clip(nullToEmpty(task.getDescription()), 8000)).append("\n\n");
+        if (task != null)
+            sb.append(clip(nullToEmpty(task.getDescription()), 8000)).append("\n\n");
         if (!verification.isBlank()) {
             sb.append("트리아지가 본 검증 수단: ").append(clip(verification, 500)).append("\n");
         }
@@ -590,7 +615,8 @@ public class JiraAutofixQueueService {
         if (job.isChecklistScoped()) {
             String itemTitle = item != null ? nullToEmpty(item.getTitle()) : "";
             sb.append("[대상] 위 태스크의 체크리스트 항목 하나만 처리한다: \"")
-              .append(itemTitle.isBlank() ? job.getJobKey() : itemTitle).append("\"\n");
+                    .append(itemTitle.isBlank() ? job.getJobKey() : itemTitle)
+                    .append("\"\n");
             sb.append("태스크 설명에 있는 다른 항목은 건드리지 않는다.\n\n");
         } else {
             sb.append("[대상] 위 태스크를 처리한다.\n\n");
@@ -613,14 +639,11 @@ public class JiraAutofixQueueService {
         if (comments.isEmpty()) return List.of();
 
         List<Comment> ordered = comments.stream()
-                .sorted(Comparator.comparing(Comment::getCreatedAt,
-                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .sorted(Comparator.comparing(Comment::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
 
         int cap = properties.getMaxJobComments();
-        List<Comment> capped = ordered.size() > cap
-                ? ordered.subList(ordered.size() - cap, ordered.size())
-                : ordered;
+        List<Comment> capped = ordered.size() > cap ? ordered.subList(ordered.size() - cap, ordered.size()) : ordered;
 
         return capped.stream()
                 .map(c -> JiraAutofixResponse.IssueComment.builder()
@@ -681,7 +704,8 @@ public class JiraAutofixQueueService {
     @Transactional(readOnly = true)
     public boolean verifyCallbackToken(String boardId, String token) {
         if (token == null || token.isBlank()) return false;
-        return configRepository.findByBoardId(boardId)
+        return configRepository
+                .findByBoardId(boardId)
                 .map(JiraIntegrationConfig::getAutofixCallbackToken)
                 .filter(saved -> saved != null && !saved.isBlank())
                 .map(saved -> constantTimeEquals(saved, token))
@@ -716,11 +740,14 @@ public class JiraAutofixQueueService {
         if (!applied) return;
 
         if (corrected) {
-            log.warn("Autofix late callback: board={} job={} TIMED_OUT → {} pr={}",
-                    boardId, job.getJobKey(), result, prUrl);
+            log.warn(
+                    "Autofix late callback: board={} job={} TIMED_OUT → {} pr={}",
+                    boardId,
+                    job.getJobKey(),
+                    result,
+                    prUrl);
         } else {
-            log.info("Autofix result: board={} job={} result={} pr={}",
-                    boardId, job.getJobKey(), result, prUrl);
+            log.info("Autofix result: board={} job={} result={} pr={}", boardId, job.getJobKey(), result, prUrl);
         }
 
         /*
@@ -734,8 +761,7 @@ public class JiraAutofixQueueService {
          * 결과 확정과 통지는 성패를 공유할 이유가 없다. 확정은 여기서 끝내고, 통지는
          * {@link JiraAutofixResultListener}가 커밋 뒤 자기 트랜잭션에서 처리한다.
          */
-        eventPublisher.publishEvent(
-                new JiraAutofixResultSettledEvent(boardId, job.getId(), result, corrected));
+        eventPublisher.publishEvent(new JiraAutofixResultSettledEvent(boardId, job.getId(), result, corrected));
     }
 
     /**
@@ -793,19 +819,20 @@ public class JiraAutofixQueueService {
         if (jobKey == null) jobKey = blankToNull(text(payload, "issue_key"));
 
         JiraAutofixJob job = jobId != null
-                ? jobRepository.findById(jobId)
+                ? jobRepository
+                        .findById(jobId)
                         .filter(j -> j.getBoard().getId().equals(boardId))
                         .filter(j -> j.getStatus() == AutofixJobStatus.DISPATCHED
                                 || j.getStatus() == AutofixJobStatus.TIMED_OUT)
                         .orElse(null)
                 : jobKey != null
-                        ? jobRepository.findCallbackTargetsByJobKey(boardId, jobKey)
-                                .stream().findFirst().orElse(null)
+                        ? jobRepository.findCallbackTargetsByJobKey(boardId, jobKey).stream()
+                                .findFirst()
+                                .orElse(null)
                         : null;
 
         if (job == null) {
-            log.info("Autofix callback for unknown/settled job: board={} job={} key={}",
-                    boardId, jobId, jobKey);
+            log.info("Autofix callback for unknown/settled job: board={} job={} key={}", boardId, jobId, jobKey);
         }
         return job;
     }
@@ -822,31 +849,32 @@ public class JiraAutofixQueueService {
 
     /** JIRA 이슈에 결과를 남긴다. 실패해도 작업 상태는 이미 확정됐으므로 예외를 삼킨다. */
     private void postJiraComment(String boardId, JiraAutofixJob job, AutofixJobStatus result) {
-        JiraIntegrationConfig config = configRepository.findActiveByBoardId(boardId).orElse(null);
+        JiraIntegrationConfig config =
+                configRepository.findActiveByBoardId(boardId).orElse(null);
         if (config == null) return;
 
         String suggestion = AutofixSuggestionExtractor.extract(job.getLogExcerpt());
 
         String message = switch (result) {
-            case SUCCEEDED -> "BRIDGE 자동수정이 PR을 생성했습니다: " + job.getPrUrl()
-                    + "\n자동 검증은 컴파일 통과까지만입니다. 머지 전 검토가 필요합니다.";
+            case SUCCEEDED -> "BRIDGE 자동수정이 PR을 생성했습니다: " + job.getPrUrl() + "\n자동 검증은 컴파일 통과까지만입니다. 머지 전 검토가 필요합니다.";
             /*
              * 보고가 있으면 그것이 본문이고 "고칠 수 없었다"는 곁가지다. 순서를 뒤집지 않는다 —
              * 읽는 사람이 첫 줄에서 "그래서 아무것도 안 했구나"로 닫고 나면 아래는 안 읽힌다.
              */
-            case NO_CHANGE -> suggestion != null
-                    ? "BRIDGE 자동수정이 저장소에서 고칠 것이 없다고 판단했습니다. "
-                            + "대신 원본에서 고칠 내용을 남깁니다 — 아래 값은 사람이 확인한 뒤 반영해야 합니다.\n\n"
-                            + suggestion
-                    : "BRIDGE 자동수정이 이 이슈를 자동으로 고칠 수 없다고 판단했습니다.";
-            default -> "BRIDGE 자동수정이 실패했습니다."
-                    + (job.getFailureReason() != null ? " 사유: " + job.getFailureReason() : "");
+            case NO_CHANGE ->
+                suggestion != null
+                        ? "BRIDGE 자동수정이 저장소에서 고칠 것이 없다고 판단했습니다. "
+                                + "대신 원본에서 고칠 내용을 남깁니다 — 아래 값은 사람이 확인한 뒤 반영해야 합니다.\n\n"
+                                + suggestion
+                        : "BRIDGE 자동수정이 이 이슈를 자동으로 고칠 수 없다고 판단했습니다.";
+            default ->
+                "BRIDGE 자동수정이 실패했습니다." + (job.getFailureReason() != null ? " 사유: " + job.getFailureReason() : "");
         };
 
         try {
             String token = oauthService.resolveToken(config);
-            jiraApiClient.addComment(JiraAuthContext.of(config, token), job.getJobKey(),
-                    JiraAdfConverter.toAdf(objectMapper, message));
+            jiraApiClient.addComment(
+                    JiraAuthContext.of(config, token), job.getJobKey(), JiraAdfConverter.toAdf(objectMapper, message));
         } catch (Exception e) {
             log.warn("Autofix: JIRA 결과 댓글 실패 issue={}: {}", job.getJobKey(), e.getMessage());
         }
@@ -872,27 +900,36 @@ public class JiraAutofixQueueService {
 
             StringBuilder body = new StringBuilder();
             if (job.isChecklistScoped()) {
-                String itemTitle = checklistItemRepository.findById(job.getChecklistItemId())
-                        .map(ChecklistItem::getTitle).orElse(null);
-                body.append("체크리스트: ").append(defaultIfBlank(itemTitle, job.getJobKey())).append("\n");
+                String itemTitle = checklistItemRepository
+                        .findById(job.getChecklistItemId())
+                        .map(ChecklistItem::getTitle)
+                        .orElse(null);
+                body.append("체크리스트: ")
+                        .append(defaultIfBlank(itemTitle, job.getJobKey()))
+                        .append("\n");
             }
             String suggestion = AutofixSuggestionExtractor.extract(job.getLogExcerpt());
 
-            body.append(switch (result) {
-                case SUCCEEDED -> "맥에서 수정을 마치고 PR을 열었습니다.\n" + job.getPrUrl()
-                        + "\n컴파일 검증 통과 · 동작은 확인되지 않았습니다. 머지 전 검토가 필요하며,"
-                        + " 항목 체크는 켜지 않았습니다.";
-                case NO_CHANGE -> suggestion != null
-                        ? "맥이 저장소에서 고칠 것이 없다고 판단했습니다. 대신 원본에서 고칠 내용을 남깁니다.\n"
-                                + "아래 값은 확인 후 반영해야 합니다 — 에이전트가 짚은 키가 맞는지 원본에서 대조하세요.\n\n"
-                                + suggestion
-                        : "맥이 이 작업을 자동으로 처리할 수 없다고 판단해 변경 없이 끝났습니다.";
-                default -> "맥에서 작업이 실패해 PR을 만들지 않았습니다."
-                        + (job.getFailureReason() != null ? "\n사유: " + job.getFailureReason() : "");
-            });
+            body.append(
+                    switch (result) {
+                        case SUCCEEDED ->
+                            "맥에서 수정을 마치고 PR을 열었습니다.\n" + job.getPrUrl()
+                                    + "\n컴파일 검증 통과 · 동작은 확인되지 않았습니다. 머지 전 검토가 필요하며,"
+                                    + " 항목 체크는 켜지 않았습니다.";
+                        case NO_CHANGE ->
+                            suggestion != null
+                                    ? "맥이 저장소에서 고칠 것이 없다고 판단했습니다. 대신 원본에서 고칠 내용을 남깁니다.\n"
+                                            + "아래 값은 확인 후 반영해야 합니다 — 에이전트가 짚은 키가 맞는지 원본에서 대조하세요.\n\n"
+                                            + suggestion
+                                    : "맥이 이 작업을 자동으로 처리할 수 없다고 판단해 변경 없이 끝났습니다.";
+                        default ->
+                            "맥에서 작업이 실패해 PR을 만들지 않았습니다."
+                                    + (job.getFailureReason() != null ? "\n사유: " + job.getFailureReason() : "");
+                    });
 
             User author = job.getCreatedBy() != null
-                    ? userRepository.findById(job.getCreatedBy()).orElse(null) : null;
+                    ? userRepository.findById(job.getCreatedBy()).orElse(null)
+                    : null;
 
             /*
              * 작성자를 못 찾으면 댓글을 접는다. 스키마가 {@code author_id}를 비워 두는 것을
@@ -902,8 +939,7 @@ public class JiraAutofixQueueService {
              * 카드에 남는 사본 하나뿐이다.
              */
             if (author == null) {
-                log.warn("Autofix: 결과 댓글 생략 — 작성자 미확인 job={} createdBy={}",
-                        job.getJobKey(), job.getCreatedBy());
+                log.warn("Autofix: 결과 댓글 생략 — 작성자 미확인 job={} createdBy={}", job.getJobKey(), job.getCreatedBy());
                 return;
             }
 
@@ -940,8 +976,13 @@ public class JiraAutofixQueueService {
         JiraIntegrationConfig config = configRepository.findByBoardId(boardId).orElse(null);
         String jiraBaseUrl = config != null ? config.getBaseUrl() : null;
 
-        slackPublisher.publish(job.getBoard(), job, title, jiraBaseUrl,
-                config != null ? config.getAutofixSlackChannelId() : null, corrected);
+        slackPublisher.publish(
+                job.getBoard(),
+                job,
+                title,
+                jiraBaseUrl,
+                config != null ? config.getAutofixSlackChannelId() : null,
+                corrected);
     }
 
     // ── 회수 ──────────────────────────────────────
@@ -959,8 +1000,8 @@ public class JiraAutofixQueueService {
      */
     @Transactional
     public int alertOfflineRunners() {
-        LocalDateTime deadline = LocalDateTime.now(ZoneOffset.UTC)
-                .minusMinutes(properties.getRunnerOfflineAlertMinutes());
+        LocalDateTime deadline =
+                LocalDateTime.now(ZoneOffset.UTC).minusMinutes(properties.getRunnerOfflineAlertMinutes());
 
         int alerted = 0;
         for (JiraIntegrationConfig config : configRepository.findRunnersGoneSilent(deadline)) {
@@ -970,12 +1011,20 @@ public class JiraAutofixQueueService {
 
             config.markRunnerOfflineAlerted();
             alerted++;
-            log.warn("Autofix: 러너 무응답 board={} runner={} seen={} queued={}",
-                    boardId, config.getAutofixRunnerName(), config.getAutofixRunnerSeenAt(), queued);
+            log.warn(
+                    "Autofix: 러너 무응답 board={} runner={} seen={} queued={}",
+                    boardId,
+                    config.getAutofixRunnerName(),
+                    config.getAutofixRunnerSeenAt(),
+                    queued);
 
             if (!properties.isSlackNotifyEnabled()) continue;
-            slackPublisher.publishRunnerOffline(config.getBoard(), config.getAutofixRunnerName(),
-                    config.getAutofixRunnerSeenAt(), (int) queued, config.getAutofixSlackChannelId());
+            slackPublisher.publishRunnerOffline(
+                    config.getBoard(),
+                    config.getAutofixRunnerName(),
+                    config.getAutofixRunnerSeenAt(),
+                    (int) queued,
+                    config.getAutofixSlackChannelId());
         }
         return alerted;
     }
@@ -992,26 +1041,34 @@ public class JiraAutofixQueueService {
      */
     @Transactional
     public int alertContractDrift() {
-        LocalDateTime deadline = LocalDateTime.now(ZoneOffset.UTC)
-                .minusMinutes(properties.getRunnerOnlineWindowMinutes());
+        LocalDateTime deadline =
+                LocalDateTime.now(ZoneOffset.UTC).minusMinutes(properties.getRunnerOnlineWindowMinutes());
 
         int alerted = 0;
-        for (JiraIntegrationConfig config : configRepository.findRunnersOnContractDrift(
-                deadline, AutofixRunnerContract.VERSION)) {
+        for (JiraIntegrationConfig config :
+                configRepository.findRunnersOnContractDrift(deadline, AutofixRunnerContract.VERSION)) {
             String boardId = config.getBoard().getId();
             long queued = jobRepository.countQueued(boardId);
             if (queued == 0) continue;
 
             config.markContractAlerted();
             alerted++;
-            log.warn("Autofix: 러너 계약 불일치 board={} runner={} runnerContract={} serverContract={} queued={}",
-                    boardId, config.getAutofixRunnerName(), config.getAutofixRunnerContract(),
-                    AutofixRunnerContract.VERSION, queued);
+            log.warn(
+                    "Autofix: 러너 계약 불일치 board={} runner={} runnerContract={} serverContract={} queued={}",
+                    boardId,
+                    config.getAutofixRunnerName(),
+                    config.getAutofixRunnerContract(),
+                    AutofixRunnerContract.VERSION,
+                    queued);
 
             if (!properties.isSlackNotifyEnabled()) continue;
-            slackPublisher.publishContractDrift(config.getBoard(), config.getAutofixRunnerName(),
-                    config.getAutofixRunnerContract(), AutofixRunnerContract.VERSION,
-                    (int) queued, config.getAutofixSlackChannelId());
+            slackPublisher.publishContractDrift(
+                    config.getBoard(),
+                    config.getAutofixRunnerName(),
+                    config.getAutofixRunnerContract(),
+                    AutofixRunnerContract.VERSION,
+                    (int) queued,
+                    config.getAutofixSlackChannelId());
         }
         return alerted;
     }
@@ -1027,8 +1084,7 @@ public class JiraAutofixQueueService {
      */
     @Transactional
     public int sweepStaleDispatches() {
-        LocalDateTime deadline = LocalDateTime.now(ZoneOffset.UTC)
-                .minusMinutes(properties.getDispatchTimeoutMinutes());
+        LocalDateTime deadline = LocalDateTime.now(ZoneOffset.UTC).minusMinutes(properties.getDispatchTimeoutMinutes());
         List<JiraAutofixJob> stale = jobRepository.findStaleDispatched(deadline);
         for (JiraAutofixJob job : stale) {
             job.markTimedOut();
@@ -1050,7 +1106,7 @@ public class JiraAutofixQueueService {
      */
     @Transactional(readOnly = true)
     public JiraAutofixResponse.QueueStatus getQueueStatus(String boardId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         String repoFullName = null;
         boolean ambiguous = false;
@@ -1064,8 +1120,9 @@ public class JiraAutofixQueueService {
 
         JiraIntegrationConfig config = configRepository.findByBoardId(boardId).orElse(null);
         LocalDateTime runnerSeenAt = config != null ? config.getAutofixRunnerSeenAt() : null;
-        boolean runnerOnline = runnerSeenAt != null && runnerSeenAt.isAfter(
-                LocalDateTime.now(ZoneOffset.UTC).minusMinutes(properties.getRunnerOnlineWindowMinutes()));
+        boolean runnerOnline = runnerSeenAt != null
+                && runnerSeenAt.isAfter(
+                        LocalDateTime.now(ZoneOffset.UTC).minusMinutes(properties.getRunnerOnlineWindowMinutes()));
 
         List<JiraAutofixTriage> candidates =
                 triageRepository.findByBoardIdAndVerdict(boardId, AutofixVerdict.CANDIDATE);
@@ -1076,18 +1133,20 @@ public class JiraAutofixQueueService {
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
-        Map<String, Task> statusTaskById = candidateTaskIds.isEmpty() ? Map.of()
+        Map<String, Task> statusTaskById = candidateTaskIds.isEmpty()
+                ? Map.of()
                 : taskRepository.findByIdInWithBlockAndFeature(candidateTaskIds).stream()
                         .collect(Collectors.toMap(Task::getId, t -> t, (a, b) -> a));
 
         int eligible = (int) candidates.stream()
                 .filter(t -> t.getConfidence() != null && t.getConfidence() >= properties.getMinConfidence())
-                .filter(t -> t.getTaskId() == null
-                        || !AutofixTaskStage.isAlreadyDone(statusTaskById.get(t.getTaskId())))
+                .filter(t ->
+                        t.getTaskId() == null || !AutofixTaskStage.isAlreadyDone(statusTaskById.get(t.getTaskId())))
                 .filter(t -> !jobRepository.existsActiveForIssue(boardId, t.getJiraIssueKey()))
                 .count();
 
-        boolean tokenSet = config != null && config.getAutofixCallbackToken() != null
+        boolean tokenSet = config != null
+                && config.getAutofixCallbackToken() != null
                 && !config.getAutofixCallbackToken().isBlank();
 
         LocalDateTime dayAgo = LocalDateTime.now(ZoneOffset.UTC).minusDays(1);
@@ -1123,15 +1182,16 @@ public class JiraAutofixQueueService {
      */
     @Transactional
     public void updateSlackChannel(String boardId, String userId, String channelId, String channelName) {
-        boardService.checkAdminOrAbove(boardId, userId);
-        JiraIntegrationConfig config = configRepository.findByBoardId(boardId)
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
+        JiraIntegrationConfig config = configRepository
+                .findByBoardId(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
         config.updateAutofixSlackChannel(channelId, channelName);
     }
 
     @Transactional(readOnly = true)
     public List<JiraAutofixResponse.JobItem> getJobs(String boardId, String userId, int limit) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
         return jobRepository.findByBoardId(boardId, PageRequest.of(0, Math.min(limit, 200))).stream()
                 .map(this::toItem)
                 .toList();
@@ -1145,7 +1205,7 @@ public class JiraAutofixQueueService {
      */
     @Transactional(readOnly = true)
     public List<JiraAutofixResponse.JobItem> getJobsForTask(String boardId, String userId, String taskId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
         return jobRepository.findByBoardIdAndTaskId(boardId, taskId).stream()
                 .map(this::toItem)
                 .toList();
@@ -1167,8 +1227,9 @@ public class JiraAutofixQueueService {
      */
     @Transactional
     public void cancelJob(String boardId, String userId, String jobId, boolean force) {
-        boardService.checkAdminOrAbove(boardId, userId);
-        JiraAutofixJob job = jobRepository.findById(jobId)
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
+        JiraAutofixJob job = jobRepository
+                .findById(jobId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_AUTOFIX_JOB_NOT_FOUND));
         if (!job.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.JIRA_AUTOFIX_JOB_NOT_FOUND);
@@ -1179,8 +1240,7 @@ public class JiraAutofixQueueService {
             throw new BusinessException(ErrorCode.JIRA_AUTOFIX_JOB_NOT_CANCELLABLE);
         }
         if (force) {
-            log.warn("Autofix job force-released: board={} key={} {} → CANCELLED",
-                    boardId, job.getJobKey(), before);
+            log.warn("Autofix job force-released: board={} key={} {} → CANCELLED", boardId, job.getJobKey(), before);
         }
     }
 
@@ -1206,9 +1266,10 @@ public class JiraAutofixQueueService {
      */
     @Transactional
     public JiraAutofixResponse.JobItem requeueJob(String boardId, String userId, String jobId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        JiraAutofixJob source = jobRepository.findById(jobId)
+        JiraAutofixJob source = jobRepository
+                .findById(jobId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_AUTOFIX_JOB_NOT_FOUND));
         if (!source.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.JIRA_AUTOFIX_JOB_NOT_FOUND);
@@ -1240,8 +1301,7 @@ public class JiraAutofixQueueService {
         source.supersede();
         jobRepository.saveAndFlush(source);
 
-        if (!source.getJobKind().isManual()
-                && jobRepository.existsActiveForIssue(boardId, source.getJobKey())) {
+        if (!source.getJobKind().isManual() && jobRepository.existsActiveForIssue(boardId, source.getJobKey())) {
             throw new BusinessException(ErrorCode.JIRA_AUTOFIX_ALREADY_DELEGATED);
         }
 
@@ -1252,8 +1312,14 @@ public class JiraAutofixQueueService {
         jobRepository.save(job);
         copyMaterials(source.getId(), job.getId());
 
-        log.info("Autofix requeue: board={} key={} from={}({}) to={} by={}",
-                boardId, job.getJobKey(), source.getId(), source.getStatus(), job.getId(), userId);
+        log.info(
+                "Autofix requeue: board={} key={} from={}({}) to={} by={}",
+                boardId,
+                job.getJobKey(),
+                source.getId(),
+                source.getStatus(),
+                job.getId(),
+                userId);
 
         return toItem(job);
     }
@@ -1269,21 +1335,26 @@ public class JiraAutofixQueueService {
      * 에이전트는 그걸 사실로 읽고 엉뚱한 것을 고친다.
      */
     private void copyMaterials(String sourceJobId, String newJobId) {
-        List<JiraAutofixJobMaterial> sources =
-                jobMaterialRepository.findByJobIdOrderByCreatedAtAsc(sourceJobId);
+        List<JiraAutofixJobMaterial> sources = jobMaterialRepository.findByJobIdOrderByCreatedAtAsc(sourceJobId);
         if (sources.isEmpty()) return;
 
         jobMaterialRepository.saveAll(sources.stream()
-                .map(m -> JiraAutofixJobMaterial.of(newJobId, m.getOriginalFileName(), m.getS3Key(),
-                        m.getUrl(), m.getContentType(), m.getFileSize()))
+                .map(m -> JiraAutofixJobMaterial.of(
+                        newJobId,
+                        m.getOriginalFileName(),
+                        m.getS3Key(),
+                        m.getUrl(),
+                        m.getContentType(),
+                        m.getFileSize()))
                 .toList());
     }
 
     /** 콜백 URL을 조립해 반환. 없으면 생성한다(멱등). */
     @Transactional
     public String ensureCallbackToken(String boardId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
-        JiraIntegrationConfig config = configRepository.findByBoardId(boardId)
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
+        JiraIntegrationConfig config = configRepository
+                .findByBoardId(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
         return config.ensureAutofixCallbackToken();
     }
@@ -1297,13 +1368,14 @@ public class JiraAutofixQueueService {
      */
     private JiraAutofixResponse.JobItem toItem(JiraAutofixJob job) {
         Task task = job.getTaskId() != null
-                ? taskRepository.findById(job.getTaskId()).orElse(null) : null;
+                ? taskRepository.findById(job.getTaskId()).orElse(null)
+                : null;
         ChecklistItem item = job.getChecklistItemId() != null
-                ? checklistItemRepository.findById(job.getChecklistItemId()).orElse(null) : null;
+                ? checklistItemRepository.findById(job.getChecklistItemId()).orElse(null)
+                : null;
 
         String parentTitle = task != null ? task.getTitle() : null;
-        String title = item != null ? item.getTitle()
-                : (parentTitle != null ? parentTitle : job.getJobKey());
+        String title = item != null ? item.getTitle() : (parentTitle != null ? parentTitle : job.getJobKey());
 
         String createdByName = job.getCreatedBy() != null
                 ? userRepository.findById(job.getCreatedBy()).map(User::getName).orElse(null)
@@ -1355,9 +1427,9 @@ public class JiraAutofixQueueService {
         }
         BoardGithubRepo repo = repos.get(0);
         String baseRef = (repo.getBranch() != null && !repo.getBranch().isBlank())
-                ? repo.getBranch() : properties.getDefaultBaseRef();
-        return new DispatchTarget(
-                repo.getInstallation().getInstallationId(), repo.getRepoFullName(), baseRef);
+                ? repo.getBranch()
+                : properties.getDefaultBaseRef();
+        return new DispatchTarget(repo.getInstallation().getInstallationId(), repo.getRepoFullName(), baseRef);
     }
 
     /** 토큰 비교는 길이 정보만 흘리도록 상수 시간으로 한다. */

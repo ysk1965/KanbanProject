@@ -8,7 +8,8 @@ import com.kanban.domain.block.BlockRepository;
 import com.kanban.domain.block.FixedBlockType;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
+import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.CommentAttachment;
 import com.kanban.domain.comment.CommentAttachmentRepository;
@@ -16,6 +17,7 @@ import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
+import com.kanban.domain.feature.FeatureStatus;
 import com.kanban.domain.integration.jira.JiraIssueLink;
 import com.kanban.domain.integration.jira.JiraIssueLinkRepository;
 import com.kanban.domain.integration.jira.JiraLinkTargetType;
@@ -36,30 +38,23 @@ import com.kanban.domain.task.dto.TaskResponse;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.domain.weight.TaskWeightRepository;
-import com.kanban.global.service.FileUploadService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.service.FileUploadService;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
+import jakarta.persistence.EntityManager;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.kanban.domain.feature.FeatureStatus;
-
-import com.kanban.domain.checklist.ChecklistItem;
-import jakarta.persistence.EntityManager;
-
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -74,7 +69,8 @@ public class TaskService {
     private final BlockRepository blockRepository;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final TaskKeyAllocator taskKeyAllocator;
     private final MilestoneFeatureRepository milestoneFeatureRepository;
     private final MilestoneRepository milestoneRepository;
@@ -91,14 +87,16 @@ public class TaskService {
     private final EntityManager entityManager;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
-    public TaskResponse.ListResponse getTasks(String boardId, String userId, String blockId, String featureId, String milestoneId) {
+    public TaskResponse.ListResponse getTasks(
+            String boardId, String userId, String blockId, String featureId, String milestoneId) {
         // 뷰어 이상 권한 확인 (컨트롤러 경로 전용 — Facade는 멤버십을 1회 검증 후 internal 직접 호출)
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         return getTasksInternal(boardId, blockId, featureId, milestoneId);
     }
 
     /** 권한 검증 없는 내부 조회 (BoardFacadeService처럼 호출 측에서 이미 멤버십을 검증한 경우 사용) */
-    public TaskResponse.ListResponse getTasksInternal(String boardId, String blockId, String featureId, String milestoneId) {
+    public TaskResponse.ListResponse getTasksInternal(
+            String boardId, String blockId, String featureId, String milestoneId) {
         // Fetch Join으로 N+1 방지
         List<Task> tasks;
         if (blockId != null) {
@@ -113,12 +111,11 @@ public class TaskService {
         if (milestoneId != null && !milestoneId.isEmpty()) {
             if ("none".equals(milestoneId)) {
                 // 마일스톤 미배정 태스크만
-                tasks = tasks.stream()
-                        .filter(t -> t.getMilestone() == null)
-                        .collect(Collectors.toList());
+                tasks = tasks.stream().filter(t -> t.getMilestone() == null).collect(Collectors.toList());
             } else {
                 tasks = tasks.stream()
-                        .filter(t -> t.getMilestone() != null && milestoneId.equals(t.getMilestone().getId()))
+                        .filter(t -> t.getMilestone() != null
+                                && milestoneId.equals(t.getMilestone().getId()))
                         .collect(Collectors.toList());
             }
         }
@@ -126,8 +123,8 @@ public class TaskService {
         Map<String, List<Tag>> taskTagsMap = getTaskTagsMap(tasks);
         ChecklistMaps checklistMaps = getChecklistMaps(tasks);
 
-        return TaskResponse.ListResponse.of(tasks, taskTagsMap, checklistMaps.countMap, checklistMaps.assigneesMap,
-                getJiraIssueKeyMap(boardId));
+        return TaskResponse.ListResponse.of(
+                tasks, taskTagsMap, checklistMaps.countMap, checklistMaps.assigneesMap, getJiraIssueKeyMap(boardId));
     }
 
     /**
@@ -143,17 +140,17 @@ public class TaskService {
 
     /** 이 Task를 JIRA가 소유하고 있으면 이슈키, 아니면 null. */
     private String jiraIssueKeyOf(String taskId) {
-        return jiraIssueLinkRepository.findByTargetTypeAndTargetId(JiraLinkTargetType.TASK, taskId)
+        return jiraIssueLinkRepository
+                .findByTargetTypeAndTargetId(JiraLinkTargetType.TASK, taskId)
                 .filter(l -> l.getJiraDeletedAt() == null)
                 .map(JiraIssueLink::getJiraIssueKey)
                 .orElse(null);
     }
 
     public TaskResponse.Detail getTask(String boardId, String taskId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
@@ -173,21 +170,23 @@ public class TaskService {
      */
     public TaskKeyResponse resolveTaskKey(String key, String userId) {
         String normalized = key == null ? "" : key.trim().toUpperCase();
-        Task task = taskRepository.findByTaskKey(normalized)
+        Task task = taskRepository
+                .findByTaskKey(normalized)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         String boardId = task.getBoard().getId();
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
         return new TaskKeyResponse(boardId, task.getId());
     }
 
     @Transactional
     public TaskResponse.Detail createTask(String boardId, String featureId, String userId, TaskRequest.Create request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         // Pessimistic Lock으로 Board 조회 - Task 제한 동시성 제어
-        Board board = boardRepository.findByIdWithLock(boardId)
+        Board board = boardRepository
+                .findByIdWithLock(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         // Trial 만료 체크 및 자동 전환
@@ -196,7 +195,8 @@ public class TaskService {
         // Standard 보드의 Task 제한 확인
         validateTaskLimit(board);
 
-        Feature feature = featureRepository.findById(featureId)
+        Feature feature = featureRepository
+                .findById(featureId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
 
         if (!feature.getBoard().getId().equals(boardId)) {
@@ -204,14 +204,15 @@ public class TaskService {
         }
 
         // Task 블록 찾기 (새 Task는 Task 블록에 생성)
-        Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
+        Block taskBlock = blockRepository
+                .findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
 
         // Pessimistic Lock으로 Block 조회 - position 동시성 제어
         blockRepository.findByIdWithLock(taskBlock.getId());
 
-        User creator = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User creator =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // Lock 획득 후 position 조회 - 동시성 안전
         Integer maxPosition = taskRepository.findMaxPositionByBlockId(taskBlock.getId());
@@ -270,24 +271,25 @@ public class TaskService {
                 Map.of(
                         "taskTitle", task.getTitle(),
                         "featureTitle", feature.getTitle(),
-                        "featureColor", feature.getColor() != null ? feature.getColor() : ""
-                )
-        );
+                        "featureColor", feature.getColor() != null ? feature.getColor() : ""));
 
         log.info("Task created: {} in feature: {} by user: {}", task.getId(), featureId, userId);
 
         TaskResponse.Detail response = TaskResponse.Detail.of(task, List.of());
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.TASK_CREATED, userId, creator.getName(),
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.TASK_CREATED,
+                userId,
+                creator.getName(),
                 Map.of("task", response, "feature", buildFeatureSummary(feature)));
         return response;
     }
 
     @Transactional
     public TaskResponse.Detail updateTask(String boardId, String taskId, String userId, TaskRequest.Update request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
@@ -301,8 +303,7 @@ public class TaskService {
                 jiraIssueKey != null ? null : request.getDescription(),
                 request.getStartDate(),
                 request.getDueDate(),
-                request.getEstimatedMinutes()
-        );
+                request.getEstimatedMinutes());
 
         // 마일스톤 재배정: null(미전달)이면 변경 없음, ""이면 해제, 값이면 배정(필요 시 피처 자동 연결)
         if (request.getMilestoneId() != null) {
@@ -324,9 +325,14 @@ public class TaskService {
             }
         }
 
-        User updater = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        activityService.logActivity(task.getBoard(), updater, ActivityAction.TASK_UPDATED, TargetType.TASK, taskId,
+        User updater =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(
+                task.getBoard(),
+                updater,
+                ActivityAction.TASK_UPDATED,
+                TargetType.TASK,
+                taskId,
                 Map.of("taskTitle", task.getTitle()));
 
         List<Tag> tags = taskTagRepository.findByTaskId(taskId).stream()
@@ -346,10 +352,9 @@ public class TaskService {
      */
     @Transactional
     public void deleteTask(String boardId, String taskId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
@@ -360,9 +365,14 @@ public class TaskService {
 
         // 활동 로그 기록
         String taskTitle = task.getTitle();
-        User deleter = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        activityService.logActivity(task.getBoard(), deleter, ActivityAction.TASK_DELETED, TargetType.TASK, taskId,
+        User deleter =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(
+                task.getBoard(),
+                deleter,
+                ActivityAction.TASK_DELETED,
+                TargetType.TASK,
+                taskId,
                 Map.of("taskTitle", taskTitle, "featureTitle", feature.getTitle()));
 
         // Feature 카운터 감소 (복구 시 increment 되돌림)
@@ -390,9 +400,12 @@ public class TaskService {
         log.info("Task soft-deleted: {} by user: {}", taskId, userId);
 
         // Feature가 영속화 컨텍스트에서 분리됐을 수 있으므로 재조회 후 summary
-        Feature freshFeature = featureRepository.findById(feature.getId())
-                .orElse(feature);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.TASK_DELETED, userId, deleter.getName(),
+        Feature freshFeature = featureRepository.findById(feature.getId()).orElse(feature);
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.TASK_DELETED,
+                userId,
+                deleter.getName(),
                 Map.of("id", taskId, "feature", buildFeatureSummary(freshFeature)));
     }
 
@@ -402,7 +415,8 @@ public class TaskService {
      */
     @Transactional
     public void hardDeleteTask(String boardId, String taskId) {
-        Task task = taskRepository.findByIdIncludingDeleted(taskId)
+        Task task = taskRepository
+                .findByIdIncludingDeleted(taskId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
@@ -446,16 +460,16 @@ public class TaskService {
 
     @Transactional
     public TaskResponse.Detail moveTask(String boardId, String taskId, String userId, TaskRequest.Move request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
         }
 
-        Block targetBlock = blockRepository.findById(request.getTargetBlockId())
+        Block targetBlock = blockRepository
+                .findById(request.getTargetBlockId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
 
         // Feature 블록으로는 이동 불가
@@ -475,14 +489,14 @@ public class TaskService {
             targetPosition = request.getPosition();
         } else {
             // position이 없으면 맨 끝에 추가
-            int count = (int) taskRepository.findByBlockIdOrderByPositionAsc(targetBlock.getId())
-                    .stream().filter(t -> !t.getId().equals(taskId)).count();
+            int count = (int) taskRepository.findByBlockIdOrderByPositionAsc(targetBlock.getId()).stream()
+                    .filter(t -> !t.getId().equals(taskId))
+                    .count();
             targetPosition = count;
         }
 
         // 해당 블록의 모든 task를 가져와서 정렬 (현재 task 제외)
-        List<Task> tasksInBlock = taskRepository.findByBlockIdOrderByPositionAsc(targetBlock.getId())
-                .stream()
+        List<Task> tasksInBlock = taskRepository.findByBlockIdOrderByPositionAsc(targetBlock.getId()).stream()
                 .filter(t -> !t.getId().equals(taskId))
                 .collect(Collectors.toList());
 
@@ -504,56 +518,89 @@ public class TaskService {
         // 블록이 변경된 경우에만 활동 로그 기록
         User user = null;
         if (!oldBlockId.equals(targetBlock.getId())) {
-            user = userRepository.findById(userId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
             // Done 블록으로 이동 시 TASK_COMPLETED 로그
             if (targetBlock.isDoneBlock()) {
-                activityService.logActivity(task.getBoard(), user, ActivityAction.TASK_COMPLETED, TargetType.TASK, task.getId(),
-                        Map.of("taskTitle", task.getTitle(), "featureTitle", task.getFeature().getTitle()));
+                activityService.logActivity(
+                        task.getBoard(),
+                        user,
+                        ActivityAction.TASK_COMPLETED,
+                        TargetType.TASK,
+                        task.getId(),
+                        Map.of(
+                                "taskTitle",
+                                task.getTitle(),
+                                "featureTitle",
+                                task.getFeature().getTitle()));
 
                 // Feature의 모든 Task가 완료되면 FEATURE_COMPLETED 로그
                 Feature feature = task.getFeature();
                 if (featureStatusBefore != FeatureStatus.COMPLETED && feature.getStatus() == FeatureStatus.COMPLETED) {
-                    activityService.logActivity(task.getBoard(), user, ActivityAction.FEATURE_COMPLETED, TargetType.FEATURE, feature.getId(),
+                    activityService.logActivity(
+                            task.getBoard(),
+                            user,
+                            ActivityAction.FEATURE_COMPLETED,
+                            TargetType.FEATURE,
+                            feature.getId(),
                             Map.of("featureTitle", feature.getTitle()));
                 }
             } else {
-                activityService.logActivity(task.getBoard(), user, ActivityAction.TASK_MOVED, TargetType.TASK, task.getId(),
-                        Map.of("taskTitle", task.getTitle(), "fromBlock", oldBlockName, "toBlock", targetBlock.getName()));
+                activityService.logActivity(
+                        task.getBoard(),
+                        user,
+                        ActivityAction.TASK_MOVED,
+                        TargetType.TASK,
+                        task.getId(),
+                        Map.of(
+                                "taskTitle",
+                                task.getTitle(),
+                                "fromBlock",
+                                oldBlockName,
+                                "toBlock",
+                                targetBlock.getName()));
             }
         }
 
-        log.info("Task moved: {} from block {} to block {} by user: {}", taskId, oldBlockId, targetBlock.getId(), userId);
+        log.info(
+                "Task moved: {} from block {} to block {} by user: {}",
+                taskId,
+                oldBlockId,
+                targetBlock.getId(),
+                userId);
 
         TaskResponse.Detail response = TaskResponse.Detail.of(task, tags, jiraIssueKeyOf(taskId));
         if (user == null) {
-            user = userRepository.findById(userId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         }
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.TASK_MOVED, userId, user.getName(),
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.TASK_MOVED,
+                userId,
+                user.getName(),
                 Map.of("task", response, "feature", buildFeatureSummary(task.getFeature())));
 
         // JIRA 연동 카드면 블록 변경을 push (커밋 후 비동기). core→jira 역의존 회피용 이벤트.
         if (!oldBlockId.equals(targetBlock.getId())) {
             eventPublisher.publishEvent(
-                new com.kanban.domain.task.event.TaskBlockChangedEvent(boardId, taskId, targetBlock.getId()));
+                    new com.kanban.domain.task.event.TaskBlockChangedEvent(boardId, taskId, targetBlock.getId()));
         }
         return response;
     }
 
     @Transactional
-    public TaskResponse.Detail moveTaskToFeature(String boardId, String taskId, String userId, TaskRequest.MoveFeature request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public TaskResponse.Detail moveTaskToFeature(
+            String boardId, String taskId, String userId, TaskRequest.MoveFeature request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
         }
 
-        Feature targetFeature = featureRepository.findById(request.getTargetFeatureId())
+        Feature targetFeature = featureRepository
+                .findById(request.getTargetFeatureId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
 
         if (!targetFeature.getBoard().getId().equals(boardId)) {
@@ -586,31 +633,46 @@ public class TaskService {
         // 옛 피처의 옛 마일스톤에 남은 태스크가 없으면 비게 된 피처-마일스톤 링크 정리
         cleanupEmptyMilestoneLink(oldFeature, oldMilestone);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        activityService.logActivity(task.getBoard(), user, ActivityAction.TASK_FEATURE_MOVED, TargetType.TASK, task.getId(),
-                Map.of("taskTitle", task.getTitle(),
-                        "fromFeature", oldFeatureTitle,
-                        "toFeature", targetFeature.getTitle(),
+        activityService.logActivity(
+                task.getBoard(),
+                user,
+                ActivityAction.TASK_FEATURE_MOVED,
+                TargetType.TASK,
+                task.getId(),
+                Map.of(
+                        "taskTitle",
+                        task.getTitle(),
+                        "fromFeature",
+                        oldFeatureTitle,
+                        "toFeature",
+                        targetFeature.getTitle(),
                         // 위와 같은 이유 — Map.of 는 null 을 허용하지 않는다
-                        "toFeatureColor", targetFeature.getColor() != null ? targetFeature.getColor() : ""));
+                        "toFeatureColor",
+                        targetFeature.getColor() != null ? targetFeature.getColor() : ""));
 
         List<Tag> tags = taskTagRepository.findByTaskId(taskId).stream()
                 .map(TaskTag::getTag)
                 .toList();
 
-        log.info("Task moved to feature: {} from feature {} to feature {} by user: {}",
-                taskId, oldFeatureTitle, targetFeature.getTitle(), userId);
+        log.info(
+                "Task moved to feature: {} from feature {} to feature {} by user: {}",
+                taskId,
+                oldFeatureTitle,
+                targetFeature.getTitle(),
+                userId);
 
         return TaskResponse.Detail.of(task, tags, jiraIssueKeyOf(taskId));
     }
 
     @Transactional
-    public void reorderFeatureTasks(String boardId, String featureId, String userId, TaskRequest.ReorderFeatureTasks request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public void reorderFeatureTasks(
+            String boardId, String featureId, String userId, TaskRequest.ReorderFeatureTasks request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Feature feature = featureRepository.findById(featureId)
+        Feature feature = featureRepository
+                .findById(featureId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
 
         if (!feature.getBoard().getId().equals(boardId)) {
@@ -618,8 +680,7 @@ public class TaskService {
         }
 
         List<Task> featureTasks = taskRepository.findByFeatureIdOrderByPositionAsc(featureId);
-        Map<String, Task> taskMap = featureTasks.stream()
-                .collect(Collectors.toMap(Task::getId, t -> t));
+        Map<String, Task> taskMap = featureTasks.stream().collect(Collectors.toMap(Task::getId, t -> t));
 
         List<String> taskIds = request.getTaskIds();
         for (String id : taskIds) {
@@ -637,18 +698,21 @@ public class TaskService {
 
         log.info("Feature tasks reordered: feature {} in board {} by user: {}", featureId, boardId, userId);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.TASKS_REORDERED, userId, user.getName(),
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.TASKS_REORDERED,
+                userId,
+                user.getName(),
                 Map.of("feature_id", featureId, "task_ids", taskIds));
     }
 
     @Transactional
-    public TaskResponse.Detail updateTaskDates(String boardId, String taskId, String userId, TaskRequest.UpdateDates request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public TaskResponse.Detail updateTaskDates(
+            String boardId, String taskId, String userId, TaskRequest.UpdateDates request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
@@ -660,8 +724,12 @@ public class TaskService {
                 .map(TaskTag::getTag)
                 .toList();
 
-        log.info("Task dates updated: {} (start: {}, end: {}) by user: {}",
-                taskId, request.getStartDate(), request.getEndDate(), userId);
+        log.info(
+                "Task dates updated: {} (start: {}, end: {}) by user: {}",
+                taskId,
+                request.getStartDate(),
+                request.getEndDate(),
+                userId);
 
         return TaskResponse.Detail.of(task, tags, jiraIssueKeyOf(taskId));
     }
@@ -675,15 +743,11 @@ public class TaskService {
 
         return taskTags.stream()
                 .collect(Collectors.groupingBy(
-                        tt -> tt.getTask().getId(),
-                        Collectors.mapping(TaskTag::getTag, Collectors.toList())
-                ));
+                        tt -> tt.getTask().getId(), Collectors.mapping(TaskTag::getTag, Collectors.toList())));
     }
 
     private record ChecklistMaps(
-            Map<String, int[]> countMap,
-            Map<String, List<TaskResponse.AssigneeInfo>> assigneesMap
-    ) {}
+            Map<String, int[]> countMap, Map<String, List<TaskResponse.AssigneeInfo>> assigneesMap) {}
 
     private ChecklistMaps getChecklistMaps(List<Task> tasks) {
         Map<String, int[]> countMap = new HashMap<>();
@@ -702,8 +766,9 @@ public class TaskService {
             List<ChecklistItem> items = entry.getValue();
 
             int total = items.size();
-            int completed = (int) items.stream().filter(ChecklistItem::getIsCompleted).count();
-            countMap.put(taskId, new int[]{total, completed});
+            int completed =
+                    (int) items.stream().filter(ChecklistItem::getIsCompleted).count();
+            countMap.put(taskId, new int[] {total, completed});
 
             List<TaskResponse.AssigneeInfo> assignees = items.stream()
                     .filter(ci -> ci.getAssignee() != null)
@@ -712,7 +777,8 @@ public class TaskService {
                             ci -> ci.getAssignee(),
                             (existing, replacement) -> existing,
                             LinkedHashMap::new))
-                    .values().stream()
+                    .values()
+                    .stream()
                     .map(TaskResponse.AssigneeInfo::of)
                     .toList();
             if (!assignees.isEmpty()) {
@@ -725,7 +791,7 @@ public class TaskService {
 
     @Transactional
     public void saveBaseline(String boardId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         List<Task> tasks = taskRepository.findByBoardIdOrderByPositionAsc(boardId);
         for (Task task : tasks) {
@@ -737,7 +803,7 @@ public class TaskService {
 
     @Transactional
     public void clearBaseline(String boardId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         List<Task> tasks = taskRepository.findByBoardIdOrderByPositionAsc(boardId);
         for (Task task : tasks) {
@@ -756,14 +822,13 @@ public class TaskService {
                 "id", feature.getId(),
                 "total_tasks", feature.getTotalTasks(),
                 "completed_tasks", feature.getCompletedTasks(),
-                "progress_percentage", feature.getProgressPercentage()
-        );
+                "progress_percentage", feature.getProgressPercentage());
     }
 
     /** 피처의 홈(대표) 마일스톤 — 연결된 마일스톤 중 가장 이른 시작일(동률 시 마일스톤 id). 없으면 null. */
     private Milestone featurePrimaryMilestone(String featureId) {
-        return milestoneFeatureRepository.findByFeatureIdOrderByMilestoneStartDate(featureId)
-                .stream().findFirst()
+        return milestoneFeatureRepository.findByFeatureIdOrderByMilestoneStartDate(featureId).stream()
+                .findFirst()
                 .map(MilestoneFeature::getMilestone)
                 .orElse(null);
     }
@@ -773,12 +838,15 @@ public class TaskService {
      * 홈(대표) 여부는 저장하지 않으므로 링크만 추가하면 된다.
      */
     private Milestone resolveAndLinkMilestone(Board board, Feature feature, String milestoneId) {
-        Milestone milestone = milestoneRepository.findById(milestoneId)
+        Milestone milestone = milestoneRepository
+                .findById(milestoneId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
         if (!milestone.getBoard().getId().equals(board.getId())) {
             throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
         }
-        if (milestoneFeatureRepository.findByMilestoneIdAndFeatureId(milestone.getId(), feature.getId()).isEmpty()) {
+        if (milestoneFeatureRepository
+                .findByMilestoneIdAndFeatureId(milestone.getId(), feature.getId())
+                .isEmpty()) {
             milestoneFeatureRepository.save(MilestoneFeature.create(milestone, feature));
         }
         return milestone;
@@ -795,7 +863,9 @@ public class TaskService {
             return;
         }
         // 이 피처의 태스크가 아직 해당 마일스톤에 남아있으면 링크 유지
-        if (!taskRepository.findByFeatureIdAndMilestoneId(feature.getId(), milestone.getId()).isEmpty()) {
+        if (!taskRepository
+                .findByFeatureIdAndMilestoneId(feature.getId(), milestone.getId())
+                .isEmpty()) {
             return;
         }
         MilestoneFeature link = milestoneFeatureRepository
@@ -807,8 +877,10 @@ public class TaskService {
         // 홈(대표)은 저장값이 아니라 파생이므로 링크만 지우면 남은 링크에서 자동으로 새 홈이 계산된다.
         milestoneFeatureRepository.delete(link);
 
-        log.info("Removed empty milestone-feature link: feature {} <-> milestone {}",
-                feature.getId(), milestone.getId());
+        log.info(
+                "Removed empty milestone-feature link: feature {} <-> milestone {}",
+                feature.getId(),
+                milestone.getId());
     }
 
     private void validateTaskLimit(Board board) {
@@ -816,8 +888,11 @@ public class TaskService {
         if (taskLimit != null) {
             int currentTaskCount = taskRepository.countByBoardId(board.getId());
             if (currentTaskCount >= taskLimit) {
-                log.warn("Task limit exceeded for board: {} (current: {}, limit: {})",
-                        board.getId(), currentTaskCount, taskLimit);
+                log.warn(
+                        "Task limit exceeded for board: {} (current: {}, limit: {})",
+                        board.getId(),
+                        currentTaskCount,
+                        taskLimit);
                 throw new BusinessException(ErrorCode.TASK_LIMIT_EXCEEDED);
             }
         }

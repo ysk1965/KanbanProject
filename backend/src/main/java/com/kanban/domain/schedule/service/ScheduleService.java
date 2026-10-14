@@ -3,7 +3,7 @@ package com.kanban.domain.schedule.service;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.checklist.dto.ChecklistResponse;
@@ -21,11 +21,6 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -34,6 +29,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -48,14 +47,16 @@ public class ScheduleService {
     private final MeetingRepository meetingRepository;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final WebSocketEventService webSocketEventService;
 
-    public ScheduleResponse.DailySchedule getDailySchedule(String boardId, LocalDate date, List<String> assigneeIds, String userId, boolean includeOrgSchedules) {
-        boardService.checkViewerOrAbove(boardId, userId);
+    public ScheduleResponse.DailySchedule getDailySchedule(
+            String boardId, LocalDate date, List<String> assigneeIds, String userId, boolean includeOrgSchedules) {
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         validateScheduleAccess(board);
 
         Map<String, User> userCache = new java.util.HashMap<>();
@@ -68,8 +69,9 @@ public class ScheduleService {
             userRepository.findAllById(targetAssigneeIds).forEach(u -> userCache.put(u.getId(), u));
         }
 
-        List<ScheduleBlock> blocks = scheduleBlockRepository
-                .findByBoardIdAndScheduledDateAndAssigneeIdInOrderByStartTimeAsc(boardId, date, targetAssigneeIds);
+        List<ScheduleBlock> blocks =
+                scheduleBlockRepository.findByBoardIdAndScheduledDateAndAssigneeIdInOrderByStartTimeAsc(
+                        boardId, date, targetAssigneeIds);
 
         Map<String, List<ScheduleBlock>> blocksByAssignee = blocks.stream()
                 .collect(Collectors.groupingBy(b -> b.getAssignee().getId()));
@@ -80,9 +82,8 @@ public class ScheduleService {
             if (user == null) continue;
 
             List<ScheduleBlock> userBlocks = blocksByAssignee.getOrDefault(assigneeId, new ArrayList<>());
-            List<ScheduleResponse.BlockInfo> blockInfos = userBlocks.stream()
-                    .map(ScheduleResponse.BlockInfo::of)
-                    .collect(Collectors.toList());
+            List<ScheduleResponse.BlockInfo> blockInfos =
+                    userBlocks.stream().map(ScheduleResponse.BlockInfo::of).collect(Collectors.toList());
 
             columns.add(ScheduleResponse.ColumnInfo.builder()
                     .user(ScheduleResponse.UserInfo.of(user))
@@ -95,8 +96,9 @@ public class ScheduleService {
             String orgId = board.getOrganization().getId();
             List<String> orgBoardIds = boardRepository.findBoardIdsByOrgId(orgId);
 
-            Set<String> userBoardIds = boardMemberRepository.findByUserIdWithActiveBoards(userId)
-                    .stream().map(bm -> bm.getBoard().getId()).collect(Collectors.toSet());
+            Set<String> userBoardIds = boardMemberRepository.findByUserIdWithActiveBoards(userId).stream()
+                    .map(bm -> bm.getBoard().getId())
+                    .collect(Collectors.toSet());
 
             List<String> crossBoardIds = orgBoardIds.stream()
                     .filter(id -> !id.equals(boardId))
@@ -104,8 +106,8 @@ public class ScheduleService {
                     .collect(Collectors.toList());
 
             if (!crossBoardIds.isEmpty()) {
-                List<ScheduleBlock> crossBlocks = scheduleBlockRepository
-                        .findByBoardIdInAndScheduledDateAndAssigneeIdIn(
+                List<ScheduleBlock> crossBlocks =
+                        scheduleBlockRepository.findByBoardIdInAndScheduledDateAndAssigneeIdIn(
                                 crossBoardIds, date, targetAssigneeIds);
 
                 Map<String, List<ScheduleBlock>> crossByAssignee = crossBlocks.stream()
@@ -140,11 +142,17 @@ public class ScheduleService {
      * 주간 스케줄 조회 (7일치 데이터 한 번에)
      * 기존 7개 API 호출 → 1개로 통합하여 86% 감소
      */
-    public ScheduleResponse.WeeklySchedule getWeeklySchedule(String boardId, LocalDate startDate, LocalDate endDate, List<String> assigneeIds, String userId, boolean includeOrgSchedules) {
-        boardService.checkViewerOrAbove(boardId, userId);
+    public ScheduleResponse.WeeklySchedule getWeeklySchedule(
+            String boardId,
+            LocalDate startDate,
+            LocalDate endDate,
+            List<String> assigneeIds,
+            String userId,
+            boolean includeOrgSchedules) {
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         validateScheduleAccess(board);
 
         // 대상 담당자 목록
@@ -159,15 +167,14 @@ public class ScheduleService {
         }
 
         // 기간 내 모든 블록 조회 (1회 쿼리)
-        List<ScheduleBlock> allBlocks = scheduleBlockRepository
-                .findByBoardIdAndScheduledDateBetween(boardId, startDate, endDate);
+        List<ScheduleBlock> allBlocks =
+                scheduleBlockRepository.findByBoardIdAndScheduledDateBetween(boardId, startDate, endDate);
 
         // 날짜별 + 담당자별로 그룹핑
         Map<LocalDate, Map<String, List<ScheduleBlock>>> blocksByDateAndAssignee = allBlocks.stream()
                 .collect(Collectors.groupingBy(
                         ScheduleBlock::getScheduledDate,
-                        Collectors.groupingBy(b -> b.getAssignee().getId())
-                ));
+                        Collectors.groupingBy(b -> b.getAssignee().getId())));
 
         // 크로스보드 조직 스케줄 조회
         Map<LocalDate, Map<String, List<ScheduleBlock>>> crossBlocksByDateAndAssignee = Map.of();
@@ -175,8 +182,9 @@ public class ScheduleService {
             String orgId = board.getOrganization().getId();
             List<String> orgBoardIds = boardRepository.findBoardIdsByOrgId(orgId);
 
-            Set<String> userBoardIds = boardMemberRepository.findByUserIdWithActiveBoards(userId)
-                    .stream().map(bm -> bm.getBoard().getId()).collect(Collectors.toSet());
+            Set<String> userBoardIds = boardMemberRepository.findByUserIdWithActiveBoards(userId).stream()
+                    .map(bm -> bm.getBoard().getId())
+                    .collect(Collectors.toSet());
 
             List<String> crossBoardIds = orgBoardIds.stream()
                     .filter(id -> !id.equals(boardId))
@@ -184,15 +192,14 @@ public class ScheduleService {
                     .collect(Collectors.toList());
 
             if (!crossBoardIds.isEmpty()) {
-                List<ScheduleBlock> crossBlocks = scheduleBlockRepository
-                        .findByBoardIdInAndScheduledDateBetweenAndAssigneeIdIn(
+                List<ScheduleBlock> crossBlocks =
+                        scheduleBlockRepository.findByBoardIdInAndScheduledDateBetweenAndAssigneeIdIn(
                                 crossBoardIds, startDate, endDate, targetAssigneeIds);
 
                 crossBlocksByDateAndAssignee = crossBlocks.stream()
                         .collect(Collectors.groupingBy(
                                 ScheduleBlock::getScheduledDate,
-                                Collectors.groupingBy(b -> b.getAssignee().getId())
-                        ));
+                                Collectors.groupingBy(b -> b.getAssignee().getId())));
             }
         }
 
@@ -202,7 +209,8 @@ public class ScheduleService {
         while (!current.isAfter(endDate)) {
             final LocalDate date = current;
             Map<String, List<ScheduleBlock>> blocksByAssignee = blocksByDateAndAssignee.getOrDefault(date, Map.of());
-            Map<String, List<ScheduleBlock>> crossByAssignee = crossBlocksByDateAndAssignee.getOrDefault(date, Map.of());
+            Map<String, List<ScheduleBlock>> crossByAssignee =
+                    crossBlocksByDateAndAssignee.getOrDefault(date, Map.of());
 
             List<ScheduleResponse.ColumnInfo> columns = new ArrayList<>();
             for (String assigneeId : targetAssigneeIds) {
@@ -210,9 +218,8 @@ public class ScheduleService {
                 if (user == null) continue;
 
                 List<ScheduleBlock> userBlocks = blocksByAssignee.getOrDefault(assigneeId, new ArrayList<>());
-                List<ScheduleResponse.BlockInfo> blockInfos = userBlocks.stream()
-                        .map(ScheduleResponse.BlockInfo::of)
-                        .collect(Collectors.toList());
+                List<ScheduleResponse.BlockInfo> blockInfos =
+                        userBlocks.stream().map(ScheduleResponse.BlockInfo::of).collect(Collectors.toList());
 
                 // 크로스보드 orgBlocks
                 List<ScheduleBlock> userCrossBlocks = crossByAssignee.getOrDefault(assigneeId, List.of());
@@ -246,25 +253,29 @@ public class ScheduleService {
     }
 
     @Transactional
-    public ScheduleResponse.BlockDetail createScheduleBlock(String boardId, String userId, ScheduleRequest.Create request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public ScheduleResponse.BlockDetail createScheduleBlock(
+            String boardId, String userId, ScheduleRequest.Create request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         validateScheduleAccess(board);
 
-        User assignee = userRepository.findById(request.getAssigneeId())
+        User assignee = userRepository
+                .findById(request.getAssigneeId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         ChecklistItem checklistItem = null;
         if (request.getChecklistItemId() != null) {
-            checklistItem = checklistItemRepository.findById(request.getChecklistItemId())
+            checklistItem = checklistItemRepository
+                    .findById(request.getChecklistItemId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
         }
 
         Meeting meeting = null;
         if (request.getMeetingId() != null) {
-            meeting = meetingRepository.findById(request.getMeetingId())
+            meeting = meetingRepository
+                    .findById(request.getMeetingId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
         }
 
@@ -292,24 +303,26 @@ public class ScheduleService {
         fillChecklistStartDateFromBlocks(boardId, userId, actorName, checklistItem);
 
         ScheduleResponse.BlockDetail response = ScheduleResponse.BlockDetail.of(block);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_CREATED,
-                userId, actorName, response);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_CREATED, userId, actorName, response);
 
         return response;
     }
 
     @Transactional
-    public ScheduleResponse.BlockDetail createWithChecklistItem(String boardId, String userId, ScheduleRequest.CreateWithChecklistItem request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public ScheduleResponse.BlockDetail createWithChecklistItem(
+            String boardId, String userId, ScheduleRequest.CreateWithChecklistItem request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         validateScheduleAccess(board);
 
-        User assignee = userRepository.findById(request.getAssigneeId())
+        User assignee = userRepository
+                .findById(request.getAssigneeId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        Task task = taskRepository.findById(request.getChecklistItem().getTaskId())
+        Task task = taskRepository
+                .findById(request.getChecklistItem().getTaskId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         if (!task.getBoard().getId().equals(boardId)) {
@@ -352,24 +365,29 @@ public class ScheduleService {
         fillChecklistStartDateFromBlocks(boardId, userId, actorName, checklistItem);
 
         ScheduleResponse.BlockDetail response = ScheduleResponse.BlockDetail.of(block);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_CREATED,
-                userId, actorName, response);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_CREATED, userId, actorName, response);
 
         return response;
     }
 
     @Transactional
-    public ScheduleResponse.BlockDetail updateScheduleBlock(String boardId, String blockId, String userId, ScheduleRequest.Update request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public ScheduleResponse.BlockDetail updateScheduleBlock(
+            String boardId, String blockId, String userId, ScheduleRequest.Update request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        ScheduleBlock block = scheduleBlockRepository.findById(blockId)
+        ScheduleBlock block = scheduleBlockRepository
+                .findById(blockId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_BLOCK_NOT_FOUND));
 
         if (!block.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.SCHEDULE_BLOCK_NOT_FOUND);
         }
 
-        log.info("Schedule block update request: blockId={}, startTime={}, endTime={}", blockId, request.getStartTime(), request.getEndTime());
+        log.info(
+                "Schedule block update request: blockId={}, startTime={}, endTime={}",
+                blockId,
+                request.getStartTime(),
+                request.getEndTime());
 
         block.updateTimes(request.getStartTime(), request.getEndTime());
         if ("CUSTOM".equals(block.getBlockType()) && (request.getTitle() != null || request.getColor() != null)) {
@@ -382,8 +400,8 @@ public class ScheduleService {
         User user = userRepository.findById(userId).orElse(null);
         // 미연결(soft-deleted 항목 참조) 블록의 이동/리사이즈에서 프록시 초기화 500 방지
         ScheduleResponse.BlockDetail response = ScheduleResponse.BlockDetail.of(block, resolveLiveChecklistItem(block));
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_UPDATED,
-                userId, user != null ? user.getName() : null, response);
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.SCHEDULE_UPDATED, userId, user != null ? user.getName() : null, response);
 
         return response;
     }
@@ -396,9 +414,10 @@ public class ScheduleService {
     @Transactional
     public ScheduleResponse.BlockDetail reassignBlockChecklistItem(
             String boardId, String blockId, String userId, ScheduleRequest.ReassignChecklistItem request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        ScheduleBlock block = scheduleBlockRepository.findById(blockId)
+        ScheduleBlock block = scheduleBlockRepository
+                .findById(blockId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_BLOCK_NOT_FOUND));
 
         if (!block.getBoard().getId().equals(boardId)) {
@@ -410,7 +429,8 @@ public class ScheduleService {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
-        ChecklistItem target = checklistItemRepository.findById(request.getChecklistItemId())
+        ChecklistItem target = checklistItemRepository
+                .findById(request.getChecklistItemId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
 
         if (!target.getTask().getBoard().getId().equals(boardId)) {
@@ -434,17 +454,17 @@ public class ScheduleService {
         log.info("Schedule block {} reassigned to checklist item {} by user: {}", blockId, target.getId(), userId);
 
         ScheduleResponse.BlockDetail response = ScheduleResponse.BlockDetail.of(block);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_UPDATED,
-                userId, actorName, response);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_UPDATED, userId, actorName, response);
 
         return response;
     }
 
     @Transactional
     public void deleteScheduleBlock(String boardId, String blockId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        ScheduleBlock block = scheduleBlockRepository.findById(blockId)
+        ScheduleBlock block = scheduleBlockRepository
+                .findById(blockId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_BLOCK_NOT_FOUND));
 
         if (!block.getBoard().getId().equals(boardId)) {
@@ -465,19 +485,24 @@ public class ScheduleService {
         // 삭제된 블록이 시작일을 정의하던 블록이면 남은 블록 기준으로 재계산
         recalcChecklistStartDateOnBlockRemoval(boardId, userId, actorName, linkedItem, removedBlockDate);
 
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_DELETED,
-                userId, actorName, Map.of("id", deletedBlockId));
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.SCHEDULE_DELETED, userId, actorName, Map.of("id", deletedBlockId));
     }
 
     @Transactional
-    public ScheduleResponse.SettingsInfo updateScheduleSettings(String boardId, String userId, ScheduleRequest.UpdateSettings request) {
-        boardService.checkAdminOrAbove(boardId, userId);
+    public ScheduleResponse.SettingsInfo updateScheduleSettings(
+            String boardId, String userId, ScheduleRequest.UpdateSettings request) {
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        board.updateScheduleSettings(request.getWorkHoursPerDay(), request.getWorkStartTime(),
-                request.getScheduleDisplayMode(), request.getBreakStartTime(), request.getBreakEndTime());
+        board.updateScheduleSettings(
+                request.getWorkHoursPerDay(),
+                request.getWorkStartTime(),
+                request.getScheduleDisplayMode(),
+                request.getBreakStartTime(),
+                request.getBreakEndTime());
 
         log.info("Schedule settings updated for board: {} by user: {}", boardId, userId);
 
@@ -485,10 +510,10 @@ public class ScheduleService {
     }
 
     public ScheduleResponse.SettingsInfo getScheduleSettings(String boardId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         return ScheduleResponse.SettingsInfo.of(board);
     }
@@ -497,17 +522,19 @@ public class ScheduleService {
      * 스케줄 블록이 있는 Task ID 목록 조회
      */
     public List<String> getScheduledTaskIds(String boardId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         return scheduleBlockRepository.findScheduledTaskIdsByBoardId(boardId);
     }
 
     /**
      * 체크리스트 아이템에 연결된 스케줄 블록 조회
      */
-    public List<ScheduleResponse.BlockDetail> getSchedulesByChecklistItem(String boardId, String checklistItemId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+    public List<ScheduleResponse.BlockDetail> getSchedulesByChecklistItem(
+            String boardId, String checklistItemId, String userId) {
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
-        ChecklistItem checklistItem = checklistItemRepository.findById(checklistItemId)
+        ChecklistItem checklistItem = checklistItemRepository
+                .findById(checklistItemId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
 
         // 보드 소속 검증
@@ -517,16 +544,15 @@ public class ScheduleService {
 
         List<ScheduleBlock> blocks = scheduleBlockRepository.findByChecklistItemId(checklistItemId);
 
-        return blocks.stream()
-                .map(ScheduleResponse.BlockDetail::of)
-                .collect(Collectors.toList());
+        return blocks.stream().map(ScheduleResponse.BlockDetail::of).collect(Collectors.toList());
     }
 
     /**
      * 여러 체크리스트 아이템에 연결된 스케줄 블록 벌크 조회
      */
-    public Map<String, List<ScheduleResponse.BlockDetail>> getSchedulesByChecklistItems(String boardId, List<String> checklistItemIds, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+    public Map<String, List<ScheduleResponse.BlockDetail>> getSchedulesByChecklistItems(
+            String boardId, List<String> checklistItemIds, String userId) {
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
         if (checklistItemIds == null || checklistItemIds.isEmpty()) {
             return Map.of();
@@ -537,8 +563,7 @@ public class ScheduleService {
         return blocks.stream()
                 .collect(Collectors.groupingBy(
                         block -> block.getChecklistItem().getId(),
-                        Collectors.mapping(ScheduleResponse.BlockDetail::of, Collectors.toList())
-                ));
+                        Collectors.mapping(ScheduleResponse.BlockDetail::of, Collectors.toList())));
     }
 
     private void validateScheduleAccess(Board board) {
@@ -580,7 +605,8 @@ public class ScheduleService {
      * 타임블록 생성 시: 체크리스트 항목에 시작일이 비어 있으면 가장 이른 타임블록 날짜로 채운다.
      * 사용자가 이미 시작일을 지정했으면 손대지 않는다. (마감일은 변경하지 않음)
      */
-    private void fillChecklistStartDateFromBlocks(String boardId, String actorUserId, String actorName, ChecklistItem item) {
+    private void fillChecklistStartDateFromBlocks(
+            String boardId, String actorUserId, String actorName, ChecklistItem item) {
         if (item == null || item.getStartDate() != null) {
             return; // 연결된 체크리스트가 없거나, 사용자가 이미 지정한 시작일이 있으면 우선 존중
         }
@@ -596,8 +622,8 @@ public class ScheduleService {
      * 남은 블록이 없으면 시작일을 비운다(자동 채움 이전 상태로 복귀). 시작일이 삭제된 블록 날짜와 다르면
      * (= 사용자가 직접 넣은 값이거나 더 이른 다른 블록이 있으면) 손대지 않는다.
      */
-    private void recalcChecklistStartDateOnBlockRemoval(String boardId, String actorUserId, String actorName,
-                                                        ChecklistItem item, LocalDate removedBlockDate) {
+    private void recalcChecklistStartDateOnBlockRemoval(
+            String boardId, String actorUserId, String actorName, ChecklistItem item, LocalDate removedBlockDate) {
         if (item == null || removedBlockDate == null) {
             return;
         }
@@ -624,14 +650,18 @@ public class ScheduleService {
      * 체크리스트 시작일을 newStart로 갱신하고 CHECKLIST_UPDATED 이벤트를 브로드캐스트한다.
      * 값이 실제로 바뀔 때만 동작한다.
      */
-    private void applyChecklistStartDate(String boardId, String actorUserId, String actorName,
-                                         ChecklistItem item, LocalDate newStart) {
+    private void applyChecklistStartDate(
+            String boardId, String actorUserId, String actorName, ChecklistItem item, LocalDate newStart) {
         if (Objects.equals(item.getStartDate(), newStart)) {
             return;
         }
         item.updateStartDate(newStart);
         ChecklistResponse.Detail detail = ChecklistResponse.Detail.of(item);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_UPDATED, actorUserId, actorName,
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.CHECKLIST_UPDATED,
+                actorUserId,
+                actorName,
                 Map.of("task_id", item.getTask().getId(), "item", detail));
     }
 }

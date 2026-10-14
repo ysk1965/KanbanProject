@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.Comment;
@@ -28,19 +28,18 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
-
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Service
@@ -50,7 +49,8 @@ public class ReportService {
 
     private final ReportRepository reportRepository;
     private final BoardRepository boardRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final UserRepository userRepository;
     private final StatisticsService statisticsService;
     private final ManagementService managementService;
@@ -77,40 +77,43 @@ public class ReportService {
 
         // 1. 권한 확인 + 기존 보고서 조회 + 데이터 수집 (tx)
         GenerateInput input = transactionTemplate.execute(status -> {
-            Board board = boardRepository.findById(boardId)
+            Board board = boardRepository
+                    .findById(boardId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
             validateReportAccess(board);
 
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            User user =
+                    userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
             // Resolve target user for personal reports
             String targetId = userId;
             User targetUser = user;
-            if (reportType == ReportType.PERSONAL && request.getTargetUserId() != null
+            if (reportType == ReportType.PERSONAL
+                    && request.getTargetUserId() != null
                     && !request.getTargetUserId().equals(userId)) {
                 // Admin/Owner can generate reports for other members
-                boardService.checkAdminOrAbove(boardId, userId);
-                boardService.checkMemberOrAbove(boardId, request.getTargetUserId());
+                boardPermissionService.checkAdminOrAbove(boardId, userId);
+                boardPermissionService.checkMemberOrAbove(boardId, request.getTargetUserId());
                 targetId = request.getTargetUserId();
-                targetUser = userRepository.findById(targetId)
+                targetUser = userRepository
+                        .findById(targetId)
                         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
             } else if (reportType == ReportType.TEAM) {
-                boardService.checkAdminOrAbove(boardId, userId);
+                boardPermissionService.checkAdminOrAbove(boardId, userId);
             } else {
-                boardService.checkMemberOrAbove(boardId, userId);
+                boardPermissionService.checkMemberOrAbove(boardId, userId);
             }
 
             // Check for existing report — Detail.from은 LAZY(generatedBy)를 읽으므로 트랜잭션 안에서
-            Optional<WeeklyReport> existing = findExistingReport(
-                    boardId, targetId, reportType, request.getPeriodStart(), request.getPeriodEnd());
+            Optional<WeeklyReport> existing =
+                    findExistingReport(boardId, targetId, reportType, request.getPeriodStart(), request.getPeriodEnd());
             if (existing.isPresent()) {
                 return GenerateInput.existing(ReportResponse.Detail.from(existing.get()));
             }
 
             // Gather data
-            String dataJson = gatherData(boardId, targetId, reportType,
-                    request.getPeriodStart(), request.getPeriodEnd(), board.getName());
+            String dataJson = gatherData(
+                    boardId, targetId, reportType, request.getPeriodStart(), request.getPeriodEnd(), board.getName());
             return GenerateInput.fresh(targetId, targetUser.getName(), dataJson);
         });
 
@@ -119,14 +122,16 @@ public class ReportService {
         }
 
         // 2. AI 호출 (트랜잭션 없음)
-        String content = reportAIService.generateReport(reportType, input.dataJson(), request.getLanguage(), boardId, userId);
+        String content =
+                reportAIService.generateReport(reportType, input.dataJson(), request.getLanguage(), boardId, userId);
 
         // 3. 저장 (tx)
         return transactionTemplate.execute(status -> {
-            Board board = boardRepository.findById(boardId)
+            Board board = boardRepository
+                    .findById(boardId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            User user =
+                    userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
             WeeklyReport report = WeeklyReport.builder()
                     .board(board)
@@ -141,15 +146,20 @@ public class ReportService {
                     .build();
 
             reportRepository.save(report);
-            log.info("Generated {} report for board: {}, target: {}, by: {}", reportType, boardId, input.targetId(), userId);
+            log.info(
+                    "Generated {} report for board: {}, target: {}, by: {}",
+                    reportType,
+                    boardId,
+                    input.targetId(),
+                    userId);
 
             return ReportResponse.Detail.from(report);
         });
     }
 
     /** generateReport 1단계 결과 — 기존 보고서가 있으면 {@code existingDetail}만 채워진다 */
-    private record GenerateInput(ReportResponse.Detail existingDetail, String targetId,
-                                 String targetUserName, String dataJson) {
+    private record GenerateInput(
+            ReportResponse.Detail existingDetail, String targetId, String targetUserName, String dataJson) {
         static GenerateInput existing(ReportResponse.Detail detail) {
             return new GenerateInput(detail, null, null, null);
         }
@@ -159,19 +169,19 @@ public class ReportService {
         }
     }
 
-    public ReportResponse.ListResponse getReports(String boardId, String userId,
-                                                    ReportType reportType, String targetUserId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+    public ReportResponse.ListResponse getReports(
+            String boardId, String userId, ReportType reportType, String targetUserId) {
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         validateReportAccess(boardId);
 
         // Team reports require ADMIN+
         if (reportType == ReportType.TEAM) {
-            boardService.checkAdminOrAbove(boardId, userId);
+            boardPermissionService.checkAdminOrAbove(boardId, userId);
         }
 
         // Viewing other user's personal reports requires ADMIN+
         if (reportType == ReportType.PERSONAL && targetUserId != null && !targetUserId.equals(userId)) {
-            boardService.checkAdminOrAbove(boardId, userId);
+            boardPermissionService.checkAdminOrAbove(boardId, userId);
         }
 
         List<WeeklyReport> reports;
@@ -184,20 +194,18 @@ public class ReportService {
             reports = reportRepository.findByBoardIdOrderByCreatedAtDesc(boardId);
         }
 
-        List<ReportResponse.ListItem> items = reports.stream()
-                .map(ReportResponse.ListItem::from)
-                .collect(Collectors.toList());
+        List<ReportResponse.ListItem> items =
+                reports.stream().map(ReportResponse.ListItem::from).collect(Collectors.toList());
 
-        return ReportResponse.ListResponse.builder()
-                .reports(items)
-                .build();
+        return ReportResponse.ListResponse.builder().reports(items).build();
     }
 
     public ReportResponse.Detail getReport(String boardId, String reportId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         validateReportAccess(boardId);
 
-        WeeklyReport report = reportRepository.findById(reportId)
+        WeeklyReport report = reportRepository
+                .findById(reportId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND));
 
         if (!report.getBoard().getId().equals(boardId)) {
@@ -206,14 +214,14 @@ public class ReportService {
 
         // Team reports require ADMIN+
         if (report.getReportType() == ReportType.TEAM) {
-            boardService.checkAdminOrAbove(boardId, userId);
+            boardPermissionService.checkAdminOrAbove(boardId, userId);
         }
 
         // Viewing other user's personal report requires ADMIN+
         if (report.getReportType() == ReportType.PERSONAL
                 && report.getTargetUserId() != null
                 && !report.getTargetUserId().equals(userId)) {
-            boardService.checkAdminOrAbove(boardId, userId);
+            boardPermissionService.checkAdminOrAbove(boardId, userId);
         }
 
         return ReportResponse.Detail.from(report);
@@ -226,11 +234,13 @@ public class ReportService {
     public ReportResponse.Detail regenerateReport(String boardId, String reportId, String userId, String language) {
         // 1. 권한 확인 + 데이터 수집 + 변경 여부 판단 (tx)
         RegenerateInput input = transactionTemplate.execute(status -> {
-            Board board = boardRepository.findById(boardId)
+            Board board = boardRepository
+                    .findById(boardId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
             validateReportAccess(board);
 
-            WeeklyReport report = reportRepository.findById(reportId)
+            WeeklyReport report = reportRepository
+                    .findById(reportId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND));
 
             if (!report.getBoard().getId().equals(boardId)) {
@@ -239,16 +249,17 @@ public class ReportService {
 
             ReportType reportType = report.getReportType();
             if (reportType == ReportType.TEAM) {
-                boardService.checkAdminOrAbove(boardId, userId);
-            } else if (report.getTargetUserId() != null && !report.getTargetUserId().equals(userId)) {
-                boardService.checkAdminOrAbove(boardId, userId);
+                boardPermissionService.checkAdminOrAbove(boardId, userId);
+            } else if (report.getTargetUserId() != null
+                    && !report.getTargetUserId().equals(userId)) {
+                boardPermissionService.checkAdminOrAbove(boardId, userId);
             } else {
-                boardService.checkMemberOrAbove(boardId, userId);
+                boardPermissionService.checkMemberOrAbove(boardId, userId);
             }
 
             String dataUserId = report.getTargetUserId() != null ? report.getTargetUserId() : userId;
-            String dataJson = gatherData(boardId, dataUserId, reportType,
-                    report.getPeriodStart(), report.getPeriodEnd(), board.getName());
+            String dataJson = gatherData(
+                    boardId, dataUserId, reportType, report.getPeriodStart(), report.getPeriodEnd(), board.getName());
 
             // Skip AI call if data hasn't changed since last generation
             if (report.getDataSnapshot() != null && hashData(dataJson).equals(hashData(report.getDataSnapshot()))) {
@@ -257,8 +268,7 @@ public class ReportService {
             }
 
             // 재생성자 존재 확인 — AI를 부르기 전에 걸러낸다
-            userRepository.findById(userId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
             return RegenerateInput.fresh(reportType, dataJson);
         });
 
@@ -267,18 +277,25 @@ public class ReportService {
         }
 
         // 2. AI 호출 (트랜잭션 없음)
-        String content = reportAIService.generateReport(input.reportType(), input.dataJson(), language, boardId, userId);
+        String content =
+                reportAIService.generateReport(input.reportType(), input.dataJson(), language, boardId, userId);
 
         // 3. 갱신 (tx)
         return transactionTemplate.execute(status -> {
-            WeeklyReport report = reportRepository.findById(reportId)
+            WeeklyReport report = reportRepository
+                    .findById(reportId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND));
-            User regenerator = userRepository.findById(userId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            User regenerator =
+                    userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
             report.updateContent(content, input.dataJson(), regenerator);
 
-            log.info("Regenerated {} report {} for board: {} by: {} (language: {})",
-                    input.reportType(), reportId, boardId, userId, language);
+            log.info(
+                    "Regenerated {} report {} for board: {} by: {} (language: {})",
+                    input.reportType(),
+                    reportId,
+                    boardId,
+                    userId,
+                    language);
             return ReportResponse.Detail.from(report);
         });
     }
@@ -294,9 +311,8 @@ public class ReportService {
         }
     }
 
-    private Optional<WeeklyReport> findExistingReport(String boardId, String userId,
-                                                       ReportType reportType,
-                                                       LocalDate periodStart, LocalDate periodEnd) {
+    private Optional<WeeklyReport> findExistingReport(
+            String boardId, String userId, ReportType reportType, LocalDate periodStart, LocalDate periodEnd) {
         if (reportType == ReportType.PERSONAL) {
             return reportRepository.findByBoardIdAndTargetUserIdAndReportTypeAndPeriodStartAndPeriodEnd(
                     boardId, userId, reportType, periodStart, periodEnd);
@@ -305,8 +321,13 @@ public class ReportService {
                 boardId, reportType, periodStart, periodEnd);
     }
 
-    private String gatherData(String boardId, String userId, ReportType reportType,
-                              LocalDate periodStart, LocalDate periodEnd, String boardName) {
+    private String gatherData(
+            String boardId,
+            String userId,
+            ReportType reportType,
+            LocalDate periodStart,
+            LocalDate periodEnd,
+            String boardName) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("board_name", boardName);
         data.put("period", Map.of("start", periodStart.toString(), "end", periodEnd.toString()));
@@ -328,19 +349,29 @@ public class ReportService {
         }
     }
 
-    private void gatherTeamData(Map<String, Object> data, String boardId, String userId,
-                                LocalDate periodStart, LocalDate periodEnd,
-                                LocalDateTime startDT, LocalDateTime endDT) {
+    private void gatherTeamData(
+            Map<String, Object> data,
+            String boardId,
+            String userId,
+            LocalDate periodStart,
+            LocalDate periodEnd,
+            LocalDateTime startDT,
+            LocalDateTime endDT) {
         // Board statistics
         StatisticsResponse.BoardStatistics stats = statisticsService.getBoardStatistics(
-                boardId, userId, periodStart, periodEnd,
-                Collections.emptyList(), Collections.emptyList(),
-                Collections.emptyList(), Collections.emptyList());
+                boardId,
+                userId,
+                periodStart,
+                periodEnd,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                Collections.emptyList());
         data.put("statistics", stats);
 
         // Management statistics
-        ManagementResponse.ManagementStatistics management = managementService.getManagementStatistics(
-                boardId, userId, null, 3, 2);
+        ManagementResponse.ManagementStatistics management =
+                managementService.getManagementStatistics(boardId, userId, null, 3, 2);
         data.put("management", management);
 
         // Board-wide comments
@@ -353,18 +384,23 @@ public class ReportService {
         data.put("meetings", formatMeetingsForTeam(meetings));
     }
 
-    private void gatherPersonalData(Map<String, Object> data, String boardId, String userId,
-                                    LocalDate periodStart, LocalDate periodEnd,
-                                    LocalDateTime startDT, LocalDateTime endDT) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    private void gatherPersonalData(
+            Map<String, Object> data,
+            String boardId,
+            String userId,
+            LocalDate periodStart,
+            LocalDate periodEnd,
+            LocalDateTime startDT,
+            LocalDateTime endDT) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         data.put("user_name", user.getName());
 
         // 1. ScheduleBlock: 기간 내 사용자의 시간 기록
-        List<ScheduleBlock> allBlocks = scheduleBlockRepository.findByBoardIdAndScheduledDateBetween(
-                boardId, periodStart, periodEnd);
+        List<ScheduleBlock> allBlocks =
+                scheduleBlockRepository.findByBoardIdAndScheduledDateBetween(boardId, periodStart, periodEnd);
         List<ScheduleBlock> userBlocks = allBlocks.stream()
-                .filter(sb -> sb.getAssignee() != null && sb.getAssignee().getId().equals(userId))
+                .filter(sb ->
+                        sb.getAssignee() != null && sb.getAssignee().getId().equals(userId))
                 .filter(sb -> sb.getChecklistItem() != null)
                 .toList();
 
@@ -372,8 +408,8 @@ public class ReportService {
         List<ChecklistItem> userChecklists = checklistItemRepository.findByBoardIdAndAssigneeId(boardId, userId);
 
         // 3. Comment: 기간 내 사용자가 작성한 댓글
-        List<Comment> userComments = commentRepository.findByBoardAndAuthorAndDateRange(
-                boardId, userId, startDT, endDT);
+        List<Comment> userComments =
+                commentRepository.findByBoardAndAuthorAndDateRange(boardId, userId, startDT, endDT);
 
         // 4. Task/Feature 계층 구성: ChecklistItem → Task → Feature 역추적
         // Task별 체크리스트 그룹핑
@@ -382,7 +418,8 @@ public class ReportService {
 
         // Task별 시간 블록 그룹핑
         Map<String, List<ScheduleBlock>> blocksByTask = userBlocks.stream()
-                .collect(Collectors.groupingBy(sb -> sb.getChecklistItem().getTask().getId()));
+                .collect(Collectors.groupingBy(
+                        sb -> sb.getChecklistItem().getTask().getId()));
 
         // Task별 댓글 그룹핑
         Map<String, List<Comment>> commentsByTask = userComments.stream()
@@ -425,12 +462,15 @@ public class ReportService {
 
             // 태스크 시간 계산
             int taskMinutes = taskBlocks.stream()
-                    .mapToInt(sb -> (int) Duration.between(sb.getStartTime(), sb.getEndTime()).toMinutes())
+                    .mapToInt(sb -> (int)
+                            Duration.between(sb.getStartTime(), sb.getEndTime()).toMinutes())
                     .sum();
             totalMinutes += taskMinutes;
 
             // 체크리스트 완료 카운트
-            completedChecklists += (int) taskChecklists.stream().filter(ChecklistItem::getIsCompleted).count();
+            completedChecklists += (int) taskChecklists.stream()
+                    .filter(ChecklistItem::getIsCompleted)
+                    .count();
 
             // 태스크 데이터 구성
             Map<String, Object> taskData = new LinkedHashMap<>();
@@ -440,38 +480,46 @@ public class ReportService {
 
             // 체크리스트 목록
             if (!taskChecklists.isEmpty()) {
-                List<Map<String, Object>> clList = taskChecklists.stream().map(ci -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("title", ci.getTitle());
-                    m.put("completed", ci.getIsCompleted());
-                    return m;
-                }).toList();
+                List<Map<String, Object>> clList = taskChecklists.stream()
+                        .map(ci -> {
+                            Map<String, Object> m = new LinkedHashMap<>();
+                            m.put("title", ci.getTitle());
+                            m.put("completed", ci.getIsCompleted());
+                            return m;
+                        })
+                        .toList();
                 taskData.put("checklists", clList);
             }
 
             // 시간 투입
             if (taskMinutes > 0) {
                 taskData.put("time_minutes", taskMinutes);
-                List<Map<String, Object>> timeDetails = taskBlocks.stream().map(sb -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("date", sb.getScheduledDate().toString());
-                    m.put("minutes", (int) Duration.between(sb.getStartTime(), sb.getEndTime()).toMinutes());
-                    return m;
-                }).toList();
+                List<Map<String, Object>> timeDetails = taskBlocks.stream()
+                        .map(sb -> {
+                            Map<String, Object> m = new LinkedHashMap<>();
+                            m.put("date", sb.getScheduledDate().toString());
+                            m.put("minutes", (int) Duration.between(sb.getStartTime(), sb.getEndTime())
+                                    .toMinutes());
+                            return m;
+                        })
+                        .toList();
                 taskData.put("time_details", timeDetails);
             }
 
             // 댓글
             if (!taskComments.isEmpty()) {
-                List<Map<String, String>> cmList = taskComments.stream().limit(10).map(c -> {
-                    Map<String, String> m = new LinkedHashMap<>();
-                    String content = c.getContent();
-                    if (content != null && content.length() > MAX_COMMENT_LENGTH) {
-                        content = content.substring(0, MAX_COMMENT_LENGTH) + "...";
-                    }
-                    m.put("content", content != null ? content : "");
-                    return m;
-                }).toList();
+                List<Map<String, String>> cmList = taskComments.stream()
+                        .limit(10)
+                        .map(c -> {
+                            Map<String, String> m = new LinkedHashMap<>();
+                            String content = c.getContent();
+                            if (content != null && content.length() > MAX_COMMENT_LENGTH) {
+                                content = content.substring(0, MAX_COMMENT_LENGTH) + "...";
+                            }
+                            m.put("content", content != null ? content : "");
+                            return m;
+                        })
+                        .toList();
                 taskData.put("comments", cmList);
             }
 
@@ -493,25 +541,29 @@ public class ReportService {
         data.put("features", features);
 
         // Meetings: user is participant (via ScheduleBlock) or creator
-        List<Meeting> allMeetings = meetingRepository.findByBoardIdAndMeetingDateBetweenOrderByMeetingDateAscStartTimeAsc(
-                boardId, periodStart, periodEnd);
+        List<Meeting> allMeetings =
+                meetingRepository.findByBoardIdAndMeetingDateBetweenOrderByMeetingDateAscStartTimeAsc(
+                        boardId, periodStart, periodEnd);
         Set<String> userMeetingIds = allBlocks.stream()
-                .filter(sb -> sb.getAssignee() != null && sb.getAssignee().getId().equals(userId))
+                .filter(sb ->
+                        sb.getAssignee() != null && sb.getAssignee().getId().equals(userId))
                 .filter(sb -> sb.getMeeting() != null)
                 .map(sb -> sb.getMeeting().getId())
                 .collect(Collectors.toSet());
         List<Meeting> userMeetings = allMeetings.stream()
-                .filter(m -> userMeetingIds.contains(m.getId()) || m.getCreatedBy().getId().equals(userId))
+                .filter(m -> userMeetingIds.contains(m.getId())
+                        || m.getCreatedBy().getId().equals(userId))
                 .toList();
         data.put("meetings", formatMeetingsForPersonal(userMeetings));
 
-        data.put("summary", Map.of(
-                "total_minutes", totalMinutes,
-                "completed_checklists", completedChecklists,
-                "total_checklists", totalChecklists,
-                "total_comments", userComments.size(),
-                "total_meetings", userMeetings.size()
-        ));
+        data.put(
+                "summary",
+                Map.of(
+                        "total_minutes", totalMinutes,
+                        "completed_checklists", completedChecklists,
+                        "total_checklists", totalChecklists,
+                        "total_comments", userComments.size(),
+                        "total_meetings", userMeetings.size()));
     }
 
     private String hashData(String data) {
@@ -536,53 +588,73 @@ public class ReportService {
                         content = content.substring(0, MAX_COMMENT_LENGTH) + "...";
                     }
                     map.put("content", content != null ? content : "");
-                    map.put("created_at", c.getCreatedAt() != null ? c.getCreatedAt().toString() : "");
+                    map.put(
+                            "created_at",
+                            c.getCreatedAt() != null ? c.getCreatedAt().toString() : "");
                     return map;
                 })
                 .collect(Collectors.toList());
     }
 
     private List<Map<String, Object>> formatMeetingsForPersonal(List<Meeting> meetings) {
-        return meetings.stream().map(m -> {
-            Map<String, Object> map = new LinkedHashMap<>();
-            map.put("title", m.getTitle());
-            map.put("date", m.getMeetingDate().toString());
-            if (m.getStartTime() != null) map.put("start_time", m.getStartTime().toString());
-            if (m.getEndTime() != null) map.put("end_time", m.getEndTime().toString());
-            String memo = m.getMemo();
-            if (memo != null && !memo.isBlank()) {
-                if (memo.length() > MAX_MEETING_MEMO_LENGTH) {
-                    memo = memo.substring(0, MAX_MEETING_MEMO_LENGTH) + "...";
-                }
-                map.put("memo", memo);
-            }
-            map.put("has_transcript", m.getTranscript() != null && !m.getTranscript().isBlank());
-            List<User> participants = scheduleBlockRepository.findDistinctAssigneesByMeetingId(m.getId());
-            map.put("participants", participants.stream().map(User::getName).toList());
-            return map;
-        }).toList();
+        return meetings.stream()
+                .map(m -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("title", m.getTitle());
+                    map.put("date", m.getMeetingDate().toString());
+                    if (m.getStartTime() != null)
+                        map.put("start_time", m.getStartTime().toString());
+                    if (m.getEndTime() != null)
+                        map.put("end_time", m.getEndTime().toString());
+                    String memo = m.getMemo();
+                    if (memo != null && !memo.isBlank()) {
+                        if (memo.length() > MAX_MEETING_MEMO_LENGTH) {
+                            memo = memo.substring(0, MAX_MEETING_MEMO_LENGTH) + "...";
+                        }
+                        map.put("memo", memo);
+                    }
+                    map.put(
+                            "has_transcript",
+                            m.getTranscript() != null && !m.getTranscript().isBlank());
+                    List<User> participants = scheduleBlockRepository.findDistinctAssigneesByMeetingId(m.getId());
+                    map.put(
+                            "participants",
+                            participants.stream().map(User::getName).toList());
+                    return map;
+                })
+                .toList();
     }
 
     private List<Map<String, Object>> formatMeetingsForTeam(List<Meeting> meetings) {
-        return meetings.stream().map(m -> {
-            Map<String, Object> map = new LinkedHashMap<>();
-            map.put("title", m.getTitle());
-            map.put("date", m.getMeetingDate().toString());
-            if (m.getStartTime() != null) map.put("start_time", m.getStartTime().toString());
-            if (m.getEndTime() != null) map.put("end_time", m.getEndTime().toString());
-            String memo = m.getMemo();
-            if (memo != null && !memo.isBlank()) {
-                if (memo.length() > MAX_MEETING_MEMO_LENGTH) {
-                    memo = memo.substring(0, MAX_MEETING_MEMO_LENGTH) + "...";
-                }
-                map.put("memo", memo);
-            }
-            map.put("has_transcript", m.getTranscript() != null && !m.getTranscript().isBlank());
-            map.put("created_by", m.getCreatedBy() != null ? m.getCreatedBy().getName() : "Unknown");
-            List<User> participants = scheduleBlockRepository.findDistinctAssigneesByMeetingId(m.getId());
-            map.put("participants", participants.stream().map(User::getName).toList());
-            return map;
-        }).toList();
+        return meetings.stream()
+                .map(m -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("title", m.getTitle());
+                    map.put("date", m.getMeetingDate().toString());
+                    if (m.getStartTime() != null)
+                        map.put("start_time", m.getStartTime().toString());
+                    if (m.getEndTime() != null)
+                        map.put("end_time", m.getEndTime().toString());
+                    String memo = m.getMemo();
+                    if (memo != null && !memo.isBlank()) {
+                        if (memo.length() > MAX_MEETING_MEMO_LENGTH) {
+                            memo = memo.substring(0, MAX_MEETING_MEMO_LENGTH) + "...";
+                        }
+                        map.put("memo", memo);
+                    }
+                    map.put(
+                            "has_transcript",
+                            m.getTranscript() != null && !m.getTranscript().isBlank());
+                    map.put(
+                            "created_by",
+                            m.getCreatedBy() != null ? m.getCreatedBy().getName() : "Unknown");
+                    List<User> participants = scheduleBlockRepository.findDistinctAssigneesByMeetingId(m.getId());
+                    map.put(
+                            "participants",
+                            participants.stream().map(User::getName).toList());
+                    return map;
+                })
+                .toList();
     }
 
     private void validateReportAccess(Board board) {
@@ -592,8 +664,8 @@ public class ReportService {
     }
 
     private void validateReportAccess(String boardId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         validateReportAccess(board);
     }
 }

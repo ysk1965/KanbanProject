@@ -5,7 +5,7 @@ import com.kanban.domain.activity.TargetType;
 import com.kanban.domain.activity.service.ActivityService;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.checklist.service.ChecklistService;
@@ -23,15 +23,14 @@ import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
 import jakarta.persistence.EntityManager;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -46,7 +45,8 @@ public class TrashService {
     private final ChecklistItemRepository checklistItemRepository;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final FeatureService featureService;
     private final TaskService taskService;
     private final ChecklistService checklistService;
@@ -55,7 +55,7 @@ public class TrashService {
     private final EntityManager entityManager;
 
     public TrashResponse.ListResponse listTrash(String boardId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
         List<TrashResponse.FeatureItem> features = featureRepository.findDeletedByBoardId(boardId).stream()
                 .map(TrashResponse.FeatureItem::of)
@@ -63,9 +63,10 @@ public class TrashService {
         List<TrashResponse.TaskItem> tasks = taskRepository.findDeletedByBoardId(boardId).stream()
                 .map(TrashResponse.TaskItem::of)
                 .toList();
-        List<TrashResponse.ChecklistItemItem> checklists = checklistItemRepository.findDeletedByBoardId(boardId).stream()
-                .map(TrashResponse.ChecklistItemItem::of)
-                .toList();
+        List<TrashResponse.ChecklistItemItem> checklists =
+                checklistItemRepository.findDeletedByBoardId(boardId).stream()
+                        .map(TrashResponse.ChecklistItemItem::of)
+                        .toList();
 
         return TrashResponse.ListResponse.builder()
                 .features(features)
@@ -80,9 +81,10 @@ public class TrashService {
     @Transactional
     @CacheEvict(value = "features", key = "#boardId")
     public void restoreFeature(String boardId, String featureId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        Feature feature = featureRepository.findByIdIncludingDeleted(featureId)
+        Feature feature = featureRepository
+                .findByIdIncludingDeleted(featureId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
         if (!feature.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
@@ -106,28 +108,34 @@ public class TrashService {
         entityManager.clear();
 
         // 3) counter 재계산 (살아있는 task 기준)
-        feature = featureRepository.findById(featureId)
+        feature = featureRepository
+                .findById(featureId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
         int total = taskRepository.countByFeatureId(featureId);
         int completed = taskRepository.countByFeatureIdAndIsCompletedTrue(featureId);
         feature.recalcCounters(total, completed);
 
         // 4) 활동 로그 + WebSocket
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        activityService.logActivity(feature.getBoard(), user, ActivityAction.FEATURE_RESTORED, TargetType.FEATURE, featureId,
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(
+                feature.getBoard(),
+                user,
+                ActivityAction.FEATURE_RESTORED,
+                TargetType.FEATURE,
+                featureId,
                 Map.of("featureTitle", feature.getTitle()));
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.FEATURE_RESTORED, userId, user.getName(),
-                Map.of("id", featureId));
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.FEATURE_RESTORED, userId, user.getName(), Map.of("id", featureId));
 
         log.info("Feature restored: {} by user: {}", featureId, userId);
     }
 
     @Transactional
     public void restoreTask(String boardId, String taskId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        Task task = taskRepository.findByIdIncludingDeleted(taskId)
+        Task task = taskRepository
+                .findByIdIncludingDeleted(taskId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
         if (!task.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
@@ -159,11 +167,19 @@ public class TrashService {
         }
 
         // 4) 활동 로그 + WebSocket
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        activityService.logActivity(task.getBoard(), user, ActivityAction.TASK_RESTORED, TargetType.TASK, taskId,
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(
+                task.getBoard(),
+                user,
+                ActivityAction.TASK_RESTORED,
+                TargetType.TASK,
+                taskId,
                 Map.of("taskTitle", task.getTitle(), "featureTitle", feature.getTitle()));
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.TASK_RESTORED, userId, user.getName(),
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.TASK_RESTORED,
+                userId,
+                user.getName(),
                 Map.of("id", taskId, "feature_id", feature.getId()));
 
         log.info("Task restored: {} by user: {}", taskId, userId);
@@ -171,9 +187,10 @@ public class TrashService {
 
     @Transactional
     public void restoreChecklistItem(String boardId, String itemId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        ChecklistItem item = checklistItemRepository.findByIdIncludingDeleted(itemId)
+        ChecklistItem item = checklistItemRepository
+                .findByIdIncludingDeleted(itemId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
         Task task = item.getTask();
         if (task == null || !task.getBoard().getId().equals(boardId)) {
@@ -191,11 +208,19 @@ public class TrashService {
         Integer maxPos = checklistItemRepository.findMaxPositionByTaskId(task.getId());
         item.updatePosition(maxPos == null ? 0 : maxPos + 1);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        activityService.logActivity(task.getBoard(), user, ActivityAction.CHECKLIST_RESTORED, TargetType.CHECKLIST, itemId,
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(
+                task.getBoard(),
+                user,
+                ActivityAction.CHECKLIST_RESTORED,
+                TargetType.CHECKLIST,
+                itemId,
                 Map.of("checklistTitle", item.getTitle(), "taskTitle", task.getTitle(), "taskId", task.getId()));
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_RESTORED, userId, user.getName(),
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.CHECKLIST_RESTORED,
+                userId,
+                user.getName(),
                 Map.of("id", itemId, "task_id", task.getId()));
 
         log.info("ChecklistItem restored: {} by user: {}", itemId, userId);
@@ -206,59 +231,74 @@ public class TrashService {
     @Transactional
     @CacheEvict(value = "features", key = "#boardId")
     public void permanentlyDeleteFeature(String boardId, String featureId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
-        Feature feature = featureRepository.findByIdIncludingDeleted(featureId)
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
+        Feature feature = featureRepository
+                .findByIdIncludingDeleted(featureId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
         String title = feature.getTitle();
 
         featureService.hardDeleteFeature(boardId, featureId);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        activityService.logActivity(board, user, ActivityAction.FEATURE_PERMANENTLY_DELETED, TargetType.FEATURE, featureId,
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        activityService.logActivity(
+                board,
+                user,
+                ActivityAction.FEATURE_PERMANENTLY_DELETED,
+                TargetType.FEATURE,
+                featureId,
                 Map.of("featureTitle", title));
     }
 
     @Transactional
     public void permanentlyDeleteTask(String boardId, String taskId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
-        Task task = taskRepository.findByIdIncludingDeleted(taskId)
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
+        Task task = taskRepository
+                .findByIdIncludingDeleted(taskId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
         String title = task.getTitle();
 
         taskService.hardDeleteTask(boardId, taskId);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        activityService.logActivity(board, user, ActivityAction.TASK_PERMANENTLY_DELETED, TargetType.TASK, taskId,
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        activityService.logActivity(
+                board,
+                user,
+                ActivityAction.TASK_PERMANENTLY_DELETED,
+                TargetType.TASK,
+                taskId,
                 Map.of("taskTitle", title));
     }
 
     @Transactional
     public void permanentlyDeleteChecklistItem(String boardId, String itemId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
-        ChecklistItem item = checklistItemRepository.findByIdIncludingDeleted(itemId)
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
+        ChecklistItem item = checklistItemRepository
+                .findByIdIncludingDeleted(itemId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
         String title = item.getTitle();
 
         checklistService.hardDeleteChecklistItem(boardId, itemId);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        activityService.logActivity(board, user, ActivityAction.CHECKLIST_PERMANENTLY_DELETED, TargetType.CHECKLIST, itemId,
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        activityService.logActivity(
+                board,
+                user,
+                ActivityAction.CHECKLIST_PERMANENTLY_DELETED,
+                TargetType.CHECKLIST,
+                itemId,
                 Map.of("checklistTitle", title));
     }
 
     @Transactional
     @CacheEvict(value = "features", key = "#boardId")
     public void emptyTrash(String boardId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
         List<Feature> features = featureRepository.findDeletedByBoardId(boardId);
         List<Task> tasks = taskRepository.findDeletedByBoardId(boardId);
@@ -266,19 +306,33 @@ public class TrashService {
 
         // Order matters: checklist → task → feature (children first to avoid orphan FK issues)
         for (ChecklistItem ci : checklists) {
-            try { checklistService.hardDeleteChecklistItem(boardId, ci.getId()); }
-            catch (Exception e) { log.error("emptyTrash checklist {}: {}", ci.getId(), e.getMessage()); }
+            try {
+                checklistService.hardDeleteChecklistItem(boardId, ci.getId());
+            } catch (Exception e) {
+                log.error("emptyTrash checklist {}: {}", ci.getId(), e.getMessage());
+            }
         }
         for (Task t : tasks) {
-            try { taskService.hardDeleteTask(boardId, t.getId()); }
-            catch (Exception e) { log.error("emptyTrash task {}: {}", t.getId(), e.getMessage()); }
+            try {
+                taskService.hardDeleteTask(boardId, t.getId());
+            } catch (Exception e) {
+                log.error("emptyTrash task {}: {}", t.getId(), e.getMessage());
+            }
         }
         for (Feature f : features) {
-            try { featureService.hardDeleteFeature(boardId, f.getId()); }
-            catch (Exception e) { log.error("emptyTrash feature {}: {}", f.getId(), e.getMessage()); }
+            try {
+                featureService.hardDeleteFeature(boardId, f.getId());
+            } catch (Exception e) {
+                log.error("emptyTrash feature {}: {}", f.getId(), e.getMessage());
+            }
         }
 
-        log.info("Trash emptied for board: {} by user: {} ({} features, {} tasks, {} checklists)",
-                boardId, userId, features.size(), tasks.size(), checklists.size());
+        log.info(
+                "Trash emptied for board: {} by user: {} ({} features, {} tasks, {} checklists)",
+                boardId,
+                userId,
+                features.size(),
+                tasks.size(),
+                checklists.size());
     }
 }

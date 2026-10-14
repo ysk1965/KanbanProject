@@ -5,26 +5,25 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.integration.IntegrationScope;
 import com.kanban.domain.integration.github.BoardGithubRepo;
 import com.kanban.domain.integration.github.BoardGithubRepoRepository;
 import com.kanban.domain.integration.github.GithubInstallation;
 import com.kanban.domain.integration.github.GithubInstallationRepository;
 import com.kanban.domain.integration.github.config.GithubAppProperties;
+import com.kanban.domain.integration.github.dto.GithubRepoRef;
 import com.kanban.domain.integration.github.dto.GithubRequest;
 import com.kanban.domain.integration.github.dto.GithubResponse;
-import com.kanban.domain.integration.github.dto.GithubRepoRef;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.*;
 
 /**
  * 보드 ↔ GitHub 설치 연결과 저장소 선택.
@@ -37,7 +36,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class GithubConnectionService {
 
-    private final BoardService boardService;
+    private final BoardPermissionService boardPermissionService;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final GithubInstallationRepository installationRepository;
@@ -51,14 +50,13 @@ public class GithubConnectionService {
     // ── 설치 ────────────────────────────────────
 
     public GithubResponse.InstallUrl getInstallUrl(String boardId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         requireAppConfigured();
         if (properties.getSlug() == null || properties.getSlug().isBlank()) {
             throw new BusinessException(ErrorCode.GITHUB_APP_NOT_CONFIGURED, "App slug가 설정되지 않았습니다");
         }
         // state로 보드를 실어 보내면 GitHub이 설치 후 그대로 돌려준다.
-        String url = "https://github.com/apps/" + properties.getSlug()
-                + "/installations/new?state=" + boardId;
+        String url = "https://github.com/apps/" + properties.getSlug() + "/installations/new?state=" + boardId;
         return GithubResponse.InstallUrl.builder().url(url).build();
     }
 
@@ -67,9 +65,9 @@ public class GithubConnectionService {
      * <b>사용자가 보낸 값을 그대로 믿지 않고</b> App JWT로 실제 설치인지 확인한다.
      */
     @Transactional
-    public GithubResponse.Status linkInstallation(String boardId, String userId,
-                                                  GithubRequest.LinkInstallation request) {
-        boardService.checkAdminOrAbove(boardId, userId);
+    public GithubResponse.Status linkInstallation(
+            String boardId, String userId, GithubRequest.LinkInstallation request) {
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         requireAppConfigured();
 
         JsonNode installation = apiClient.getInstallation(request.getInstallationId());
@@ -79,13 +77,12 @@ public class GithubConnectionService {
             throw new BusinessException(ErrorCode.GITHUB_NOT_CONNECTED, "설치 정보를 확인할 수 없습니다");
         }
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        boolean shareWithOrg = !Boolean.FALSE.equals(request.getShareWithOrganization())
-                && board.getOrganization() != null;
+        boolean shareWithOrg =
+                !Boolean.FALSE.equals(request.getShareWithOrganization()) && board.getOrganization() != null;
 
         GithubInstallation entity = shareWithOrg
                 ? upsertOrganizationInstallation(board, user, request.getInstallationId(), accountLogin, accountType)
@@ -94,8 +91,8 @@ public class GithubConnectionService {
         return buildStatus(boardId, Optional.of(entity));
     }
 
-    private GithubInstallation upsertOrganizationInstallation(Board board, User user, String installationId,
-                                                              String accountLogin, String accountType) {
+    private GithubInstallation upsertOrganizationInstallation(
+            Board board, User user, String installationId, String accountLogin, String accountType) {
         String organizationId = board.getOrganization().getId();
         return installationRepository
                 .findByInstallationIdAndOrganizationId(installationId, organizationId)
@@ -113,8 +110,8 @@ public class GithubConnectionService {
                         .build()));
     }
 
-    private GithubInstallation upsertBoardInstallation(Board board, User user, String installationId,
-                                                       String accountLogin, String accountType) {
+    private GithubInstallation upsertBoardInstallation(
+            Board board, User user, String installationId, String accountLogin, String accountType) {
         return installationRepository
                 .findByInstallationIdAndBoardId(installationId, board.getId())
                 .map(existing -> {
@@ -133,7 +130,7 @@ public class GithubConnectionService {
 
     @Transactional
     public void disconnect(String boardId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         // 저장소 선택은 보드 것이므로 항상 지운다.
         boardRepoRepository.deleteAll(boardRepoRepository.findByBoardId(boardId));
 
@@ -148,8 +145,9 @@ public class GithubConnectionService {
 
     @Transactional(readOnly = true)
     public List<GithubResponse.AvailableRepo> listAvailableRepos(String boardId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
-        GithubInstallation installation = targetResolver.resolveInstallation(boardId)
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
+        GithubInstallation installation = targetResolver
+                .resolveInstallation(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.GITHUB_NOT_CONNECTED));
 
         Set<String> selected = boardRepoRepository.findByBoardId(boardId).stream()
@@ -172,13 +170,14 @@ public class GithubConnectionService {
     /** 한 저장소의 브랜치 목록 — 브랜치 드롭다운 후보. 선택된 저장소만 on-demand로 부른다. */
     @Transactional(readOnly = true)
     public List<String> listBranches(String boardId, String userId, String repoFullName) {
-        boardService.checkAdminOrAbove(boardId, userId);
-        GithubInstallation installation = targetResolver.resolveInstallation(boardId)
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
+        GithubInstallation installation = targetResolver
+                .resolveInstallation(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.GITHUB_NOT_CONNECTED));
 
         // 설치에 없는 저장소를 몰래 조회하지 못하게 실제 목록과 대조한다.
-        boolean allowed = apiClient.listInstallationRepositories(installation.getInstallationId())
-                .stream().anyMatch(r -> r.fullName().equals(repoFullName));
+        boolean allowed = apiClient.listInstallationRepositories(installation.getInstallationId()).stream()
+                .anyMatch(r -> r.fullName().equals(repoFullName));
         if (!allowed) {
             throw new BusinessException(ErrorCode.GITHUB_REPO_NOT_FOUND, repoFullName);
         }
@@ -189,21 +188,21 @@ public class GithubConnectionService {
      * 선택 목록을 통째로 교체한다. 빠진 저장소는 지우고, 남은 것은 브랜치·제외 작성자를 갱신한다.
      */
     @Transactional
-    public GithubResponse.Status selectRepos(String boardId, String userId,
-                                             GithubRequest.SelectRepos request) {
-        boardService.checkAdminOrAbove(boardId, userId);
-        GithubInstallation installation = targetResolver.resolveInstallation(boardId)
+    public GithubResponse.Status selectRepos(String boardId, String userId, GithubRequest.SelectRepos request) {
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
+        GithubInstallation installation = targetResolver
+                .resolveInstallation(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.GITHUB_NOT_CONNECTED));
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        List<GithubRequest.RepoSelection> requested =
-                request.getRepos() != null ? request.getRepos() : List.of();
+        List<GithubRequest.RepoSelection> requested = request.getRepos() != null ? request.getRepos() : List.of();
 
         // 설치에 없는 저장소를 몰래 끼워 넣지 못하게 실제 목록과 대조한다.
-        Set<String> allowed = apiClient.listInstallationRepositories(installation.getInstallationId())
-                .stream().map(GithubRepoRef::fullName).collect(java.util.stream.Collectors.toSet());
+        Set<String> allowed = apiClient.listInstallationRepositories(installation.getInstallationId()).stream()
+                .map(GithubRepoRef::fullName)
+                .collect(java.util.stream.Collectors.toSet());
         for (GithubRequest.RepoSelection selection : requested) {
             if (!allowed.contains(selection.getRepoFullName())) {
                 throw new BusinessException(ErrorCode.GITHUB_REPO_NOT_FOUND, selection.getRepoFullName());
@@ -257,7 +256,7 @@ public class GithubConnectionService {
      */
     @Transactional(readOnly = true)
     public GithubResponse.GithubUser validateGithubUser(String boardId, String userId, String login) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
         String normalized = login == null ? "" : login.trim();
         if (normalized.startsWith("@")) {
@@ -268,7 +267,8 @@ public class GithubConnectionService {
             return GithubResponse.GithubUser.builder().exists(false).build();
         }
 
-        String installationId = targetResolver.resolveInstallation(boardId)
+        String installationId = targetResolver
+                .resolveInstallation(boardId)
                 .map(GithubInstallation::getInstallationId)
                 .orElse(null);
 
@@ -290,7 +290,7 @@ public class GithubConnectionService {
 
     @Transactional(readOnly = true)
     public GithubResponse.Status getStatus(String boardId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         return buildStatus(boardId, targetResolver.resolveInstallation(boardId));
     }
 

@@ -1,11 +1,11 @@
 package com.kanban.domain.note.service;
 
-import com.kanban.domain.board.Board;
-import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.activity.ActivityAction;
 import com.kanban.domain.activity.TargetType;
 import com.kanban.domain.activity.service.ActivityService;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardRepository;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.note.*;
 import com.kanban.domain.note.dto.NoteRequest;
 import com.kanban.domain.note.dto.NoteResponse;
@@ -13,19 +13,17 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import org.springframework.data.domain.PageRequest;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -43,14 +41,15 @@ public class NoteService {
     private final NoteContributorService noteContributorService;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final ApplicationEventPublisher eventPublisher;
     private final ActivityService activityService;
 
     // ===== Note CRUD =====
 
     public List<NoteResponse.TreeItem> getNoteTree(String boardId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         validateNoteAccess(boardId);
 
         try {
@@ -81,7 +80,7 @@ public class NoteService {
     }
 
     public List<NoteResponse.ListItem> getNoteList(String boardId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
         List<Note> documents = noteRepository.findAllDocumentsAndBoardsByBoardId(boardId);
         List<String> noteIds = documents.stream().map(Note::getId).toList();
@@ -90,14 +89,15 @@ public class NoteService {
 
         return documents.stream()
                 .map(note -> {
-                    String parentTitle = note.getParent() != null ? note.getParent().getTitle() : null;
+                    String parentTitle =
+                            note.getParent() != null ? note.getParent().getTitle() : null;
                     return NoteResponse.ListItem.of(note, parentTitle, tagMap.getOrDefault(note.getId(), List.of()));
                 })
                 .toList();
     }
 
     public NoteResponse.Detail getNoteDetail(String boardId, String noteId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
         Note note = getNoteOrThrow(boardId, noteId);
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
@@ -107,15 +107,15 @@ public class NoteService {
         int likeCount = noteLikeRepository.countByNoteId(noteId);
         boolean liked = noteLikeRepository.existsByNoteIdAndUserId(noteId, userId);
 
-        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft, likeCount, liked).withContributors(noteContributorService.resolve(note));
+        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft, likeCount, liked)
+                .withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
     public NoteResponse.Detail toggleLike(String boardId, String noteId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         Note note = getNoteOrThrow(boardId, noteId);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         boolean exists = noteLikeRepository.existsByNoteIdAndUserId(noteId, userId);
         if (exists) {
@@ -130,16 +130,16 @@ public class NoteService {
         int likeCount = noteLikeRepository.countByNoteId(noteId);
         boolean liked = !exists;
 
-        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft, likeCount, liked).withContributors(noteContributorService.resolve(note));
+        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft, likeCount, liked)
+                .withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
     public NoteResponse.Detail createNote(String boardId, String userId, NoteRequest.Create request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
         validateNoteAccess(boardId);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         NoteType type = NoteType.valueOf(request.getType());
         Note parent = null;
@@ -158,8 +158,9 @@ public class NoteService {
         }
 
         Note note = Note.builder()
-                .board(boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND)))
+                .board(boardRepository
+                        .findById(boardId)
+                        .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND)))
                 .parent(parent)
                 .type(type)
                 .title(request.getTitle())
@@ -171,7 +172,10 @@ public class NoteService {
                 .build();
 
         noteRepository.save(note);
-        logNoteActivity(note, user, ActivityAction.NOTE_CREATED,
+        logNoteActivity(
+                note,
+                user,
+                ActivityAction.NOTE_CREATED,
                 meta("title", note.getTitle(), "type", note.getType().name()));
 
         // Handle tags
@@ -185,27 +189,30 @@ public class NoteService {
 
     // 동시 명시 저장으로 note_versions(note_id, version_number) UNIQUE 충돌 시 재시도.
     // 트랜잭션 경계가 메서드 단위라 새 트랜잭션에서 max+1이 다시 계산됨.
-    @Retryable(retryFor = DataIntegrityViolationException.class,
-               maxAttempts = 3,
-               backoff = @Backoff(delay = 50, multiplier = 2.0))
+    @Retryable(
+            retryFor = DataIntegrityViolationException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 50, multiplier = 2.0))
     @Transactional
-    public NoteResponse.Detail updateNote(String boardId, String noteId, String userId,
-                                           NoteRequest.Update request, boolean createVersion,
-                                           boolean discardDraft) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public NoteResponse.Detail updateNote(
+            String boardId,
+            String noteId,
+            String userId,
+            NoteRequest.Update request,
+            boolean createVersion,
+            boolean discardDraft) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         Note note = getNoteOrThrow(boardId, noteId);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
 
         // Only snapshot when title/content actually differs — clicking Save with
         // no edits should not bloat the version history.
-        boolean contentChanged = request.getContent() != null
-                && !Objects.equals(request.getContent(), note.getContent());
-        boolean titleChanged = request.getTitle() != null
-                && !Objects.equals(request.getTitle(), note.getTitle());
+        boolean contentChanged =
+                request.getContent() != null && !Objects.equals(request.getContent(), note.getContent());
+        boolean titleChanged = request.getTitle() != null && !Objects.equals(request.getTitle(), note.getTitle());
         boolean hasChanges = contentChanged || titleChanged;
 
         // Create version snapshot before updating (only on manual save with diff)
@@ -236,9 +243,17 @@ public class NoteService {
         }
 
         if (publishedNewSnapshot) {
-            logNoteActivity(note, user, ActivityAction.NOTE_PUBLISHED,
-                    meta("title", note.getTitle(), "version_number", versionCount,
-                         "version_note", NoteVersion.normalizeMemo(request.getVersionNote())));
+            logNoteActivity(
+                    note,
+                    user,
+                    ActivityAction.NOTE_PUBLISHED,
+                    meta(
+                            "title",
+                            note.getTitle(),
+                            "version_number",
+                            versionCount,
+                            "version_note",
+                            NoteVersion.normalizeMemo(request.getVersionNote())));
         }
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
@@ -259,36 +274,39 @@ public class NoteService {
         }
 
         boolean draftDiscarded = publishedNewSnapshot && discardDraft;
-        boolean hasDraft = !draftDiscarded
-                && noteCollabService.hasUnpublishedDraft(noteId, note.getUpdatedAt());
-        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft).withContributors(noteContributorService.resolve(note));
+        boolean hasDraft = !draftDiscarded && noteCollabService.hasUnpublishedDraft(noteId, note.getUpdatedAt());
+        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft)
+                .withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
     public void deleteNote(String boardId, String noteId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         Note note = getNoteOrThrow(boardId, noteId);
-        User actor = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User actor = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // Soft delete: also delete children recursively
         softDeleteRecursive(note, actor);
-        logNoteActivity(note, actor, ActivityAction.NOTE_DELETED,
+        logNoteActivity(
+                note,
+                actor,
+                ActivityAction.NOTE_DELETED,
                 meta("title", note.getTitle(), "type", note.getType().name()));
     }
 
     // ===== Trash =====
 
     public List<NoteResponse.TrashItem> getTrash(String boardId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
         validateNoteAccess(boardId);
 
         List<Note> trash = noteRepository.findTrashByBoardId(boardId);
         Set<String> trashIds = trash.stream().map(Note::getId).collect(Collectors.toSet());
         // 휴지통 내에서 자식을 가진 노트 ID
         Set<String> parentsInTrash = trash.stream()
-                .filter(n -> n.getParent() != null && trashIds.contains(n.getParent().getId()))
+                .filter(n ->
+                        n.getParent() != null && trashIds.contains(n.getParent().getId()))
                 .map(n -> n.getParent().getId())
                 .collect(Collectors.toSet());
 
@@ -299,9 +317,10 @@ public class NoteService {
 
     @Transactional
     public NoteResponse.Detail restoreNote(String boardId, String noteId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Note note = noteRepository.findByIdAndBoardId(noteId, boardId)
+        Note note = noteRepository
+                .findByIdAndBoardId(noteId, boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_NOT_FOUND));
         if (!Boolean.TRUE.equals(note.getIsDeleted())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "이미 복구된 노트입니다");
@@ -315,7 +334,10 @@ public class NoteService {
         }
         // 자기 + 자식 노트 재귀 복구 (자식 isDeleted=true만)
         restoreRecursive(note);
-        logNoteActivity(note, findUser(userId), ActivityAction.NOTE_RESTORED,
+        logNoteActivity(
+                note,
+                findUser(userId),
+                ActivityAction.NOTE_RESTORED,
                 meta("title", note.getTitle(), "type", note.getType().name()));
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
@@ -325,21 +347,25 @@ public class NoteService {
 
     @Transactional
     public void permanentDeleteNote(String boardId, String noteId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
-        Note note = noteRepository.findByIdAndBoardId(noteId, boardId)
+        Note note = noteRepository
+                .findByIdAndBoardId(noteId, boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_NOT_FOUND));
         if (!Boolean.TRUE.equals(note.getIsDeleted())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "휴지통의 노트만 영구 삭제할 수 있습니다");
         }
-        logNoteActivity(note, findUser(userId), ActivityAction.NOTE_PERMANENTLY_DELETED,
+        logNoteActivity(
+                note,
+                findUser(userId),
+                ActivityAction.NOTE_PERMANENTLY_DELETED,
                 meta("title", note.getTitle(), "type", note.getType().name()));
         hardDeleteRecursive(note);
     }
 
     @Transactional
     public int emptyTrash(String boardId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
 
         List<Note> trash = noteRepository.findAllTrashByBoardId(boardId);
         if (trash.isEmpty()) return 0;
@@ -348,10 +374,14 @@ public class NoteService {
         // 휴지통 내 부모가 휴지통에 없는 노트(=서브트리 루트)만 처리, 자식은 hardDeleteRecursive 가 cascade
         Set<String> trashIds = trash.stream().map(Note::getId).collect(Collectors.toSet());
         List<Note> roots = trash.stream()
-                .filter(n -> n.getParent() == null || !trashIds.contains(n.getParent().getId()))
+                .filter(n -> n.getParent() == null
+                        || !trashIds.contains(n.getParent().getId()))
                 .toList();
         for (Note root : roots) {
-            logNoteActivity(root, actor, ActivityAction.NOTE_PERMANENTLY_DELETED,
+            logNoteActivity(
+                    root,
+                    actor,
+                    ActivityAction.NOTE_PERMANENTLY_DELETED,
                     meta("title", root.getTitle(), "type", root.getType().name(), "empty_trash", true));
             hardDeleteRecursive(root);
         }
@@ -360,7 +390,7 @@ public class NoteService {
 
     @Transactional
     public NoteResponse.Detail moveNote(String boardId, String noteId, String userId, NoteRequest.Move request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         Note note = getNoteOrThrow(boardId, noteId);
 
@@ -411,47 +441,49 @@ public class NoteService {
     // ===== Version =====
 
     public List<NoteResponse.VersionInfo> getVersions(String boardId, String noteId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         getNoteOrThrow(boardId, noteId);
 
-        return noteVersionRepository.findAllByNoteIdOrderByVersionNumberDesc(noteId)
-                .stream()
+        return noteVersionRepository.findAllByNoteIdOrderByVersionNumberDesc(noteId).stream()
                 .map(NoteResponse.VersionInfo::of)
                 .toList();
     }
 
     public NoteResponse.VersionDetail getVersionDetail(String boardId, String noteId, String versionId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         getNoteOrThrow(boardId, noteId);
 
-        NoteVersion version = noteVersionRepository.findByIdAndNoteId(versionId, noteId)
+        NoteVersion version = noteVersionRepository
+                .findByIdAndNoteId(versionId, noteId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_VERSION_NOT_FOUND));
 
         return NoteResponse.VersionDetail.of(version);
     }
 
-    @Retryable(retryFor = DataIntegrityViolationException.class,
-               maxAttempts = 3,
-               backoff = @Backoff(delay = 50, multiplier = 2.0))
+    @Retryable(
+            retryFor = DataIntegrityViolationException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 50, multiplier = 2.0))
     @Transactional
-    public NoteResponse.Detail restoreVersion(String boardId, String noteId, String versionId, String userId,
-                                              NoteRequest.RestoreVersion request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public NoteResponse.Detail restoreVersion(
+            String boardId, String noteId, String versionId, String userId, NoteRequest.RestoreVersion request) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         Note note = getNoteOrThrow(boardId, noteId);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        NoteVersion version = noteVersionRepository.findByIdAndNoteId(versionId, noteId)
+        NoteVersion version = noteVersionRepository
+                .findByIdAndNoteId(versionId, noteId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_VERSION_NOT_FOUND));
 
         // Save current state as new version before restoring. The client sends
         // the live on-screen title/content so unpublished draft edits are
         // preserved too; fall back to the published snapshot when absent.
-        String snapshotTitle = request != null && request.getCurrentTitle() != null
-                ? request.getCurrentTitle() : note.getTitle();
+        String snapshotTitle =
+                request != null && request.getCurrentTitle() != null ? request.getCurrentTitle() : note.getTitle();
         String snapshotContent = request != null && request.getCurrentContent() != null
-                ? request.getCurrentContent() : note.getContent();
+                ? request.getCurrentContent()
+                : note.getContent();
 
         // Skip the snapshot when it would be identical to the version being
         // restored — restoring the latest version with no screen changes would
@@ -461,7 +493,12 @@ public class NoteService {
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
         if (snapshotDiffers) {
             versionCount = versionCount + 1;
-            NoteVersion currentSnapshot = NoteVersion.create(note, snapshotTitle, snapshotContent, user, versionCount,
+            NoteVersion currentSnapshot = NoteVersion.create(
+                    note,
+                    snapshotTitle,
+                    snapshotContent,
+                    user,
+                    versionCount,
                     "v" + version.getVersionNumber() + " 복원 전 자동 저장");
             noteVersionRepository.save(currentSnapshot);
         }
@@ -469,7 +506,10 @@ public class NoteService {
         // Restore
         note.updateTitle(version.getTitle());
         note.updateContent(version.getContent(), user);
-        logNoteActivity(note, user, ActivityAction.NOTE_VERSION_RESTORED,
+        logNoteActivity(
+                note,
+                user,
+                ActivityAction.NOTE_VERSION_RESTORED,
                 meta("title", note.getTitle(), "version_number", version.getVersionNumber()));
 
         // 복원본이 새 발행본이 되므로 stale Yjs draft를 폐기한다. 그렇지 않으면
@@ -480,15 +520,17 @@ public class NoteService {
         eventPublisher.publishEvent(new NoteSnapshotSavedEvent(noteId));
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
-        return NoteResponse.Detail.of(note, tags, versionCount, false).withContributors(noteContributorService.resolve(note));
+        return NoteResponse.Detail.of(note, tags, versionCount, false)
+                .withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
     public void deleteVersion(String boardId, String noteId, String versionId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
         getNoteOrThrow(boardId, noteId);
 
-        NoteVersion version = noteVersionRepository.findByIdAndNoteId(versionId, noteId)
+        NoteVersion version = noteVersionRepository
+                .findByIdAndNoteId(versionId, noteId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_VERSION_NOT_FOUND));
 
         noteVersionRepository.delete(version);
@@ -496,7 +538,7 @@ public class NoteService {
 
     @Transactional
     public void deleteAllVersions(String boardId, String noteId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
         getNoteOrThrow(boardId, noteId);
 
         noteVersionRepository.deleteAllByNoteId(noteId);
@@ -511,7 +553,7 @@ public class NoteService {
      */
     @Transactional
     public void discardDraft(String boardId, String noteId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
         getNoteOrThrow(boardId, noteId);
         // Archive-before-delete so the discard is recoverable (되돌리기).
         noteCollabService.discardDraft(noteId, userId);
@@ -525,7 +567,7 @@ public class NoteService {
      */
     @Transactional
     public void restoreDraft(String boardId, String noteId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
         getNoteOrThrow(boardId, noteId);
         if (noteCollabService.restoreDraft(noteId)) {
             eventPublisher.publishEvent(new NoteDraftRestoredEvent(noteId));
@@ -535,7 +577,7 @@ public class NoteService {
     /** Whether a restorable discarded draft exists for this note. */
     @Transactional(readOnly = true)
     public boolean hasArchivedDraft(String boardId, String noteId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
         getNoteOrThrow(boardId, noteId);
         return noteCollabService.hasArchivedDraft(noteId);
     }
@@ -543,25 +585,25 @@ public class NoteService {
     // ===== Tags =====
 
     public List<NoteResponse.TagInfo> getTags(String boardId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
-        return noteTagRepository.findAllByBoardIdOrderByNameAsc(boardId)
-                .stream()
+        return noteTagRepository.findAllByBoardIdOrderByNameAsc(boardId).stream()
                 .map(NoteResponse.TagInfo::of)
                 .toList();
     }
 
     @Transactional
     public NoteResponse.TagInfo createTag(String boardId, String userId, String name, String color) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         if (noteTagRepository.existsByBoardIdAndName(boardId, name)) {
             throw new BusinessException(ErrorCode.TAG_ALREADY_EXISTS);
         }
 
         NoteTag tag = NoteTag.builder()
-                .board(boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND)))
+                .board(boardRepository
+                        .findById(boardId)
+                        .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND)))
                 .name(name)
                 .color(color)
                 .build();
@@ -572,10 +614,10 @@ public class NoteService {
 
     @Transactional
     public void deleteTag(String boardId, String tagId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        NoteTag tag = noteTagRepository.findById(tagId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TAG_NOT_FOUND));
+        NoteTag tag =
+                noteTagRepository.findById(tagId).orElseThrow(() -> new BusinessException(ErrorCode.TAG_NOT_FOUND));
 
         if (!tag.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
@@ -588,7 +630,7 @@ public class NoteService {
 
     @Transactional
     public NoteResponse.Detail enableShare(String boardId, String noteId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         Note note = getNoteOrThrow(boardId, noteId);
         if (note.isFolder()) {
@@ -604,7 +646,7 @@ public class NoteService {
 
     @Transactional
     public NoteResponse.Detail disableShare(String boardId, String noteId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         Note note = getNoteOrThrow(boardId, noteId);
         boolean wasShared = Boolean.TRUE.equals(note.getIsShared());
@@ -620,7 +662,7 @@ public class NoteService {
 
     @Transactional
     public NoteResponse.Detail rotateShareToken(String boardId, String noteId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         Note note = getNoteOrThrow(boardId, noteId);
         if (note.isFolder()) {
@@ -634,7 +676,8 @@ public class NoteService {
     }
 
     public NoteResponse.SharedNote getSharedNote(String shareToken) {
-        Note note = noteRepository.findBySharePublicToken(shareToken)
+        Note note = noteRepository
+                .findBySharePublicToken(shareToken)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_NOT_FOUND));
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(note.getId());
@@ -645,14 +688,15 @@ public class NoteService {
 
     /** 제목 + 본문 평문(search_text) 검색. 뷰어 이상, 프리미엄 게이트는 트리 조회와 동일. 2자 미만 → 빈 목록. */
     public List<NoteResponse.SearchResult> searchNotes(String boardId, String userId, String rawQuery) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         validateNoteAccess(boardId);
 
         String query = NoteSearchSupport.normalizeQuery(rawQuery);
         if (query == null) return List.of();
 
-        return noteRepository.searchByBoardId(boardId, NoteSearchSupport.likePattern(query),
-                        PageRequest.of(0, NoteSearchSupport.MAX_RESULTS))
+        return noteRepository
+                .searchByBoardId(
+                        boardId, NoteSearchSupport.likePattern(query), PageRequest.of(0, NoteSearchSupport.MAX_RESULTS))
                 .stream()
                 .map(n -> NoteSearchSupport.toResult(n, query))
                 .toList();
@@ -662,7 +706,7 @@ public class NoteService {
 
     @Transactional
     public NoteResponse.Detail updateStatus(String boardId, String noteId, String userId, String rawStatus) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         Note note = getNoteOrThrow(boardId, noteId);
         NoteStatus status = NoteStatusParser.parse(rawStatus);
@@ -672,7 +716,10 @@ public class NoteService {
         boolean changed = note.getStatus() != status;
         note.updateStatus(status);
         if (changed) {
-            logNoteActivity(note, findUser(userId), ActivityAction.NOTE_STATUS_CHANGED,
+            logNoteActivity(
+                    note,
+                    findUser(userId),
+                    ActivityAction.NOTE_STATUS_CHANGED,
                     meta("title", note.getTitle(), "status", status != null ? status.name() : null));
         }
 
@@ -684,12 +731,13 @@ public class NoteService {
     // ===== Version memo =====
 
     @Transactional
-    public NoteResponse.VersionInfo updateVersionNote(String boardId, String noteId, String versionId, String userId,
-                                                      String memo) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public NoteResponse.VersionInfo updateVersionNote(
+            String boardId, String noteId, String versionId, String userId, String memo) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
         getNoteOrThrow(boardId, noteId);
 
-        NoteVersion version = noteVersionRepository.findByIdAndNoteId(versionId, noteId)
+        NoteVersion version = noteVersionRepository
+                .findByIdAndNoteId(versionId, noteId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_VERSION_NOT_FOUND));
         version.updateMemo(memo);
         return NoteResponse.VersionInfo.of(version);
@@ -698,8 +746,7 @@ public class NoteService {
     // ===== Activity =====
 
     private User findUser(String userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        return userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
     }
 
     /** 보드 활동 로그. 노트 기능이 보드 화면을 막아선 안 되므로 실패는 경고만 남긴다. */
@@ -724,7 +771,8 @@ public class NoteService {
     // ===== Helper Methods =====
 
     private Note getNoteOrThrow(String boardId, String noteId) {
-        Note note = noteRepository.findByIdAndBoardId(noteId, boardId)
+        Note note = noteRepository
+                .findByIdAndBoardId(noteId, boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_NOT_FOUND));
         if (note.getIsDeleted()) {
             throw new BusinessException(ErrorCode.NOTE_NOT_FOUND);
@@ -732,18 +780,14 @@ public class NoteService {
         return note;
     }
 
-    private NoteResponse.TreeItem buildTreeItem(Note note, Map<String, List<Note>> childrenMap, Map<String, List<NoteResponse.TagInfo>> tagMap) {
-        List<NoteResponse.TreeItem> children = childrenMap.getOrDefault(note.getId(), List.of())
-                .stream()
+    private NoteResponse.TreeItem buildTreeItem(
+            Note note, Map<String, List<Note>> childrenMap, Map<String, List<NoteResponse.TagInfo>> tagMap) {
+        List<NoteResponse.TreeItem> children = childrenMap.getOrDefault(note.getId(), List.of()).stream()
                 .sorted(Comparator.comparingInt(Note::getPosition))
                 .map(child -> buildTreeItem(child, childrenMap, tagMap))
                 .toList();
 
-        return NoteResponse.TreeItem.of(
-                note,
-                tagMap.getOrDefault(note.getId(), List.of()),
-                children
-        );
+        return NoteResponse.TreeItem.of(note, tagMap.getOrDefault(note.getId(), List.of()), children);
     }
 
     private Map<String, List<NoteResponse.TagInfo>> getTagMapForNotes(List<String> noteIds) {
@@ -754,26 +798,22 @@ public class NoteService {
         return mappings.stream()
                 .collect(Collectors.groupingBy(
                         m -> m.getNote().getId(),
-                        Collectors.mapping(m -> NoteResponse.TagInfo.of(m.getTag()), Collectors.toList())
-                ));
+                        Collectors.mapping(m -> NoteResponse.TagInfo.of(m.getTag()), Collectors.toList())));
     }
 
     private List<NoteResponse.TagInfo> getTagsForNote(String noteId) {
-        return noteTagMappingRepository.findAllByNoteIdWithTag(noteId)
-                .stream()
+        return noteTagMappingRepository.findAllByNoteIdWithTag(noteId).stream()
                 .map(m -> NoteResponse.TagInfo.of(m.getTag()))
                 .toList();
     }
 
     private void syncNoteTags(Note note, List<String> tagIds) {
         for (String tagId : tagIds) {
-            NoteTag tag = noteTagRepository.findById(tagId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.TAG_NOT_FOUND));
+            NoteTag tag =
+                    noteTagRepository.findById(tagId).orElseThrow(() -> new BusinessException(ErrorCode.TAG_NOT_FOUND));
             if (!noteTagMappingRepository.existsByNoteIdAndTagId(note.getId(), tagId)) {
-                NoteTagMapping mapping = NoteTagMapping.builder()
-                        .note(note)
-                        .tag(tag)
-                        .build();
+                NoteTagMapping mapping =
+                        NoteTagMapping.builder().note(note).tag(tag).build();
                 noteTagMappingRepository.save(mapping);
             }
         }
@@ -814,10 +854,7 @@ public class NoteService {
     private int getMaxDescendantDepth(Note note) {
         List<Note> children = noteRepository.findChildrenByParentId(note.getId());
         if (children.isEmpty()) return note.getDepth();
-        return children.stream()
-                .mapToInt(this::getMaxDescendantDepth)
-                .max()
-                .orElse(note.getDepth());
+        return children.stream().mapToInt(this::getMaxDescendantDepth).max().orElse(note.getDepth());
     }
 
     private void updateDescendantDepths(Note parent) {
@@ -829,8 +866,8 @@ public class NoteService {
     }
 
     private void validateNoteAccess(String boardId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         if (!board.canAccessNote()) {
             throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
         }

@@ -1,11 +1,12 @@
 package com.kanban.domain.integration.discord.service;
 
 import com.kanban.domain.board.Board;
-import com.kanban.domain.integration.BrandResolver;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
+import com.kanban.domain.integration.BrandResolver;
+import com.kanban.domain.integration.FrontendOriginResolver;
 import com.kanban.domain.integration.discord.DiscordBotConfig;
 import com.kanban.domain.integration.discord.DiscordBotConfigRepository;
 import com.kanban.domain.integration.discord.DiscordUserLink;
@@ -16,16 +17,6 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.kanban.domain.integration.FrontendOriginResolver;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -33,6 +24,13 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -43,7 +41,8 @@ public class DiscordService {
     private final DiscordBotService discordBotService;
     private final DiscordBotConfigRepository botConfigRepository;
     private final DiscordUserLinkRepository userLinkRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
     private final UserRepository userRepository;
@@ -72,7 +71,7 @@ public class DiscordService {
      * Generate OAuth2 URL for bot installation or user linking.
      */
     public DiscordResponse.OAuthUrl getOAuthUrl(String boardId, String userId, String type, String origin) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         validateDiscordAccess(boardId);
 
         String state = generateState(type, boardId, userId, origin);
@@ -98,9 +97,7 @@ public class DiscordService {
                     + "&state=" + URLEncoder.encode(state, StandardCharsets.UTF_8);
         }
 
-        return DiscordResponse.OAuthUrl.builder()
-                .oauthUrl(url)
-                .build();
+        return DiscordResponse.OAuthUrl.builder().oauthUrl(url).build();
     }
 
     /**
@@ -162,7 +159,8 @@ public class DiscordService {
      * Get bot config for a board.
      */
     public DiscordResponse.BotConfig getBotConfig(String boardId) {
-        return botConfigRepository.findByBoardId(boardId)
+        return botConfigRepository
+                .findByBoardId(boardId)
                 .map(config -> DiscordResponse.BotConfig.builder()
                         .boardId(config.getBoard().getId())
                         .guildId(config.getGuildId())
@@ -184,7 +182,7 @@ public class DiscordService {
      */
     @Transactional
     public void deleteBotConfig(String boardId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         validateDiscordAccess(boardId);
 
         if (!botConfigRepository.existsByBoardId(boardId)) {
@@ -199,15 +197,14 @@ public class DiscordService {
      * Get user's Discord link status.
      */
     public DiscordResponse.UserLinkStatus getUserLink(String userId) {
-        return userLinkRepository.findByUserId(userId)
+        return userLinkRepository
+                .findByUserId(userId)
                 .map(link -> DiscordResponse.UserLinkStatus.builder()
                         .linked(true)
                         .discordUserId(link.getDiscordUserId())
                         .discordUsername(link.getDiscordUsername())
                         .build())
-                .orElse(DiscordResponse.UserLinkStatus.builder()
-                        .linked(false)
-                        .build());
+                .orElse(DiscordResponse.UserLinkStatus.builder().linked(false).build());
     }
 
     /**
@@ -227,7 +224,8 @@ public class DiscordService {
      * Get available text channels via bot.
      */
     public List<DiscordResponse.ChannelInfo> getChannels(String boardId) {
-        DiscordBotConfig config = botConfigRepository.findByBoardId(boardId)
+        DiscordBotConfig config = botConfigRepository
+                .findByBoardId(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DISCORD_BOT_NOT_CONFIGURED));
 
         List<Map<String, Object>> channels = discordBotService.getGuildChannels(config.getGuildId());
@@ -246,10 +244,11 @@ public class DiscordService {
      */
     @Transactional
     public void updateChannel(String boardId, String userId, String channelId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         validateDiscordAccess(boardId);
 
-        DiscordBotConfig config = botConfigRepository.findByBoardId(boardId)
+        DiscordBotConfig config = botConfigRepository
+                .findByBoardId(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DISCORD_BOT_NOT_CONFIGURED));
 
         // Get channel name from Discord API
@@ -270,9 +269,8 @@ public class DiscordService {
      */
     public List<DiscordResponse.MemberStatus> getMemberStatuses(String boardId) {
         List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
-        List<String> memberUserIds = members.stream()
-                .map(bm -> bm.getUser().getId())
-                .toList();
+        List<String> memberUserIds =
+                members.stream().map(bm -> bm.getUser().getId()).toList();
 
         Map<String, DiscordUserLink> linkMap = userLinkRepository.findByUserIdIn(memberUserIds).stream()
                 .collect(Collectors.toMap(link -> link.getUser().getId(), link -> link));
@@ -294,38 +292,42 @@ public class DiscordService {
      * Send a test DM to the current user.
      */
     public DiscordResponse.TestResult testNotification(String boardId, String userId, String originUrl) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         validateDiscordAccess(boardId);
 
-        DiscordUserLink userLink = userLinkRepository.findByUserId(userId)
+        DiscordUserLink userLink = userLinkRepository
+                .findByUserId(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DISCORD_USER_NOT_LINKED));
 
         try {
-            String resolved = (originUrl != null && !originUrl.isBlank()) ? originUrl.replaceAll("/+$", "") : frontendUrl;
+            String resolved =
+                    (originUrl != null && !originUrl.isBlank()) ? originUrl.replaceAll("/+$", "") : frontendUrl;
             String brand = BrandResolver.resolve(resolved);
             Map<String, Object> embed = new LinkedHashMap<>();
             embed.put("title", "\uD83D\uDD14 Test Notification");
             embed.put("description", brand + " Discord Bot 연동 테스트 메시지입니다.");
             embed.put("color", 0x6366F1);
-            embed.put("fields", List.of(
-                    Map.of("name", "Board", "value", "Test", "inline", true)
-            ));
+            embed.put("fields", List.of(Map.of("name", "Board", "value", "Test", "inline", true)));
             embed.put("footer", Map.of("text", brand));
             embed.put("timestamp", Instant.now().toString());
 
             String boardUrl = resolved + "/boards/" + boardId;
             Map<String, Object> payload = Map.of(
                     "embeds", List.of(embed),
-                    "components", List.of(Map.of(
-                            "type", 1,
-                            "components", List.of(Map.of(
-                                    "type", 2,
-                                    "style", 5,
-                                    "label", "\uBCF4\uB4DC\uC5D0\uC11C \uBCF4\uAE30",
-                                    "url", boardUrl
-                            ))
-                    ))
-            );
+                    "components",
+                            List.of(Map.of(
+                                    "type",
+                                    1,
+                                    "components",
+                                    List.of(Map.of(
+                                            "type",
+                                            2,
+                                            "style",
+                                            5,
+                                            "label",
+                                            "\uBCF4\uB4DC\uC5D0\uC11C \uBCF4\uAE30",
+                                            "url",
+                                            boardUrl)))));
 
             discordBotService.sendDirectMessage(userLink.getDiscordUserId(), payload);
 
@@ -346,7 +348,8 @@ public class DiscordService {
 
     // --- Private helpers ---
 
-    private String handleBotInstall(Map<String, Object> tokenResponse, String boardId, String userId, String resolvedOrigin) {
+    private String handleBotInstall(
+            Map<String, Object> tokenResponse, String boardId, String userId, String resolvedOrigin) {
         // Extract guild info from the token response
         @SuppressWarnings("unchecked")
         Map<String, Object> guild = (Map<String, Object>) tokenResponse.get("guild");
@@ -357,10 +360,9 @@ public class DiscordService {
         String guildId = (String) guild.get("id");
         String guildName = (String) guild.get("name");
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // Upsert bot config
         DiscordBotConfig config = botConfigRepository.findByBoardId(boardId).orElse(null);
@@ -382,7 +384,13 @@ public class DiscordService {
         return resolvedOrigin + "/boards/" + boardId + "?view=settings&tab=discord&status=bot_installed";
     }
 
-    private String handleUserLink(String accessToken, String refreshToken, long expiresIn, String userId, String boardId, String resolvedOrigin) {
+    private String handleUserLink(
+            String accessToken,
+            String refreshToken,
+            long expiresIn,
+            String userId,
+            String boardId,
+            String resolvedOrigin) {
         // Get Discord user info
         Map<String, Object> userInfo = discordBotService.getUserInfo(accessToken);
         if (userInfo == null) {
@@ -391,8 +399,7 @@ public class DiscordService {
         String discordUserId = (String) userInfo.get("id");
         String discordUsername = (String) userInfo.get("username");
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // Check if already linked
         Optional<DiscordUserLink> existingLink = userLinkRepository.findByUserId(userId);
@@ -430,8 +437,8 @@ public class DiscordService {
     }
 
     private void validateDiscordAccess(String boardId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         if (!board.canAccessDiscord()) {
             throw new BusinessException(ErrorCode.DISCORD_PREMIUM_REQUIRED);
         }

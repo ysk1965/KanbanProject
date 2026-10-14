@@ -10,7 +10,7 @@ import com.kanban.domain.block.BlockRepository;
 import com.kanban.domain.block.FixedBlockType;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.feature.Feature;
@@ -27,6 +27,9 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,10 +37,6 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -52,7 +51,8 @@ public class FeatureAIService {
     private final BlockRepository blockRepository;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final ActivityService activityService;
     private final WebSocketEventService webSocketEventService;
 
@@ -81,8 +81,7 @@ public class FeatureAIService {
             Map.entry("th", "Thai"),
             Map.entry("hi", "Hindi"),
             Map.entry("es", "Spanish"),
-            Map.entry("pt-BR", "Portuguese (Brazil)")
-    );
+            Map.entry("pt-BR", "Portuguese (Brazil)"));
 
     /**
      * 트랜잭션 밖에서 실행된다 — 입력 읽기는 {@code transactionTemplate}으로 짧게 묶고, LLM 호출은
@@ -93,9 +92,10 @@ public class FeatureAIService {
 
         // 1. 입력 읽기 (tx) — Feature.board는 LAZY라 보드 검증까지 여기서 끝낸다
         PromptInput input = transactionTemplate.execute(status -> {
-            boardService.checkMemberOrAbove(boardId, userId);
+            boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-            Feature feature = featureRepository.findById(featureId)
+            Feature feature = featureRepository
+                    .findById(featureId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
 
             if (!feature.getBoard().getId().equals(boardId)) {
@@ -111,42 +111,48 @@ public class FeatureAIService {
             List<Task> existingTasks = taskRepository.findByFeatureIdOrderByPositionAsc(featureId);
             String existingTasksContext = buildExistingTasksContext(existingTasks);
 
-            return new PromptInput(title,
-                    buildSystemPrompt(language),
-                    buildUserPrompt(title, description, existingTasksContext));
+            return new PromptInput(
+                    title, buildSystemPrompt(language), buildUserPrompt(title, description, existingTasksContext));
         });
 
         // 2. 크레딧 차감 → AI 호출 → 사용량 로그 → 파싱 (트랜잭션 없음)
         log.info("Generating AI task decomposition for feature: {} in board: {}", featureId, boardId);
         AiInvocationRequest request = AiInvocationRequest.builder()
-                .boardId(boardId).userId(userId)
-                .featureType("FEATURE_DECOMPOSE").creditCost(1)
-                .systemPrompt(input.systemPrompt()).userPrompt(input.userPrompt())
-                .model(getModel()).maxTokens(MAX_TOKENS)
+                .boardId(boardId)
+                .userId(userId)
+                .featureType("FEATURE_DECOMPOSE")
+                .creditCost(1)
+                .systemPrompt(input.systemPrompt())
+                .userPrompt(input.userPrompt())
+                .model(getModel())
+                .maxTokens(MAX_TOKENS)
                 .build();
-        return aiInvocationTemplate.invoke(request, content -> parseAIResponse(content, featureId, input.featureTitle()));
+        return aiInvocationTemplate.invoke(
+                request, content -> parseAIResponse(content, featureId, input.featureTitle()));
     }
 
-    private record PromptInput(String featureTitle, String systemPrompt, String userPrompt) {
-    }
+    private record PromptInput(String featureTitle, String systemPrompt, String userPrompt) {}
 
     @Transactional
     @CacheEvict(value = "features", key = "#boardId")
     public FeatureAIResponse.ApplyResult applyTaskSuggestions(
             String boardId, String featureId, String userId, FeatureAIRequest.ApplyDecomposition request) {
 
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Board board = boardRepository.findByIdWithLock(boardId)
+        Board board = boardRepository
+                .findByIdWithLock(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        Feature feature = featureRepository.findById(featureId)
+        Feature feature = featureRepository
+                .findById(featureId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
 
-        User creator = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User creator =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
+        Block taskBlock = blockRepository
+                .findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
 
         int tasksCreated = 0;
@@ -175,11 +181,19 @@ public class FeatureAIService {
             feature.incrementTotalTasks();
             tasksCreated++;
 
-            activityService.logActivity(board, creator,
-                    ActivityAction.TASK_CREATED, TargetType.TASK, task.getId(),
-                    Map.of("taskTitle", task.getTitle(),
-                            "featureTitle", feature.getTitle(),
-                            "featureColor", feature.getColor() != null ? feature.getColor() : "#6366F1"));
+            activityService.logActivity(
+                    board,
+                    creator,
+                    ActivityAction.TASK_CREATED,
+                    TargetType.TASK,
+                    task.getId(),
+                    Map.of(
+                            "taskTitle",
+                            task.getTitle(),
+                            "featureTitle",
+                            feature.getTitle(),
+                            "featureColor",
+                            feature.getColor() != null ? feature.getColor() : "#6366F1"));
 
             if (ts.getChecklists() != null) {
                 for (FeatureAIRequest.ChecklistSuggestionApply cs : ts.getChecklists()) {
@@ -197,11 +211,14 @@ public class FeatureAIService {
             }
         }
 
-        log.info("AI task decomposition applied for feature: {}. Tasks: {}, Checklists: {}",
-                featureId, tasksCreated, checklistsCreated);
+        log.info(
+                "AI task decomposition applied for feature: {}. Tasks: {}, Checklists: {}",
+                featureId,
+                tasksCreated,
+                checklistsCreated);
 
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.FEATURE_UPDATED,
-                userId, creator.getName(), Map.of("featureId", featureId));
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.FEATURE_UPDATED, userId, creator.getName(), Map.of("featureId", featureId));
 
         return FeatureAIResponse.ApplyResult.builder()
                 .tasksCreated(tasksCreated)
@@ -214,10 +231,13 @@ public class FeatureAIService {
         String langInstruction;
         String langReminder;
         if (langName != null) {
-            langInstruction = "CRITICAL LANGUAGE RULE: You MUST write ALL output text (task titles, descriptions, checklist titles) in " + langName + ". Do NOT use English for any content values.";
+            langInstruction =
+                    "CRITICAL LANGUAGE RULE: You MUST write ALL output text (task titles, descriptions, checklist titles) in "
+                            + langName + ". Do NOT use English for any content values.";
             langReminder = "REMINDER: All text content in the JSON output MUST be in " + langName + ".";
         } else {
-            langInstruction = "CRITICAL LANGUAGE RULE: Match the language of the feature title and description for all output text.";
+            langInstruction =
+                    "CRITICAL LANGUAGE RULE: Match the language of the feature title and description for all output text.";
             langReminder = "REMINDER: Match the output language to the feature's language.";
         }
 
@@ -257,9 +277,8 @@ public class FeatureAIService {
     }
 
     private String buildUserPrompt(String featureTitle, String featureDescription, String existingTasksContext) {
-        String desc = featureDescription != null && !featureDescription.isBlank()
-                ? featureDescription
-                : "(no description)";
+        String desc =
+                featureDescription != null && !featureDescription.isBlank() ? featureDescription : "(no description)";
         if (desc.length() > 3000) {
             desc = desc.substring(0, 3000) + "...";
         }
@@ -295,7 +314,8 @@ public class FeatureAIService {
         return sb.toString();
     }
 
-    private FeatureAIResponse.TaskDecomposition parseAIResponse(String aiResponse, String featureId, String featureTitle) {
+    private FeatureAIResponse.TaskDecomposition parseAIResponse(
+            String aiResponse, String featureId, String featureTitle) {
         try {
             JsonNode root = aiInvocationTemplate.readJsonTree(aiResponse);
 

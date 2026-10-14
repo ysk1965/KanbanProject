@@ -1,7 +1,7 @@
 package com.kanban.domain.integration.jira.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.integration.jira.*;
 import com.kanban.domain.integration.jira.dto.JiraResponse;
 import com.kanban.domain.milestone.Milestone;
@@ -10,12 +10,11 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.*;
 
 /**
  * 마일스톤별 JIRA 스코프 관리 + 소속(claim) 동기화.
@@ -45,27 +44,26 @@ public class JiraMilestoneScopeService {
     private final JiraIssueLinkRepository issueLinkRepository;
     private final MilestoneRepository milestoneRepository;
     private final UserRepository userRepository;
-    private final BoardService boardService;
 
+    private final BoardPermissionService boardPermissionService;
     // ── 조회 ──────────────────────────────────────
 
     @Transactional(readOnly = true)
     public List<JiraResponse.MilestoneScope> getScopes(String boardId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
-        return scopeRepository.findByBoardId(boardId).stream()
-            .map(this::toDto)
-            .toList();
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
+        return scopeRepository.findByBoardId(boardId).stream().map(this::toDto).toList();
     }
 
     // ── 저장/삭제 ─────────────────────────────────
 
     @Transactional(readOnly = true)
     public JiraResponse.MilestoneScope getScope(String boardId, String milestoneId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
-        return scopeRepository.findByMilestoneId(milestoneId)
-            .filter(s -> s.getBoard().getId().equals(boardId))
-            .map(this::toDto)
-            .orElse(null);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
+        return scopeRepository
+                .findByMilestoneId(milestoneId)
+                .filter(s -> s.getBoard().getId().equals(boardId))
+                .map(this::toDto)
+                .orElse(null);
     }
 
     /**
@@ -76,19 +74,26 @@ public class JiraMilestoneScopeService {
      *    초기 import는 무거워서 호출 측(컨트롤러)이 별도 트랜잭션으로 이어 실행한다.
      */
     @Transactional
-    public JiraResponse.MilestoneScope saveScope(String boardId, String milestoneId, String userId,
-                                                 com.kanban.domain.integration.jira.dto.JiraRequest.MilestoneScopeSave request) {
-        boardService.checkAdminOrAbove(boardId, userId);
+    public JiraResponse.MilestoneScope saveScope(
+            String boardId,
+            String milestoneId,
+            String userId,
+            com.kanban.domain.integration.jira.dto.JiraRequest.MilestoneScopeSave request) {
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         String jql = request.getJql();
-        String projectKey = request.getProjectKey() != null && !request.getProjectKey().isBlank()
-            ? request.getProjectKey().trim() : null;
+        String projectKey =
+                request.getProjectKey() != null && !request.getProjectKey().isBlank()
+                        ? request.getProjectKey().trim()
+                        : null;
         if (projectKey == null && (jql == null || jql.isBlank())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE); // JQL 스코프는 JQL이 전부다
         }
-        JiraIntegrationConfig config = configRepository.findActiveByBoardId(boardId)
-            .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
-        Milestone milestone = milestoneRepository.findById(milestoneId)
-            .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
+        JiraIntegrationConfig config = configRepository
+                .findActiveByBoardId(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
+        Milestone milestone = milestoneRepository
+                .findById(milestoneId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
         if (!milestone.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
         }
@@ -100,18 +105,20 @@ public class JiraMilestoneScopeService {
                 jiraApiClient.getProject(JiraAuthContext.of(config, token), projectKey);
             } catch (BusinessException e) {
                 throw e.getErrorCode() == ErrorCode.JIRA_ISSUE_NOT_FOUND
-                    ? new BusinessException(ErrorCode.JIRA_PROJECT_NOT_FOUND) : e;
+                        ? new BusinessException(ErrorCode.JIRA_PROJECT_NOT_FOUND)
+                        : e;
             }
         }
 
-        JiraMilestoneScope scope = scopeRepository.findByMilestoneId(milestoneId).orElse(null);
+        JiraMilestoneScope scope =
+                scopeRepository.findByMilestoneId(milestoneId).orElse(null);
         if (scope == null) {
             User creator = userRepository.findById(userId).orElse(null);
             scope = scopeRepository.save(JiraMilestoneScope.builder()
-                .board(milestone.getBoard())
-                .milestone(milestone)
-                .createdBy(creator)
-                .build());
+                    .board(milestone.getBoard())
+                    .milestone(milestone)
+                    .createdBy(creator)
+                    .build());
         }
         scope.updateTarget(jql, projectKey, request.getAgileBoardId(), request.getWriteBackTargetStatusId());
 
@@ -129,7 +136,7 @@ public class JiraMilestoneScopeService {
     /** 스코프 삭제 — 전용 미러 블록을 걷고, 소속 링크는 보드 기본(null)으로 반납. Task·링크는 보존. */
     @Transactional
     public void deleteScope(String boardId, String milestoneId, String userId) {
-        boardService.checkAdminOrAbove(boardId, userId);
+        boardPermissionService.checkAdminOrAbove(boardId, userId);
         scopeRepository.findByMilestoneId(milestoneId).ifPresent(scope -> {
             if (!scope.getBoard().getId().equals(boardId)) {
                 throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
@@ -152,14 +159,18 @@ public class JiraMilestoneScopeService {
     public void claimAllForBoard(String boardId) {
         List<JiraMilestoneScope> scopes = scopeRepository.findActiveByBoardId(boardId);
         if (scopes.isEmpty()) return;
-        JiraIntegrationConfig config = configRepository.findActiveByBoardId(boardId).orElse(null);
+        JiraIntegrationConfig config =
+                configRepository.findActiveByBoardId(boardId).orElse(null);
         if (config == null) return;
         for (JiraMilestoneScope scope : scopes) {
             try {
                 claimScope(config, scope);
             } catch (Exception e) {
-                log.warn("JIRA scope claim failed for board {} milestone {}: {}",
-                    boardId, scope.getMilestone().getId(), e.getMessage());
+                log.warn(
+                        "JIRA scope claim failed for board {} milestone {}: {}",
+                        boardId,
+                        scope.getMilestone().getId(),
+                        e.getMessage());
             }
         }
     }
@@ -170,12 +181,11 @@ public class JiraMilestoneScopeService {
         JiraAuthContext ctx = JiraAuthContext.of(config, token);
 
         String jql = scope.getJql() != null && !scope.getJql().isBlank()
-            ? scope.getJql()
-            : "project = " + scope.getProjectKey();   // 프로젝트 스코프는 JQL이 선택
+                ? scope.getJql()
+                : "project = " + scope.getProjectKey(); // 프로젝트 스코프는 JQL이 선택
         KeySearch search = fetchKeys(ctx, jql);
         String boardId = scope.getBoard().getId();
-        List<JiraIssueLink> links = issueLinkRepository
-            .findByBoardIdAndTargetType(boardId, JiraLinkTargetType.TASK);
+        List<JiraIssueLink> links = issueLinkRepository.findByBoardIdAndTargetType(boardId, JiraLinkTargetType.TASK);
 
         int claimed = 0;
         for (JiraIssueLink link : links) {
@@ -222,22 +232,23 @@ public class JiraMilestoneScopeService {
 
     private JiraResponse.MilestoneScope toDto(JiraMilestoneScope scope) {
         long count = issueLinkRepository
-            .findByBoardIdAndTargetTypeAndScopeId(scope.getBoard().getId(), JiraLinkTargetType.TASK, scope.getId())
-            .size();
+                .findByBoardIdAndTargetTypeAndScopeId(scope.getBoard().getId(), JiraLinkTargetType.TASK, scope.getId())
+                .size();
         return toDto(scope, (int) count);
     }
 
     private JiraResponse.MilestoneScope toDto(JiraMilestoneScope scope, int claimedCount) {
         return JiraResponse.MilestoneScope.builder()
-            .milestoneId(scope.getMilestone().getId())
-            .jql(scope.getJql())
-            .projectKey(scope.getProjectKey())
-            .agileBoardId(scope.getAgileBoardId())
-            .writeBackTargetStatusId(scope.getWriteBackTargetStatusId())
-            .mirrorReady(scope.getMirrorColumnsJson() != null && !scope.getMirrorColumnsJson().isBlank())
-            .active(Boolean.TRUE.equals(scope.getActive()))
-            .claimedCount(claimedCount)
-            .lastClaimedAt(scope.getLastClaimedAt())
-            .build();
+                .milestoneId(scope.getMilestone().getId())
+                .jql(scope.getJql())
+                .projectKey(scope.getProjectKey())
+                .agileBoardId(scope.getAgileBoardId())
+                .writeBackTargetStatusId(scope.getWriteBackTargetStatusId())
+                .mirrorReady(scope.getMirrorColumnsJson() != null
+                        && !scope.getMirrorColumnsJson().isBlank())
+                .active(Boolean.TRUE.equals(scope.getActive()))
+                .claimedCount(claimedCount)
+                .lastClaimedAt(scope.getLastClaimedAt())
+                .build();
     }
 }

@@ -4,20 +4,19 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.minikanban.BoardMiniKanban;
 import com.kanban.domain.minikanban.BoardMiniKanbanRepository;
 import com.kanban.domain.minikanban.dto.MiniKanbanRequest;
 import com.kanban.domain.minikanban.dto.MiniKanbanResponse;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -26,14 +25,16 @@ import java.util.List;
 public class MiniKanbanService {
 
     private final BoardMiniKanbanRepository miniKanbanRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final ObjectMapper objectMapper;
 
     /** 미니 칸반 레이아웃 조회 (Viewer 이상). 저장된 행이 없으면 빈 문서를 반환한다. */
     public MiniKanbanResponse getMiniKanban(String boardId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
-        return miniKanbanRepository.findByBoardId(boardId)
+        return miniKanbanRepository
+                .findByBoardId(boardId)
                 .map(this::toResponse)
                 .orElseGet(() -> MiniKanbanResponse.builder()
                         .nodes(new ArrayList<>())
@@ -44,11 +45,12 @@ public class MiniKanbanService {
     /** 미니 칸반 레이아웃 저장 (Member 이상). 보드당 1행 upsert. */
     @Transactional
     public MiniKanbanResponse saveMiniKanban(String boardId, String userId, MiniKanbanRequest.Save request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
         String data = serialize(request);
 
-        BoardMiniKanban miniKanban = miniKanbanRepository.findByBoardId(boardId)
+        BoardMiniKanban miniKanban = miniKanbanRepository
+                .findByBoardId(boardId)
                 .orElseGet(() -> BoardMiniKanban.builder().boardId(boardId).build());
         miniKanban.updateData(data, userId);
         miniKanban = miniKanbanRepository.save(miniKanban);
@@ -88,6 +90,9 @@ public class MiniKanbanService {
                 log.warn("Failed to parse stored mini kanban data for board {}", miniKanban.getBoardId(), e);
             }
         }
-        return MiniKanbanResponse.builder().nodes(nodes).collapsedBlocks(collapsedBlocks).build();
+        return MiniKanbanResponse.builder()
+                .nodes(nodes)
+                .collapsedBlocks(collapsedBlocks)
+                .build();
     }
 }

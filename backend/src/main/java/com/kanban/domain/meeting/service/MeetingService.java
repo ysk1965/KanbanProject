@@ -5,7 +5,9 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
+import com.kanban.domain.integration.discord.service.DiscordNotificationService;
+import com.kanban.domain.integration.slack.service.SlackNotificationService;
 import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.meeting.MeetingRepository;
 import com.kanban.domain.meeting.dto.MeetingAIResponse;
@@ -15,10 +17,7 @@ import com.kanban.domain.note.Note;
 import com.kanban.domain.note.NoteRepository;
 import com.kanban.domain.note.NoteType;
 import com.kanban.domain.note.dto.NoteResponse;
-import com.kanban.domain.notification.NotificationType;
 import com.kanban.domain.notification.service.NotificationService;
-import com.kanban.domain.integration.discord.service.DiscordNotificationService;
-import com.kanban.domain.integration.slack.service.SlackNotificationService;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
@@ -26,11 +25,6 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
@@ -39,6 +33,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -54,7 +52,8 @@ public class MeetingService {
     private final BoardMemberRepository boardMemberRepository;
     private final NoteRepository noteRepository;
     private final UserRepository userRepository;
-    private final BoardService boardService;
+
+    private final BoardPermissionService boardPermissionService;
     private final NotificationService notificationService;
     private final SlackNotificationService slackNotificationService;
     private final DiscordNotificationService discordNotificationService;
@@ -62,34 +61,40 @@ public class MeetingService {
     private final ObjectMapper objectMapper;
 
     public List<MeetingResponse.Summary> getMeetingsByDate(String boardId, LocalDate date, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         validateMeetingAccess(boardId);
 
         List<Meeting> meetings = meetingRepository.findByBoardIdAndMeetingDateOrderByStartTimeAsc(boardId, date);
 
-        return meetings.stream().map(meeting -> {
-            int participantCount = scheduleBlockRepository.countDistinctAssigneeByMeetingId(meeting.getId());
-            return MeetingResponse.Summary.of(meeting, participantCount);
-        }).toList();
+        return meetings.stream()
+                .map(meeting -> {
+                    int participantCount = scheduleBlockRepository.countDistinctAssigneeByMeetingId(meeting.getId());
+                    return MeetingResponse.Summary.of(meeting, participantCount);
+                })
+                .toList();
     }
 
-    public List<MeetingResponse.Summary> getMeetingsByDateRange(String boardId, LocalDate startDate, LocalDate endDate, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+    public List<MeetingResponse.Summary> getMeetingsByDateRange(
+            String boardId, LocalDate startDate, LocalDate endDate, String userId) {
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
         validateMeetingAccess(boardId);
 
         List<Meeting> meetings = meetingRepository.findByBoardIdAndMeetingDateBetweenOrderByMeetingDateAscStartTimeAsc(
                 boardId, startDate, endDate);
 
-        return meetings.stream().map(meeting -> {
-            int participantCount = scheduleBlockRepository.countDistinctAssigneeByMeetingId(meeting.getId());
-            return MeetingResponse.Summary.of(meeting, participantCount);
-        }).toList();
+        return meetings.stream()
+                .map(meeting -> {
+                    int participantCount = scheduleBlockRepository.countDistinctAssigneeByMeetingId(meeting.getId());
+                    return MeetingResponse.Summary.of(meeting, participantCount);
+                })
+                .toList();
     }
 
     public MeetingResponse.Detail getMeetingDetail(String boardId, String meetingId, String userId) {
-        boardService.checkViewerOrAbove(boardId, userId);
+        boardPermissionService.checkViewerOrAbove(boardId, userId);
 
-        Meeting meeting = meetingRepository.findById(meetingId)
+        Meeting meeting = meetingRepository
+                .findById(meetingId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
 
         if (!meeting.getBoard().getId().equals(boardId)) {
@@ -98,20 +103,20 @@ public class MeetingService {
 
         List<User> participants = scheduleBlockRepository.findDistinctAssigneesByMeetingId(meetingId);
 
-        return MeetingResponse.Detail.of(meeting, participants,
-                deserializeAiSuggestions(meeting), deserializeDiarizedTranscript(meeting));
+        return MeetingResponse.Detail.of(
+                meeting, participants, deserializeAiSuggestions(meeting), deserializeDiarizedTranscript(meeting));
     }
 
     @Transactional
     public MeetingResponse.Detail createMeeting(String boardId, String userId, MeetingRequest.Create request) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
         validateMeetingAccess(boardId);
 
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        User creator = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User creator =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         String color = request.getColor() != null ? request.getColor() : "#8B5CF6";
         String recurrenceRule = request.getRecurrenceRule();
@@ -123,7 +128,8 @@ public class MeetingService {
 
         // recurrenceDaysOfWeek를 콤마 구분 문자열로 변환
         String daysOfWeekStr = null;
-        if (recurrenceGroupId != null && request.getRecurrenceDaysOfWeek() != null
+        if (recurrenceGroupId != null
+                && request.getRecurrenceDaysOfWeek() != null
                 && !request.getRecurrenceDaysOfWeek().isEmpty()) {
             daysOfWeekStr = request.getRecurrenceDaysOfWeek().stream()
                     .map(String::valueOf)
@@ -159,31 +165,47 @@ public class MeetingService {
         // 반복 인스턴스 생성
         if (recurrenceGroupId != null) {
             List<Meeting> recurringInstances = generateRecurringInstances(
-                    board, creator, request, recurrenceRule, recurrenceGroupId, color,
-                    firstMeetingDate, daysOfWeekStr, request.getRecurrenceWeekOfMonth());
+                    board,
+                    creator,
+                    request,
+                    recurrenceRule,
+                    recurrenceGroupId,
+                    color,
+                    firstMeetingDate,
+                    daysOfWeekStr,
+                    request.getRecurrenceWeekOfMonth());
             if (!recurringInstances.isEmpty()) {
                 meetingRepository.saveAll(recurringInstances);
             }
-            log.info("Recurring meeting created: group={}, instances={}", recurrenceGroupId, recurringInstances.size() + 1);
+            log.info(
+                    "Recurring meeting created: group={}, instances={}",
+                    recurrenceGroupId,
+                    recurringInstances.size() + 1);
         } else {
             log.info("Meeting created: {} by user: {}", firstMeeting.getId(), userId);
         }
 
         MeetingResponse.Detail response = MeetingResponse.Detail.of(firstMeeting, List.of(), null);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEETING_CREATED,
-                userId, creator.getName(), response);
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.MEETING_CREATED, userId, creator.getName(), response);
 
         return response;
     }
 
-    private List<Meeting> generateRecurringInstances(Board board, User creator,
-                                                      MeetingRequest.Create request,
-                                                      String recurrenceRule, String recurrenceGroupId,
-                                                      String color, LocalDate firstMeetingDate,
-                                                      String daysOfWeekStr, Integer weekOfMonth) {
+    private List<Meeting> generateRecurringInstances(
+            Board board,
+            User creator,
+            MeetingRequest.Create request,
+            String recurrenceRule,
+            String recurrenceGroupId,
+            String color,
+            LocalDate firstMeetingDate,
+            String daysOfWeekStr,
+            Integer weekOfMonth) {
         List<Meeting> instances = new ArrayList<>();
         LocalDate maxDate = firstMeetingDate.plusDays(84); // 12주
-        if (request.getRecurrenceEndDate() != null && request.getRecurrenceEndDate().isBefore(maxDate)) {
+        if (request.getRecurrenceEndDate() != null
+                && request.getRecurrenceEndDate().isBefore(maxDate)) {
             maxDate = request.getRecurrenceEndDate();
         }
 
@@ -200,8 +222,16 @@ public class MeetingService {
                     if (!instanceDate.isAfter(firstMeetingDate)) continue;
                     if (instanceDate.isAfter(maxDate)) continue;
 
-                    instances.add(buildRecurringInstance(board, creator, request, instanceDate,
-                            recurrenceRule, recurrenceGroupId, color, daysOfWeekStr, weekOfMonth));
+                    instances.add(buildRecurringInstance(
+                            board,
+                            creator,
+                            request,
+                            instanceDate,
+                            recurrenceRule,
+                            recurrenceGroupId,
+                            color,
+                            daysOfWeekStr,
+                            weekOfMonth));
                 }
                 weekStart = weekStart.plusWeeks(weekStep);
             }
@@ -213,8 +243,16 @@ public class MeetingService {
             while (!currentMonth.isAfter(maxDate)) {
                 LocalDate instanceDate = getNthDayOfWeekInMonth(currentMonth, targetDow, weekOfMonth);
                 if (instanceDate != null && !instanceDate.isAfter(maxDate)) {
-                    instances.add(buildRecurringInstance(board, creator, request, instanceDate,
-                            recurrenceRule, recurrenceGroupId, color, daysOfWeekStr, weekOfMonth));
+                    instances.add(buildRecurringInstance(
+                            board,
+                            creator,
+                            request,
+                            instanceDate,
+                            recurrenceRule,
+                            recurrenceGroupId,
+                            color,
+                            daysOfWeekStr,
+                            weekOfMonth));
                 }
                 currentMonth = currentMonth.plusMonths(1);
             }
@@ -225,8 +263,16 @@ public class MeetingService {
                 currentDate = getNextRecurrenceDate(currentDate, recurrenceRule);
                 if (currentDate.isAfter(maxDate)) break;
 
-                instances.add(buildRecurringInstance(board, creator, request, currentDate,
-                        recurrenceRule, recurrenceGroupId, color, daysOfWeekStr, weekOfMonth));
+                instances.add(buildRecurringInstance(
+                        board,
+                        creator,
+                        request,
+                        currentDate,
+                        recurrenceRule,
+                        recurrenceGroupId,
+                        color,
+                        daysOfWeekStr,
+                        weekOfMonth));
             }
         }
         return instances;
@@ -243,10 +289,16 @@ public class MeetingService {
         return result;
     }
 
-    private Meeting buildRecurringInstance(Board board, User creator, MeetingRequest.Create request,
-                                           LocalDate meetingDate, String recurrenceRule,
-                                           String recurrenceGroupId, String color,
-                                           String daysOfWeekStr, Integer weekOfMonth) {
+    private Meeting buildRecurringInstance(
+            Board board,
+            User creator,
+            MeetingRequest.Create request,
+            LocalDate meetingDate,
+            String recurrenceRule,
+            String recurrenceGroupId,
+            String color,
+            String daysOfWeekStr,
+            Integer weekOfMonth) {
         return Meeting.builder()
                 .board(board)
                 .title(request.getTitle())
@@ -295,7 +347,9 @@ public class MeetingService {
     private LocalDate findFirstMatchingDate(LocalDate meetingDate, List<Integer> daysOfWeek) {
         for (int i = 0; i < 7; i++) {
             LocalDate candidate = meetingDate.plusDays(i);
-            int jsDay = candidate.getDayOfWeek() == DayOfWeek.SUNDAY ? 0 : candidate.getDayOfWeek().getValue();
+            int jsDay = candidate.getDayOfWeek() == DayOfWeek.SUNDAY
+                    ? 0
+                    : candidate.getDayOfWeek().getValue();
             if (daysOfWeek.contains(jsDay)) {
                 return candidate;
             }
@@ -313,11 +367,12 @@ public class MeetingService {
     }
 
     @Transactional
-    public MeetingResponse.Detail updateMeeting(String boardId, String meetingId, String userId,
-                                                 MeetingRequest.Update request, String scope) {
-        boardService.checkMemberOrAbove(boardId, userId);
+    public MeetingResponse.Detail updateMeeting(
+            String boardId, String meetingId, String userId, MeetingRequest.Update request, String scope) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Meeting meeting = meetingRepository.findById(meetingId)
+        Meeting meeting = meetingRepository
+                .findById(meetingId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
 
         if (!meeting.getBoard().getId().equals(boardId)) {
@@ -335,8 +390,7 @@ public class MeetingService {
                         request.getStartTime(),
                         request.getEndTime(),
                         m.getId().equals(meetingId) ? request.getMemo() : null, // memo는 현재 회의만
-                        request.getColor()
-                );
+                        request.getColor());
                 if (request.getRecurrenceEndDate() != null) {
                     m.updateRecurrenceEndDate(request.getRecurrenceEndDate());
                 }
@@ -344,15 +398,23 @@ public class MeetingService {
             // recurrence_end_date 변경 시 종료일 이후 회의 삭제
             if (request.getRecurrenceEndDate() != null) {
                 List<Meeting> allGroupMeetings = meetingRepository.findByRecurrenceGroupIdFromDate(
-                        meeting.getRecurrenceGroupId(), request.getRecurrenceEndDate().plusDays(1));
+                        meeting.getRecurrenceGroupId(),
+                        request.getRecurrenceEndDate().plusDays(1));
                 if (!allGroupMeetings.isEmpty()) {
                     meetingRepository.deleteAll(allGroupMeetings);
-                    log.info("Deleted {} meetings after new recurrence end date {} for group={}",
-                            allGroupMeetings.size(), request.getRecurrenceEndDate(), meeting.getRecurrenceGroupId());
+                    log.info(
+                            "Deleted {} meetings after new recurrence end date {} for group={}",
+                            allGroupMeetings.size(),
+                            request.getRecurrenceEndDate(),
+                            meeting.getRecurrenceGroupId());
                 }
             }
-            log.info("Recurring meetings updated from {}: group={}, count={} by user: {}",
-                    meeting.getMeetingDate(), meeting.getRecurrenceGroupId(), futureMeetings.size(), userId);
+            log.info(
+                    "Recurring meetings updated from {}: group={}, count={} by user: {}",
+                    meeting.getMeetingDate(),
+                    meeting.getRecurrenceGroupId(),
+                    futureMeetings.size(),
+                    userId);
         } else {
             meeting.update(
                     request.getTitle(),
@@ -360,26 +422,27 @@ public class MeetingService {
                     request.getStartTime(),
                     request.getEndTime(),
                     request.getMemo(),
-                    request.getColor()
-            );
+                    request.getColor());
             log.info("Meeting updated: {} by user: {}", meetingId, userId);
         }
 
         List<User> participants = scheduleBlockRepository.findDistinctAssigneesByMeetingId(meetingId);
 
         User user = userRepository.findById(userId).orElse(null);
-        MeetingResponse.Detail response = MeetingResponse.Detail.of(meeting, participants, deserializeAiSuggestions(meeting));
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEETING_UPDATED,
-                userId, user != null ? user.getName() : null, response);
+        MeetingResponse.Detail response =
+                MeetingResponse.Detail.of(meeting, participants, deserializeAiSuggestions(meeting));
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.MEETING_UPDATED, userId, user != null ? user.getName() : null, response);
 
         return response;
     }
 
     @Transactional
     public void deleteMeeting(String boardId, String meetingId, String userId, String scope) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Meeting meeting = meetingRepository.findById(meetingId)
+        Meeting meeting = meetingRepository
+                .findById(meetingId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
 
         if (!meeting.getBoard().getId().equals(boardId)) {
@@ -390,16 +453,22 @@ public class MeetingService {
 
         if ("THIS_AND_FUTURE".equals(scope) && meeting.isRecurring()) {
             // 반복 미팅 삭제 전 연관된 schedule_blocks의 meeting_id를 null로 해제
-            List<String> meetingIds = meetingRepository.findByRecurrenceGroupIdFromDate(
-                    meeting.getRecurrenceGroupId(), meeting.getMeetingDate())
-                    .stream().map(Meeting::getId).toList();
+            List<String> meetingIds =
+                    meetingRepository
+                            .findByRecurrenceGroupIdFromDate(meeting.getRecurrenceGroupId(), meeting.getMeetingDate())
+                            .stream()
+                            .map(Meeting::getId)
+                            .toList();
             if (!meetingIds.isEmpty()) {
                 scheduleBlockRepository.unlinkByMeetingIds(meetingIds);
             }
             meetingRepository.deleteByRecurrenceGroupIdFromDate(
                     meeting.getRecurrenceGroupId(), meeting.getMeetingDate());
-            log.info("Recurring meetings deleted from {}: group={} by user: {}",
-                    meeting.getMeetingDate(), meeting.getRecurrenceGroupId(), userId);
+            log.info(
+                    "Recurring meetings deleted from {}: group={} by user: {}",
+                    meeting.getMeetingDate(),
+                    meeting.getRecurrenceGroupId(),
+                    userId);
         } else {
             // 단일 미팅 삭제 전 연관된 schedule_blocks의 meeting_id를 null로 해제
             scheduleBlockRepository.unlinkByMeetingId(meetingId);
@@ -408,16 +477,21 @@ public class MeetingService {
         }
 
         User user = userRepository.findById(userId).orElse(null);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEETING_DELETED,
-                userId, user != null ? user.getName() : null, Map.of("id", deletedMeetingId));
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.MEETING_DELETED,
+                userId,
+                user != null ? user.getName() : null,
+                Map.of("id", deletedMeetingId));
     }
 
     @Transactional
     public MeetingResponse.TranscriptResult updateTranscript(
             String boardId, String meetingId, String userId, String transcript, String diarizedTranscriptJson) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Meeting meeting = meetingRepository.findById(meetingId)
+        Meeting meeting = meetingRepository
+                .findById(meetingId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
         if (!meeting.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.MEETING_NOT_FOUND);
@@ -430,7 +504,8 @@ public class MeetingService {
             // Preserve diarized transcript when editing in conversation mode
             meeting.updateDiarizedTranscript(diarizedTranscriptJson);
             try {
-                diarizedTranscript = objectMapper.readValue(diarizedTranscriptJson, MeetingResponse.DiarizedTranscript.class);
+                diarizedTranscript =
+                        objectMapper.readValue(diarizedTranscriptJson, MeetingResponse.DiarizedTranscript.class);
             } catch (Exception e) {
                 log.warn("Failed to parse diarized transcript JSON: {}", e.getMessage());
             }
@@ -442,10 +517,10 @@ public class MeetingService {
 
         User user = userRepository.findById(userId).orElse(null);
         List<User> participants = scheduleBlockRepository.findDistinctAssigneesByMeetingId(meetingId);
-        MeetingResponse.Detail detailResponse = MeetingResponse.Detail.of(meeting, participants,
-                deserializeAiSuggestions(meeting), diarizedTranscript);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEETING_UPDATED,
-                userId, user != null ? user.getName() : null, detailResponse);
+        MeetingResponse.Detail detailResponse =
+                MeetingResponse.Detail.of(meeting, participants, deserializeAiSuggestions(meeting), diarizedTranscript);
+        webSocketEventService.sendBoardEvent(
+                boardId, BoardEventType.MEETING_UPDATED, userId, user != null ? user.getName() : null, detailResponse);
 
         return MeetingResponse.TranscriptResult.builder()
                 .meetingId(meetingId)
@@ -456,9 +531,10 @@ public class MeetingService {
 
     @Transactional
     public void notifyParticipants(String boardId, String meetingId, String userId, String originUrl) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Meeting meeting = meetingRepository.findById(meetingId)
+        Meeting meeting = meetingRepository
+                .findById(meetingId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
 
         if (!meeting.getBoard().getId().equals(boardId)) {
@@ -466,14 +542,13 @@ public class MeetingService {
         }
 
         Board board = meeting.getBoard();
-        User sender = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User sender =
+                userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // 보드 전체 멤버 (본인 포함)
         List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
-        List<String> memberUserIds = members.stream()
-                .map(m -> m.getUser().getId())
-                .toList();
+        List<String> memberUserIds =
+                members.stream().map(m -> m.getUser().getId()).toList();
 
         // In-app notification
         notificationService.createMeetingMemoNotifications(meeting, sender, board, memberUserIds);
@@ -487,21 +562,22 @@ public class MeetingService {
 
     @Transactional
     public NoteResponse.Detail saveToNote(String boardId, String meetingId, String userId) {
-        boardService.checkMemberOrAbove(boardId, userId);
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Meeting meeting = meetingRepository.findById(meetingId)
+        Meeting meeting = meetingRepository
+                .findById(meetingId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
         if (!meeting.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.MEETING_NOT_FOUND);
         }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         Board board = meeting.getBoard();
 
         // Find or create "회의록" folder
         Note folder = noteRepository.findAllByBoardIdNotDeleted(boardId).stream()
-                .filter(n -> n.getType() == NoteType.FOLDER && n.getParent() == null
+                .filter(n -> n.getType() == NoteType.FOLDER
+                        && n.getParent() == null
                         && MEETING_NOTES_FOLDER.equals(n.getTitle()))
                 .findFirst()
                 .orElseGet(() -> {
@@ -543,11 +619,11 @@ public class MeetingService {
 
     @Transactional
     public MeetingResponse.SpeakerMappingResult updateSpeakerMapping(
-            String boardId, String meetingId, String userId,
-            Map<String, String> speakerMapping) {
-        boardService.checkMemberOrAbove(boardId, userId);
+            String boardId, String meetingId, String userId, Map<String, String> speakerMapping) {
+        boardPermissionService.checkMemberOrAbove(boardId, userId);
 
-        Meeting meeting = meetingRepository.findById(meetingId)
+        Meeting meeting = meetingRepository
+                .findById(meetingId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
         if (!meeting.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.MEETING_NOT_FOUND);
@@ -562,8 +638,11 @@ public class MeetingService {
         }
 
         User user = userRepository.findById(userId).orElse(null);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEETING_UPDATED,
-                userId, user != null ? user.getName() : null,
+        webSocketEventService.sendBoardEvent(
+                boardId,
+                BoardEventType.MEETING_UPDATED,
+                userId,
+                user != null ? user.getName() : null,
                 Map.of("id", meetingId, "speakerMapping", speakerMapping));
 
         log.info("Speaker mapping updated for meeting: {} by user: {}", meetingId, userId);
@@ -588,12 +667,16 @@ public class MeetingService {
 
         if (meeting.getMemo() != null && !meeting.getMemo().isBlank()) {
             sb.append("<h2>메모</h2>");
-            sb.append("<p>").append(escapeHtml(meeting.getMemo()).replace("\n", "<br>")).append("</p>");
+            sb.append("<p>")
+                    .append(escapeHtml(meeting.getMemo()).replace("\n", "<br>"))
+                    .append("</p>");
         }
 
         // Use diarized transcript if available, otherwise fall back to plain transcript
         MeetingResponse.DiarizedTranscript diarized = deserializeDiarizedTranscript(meeting);
-        if (diarized != null && diarized.getSegments() != null && !diarized.getSegments().isEmpty()) {
+        if (diarized != null
+                && diarized.getSegments() != null
+                && !diarized.getSegments().isEmpty()) {
             sb.append("<h2>회의 녹취 (화자 분리)</h2>");
 
             // Build speaker name map from speaker_mapping
@@ -612,13 +695,17 @@ public class MeetingService {
             }
         } else if (meeting.getTranscript() != null && !meeting.getTranscript().isBlank()) {
             sb.append("<h2>회의 녹취</h2>");
-            sb.append("<p>").append(escapeHtml(meeting.getTranscript()).replace("\n", "<br>")).append("</p>");
+            sb.append("<p>")
+                    .append(escapeHtml(meeting.getTranscript()).replace("\n", "<br>"))
+                    .append("</p>");
         }
 
         // AI suggestions summary if available
         if (meeting.getAiSuggestions() != null && !meeting.getAiSuggestions().isBlank()) {
             MeetingAIResponse.Suggestions suggestions = deserializeAiSuggestions(meeting);
-            if (suggestions != null && suggestions.getKeyPoints() != null && !suggestions.getKeyPoints().isEmpty()) {
+            if (suggestions != null
+                    && suggestions.getKeyPoints() != null
+                    && !suggestions.getKeyPoints().isEmpty()) {
                 sb.append("<h2>핵심 포인트</h2><ul>");
                 for (String point : suggestions.getKeyPoints()) {
                     sb.append("<li>").append(escapeHtml(point)).append("</li>");
@@ -658,8 +745,8 @@ public class MeetingService {
     }
 
     private void validateMeetingAccess(String boardId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        Board board =
+                boardRepository.findById(boardId).orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         if (!board.canAccessMeeting()) {
             throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
         }

@@ -1,10 +1,15 @@
 package com.kanban.domain.integration.jira.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.board.service.BoardPermissionService;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.Comment;
 import com.kanban.domain.comment.CommentAttachment;
@@ -19,13 +24,6 @@ import com.kanban.domain.task.TaskRepository;
 import com.kanban.global.config.ClaudeAIProvider;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.test.util.ReflectionTestUtils;
-
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -33,11 +31,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * 자동수정 트리아지 계약 고정 테스트.
@@ -53,7 +52,7 @@ class JiraAutofixTriageServiceTest {
 
     private ClaudeAIProvider claudeAIProvider;
     private BoardRepository boardRepository;
-    private BoardService boardService;
+    private BoardPermissionService boardPermissionService;
     private TaskRepository taskRepository;
     private JiraIssueLinkRepository issueLinkRepository;
     private JiraMilestoneScopeRepository milestoneScopeRepository;
@@ -75,7 +74,7 @@ class JiraAutofixTriageServiceTest {
     void setUp() {
         claudeAIProvider = mock(ClaudeAIProvider.class);
         boardRepository = mock(BoardRepository.class);
-        boardService = mock(BoardService.class);
+        boardPermissionService = mock(BoardPermissionService.class);
         taskRepository = mock(TaskRepository.class);
         issueLinkRepository = mock(JiraIssueLinkRepository.class);
         milestoneScopeRepository = mock(JiraMilestoneScopeRepository.class);
@@ -91,12 +90,23 @@ class JiraAutofixTriageServiceTest {
         boardMemberRepository = mock(BoardMemberRepository.class);
 
         service = new JiraAutofixTriageService(
-                claudeAIProvider, new ObjectMapper(), boardRepository, boardService,
-                taskRepository, issueLinkRepository, milestoneScopeRepository,
-                configRepository, triageRepository,
-                runRepository, eventPublisher, aiUsageLogRepository, aiCreditService,
-                commentRepository, commentAttachmentRepository,
-                checklistItemRepository, boardMemberRepository);
+                claudeAIProvider,
+                new ObjectMapper(),
+                boardRepository,
+                boardPermissionService,
+                taskRepository,
+                issueLinkRepository,
+                milestoneScopeRepository,
+                configRepository,
+                triageRepository,
+                runRepository,
+                eventPublisher,
+                aiUsageLogRepository,
+                aiCreditService,
+                commentRepository,
+                commentAttachmentRepository,
+                checklistItemRepository,
+                boardMemberRepository);
         ReflectionTestUtils.setField(service, "model", MODEL);
 
         board = mock(Board.class);
@@ -110,7 +120,8 @@ class JiraAutofixTriageServiceTest {
         lenient().when(triageRepository.countOutcomesByCategory(any())).thenReturn(List.of());
         lenient().when(triageRepository.findByBoardId(BOARD_ID)).thenReturn(List.of());
         lenient().when(triageRepository.countByVerdictAndCategory(BOARD_ID)).thenReturn(List.of());
-        lenient().when(triageRepository.saveAll(anyList()))
+        lenient()
+                .when(triageRepository.saveAll(anyList()))
                 .thenAnswer(inv -> new ArrayList<>(inv.getArgument(0, Collection.class)));
         lenient().when(runRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(runRepository.findLatest(BOARD_ID)).thenReturn(Optional.empty());
@@ -189,8 +200,7 @@ class JiraAutofixTriageServiceTest {
 
         when(issueLinkRepository.findByBoardIdAndTargetType(BOARD_ID, JiraLinkTargetType.TASK))
                 .thenReturn(List.of(alive, deleted));
-        when(taskRepository.findAllById(anyIterable()))
-                .thenReturn(List.of(task("QASA-1", "제목")));
+        when(taskRepository.findAllById(anyIterable())).thenReturn(List.of(task("QASA-1", "제목")));
         stubClaude(resultJson("QASA-1", "CANDIDATE", "TEXT", "0.8"), "end_turn");
 
         JiraAutofixResponse.TriageRun run = service.triageBoard(BOARD_ID, USER_ID, false);
@@ -235,9 +245,14 @@ class JiraAutofixTriageServiceTest {
         givenIssues("QASA-92");
 
         JiraAutofixTriage prior = JiraAutofixTriage.builder()
-                .board(board).jiraIssueKey("QASA-92").taskId("task-QASA-92")
-                .verdict(AutofixVerdict.EXCLUDED).category(AutofixCategory.ASSET)
-                .confidence(0.7).jiraUpdatedAt(updated).model(MODEL)
+                .board(board)
+                .jiraIssueKey("QASA-92")
+                .taskId("task-QASA-92")
+                .verdict(AutofixVerdict.EXCLUDED)
+                .category(AutofixCategory.ASSET)
+                .confidence(0.7)
+                .jiraUpdatedAt(updated)
+                .model(MODEL)
                 .build();
         when(triageRepository.findByBoardId(BOARD_ID)).thenReturn(List.of(prior));
 
@@ -252,13 +267,16 @@ class JiraAutofixTriageServiceTest {
     @Test
     @DisplayName("이슈 본문이 바뀌면 재판정하고 기존 행을 갱신한다")
     void retriagesChangedIssue() {
-        givenIssues("QASA-92");   // link.jiraUpdatedAt = 2026-08-01
+        givenIssues("QASA-92"); // link.jiraUpdatedAt = 2026-08-01
 
         JiraAutofixTriage prior = JiraAutofixTriage.builder()
-                .board(board).jiraIssueKey("QASA-92").taskId("task-QASA-92")
-                .verdict(AutofixVerdict.EXCLUDED).category(AutofixCategory.ASSET)
+                .board(board)
+                .jiraIssueKey("QASA-92")
+                .taskId("task-QASA-92")
+                .verdict(AutofixVerdict.EXCLUDED)
+                .category(AutofixCategory.ASSET)
                 .confidence(0.7)
-                .jiraUpdatedAt(LocalDateTime.of(2026, 7, 1, 0, 0))   // 더 오래됨 → stale
+                .jiraUpdatedAt(LocalDateTime.of(2026, 7, 1, 0, 0)) // 더 오래됨 → stale
                 .model(MODEL)
                 .build();
         when(triageRepository.findByBoardId(BOARD_ID)).thenReturn(List.of(prior));
@@ -280,9 +298,14 @@ class JiraAutofixTriageServiceTest {
         givenIssues("QASA-92");
 
         JiraAutofixTriage prior = JiraAutofixTriage.builder()
-                .board(board).jiraIssueKey("QASA-92").taskId("task-QASA-92")
-                .verdict(AutofixVerdict.EXCLUDED).category(AutofixCategory.ASSET)
-                .confidence(0.7).jiraUpdatedAt(updated).model(MODEL)
+                .board(board)
+                .jiraIssueKey("QASA-92")
+                .taskId("task-QASA-92")
+                .verdict(AutofixVerdict.EXCLUDED)
+                .category(AutofixCategory.ASSET)
+                .confidence(0.7)
+                .jiraUpdatedAt(updated)
+                .model(MODEL)
                 .build();
         when(triageRepository.findByBoardId(BOARD_ID)).thenReturn(List.of(prior));
         stubClaude(resultJson("QASA-92", "CANDIDATE", "TEXT", "0.9"), "end_turn");
@@ -300,8 +323,7 @@ class JiraAutofixTriageServiceTest {
         givenIssues("QASA-1", "QASA-2", "QASA-3");
         stubClaude(resultJson("QASA-2", "CANDIDATE", "TEXT", "0.9"), "end_turn");
 
-        JiraAutofixResponse.TriageRun run =
-                service.triageBoard(BOARD_ID, USER_ID, false, List.of("QASA-2"));
+        JiraAutofixResponse.TriageRun run = service.triageBoard(BOARD_ID, USER_ID, false, List.of("QASA-2"));
 
         assertThat(run.getScanned()).isEqualTo(1);
         assertThat(run.getTriaged()).isEqualTo(1);
@@ -316,15 +338,19 @@ class JiraAutofixTriageServiceTest {
 
         // JIRA 갱신 시각이 그대로인 상태(= 평소 기준이면 건너뛴다). 카드가 BRIDGE 안에서만 움직인 경우다
         JiraAutofixTriage prior = JiraAutofixTriage.builder()
-                .board(board).jiraIssueKey("QASA-92").taskId("task-QASA-92")
-                .verdict(AutofixVerdict.CANDIDATE).category(AutofixCategory.TEXT)
-                .confidence(0.9).jiraUpdatedAt(updated).model(MODEL)
+                .board(board)
+                .jiraIssueKey("QASA-92")
+                .taskId("task-QASA-92")
+                .verdict(AutofixVerdict.CANDIDATE)
+                .category(AutofixCategory.TEXT)
+                .confidence(0.9)
+                .jiraUpdatedAt(updated)
+                .model(MODEL)
                 .build();
         when(triageRepository.findByBoardId(BOARD_ID)).thenReturn(List.of(prior));
         stubClaude(resultJson("QASA-92", "EXCLUDED", "DESIGN_INTENT", "0.4"), "end_turn");
 
-        JiraAutofixResponse.TriageRun run =
-                service.triageBoard(BOARD_ID, USER_ID, false, List.of("QASA-92"));
+        JiraAutofixResponse.TriageRun run = service.triageBoard(BOARD_ID, USER_ID, false, List.of("QASA-92"));
 
         assertThat(run.getSkipped()).isZero();
         assertThat(run.getTriaged()).isEqualTo(1);
@@ -336,8 +362,7 @@ class JiraAutofixTriageServiceTest {
     void scopedTriageWithUnknownKeysFails() {
         givenIssues("QASA-1");
 
-        assertThatThrownBy(() ->
-                service.triageBoard(BOARD_ID, USER_ID, false, List.of("QASA-999")))
+        assertThatThrownBy(() -> service.triageBoard(BOARD_ID, USER_ID, false, List.of("QASA-999")))
                 .isInstanceOf(BusinessException.class);
         verify(claudeAIProvider, never()).chatStructured(any(), any(), any(), anyInt(), any());
     }
@@ -348,8 +373,7 @@ class JiraAutofixTriageServiceTest {
         givenIssues("QASA-1", "QASA-2");
         stubClaude("{\"results\":[]}", "end_turn");
 
-        JiraAutofixResponse.TriageRun run =
-                service.triageBoard(BOARD_ID, USER_ID, false, List.of());
+        JiraAutofixResponse.TriageRun run = service.triageBoard(BOARD_ID, USER_ID, false, List.of());
 
         assertThat(run.getScanned()).isEqualTo(2);
     }
@@ -365,8 +389,7 @@ class JiraAutofixTriageServiceTest {
         service.triageBoard(BOARD_ID, USER_ID, false);
 
         verify(claudeAIProvider, times(2)).chatStructured(any(), any(), any(), anyInt(), any());
-        verify(aiCreditService, times(2)).consumeCredit(eq(BOARD_ID), eq(USER_ID),
-                eq("JIRA_AUTOFIX_TRIAGE"), eq(1));
+        verify(aiCreditService, times(2)).consumeCredit(eq(BOARD_ID), eq(USER_ID), eq("JIRA_AUTOFIX_TRIAGE"), eq(1));
     }
 
     @Test
@@ -384,7 +407,7 @@ class JiraAutofixTriageServiceTest {
         JiraAutofixResponse.TriageRun run = service.triageBoard(BOARD_ID, USER_ID, false);
 
         assertThat(run.getFailedBatches()).isEqualTo(1);
-        assertThat(run.getTriaged()).isEqualTo(1);   // 2번째 배치의 결과는 살아남는다
+        assertThat(run.getTriaged()).isEqualTo(1); // 2번째 배치의 결과는 살아남는다
     }
 
     @Test
@@ -430,11 +453,11 @@ class JiraAutofixTriageServiceTest {
     @Test
     @DisplayName("집계 — 후보 비율과 유형별 분포를 계산한다")
     void summaryAggregates() {
-        when(triageRepository.countByVerdictAndCategory(BOARD_ID)).thenReturn(List.of(
-                new Object[]{AutofixVerdict.CANDIDATE, AutofixCategory.TEXT, 3L},
-                new Object[]{AutofixVerdict.CONDITIONAL, AutofixCategory.UI_STATE, 5L},
-                new Object[]{AutofixVerdict.EXCLUDED, AutofixCategory.ASSET, 12L}
-        ));
+        when(triageRepository.countByVerdictAndCategory(BOARD_ID))
+                .thenReturn(List.of(
+                        new Object[] {AutofixVerdict.CANDIDATE, AutofixCategory.TEXT, 3L},
+                        new Object[] {AutofixVerdict.CONDITIONAL, AutofixCategory.UI_STATE, 5L},
+                        new Object[] {AutofixVerdict.EXCLUDED, AutofixCategory.ASSET, 12L}));
 
         JiraAutofixResponse.Summary summary = service.getSummary(BOARD_ID, USER_ID);
 
@@ -475,8 +498,8 @@ class JiraAutofixTriageServiceTest {
 
         service.triageBoard(BOARD_ID, USER_ID, false);
 
-        verify(boardService).checkAdminOrAbove(BOARD_ID, USER_ID);
-        verify(boardService, never()).checkMemberOrAbove(BOARD_ID, USER_ID);
+        verify(boardPermissionService).checkAdminOrAbove(BOARD_ID, USER_ID);
+        verify(boardPermissionService, never()).checkMemberOrAbove(BOARD_ID, USER_ID);
     }
 
     @Test
@@ -489,8 +512,7 @@ class JiraAutofixTriageServiceTest {
 
         ArgumentCaptor<String> system = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> user = ArgumentCaptor.forClass(String.class);
-        verify(claudeAIProvider).chatStructured(
-                system.capture(), user.capture(), eq(MODEL), eq(8192), any());
+        verify(claudeAIProvider).chatStructured(system.capture(), user.capture(), eq(MODEL), eq(8192), any());
 
         assertThat(system.getValue())
                 .contains("고쳐졌다는 것을 사람 눈 없이 자동으로 검증할 수 있는가")
@@ -522,9 +544,7 @@ class JiraAutofixTriageServiceTest {
 
         ArgumentCaptor<String> system = ArgumentCaptor.forClass(String.class);
         verify(claudeAIProvider).chatStructured(system.capture(), any(), any(), anyInt(), any());
-        assertThat(system.getValue())
-                .contains("이 저장소에는 자동 테스트 코드가 전혀 없다")
-                .contains("검증 수단으로 인정하지 않는다");
+        assertThat(system.getValue()).contains("이 저장소에는 자동 테스트 코드가 전혀 없다").contains("검증 수단으로 인정하지 않는다");
     }
 
     @Test
@@ -538,16 +558,16 @@ class JiraAutofixTriageServiceTest {
 
         ArgumentCaptor<String> system = ArgumentCaptor.forClass(String.class);
         verify(claudeAIProvider).chatStructured(system.capture(), any(), any(), anyInt(), any());
-        assertThat(system.getValue())
-                .contains("테스트 기반이 갖춰져 있고")
-                .doesNotContain("자동 테스트 코드가 전혀 없다");
+        assertThat(system.getValue()).contains("테스트 기반이 갖춰져 있고").doesNotContain("자동 테스트 코드가 전혀 없다");
     }
 
     @Test
     @DisplayName("검증 기반이 바뀌면 기존 판정을 비운다 — 다른 기준으로 낸 판정은 무의미하다")
     void changingTestInfraClearsVerdicts() {
         JiraIntegrationConfig config = JiraIntegrationConfig.builder()
-                .board(board).autofixTestInfra(TestInfraLevel.NONE).build();
+                .board(board)
+                .autofixTestInfra(TestInfraLevel.NONE)
+                .build();
         when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(config));
 
         String result = service.updateTestInfra(BOARD_ID, USER_ID, "MATURE");
@@ -555,14 +575,16 @@ class JiraAutofixTriageServiceTest {
         assertThat(result).isEqualTo("MATURE");
         assertThat(config.resolveAutofixTestInfra()).isEqualTo(TestInfraLevel.MATURE);
         verify(triageRepository).deleteByBoardId(BOARD_ID);
-        verify(boardService).checkAdminOrAbove(BOARD_ID, USER_ID);
+        verify(boardPermissionService).checkAdminOrAbove(BOARD_ID, USER_ID);
     }
 
     @Test
     @DisplayName("같은 값으로 저장하면 판정을 비우지 않는다")
     void sameTestInfraKeepsVerdicts() {
         JiraIntegrationConfig config = JiraIntegrationConfig.builder()
-                .board(board).autofixTestInfra(TestInfraLevel.PARTIAL).build();
+                .board(board)
+                .autofixTestInfra(TestInfraLevel.PARTIAL)
+                .build();
         when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(config));
 
         service.updateTestInfra(BOARD_ID, USER_ID, "PARTIAL");
@@ -574,7 +596,9 @@ class JiraAutofixTriageServiceTest {
     @DisplayName("알 수 없는 값은 NONE으로 떨어진다 — 낙관적 기본값을 만들지 않는다")
     void unknownTestInfraFallsBackToNone() {
         JiraIntegrationConfig config = JiraIntegrationConfig.builder()
-                .board(board).autofixTestInfra(TestInfraLevel.MATURE).build();
+                .board(board)
+                .autofixTestInfra(TestInfraLevel.MATURE)
+                .build();
         when(configRepository.findByBoardId(BOARD_ID)).thenReturn(Optional.of(config));
 
         assertThat(service.updateTestInfra(BOARD_ID, USER_ID, "SOMEWHAT")).isEqualTo("NONE");
@@ -606,16 +630,14 @@ class JiraAutofixTriageServiceTest {
         assertThat((List<String>) root.get("required")).containsExactly("results");
 
         Map<String, Object> properties = (Map<String, Object>) root.get("properties");
-        Map<String, Object> item =
-                (Map<String, Object>) ((Map<String, Object>) properties.get("results")).get("items");
+        Map<String, Object> item = (Map<String, Object>) ((Map<String, Object>) properties.get("results")).get("items");
         assertThat(item.get("additionalProperties")).isEqualTo(false);
-        assertThat((List<String>) item.get("required")).containsExactlyInAnyOrder(
-                "issue_key", "verdict", "category", "confidence", "verification", "reason");
+        assertThat((List<String>) item.get("required"))
+                .containsExactlyInAnyOrder("issue_key", "verdict", "category", "confidence", "verification", "reason");
 
         Map<String, Object> itemProps = (Map<String, Object>) item.get("properties");
         Map<String, Object> verdict = (Map<String, Object>) itemProps.get("verdict");
-        assertThat((List<String>) verdict.get("enum"))
-                .containsExactly("CANDIDATE", "CONDITIONAL", "EXCLUDED");
+        assertThat((List<String>) verdict.get("enum")).containsExactly("CANDIDATE", "CONDITIONAL", "EXCLUDED");
     }
 
     // ── 개편: 댓글·첨부·실적 되먹임 ────────────────
@@ -652,9 +674,7 @@ class JiraAutofixTriageServiceTest {
 
         service.triageBoard(BOARD_ID, USER_ID, false);
 
-        assertThat(capturedUserPrompt())
-                .contains("댓글 1건")
-                .contains("QA: 3층 진입 시에만 재현됩니다");
+        assertThat(capturedUserPrompt()).contains("댓글 1건").contains("QA: 3층 진입 시에만 재현됩니다");
     }
 
     @Test
@@ -662,8 +682,12 @@ class JiraAutofixTriageServiceTest {
     void keepsLatestCommentsWhenOverflowing() {
         givenIssues("QASA-1");
         List<Comment> many = List.of(
-                comment("A", "첫째", 1), comment("B", "둘째", 2), comment("C", "셋째", 3),
-                comment("D", "넷째", 4), comment("E", "다섯째", 5), comment("F", "여섯째", 6));
+                comment("A", "첫째", 1),
+                comment("B", "둘째", 2),
+                comment("C", "셋째", 3),
+                comment("D", "넷째", 4),
+                comment("E", "다섯째", 5),
+                comment("F", "여섯째", 6));
         when(commentRepository.findByTaskIdWithAuthor("task-QASA-1")).thenReturn(many);
         stubClaude(resultJson("QASA-1", "CANDIDATE", "TEXT", "0.8"), "end_turn");
 
@@ -691,8 +715,8 @@ class JiraAutofixTriageServiceTest {
     @DisplayName("표본이 얇으면 실적을 말하지 않는다 — 가짜 근거는 없는 근거보다 나쁘다")
     void omitsOutcomeBlockWhenSampleTooSmall() {
         givenIssues("QASA-1");
-        when(triageRepository.countOutcomesByCategory(BOARD_ID)).thenReturn(List.<Object[]>of(
-                new Object[]{AutofixCategory.TEXT, AutofixJobStatus.SUCCEEDED, 2L}));
+        when(triageRepository.countOutcomesByCategory(BOARD_ID))
+                .thenReturn(List.<Object[]>of(new Object[] {AutofixCategory.TEXT, AutofixJobStatus.SUCCEEDED, 2L}));
         stubClaude(resultJson("QASA-1", "CANDIDATE", "TEXT", "0.8"), "end_turn");
 
         service.triageBoard(BOARD_ID, USER_ID, false);
@@ -704,10 +728,11 @@ class JiraAutofixTriageServiceTest {
     @DisplayName("표본이 쌓이면 유형별 실적을 근거로 준다 — confidence가 감이 아니라 경험이 된다")
     void feedsOutcomesBackIntoPrompt() {
         givenIssues("QASA-1");
-        when(triageRepository.countOutcomesByCategory(BOARD_ID)).thenReturn(List.<Object[]>of(
-                new Object[]{AutofixCategory.TEXT, AutofixJobStatus.SUCCEEDED, 4L},
-                new Object[]{AutofixCategory.TEXT, AutofixJobStatus.NO_CHANGE, 1L},
-                new Object[]{AutofixCategory.ASSET, AutofixJobStatus.FAILED, 3L}));
+        when(triageRepository.countOutcomesByCategory(BOARD_ID))
+                .thenReturn(List.<Object[]>of(
+                        new Object[] {AutofixCategory.TEXT, AutofixJobStatus.SUCCEEDED, 4L},
+                        new Object[] {AutofixCategory.TEXT, AutofixJobStatus.NO_CHANGE, 1L},
+                        new Object[] {AutofixCategory.ASSET, AutofixJobStatus.FAILED, 3L}));
         stubClaude(resultJson("QASA-1", "CANDIDATE", "TEXT", "0.8"), "end_turn");
 
         service.triageBoard(BOARD_ID, USER_ID, false);
@@ -743,11 +768,16 @@ class JiraAutofixTriageServiceTest {
     void startTriageFinishesInlineWhenNothingToDo() {
         LocalDateTime updated = LocalDateTime.of(2026, 8, 1, 0, 0);
         givenIssues("QASA-92");
-        when(triageRepository.findByBoardId(BOARD_ID)).thenReturn(List.of(
-                JiraAutofixTriage.builder()
-                        .board(board).jiraIssueKey("QASA-92").taskId("task-QASA-92")
-                        .verdict(AutofixVerdict.EXCLUDED).category(AutofixCategory.ASSET)
-                        .confidence(0.7).jiraUpdatedAt(updated).model(MODEL)
+        when(triageRepository.findByBoardId(BOARD_ID))
+                .thenReturn(List.of(JiraAutofixTriage.builder()
+                        .board(board)
+                        .jiraIssueKey("QASA-92")
+                        .taskId("task-QASA-92")
+                        .verdict(AutofixVerdict.EXCLUDED)
+                        .category(AutofixCategory.ASSET)
+                        .confidence(0.7)
+                        .jiraUpdatedAt(updated)
+                        .model(MODEL)
                         .build()));
 
         JiraAutofixResponse.TriageRun run = service.startTriage(BOARD_ID, USER_ID, false, null);
@@ -776,8 +806,8 @@ class JiraAutofixTriageServiceTest {
     void startTriageReclaimsStaleRun() {
         givenIssues("QASA-1");
         JiraAutofixTriageRun dead = JiraAutofixTriageRun.start(board, USER_ID, 1, 1, 0, false);
-        ReflectionTestUtils.setField(dead, "updatedAt",
-                LocalDateTime.now(ZoneOffset.UTC).minusHours(2));
+        ReflectionTestUtils.setField(
+                dead, "updatedAt", LocalDateTime.now(ZoneOffset.UTC).minusHours(2));
         when(runRepository.findLatest(BOARD_ID)).thenReturn(Optional.of(dead));
 
         JiraAutofixResponse.TriageRun run = service.startTriage(BOARD_ID, USER_ID, false, null);
@@ -811,7 +841,7 @@ class JiraAutofixTriageServiceTest {
         givenIssues("QASA-1");
         JiraAutofixTriageRun run = JiraAutofixTriageRun.start(board, USER_ID, 1, 1, 0, false);
         when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
-        stubClaude(null, "end_turn");   // 응답이 비면 그 배치만 실패한다
+        stubClaude(null, "end_turn"); // 응답이 비면 그 배치만 실패한다
 
         service.executeRun("run-1", BOARD_ID, USER_ID, false, null);
 
@@ -827,7 +857,8 @@ class JiraAutofixTriageServiceTest {
         JiraAutofixTriageRun run = JiraAutofixTriageRun.start(board, USER_ID, 1, 1, 0, false);
         when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
         doThrow(new BusinessException(ErrorCode.AI_CREDITS_EXHAUSTED))
-                .when(aiCreditService).consumeCredit(any(), any(), any(), anyInt());
+                .when(aiCreditService)
+                .consumeCredit(any(), any(), any(), anyInt());
 
         service.executeRun("run-1", BOARD_ID, USER_ID, false, null);
 
@@ -855,8 +886,8 @@ class JiraAutofixTriageServiceTest {
     @DisplayName("조회가 유령 실행을 정리한다 — 폴링만 하고 있어도 화면이 풀린다")
     void getRunStatusReclaimsStaleRun() {
         JiraAutofixTriageRun dead = JiraAutofixTriageRun.start(board, USER_ID, 3, 3, 0, false);
-        ReflectionTestUtils.setField(dead, "updatedAt",
-                LocalDateTime.now(ZoneOffset.UTC).minusHours(2));
+        ReflectionTestUtils.setField(
+                dead, "updatedAt", LocalDateTime.now(ZoneOffset.UTC).minusHours(2));
         when(runRepository.findLatest(BOARD_ID)).thenReturn(Optional.of(dead));
 
         JiraAutofixResponse.TriageRun run = service.getRunStatus(BOARD_ID, USER_ID);
